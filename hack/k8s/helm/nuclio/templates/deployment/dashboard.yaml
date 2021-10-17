@@ -116,6 +116,8 @@ spec:
           value: {{ .Values.dashboard.kaniko.image.repository }}:{{ .Values.dashboard.kaniko.image.tag }}
         - name: NUCLIO_KANIKO_CONTAINER_IMAGE_PULL_POLICY
           value: {{ .Values.dashboard.kaniko.image.pullPolicy }}
+        - name: NUCLIO_KANIKO_JOB_DELETION_TIMEOUT
+          value: {{ .Values.dashboard.kaniko.jobDeletionTimeout | quote }}
         {{- if .Values.dashboard.kaniko.insecurePushRegistry }}
         - name: NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY
           value: "true"

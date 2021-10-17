@@ -255,7 +255,6 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 					v1.ResourcePods: resource.MustParse("0"),
 				},
 			},
-			Status: v1.ResourceQuotaStatus{},
 		}, func() {
 
 			suite.DeleteFunctionPods(functionName)

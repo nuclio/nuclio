@@ -30,7 +30,8 @@ type Kaniko struct {
 	cmdRunner            cmdrunner.CmdRunner
 }
 
-func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
+func NewKaniko(logger logger.Logger,
+	kubeClientSet kubernetes.Interface,
 	builderConfiguration *ContainerBuilderConfiguration) (*Kaniko, error) {
 
 	if builderConfiguration == nil {
@@ -47,7 +48,7 @@ func NewKaniko(logger logger.Logger, kubeClientSet kubernetes.Interface,
 	}
 
 	kanikoBuilder := &Kaniko{
-		logger:               logger,
+		logger:               logger.GetChild("kaniko"),
 		kubeClientSet:        kubeClientSet,
 		builderConfiguration: builderConfiguration,
 		jobNameRegex:         jobNameRegex,
@@ -72,20 +73,25 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 	// Remove bundle file from NGINX assets once we are done
 	defer os.Remove(assetPath) // nolint: errcheck
 
-	// Generate kaniko job spec
-	kanikoJobSpec := k.compileKanikoJobSpec(namespace, buildOptions, bundleFilename)
+	// Generate job spec
+	jobSpec := k.compileJobSpec(namespace, buildOptions, bundleFilename)
 
-	k.logger.DebugWith("Create kaniko job", "namespace", namespace, "jobSpec", kanikoJobSpec)
-	kanikoJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(kanikoJobSpec)
+	// create job
+	k.logger.DebugWith("Creating job", "namespace", namespace, "jobSpec", jobSpec)
+	job, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(jobSpec)
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")
 	}
 
-	// Cleanup
-	defer k.deleteJob(namespace, kanikoJob.Name) // nolint: errcheck
+	// Cleanup after 30 minutes, allowing to dev to inspect job / pod information before getting deleted
+	defer time.AfterFunc(k.builderConfiguration.JobDeletionTimeout, func() {
+		if err := k.deleteJob(namespace, job.Name); err != nil {
+			k.logger.WarnWith("Failed to delete job", "err", err.Error())
+		}
+	})
 
 	// Wait for kaniko to finish
-	return k.waitForKanikoJobCompletion(namespace, kanikoJob.Name, buildOptions.BuildTimeoutSeconds)
+	return k.waitForJobCompletion(namespace, job.Name, buildOptions.BuildTimeoutSeconds)
 }
 
 func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
@@ -189,7 +195,7 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 	return path.Base(tarFile.Name()), assetPath, nil
 }
 
-func (k *Kaniko) compileKanikoJobSpec(namespace string,
+func (k *Kaniko) compileJobSpec(namespace string,
 	buildOptions *BuildOptions,
 	bundleFilename string) *batchv1.Job {
 
@@ -337,73 +343,103 @@ func (k *Kaniko) compileJobName(image string) string {
 
 	// Fallback
 	if !k.jobNameRegex.MatchString(jobName) {
-		k.logger.DebugWith("Kaniko job name does not match k8s regex. Won't use function name", "jobName", jobName)
+		k.logger.DebugWith("Job name does not match k8s regex. Won't use function name", "jobName", jobName)
 		jobName = fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, timestamp)
 	}
 
 	return jobName
 }
 
-func (k *Kaniko) waitForKanikoJobCompletion(namespace string, jobName string, buildTimeoutSeconds int64) error {
-	k.logger.DebugWith("Waiting for kaniko to finish", "buildTimeoutSeconds", buildTimeoutSeconds)
+func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTimeoutSeconds int64) error {
+	k.logger.DebugWith("Waiting for job completion", "buildTimeoutSeconds", buildTimeoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
 	for time.Now().Before(timeout) {
-		runningJob, err := k.kubeClientSet.BatchV1().Jobs(namespace).Get(jobName, metav1.GetOptions{})
-
+		runningJob, err := k.kubeClientSet.
+			BatchV1().
+			Jobs(namespace).
+			Get(jobName, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Failed to poll kaniko job status")
 		}
 
 		if runningJob.Status.Succeeded > 0 {
-			jobLogs, err := k.getJobLogs(namespace, jobName)
+			jobLogs, err := k.getJobPodLogs(namespace, jobName)
 			if err != nil {
-				k.logger.Debug("Kaniko job was completed successfully but failed to retrieve job logs")
+				k.logger.Debug("Job was completed successfully but failed to retrieve job logs",
+					"err", err.Error())
 				return nil
 			}
 
-			k.logger.DebugWith("Kaniko job was completed successfully", "jobLogs", jobLogs)
+			k.logger.DebugWith("Job was completed successfully", "jobLogs", jobLogs)
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {
-			jobLogs, err := k.getJobLogs(namespace, jobName)
+			jobPod, err := k.getJobPod(jobName, namespace)
 			if err != nil {
+				return errors.Wrap(err, "Failed to get job pod")
+			}
+			k.logger.WarnWith("Build container image job has failed",
+				"initContainerStatuses", jobPod.Status.InitContainerStatuses,
+				"containerStatuses", jobPod.Status.ContainerStatuses,
+				"conditions", jobPod.Status.Conditions,
+				"reason", jobPod.Status.Reason,
+				"message", jobPod.Status.Message,
+				"phase", jobPod.Status.Phase,
+				"jobName", jobName)
+
+			jobLogs, err := k.getPodLogs(jobPod)
+			if err != nil {
+				k.logger.WarnWith("Failed to get job logs", "err", err.Error())
 				return errors.Wrap(err, "Failed to retrieve kaniko job logs")
 			}
-			return fmt.Errorf("Kaniko job failed. Job logs:\n%s", jobLogs)
+			return fmt.Errorf("Job failed. Job logs:\n%s", jobLogs)
 		}
 
+		k.logger.DebugWith("Waiting for job completion",
+			"ttl", time.Until(timeout),
+			"jobName", jobName)
 		time.Sleep(10 * time.Second)
 	}
-	jobLogs, err := k.getJobLogs(namespace, jobName)
+
+	jobPod, err := k.getJobPod(jobName, namespace)
 	if err != nil {
-		return errors.Wrap(err, "Kaniko job failed and was unable to retrieve job logs")
+		return errors.Wrap(err, "Job failed and was unable to get job pod")
 	}
-	return fmt.Errorf("Kaniko job has timed out. Job logs:\n%s", jobLogs)
+
+	k.logger.WarnWith("Build container image job has timed out",
+		"initContainerStatuses", jobPod.Status.InitContainerStatuses,
+		"containerStatuses", jobPod.Status.ContainerStatuses,
+		"conditions", jobPod.Status.Conditions,
+		"reason", jobPod.Status.Reason,
+		"message", jobPod.Status.Message,
+		"phase", jobPod.Status.Phase,
+		"jobName", jobName)
+
+	jobLogs, err := k.getPodLogs(jobPod)
+	if err != nil {
+		return errors.Wrap(err, "Job failed and was unable to retrieve job logs")
+	}
+	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
 }
 
-func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
-	k.logger.DebugWith("Fetching kaniko job logs", "namespace", namespace, "job", jobName)
-
-	// list pods
-	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
-	})
-
+func (k *Kaniko) getJobPodLogs(jobName string, namespace string) (string, error) {
+	jobPod, err := k.getJobPod(jobName, namespace)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to list job's pods")
+		return "", errors.Wrap(err, "Failed to get job pod")
 	}
-	if len(jobPods.Items) == 0 {
-		return "", errors.New("No pods found for job")
-	}
-	if len(jobPods.Items) > 1 {
-		return "", errors.New("Got too many job pods")
-	}
+	return k.getPodLogs(jobPod)
+}
+
+func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
+	k.logger.DebugWith("Fetching pod logs",
+		"name", jobPod.Name,
+		"namespace", jobPod.Namespace)
 
 	// find job pod
 	restClientRequest := k.kubeClientSet.
 		CoreV1().
-		Pods(namespace).
-		GetLogs(jobPods.Items[0].Name, &v1.PodLogOptions{})
+		Pods(jobPod.Namespace).
+		GetLogs(jobPod.Name, &v1.PodLogOptions{})
 
 	restReadCloser, err := restClientRequest.Stream()
 	if err != nil {
@@ -420,6 +456,24 @@ func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
 	formattedLogContents := k.prettifyLogContents(string(logContents))
 
 	return formattedLogContents, nil
+}
+
+func (k *Kaniko) getJobPod(jobName, namespace string) (*v1.Pod, error) {
+	k.logger.DebugWith("Getting job pods", "jobName", jobName)
+	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
+	})
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to list job's pods")
+	}
+	if len(jobPods.Items) == 0 {
+		return nil, errors.New("No pods found for job")
+	}
+	if len(jobPods.Items) > 1 {
+		return nil, errors.New("Got too many job pods")
+	}
+	return &jobPods.Items[0], nil
 }
 
 func (k *Kaniko) prettifyLogContents(logContents string) string {
@@ -447,13 +501,14 @@ func (k *Kaniko) prettifyLogLine(logLine string) string {
 }
 
 func (k *Kaniko) deleteJob(namespace string, jobName string) error {
-	k.logger.DebugWith("Deleting kaniko job", "namespace", namespace, "job", jobName)
+	k.logger.DebugWith("Deleting job", "namespace", namespace, "job", jobName)
 
 	propagationPolicy := metav1.DeletePropagationBackground
 	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(jobName, &metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	}); err != nil {
-		return errors.Wrap(err, "Failed to delete kaniko job")
+		return errors.Wrap(err, "Failed to delete job")
 	}
+	k.logger.DebugWith("Successfully deleted job", "namespace", namespace, "job", jobName)
 	return nil
 }
