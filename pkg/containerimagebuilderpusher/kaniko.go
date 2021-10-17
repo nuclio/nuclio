@@ -374,6 +374,7 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 		}
 		if runningJob.Status.Failed > 0 {
 			k.logger.WarnWith("Build container image job has failed", "jobName", jobName)
+			jobLogs, err := k.getJobPodLogs(jobName, namespace)
 			if err != nil {
 				k.logger.WarnWith("Failed to get job logs", "err", err.Error())
 				return errors.Wrap(err, "Failed to retrieve kaniko job logs")
@@ -386,36 +387,32 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 			"jobName", jobName)
 		time.Sleep(10 * time.Second)
 	}
-	jobLogs, err := k.getJobLogs(namespace, jobName)
+
+	jobLogs, err := k.getJobPodLogs(namespace, jobName)
 	if err != nil {
 		return errors.Wrap(err, "Job failed and was unable to retrieve job logs")
 	}
 	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
 }
 
-func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
-	k.logger.DebugWith("Fetching kaniko job logs", "namespace", namespace, "job", jobName)
-
-	// list pods
-	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
-	})
-
+func (k *Kaniko) getJobPodLogs(jobName string, namespace string) (string, error) {
+	jobPod, err := k.getJobPod(jobName, namespace)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get job pod")
 	}
-	if len(jobPods.Items) == 0 {
-		return "", errors.New("No pods found for job")
-	}
-	if len(jobPods.Items) > 1 {
-		return "", errors.New("Got too many job pods")
-	}
+	return k.getPodLogs(jobPod)
+}
+
+func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
+	k.logger.DebugWith("Fetching pod logs",
+		"name", jobPod.Name,
+		"namespace", jobPod.Namespace)
 
 	// find job pod
 	restClientRequest := k.kubeClientSet.
 		CoreV1().
-		Pods(namespace).
-		GetLogs(jobPods.Items[0].Name, &v1.PodLogOptions{})
+		Pods(jobPod.Namespace).
+		GetLogs(jobPod.Name, &v1.PodLogOptions{})
 
 	restReadCloser, err := restClientRequest.Stream()
 	if err != nil {
@@ -432,6 +429,24 @@ func (k *Kaniko) getJobLogs(namespace string, jobName string) (string, error) {
 	formattedLogContents := k.prettifyLogContents(string(logContents))
 
 	return formattedLogContents, nil
+}
+
+func (k *Kaniko) getJobPod(jobName, namespace string) (*v1.Pod, error) {
+	k.logger.DebugWith("Getting job pods", "jobName", jobName)
+	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
+	})
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to list job's pods")
+	}
+	if len(jobPods.Items) == 0 {
+		return nil, errors.New("No pods found for job")
+	}
+	if len(jobPods.Items) > 1 {
+		return nil, errors.New("Got too many job pods")
+	}
+	return &jobPods.Items[0], nil
 }
 
 func (k *Kaniko) prettifyLogContents(logContents string) string {
