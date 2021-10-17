@@ -294,8 +294,9 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 	// do not allow disabling a function in imported state
 	// in the imported state, after the function has the skip-build and skip-deploy annotations removed,
 	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
-	if createFunctionOptions.FunctionConfig.Spec.Disable &&
-		existingFunctionConfig.Status.State == functionconfig.FunctionStateImported {
+	if existingFunctionConfig != nil &&
+		existingFunctionConfig.Status.State == functionconfig.FunctionStateImported &&
+		createFunctionOptions.FunctionConfig.Spec.Disable {
 		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
 	}
 
