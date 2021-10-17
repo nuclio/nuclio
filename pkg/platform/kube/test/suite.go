@@ -626,10 +626,10 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		time.Second*30, // cronjob stale duration
 		suite.PlatformConfiguration,
 		"nuclio-platform-config",
-		4,
-		4,
-		4,
-		4)
+		1,
+		1,
+		1,
+		1)
 	suite.Require().NoError(err)
 	return controllerInstance
 }
