@@ -291,6 +291,15 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 		return nuclio.WrapErrConflict(err)
 	}
 
+	// do not allow disabling a function in imported state
+	// in the imported state, after the function has the skip-build and skip-deploy annotations removed,
+	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
+	if existingFunctionConfig != nil &&
+		existingFunctionConfig.Status.State == functionconfig.FunctionStateImported &&
+		createFunctionOptions.FunctionConfig.Spec.Disable {
+		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
+	}
+
 	// do not allow disabling a function being used by an api gateway
 	if existingFunctionConfig != nil &&
 		len(existingFunctionConfig.Status.APIGateways) > 0 &&

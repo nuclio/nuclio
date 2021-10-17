@@ -125,7 +125,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		},
 	})
 	if err != nil {
-		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
+		responseErr = errors.Wrap(err, "Failed to get functions")
 		return
 	}
 	if len(functions) > 0 {
@@ -154,32 +154,6 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 func (fr *functionResource) Update(request *http.Request, id string) (attributes restful.Attributes, responseErr error) {
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
-		return
-	}
-
-	// TODO: Add a lock to prevent race conditions here
-	// validate the function exists
-	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:        functionInfo.Meta.Name,
-		Namespace:   fr.resolveNamespace(request, functionInfo),
-		AuthSession: fr.getCtxSession(request),
-		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
-			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
-		},
-	})
-	if err != nil {
-		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
-		return
-	}
-	if len(functions) == 0 {
-		responseErr = nuclio.NewErrNotFound("Cannot update non existing function")
-		return
-	}
-
-	if err = fr.validateUpdateInfo(functionInfo, functions[0]); err != nil {
-		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err, "Requested update fields are invalid"))
 		return
 	}
 
@@ -494,7 +468,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
+		return nil, errors.Wrap(err, "Failed to read body")
 	}
 
 	functionInfoInstance := functionInfo{}
@@ -510,18 +484,6 @@ func (fr *functionResource) resolveNamespace(request *http.Request, function *fu
 		return namespace
 	}
 	return function.Meta.Namespace
-}
-
-func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, function platform.Function) error {
-
-	// in the imported state, after the function has the skip-build and skip-deploy annotations removed,
-	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
-	// so here we don't allow users to disable an imported function.
-	if functionInfo.Spec.Disable && function.GetStatus().State == functionconfig.FunctionStateImported {
-		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
-	}
-
-	return nil
 }
 
 func (fr *functionResource) getFunction(request *http.Request, name string) (platform.Function, error) {
