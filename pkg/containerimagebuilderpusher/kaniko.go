@@ -379,6 +379,8 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 				return errors.Wrap(err, "Failed to get job pod")
 			}
 			k.logger.WarnWith("Build container image job has failed",
+				"initContainerStatuses", jobPod.Status.InitContainerStatuses,
+				"containerStatuses", jobPod.Status.ContainerStatuses,
 				"reason", jobPod.Status.Reason,
 				"message", jobPod.Status.Message,
 				"phase", jobPod.Status.Phase,
@@ -404,6 +406,8 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 	}
 
 	k.logger.WarnWith("Build container image job has timed out",
+		"initContainerStatuses", jobPod.Status.InitContainerStatuses,
+		"containerStatuses", jobPod.Status.ContainerStatuses,
 		"reason", jobPod.Status.Reason,
 		"message", jobPod.Status.Message,
 		"phase", jobPod.Status.Phase,
