@@ -365,7 +365,8 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 		if runningJob.Status.Succeeded > 0 {
 			jobLogs, err := k.getJobPodLogs(namespace, jobName)
 			if err != nil {
-				k.logger.Debug("Job was completed successfully but failed to retrieve job logs")
+				k.logger.Debug("Job was completed successfully but failed to retrieve job logs",
+					"err", err.Error())
 				return nil
 			}
 
