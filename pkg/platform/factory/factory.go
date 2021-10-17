@@ -38,7 +38,11 @@ func CreatePlatform(parentLogger logger.Logger,
 	var newPlatform platform.Platform
 	var err error
 
-	platformConfiguration.ContainerBuilderConfiguration = containerimagebuilderpusher.NewContainerBuilderConfiguration()
+	platformConfiguration.ContainerBuilderConfiguration, err =
+		 containerimagebuilderpusher.NewContainerBuilderConfiguration()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
+	}
 
 	switch platformType {
 	case "local":

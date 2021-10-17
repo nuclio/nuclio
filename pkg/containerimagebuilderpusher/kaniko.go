@@ -81,8 +81,12 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 		return errors.Wrap(err, "Failed to publish kaniko job")
 	}
 
-	// Cleanup
-	defer k.deleteJob(namespace, kanikoJob.Name) // nolint: errcheck
+	// Cleanup after 30 minutes, allowing to dev to inspect job / pod information before getting deleted
+	defer time.AfterFunc(k.builderConfiguration.JobDeletionTimeout, func() {
+		if err := k.deleteJob(namespace, job.Name); err != nil {
+			k.logger.WarnWith("Failed to delete job", "err", err.Error())
+		}
+	})
 
 	// Wait for kaniko to finish
 	return k.waitForKanikoJobCompletion(namespace, kanikoJob.Name, buildOptions.BuildTimeoutSeconds)

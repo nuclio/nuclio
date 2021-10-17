@@ -123,6 +123,9 @@ dashboard:
       tag: v0.17.1
       pullPolicy: IfNotPresent
 
+    # How long to wait before deleting the build job
+    jobDeletionTimeout: 30m
+
   # Uncomment to configure node port
   # nodePort: 32050
 
