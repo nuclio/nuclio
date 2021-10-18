@@ -155,6 +155,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.options = options
 
 	b.logger.InfoWith("Building",
+		"builderKind", b.platform.GetContainerBuilderKind(),
 		"versionInfo", b.versionInfo,
 		"name", b.options.FunctionConfig.Meta.Name)
 
@@ -1047,8 +1048,11 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	}
 
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
+	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
-	b.logger.InfoWith("Building processor image", "imageName", imageName)
+	b.logger.InfoWith("Building processor image",
+		"registryURL", registryURL,
+		"imageName", imageName)
 
 	err = b.platform.BuildAndPushContainerImage(&containerimagebuilderpusher.BuildOptions{
 		ContextDir:     b.stagingDir,
@@ -1062,7 +1066,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
 		NoBaseImagePull:     b.GetNoBaseImagePull(),
 		BuildArgs:           buildArgs,
-		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
+		RegistryURL:         registryURL,
 		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 		OutputImageFile:     b.options.OutputImageFile,
 		BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
