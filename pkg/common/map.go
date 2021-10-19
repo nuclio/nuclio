@@ -1,9 +1,7 @@
 package common
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strings"
 )
@@ -77,7 +75,7 @@ func MapToSlice(m map[string]interface{}) []interface{} {
 	return out
 }
 
-// MapStringInterfaceGetIntOrDefault will return the key as an integer or return a default
+// MapStringInterfaceGetOrDefault will return the key as an integer or return a default
 func MapStringInterfaceGetOrDefault(mapStringInterface map[string]interface{}, key string, defaultValue interface{}) interface{} {
 
 	value, found := mapStringInterface[key]
@@ -102,27 +100,4 @@ func StringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
-}
-
-// Create a string from the given strings map by key and value (unordered)
-// If the given map is nil return an empty string
-// For example:
-// CreateKeyValuePairs(map[string]string{"a_key": "a_val", "b_key": "b_val"}) will return one of these:
-// a_key="a_val" || b_key="b_val"
-// b_key="b_val" || a_key="a_val"
-func CreateKeyValuePairs(m map[string]string) string {
-	b := new(bytes.Buffer)
-	delimiter := " || "
-	for key, value := range m {
-		fmt.Fprintf(b, "%s=\"%s\"%s", key, value, delimiter) // nolint: errcheck
-	}
-
-	generatedString := b.String()
-
-	if len(generatedString) != 0 {
-
-		// remove last delimiter
-		generatedString = generatedString[:len(generatedString)-len(delimiter)]
-	}
-	return generatedString
 }
