@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -61,6 +62,7 @@ type CreateFunctionOptions struct {
 	AuthConfig                 *AuthConfig
 	DependantImagesRegistryURL string
 	PermissionOptions          opa.PermissionOptions
+	AuthSession                auth.Session
 }
 
 type UpdateFunctionOptions struct {
@@ -69,12 +71,17 @@ type UpdateFunctionOptions struct {
 	FunctionStatus    *functionconfig.Status
 	AuthConfig        *AuthConfig
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 type DeleteFunctionOptions struct {
 	FunctionConfig    functionconfig.Config
 	AuthConfig        *AuthConfig
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
+
+	// whether to ignore the validation where functions being provisioned cannot be deleted
+	IgnoreFunctionStateValidation bool
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
@@ -100,6 +107,7 @@ type GetFunctionsOptions struct {
 	Labels            string
 	AuthConfig        *AuthConfig
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
@@ -127,6 +135,9 @@ type CreateFunctionInvocationOptions struct {
 	Timeout      time.Duration
 	Via          InvokeViaType
 	URL          string
+
+	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 const FunctionInvocationDefaultTimeout = time.Minute
@@ -183,6 +194,7 @@ func (pm ProjectMeta) IsEqual(other ProjectMeta) bool {
 
 type ProjectSpec struct {
 	Description string `json:"description,omitempty"`
+	Owner       string `json:"owner,omitempty"`
 }
 
 func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
@@ -190,9 +202,9 @@ func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
 }
 
 type ProjectStatus struct {
-	AdminStatus       string    `json:"adminStatus,omitempty"`
-	OperationalStatus string    `json:"operationalStatus,omitempty"`
-	UpdatedAt         time.Time `json:"updatedAt,omitempty"`
+	AdminStatus       string     `json:"adminStatus,omitempty"`
+	OperationalStatus string     `json:"operationalStatus,omitempty"`
+	UpdatedAt         *time.Time `json:"updatedAt,omitempty"`
 }
 
 func (pst ProjectStatus) IsEqual(other ProjectStatus) bool {
@@ -214,10 +226,12 @@ func (pc *ProjectConfig) Scrub() {
 }
 
 type CreateProjectOptions struct {
-	ProjectConfig     *ProjectConfig
-	RequestOrigin     platformconfig.ProjectsLeaderKind
-	SessionCookie     *http.Cookie
-	PermissionOptions opa.PermissionOptions
+	ProjectConfig           *ProjectConfig
+	RequestOrigin           platformconfig.ProjectsLeaderKind
+	SessionCookie           *http.Cookie
+	PermissionOptions       opa.PermissionOptions
+	AuthSession             auth.Session
+	WaitForCreateCompletion bool
 }
 
 type UpdateProjectOptions struct {
@@ -225,6 +239,7 @@ type UpdateProjectOptions struct {
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 type DeleteProjectStrategy string
@@ -236,11 +251,14 @@ const (
 
 	// DeleteProjectStrategyRestricted - avoid deleting when project contains related resources (e.g.: functions)
 	DeleteProjectStrategyRestricted DeleteProjectStrategy = "restricted"
+
+	// DeleteProjectStrategyCheck - check pre-conditions for project deletion. does not perform deletion.
+	DeleteProjectStrategyCheck DeleteProjectStrategy = "check"
 )
 
 func ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy string) DeleteProjectStrategy {
 	switch strategy := DeleteProjectStrategy(projectDeletionStrategy); strategy {
-	case DeleteProjectStrategyCascading, DeleteProjectStrategyRestricted:
+	case DeleteProjectStrategyCascading, DeleteProjectStrategyRestricted, DeleteProjectStrategyCheck:
 		return strategy
 	default:
 
@@ -255,6 +273,7 @@ type DeleteProjectOptions struct {
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 
 	// allowing us to "block" until related resources are removed.
 	// used in testings
@@ -265,6 +284,9 @@ type DeleteProjectOptions struct {
 type GetProjectsOptions struct {
 	Meta              ProjectMeta
 	PermissionOptions opa.PermissionOptions
+	RequestOrigin     platformconfig.ProjectsLeaderKind
+	SessionCookie     *http.Cookie
+	AuthSession       auth.Session
 }
 
 // to appease k8s
@@ -272,6 +294,12 @@ func (ps *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 
 	// TODO: proper deep copy
 	*out = *ps
+}
+
+func (pst *ProjectStatus) DeepCopyInto(out *ProjectStatus) {
+
+	// TODO: proper deep copy
+	*out = *pst
 }
 
 //
@@ -284,6 +312,11 @@ type FunctionEventMeta struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
+
+type FunctionEventTriggerKind string
+
+const FunctionEventTriggerKindHTTP = "http"
+const DefaultFunctionEventTriggerKind = FunctionEventTriggerKindHTTP
 
 type FunctionEventSpec struct {
 	DisplayName string                 `json:"displayName,omitempty"`
@@ -301,22 +334,26 @@ type FunctionEventConfig struct {
 type CreateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
 	PermissionOptions   opa.PermissionOptions
+	AuthSession         auth.Session
 }
 
 type UpdateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
 	PermissionOptions   opa.PermissionOptions
+	AuthSession         auth.Session
 }
 
 type DeleteFunctionEventOptions struct {
 	Meta              FunctionEventMeta
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 type GetFunctionEventsOptions struct {
 	Meta              FunctionEventMeta
 	FunctionNames     []string
 	PermissionOptions opa.PermissionOptions
+	AuthSession       auth.Session
 }
 
 // DeepCopyInto to appease k8s
@@ -329,8 +366,6 @@ func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
 //
 // APIGateway
 //
-
-const DefaultAPIGatewayName string = "default"
 
 type APIGatewayMeta struct {
 	Name              string            `json:"name,omitempty"`
@@ -380,7 +415,7 @@ type NuclioFunctionAPIGatewaySpec struct {
 
 type APIGatewayUpstreamSpec struct {
 	Kind             APIGatewayUpstreamKind        `json:"kind,omitempty"`
-	Nucliofunction   *NuclioFunctionAPIGatewaySpec `json:"nucliofunction,omitempty"`
+	NuclioFunction   *NuclioFunctionAPIGatewaySpec `json:"nucliofunction,omitempty"`
 	Percentage       int                           `json:"percentage,omitempty"`
 	RewriteTarget    string                        `json:"rewriteTarget,omitempty"`
 	ExtraAnnotations map[string]string             `json:"extraAnnotations,omitempty"`
@@ -421,21 +456,27 @@ type APIGatewayStatus struct {
 }
 
 type CreateAPIGatewayOptions struct {
-	APIGatewayConfig *APIGatewayConfig
+	APIGatewayConfig           *APIGatewayConfig
+	AuthSession                auth.Session
+	ValidateFunctionsExistence bool
 }
 
 type UpdateAPIGatewayOptions struct {
-	APIGatewayConfig *APIGatewayConfig
+	APIGatewayConfig           *APIGatewayConfig
+	AuthSession                auth.Session
+	ValidateFunctionsExistence bool
 }
 
 type DeleteAPIGatewayOptions struct {
-	Meta APIGatewayMeta
+	Meta        APIGatewayMeta
+	AuthSession auth.Session
 }
 
 type GetAPIGatewaysOptions struct {
-	Name      string
-	Namespace string
-	Labels    string
+	Name        string
+	Namespace   string
+	Labels      string
+	AuthSession auth.Session
 }
 
 // to appease k8s

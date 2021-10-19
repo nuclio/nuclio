@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	ProjectType = "project"
+	ProjectType       = "project"
+	ProjectTimeLayout = "2006-01-02T15:04:05.000000+00:00"
 )
 
 type Project struct {
@@ -19,16 +20,18 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project 
 		Data: ProjectData{
 			Type: ProjectType,
 			Attributes: ProjectAttributes{
-				Name:        projectConfig.Meta.Name,
-				Labels:      labelMapToList(projectConfig.Meta.Labels),
-				Annotations: labelMapToList(projectConfig.Meta.Annotations),
-				Description: projectConfig.Spec.Description,
+				Name:          projectConfig.Meta.Name,
+				Labels:        labelMapToList(projectConfig.Meta.Labels),
+				Annotations:   labelMapToList(projectConfig.Meta.Annotations),
+				Description:   projectConfig.Spec.Description,
+				OwnerUsername: projectConfig.Spec.Owner,
 			},
 		},
 	}
 }
 
 func (pl *Project) GetConfig() *platform.ProjectConfig {
+	updatedAt := pl.parseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt)
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
 			Name:        pl.Data.Attributes.Name,
@@ -38,25 +41,29 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 		},
 		Spec: platform.ProjectSpec{
 			Description: pl.Data.Attributes.Description,
+			Owner:       pl.Data.Attributes.OwnerUsername,
 		},
 		Status: platform.ProjectStatus{
 			AdminStatus:       pl.Data.Attributes.AdminStatus,
 			OperationalStatus: pl.Data.Attributes.OperationalStatus,
-			UpdatedAt:         pl.parseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt),
+			UpdatedAt:         &updatedAt,
 		},
 	}
 }
 
 func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
-	loc, _ := time.LoadLocation("GMT")
-	layout := "2006-01-02T15:04:05.000000+00:00"
-	t, _ := time.ParseInLocation(layout, timestamp, loc)
+	t, _ := time.Parse(ProjectTimeLayout, timestamp)
 	return t
 }
 
+type ResponseMeta struct {
+	Ctx string `json:"ctx"`
+}
+
 type ProjectData struct {
-	Type       string            `json:"type,omitempty"`
-	Attributes ProjectAttributes `json:"attributes,omitempty"`
+	Type          string                `json:"type,omitempty"`
+	Attributes    ProjectAttributes     `json:"attributes,omitempty"`
+	Relationships *ProjectRelationships `json:"relationships,omitempty"`
 }
 
 type ProjectAttributes struct {
@@ -69,6 +76,15 @@ type ProjectAttributes struct {
 	OperationalStatus string        `json:"operational_status,omitempty"`
 	UpdatedAt         string        `json:"updated_at,omitempty"`
 	NuclioProject     NuclioProject `json:"nuclio_project,omitempty"`
+	OwnerUsername     string        `json:"owner_username,omitempty"`
+}
+
+type ProjectRelationships struct {
+	LastJob struct {
+		Data struct {
+			ID string `json:"id,omitempty"`
+		} `json:"data,omitempty"`
+	} `json:"last_job,omitempty"`
 }
 
 type Label struct {
@@ -80,11 +96,61 @@ type NuclioProject struct {
 	// currently no nuclio specific fields are needed
 }
 
+type JobState string
+
+const (
+	JobStateCompleted JobState = "completed"
+	JobStateCanceled  JobState = "canceled"
+	JobStateFailed    JobState = "failed"
+)
+
+func JobStateInSlice(jobState JobState, slice []JobState) bool {
+	for _, otherJobState := range slice {
+		if otherJobState == jobState {
+			return true
+		}
+	}
+	return false
+
+}
+
+type CreateProjectErrorResponse struct {
+	Errors []struct {
+		Status int    `json:"status,omitempty"`
+		Detail string `json:"detail,omitempty"`
+	} `json:"errors,omitempty"`
+	Meta ResponseMeta
+}
+
+type JobDetail struct {
+	Data JobData `json:"data,omitempty"`
+}
+
+type JobDetailResponse struct {
+	JobDetail
+	Meta ResponseMeta
+}
+
+type JobData struct {
+	Type       string        `json:"type,omitempty"`
+	Attributes JobAttributes `json:"attributes,omitempty"`
+}
+
+type JobAttributes struct {
+	Kind   string   `json:"kind,omitempty"`
+	State  JobState `json:"state,omitempty"`
+	Result string   `json:"result,omitempty"`
+}
+
+type GetProjectResponse interface {
+	ToSingleProjectList() []platform.Project
+}
+
 type ProjectList struct {
 	Data []ProjectData `json:"data,omitempty"`
 }
 
-// ProjectList -> []Project
+// ToSingleProjectList returns list of Project
 func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 	var projects []platform.Project
 
@@ -93,4 +159,20 @@ func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 	}
 
 	return projects
+}
+
+type ProjectDetail struct {
+	Data ProjectData `json:"data,omitempty"`
+}
+
+type ProjectDetailResponse struct {
+	ProjectDetail
+	Meta ResponseMeta
+}
+
+// ToSingleProjectList returns list of Project
+func (pl *ProjectDetail) ToSingleProjectList() []platform.Project {
+	return []platform.Project{
+		&Project{Data: pl.Data},
+	}
 }

@@ -22,7 +22,6 @@ package test
 import (
 	"encoding/base64"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
@@ -56,70 +55,6 @@ func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 
 func (suite *FunctionMonitoringTestSuite) TearDownSuite() {
 	monitoring.PostDeploymentMonitoringBlockingInterval = suite.oldPostDeploymentMonitoringBlockingInterval
-}
-
-func (suite *FunctionMonitoringTestSuite) TestRecoverFromPodsHardLimit() {
-	functionName := "function-pods-hard-limit"
-	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-	getFunctionOptions := &platform.GetFunctionsOptions{
-		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
-		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
-	}
-	zero := 0
-	two := 2
-	createFunctionOptions.FunctionConfig.Spec.Replicas = &two
-	_ = suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
-		// limit pod to zero
-		resourceQuota, err := suite.KubeClientSet.
-			CoreV1().
-			ResourceQuotas(suite.Namespace).
-			Create(&v1.ResourceQuota{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "nuclio-test-rq",
-					Namespace: suite.Namespace,
-				},
-				Spec: v1.ResourceQuotaSpec{
-					Hard: v1.ResourceList{
-						v1.ResourcePods: resource.MustParse(strconv.Itoa(zero)),
-					},
-				},
-				Status: v1.ResourceQuotaStatus{},
-			})
-		suite.Require().NoError(err)
-
-		// clean leftovers
-		defer suite.KubeClientSet.
-			CoreV1().
-			ResourceQuotas(suite.Namespace).
-			Delete(resourceQuota.Name, &metav1.DeleteOptions{}) // nolint: errcheck
-
-		// delete function pods
-		suite.DeleteFunctionPods(functionName)
-
-		// function becomes unhealthy, due to exceeding pods deployment hard limit
-		suite.WaitForFunctionState(getFunctionOptions,
-			functionconfig.FunctionStateUnhealthy,
-			3*time.Minute)
-
-		// increase hard limit, allowing the function reach its potential replicas
-		resourceQuota.Spec.Hard = v1.ResourceList{
-			v1.ResourcePods: resource.MustParse(strconv.Itoa(two)),
-		}
-
-		// remove to allow updating
-		resourceQuota.ResourceVersion = ""
-		suite.Logger.InfoWith("Updating resource quota",
-			"podsResourceQuota", resourceQuota.Spec.Hard.Pods())
-		_, err = suite.KubeClientSet.CoreV1().ResourceQuotas(suite.Namespace).Update(resourceQuota)
-		suite.Require().NoError(err)
-
-		// wait for function to become healthy again
-		suite.WaitForFunctionState(getFunctionOptions,
-			functionconfig.FunctionStateReady,
-			3*time.Minute)
-		return true
-	})
 }
 
 func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterBuildError() {
@@ -299,65 +234,37 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		// ensure function is ready
 		suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
 
-		// get function pod, first one is enough
-		pod := suite.GetFunctionPods(functionName)[0]
+		// ensure function pods are running
+		suite.WaitForFunctionPods(functionName, time.Minute, func(pods []v1.Pod) bool {
+			suite.Logger.DebugWith("Ensure function pods are running", "pods", pods)
+			for _, pod := range pods {
+				if pod.Status.Phase != v1.PodRunning {
+					return false
+				}
+			}
+			return true
+		})
 
-		// get node name on which function pod is running
-		nodeName := pod.Spec.NodeName
-
-		// mark the node as unschedulable, we want to evict the pod from there
-		suite.Logger.InfoWith("Setting cluster node as unschedulable", "nodeName", nodeName)
-		_, err := suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
+		suite.WithResourceQuota(&v1.ResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      nodeName,
+				Name:      "nuclio-test-rq",
 				Namespace: suite.Namespace,
 			},
-			Spec: v1.NodeSpec{
-				Unschedulable: true,
-			},
-		})
-		suite.Require().NoError(err, "Failed to set nodes unschedulable")
-
-		// no matter how this test ends up - ensure the node is schedulable again
-		defer func() {
-			_, err := suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      nodeName,
-					Namespace: suite.Namespace,
+			Spec: v1.ResourceQuotaSpec{
+				Hard: v1.ResourceList{
+					v1.ResourcePods: resource.MustParse("0"),
 				},
-				Spec: v1.NodeSpec{
-					Unschedulable: false,
-				},
-			})
-			suite.Require().NoError(err)
-		}()
-
-		// delete function pod
-		zeroSeconds := int64(0)
-		suite.Logger.InfoWith("Deleting function pod", "podName", pod.Name)
-		err = suite.KubeClientSet.CoreV1().Pods(suite.Namespace).Delete(pod.Name,
-			&metav1.DeleteOptions{
-				GracePeriodSeconds: &zeroSeconds,
-			})
-		suite.Require().NoError(err, "Failed to delete function pod")
-
-		// wait for controller to mark function in error due to pods being unschedulable
-		suite.WaitForFunctionState(getFunctionOptions,
-			functionconfig.FunctionStateUnhealthy,
-			functionMonitoringSleepTimeout)
-
-		// mark k8s cluster nodes as schedulable
-		suite.Logger.InfoWith("Setting cluster node as schedulable", "nodeName", nodeName)
-		_, err = suite.KubeClientSet.CoreV1().Nodes().Update(&v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      nodeName,
-				Namespace: suite.Namespace,
 			},
-			Spec: v1.NodeSpec{
-				Unschedulable: false,
-			},
+		}, func() {
+
+			suite.DeleteFunctionPods(functionName)
+
+			// wait for controller to mark function in error due to pods being unschedulable
+			suite.WaitForFunctionState(getFunctionOptions,
+				functionconfig.FunctionStateUnhealthy,
+				functionMonitoringSleepTimeout)
+
 		})
-		suite.Require().NoError(err, "Failed to set nodes schedulable")
 
 		// wait for function pods to run, meaning its deployment is available
 		suite.WaitForFunctionPods(functionName, time.Minute, func(pods []v1.Pod) bool {

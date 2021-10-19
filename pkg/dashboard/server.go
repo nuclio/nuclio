@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	authfactory "github.com/nuclio/nuclio/pkg/dashboard/auth/factory"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
@@ -45,21 +47,23 @@ const (
 
 type Server struct {
 	*restful.AbstractServer
-	dockerKeyDir                   string
-	defaultRegistryURL             string
-	defaultRunRegistryURL          string
-	dockerCreds                    *dockercreds.DockerCreds
-	Platform                       platform.Platform
-	NoPullBaseImages               bool
-	externalIPAddresses            []string
-	defaultNamespace               string
-	Offline                        bool
-	Repository                     *functiontemplates.Repository
-	platformConfiguration          *platformconfig.Config
-	defaultHTTPIngressHostTemplate string
-	imageNamePrefixTemplate        string
-	platformAuthorizationMode      PlatformAuthorizationMode
-	dependantImageRegistryURL      string
+	dockerKeyDir              string
+	defaultRegistryURL        string
+	defaultRunRegistryURL     string
+	dockerCreds               *dockercreds.DockerCreds
+	Platform                  platform.Platform
+	NoPullBaseImages          bool
+	externalIPAddresses       []string
+	defaultNamespace          string
+	Offline                   bool
+	Repository                *functiontemplates.Repository
+	platformConfiguration     *platformconfig.Config
+	imageNamePrefixTemplate   string
+	platformAuthorizationMode PlatformAuthorizationMode
+	dependantImageRegistryURL string
+
+	// auth options
+	authInstance auth.Auth
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -76,10 +80,10 @@ func NewServer(parentLogger logger.Logger,
 	offline bool,
 	repository *functiontemplates.Repository,
 	platformConfiguration *platformconfig.Config,
-	defaultHTTPIngressHostTemplate string,
 	imageNamePrefixTemplate string,
 	platformAuthorizationMode string,
-	dependantImageRegistryURL string) (*Server, error) {
+	dependantImageRegistryURL string,
+	authConfig *auth.Config) (*Server, error) {
 
 	// newDockerClient may be nil
 	newDockerClient, err := createDockerClient(parentLogger, containerBuilderKind)
@@ -98,21 +102,21 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	newServer := &Server{
-		dockerKeyDir:                   dockerKeyDir,
-		defaultRegistryURL:             defaultRegistryURL,
-		defaultRunRegistryURL:          defaultRunRegistryURL,
-		dockerCreds:                    newDockerCreds,
-		Platform:                       platform,
-		NoPullBaseImages:               noPullBaseImages,
-		externalIPAddresses:            externalIPAddresses,
-		defaultNamespace:               defaultNamespace,
-		Offline:                        offline,
-		Repository:                     repository,
-		platformConfiguration:          platformConfiguration,
-		defaultHTTPIngressHostTemplate: defaultHTTPIngressHostTemplate,
-		imageNamePrefixTemplate:        imageNamePrefixTemplate,
-		platformAuthorizationMode:      PlatformAuthorizationMode(platformAuthorizationMode),
-		dependantImageRegistryURL:      dependantImageRegistryURL,
+		dockerKeyDir:              dockerKeyDir,
+		defaultRegistryURL:        defaultRegistryURL,
+		defaultRunRegistryURL:     defaultRunRegistryURL,
+		dockerCreds:               newDockerCreds,
+		Platform:                  platform,
+		NoPullBaseImages:          noPullBaseImages,
+		externalIPAddresses:       externalIPAddresses,
+		defaultNamespace:          defaultNamespace,
+		Offline:                   offline,
+		Repository:                repository,
+		platformConfiguration:     platformConfiguration,
+		imageNamePrefixTemplate:   imageNamePrefixTemplate,
+		platformAuthorizationMode: PlatformAuthorizationMode(platformAuthorizationMode),
+		dependantImageRegistryURL: dependantImageRegistryURL,
+		authInstance:              authfactory.NewAuth(parentLogger, authConfig),
 	}
 
 	// create server
@@ -178,10 +182,6 @@ func (s *Server) GetExternalIPAddresses() []string {
 	return s.externalIPAddresses
 }
 
-func (s *Server) GetDefaultHTTPIngressHostTemplate() string {
-	return s.defaultHTTPIngressHostTemplate
-}
-
 func (s *Server) GetImageNamePrefixTemplate() string {
 	return s.imageNamePrefixTemplate
 }
@@ -225,6 +225,8 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"X-nuclio-path",
 			"x-nuclio-filter-contains",
 			"X-nuclio-delete-project-strategy",
+			"X-nuclio-delete-function-ignore-state-validation",
+			"X-nuclio-agw-validate-functions-existence",
 			iguazio.ProjectsRoleHeaderKey,
 		},
 		ExposedHeaders: []string{
@@ -247,6 +249,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) GetPlatformAuthorizationMode() PlatformAuthorizationMode {
 	return s.platformAuthorizationMode
+}
+
+func (s *Server) GetAuthenticator() auth.Auth {
+	return s.authInstance
 }
 
 func (s *Server) getRegistryURL() string {

@@ -46,35 +46,13 @@ func newInvoker(parentLogger logger.Logger, platform platform.Platform) (*invoke
 	return newinvoker, nil
 }
 
-func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (
+func (i *invoker) invoke(function platform.Function,
+	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (
+
 	*platform.CreateFunctionInvocationResult, error) {
 
 	// save options
 	i.createFunctionInvocationOptions = createFunctionInvocationOptions
-
-	// get the function by name
-	functions, err := i.platform.GetFunctions(&platform.GetFunctionsOptions{
-		Name:      createFunctionInvocationOptions.Name,
-		Namespace: createFunctionInvocationOptions.Namespace,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get functions")
-	}
-
-	if len(functions) == 0 {
-		return nil, errors.Errorf("Function not found: %s @ %s",
-			createFunctionInvocationOptions.Name,
-			createFunctionInvocationOptions.Namespace)
-	}
-
-	// use the first function found (should always be one, but if there's more just use first)
-	function := functions[0]
-
-	// make sure to initialize the function (some underlying functions are lazy load)
-	if err = function.Initialize(nil); err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize function")
-	}
 
 	invokeURL, err := i.resolveInvokeURL(function, createFunctionInvocationOptions)
 	if err != nil {

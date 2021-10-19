@@ -33,7 +33,6 @@ import (
 	"github.com/nuclio/logger"
 )
 
-// Server
 type Server interface {
 
 	// InstallMiddleware installs middlewares on a router
@@ -74,22 +73,21 @@ func NewAbstractServer(parentLogger logger.Logger,
 	newServer.Router.Use(newServer.requestResponseLogger())
 
 	// install the middleware
-	err = server.InstallMiddleware(newServer.Router)
-	if err != nil {
+	if err := server.InstallMiddleware(newServer.Router); err != nil {
 		return nil, errors.Wrap(err, "Failed to install middleware")
 	}
 
-	err = newServer.readConfiguration(configuration)
-	if err != nil {
+	if err := newServer.readConfiguration(configuration); err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
 	// create the resources registered
 	for _, resourceName := range newServer.resourceRegistry.GetKinds() {
-		resourceInstance, _ := newServer.resourceRegistry.Get(resourceName)
+		resolvedResource, _ := newServer.resourceRegistry.Get(resourceName)
+		resourceInstance := resolvedResource.(Resource)
 
 		// create the resource router and add it
-		resourceRouter, err := resourceInstance.(Resource).Initialize(newServer.Logger, newServer.server)
+		resourceRouter, err := resourceInstance.Initialize(newServer.Logger, newServer.server)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create resource router for %s", resourceName)
 		}

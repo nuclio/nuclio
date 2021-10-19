@@ -81,9 +81,10 @@
         /**
          * Deletes function
          * @param {Object} functionData
+         * @param {Boolean} ignoreValidation - determines whether to forcibly remove the function
          * @returns {Promise}
          */
-        function deleteFunction(functionData) {
+        function deleteFunction(functionData, ignoreValidation) {
             var headers = {
                 'Content-Type': 'application/json'
             };
@@ -91,6 +92,10 @@
 
             if (lodash.isNil(namespace)) {
                 functionData = lodash.omit(functionData, 'namespace')
+            }
+
+            if (ignoreValidation) {
+                headers['x-nuclio-delete-function-ignore-state-validation'] = true;
             }
 
             var config = {

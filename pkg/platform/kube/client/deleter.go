@@ -54,12 +54,20 @@ func (d *Deleter) Delete(consumer *Consumer, deleteFunctionOptions *platform.Del
 		return errors.Wrap(err, "Failed to get nuclio clientset")
 	}
 
+	var deletePreconditions *metav1.Preconditions
+	if deleteFunctionOptions.FunctionConfig.Meta.ResourceVersion != "" {
+		deletePreconditions = &metav1.Preconditions{
+			ResourceVersion: &deleteFunctionOptions.FunctionConfig.Meta.ResourceVersion,
+		}
+	}
+
 	// get specific function CR
-	err = nuclioClientSet.
+	if err := nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).
-		Delete(resourceName, &metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
+		Delete(resourceName, &metav1.DeleteOptions{
+			Preconditions: deletePreconditions,
+		}); err != nil && !apierrors.IsNotFound(err) {
 		return errors.Wrap(err, "Failed to delete function CR")
 	}
 

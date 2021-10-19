@@ -144,6 +144,10 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 
 // Stop stops the runtime
 func (r *AbstractRuntime) Stop() error {
+	r.Logger.WarnWith("Stopping",
+		"status", r.GetStatus(),
+		"wrapperProcess", r.wrapperProcess)
+
 	if r.wrapperProcess != nil {
 
 		// stop waiting for process
@@ -151,6 +155,7 @@ func (r *AbstractRuntime) Stop() error {
 			r.Logger.WarnWith("Failed to cancel process waiting")
 		}
 
+		r.Logger.WarnWith("Killing wrapper process", "wrapperProcessPid", r.wrapperProcess.Pid)
 		if err := r.wrapperProcess.Kill(); err != nil {
 			r.SetStatus(status.Error)
 			return errors.Wrap(err, "Can't kill wrapper process")
@@ -159,7 +164,10 @@ func (r *AbstractRuntime) Stop() error {
 
 	r.waitForProcessTermination()
 
+	r.wrapperProcess = nil
+
 	r.SetStatus(status.Stopped)
+	r.Logger.Warn("Successfully stopped wrapper process")
 	return nil
 }
 
@@ -371,16 +379,16 @@ func (r *AbstractRuntime) handleResponseLog(response []byte) {
 		return
 	}
 
-	logger := r.resolveFunctionLogger(r.functionLogger)
-	logFunc := logger.DebugWith
+	loggerInstance := r.resolveFunctionLogger(r.functionLogger)
+	logFunc := loggerInstance.DebugWith
 
 	switch logRecord.Level {
 	case "error", "critical", "fatal":
-		logFunc = logger.ErrorWith
+		logFunc = loggerInstance.ErrorWith
 	case "warning":
-		logFunc = logger.WarnWith
+		logFunc = loggerInstance.WarnWith
 	case "info":
-		logFunc = logger.InfoWith
+		logFunc = loggerInstance.InfoWith
 	}
 
 	vars := common.MapToSlice(logRecord.With)
@@ -392,14 +400,14 @@ func (r *AbstractRuntime) handleResponseMetric(response []byte) {
 		DurationSec float64 `json:"duration"`
 	}
 
-	logger := r.resolveFunctionLogger(r.functionLogger)
+	loggerInstance := r.resolveFunctionLogger(r.functionLogger)
 	if err := json.Unmarshal(response, &metrics); err != nil {
-		logger.ErrorWith("Can't decode metric", "error", err)
+		loggerInstance.ErrorWith("Can't decode metric", "error", err)
 		return
 	}
 
 	if metrics.DurationSec == 0 {
-		logger.ErrorWith("No duration in metrics", "metrics", metrics)
+		loggerInstance.ErrorWith("No duration in metrics", "metrics", metrics)
 		return
 	}
 
@@ -429,7 +437,6 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 
 	// whatever happens, clear wrapper process
 	defer func() {
-		r.wrapperProcess = nil
 		r.stopChan <- struct{}{}
 	}()
 

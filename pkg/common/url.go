@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/valyala/fasthttp"
 )
 
@@ -113,32 +114,29 @@ func NormalizeURLPath(p string) string {
 	return string(res)
 }
 
-// SendHTTPRequest Sends an http request
+// SendHTTPRequest Sends an HTTP request using custom http client
 // ignore expectedStatusCode by setting it to 0
-func SendHTTPRequest(method string,
+func SendHTTPRequest(httpClient *http.Client,
+	method string,
 	requestURL string,
 	body []byte,
 	headers map[string]string,
 	cookies []*http.Cookie,
-	expectedStatusCode int,
-	insecure bool,
-	timeout time.Duration) ([]byte, int, error) {
+	expectedStatusCode int) ([]byte, *http.Response, error) {
 
-	// create client
-	client := &http.Client{
-		Timeout: timeout,
-	}
-
-	if insecure {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
 		}
 	}
 
 	// create request object
 	req, err := http.NewRequest(method, requestURL, bytes.NewBuffer(body))
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "Failed to create http request")
+		return nil, nil, errors.Wrap(err, "Failed to create http request")
 	}
 
 	// attach cookies
@@ -152,9 +150,9 @@ func SendHTTPRequest(method string,
 	}
 
 	// perform the request
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "Failed to send HTTP request")
+		return nil, nil, errors.Wrap(err, "Failed to send HTTP request")
 	}
 
 	// read response body
@@ -164,17 +162,17 @@ func SendHTTPRequest(method string,
 
 		responseBody, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, 0, errors.Wrap(err, "Failed to read response body")
+			return nil, nil, errors.Wrap(err, "Failed to read response body")
 		}
 	}
 
 	// validate status code is as expected
 	if expectedStatusCode != 0 && resp.StatusCode != expectedStatusCode {
-		return responseBody, resp.StatusCode, errors.Errorf(
+		return responseBody, resp, nuclio.GetByStatusCode(resp.StatusCode)(fmt.Sprintf(
 			"Got unexpected response status code: %d. Expected: %d",
 			resp.StatusCode,
-			expectedStatusCode)
+			expectedStatusCode))
 	}
 
-	return responseBody, resp.StatusCode, nil
+	return responseBody, resp, nil
 }

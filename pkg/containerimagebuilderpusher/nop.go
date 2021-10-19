@@ -18,7 +18,7 @@ func NewNop(logger logger.Logger, builderConfiguration *ContainerBuilderConfigur
 }
 
 func (n Nop) GetKind() string {
-	return ""
+	return "nop"
 }
 
 func (n Nop) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {

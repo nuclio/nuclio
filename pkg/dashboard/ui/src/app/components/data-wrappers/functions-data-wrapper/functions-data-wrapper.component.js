@@ -66,10 +66,11 @@
         /**
          * Deletes function
          * @param {Object} functionToDelete
+         * @param {Boolean} ignoreValidation - determines whether to forcibly remove the function
          * @returns {Promise}
          */
-        function deleteFunction(functionToDelete) {
-            return NuclioFunctionsDataService.deleteFunction(functionToDelete);
+        function deleteFunction(functionToDelete, ignoreValidation) {
+            return NuclioFunctionsDataService.deleteFunction(functionToDelete, ignoreValidation);
         }
 
         /**

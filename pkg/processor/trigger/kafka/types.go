@@ -39,9 +39,18 @@ type Configuration struct {
 	InitialOffset   string
 	BalanceStrategy string
 	SASL            struct {
-		Enable   bool
-		User     string
-		Password string
+		Enable    bool
+		User      string
+		Password  string
+		Mechanism string
+
+		// oauth
+		OAuth struct {
+			ClientID     string
+			ClientSecret string
+			TokenURL     string
+			Scopes       []string
+		}
 	}
 
 	SessionTimeout                string
@@ -107,6 +116,18 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-access-cert", ValueString: &newConfiguration.AccessCertificate},
 		{Key: "nuclio.io/kafka-ca-cert", ValueString: &newConfiguration.CACert},
 		{Key: "nuclio.io/kafka-log-level", ValueInt: &newConfiguration.LogLevel},
+
+		// sasl
+		{Key: "nuclio.io/kafka-sasl-enabled", ValueBool: &newConfiguration.SASL.Enable},
+		{Key: "nuclio.io/kafka-sasl-user", ValueString: &newConfiguration.SASL.User},
+		{Key: "nuclio.io/kafka-sasl-password", ValueString: &newConfiguration.SASL.Password},
+		{Key: "nuclio.io/kafka-sasl-mechanism", ValueString: &newConfiguration.SASL.Mechanism},
+
+		// sasl.oauth
+		{Key: "nuclio.io/kafka-sasl-oauth-client-id", ValueString: &newConfiguration.SASL.OAuth.ClientID},
+		{Key: "nuclio.io/kafka-sasl-oauth-client-secret", ValueString: &newConfiguration.SASL.OAuth.ClientSecret},
+		{Key: "nuclio.io/kafka-sasl-oauth-token-url", ValueString: &newConfiguration.SASL.OAuth.TokenURL},
+		{Key: "nuclio.io/kafka-sasl-oauth-scopes", ValueListString: newConfiguration.SASL.OAuth.Scopes},
 	})
 
 	if err != nil {

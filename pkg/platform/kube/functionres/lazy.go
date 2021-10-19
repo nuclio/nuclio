@@ -40,7 +40,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
-	"github.com/aws/aws-sdk-go/private/util"
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
@@ -87,6 +86,7 @@ type lazyClient struct {
 	nuclioClientSet               nuclioioclient.Interface
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
+	nginxIngressUpdateGracePeriod time.Duration
 }
 
 func NewLazyClient(parentLogger logger.Logger,
@@ -94,10 +94,11 @@ func NewLazyClient(parentLogger logger.Logger,
 	nuclioClientSet nuclioioclient.Interface) (Client, error) {
 
 	newClient := lazyClient{
-		logger:          parentLogger.GetChild("functionres"),
-		kubeClientSet:   kubeClientSet,
-		nuclioClientSet: nuclioClientSet,
-		classLabels:     make(labels.Set),
+		logger:                        parentLogger.GetChild("functionres"),
+		kubeClientSet:                 kubeClientSet,
+		nuclioClientSet:               nuclioClientSet,
+		classLabels:                   make(labels.Set),
+		nginxIngressUpdateGracePeriod: nginxIngressUpdateGracePeriod,
 	}
 
 	newClient.initClassLabels()
@@ -744,9 +745,6 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					Annotations: podAnnotations,
 				},
 				Spec: v1.PodSpec{
-					ImagePullSecrets: []v1.LocalObjectReference{
-						{Name: imagePullSecrets},
-					},
 					Containers: []v1.Container{
 						container,
 					},
@@ -756,8 +754,17 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					Affinity:           function.Spec.Affinity,
 					NodeSelector:       function.Spec.NodeSelector,
 					NodeName:           function.Spec.NodeName,
+					PriorityClassName:  function.Spec.PriorityClassName,
+					PreemptionPolicy:   function.Spec.PreemptionPolicy,
 				},
 			},
+		}
+
+		// apply when provided
+		if imagePullSecrets != "" {
+			deploymentSpec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
+				{Name: imagePullSecrets},
+			}
 		}
 
 		deployment := &appsv1.Deployment{
@@ -823,6 +830,8 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 		deployment.Spec.Template.Spec.Affinity = function.Spec.Affinity
 		deployment.Spec.Template.Spec.NodeSelector = function.Spec.NodeSelector
 		deployment.Spec.Template.Spec.NodeName = function.Spec.NodeName
+		deployment.Spec.Template.Spec.PriorityClassName = function.Spec.PriorityClassName
+		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
@@ -1106,9 +1115,9 @@ func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 
 			// if there are no rules and previously were, delete the ingress resource
 			if ingressRulesExist {
-				propogationPolicy := metav1.DeletePropagationForeground
+				propagationPolicy := metav1.DeletePropagationForeground
 				deleteOptions := &metav1.DeleteOptions{
-					PropagationPolicy: &propogationPolicy,
+					PropagationPolicy: &propagationPolicy,
 				}
 
 				err := lc.kubeClientSet.ExtensionsV1beta1().
@@ -1285,10 +1294,11 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
 func (lc *lazyClient) waitForNginxIngressToStabilize(ingress *extv1beta1.Ingress) {
 	lc.logger.DebugWith("Waiting for nginx ingress to stabilize",
-		"nginxIngressUpdateGracePeriod", nginxIngressUpdateGracePeriod,
+		"nginxIngressUpdateGracePeriod", lc.nginxIngressUpdateGracePeriod,
 		"ingressNamespace", ingress.Namespace,
 		"ingressName", ingress.Name)
-	time.Sleep(nginxIngressUpdateGracePeriod)
+
+	time.Sleep(lc.nginxIngressUpdateGracePeriod)
 	lc.logger.DebugWith("Finished waiting for nginx ingress to stabilize",
 		"ingressNamespace", ingress.Namespace,
 		"ingressName", ingress.Name)
@@ -1408,7 +1418,9 @@ func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 		spec.Selector = functionLabels
 	}
 
-	spec.Type = lc.resolveFunctionServiceType(function)
+	spec.Type = functionconfig.ResolveFunctionServiceType(
+		&function.Spec,
+		lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultServiceType)
 	serviceTypeIsNodePort := spec.Type == v1.ServiceTypeNodePort
 	functionHTTPPort := function.Spec.GetHTTPPort()
 
@@ -1617,7 +1629,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1beta1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		concurrencyPolicy = batchv1beta1.ConcurrencyPolicy(util.Capitalize(attributes.ConcurrencyPolicy))
+		concurrencyPolicy = batchv1beta1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy))
 	}
 	spec.ConcurrencyPolicy = concurrencyPolicy
 
@@ -1650,6 +1662,8 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	meta *metav1.ObjectMeta,
 	spec *extv1beta1.IngressSpec) error {
 	meta.Annotations = make(map[string]string)
+
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 
 	// get the first HTTP trigger and look for annotations that we shove to the ingress
 	// there should only be 0 or 1. if there are more, just take the first
@@ -1687,16 +1701,25 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 		}
 	}
 
+	// enrich with default ingress annotations
+	for key, value := range platformConfig.Kube.DefaultHTTPIngressAnnotations {
+
+		// selectively take only undefined annotations
+		if _, found := meta.Annotations[key]; !found {
+			meta.Annotations[key] = value
+		}
+	}
+
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []extv1beta1.IngressRule{}
 	spec.TLS = []extv1beta1.IngressTLS{}
 
-	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
+	ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
+	for _, ingress := range ingresses {
 		if err := lc.addIngressToSpec(&ingress, functionLabels, function, spec); err != nil {
 			return errors.Wrap(err, "Failed to add ingress to spec")
 		}
 	}
-
 	return nil
 }
 
@@ -2020,6 +2043,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 	lc.logger.DebugWith("Got function events", "num", len(result.Items))
 
 	for _, functionEvent := range result.Items {
+		functionEvent := functionEvent
 		errGroup.Go(func() error {
 			err = lc.nuclioClientSet.NuclioV1beta1().
 				NuclioFunctionEvents(namespace).
@@ -2102,27 +2126,6 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	default:
 		return ""
 	}
-}
-
-func (lc *lazyClient) resolveFunctionServiceType(function *nuclioio.NuclioFunction) v1.ServiceType {
-	functionHTTPTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "http")
-
-	// if the http trigger has a configured service type, return that.
-	for _, trigger := range functionHTTPTriggers {
-		if serviceTypeInterface, serviceTypeExists := trigger.Attributes["serviceType"]; serviceTypeExists {
-			if serviceType, serviceTypeIsString := serviceTypeInterface.(string); serviceTypeIsString {
-				return v1.ServiceType(serviceType)
-			}
-		}
-	}
-
-	// otherwise, if the function spec has a service type, return that (for backwards compatibility)
-	if function.Spec.ServiceType != "" {
-		return function.Spec.ServiceType
-	}
-
-	// otherwise return platform default
-	return lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultServiceType
 }
 
 //

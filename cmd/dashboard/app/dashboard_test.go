@@ -68,7 +68,7 @@ func (suite *DashboardTestSuite) TestDashboardStatusFailed() {
 		Times(maxConsecutiveErrors)
 
 	// run in the background
-	go suite.dashboard.MonitorDockerConnectivity(suite.ctx,
+	go suite.dashboard.monitorDockerConnectivity(suite.ctx,
 		interval,
 		maxConsecutiveErrors,
 		suite.dockerClient)
@@ -86,7 +86,7 @@ func (suite *DashboardTestSuite) TestNoMonitorWhenDashboardStatusFailed() {
 	suite.dashboard.SetStatus(status.Error)
 
 	// run in the background
-	go suite.dashboard.MonitorDockerConnectivity(suite.ctx,
+	go suite.dashboard.monitorDockerConnectivity(suite.ctx,
 		interval,
 		5,
 		suite.dockerClient)
@@ -128,7 +128,7 @@ func (suite *DashboardTestSuite) TestStayReadyOnTransientFailures() {
 	}()
 
 	// run in foreground
-	suite.dashboard.MonitorDockerConnectivity(ctx,
+	suite.dashboard.monitorDockerConnectivity(ctx,
 		interval,
 		maxConsecutiveErrors,
 		suite.dockerClient)

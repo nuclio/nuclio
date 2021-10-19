@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	machinarymetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,6 +77,10 @@ type ScaleToZero struct {
 
 	// Used to enrich special scale-to-zero ingress annotations
 	HTTPTriggerIngressAnnotations map[string]string `json:"httpTriggerIngressAnnotations,omitempty"`
+
+	// Used for DLX options, selects in which way to send invocation when multiple targets are given:
+	// random, primary or canary.
+	MultiTargetStrategy scalertypes.MultiTargetStrategy `json:"multiTargetStrategy,omitempty"`
 }
 
 type ScaleToZeroMode string
@@ -111,6 +116,7 @@ type ProjectsLeaderKind string
 const (
 	ProjectsLeaderKindIguazio ProjectsLeaderKind = "iguazio"
 	ProjectsLeaderKindMlrun   ProjectsLeaderKind = "mlrun"
+	ProjectsLeaderKindMock    ProjectsLeaderKind = "mock"
 )
 
 type ProjectsLeader struct {
@@ -123,8 +129,12 @@ type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
 	// TODO: Move IngressConfig here
-	DefaultServiceType          corev1.ServiceType `json:"defaultServiceType,omitempty"`
-	DefaultFunctionNodeSelector map[string]string  `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultServiceType               corev1.ServiceType `json:"defaultServiceType,omitempty"`
+	DefaultFunctionNodeSelector      map[string]string  `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultHTTPIngressHostTemplate   string             `json:"defaultHTTPIngressHostTemplate,omitempty"`
+	DefaultHTTPIngressAnnotations    map[string]string  `json:"defaultHTTPIngressAnnotations,omitempty"`
+	DefaultFunctionPriorityClassName string             `json:"defaultFunctionPriorityClassName,omitempty"`
+	ValidFunctionPriorityClassNames  []string           `json:"validFunctionPriorityClassNames,omitempty"`
 }
 
 type PlatformLocalConfig struct {

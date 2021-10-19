@@ -20,10 +20,12 @@ package abstract
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -41,6 +43,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 const (
@@ -271,6 +274,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 							Name: "existing",
 						},
 					},
+					Status: functionconfig.Status{
+						State: functionconfig.FunctionStateReady,
+					},
 				},
 			},
 			deleteFunctionOptions: &platform.DeleteFunctionOptions{
@@ -307,6 +313,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 							ResourceVersion: "1",
 						},
 					},
+					Status: functionconfig.Status{
+						State: functionconfig.FunctionStateReady,
+					},
 				},
 			},
 			deleteFunctionOptions: &platform.DeleteFunctionOptions{
@@ -319,6 +328,31 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			},
 		},
 
+		// fail: function is being provisioned
+		{
+			existingFunctions: []platform.Function{
+				&platform.AbstractFunction{
+					Logger:   suite.Logger,
+					Platform: suite.Platform.platform,
+					Config: functionconfig.Config{
+						Meta: functionconfig.Meta{
+							Name: "existing",
+						},
+					},
+					Status: functionconfig.Status{
+						State: functionconfig.FunctionStateBuilding,
+					},
+				},
+			},
+			deleteFunctionOptions: &platform.DeleteFunctionOptions{
+				FunctionConfig: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name: "existing",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
 		// fail: stale resourceVersion
 		{
 			existingFunctions: []platform.Function{
@@ -632,6 +666,47 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestResolveProjectNameFromLabelsStr() {
+	for _, testCase := range []struct {
+		name                string
+		label               string
+		expectedProjectName string
+		expectedError       bool
+	}{
+		{
+			name:                "empty",
+			label:               "",
+			expectedProjectName: "",
+		},
+		{
+			name:                "with-project",
+			label:               fmt.Sprintf("%s=x", common.NuclioResourceLabelKeyProjectName),
+			expectedProjectName: "x",
+		},
+		{
+			name:                "other-label",
+			label:               "something-else=y",
+			expectedProjectName: "",
+		},
+		{
+			name:          "with-malformed-project",
+			label:         "/%12",
+			expectedError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			projectName, err := suite.Platform.ResolveProjectNameFromLabelsStr(testCase.label)
+			if testCase.expectedError {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedProjectName, projectName)
+
+		})
+	}
+}
+
 // Test function with invalid min max replicas
 func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 	zero := 0
@@ -888,6 +963,87 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestProcessLogLines() {
+	for _, testCase := range []struct {
+		name           string
+		encoding       string
+		encodingConfig *nucliozap.EncoderConfig
+	}{
+		{
+			name:           "default",
+			encoding:       "json",
+			encodingConfig: nucliozap.NewEncoderConfig(),
+		},
+		{
+			name:     "NoLineEnding",
+			encoding: "json",
+			encodingConfig: func() *nucliozap.EncoderConfig {
+				encoding := nucliozap.NewEncoderConfig()
+				encoding.JSON.VarGroupMode = nucliozap.VarGroupModeFlattened
+				encoding.JSON.LineEnding = ""
+				return encoding
+			}(),
+		},
+		{
+			name:     "Structured",
+			encoding: "json",
+			encodingConfig: func() *nucliozap.EncoderConfig {
+				encoding := nucliozap.NewEncoderConfig()
+				encoding.JSON.VarGroupMode = nucliozap.VarGroupModeStructured
+				return encoding
+			}(),
+		},
+		{
+			name:     "Flattened",
+			encoding: "json",
+			encodingConfig: func() *nucliozap.EncoderConfig {
+				encoding := nucliozap.NewEncoderConfig()
+				encoding.JSON.VarGroupMode = nucliozap.VarGroupModeFlattened
+				return encoding
+			}(),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			writer := &bytes.Buffer{}
+			loggerInstance, err := nucliozap.NewNuclioZap(testCase.name,
+				testCase.encoding,
+				testCase.encodingConfig,
+				writer,
+				writer,
+				nucliozap.InfoLevel)
+			suite.Require().NoError(err)
+
+			errorMessage := "Failed to start trigger"
+			loggerInstance.WarnWith(errorMessage, "var", "details", "extra", "information")
+
+			suite.Logger.InfoWith("Getting processor logs and brief error", "logLine", writer.String())
+
+			scanner := bufio.NewScanner(writer)
+			formattedProcessorLogs, briefErrorsMessage := suite.Platform.GetProcessorLogsAndBriefError(scanner)
+
+			suite.Logger.InfoWith("Successfully processed processor logs and brief error",
+				"formattedProcessorLogs", formattedProcessorLogs,
+				"briefErrorsMessage", briefErrorsMessage)
+
+			suite.Require().Contains(formattedProcessorLogs, fmt.Sprintf("(W) %s", errorMessage))
+			suite.Require().Contains(briefErrorsMessage, errorMessage)
+			for _, processedLogLine := range []string{
+				formattedProcessorLogs,
+				briefErrorsMessage,
+			} {
+				suite.Require().Condition(func() (success bool) {
+					success =
+						strings.Contains(processedLogLine, `[var="details" || extra="information"]`)
+					success = success ||
+						strings.Contains(processedLogLine, `[extra="information" || var="details"]`)
+					return success
+				})
+			}
+
+		})
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsOnMultiWorker() {
 	suite.testGetProcessorLogsTestFromFile(MultiWorkerFunctionLogsFilePath)
 }
@@ -944,6 +1100,352 @@ func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
 	// enriched with project name
 	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], projectName)
 	suite.Require().NoError(err)
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
+	for idx, testCase := range []struct {
+		name                 string
+		nodeSelector         map[string]string
+		shouldFailValidation bool
+	}{
+
+		// happy flows
+		{
+			name: "Sanity",
+			nodeSelector: map[string]string{
+				"some-key": "some-value",
+			},
+		},
+		{
+			name: "AllowEmptyValue",
+			nodeSelector: map[string]string{
+				"some-key": "",
+			},
+		},
+		{
+			name: "TrueValuesSanity",
+			nodeSelector: map[string]string{
+				"beta.kubernetes.io/arch":                        "amd64",
+				"beta.kubernetes.io/os":                          "linux",
+				"feature.node.kubernetes.io/cpu-cpuid.ADX":       "true",
+				"feature.node.kubernetes.io/kernel-version.full": "3.10.0-1127.13.1.el7.x86_64",
+			},
+		},
+
+		// bad flows
+		{
+			name: "InvalidValue",
+			nodeSelector: map[string]string{
+				"some-key": "_some-value",
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "FailMissingKey",
+			nodeSelector: map[string]string{
+				"": "some-value",
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "Invalid2ndValue",
+			nodeSelector: map[string]string{
+				"some-key":      "some-value",
+				"some-key/name": "_some-value",
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "SegmentInvalidPrefix",
+			nodeSelector: map[string]string{
+				"some-key":  "some-value",
+				"/some-key": "some-value",
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Name:      platform.DefaultProjectName,
+					Namespace: "default",
+				},
+			}).Return([]platform.Project{
+				&platform.AbstractProject{},
+			}, nil).Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.NodeSelector = testCase.nodeSelector
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
+	for idx, testCase := range []struct {
+		name                            string
+		priorityClassName               string
+		validFunctionPriorityClassNames []string
+		shouldFailValidation            bool
+	}{
+
+		// happy flows
+		{
+			name:                            "Sanity",
+			priorityClassName:               "low-priority",
+			validFunctionPriorityClassNames: []string{"low-priority"},
+		},
+		{
+			name:                            "MultipleValidValues",
+			priorityClassName:               "low-priority",
+			validFunctionPriorityClassNames: []string{"low-priority", "medium-priority", "high-priority"},
+		},
+		{
+
+			// all priorityClassName should be valid when validFunctionPriorityClassNames is nil
+			name:                            "NilValidFunctionPriorityClassNames",
+			priorityClassName:               "low-priority",
+			validFunctionPriorityClassNames: nil,
+		},
+
+		// bad flows
+		{
+			name:                            "NonValidValue",
+			priorityClassName:               "non-valid-priority",
+			validFunctionPriorityClassNames: []string{"low-priority", "medium-priority", "high-priority"},
+			shouldFailValidation:            true,
+		},
+		{
+			name:                            "NoValidValues",
+			priorityClassName:               "low-priority",
+			validFunctionPriorityClassNames: []string{},
+			shouldFailValidation:            true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Name:      platform.DefaultProjectName,
+					Namespace: "default",
+				},
+			}).Return([]platform.Project{
+				&platform.AbstractProject{},
+			}, nil).Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.PriorityClassName = testCase.priorityClassName
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.Platform.Config.Kube.ValidFunctionPriorityClassNames = testCase.validFunctionPriorityClassNames
+			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
+	for idx, testCase := range []struct {
+		name                 string
+		functionVolumes      []functionconfig.Volume
+		shouldFailValidation bool
+	}{
+
+		// happy flows
+		{
+			name:            "noVolumes",
+			functionVolumes: nil,
+		},
+		{
+			name: "singleVolume",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "something",
+					},
+					VolumeMount: v1.VolumeMount{
+						Name: "something",
+					},
+				},
+			},
+		},
+		{
+			name: "sameVolumesMultipleMounts",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "something",
+						VolumeSource: v1.VolumeSource{
+							Secret: &v1.SecretVolumeSource{
+								SecretName: "some-secret",
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      "something",
+						MountPath: "/here",
+					},
+				},
+				{
+					Volume: v1.Volume{
+						Name: "something",
+						VolumeSource: v1.VolumeSource{
+							Secret: &v1.SecretVolumeSource{
+								SecretName: "some-secret",
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      "something",
+						MountPath: "/there",
+					},
+				},
+			},
+		},
+
+		// bad flows
+		{
+			name: "missingName",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "",
+					},
+					VolumeMount: v1.VolumeMount{
+						Name: "",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidNameReference",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "x",
+					},
+					VolumeMount: v1.VolumeMount{
+						Name: "y",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "differentVolumesMultipleMounts",
+			functionVolumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: "something",
+						VolumeSource: v1.VolumeSource{
+							ConfigMap: &v1.ConfigMapVolumeSource{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: "some-cm",
+								},
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      "something",
+						MountPath: "/here",
+					},
+				},
+				{
+					Volume: v1.Volume{
+						Name: "something",
+						VolumeSource: v1.VolumeSource{
+							Secret: &v1.SecretVolumeSource{
+								SecretName: "some-secret",
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      "something",
+						MountPath: "/there",
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.
+				On("GetProjects", &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      platform.DefaultProjectName,
+						Namespace: "default",
+					},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{},
+				}, nil).
+				Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.Volumes = testCase.functionVolumes
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.Logger.DebugWith("Checking function", "functionName", functionName)
+
+			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err)
+
+			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
 }
 
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage

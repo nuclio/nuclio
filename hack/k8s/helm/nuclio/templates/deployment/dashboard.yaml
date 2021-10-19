@@ -69,6 +69,11 @@ spec:
           failureThreshold: 4
           periodSeconds: 15
         volumeMounts:
+        {{- if .Values.dashboard.pipCACertSecretName }}
+        - mountPath: /etc/ssl/certs/nuclio
+          name: pip-ca-cert
+          readOnly: true
+        {{- end }}
         {{- if eq .Values.dashboard.containerBuilderKind "docker" }}
         - mountPath: /var/run/docker.sock
           name: docker-sock
@@ -87,6 +92,16 @@ spec:
           {{ toYaml .Values.dashboard.resources | nindent 11 }}
         {{- end }}
         env:
+        - name: NUCLIO_AUTH_KIND
+          value: {{ .Values.dashboard.authConfig.kind }}
+        - name: NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT
+          value: {{ .Values.dashboard.authConfig.iguazio.timeout }}
+        - name: NUCLIO_AUTH_IGUAZIO_VERIFICATION_URL
+          value: {{ .Values.dashboard.authConfig.iguazio.sessionVerificationURL }}
+        - name: NUCLIO_AUTH_IGUAZIO_CACHE_SIZE
+          value: {{ .Values.dashboard.authConfig.iguazio.cacheSize | quote }}
+        - name: NUCLIO_AUTH_IGUAZIO_CACHE_EXPIRATION_TIMEOUT
+          value: {{ .Values.dashboard.authConfig.iguazio.cacheExpirationTimeout }}
         - name: NUCLIO_DASHBOARD_REGISTRY_URL
           valueFrom:
             configMapKeyRef:
@@ -101,6 +116,8 @@ spec:
           value: {{ .Values.dashboard.kaniko.image.repository }}:{{ .Values.dashboard.kaniko.image.tag }}
         - name: NUCLIO_KANIKO_CONTAINER_IMAGE_PULL_POLICY
           value: {{ .Values.dashboard.kaniko.image.pullPolicy }}
+        - name: NUCLIO_KANIKO_JOB_DELETION_TIMEOUT
+          value: {{ .Values.dashboard.kaniko.jobDeletionTimeout | quote }}
         {{- if .Values.dashboard.kaniko.insecurePushRegistry }}
         - name: NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY
           value: "true"
@@ -153,8 +170,6 @@ spec:
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
-        - name: NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE
-          value: {{ .Values.dashboard.httpIngressHostTemplate | quote }}
         - name: NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE
           value: {{ .Values.dashboard.imageNamePrefixTemplate | quote }}
       {{- if .Values.dashboard.opa.enabled }}
@@ -186,9 +201,18 @@ spec:
         volumeMounts:
           - readOnly: true
             mountPath: /config
-            name: config
+            name: opa-config
       {{- end }}
       volumes:
+      {{- if .Values.dashboard.pipCACertSecretName }}
+      - name: pip-ca-cert
+        secret:
+          secretName: {{ .Values.dashboard.pipCACertSecretName }}
+          items:
+            - key: pip-ca-certificates.crt
+              path: pip-ca-certificates.crt
+              mode: 0400
+      {{- end }}
       {{- if eq .Values.dashboard.containerBuilderKind "docker" }}
       - name: docker-sock
         hostPath:
@@ -206,7 +230,7 @@ spec:
           name: {{ template "nuclio.platformConfigName" . }}
       {{- end }}
       {{- if .Values.dashboard.opa.enabled }}
-      - name: config
+      - name: opa-config
         secret:
           secretName: {{ template "nuclio.dashboard.opa.fullname" . }}
       {{- end }}
@@ -221,5 +245,8 @@ spec:
       {{- with .Values.dashboard.affinity }}
       affinity:
       {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.dashboard.priorityClassName }}
+      priorityClassName: {{ .Values.dashboard.priorityClassName | quote }}
       {{- end }}
 {{- end }}

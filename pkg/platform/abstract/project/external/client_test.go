@@ -1,3 +1,5 @@
+// +build test_unit
+
 package external
 
 import (
@@ -12,10 +14,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-)
-
-const (
-	ProjectsLeaderKindMock = "mock-leader"
 )
 
 type ExternalProjectClientTestSuite struct {
@@ -43,7 +41,7 @@ func (suite *ExternalProjectClientTestSuite) SetupSuite() {
 	// create platform configuration
 	platformConfiguration := platformconfig.Config{
 		ProjectsLeader: &platformconfig.ProjectsLeader{
-			Kind: ProjectsLeaderKindMock,
+			Kind: platformconfig.ProjectsLeaderKindMock,
 		},
 	}
 
@@ -58,7 +56,7 @@ func (suite *ExternalProjectClientTestSuite) SetupSuite() {
 
 func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
 	createProjectOptions := platform.CreateProjectOptions{
-		RequestOrigin: ProjectsLeaderKindMock,
+		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
 		ProjectConfig: &platform.ProjectConfig{
 			Meta: platform.ProjectMeta{
 				Name: "test-func",
@@ -77,7 +75,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
 
 func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 	updateProjectOptions := platform.UpdateProjectOptions{
-		RequestOrigin: ProjectsLeaderKindMock,
+		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
 		ProjectConfig: platform.ProjectConfig{
 			Meta: platform.ProjectMeta{
 				Name: "test-func",
@@ -96,7 +94,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 
 func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 	deleteProjectOptions := platform.DeleteProjectOptions{
-		RequestOrigin: ProjectsLeaderKindMock,
+		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
 		Meta: platform.ProjectMeta{
 			Name: "test-func",
 		},

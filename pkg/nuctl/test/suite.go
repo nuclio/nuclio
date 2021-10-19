@@ -239,7 +239,7 @@ func (suite *Suite) verifyAPIGatewayExists(apiGatewayName, primaryFunctionName s
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(apiGatewayName, apiGateway.Meta.Name)
-	suite.Assert().Equal(primaryFunctionName, apiGateway.Spec.Upstreams[0].Nucliofunction.Name)
+	suite.Assert().Equal(primaryFunctionName, apiGateway.Spec.Upstreams[0].NuclioFunction.Name)
 }
 
 func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
@@ -321,34 +321,27 @@ func (suite *Suite) waitForFunctionState(functionName string, expectedState func
 }
 
 func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig.Config,
-	tempFilePattern string) (string, error) {
+	tempFilePattern string) string {
 
 	// create a temp function yaml to be used with test modified values
 	functionConfigPath, err := ioutil.TempFile("", tempFilePattern)
-	if err != nil {
-		return "", err
-	}
+	suite.Require().NoError(err)
 
 	// close when done writing
 	defer functionConfigPath.Close() // nolint: errcheck
 
 	// dump modified function config to temp function configuration file
 	marshaledFunctionConfig, err := yaml.Marshal(functionConfig)
-	if err != nil {
-		return "", err
-	}
+	suite.Require().NoError(err)
+
 	_, err = functionConfigPath.Write(marshaledFunctionConfig)
-	if err != nil {
-		return "", err
-	}
+	suite.Require().NoError(err)
 
 	// ensure file is written to disk
 	err = functionConfigPath.Sync()
-	if err != nil {
-		return "", err
-	}
+	suite.Require().NoError(err)
 
-	return functionConfigPath.Name(), nil
+	return functionConfigPath.Name()
 }
 
 func (suite *Suite) ensureRunningOnPlatform(expectedPlatformKind string) {

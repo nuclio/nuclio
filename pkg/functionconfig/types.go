@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/v3io/scaler-types"
+	"github.com/v3io/scaler/pkg/scalertypes"
 	"k8s.io/api/core/v1"
 )
 
@@ -94,23 +94,42 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 	return matchingTrigger
 }
 
-// GetIngressesFromTriggers returns all ingresses from a map of triggers
-func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
-	ingresses := map[string]Ingress{}
+func ResolveFunctionServiceType(functionSpec *Spec, defaultServiceType v1.ServiceType) v1.ServiceType {
+	functionHTTPTriggers := GetTriggersByKind(functionSpec.Triggers, "http")
 
-	for _, trigger := range GetTriggersByKind(triggers, "http") {
+	// if the http trigger has a configured service type, return that.
+	for _, trigger := range functionHTTPTriggers {
+		if serviceTypeInterface, serviceTypeExists := trigger.Attributes["serviceType"]; serviceTypeExists {
+			if serviceType, serviceTypeIsString := serviceTypeInterface.(string); serviceTypeIsString {
+				return v1.ServiceType(serviceType)
+			}
+		}
+	}
+
+	// otherwise, if the function spec has a service type, return that (for backwards compatibility)
+	if functionSpec.ServiceType != "" {
+		return functionSpec.ServiceType
+	}
+
+	// otherwise return default
+	return defaultServiceType
+}
+
+func GetFunctionIngresses(config *Config) map[string]Ingress {
+
+	ingresses := map[string]Ingress{}
+	for _, httpTrigger := range GetTriggersByKind(config.Spec.Triggers, "http") {
 
 		// if there are attributes
-		if encodedIngresses, found := trigger.Attributes["ingresses"]; found {
+		if encodedIngresses, found := httpTrigger.Attributes["ingresses"]; found {
 
 			// iterate over the encoded ingresses map and created ingress structures
 			encodedIngresses := encodedIngresses.(map[string]interface{})
 			for encodedIngressName, encodedIngress := range encodedIngresses {
 				encodedIngressMap := encodedIngress.(map[string]interface{})
 
-				ingress := Ingress{}
+				var ingress Ingress
 
-				// try to convert host
 				if host, ok := encodedIngressMap["host"].(string); ok {
 					ingress.Host = host
 				}
@@ -126,7 +145,7 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 				}
 
 				// try to convert secretName and create a matching ingressTLS
-				ingressTLS := IngressTLS{}
+				var ingressTLS IngressTLS
 				if secretName, ok := encodedIngressMap["secretName"].(string); ok {
 					hostsList := []string{ingress.Host}
 
@@ -139,7 +158,6 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 			}
 		}
 	}
-
 	return ingresses
 }
 
@@ -264,6 +282,10 @@ type Spec struct {
 	Affinity     *v1.Affinity      `json:"affinity,omitempty"`
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	NodeName     string            `json:"nodeName,omitempty"`
+
+	// Priority and Preemption
+	PriorityClassName string               `json:"priorityClassName,omitempty"`
+	PreemptionPolicy  *v1.PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 
 	// Currently relevant only for k8s platform
 	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
@@ -538,8 +560,8 @@ func (s *Status) InvocationURLs() []string {
 }
 
 type ScaleToZeroStatus struct {
-	LastScaleEvent     scaler_types.ScaleEvent `json:"lastScaleEvent,omitempty"`
-	LastScaleEventTime *time.Time              `json:"lastScaleEventTime,omitempty"`
+	LastScaleEvent     scalertypes.ScaleEvent `json:"lastScaleEvent,omitempty"`
+	LastScaleEventTime *time.Time             `json:"lastScaleEventTime,omitempty"`
 }
 
 // DeepCopyInto copies to appease k8s

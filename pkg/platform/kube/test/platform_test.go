@@ -193,10 +193,8 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 			CreateFunctionOptions: func() *platform.CreateFunctionOptions {
 				createFunctionOptions := suite.CompileCreateFunctionOptions("fail-func-insufficient-gpu")
 				createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
-				createFunctionOptions.FunctionConfig.Spec.Handler = "main:expected_handler"
-				functionSourceCode := `def not_expected_handler(context, event):
-  return ""
-`
+				createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+				functionSourceCode := `def handler(context, event): return ""`
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 				createFunctionOptions.FunctionConfig.Spec.Resources.Limits = map[v1.ResourceName]resource.Quantity{
 					functionconfig.NvidiaGPUResourceName: resource.MustParse("99"),
@@ -207,24 +205,27 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 		},
 	} {
 		suite.Run(testCase.Name, func() {
-			_, err := suite.DeployFunctionExpectError(testCase.CreateFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+			_, err := suite.DeployFunctionExpectError(testCase.CreateFunctionOptions,
+				func(deployResult *platform.CreateFunctionResult) bool {
 
-				// get the function
-				function := suite.GetFunction(&platform.GetFunctionsOptions{
-					Name:      testCase.CreateFunctionOptions.FunctionConfig.Meta.Name,
-					Namespace: testCase.CreateFunctionOptions.FunctionConfig.Meta.Namespace,
+					// get the function
+					function := suite.GetFunction(&platform.GetFunctionsOptions{
+						Name:      testCase.CreateFunctionOptions.FunctionConfig.Meta.Name,
+						Namespace: testCase.CreateFunctionOptions.FunctionConfig.Meta.Namespace,
+					})
+
+					// validate the brief error message in function status is at least 90% close to the expected brief error message
+					// keep it flexible for close enough messages in case small changes occur (e.g. line numbers on stack trace)
+					briefErrorMessageDiff := common.CompareTwoStrings(testCase.ExpectedBriefErrorsMessage, function.GetStatus().Message)
+					suite.Require().GreaterOrEqual(briefErrorMessageDiff, float32(0.90))
+
+					return true
 				})
-
-				// validate the brief error message in function status is at least 95% close to the expected brief error message
-				// keep it flexible for close enough messages in case small changes occur (e.g. line numbers on stack trace)
-				briefErrorMessageDiff := common.CompareTwoStrings(testCase.ExpectedBriefErrorsMessage, function.GetStatus().Message)
-				suite.Require().GreaterOrEqual(briefErrorMessageDiff, float32(0.95))
-
-				return true
-			})
 			suite.Require().Error(err)
 
-			err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{FunctionConfig: testCase.CreateFunctionOptions.FunctionConfig})
+			err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: testCase.CreateFunctionOptions.FunctionConfig,
+			})
 			suite.Require().NoError(err)
 		})
 	}
@@ -725,6 +726,49 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 		})
 }
 
+func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
+	functionName := "func-with-ingress"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"customTrigger": {
+			Kind:       "http",
+			Name:       "customTrigger",
+			MaxWorkers: 3,
+			Attributes: map[string]interface{}{
+				"ingresses": map[string]interface{}{
+					"someKey": map[string]interface{}{
+						"paths":        []string{"/"},
+						"hostTemplate": "{{ .ResourceName }}.{{ .Namespace }}.nuclio.com",
+					},
+				},
+			},
+		},
+	}
+
+	suite.DeployFunctionAndRedeploy(createFunctionOptions,
+		func(deployResult *platform.CreateFunctionResult) bool {
+
+			// wait for function to become ready
+			// that ensure us all of its resources (ingresses) are created correctly
+			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
+				Name:      functionName,
+				Namespace: suite.Namespace,
+			}, functionconfig.FunctionStateReady, time.Minute)
+
+			expectedIngressHost := fmt.Sprintf("%s.%s.nuclio.com",
+				functionName,
+				createFunctionOptions.FunctionConfig.Meta.Namespace)
+			functionIngress := suite.GetFunctionIngress(functionName)
+			suite.Require().Equal(expectedIngressHost, functionIngress.Spec.Rules[0].Host)
+			return true
+
+		}, func(deployResult *platform.CreateFunctionResult) bool {
+
+			// sanity check, redeploy does break on certain ingress / apigateway ingress validations
+			return true
+		})
+}
+
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }
@@ -734,8 +778,8 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		apiGatewayName := "func-apigw"
-		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		err := suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName, functionName)
 
 			// try to delete the function while it uses this api gateway
@@ -904,11 +948,11 @@ func (suite *DeployAPIGatewayTestSuite) TestAPIGatewayFunctionsHaveNoIngress() {
 
 	// deploy a function with an ingress
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		expectedErrorMessage := fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", functionName)
 
 		// try to create api gateway with this function as upstream and expect it to fail
-		err := suite.deployAPIGateway(createAPIGatewayOptions, nil)
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, nil)
 		suite.Require().Error(err)
 		suite.Require().Equal(expectedErrorMessage, errors.RootCause(err).Error())
 
@@ -926,8 +970,8 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// create an api-gateway with that function as upstream
-		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		err := suite.deployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
+		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
 
 			// update the function to have ingresses
 			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -968,16 +1012,18 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		Oauth2ProxyURL: configOauth2ProxyURL,
 	}
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
-		err := suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
-			suite.Assert().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
-			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+			suite.Require().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
+			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
+			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"],
+				fmt.Sprintf(`proxy_set_header X-Nuclio-Target "%s";`, functionName))
 		})
 		suite.Require().NoError(err)
 
 		overrideOauth2ProxyURL := "override-oauth2-url"
-		createAPIGatewayOptions = suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions = suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication = &platform.APIGatewayAuthenticationSpec{
 			DexAuth: &ingress.DexAuth{
@@ -985,7 +1031,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 				RedirectUnauthorizedToSignIn: true,
 			},
 		}
-		err = suite.deployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		err = suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
@@ -1015,7 +1061,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 	createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		beforeUpdateHostValue := "before-update-host.com"
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = beforeUpdateHostValue
 		createAPIGatewayOptions.APIGatewayConfig.Meta.Labels["nuclio.io/project-name"] = projectName
@@ -1141,7 +1187,7 @@ func (suite *ProjectTestSuite) TestUpdate() {
 
 	// delete leftover
 	defer func() {
-		err = suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
+		err := suite.Platform.DeleteProject(&platform.DeleteProjectOptions{
 			Meta:     projectConfig.Meta,
 			Strategy: platform.DeleteProjectStrategyRestricted,
 		})
@@ -1166,7 +1212,10 @@ func (suite *ProjectTestSuite) TestUpdate() {
 	updatedProject := suite.GetProject(&platform.GetProjectsOptions{
 		Meta: projectConfig.Meta,
 	})
-	suite.Require().Empty(cmp.Diff(projectConfig, *updatedProject.GetConfig()))
+	suite.Require().Empty(cmp.Diff(projectConfig, *updatedProject.GetConfig(),
+		cmp.Options{
+			cmpopts.IgnoreFields(projectConfig.Status, "UpdatedAt"), // automatically populated
+		}))
 }
 
 func (suite *ProjectTestSuite) TestDelete() {
@@ -1199,7 +1248,7 @@ func (suite *ProjectTestSuite) TestDelete() {
 	})
 	suite.Require().NoError(err, "Failed to delete project")
 
-	// ensure project does not exists
+	// ensure project does not exist
 	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
 		Meta: projectConfig.Meta,
 	})
@@ -1236,7 +1285,7 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 	})
 
 	// create api gateway for function A (deleted along with `projectToDeleteConfig`)
-	createAPIGatewayOptions := suite.compileCreateAPIGatewayOptions("apigw-to-delete",
+	createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions("apigw-to-delete",
 		functionToDeleteA.Meta.Name)
 	createAPIGatewayOptions.APIGatewayConfig.Meta.Labels["nuclio.io/project-name"] = projectToDeleteConfig.Meta.Name
 	err = suite.Platform.CreateAPIGateway(createAPIGatewayOptions)

@@ -59,6 +59,11 @@ type ProjectImportOptions struct {
 	authConfig  *platform.AuthConfig
 }
 
+func (pr *projectResource) ExtendMiddlewares() error {
+	pr.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all projects
 func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}
@@ -69,15 +74,19 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
+	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      request.Header.Get("x-nuclio-project-name"),
 			Namespace: namespace,
 		},
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+		AuthSession:   pr.getCtxSession(request),
+		SessionCookie: sessionCookie,
+		RequestOrigin: requestOrigin,
 	})
 
 	if err != nil {
@@ -219,9 +228,12 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Name:      "",
 		Namespace: project.GetConfig().Meta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", project.GetConfig().Meta.Name),
+		Labels: fmt.Sprintf("%s=%s",
+			common.NuclioResourceLabelKeyProjectName,
+			project.GetConfig().Meta.Name),
+		AuthSession: pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -271,10 +283,14 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		ProjectConfig: newProject.GetConfig(),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
+		AuthSession:   pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+
+		// TODO: read from request header
+		// if false - return "202" and let client to poll on resource until it becomes ready
+		WaitForCreateCompletion: true,
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			return "", nil, nuclio.WrapErrConflict(err)
@@ -319,7 +335,7 @@ func (pr *projectResource) importProject(request *http.Request, projectImportOpt
 	// import
 	failedFunctions := pr.importProjectFunctions(request, projectImportOptions.projectInfo, projectImportOptions.authConfig)
 	failedFunctionEvents := pr.importProjectFunctionEvents(request, projectImportOptions.projectInfo, failedFunctions)
-	failedAPIGateways := pr.importProjectAPIGateways(projectImportOptions.projectInfo)
+	failedAPIGateways := pr.importProjectAPIGateways(request, projectImportOptions.projectInfo)
 
 	attributes = restful.Attributes{
 		"functionImportResult": restful.Attributes{
@@ -352,9 +368,9 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 		"projectName", projectName)
 
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
-		Meta: *projectImportOptions.projectInfo.Project.Meta,
+		Meta:        *projectImportOptions.projectInfo.Project.Meta,
+		AuthSession: pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -387,8 +403,8 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
+			AuthSession:   pr.getCtxSession(request),
 			PermissionOptions: opa.PermissionOptions{
-				MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
 		}); err != nil {
@@ -423,7 +439,7 @@ func (pr *projectResource) importProjectFunctions(request *http.Request, project
 			if function.Meta.Labels == nil {
 				function.Meta.Labels = map[string]string{}
 			}
-			function.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			function.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 
 			if err := pr.importFunction(request, function, authConfig); err != nil {
 				pr.Logger.WarnWith("Failed importing function upon project import ",
@@ -455,12 +471,13 @@ func (pr *projectResource) importProjectFunctions(request *http.Request, project
 func (pr *projectResource) importFunction(request *http.Request, function *functionInfo, authConfig *platform.AuthConfig) error {
 	pr.Logger.InfoWith("Importing project function",
 		"function", function.Meta.Name,
-		"project", function.Meta.Labels["nuclio.io/project-name"])
+		"project", function.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
 	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:      function.Meta.Name,
-		Namespace: function.Meta.Namespace,
+		Name:        function.Meta.Name,
+		Namespace:   function.Meta.Namespace,
+		AuthSession: pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -476,7 +493,8 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 	return functionResourceInstance.storeAndDeployFunction(request, function, authConfig, false)
 }
 
-func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *projectImportInfo) []restful.Attributes {
+func (pr *projectResource) importProjectAPIGateways(request *http.Request,
+	projectImportInfoInstance *projectImportInfo) []restful.Attributes {
 	var failedAPIGateways []restful.Attributes
 
 	if projectImportInfoInstance.APIGateways == nil {
@@ -497,7 +515,7 @@ func (pr *projectResource) importProjectAPIGateways(projectImportInfoInstance *p
 		}
 
 		// create the api gateway
-		_, _, err := apiGatewayResourceInstance.createAPIGateway(apiGateway)
+		_, _, err := apiGatewayResourceInstance.createAPIGateway(request, apiGateway)
 		if err != nil {
 			failedAPIGateways = append(failedAPIGateways, restful.Attributes{
 				"apiGateway": apiGateway.Spec.Name,
@@ -554,16 +572,20 @@ func (pr *projectResource) importProjectFunctionEvents(request *http.Request,
 }
 
 func (pr *projectResource) getProjectByName(request *http.Request, projectName, projectNamespace string) (platform.Project, error) {
+	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      projectName,
 			Namespace: projectNamespace,
 		},
+		AuthSession: pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+		RequestOrigin: requestOrigin,
+		SessionCookie: sessionCookie,
 	})
 
 	if err != nil {
@@ -592,13 +614,13 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 	projectDeletionStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
-	if err = pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
+	if err := pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
 		Meta:          *projectInfo.Meta,
 		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
+		AuthSession:   pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
@@ -623,7 +645,6 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 	projectInfo, err := pr.getProjectInfoFromRequest(request)
 	if err != nil {
 		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
-
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
@@ -632,20 +653,22 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
-	if err = pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
+	if err := pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
 		ProjectConfig: platform.ProjectConfig{
 			Meta: *projectInfo.Meta,
 			Spec: *projectInfo.Spec,
 		},
+		AuthSession:   pr.getCtxSession(request),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
-		pr.Logger.WarnWith("Failed to update project", "err", err)
 		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
+		if statusCode > 300 {
+			pr.Logger.WarnWith("Failed to update project", "err", err)
+		}
 	}
 
 	// return the stuff
@@ -660,6 +683,7 @@ func (pr *projectResource) projectToAttributes(project platform.Project) restful
 	attributes := restful.Attributes{
 		"metadata": project.GetConfig().Meta,
 		"spec":     project.GetConfig().Spec,
+		"status":   project.GetConfig().Status,
 	}
 
 	return attributes
@@ -750,19 +774,19 @@ func (pr *projectResource) enrichProjectImportInfoImportResources(projectImportI
 
 	for _, functionConfig := range projectImportInfoInstance.Functions {
 		if functionConfig.Meta.Labels != nil {
-			functionConfig.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 
 	for _, apiGateway := range projectImportInfoInstance.APIGateways {
 		if apiGateway.Meta.Labels != nil {
-			apiGateway.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			apiGateway.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 
 	for _, functionEvent := range projectImportInfoInstance.FunctionEvents {
 		if functionEvent.Meta.Labels != nil {
-			functionEvent.Meta.Labels["nuclio.io/project-name"] = projectImportInfoInstance.Project.Meta.Name
+			functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 		}
 	}
 }

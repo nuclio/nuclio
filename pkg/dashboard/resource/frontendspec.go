@@ -19,6 +19,7 @@ package resource
 import (
 	"net/http"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
@@ -31,6 +32,11 @@ import (
 
 type frontendSpecResource struct {
 	*resource
+}
+
+func (fsr *frontendSpecResource) ExtendMiddlewares() error {
+	fsr.resource.addAuthMiddleware()
+	return nil
 }
 
 func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
@@ -72,17 +78,20 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	}
 
 	defaultFunctionConfig := fsr.getDefaultFunctionConfig()
+	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
+	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
-			"externalIPAddresses":            externalIPAddresses,
-			"namespace":                      fsr.getNamespaceOrDefault(""),
-			"defaultHTTPIngressHostTemplate": fsr.getPlatform().GetDefaultHTTPIngressHostTemplate(),
-			"imageNamePrefixTemplate":        fsr.getPlatform().GetImageNamePrefixTemplate(),
-			"scaleToZero":                    scaleToZeroAttribute,
-			"defaultFunctionConfig":          defaultFunctionConfig,
-			"platformKind":                   platformKind,
-			"allowedAuthenticationModes":     allowedAuthenticationModes,
+			"externalIPAddresses":             externalIPAddresses,
+			"namespace":                       fsr.getNamespaceOrDefault(""),
+			"defaultHTTPIngressHostTemplate":  defaultHTTPIngressHostTemplate,
+			"imageNamePrefixTemplate":         fsr.getPlatform().GetImageNamePrefixTemplate(),
+			"scaleToZero":                     scaleToZeroAttribute,
+			"defaultFunctionConfig":           defaultFunctionConfig,
+			"platformKind":                    platformKind,
+			"allowedAuthenticationModes":      allowedAuthenticationModes,
+			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
 		},
 	}
 
@@ -99,6 +108,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
 
 	defaultFunctionNodeSelector := fsr.resolveDefaultFunctionNodeSelector()
+	defaultFunctionPriorityClassName := fsr.resolveDefaultFunctionPriorityClassName()
 	defaultServiceType := fsr.resolveDefaultServiceType()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 	defaultHTTPTrigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
@@ -111,6 +121,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 		MaxReplicas:             &one,
 		ReadinessTimeoutSeconds: fsr.resolveFunctionReadinessTimeoutSeconds(),
 		NodeSelector:            defaultFunctionNodeSelector,
+		PriorityClassName:       defaultFunctionPriorityClassName,
 		TargetCPU:               abstract.DefaultTargetCPU,
 		Triggers: map[string]functionconfig.Trigger{
 
@@ -148,7 +159,7 @@ func (fsr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, error
 }
 
 func (fsr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
-	var defaultServiceType v1.ServiceType = ""
+	var defaultServiceType v1.ServiceType
 	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		defaultServiceType = dashboardServer.GetPlatformConfiguration().Kube.DefaultServiceType
 	}
@@ -169,6 +180,37 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionNodeSelector() map[string
 		defaultNodeSelector = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector
 	}
 	return defaultNodeSelector
+}
+
+func (fsr *frontendSpecResource) resolveDefaultFunctionPriorityClassName() string {
+	var defaultFunctionPriorityClassName string
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		defaultFunctionPriorityClassName = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionPriorityClassName
+	}
+	return defaultFunctionPriorityClassName
+}
+
+func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []string {
+	var validFunctionPriorityClassNames []string
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		validFunctionPriorityClassNames = dashboardServer.GetPlatformConfiguration().Kube.ValidFunctionPriorityClassNames
+	}
+	return validFunctionPriorityClassNames
+}
+
+func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {
+
+	// try read from platform configuration first, if set use that, otherwise
+	// fallback reading from envvar for backwards compatibility with old helm charts
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		defaultHTTPIngressHostTemplate := dashboardServer.GetPlatformConfiguration().Kube.DefaultHTTPIngressHostTemplate
+		if defaultHTTPIngressHostTemplate != "" {
+			return defaultHTTPIngressHostTemplate
+		}
+	}
+
+	return common.GetEnvOrDefaultString(
+		"NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE", "")
 }
 
 // register the resource

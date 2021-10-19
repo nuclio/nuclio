@@ -155,6 +155,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.options = options
 
 	b.logger.InfoWith("Building",
+		"builderKind", b.platform.GetContainerBuilderKind(),
 		"versionInfo", b.versionInfo,
 		"name", b.options.FunctionConfig.Meta.Name)
 
@@ -215,7 +216,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	// prepare configuration from both configuration files and things builder infers
 	if !configurationRead {
-		if _, err = b.readConfiguration(); err != nil {
+		if _, err := b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
 		}
 	}
@@ -228,7 +229,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	// once we're done reading our configuration, we may still have to fill in the blanks
 	// because the user isn't obligated to always pass all the configuration
-	if err = b.validateAndEnrichConfiguration(); err != nil {
+	if err := b.validateAndEnrichConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
 
@@ -244,13 +245,13 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	// if a callback is registered, call back
 	if b.options.OnAfterConfigUpdate != nil {
-		if err = b.options.OnAfterConfigUpdate(&enrichedConfiguration); err != nil {
+		if err := b.options.OnAfterConfigUpdate(&enrichedConfiguration); err != nil {
 			return nil, errors.Wrap(err, "OnAfterConfigUpdate returned error")
 		}
 	}
 
 	// prepare a staging directory
-	if err = b.prepareStagingDir(); err != nil {
+	if err := b.prepareStagingDir(); err != nil {
 		return nil, errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
@@ -281,7 +282,7 @@ func (b *Builder) GetFunctionPath() string {
 
 // GetProjectName returns the name of the project
 func (b *Builder) GetProjectName() string {
-	return b.options.FunctionConfig.Meta.Labels["nuclio.io/project-name"]
+	return b.options.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 }
 
 // GetFunctionName returns the name of the function
@@ -391,7 +392,7 @@ CMD [ "processor" ]
 	}
 
 	var dockerfileTemplateBuffer bytes.Buffer
-	err = dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
+	if err := dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
 		"BaseImage":            baseImage,
 		"OnbuildStages":        onbuildStages,
 		"OnbuildArtifactPaths": onbuildArtifactPaths,
@@ -400,9 +401,7 @@ CMD [ "processor" ]
 		"PostCopyDirectives":   directives["postCopy"],
 		"HealthcheckRequired":  healthCheckRequired,
 		"BuildArgs":            buildArgs,
-	})
-
-	if err != nil {
+	}); err != nil {
 		return "", errors.Wrap(err, "Failed to run template")
 	}
 
@@ -622,8 +621,7 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	sourceFilePath := path.Join(tempDir, moduleFileName)
 
 	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
-	err = ioutil.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644))
-	if err != nil {
+	if err := ioutil.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644)); err != nil {
 		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFilePath)
 	}
 
@@ -947,7 +945,7 @@ func (b *Builder) prepareStagingDir() error {
 	}
 
 	// first, tell the specific runtime to do its thing
-	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
+	if err := b.runtime.OnAfterStagingDirCreated(b.platform.GetConfig().Runtime, b.stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
@@ -1050,18 +1048,25 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	}
 
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
+	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
-	b.logger.InfoWith("Building processor image", "imageName", imageName)
+	b.logger.InfoWith("Building processor image",
+		"registryURL", registryURL,
+		"imageName", imageName)
 
 	err = b.platform.BuildAndPushContainerImage(&containerimagebuilderpusher.BuildOptions{
-		ContextDir:          b.stagingDir,
-		Image:               imageName,
-		TempDir:             b.tempDir,
-		DockerfileInfo:      processorDockerfileInfo,
+		ContextDir:     b.stagingDir,
+		Image:          imageName,
+		TempDir:        b.tempDir,
+		DockerfileInfo: processorDockerfileInfo,
+
+		// Conjunct Pull with NoCache
+		// To ensure that when forcing a function build, the base images would be pulled as well.
+		Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
 		NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
 		NoBaseImagePull:     b.GetNoBaseImagePull(),
 		BuildArgs:           buildArgs,
-		RegistryURL:         b.options.FunctionConfig.Spec.Build.Registry,
+		RegistryURL:         registryURL,
 		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 		OutputImageFile:     b.options.OutputImageFile,
 		BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
@@ -1227,7 +1232,9 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 	}
 
 	// merge directives passed by user with directives passed by runtime
-	directives = b.mergeDirectives(directives, processorDockerfileInfo.Directives)
+	// let the directives dictated by runtime to comes first to allow pre-configuration such as
+	// installing ca-certs before executing build commands such as `pip install x`
+	directives = b.mergeDirectives(processorDockerfileInfo.Directives, directives)
 
 	// path where generated dockerfile should reside (staging)
 	processorDockerfileInfo.DockerfilePath = filepath.Join(b.stagingDir, "Dockerfile.processor")
@@ -1251,7 +1258,8 @@ func (b *Builder) resolveProcessorDockerfileInfo(baseImageRegistry string,
 	onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	// get defaults from the runtime
-	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(onbuildImageRegistry)
+	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(b.platform.GetConfig().Runtime,
+		onbuildImageRegistry)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
@@ -1370,7 +1378,7 @@ func (b *Builder) getDockerFileBuildArgs() map[string]string {
 			buildArgs[key] = value
 		} else {
 
-			// value is empty, remote this arg
+			// value is empty, remove this arg
 			delete(buildArgs, key)
 		}
 	}
@@ -1644,15 +1652,26 @@ func (b *Builder) downloadFunctionFromS3(tempFile *os.File) error {
 		return errors.Wrap(err, "Failed to parse and validate s3 code entry attributes")
 	}
 
-	err = b.s3Client.Download(tempFile,
+	if err := b.s3Client.Download(tempFile,
 		s3Attributes["s3Bucket"],
 		s3Attributes["s3ItemKey"],
 		s3Attributes["s3Region"],
 		s3Attributes["s3AccessKeyId"],
 		s3Attributes["s3SecretAccessKey"],
-		s3Attributes["s3SessionToken"])
+		s3Attributes["s3SessionToken"]); err != nil {
 
-	if err != nil {
+		// assume running on ec2 container, which resolves the authentication seamlessly
+		if downloadError := b.s3Client.DownloadWithinEC2Instance(tempFile,
+			s3Attributes["s3Bucket"],
+			s3Attributes["s3ItemKey"]); downloadError != nil {
+			b.logger.WarnWith("Failed to download within ec2 instance",
+				"err", err)
+		} else {
+
+			b.logger.DebugWith("Download from within ec2 instance succeeded")
+			return nil
+		}
+
 		return errors.Wrap(err, "Failed to download the function archive from s3")
 	}
 

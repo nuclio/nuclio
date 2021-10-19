@@ -77,25 +77,28 @@ type Resource interface {
 	// Initialize the concrete server
 	Initialize(logger.Logger, Server) (chi.Router, error)
 
-	// Called after initialization
+	// ExtendMiddlewares extends router middlewares
+	ExtendMiddlewares() error
+
+	// OnAfterInitialize Called after initialization
 	OnAfterInitialize() error
 
-	// returns a list of custom routes for the resource
+	// GetCustomRoutes returns a list of custom routes for the resource
 	GetCustomRoutes() ([]CustomRoute, error)
 
-	// return all instances for resources with multiple instances
+	// GetAll return all instances for resources with multiple instances
 	GetAll(request *http.Request) (map[string]Attributes, error)
 
-	// return specific instance by ID
+	// GetByID return specific instance by ID
 	GetByID(request *http.Request, id string) (Attributes, error)
 
-	// returns resource ID, attributes
+	// Create returns resource ID, attributes
 	Create(request *http.Request) (string, Attributes, error)
 
-	// returns attributes (optionally)
+	// Update returns attributes (optionally)
 	Update(request *http.Request, id string) (Attributes, error)
 
-	// delete an entity
+	// Delete delete an entity
 	Delete(request *http.Request, id string) error
 }
 
@@ -118,10 +121,11 @@ const (
 
 // AbstractResource is base for resources
 type AbstractResource struct {
+	Logger   logger.Logger
+	Resource Resource
+
 	name            string
-	Logger          logger.Logger
 	router          chi.Router
-	Resource        Resource
 	resourceMethods []ResourceMethod
 	server          Server
 	encoderFactory  EncoderFactory
@@ -143,6 +147,12 @@ func (ar *AbstractResource) Initialize(parentLogger logger.Logger, server Server
 	ar.server = server
 	ar.router = chi.NewRouter()
 
+	// extend specific resource middlewares
+	// must occur before route is being registered
+	if err := ar.Resource.ExtendMiddlewares(); err != nil {
+		return nil, errors.Wrap(err, "ExtendMiddlewares returned error")
+	}
+
 	// register routes based on supported methods
 	if err := ar.registerRoutes(); err != nil {
 		return nil, errors.Wrap(err, "Failed to register routes")
@@ -158,6 +168,11 @@ func (ar *AbstractResource) Initialize(parentLogger logger.Logger, server Server
 // Register registers a registry
 func (ar *AbstractResource) Register(registry *registry.Registry) {
 	registry.Register(ar.name, ar)
+}
+
+// GetName returns the resource name
+func (ar *AbstractResource) GetName() string {
+	return ar.name
 }
 
 // GetServer returns the server
@@ -205,6 +220,11 @@ func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
 }
 
+// ExtendMiddlewares extends specific resource middlewares
+func (ar *AbstractResource) ExtendMiddlewares() error {
+	return nil
+}
+
 func (ar *AbstractResource) parseURLParamValue(paramValue string) interface{} {
 	parsedBool, err := strconv.ParseBool(paramValue)
 	if err == nil {
@@ -221,7 +241,7 @@ func (ar *AbstractResource) parseURLParamValue(paramValue string) interface{} {
 		return parsedUint
 	}
 
-	parsedFloat, err := strconv.ParseFloat(paramValue, 10)
+	parsedFloat, err := strconv.ParseFloat(paramValue, 64)
 	if err == nil {
 		return parsedFloat
 	}
@@ -348,6 +368,7 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 
 		customRouteCopy := customRoute
 		ar.Logger.DebugWith("Registered custom route",
+			"routeName", ar.name,
 			"stream", customRoute.Stream,
 			"pattern", customRoute.Pattern,
 			"method", customRoute.Method)

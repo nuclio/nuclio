@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -45,8 +46,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
+
 	"github.com/rs/xid"
-	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -145,7 +146,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 	}()
 
 	// remove nuclio function leftovers
-	var errGroup errgroup.Group
+	errGroup, _ := errgroup.WithContext(context.TODO(), suite.Logger)
 	for _, resourceKind := range []string{
 		"nucliofunctions",
 		"nuclioprojects",
@@ -153,7 +154,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 		"nuclioapigateways",
 	} {
 		resourceKind := resourceKind
-		errGroup.Go(func() error {
+		errGroup.Go(fmt.Sprintf("Delete %s resources", resourceKind), func() error {
 			return suite.deleteAllResourcesByKind(resourceKind)
 		})
 	}
@@ -330,6 +331,23 @@ func (suite *KubeTestSuite) GetFunctionIngress(functionName string) *extensionsv
 	return ingressInstance
 }
 
+func (suite *KubeTestSuite) WithResourceQuota(rq *v1.ResourceQuota, handler func()) {
+	// limit running pod on a node
+	resourceQuota, err := suite.KubeClientSet.
+		CoreV1().
+		ResourceQuotas(suite.Namespace).
+		Create(rq)
+	suite.Require().NoError(err)
+
+	// clean leftovers
+	defer suite.KubeClientSet.
+		CoreV1().
+		ResourceQuotas(suite.Namespace).
+		Delete(resourceQuota.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+
+	handler()
+}
+
 func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
@@ -339,6 +357,20 @@ func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 	return pods.Items
 }
 
+func (suite *KubeTestSuite) DrainNode(nodeName string, ignoreDaemonSet bool) error {
+	positionalArgs := []string{"drain", nodeName}
+	if ignoreDaemonSet {
+		positionalArgs = append(positionalArgs, "--ignore-daemonsets")
+	}
+	_, err := suite.executeKubectl(positionalArgs, nil)
+	return err
+}
+
+func (suite *KubeTestSuite) UnCordonNode(nodeName string) error {
+	_, err := suite.executeKubectl([]string{"uncordon", nodeName}, nil)
+	return err
+}
+
 func (suite *KubeTestSuite) GetNodes() []v1.Node {
 	nodesList, err := suite.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 	suite.Require().NoError(err)
@@ -346,11 +378,14 @@ func (suite *KubeTestSuite) GetNodes() []v1.Node {
 }
 
 func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
-	errGroup, _ := errgroup.WithContext(context.TODO())
+	suite.Logger.InfoWith("Deleting function pods", "functionName", functionName)
+	errGroup, _ := errgroup.WithContext(context.TODO(), suite.Logger)
 	for _, pod := range suite.GetFunctionPods(functionName) {
 		pod := pod
-		errGroup.Go(func() error {
-			suite.Logger.DebugWith("Deleting function pod", "podName", pod.Name)
+		errGroup.Go("Delete function pods", func() error {
+			suite.Logger.DebugWith("Deleting function pod",
+				"functionName", functionName,
+				"podName", pod.Name)
 			return suite.KubeClientSet.
 				CoreV1().
 				Pods(suite.Namespace).
@@ -372,7 +407,7 @@ func (suite *KubeTestSuite) CreateImportedFunction(functionName, projectName str
 		functionconfig.FunctionAnnotationSkipBuild:  "true",
 		functionconfig.FunctionAnnotationSkipDeploy: "true",
 	}
-	createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+	createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 	suite.PopulateDeployOptions(createFunctionOptions)
 	_, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Require().NoError(err)
@@ -421,27 +456,57 @@ func (suite *KubeTestSuite) WaitForAPIGatewayState(getAPIGatewayOptions *platfor
 	suite.Require().NoError(err, "Api gateway did not reach its desired state")
 }
 
-func (suite *KubeTestSuite) deployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
+func (suite *KubeTestSuite) KubectlInvokeFunctionViaCurl(functionName string, curlCommand string) string {
+	curlPodName := fmt.Sprintf("curl-%s", functionName)
+
+	// start curl pod, let it sleep
+	runCurlPodCommand := fmt.Sprintf(""+
+		"kubectl "+
+		"run "+
+		"%s "+
+		"--image=curlimages/curl:7.77.0 "+
+		"--restart=Never "+
+		"--command -- "+
+		"sleep 600",
+		curlPodName)
+	_, err := suite.CmdRunner.Run(nil, runCurlPodCommand)
+	suite.Require().NoError(err)
+
+	waitForCurlPodReadyCommand := fmt.Sprintf("kubectl wait --for=condition=ready pod/%s", curlPodName)
+	_, err = suite.CmdRunner.Run(nil, waitForCurlPodReadyCommand)
+	suite.Require().NoError(err)
+
+	execCurlCommand := fmt.Sprintf(
+		"kubectl "+
+			"exec "+
+			"%s -- "+
+			"curl %s",
+		curlPodName,
+		curlCommand)
+
+	curlResults, err := suite.CmdRunner.Run(nil, execCurlCommand)
+	suite.Require().NoError(err)
+
+	return curlResults.Output
+}
+
+func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,
 	onAfterIngressCreated OnAfterIngressCreated) error {
 
 	// deploy the api gateway
-	err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions)
-	if err != nil {
+	if err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions); err != nil {
 		return err
 	}
 
 	// delete the api gateway when done
 	defer func() {
+		suite.Logger.Debug("Deleting deployed api gateway")
+		err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
+			Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
+		})
+		suite.Require().NoError(err)
+		suite.verifyAPIGatewayIngress(createAPIGatewayOptions, false)
 
-		if err == nil {
-			suite.Logger.Debug("Deleting deployed api gateway")
-			err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
-				Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
-			})
-			suite.Require().NoError(err)
-
-			suite.verifyAPIGatewayIngress(createAPIGatewayOptions, false)
-		}
 	}()
 
 	// verify ingress created
@@ -561,10 +626,10 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		time.Second*30, // cronjob stale duration
 		suite.PlatformConfiguration,
 		"nuclio-platform-config",
-		4,
-		4,
-		4,
-		4)
+		1,
+		1,
+		1,
+		1)
 	suite.Require().NoError(err)
 	return controllerInstance
 }
@@ -592,8 +657,19 @@ func (suite *KubeTestSuite) ensureTriggerAmount(functionName, triggerKind string
 	suite.Require().Equal(amount, len(functionHTTPTriggers))
 }
 
-func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string,
-	functionName string) *platform.CreateAPIGatewayOptions {
+func (suite *KubeTestSuite) CompileCreateAPIGatewayOptions(apiGatewayName string,
+	functionNames ...string) *platform.CreateAPIGatewayOptions {
+
+	var upstreams []platform.APIGatewayUpstreamSpec
+	for idx, functionName := range functionNames {
+		upstreams = append(upstreams, platform.APIGatewayUpstreamSpec{
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: functionName,
+			},
+			Percentage: int((float64(idx) / float64(len(functionNames))) * 100),
+		})
+	}
 
 	return &platform.CreateAPIGatewayOptions{
 		APIGatewayConfig: &platform.APIGatewayConfig{
@@ -605,14 +681,7 @@ func (suite *KubeTestSuite) compileCreateAPIGatewayOptions(apiGatewayName string
 			Spec: platform.APIGatewaySpec{
 				Host:               "some-host",
 				AuthenticationMode: ingress.AuthenticationModeNone,
-				Upstreams: []platform.APIGatewayUpstreamSpec{
-					{
-						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
-							Name: functionName,
-						},
-					},
-				},
+				Upstreams:          upstreams,
 			},
 		},
 	}

@@ -25,6 +25,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -69,6 +70,10 @@ func NewStore(parentLogger logger.Logger,
 func (s *Store) CreateOrUpdateProject(projectConfig *platform.ProjectConfig) error {
 	resourcePath := s.getResourcePath(projectsDir, projectConfig.Meta.Namespace, projectConfig.Meta.Name)
 
+	// populate status
+	now := time.Now()
+	projectConfig.Status.UpdatedAt = &now
+
 	// write the contents to that file name at the appropriate path
 	return s.serializeAndWriteFileContents(resourcePath, projectConfig)
 }
@@ -100,7 +105,7 @@ func (s *Store) GetProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 func (s *Store) DeleteProject(projectMeta *platform.ProjectMeta) error {
 	functions, err := s.GetProjectFunctions(&platform.GetFunctionsOptions{
 		Namespace: projectMeta.Namespace,
-		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", projectMeta.Name),
+		Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get project functions")
@@ -204,7 +209,7 @@ func (s *Store) GetProjectFunctions(getFunctionsOptions *platform.GetFunctionsOp
 	var functions []platform.Function
 
 	// get project filter
-	projectName := common.StringToStringMap(getFunctionsOptions.Labels, "=")["nuclio.io/project-name"]
+	projectName := common.StringToStringMap(getFunctionsOptions.Labels, "=")[common.NuclioResourceLabelKeyProjectName]
 
 	// get all the functions in the store. these functions represent both functions that are deployed
 	// and functions that failed to build
@@ -219,7 +224,7 @@ func (s *Store) GetProjectFunctions(getFunctionsOptions *platform.GetFunctionsOp
 
 	// filter by project name
 	for _, localStoreFunction := range localStoreFunctions {
-		if projectName != "" && localStoreFunction.GetConfig().Meta.Labels["nuclio.io/project-name"] != projectName {
+		if projectName != "" && localStoreFunction.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName] != projectName {
 			continue
 		}
 		functions = append(functions, localStoreFunction)

@@ -45,9 +45,6 @@ type Function interface {
 	// GetReplicas returns the current # of replicas and the configured # of replicas
 	GetReplicas() (int, int)
 
-	// GetIngresses returns all ingresses for this function
-	GetIngresses() map[string]functionconfig.Ingress
-
 	// GetVersion returns a string representing the version
 	GetVersion() string
 
@@ -88,11 +85,6 @@ func (af *AbstractFunction) Initialize([]string) error {
 // GetConfig will return the configuration of the function
 func (af *AbstractFunction) GetConfig() *functionconfig.Config {
 	return &af.Config
-}
-
-// GetIngresses returns all ingresses for this function
-func (af *AbstractFunction) GetIngresses() map[string]functionconfig.Ingress {
-	return functionconfig.GetIngressesFromTriggers(af.Config.Spec.Triggers)
 }
 
 // GetVersion returns a string representing the version

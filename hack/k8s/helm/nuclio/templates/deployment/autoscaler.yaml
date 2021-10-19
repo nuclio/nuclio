@@ -75,4 +75,7 @@ spec:
       affinity:
       {{ toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.autoscaler.priorityClassName }}
+      priorityClassName: {{ .Values.autoscaler.priorityClassName | quote }}
+      {{- end }}
 {{- end }}

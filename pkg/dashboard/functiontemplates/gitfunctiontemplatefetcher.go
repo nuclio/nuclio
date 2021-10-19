@@ -203,7 +203,13 @@ func (gftf *GitFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTree
 	if err != nil {
 		return "", "", errors.Wrap(err, "Failed to get function.yaml.template")
 	}
-	gftf.logger.DebugWith("Got function template directory structure from git", "dir", dir)
+
+	var dirEntryNames []string
+	for _, dirEntry := range dir.Entries {
+		dirEntryNames = append(dirEntryNames, dirEntry.Name)
+	}
+	gftf.logger.DebugWith("Got function template directory structure from git",
+		"dirEntryNames", dirEntryNames)
 
 	yamlValuesFile, err := gftf.getFileFromTreeEntries(dir, "function.yaml.values")
 

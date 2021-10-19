@@ -11,7 +11,8 @@ type Client struct {
 }
 
 func (c *Client) Initialize() error {
-	return nil
+	args := c.Called()
+	return args.Error(0)
 }
 
 func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {

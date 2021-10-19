@@ -1,6 +1,7 @@
 # http: HTTP Trigger
 
 **In This Document**
+
 - [Overview](#overview)
 - [Attributes](#attributes)
 - [Examples](#examples)
@@ -8,9 +9,9 @@
 <a id="overview"></a>
 ## Overview
 
-The HTTP trigger is the only trigger created by default if not configured (by default, it has 1 worker).
-This trigger handles incoming HTTP requests at container port 8080, assigning workers to incoming requests.
-If a worker is not available, a `503` error is returned.
+The HTTP trigger is the only trigger created by default if not configured (by default, it has 1 worker). This trigger
+handles incoming HTTP requests at container port 8080, assigning workers to incoming requests. If a worker is not
+available, a `503` error is returned.
 
 <a id="attributes"></a>
 ## Attributes
@@ -19,6 +20,7 @@ If a worker is not available, a `503` error is returned.
 | :--- | :--- | :--- |
 | port | int | The NodePort (or equivalent) on which the function will serve HTTP requests. If empty, chooses a random port within the platform range. When running on k8s, this only has effect if [serviceType](/docs/reference/triggers/http.md#attributes-serviceType) of type `nodePort` is used|
 | <a id="attributes-ingresses"></a>ingresses.(name).host | string | The host to which the ingress maps. |
+| ingresses.(name).hostTemplate | string | The template used to generate an ingress host (use `@nuclio.fromDefault` for default template) |
 | ingresses.(name).paths | list of strings | The paths that the ingress handles. Variables of the form `{{.<NAME>}}` can be specified using `.Name`, `.Namespace`, and `.Version`. For example, `/{{.Namespace}}-{{.Name}}/{{.Version}}` will result in a default ingress of `/namespace-name/version`. |
 | readBufferSize | int | Per-connection buffer size for reading requests. |
 | maxRequestBodySize | int | Maximum request body size. |
@@ -61,18 +63,25 @@ triggers:
   myHttpTrigger:
     kind: "http"
     attributes:
-  
+
       # See "Invoking Functions By Name With Kubernetes Ingresses" for more details
       # on configuring ingresses
       ingresses:
+        templated-host:
+
+          # e.g.: "my-func.some-namespace.nuclioio.com
+          hostTemplate: "{{ .ResourceName }}.{{ Namespace }}.nuclioio.com"
+          paths:
+            - "/"
+
         http:
           host: "host.nuclio"
           paths:
-          - "/first/path"
-          - "/second/path"
+            - "/first/path"
+            - "/second/path"
         http2:
           paths:
-          - "MyFunctions/{{.Name}}/{{.Version}}"
+            - "MyFunctions/{{.Name}}/{{.Version}}"
 ```
 
 With CORS -

@@ -17,6 +17,7 @@ limitations under the License.
 package opa
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -29,32 +30,126 @@ import (
 )
 
 type HTTPClient struct {
-	logger              logger.Logger
-	address             string
-	permissionQueryPath string
-	requestTimeout      time.Duration
-	logLevel            int
-	overrideHeaderValue string
+	logger               logger.Logger
+	address              string
+	permissionQueryPath  string
+	permissionFilterPath string
+	requestTimeout       time.Duration
+	logLevel             int
+	overrideHeaderValue  string
+	httpClient           *http.Client
 }
 
 func NewHTTPClient(parentLogger logger.Logger,
 	address string,
 	permissionQueryPath string,
+	permissionFilterPath string,
 	requestTimeout time.Duration,
 	logLevel int,
 	overrideHeaderValue string) *HTTPClient {
 	newClient := HTTPClient{
-		logger:              parentLogger.GetChild("opa"),
-		address:             address,
-		permissionQueryPath: permissionQueryPath,
-		requestTimeout:      requestTimeout,
-		logLevel:            logLevel,
-		overrideHeaderValue: overrideHeaderValue,
+		logger:               parentLogger.GetChild("opa"),
+		address:              address,
+		permissionQueryPath:  permissionQueryPath,
+		permissionFilterPath: permissionFilterPath,
+		requestTimeout:       requestTimeout,
+		logLevel:             logLevel,
+		overrideHeaderValue:  overrideHeaderValue,
+		httpClient: &http.Client{
+			Timeout: requestTimeout,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+		},
 	}
 	return &newClient
 }
 
-func (c *HTTPClient) QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error) {
+// QueryPermissionsMultiResources query permissions for multiple resources at once.
+// The response is a list of booleans indicating for each resource if the action against such resource
+// is allowed or not.
+// Therefore, it is guaranteed that len(resources) and len(results) are equal and
+// resources[i] query permission is at results[i]
+func (c *HTTPClient) QueryPermissionsMultiResources(resources []string,
+	action Action,
+	permissionOptions *PermissionOptions) ([]bool, error) {
+
+	// initialize results
+	results := make([]bool, len(resources))
+
+	// If the override header value matches the configured override header value, allow without checking
+	if c.overrideHeaderValue != "" && permissionOptions.OverrideHeaderValue == c.overrideHeaderValue {
+
+		// allow them all
+		for i := 0; i < len(results); i++ {
+			results[i] = true
+		}
+
+		return results, nil
+	}
+
+	requestURL := fmt.Sprintf("%s%s", c.address, c.permissionFilterPath)
+
+	// send the request
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+	request := PermissionFilterRequest{Input: PermissionFilterRequestInput{
+		resources,
+		string(action),
+		permissionOptions.MemberIds,
+	}}
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to generate request body")
+	}
+
+	if c.logLevel > 5 {
+		c.logger.InfoWith("Sending request to OPA",
+			"requestBody", string(requestBody),
+			"requestURL", requestURL)
+	}
+	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
+		http.MethodPost,
+		requestURL,
+		requestBody,
+		headers,
+		[]*http.Cookie{},
+		http.StatusOK)
+	if err != nil {
+		if c.logLevel > 5 {
+			c.logger.ErrorWith("Failed to send HTTP request to OPA",
+				"err", errors.GetErrorStackString(err, 10))
+		}
+		return nil, errors.Wrap(err, "Failed to send HTTP request to OPA")
+	}
+
+	if c.logLevel > 5 {
+		c.logger.InfoWith("Received response from OPA",
+			"responseBody", string(responseBody))
+	}
+
+	permissionFilterResponse := PermissionFilterResponse{}
+	if err := json.Unmarshal(responseBody, &permissionFilterResponse); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal response body")
+	}
+
+	if c.logLevel > 5 {
+		c.logger.InfoWith("Successfully unmarshalled permission filter response",
+			"permissionFilterResponse", permissionFilterResponse)
+	}
+
+	for resourceIdx, resource := range resources {
+		if common.StringInSlice(resource, permissionFilterResponse.Result) {
+			results[resourceIdx] = true
+		}
+	}
+	return results, nil
+}
+
+func (c *HTTPClient) QueryPermissions(resource string,
+	action Action,
+	permissionOptions *PermissionOptions) (bool, error) {
 
 	// If the override header value matches the configured override header value, allow without checking
 	if c.overrideHeaderValue != "" && permissionOptions.OverrideHeaderValue == c.overrideHeaderValue {
@@ -67,7 +162,7 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, permission
 	headers := map[string]string{
 		"Content-Type": "application/json",
 	}
-	request := PermissionRequest{Input: PermissionRequestInput{
+	request := PermissionQueryRequest{Input: PermissionQueryRequestInput{
 		resource,
 		string(action),
 		permissionOptions.MemberIds,
@@ -82,14 +177,13 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, permission
 			"requestBody", string(requestBody),
 			"requestURL", requestURL)
 	}
-	responseBody, _, err := common.SendHTTPRequest(http.MethodPost,
+	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
+		http.MethodPost,
 		requestURL,
 		requestBody,
 		headers,
 		[]*http.Cookie{},
-		http.StatusOK,
-		true,
-		c.requestTimeout)
+		http.StatusOK)
 	if err != nil {
 		if c.logLevel > 5 {
 			c.logger.ErrorWith("Failed to send HTTP request to OPA",
@@ -103,7 +197,7 @@ func (c *HTTPClient) QueryPermissions(resource string, action Action, permission
 			"responseBody", string(responseBody))
 	}
 
-	permissionResponse := PermissionResponse{}
+	permissionResponse := PermissionQueryResponse{}
 	if err := json.Unmarshal(responseBody, &permissionResponse); err != nil {
 		return false, errors.Wrap(err, "Failed to unmarshal response body")
 	}

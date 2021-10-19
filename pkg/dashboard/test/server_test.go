@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -88,13 +89,14 @@ func (suite *dashboardTestSuite) SetupTest() {
 		templateRepository,
 		&platformconfig.Config{
 			Kube: platformconfig.PlatformKubeConfig{
-				DefaultServiceType: v1.ServiceTypeNodePort,
+				DefaultServiceType:             v1.ServiceTypeNodePort,
+				DefaultHTTPIngressHostTemplate: "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
 			},
 		},
 		"",
 		"",
 		"",
-		"")
+		&auth.Config{})
 
 	if err != nil {
 		panic("Failed to create server")
@@ -128,7 +130,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 	encodedResponseBody, err := ioutil.ReadAll(response.Body)
 	suite.Require().NoError(err)
 
-	defer response.Body.Close()
+	defer response.Body.Close() // nolint: errcheck
 
 	suite.logger.DebugWith("Got response",
 		"status", response.StatusCode,
@@ -144,7 +146,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 
 	if encodedExpectedResponse != nil {
 
-		err = json.Unmarshal(encodedResponseBody, &decodedResponseBody)
+		err := json.Unmarshal(encodedResponseBody, &decodedResponseBody)
 		suite.Require().NoError(err)
 
 		suite.logger.DebugWith("Comparing expected", "expected", encodedExpectedResponse)
@@ -153,7 +155,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 		case string:
 			decodedExpectedResponseBody := map[string]interface{}{}
 
-			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
+			err := json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
 			suite.Require().NoError(err)
 			suite.Require().Empty(cmp.Diff(decodedExpectedResponseBody, decodedResponseBody))
 
@@ -1008,7 +1010,8 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 	},
 	"spec": {
 		"description": "p1Desc"
-	}
+	},
+    "status": {}
 }`
 
 	suite.sendRequest("GET",
@@ -1071,7 +1074,8 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 		},
 		"spec": {
 			"description": "p1Desc"
-		}
+		},
+        "status": {}
 	},
 	"p2": {
 		"metadata": {
@@ -1080,7 +1084,8 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 		},
 		"spec": {
 			"description": "p2Desc"
-		}
+		},
+        "status": {}
 	}
 }`
 
@@ -1261,7 +1266,8 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
     "metadata": {
       "name": "p1"
     },
-    "spec": {}
+    "spec": {},
+    "status": {}
   }
 }`
 
@@ -1395,7 +1401,8 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
       "metadata": {
         "name": "p1"
       },
-      "spec": {}
+      "spec": {},
+	  "status": {}
     }
   },
   "p2": {
@@ -1430,7 +1437,8 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
       "metadata": {
         "name": "p2"
       },
-      "spec": {}
+      "spec": {},
+      "status": {}
     }
   }
 }`
@@ -1471,13 +1479,23 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		"description": "p1Description"
 	}
 }`
+	expectedResponseBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1-namespace"
+	},
+	"spec": {
+		"description": "p1Description"
+	},
+    "status": {}
+}`
 
 	suite.sendRequest("POST",
 		"/api/projects",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
-		requestBody)
+		expectedResponseBody)
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -1664,6 +1682,7 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			testCase.deleteProjectOptions.AuthSession = &auth.NopSession{}
 			suite.mockPlatform.
 				On("DeleteProject", testCase.deleteProjectOptions).
 				Return(testCase.deleteProjectReturnedError).
@@ -1742,7 +1761,7 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 		suite.Require().Equal("p1-namespace", createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace)
 		suite.Require().Equal("some-host", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
-		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name)
 
 		return true
 	}
@@ -1896,7 +1915,7 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	apiGateway.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 		{
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f1",
 			},
 		},
@@ -1927,7 +1946,7 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 		suite.Require().Equal("p1-namespace", createAPIGatewayOptions.APIGatewayConfig.Meta.Namespace)
 		suite.Require().Equal("host-name1", createAPIGatewayOptions.APIGatewayConfig.Spec.Host)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
-		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal("f1", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name)
 
 		return true
 	}
@@ -2599,12 +2618,12 @@ func (suite *apiGatewayTestSuite) TestGetDetailSuccessful() {
 				Upstreams: []platform.APIGatewayUpstreamSpec{
 					{
 						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+						NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 							Name: "f1",
 						},
 					}, {
 						Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-						Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+						NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 							Name: "f2",
 						},
 						Percentage: 20,
@@ -2710,12 +2729,12 @@ func (suite *apiGatewayTestSuite) TestGetListSuccessful() {
 	returnedAPIGateway1.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 		{
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f1",
 			},
 		}, {
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f2",
 			},
 			Percentage: 20,
@@ -2740,12 +2759,12 @@ func (suite *apiGatewayTestSuite) TestGetListSuccessful() {
 	returnedAPIGateway2.APIGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 		{
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f3",
 			},
 		}, {
 			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-			Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 				Name: "f4",
 			},
 			Percentage: 50,
@@ -2870,9 +2889,9 @@ func (suite *apiGatewayTestSuite) TestCreateSuccessful() {
 		suite.Require().Equal("some-desc2", createAPIGatewayOptions.APIGatewayConfig.Spec.Description)
 		suite.Require().Equal("some-path2", createAPIGatewayOptions.APIGatewayConfig.Spec.Path)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
-		suite.Require().Equal("f3", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal("f3", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Kind)
-		suite.Require().Equal("f4", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Nucliofunction.Name)
+		suite.Require().Equal("f4", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].NuclioFunction.Name)
 		suite.Require().Equal(50, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Percentage)
 
 		return true
@@ -2935,9 +2954,9 @@ func (suite *apiGatewayTestSuite) TestUpdateSuccessful() {
 		suite.Require().Equal("some-desc2", updateAPIGatewayOptions.APIGatewayConfig.Spec.Description)
 		suite.Require().Equal("some-path2", updateAPIGatewayOptions.APIGatewayConfig.Spec.Path)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Kind)
-		suite.Require().Equal("f3", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].Nucliofunction.Name)
+		suite.Require().Equal("f3", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name)
 		suite.Require().Equal(platform.APIGatewayUpstreamKindNuclioFunction, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Kind)
-		suite.Require().Equal("f4", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Nucliofunction.Name)
+		suite.Require().Equal("f4", updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].NuclioFunction.Name)
 		suite.Require().Equal(50, updateAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Percentage)
 
 		return true
@@ -3075,7 +3094,6 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 
 func (suite *miscTestSuite) TestGetFrontendSpec() {
 	returnedAddresses := []string{"address1", "address2", "address3"}
-	defaultHTTPIngressHostTemplate := "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com"
 	imageNamePrefixTemplate := "{{ .ProjectName }}-{{ .FunctionName }}-"
 	scaleToZeroConfiguration := platformconfig.ScaleToZero{
 		Mode:                     platformconfig.EnabledScaleToZeroMode,
@@ -3096,11 +3114,6 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	suite.mockPlatform.
 		On("GetExternalIPAddresses").
 		Return(returnedAddresses, nil).
-		Once()
-
-	suite.mockPlatform.
-		On("GetDefaultHTTPIngressHostTemplate").
-		Return(defaultHTTPIngressHostTemplate, nil).
 		Once()
 
 	suite.mockPlatform.
@@ -3162,7 +3175,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
             }
         }
     },
-    "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test-system.com",
+    "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
     "externalIPAddresses": [
         "address1",
         "address2",
@@ -3184,6 +3197,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
             }
         ]
     },
+	"validFunctionPriorityClassNames": null,
 	"platformKind": "",
 	"allowedAuthenticationModes": [
 		"none",

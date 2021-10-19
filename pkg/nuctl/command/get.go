@@ -98,7 +98,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				if commandeer.getFunctionsOptions.Name != "" {
 					return nuclio.NewErrNotFound("No functions found")
 				}
-				cmd.OutOrStdout().Write([]byte("No functions found")) // nolint: errcheck
+				cmd.OutOrStdout().Write([]byte("No functions found\n")) // nolint: errcheck
 				return nil
 			}
 
@@ -173,7 +173,7 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 				if commandeer.getProjectsOptions.Meta.Name != "" {
 					return nuclio.NewErrNotFound("No projects found")
 				}
-				cmd.OutOrStdout().Write([]byte("No projects found")) // nolint: errcheck
+				cmd.OutOrStdout().Write([]byte("No projects found\n")) // nolint: errcheck
 				return nil
 			}
 
@@ -239,7 +239,7 @@ func newGetAPIGatewayCommandeer(getCommandeer *getCommandeer) *getAPIGatewayComm
 				if commandeer.getAPIGatewaysOptions.Name != "" {
 					return nuclio.NewErrNotFound("No api gateways found")
 				}
-				cmd.OutOrStdout().Write([]byte("No api gateways found")) // nolint: errcheck
+				cmd.OutOrStdout().Write([]byte("No api gateways found\n")) // nolint: errcheck
 				return nil
 			}
 
@@ -312,7 +312,7 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 				if commandeer.getFunctionEventsOptions.Meta.Name != "" {
 					return nuclio.NewErrNotFound("No function events found")
 				}
-				cmd.OutOrStdout().Write([]byte("No function events found")) // nolint: errcheck
+				cmd.OutOrStdout().Write([]byte("No function events found\n")) // nolint: errcheck
 				return nil
 			}
 

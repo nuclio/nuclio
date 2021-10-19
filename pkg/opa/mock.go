@@ -24,7 +24,17 @@ type MockClient struct {
 	mock.Mock
 }
 
-func (mc *MockClient) QueryPermissions(resource string, action Action, permissionOptions *PermissionOptions) (bool, error) {
+func (mc *MockClient) QueryPermissions(resource string,
+	action Action,
+	permissionOptions *PermissionOptions) (bool, error) {
 	args := mc.Called(resource, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
+}
+
+func (mc *MockClient) QueryPermissionsMultiResources(resources []string,
+	action Action,
+	permissionOptions *PermissionOptions) ([]bool, error) {
+
+	args := mc.Called(resources, action, permissionOptions)
+	return args.Get(0).([]bool), args.Error(1)
 }

@@ -11,13 +11,13 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/Microsoft/ApplicationInsights-Go v0.4.2
 	github.com/Shopify/sarama v1.23.1
-	github.com/aws/aws-sdk-go v1.30.0
+	github.com/aws/aws-sdk-go v1.39.6
 	github.com/coreos/go-semver v0.2.0
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/disintegration/imaging v1.6.0
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/fatih/structs v1.1.0
+	github.com/gbrlsnchs/jwt/v3 v3.0.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-chi/chi/v5 v5.0.2
 	github.com/go-chi/cors v1.0.0
@@ -29,6 +29,7 @@ require (
 	github.com/icza/dyno v0.0.0-20180601094105-0c96289f9585
 	github.com/imdario/mergo v0.3.12
 	github.com/jarcoal/httpmock v1.0.4
+	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/mholt/archiver/v3 v3.3.0
@@ -41,7 +42,7 @@ require (
 	github.com/nuclio/errors v0.0.3
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.1
-	github.com/nuclio/nuclio-sdk-go v0.2.0
+	github.com/nuclio/nuclio-sdk-go v0.3.0
 	github.com/nuclio/zap v0.0.6
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -56,13 +57,14 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tedsuo/ifrit v0.0.0-20191009134036-9a97d0632f00 // indirect
 	github.com/tsenart/vegeta/v12 v12.8.4
-	github.com/v3io/scaler v0.4.0
-	github.com/v3io/scaler-types v1.7.0
-	github.com/v3io/v3io-go v0.2.8
+	github.com/v3io/scaler v0.5.1
+	github.com/v3io/v3io-go v0.2.18
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
-	github.com/valyala/fasthttp v1.21.0
+	github.com/valyala/fasthttp v1.30.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
+	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
+	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.43.0
 	google.golang.org/grpc v1.36.1

@@ -1,8 +1,12 @@
 package containerimagebuilderpusher
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+
+	"github.com/nuclio/errors"
 )
 
 // BuildOptions are options for building a container image
@@ -12,6 +16,7 @@ type BuildOptions struct {
 	TempDir             string
 	DockerfileInfo      *runtime.ProcessorDockerfileInfo
 	NoCache             bool
+	Pull                bool
 	NoBaseImagePull     bool
 	BuildArgs           map[string]string
 	RegistryURL         string
@@ -26,6 +31,7 @@ type ContainerBuilderConfiguration struct {
 	KanikoImage                          string
 	KanikoImagePullPolicy                string
 	JobPrefix                            string
+	JobDeletionTimeout                   time.Duration
 	DefaultRegistryCredentialsSecretName string
 	DefaultBaseRegistryURL               string
 	DefaultOnbuildRegistryURL            string
@@ -34,8 +40,9 @@ type ContainerBuilderConfiguration struct {
 	InsecurePullRegistry                 bool
 }
 
-func NewContainerBuilderConfiguration() *ContainerBuilderConfiguration {
-	containerBuilderConfiguration := ContainerBuilderConfiguration{}
+func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) {
+	var containerBuilderConfiguration ContainerBuilderConfiguration
+	var err error
 
 	// if some of the parameters are undefined, try environment variables
 	if containerBuilderConfiguration.Kind == "" {
@@ -80,5 +87,11 @@ func NewContainerBuilderConfiguration() *ContainerBuilderConfiguration {
 	containerBuilderConfiguration.CacheRepo =
 		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_KANIKO_CACHE_REPO", "")
 
-	return &containerBuilderConfiguration
+	jobDeletionTimeout := common.GetEnvOrDefaultString("NUCLIO_KANIKO_JOB_DELETION_TIMEOUT", "30m")
+	containerBuilderConfiguration.JobDeletionTimeout, err = time.ParseDuration(jobDeletionTimeout)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse job deletion timeout duration")
+	}
+
+	return &containerBuilderConfiguration, nil
 }

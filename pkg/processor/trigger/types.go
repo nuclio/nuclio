@@ -18,6 +18,7 @@ package trigger
 
 import (
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -36,9 +37,11 @@ type DurationConfigField struct {
 }
 
 type AnnotationConfigField struct {
-	Key         string
-	ValueString *string
-	ValueInt    *int
+	Key             string
+	ValueString     *string
+	ValueListString []string
+	ValueInt        *int
+	ValueBool       *bool
 }
 
 type Configuration struct {
@@ -69,27 +72,38 @@ func NewConfiguration(id string,
 	return configuration
 }
 
-// allows setting configuration via annotations, for experimental settings
+// PopulateConfigurationFromAnnotations allows setting configuration via annotations, for experimental settings
 func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFields []AnnotationConfigField) error {
 	var err error
 
 	for _, annotationConfigField := range annotationConfigFields {
-		if annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.Key]; annotationKeyExists {
-			if annotationConfigField.ValueString != nil {
-				*annotationConfigField.ValueString = annotationValue
-			} else if annotationConfigField.ValueInt != nil {
-				*annotationConfigField.ValueInt, err = strconv.Atoi(annotationValue)
-				if err != nil {
-					return errors.Wrapf(err, "Annotation %s must be numeric", annotationConfigField.Key)
-				}
+		annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.Key]
+		if !annotationKeyExists {
+			continue
+		}
+
+		switch {
+		case annotationConfigField.ValueString != nil:
+			*annotationConfigField.ValueString = annotationValue
+		case annotationConfigField.ValueInt != nil:
+			*annotationConfigField.ValueInt, err = strconv.Atoi(annotationValue)
+			if err != nil {
+				return errors.Wrapf(err, "Annotation %s must be numeric", annotationConfigField.Key)
 			}
+		case annotationConfigField.ValueBool != nil:
+			*annotationConfigField.ValueBool, err = strconv.ParseBool(annotationValue)
+			if err != nil {
+				return errors.Wrapf(err, "Annotation %s must represent boolean", annotationConfigField.Key)
+			}
+		case annotationConfigField.ValueListString != nil:
+			annotationConfigField.ValueListString = strings.Split(annotationValue, ",")
 		}
 	}
 
 	return nil
 }
 
-// parses a duration string into a time.duration field. if empty, sets the field to the default
+// ParseDurationOrDefault parses a duration string into a time.duration field. if empty, sets the field to the default
 func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConfigField) error {
 	if durationConfigField.Value == "" {
 		*durationConfigField.Field = durationConfigField.Default

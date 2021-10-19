@@ -63,7 +63,13 @@ func (r *ruby) RunWrapper(socketPath string) (*os.Process, error) {
 		"--socket-path", socketPath,
 	}
 
+	env := os.Environ()
+	env = append(env, r.GetEnvFromConfiguration()...)
+
 	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	r.Logger.InfoWith("Running ruby wrapper", "command", strings.Join(cmd.Args, " "))
 
 	return cmd.Process, cmd.Start()

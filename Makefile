@@ -158,6 +158,17 @@ load-docker-images: print-docker-images
 	@echo "Load Nuclio docker images"
 	docker load -i nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
 
+pull-docker-images: print-docker-images
+	@echo "Pull Nuclio docker images"
+	@echo $(IMAGES_TO_PUSH) | xargs -n 1 -P 5 docker pull
+
+retag-docker-images: print-docker-images
+	$(eval NUCLIO_NEW_LABEL ?= retagged)
+	$(eval NUCLIO_NEW_LABEL = ${NUCLIO_NEW_LABEL}-${NUCLIO_ARCH})
+	@echo "Retagging Nuclio docker images with ${NUCLIO_NEW_LABEL}"
+	echo $(IMAGES_TO_PUSH) | xargs -n 1 -P 5 -I{} sh -c 'image="{}"; docker tag $$image $$(echo $$image | cut -d : -f 1):$(NUCLIO_NEW_LABEL)'
+	@echo "Done"
+
 print-docker-images:
 	@echo "Nuclio Docker images:"
 	@for image in $(IMAGES_TO_PUSH); do \
@@ -426,7 +437,7 @@ fmt:
 	gofmt -s -w .
 
 .PHONY: lint
-lint: modules
+lint: modules ensure-test-files-annotated
 	@echo Installing linters...
 	@test -e $(GOPATH)/bin/impi || \
 		(mkdir -p $(GOPATH)/bin && \
@@ -438,7 +449,7 @@ lint: modules
 		&& chmod +x $(GOPATH)/bin/impi)
 
 	@test -e $(GOPATH)/bin/golangci-lint || \
-	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.36.0)
+	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.41.1)
 
 	@echo Verifying imports...
 	$(GOPATH)/bin/impi \
@@ -453,15 +464,16 @@ lint: modules
 	@echo Done.
 
 .PHONY: ensure-test-files-annotated
-ensure-test-files-annotated: modules
+ensure-test-files-annotated:
 	$(eval test_files_missing_build_annotations=$(strip $(shell find . -type f -name '*_test.go' -exec bash -c "grep -m 1 -L '// +build' {} | grep go" \;)))
-	@if [[ -n "$(test_files_missing_build_annotations)" ]]; then \
+	@if [ -n "$(test_files_missing_build_annotations)" ]; then \
 		echo "Found go test files without build annotations: "; \
 		echo $(test_files_missing_build_annotations); \
 		echo "!!! Go test files must be annotated with '// +build test_<x>' !!!"; \
 		exit 1; \
 	fi
-	@echo "All go test file have build annotations"
+	@echo "All go test files have +build annotation"
+	@exit $(.SHELLSTATUS)
 
 #
 # Testing
@@ -572,7 +584,7 @@ test-k8s: build-test
 
 .PHONY: build-test
 build-test: ensure-gopath build-base
-	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.17.9)
+	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.19.13)
 	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
         --build-arg GOARCH=$(NUCLIO_ARCH) \

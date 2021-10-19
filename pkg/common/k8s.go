@@ -11,6 +11,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+func IsInKubernetesCluster() bool {
+	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
+}
+
 func GetClientConfig(kubeconfigPath string) (*rest.Config, error) {
 	if kubeconfigPath != "" {
 		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
@@ -58,8 +62,7 @@ func getKubeconfigFromHomeDir() string {
 	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
 
 	// if the file exists @ home, use it
-	_, err = os.Stat(homeKubeConfigPath)
-	if err == nil {
+	if _, err := os.Stat(homeKubeConfigPath); err == nil {
 		return homeKubeConfigPath
 	}
 

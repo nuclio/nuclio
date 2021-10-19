@@ -236,11 +236,7 @@ func (s *shell) getCommandArguments(event nuclio.Event) []string {
 }
 
 func (s *shell) getEnvFromConfiguration() []string {
-	envs := []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", s.configuration.Meta.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", s.configuration.Spec.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", s.configuration.Spec.Version),
-	}
+	envs := s.AbstractRuntime.GetEnvFromConfiguration()
 
 	// inject all environment variables passed in configuration
 	for _, configEnv := range s.configuration.Spec.Env {
@@ -292,8 +288,7 @@ func (s *shell) commandIsInPath() (bool, error) {
 	if !common.FileExists(s.command) {
 
 		// file doesn't exist, checking PATH
-		_, err := exec.LookPath(s.command)
-		if err != nil {
+		if _, err := exec.LookPath(s.command); err != nil {
 			return false, errors.Wrap(err, "File doesn't exist neither in working dir nor in PATH")
 		}
 

@@ -19,6 +19,7 @@ package app
 import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/resourcescaler"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	// load all sinks
@@ -41,7 +42,7 @@ func Run(platformConfigurationPath string, namespace string, kubeconfigPath stri
 	}
 
 	// start autoscaler and run forever
-	if err = autoScaler.Start(); err != nil {
+	if err := autoScaler.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start autoscaler")
 	}
 	select {}
@@ -69,8 +70,18 @@ func createAutoScaler(platformConfigurationPath string,
 		return nil, errors.Wrap(err, "Failed to create new metric custom client")
 	}
 
+	restConfig, err := common.GetClientConfig(kubeconfigPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get client configuration")
+	}
+
+	nuclioClientSet, err := nuclioioclient.NewForConfig(restConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create nuclio client set")
+	}
+
 	// create resource scaler
-	resourceScaler, err := resourcescaler.New(kubeconfigPath, namespace)
+	resourceScaler, err := resourcescaler.New(rootLogger, namespace, nuclioClientSet, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create resource scaler")
 	}

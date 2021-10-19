@@ -10,8 +10,8 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.6.11-amd64
-    pullPolicy: IfNotPresent  
+    tag: 1.6.23-amd64
+    pullPolicy: IfNotPresent
   resources: {}
 
   ## Node labels for pod assignment
@@ -30,14 +30,18 @@ controller:
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
 
+  ## Pod Priority
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
+  priorityClassName: ""
+
   # Uncomment to have the controller to listen only the namespace's events, 
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
-  # Resync interval defines how often the Controller goes thru all functions in its cache and fires
-  # update again.
-  # Note: Changing to 0s means cancel resync mechanism completely.
-  resyncInterval: 10m
+  # Resync interval defines how often the Controller goes through all nuclio CRDs (functions, apigateways, etc)
+  #  in its cache and fires update again.
+  # Note: 0 means cancelling resync mechanism. any other value (e.g.: 10m) would turn it on.
+  resyncInterval: 0
 
   operator:
     function:
@@ -65,7 +69,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.6.11-amd64
+    tag: 1.6.23-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -85,9 +89,12 @@ dashboard:
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
 
+  ## Pod Priority
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
+  priorityClassName: ""
+
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
-  httpIngressHostTemplate: ""
   imageNamePrefixTemplate: ""
 
   # Supported container builders: "kaniko", "docker"
@@ -116,6 +123,9 @@ dashboard:
       tag: v0.17.1
       pullPolicy: IfNotPresent
 
+    # How long to wait before deleting the build job
+    jobDeletionTimeout: 30m
+
   # Uncomment to configure node port
   # nodePort: 32050
 
@@ -135,6 +145,25 @@ dashboard:
     #  - secretName: nuclio-tls
     #    hosts:
     #      - nuclio.local
+
+  authConfig:
+
+    # either one of "nop" or "iguazio"
+    kind: nop
+
+    iguazio:
+
+      # endpoint which verify incoming request session
+      sessionVerificationURL: "http://somewhere.com"
+
+      # session verification request timeout
+      timeout: 30s
+
+      # how many entries to cache
+      cacheSize: 100
+
+      # invalidate a cache entry after specific timeout
+      cacheExpirationTimeout: 60s
 
   opa:
     enabled: false
@@ -167,17 +196,17 @@ dashboard:
 
     image:
       repository: openpolicyagent/opa
-      tag: 0.28.0
+      tag: 0.30.1
       pullPolicy: IfNotPresent
       pullSecrets: []
 
-    resources: {}
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 10Mi
+      limits:
+        cpu: 3
+        memory: 200Mi
 
     securityContext: {}
     # capabilities:
@@ -204,12 +233,16 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
+  # Uncomment to volumize pip ca cert
+  # Note: secret name must contain "pip-ca-certificates.crt" key
+  # pipCACertSecretName: secret-name
+
 autoscaler:
   enabled: false
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.6.11-amd64
+    tag: 1.6.23-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -228,13 +261,17 @@ autoscaler:
   ## Affinity
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
+
+  ## Pod Priority
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
+  priorityClassName: ""
 
 dlx:
   enabled: false
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.6.11-amd64
+    tag: 1.6.23-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -253,6 +290,13 @@ dlx:
   ## Affinity
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
   affinity: {}
+
+  ## Pod Priority
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
+  priorityClassName: ""
+
+  # Whether to verify function readiness before redirecting incoming requests
+  functionReadinessVerificationEnabled: true
 
 registry:
 
@@ -328,13 +372,14 @@ rbac:
   crdAccessMode: cluster
 
 crd:
-  
+
   # If true, creates cluster wide custom resources definitions for nuclio's resources
   create: true
 
 platform: {}
 #  runtime:
 #    python:
+#      pipCAPath: /path/to/pip-ca-file.crt
 #      buildArgs:
 #        PIP_INDEX_URL: "https://test.pypi.org/simple"
 #   logger:
@@ -358,7 +403,12 @@ platform: {}
 #     - myPrometheusPull
 #   cronTriggerCreationMode: "kube"
 #   kube:
-#     defaultServiceType: NodePort
+#     defaultFunctionNodeSelector:
+#       nodeLabelKey: nodeLabelValue
+#     defaultServiceType: ClusterIP
+#     defaultHTTPIngressHostTemplate: ""
+#     defaultHTTPIngressAnnotations:
+#       ingressAnnotationKey: ingressAnnotationValue
 #   imageRegistryOverrides:
 #     baseImageRegistries:
 #       "python:3.6": "myregistry"

@@ -31,7 +31,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/v3io/scaler-types"
+	"github.com/v3io/scaler/pkg/scalertypes"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -194,17 +194,17 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	if functionconfig.FunctionStateInSlice(function.Status.State, waitingStates) {
 
-		var scaleEvent scaler_types.ScaleEvent
+		var scaleEvent scalertypes.ScaleEvent
 		var finalState functionconfig.FunctionState
 		switch function.Status.State {
 		case functionconfig.FunctionStateWaitingForScaleResourcesToZero:
-			scaleEvent = scaler_types.ScaleToZeroCompletedScaleEvent
+			scaleEvent = scalertypes.ScaleToZeroCompletedScaleEvent
 			finalState = functionconfig.FunctionStateScaledToZero
 		case functionconfig.FunctionStateWaitingForScaleResourcesFromZero:
-			scaleEvent = scaler_types.ScaleFromZeroCompletedScaleEvent
+			scaleEvent = scalertypes.ScaleFromZeroCompletedScaleEvent
 			finalState = functionconfig.FunctionStateReady
 		case functionconfig.FunctionStateWaitingForResourceConfiguration:
-			scaleEvent = scaler_types.ResourceUpdatedScaleEvent
+			scaleEvent = scalertypes.ResourceUpdatedScaleEvent
 			finalState = functionconfig.FunctionStateReady
 		}
 
@@ -212,6 +212,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
 			State: finalState,
+			Logs:  function.Status.Logs,
 		}
 
 		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
@@ -239,7 +240,7 @@ func (fo *functionOperator) Delete(ctx context.Context, namespace string, name s
 
 func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 	functionStatus *functionconfig.Status,
-	scaleToZeroEvent scaler_types.ScaleEvent) error {
+	scaleToZeroEvent scalertypes.ScaleEvent) error {
 
 	fo.logger.DebugWith("Setting scale to zero status",
 		"LastScaleEvent", scaleToZeroEvent)
@@ -268,6 +269,7 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction,
 		"err", err)
 
 	if setStatusErr := fo.setFunctionStatus(function, &functionconfig.Status{
+		Logs:    function.Status.Logs,
 		State:   functionErrorState,
 		Message: errors.GetErrorStackString(err, 10),
 	}); setStatusErr != nil {

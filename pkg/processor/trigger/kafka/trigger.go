@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/kafka/tokenprovider/oauth"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -361,10 +362,23 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
 	// configure SASL if applicable
 	if k.configuration.SASL.Enable {
-		k.Logger.DebugWith("Configuring SASL authentication", "username", k.configuration.SASL.User)
+		k.Logger.DebugWith("Configuring SASL authentication",
+			"username", k.configuration.SASL.User,
+			"mechanism", k.configuration.SASL.Mechanism)
+
 		config.Net.SASL.Enable = true
 		config.Net.SASL.User = k.configuration.SASL.User
 		config.Net.SASL.Password = k.configuration.SASL.Password
+		config.Net.SASL.Mechanism = sarama.SASLMechanism(k.configuration.SASL.Mechanism)
+
+		// per mechanism configuration
+		if config.Net.SASL.Mechanism == sarama.SASLTypeOAuth {
+			config.Net.SASL.TokenProvider = oauth.NewTokenProvider(context.TODO(),
+				k.configuration.SASL.OAuth.ClientID,
+				k.configuration.SASL.OAuth.ClientSecret,
+				k.configuration.SASL.OAuth.TokenURL,
+				k.configuration.SASL.OAuth.Scopes)
+		}
 	}
 
 	if err := config.Validate(); err != nil {

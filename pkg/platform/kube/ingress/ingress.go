@@ -198,7 +198,7 @@ func (m *Manager) CreateOrUpdateResources(resources *Resources) (*v1beta1.Ingres
 	return appliedIngress, appliedBasicAuthSecret, nil
 }
 
-// deletes ingress resource
+// DeleteByName deletes an ingress resource by name
 // when deleteAuthSecret == true, delete related secret resource too
 func (m *Manager) DeleteByName(ingressName string, namespace string, deleteAuthSecret bool) error {
 	var ingress *v1beta1.Ingress
@@ -480,6 +480,6 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 func (m *Manager) enrichLabels(spec Spec, labels map[string]string) {
 	labels["nuclio.io/class"] = "apigateway"
 	labels["nuclio.io/app"] = "ingress-manager"
-	labels["nuclio.io/apigateway-name"] = spec.APIGatewayName
-	labels["nuclio.io/project-name"] = spec.ProjectName
+	labels[common.NuclioResourceLabelKeyApiGatewayName] = spec.APIGatewayName
+	labels[common.NuclioResourceLabelKeyProjectName] = spec.ProjectName
 }

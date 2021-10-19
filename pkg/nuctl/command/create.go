@@ -19,6 +19,7 @@ package command
 import (
 	"encoding/json"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
@@ -103,6 +104,7 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 	}
 
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Description, "description", "", "Project description")
+	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Owner, "owner", "", "Project owner")
 	commandeer.cmd = cmd
 
 	return commandeer
@@ -156,7 +158,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 
 			if commandeer.project != "" {
 				commandeer.apiGatewayConfig.Meta.Labels = map[string]string{
-					"nuclio.io/project-name": commandeer.project,
+					common.NuclioResourceLabelKeyProjectName: commandeer.project,
 				}
 			}
 
@@ -194,7 +196,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 			commandeer.apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 				{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 						Name: commandeer.function,
 					},
 				},
@@ -207,7 +209,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 
 				canaryUpstream := platform.APIGatewayUpstreamSpec{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-					Nucliofunction: &platform.NuclioFunctionAPIGatewaySpec{
+					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 						Name: commandeer.canaryFunction,
 					},
 					Percentage: commandeer.canaryPercentage,

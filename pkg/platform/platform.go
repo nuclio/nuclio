@@ -102,13 +102,10 @@ type Platform interface {
 	// GetProjects will list existing projects
 	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
 
-	// FilterProjectsByPermissions will filter out some projects
-	FilterProjectsByPermissions(*opa.PermissionOptions, []Project) ([]Project, error)
-
-	// Ensures default project exists, creates it otherwise
+	// EnsureDefaultProjectExistence ensure default project exists, creates it otherwise
 	EnsureDefaultProjectExistence() error
 
-	// Waits for all of the project's resources to be deleted
+	// WaitForProjectResourcesDeletion waits for all of the project's resources to be deleted
 	WaitForProjectResourcesDeletion(projectMeta *ProjectMeta, duration time.Duration) error
 
 	//
@@ -135,7 +132,7 @@ type Platform interface {
 	// API Gateway
 	//
 
-	// Create APIGateway creates and deploys a new api gateway
+	// CreateAPIGateway creates and deploy APIGateway
 	CreateAPIGateway(createAPIGatewayOptions *CreateAPIGatewayOptions) error
 
 	// UpdateAPIGateway will update a previously deployed api gateway
@@ -158,10 +155,6 @@ type Platform interface {
 	// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
 	// These addresses are either set through SetExternalIPAddresses or automatically discovered
 	GetExternalIPAddresses() ([]string, error)
-
-	SetDefaultHTTPIngressHostTemplate(string)
-
-	GetDefaultHTTPIngressHostTemplate() string
 
 	SetImageNamePrefixTemplate(string)
 
@@ -220,16 +213,13 @@ type Platform interface {
 	// GetRuntimeBuildArgs returns the runtime specific build arguments
 	GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string
 
+	// GetConfig returns platform config
+	GetConfig() *platformconfig.Config
+
 	//
 	// OPA
 	//
 
-	// QueryOPAProjectPermissions queries opa permissions for a certain project
-	QueryOPAProjectPermissions(projectName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
-
 	// QueryOPAFunctionPermissions queries opa permissions for a certain function
 	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
-
-	// QueryOPAFunctionEventPermissions queries opa permissions for a certain function event
-	QueryOPAFunctionEventPermissions(projectName, functionName, functionEventName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
 }

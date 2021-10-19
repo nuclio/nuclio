@@ -23,7 +23,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -35,10 +34,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/internalc/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	internalproject "github.com/nuclio/nuclio/pkg/platform/kube/project"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -66,7 +65,7 @@ const Mib = 1048576
 func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig.Config) (project.Client, error) {
 
 	// create kube projects client
-	kubeProjectsClient, err := internalproject.NewClient(platform.Logger, platform, platform.consumer)
+	kubeProjectsClient, err := kube.NewClient(platform.Logger, platform, platform.consumer)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create internal projects client (kube)")
 	}
@@ -74,7 +73,9 @@ func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig
 	if platformConfiguration.ProjectsLeader != nil {
 
 		// wrap external client around kube projects client as internal client
-		return externalproject.NewClient(platform.Logger, kubeProjectsClient, platformConfiguration)
+		return externalproject.NewClient(platform.Logger,
+			kubeProjectsClient,
+			platformConfiguration)
 	}
 
 	return kubeProjectsClient, nil
@@ -167,24 +168,13 @@ func (p *Platform) Initialize() error {
 	return nil
 }
 
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+// CreateFunction will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (
 	*platform.CreateFunctionResult, error) {
 
+	var err error
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
-
-	// wrap logger
-	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create a log stream")
-	}
-
-	// save the log stream for the name
-	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
-
-	// replace logger
-	createFunctionOptions.Logger = logStream.GetLogger()
 
 	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
@@ -193,7 +183,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// Check OPA permissions
 	permissionOptions := createFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"],
+	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		createFunctionOptions.FunctionConfig.Meta.Name,
 		opa.ActionCreate,
 		&permissionOptions); err != nil {
@@ -221,6 +211,18 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
+
+	// wrap logger
+	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create a log stream")
+	}
+
+	// save the log stream for the name
+	p.DeployLogStreams.Store(createFunctionOptions.FunctionConfig.Meta.GetUniqueID(), logStream)
+
+	// replace logger
+	createFunctionOptions.Logger = logStream.GetLogger()
 
 	// called when function creation failed, update function status with failure
 	reportCreationError := func(creationError error, briefErrorsMessage string, clearCallStack bool) error {
@@ -267,6 +269,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			functionStatus.HTTPPort = existingFunctionInstance.Status.HTTPPort
 			functionStatus.ExternalInvocationURLs = existingFunctionInstance.Status.ExternalInvocationURLs
 			functionStatus.InternalInvocationURLs = existingFunctionInstance.Status.InternalInvocationURLs
+			functionStatus.Logs = existingFunctionInstance.Status.Logs
 
 			// if function deployment ended up with unhealthy, due to unstable Kubernetes env that lead
 			// to failing on waiting for function readiness.
@@ -413,13 +416,44 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 		return err
 	}
 
-	p.enrichHTTPTriggersWithServiceType(functionConfig)
+	if err := p.enrichHTTPTriggers(functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich http trigger")
+	}
+
+	// enrich function node selector
+	if functionConfig.Spec.NodeSelector == nil && p.Config.Kube.DefaultFunctionNodeSelector != nil {
+		p.Logger.DebugWith("Enriching function node selector",
+			"functionName", functionConfig.Meta.Name,
+			"nodeSelectors", p.Config.Kube.DefaultFunctionNodeSelector)
+		functionConfig.Spec.NodeSelector = map[string]string{}
+		for key, value := range p.Config.Kube.DefaultFunctionNodeSelector {
+			functionConfig.Spec.NodeSelector[key] = value
+
+		}
+	}
+
+	// enrich function pod priority class name
+	if functionConfig.Spec.PriorityClassName == "" && p.Config.Kube.DefaultFunctionPriorityClassName != "" {
+		p.Logger.DebugWith("Enriching pod priority class name",
+			"functionName", functionConfig.Meta.Name,
+			"priorityClassName", p.Config.Kube.DefaultFunctionPriorityClassName)
+		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
+	}
 
 	return nil
 }
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
+	if err != nil {
+		return nil, errors.Wrap(err, "")
+	}
+
+	if err := p.Platform.EnsureProjectRead(projectName, &getFunctionsOptions.PermissionOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed to ensure project read permission")
+	}
+
 	functions, err := p.getter.Get(p.consumer, getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
@@ -452,6 +486,9 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+	p.Logger.DebugWith("Updating function",
+		"functionName", updateFunctionOptions.FunctionMeta.Name)
+
 	return p.updater.Update(updateFunctionOptions)
 }
 
@@ -507,10 +544,6 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 	return names, nil
 }
 
-func IsInCluster() bool {
-	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
-}
-
 // GetName returns the platform name
 func (p *Platform) GetName() string {
 	return "kube"
@@ -548,17 +581,9 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 		return errors.Wrap(err, "Failed to validate a project configuration")
 	}
 
-	// Check OPA permissions
-	permissionOptions := createProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(createProjectOptions.ProjectConfig.Meta.Name,
-		opa.ActionCreate,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
-	}
-
 	// create
-	p.Logger.DebugWith("Creating project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
+	p.Logger.DebugWith("Creating project",
+		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
 	}
@@ -570,15 +595,6 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
 		return nuclio.WrapErrBadRequest(err)
-	}
-
-	// Check OPA permissions
-	permissionOptions := updateProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(updateProjectOptions.ProjectConfig.Meta.Name,
-		opa.ActionUpdate,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
 	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
@@ -594,13 +610,10 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
-	// Check OPA permissions
-	permissionOptions := deleteProjectOptions.PermissionOptions
-	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAProjectPermissions(deleteProjectOptions.Meta.Name,
-		opa.ActionDelete,
-		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	// check only, do not delete
+	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCheck {
+		p.Logger.DebugWith("Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
+		return nil
 	}
 
 	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
@@ -631,10 +644,12 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 
 	// enrich
-	p.EnrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig)
+	p.enrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig, nil)
 
 	// validate
-	if err := p.ValidateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig); err != nil {
+	if err := p.validateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig,
+		createAPIGatewayOptions.ValidateFunctionsExistence,
+		nil); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
 	}
 
@@ -644,10 +659,9 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 	newAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	// create
-	_, err := p.consumer.NuclioClientSet.NuclioV1beta1().
+	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(newAPIGateway.Namespace).
-		Create(&newAPIGateway)
-	if err != nil {
+		Create(&newAPIGateway); err != nil {
 		return errors.Wrap(err, "Failed to create an API gateway")
 	}
 
@@ -664,11 +678,13 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	}
 
 	// enrich
-	p.EnrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig)
+	p.enrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
 
 	// validate
-	if err := p.ValidateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
+	if err := p.validateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig,
+		updateAPIGatewayOptions.ValidateFunctionsExistence,
+		apiGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate api gateway")
 	}
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
@@ -679,10 +695,10 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	apiGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
 	// update
-	if _, err = p.consumer.NuclioClientSet.NuclioV1beta1().
+	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Update(apiGateway); err != nil {
-		return errors.Wrap(err, "Failed to update an API gateway")
+		return errors.Wrap(err, "Failed to update an api gateway")
 	}
 
 	return nil
@@ -779,15 +795,16 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
-	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
 
 	if err := p.Platform.EnrichFunctionEvent(&createFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
-	functionName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyFunctionName]
+	newFunctionEvent := nuclioio.NuclioFunctionEvent{}
+	p.platformFunctionEventToFunctionEvent(&createFunctionEventOptions.FunctionEventConfig, &newFunctionEvent)
+
 	projectName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyProjectName]
+	functionName := newFunctionEvent.Labels[common.NuclioResourceLabelKeyFunctionName]
 
 	// Check OPA permissions
 	permissionOptions := createFunctionEventOptions.PermissionOptions
@@ -1040,7 +1057,7 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces() ([]string, error) {
-	if p.Config.ManagedNamespaces != nil {
+	if len(p.Config.ManagedNamespaces) > 0 {
 		return p.Config.ManagedNamespaces, nil
 	}
 
@@ -1115,8 +1132,8 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[s
 		for _, upstream := range apiGateway.Spec.Upstreams {
 
 			// append the current api gateway to the function's api gateways list
-			functionToAPIGateways[upstream.Nucliofunction.Name] =
-				append(functionToAPIGateways[upstream.Nucliofunction.Name], apiGateway.Name)
+			functionToAPIGateways[upstream.NuclioFunction.Name] =
+				append(functionToAPIGateways[upstream.NuclioFunction.Name], apiGateway.Name)
 		}
 	}
 
@@ -1247,7 +1264,8 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) EnrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayConfig) {
+func (p *Platform) enrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayConfig,
+	existingApiGatewayConfig *nuclioio.NuclioAPIGateway) {
 
 	// meta
 	if apiGatewayConfig.Meta.Name == "" {
@@ -1261,6 +1279,14 @@ func (p *Platform) EnrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayC
 
 	if apiGatewayConfig.Meta.Labels == nil {
 		apiGatewayConfig.Meta.Labels = map[string]string{}
+	}
+
+	// enrich project name if not exists or value is empty
+	if existingApiGatewayConfig != nil {
+		if value, exist := apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]; value == "" || !exist {
+			apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] =
+				existingApiGatewayConfig.Labels[common.NuclioResourceLabelKeyProjectName]
+		}
 	}
 
 	p.EnrichLabelsWithProjectName(apiGatewayConfig.Meta.Labels)
@@ -1278,29 +1304,56 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 	return nil
 }
 
-func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGatewayConfig) error {
+func (p *Platform) validateAPIGatewayConfig(apiGateway *platform.APIGatewayConfig,
+	validateFunctionsExistence bool,
+	existingAPIGateway *nuclioio.NuclioAPIGateway) error {
 
 	// general validations
-	if platformAPIGateway.Spec.Name != platformAPIGateway.Meta.Name {
+	if apiGateway.Spec.Name != apiGateway.Meta.Name {
 		return nuclio.NewErrBadRequest("Api gateway metadata.name must match api gateway spec.name")
 	}
-	if common.StringInSlice(platformAPIGateway.Spec.Name, p.ResolveReservedResourceNames()) {
+
+	// not a reserved name
+	if common.StringInSlice(apiGateway.Spec.Name, p.ResolveReservedResourceNames()) {
 		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Api gateway name '%s' is reserved and cannot be used",
-			platformAPIGateway.Spec.Name))
+			apiGateway.Spec.Name))
 	}
 
 	// meta
-	if err := p.validateAPIGatewayMeta(&platformAPIGateway.Meta); err != nil {
+	if err := p.validateAPIGatewayMeta(&apiGateway.Meta); err != nil {
 		return errors.Wrap(err, "Failed to validate API-gateway metadata")
 	}
 
 	// spec
-	if err := ValidateAPIGatewaySpec(&platformAPIGateway.Spec); err != nil {
+	if err := ValidateAPIGatewaySpec(&apiGateway.Spec); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway spec")
 	}
 
-	if err := p.validateAPIGatewayIngresses(platformAPIGateway); err != nil {
-		return err
+	if existingAPIGateway != nil {
+		if existingAPIGateway.Labels[common.NuclioResourceLabelKeyProjectName] !=
+			apiGateway.Meta.Labels[common.NuclioResourceLabelKeyProjectName] {
+			return nuclio.NewErrBadRequest("Changing project name to an existing api gateway is not allowed")
+		}
+	}
+
+	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(apiGateway, validateFunctionsExistence)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get api gateway upstream functions")
+	}
+
+	// validate APIGateway functions have no ingresses
+	for _, upstreamFunction := range upstreamFunctions {
+		ingresses := functionconfig.GetFunctionIngresses(upstreamFunction.GetConfig())
+		if len(ingresses) > 0 {
+			return nuclio.NewErrPreconditionFailed(
+				fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
+					upstreamFunction.GetConfig().Meta.Name))
+		}
+	}
+
+	// ingresses
+	if err := p.validateAPIGatewayIngresses(apiGateway); err != nil {
+		return errors.Wrap(err, "Failed to validate ingresses")
 	}
 
 	return nil
@@ -1309,6 +1362,10 @@ func (p *Platform) ValidateAPIGatewayConfig(platformAPIGateway *platform.APIGate
 func (p *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
 	if err := p.Platform.ValidateFunctionConfig(functionConfig); err != nil {
 		return err
+	}
+
+	if err := p.validateServiceType(functionConfig); err != nil {
+		return errors.Wrap(err, "Service type validation failed")
 	}
 
 	return p.validateFunctionIngresses(functionConfig)
@@ -1326,19 +1383,33 @@ func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfi
 	return nil
 }
 
-func (p *Platform) enrichHTTPTriggersWithServiceType(functionConfig *functionconfig.Config) {
+func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) error {
+	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
+	switch serviceType {
+	case "":
 
-	// for backwards compatibility
-	serviceType := functionConfig.Spec.ServiceType
-	if serviceType == "" {
-		serviceType = p.Config.Kube.DefaultServiceType
+		// empty means - let it be enriched by default
+		return nil
+	case v1.ServiceTypeNodePort, v1.ServiceTypeClusterIP:
+		return nil
+	default:
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported service type %s", serviceType))
 	}
+}
+
+func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) error {
+
+	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
-		functionConfig.Spec.Triggers[triggerName] = p.enrichTriggerWithServiceType(functionConfig,
-			trigger,
-			serviceType)
+		p.enrichTriggerWithServiceType(functionConfig, &trigger, serviceType)
+		if err := p.enrichHTTPTriggerIngresses(&trigger, functionConfig); err != nil {
+			return errors.Wrap(err, "Failed to enrich HTTP trigger ingresses")
+		}
+		functionConfig.Spec.Triggers[triggerName] = trigger
 	}
+
+	return nil
 }
 
 func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
@@ -1358,8 +1429,8 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 }
 
 func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.Config,
-	trigger functionconfig.Trigger,
-	serviceType v1.ServiceType) functionconfig.Trigger {
+	trigger *functionconfig.Trigger,
+	serviceType v1.ServiceType) {
 
 	if trigger.Attributes == nil {
 		trigger.Attributes = map[string]interface{}{}
@@ -1373,14 +1444,9 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 			"serviceType", serviceType)
 		trigger.Attributes["serviceType"] = serviceType
 	}
-
-	return trigger
 }
 
 func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
-	if err := p.validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate: API-gateway functions have no ingresses")
-	}
 
 	// create a map to be used for ingress host and path-availability validation
 	apiGatewayIngresses := map[string]functionconfig.Ingress{
@@ -1417,9 +1483,11 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 		// validate ingresses not created by this function
 		FieldSelector: fmt.Sprintf("metadata.name!=%s", IngressNameFromFunctionName(functionConfig.Meta.Name)),
 	}
+
+	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
 	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
 		functionConfig.Meta.Namespace,
-		functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)); err != nil {
+		ingresses); err != nil {
 		return errors.Wrapf(err, "Failed to validate the function-ingress host and path availability")
 	}
 
@@ -1482,41 +1550,12 @@ func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions m
 	return nil
 }
 
-func (p *Platform) validateAPIGatewayFunctionsHaveNoIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
-
-	// check ingresses on every upstream function
-	errGroup, _ := errgroup.WithContext(context.TODO(), p.Logger)
-	for _, upstream := range apiGatewayConfig.Spec.Upstreams {
-		upstream := upstream
-		errGroup.Go("GetFunctionIngresses", func() error {
-			function, err := p.getFunction(apiGatewayConfig.Meta.Namespace, upstream.Nucliofunction.Name)
-			if err != nil {
-				return errors.New("Failed to get upstream function")
-			}
-			if function == nil {
-
-				// if such function doesn't exist, just skip - because it doesn't have ingresses for sure
-				return nil
-			}
-			ingresses := functionconfig.GetIngressesFromTriggers(function.Spec.Triggers)
-			if len(ingresses) > 0 {
-				return nuclio.NewErrPreconditionFailed(
-					fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
-						upstream.Nucliofunction.Name))
-			}
-			return nil
-		})
-	}
-
-	return errGroup.Wait()
-}
-
 // validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
 // this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
 // (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
 // with canary ingress, when sending requests to host-1.com we may get directed to the canary ingress defined by the api gateway)
 func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functionconfig.Config) error {
-	ingresses := functionconfig.GetIngressesFromTriggers(functionConfig.Spec.Triggers)
+	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
 	if len(ingresses) > 0 {
 
 		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
@@ -1530,4 +1569,121 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	}
 
 	return nil
+}
+
+func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigger,
+	functionConfig *functionconfig.Config) error {
+
+	ingresses, hasIngresses := httpTrigger.Attributes["ingresses"]
+	if !hasIngresses {
+		return nil
+	}
+
+	templateData := map[string]interface{}{
+		"Name":         functionConfig.Meta.Name,
+		"ResourceName": functionConfig.Meta.Name,
+		"Namespace":    functionConfig.Meta.Namespace,
+		"ProjectName":  functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+	}
+
+	// iterate over the encoded ingresses map and created ingress structures
+	encodedIngresses := ingresses.(map[string]interface{})
+	for _, encodedIngress := range encodedIngresses {
+		encodedIngressMap := encodedIngress.(map[string]interface{})
+
+		if ingressHostTemplate, hostTemplateFound := encodedIngressMap["hostTemplate"].(string); hostTemplateFound {
+
+			// one way to say "just render me the default"
+			if ingressHostTemplate == "@nuclio.fromDefault" {
+				ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
+			} else {
+				p.Logger.DebugWith("Received custom ingress host template to enrich host with",
+					"ingressHostTemplate", ingressHostTemplate,
+					"functionName", functionConfig.Meta.Name)
+			}
+
+			// render host with pre-defined data
+			renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateData)
+			if err != nil {
+				return errors.Wrap(err, "Failed to render ingress host template")
+			}
+
+			// try infer from attributes, if not use default 8
+			hostTemplateRandomCharsLength := 8
+			if hostTemplateRandomCharsLengthValue, ok := encodedIngressMap["hostTemplateRandomCharsLength"].(int); ok {
+				hostTemplateRandomCharsLength = hostTemplateRandomCharsLengthValue
+			}
+			renderedIngressHost = p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength)
+			if ingressHost, ingressHostFound := encodedIngressMap["host"].(string); !ingressHostFound || ingressHost == "" {
+				p.Logger.DebugWith("Enriching function ingress host from template",
+					"renderedIngressHost", renderedIngressHost,
+					"functionName", functionConfig.Meta.Name)
+				encodedIngressMap["host"] = renderedIngressHost
+			}
+		}
+	}
+	return nil
+}
+
+// will take a host, split to "."
+// for each component, will ensure its max length is not >63
+// if it does, it will truncate by randomCharsLength+1 and add "-<random-chars>" to it
+func (p *Platform) alignIngressHostSubdomainLevel(host string, randomCharsLength int) string {
+
+	// backdoor to make it stop
+	if randomCharsLength == -1 {
+		return host
+	}
+	var reconstructedHost []string
+	hostLevels := strings.Split(host, ".")
+	for _, hostLevel := range hostLevels {
+
+		// DNS domain level limitation is 63 chars
+		if len(hostLevel) <= common.KubernetesDomainLevelMaxLength {
+			reconstructedHost = append(reconstructedHost, hostLevel)
+			continue
+		}
+		randomSuffix := common.GenerateRandomString(randomCharsLength, common.SmallLettersAndNumbers)
+		truncatedHostLevel := hostLevel[:common.KubernetesDomainLevelMaxLength-randomCharsLength-1]
+		truncatedHostLevel = strings.TrimSuffix(truncatedHostLevel, "-")
+		reconstructedHost = append(reconstructedHost, fmt.Sprintf("%s-%s", truncatedHostLevel, randomSuffix))
+	}
+	return strings.Join(reconstructedHost, ".")
+}
+
+func (p *Platform) getAPIGatewayUpstreamFunctions(apiGateway *platform.APIGatewayConfig,
+	validateFunctionExistence bool) ([]platform.Function, error) {
+	var upstreamFunctions []platform.Function
+
+	// get upstream functions
+	errGroup, _ := errgroup.WithContext(context.TODO(), p.Logger)
+	for _, upstream := range apiGateway.Spec.Upstreams {
+		upstream := upstream
+		errGroup.Go("GetUpstreamFunction", func() error {
+			function, err := p.getFunction(apiGateway.Meta.Namespace, upstream.NuclioFunction.Name)
+			if err != nil {
+				return errors.New("Failed to get upstream function")
+			}
+			if function == nil {
+				if validateFunctionExistence {
+					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exists",
+						upstream.NuclioFunction.Name))
+				}
+				return nil
+			}
+
+			functionInstance, err := client.NewFunction(p.Logger, p, function, p.consumer)
+			if err != nil {
+				return errors.Wrap(err, "Failed to initialize function")
+			}
+
+			upstreamFunctions = append(upstreamFunctions, functionInstance)
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return nil, errors.Wrap(err, "Failed to get upstream functions")
+	}
+	return upstreamFunctions, nil
 }

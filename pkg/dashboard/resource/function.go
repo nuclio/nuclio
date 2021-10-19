@@ -47,6 +47,11 @@ type functionInfo struct {
 	Status *functionconfig.Status `json:"status,omitempty"`
 }
 
+func (fr *functionResource) ExtendMiddlewares() error {
+	fr.resource.addAuthMiddleware()
+	return nil
+}
+
 // GetAll returns all functions
 func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}
@@ -110,16 +115,17 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
 	// validate there are no 2 functions with the same name
 	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionInfo.Meta.Name,
-		Namespace: fr.resolveNamespace(request, functionInfo),
+		Name:        functionInfo.Meta.Name,
+		Namespace:   fr.resolveNamespace(request, functionInfo),
+		AuthSession: fr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
 	if err != nil {
-		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
+		responseErr = errors.Wrap(err, "Failed to get functions")
 		return
 	}
 	if len(functions) > 0 {
@@ -148,31 +154,6 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 func (fr *functionResource) Update(request *http.Request, id string) (attributes restful.Attributes, responseErr error) {
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
-		return
-	}
-
-	// TODO: Add a lock to prevent race conditions here
-	// validate the function exists
-	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionInfo.Meta.Name,
-		Namespace: fr.resolveNamespace(request, functionInfo),
-		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
-			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
-		},
-	})
-	if err != nil {
-		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
-		return
-	}
-	if len(functions) == 0 {
-		responseErr = nuclio.NewErrNotFound("Cannot update non existing function")
-		return
-	}
-
-	if err = fr.validateUpdateInfo(functionInfo, functions[0]); err != nil {
-		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err, "Requested update fields are invalid"))
 		return
 	}
 
@@ -269,7 +250,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		functionInfo.Spec.Build.Offline = dashboardServer.Offline
 
 		// just deploy. the status is async through polling
-		_, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{
+		if _, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{
 			Logger: fr.Logger,
 			FunctionConfig: functionconfig.Config{
 				Meta: *functionInfo.Meta,
@@ -278,13 +259,12 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 			CreationStateUpdated:       creationStateUpdatedChan,
 			AuthConfig:                 authConfig,
 			DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
+			AuthSession:                fr.getCtxSession(request),
 			PermissionOptions: opa.PermissionOptions{
-				MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+				MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
 				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
-		})
-
-		if err != nil {
+		}); err != nil {
 			fr.Logger.WarnWith("Failed to deploy function", "err", err)
 			errDeployingChan <- err
 		}
@@ -435,11 +415,14 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	}
 
 	deleteFunctionOptions := platform.DeleteFunctionOptions{
-		AuthConfig: authConfig,
+		AuthConfig:  authConfig,
+		AuthSession: fr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+		IgnoreFunctionStateValidation: fr.headerValueIsTrue(request,
+			"x-nuclio-delete-function-ignore-state-validation"),
 	}
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
@@ -485,7 +468,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
+		return nil, errors.Wrap(err, "Failed to read body")
 	}
 
 	functionInfoInstance := functionInfo{}
@@ -501,18 +484,6 @@ func (fr *functionResource) resolveNamespace(request *http.Request, function *fu
 		return namespace
 	}
 	return function.Meta.Namespace
-}
-
-func (fr *functionResource) validateUpdateInfo(functionInfo *functionInfo, function platform.Function) error {
-
-	// in the imported state, after the function has the skip-build and skip-deploy annotations removed,
-	// if the user tries to disable the function, it will in turn build and deploy the function and then disable it.
-	// so here we don't allow users to disable an imported function.
-	if functionInfo.Spec.Disable && function.GetStatus().State == functionconfig.FunctionStateImported {
-		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
-	}
-
-	return nil
 }
 
 func (fr *functionResource) getFunction(request *http.Request, name string) (platform.Function, error) {
@@ -536,8 +507,9 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  functionName,
 		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
+		AuthSession:           fr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromHeaders(request),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
 			RaiseForbidden:      raiseForbidden,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -546,7 +518,8 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 	// if the user wants to filter by project, do that
 	projectNameFilter := request.Header.Get("x-nuclio-project-name")
 	if projectNameFilter != "" {
-		getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectNameFilter)
+		getFunctionsOptions.Labels = fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName,
+			projectNameFilter)
 	}
 	return getFunctionsOptions
 }
@@ -569,7 +542,7 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 			functionInfoInstance.Meta.Labels = map[string]string{}
 		}
 
-		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+		functionInfoInstance.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 	}
 
 	//
