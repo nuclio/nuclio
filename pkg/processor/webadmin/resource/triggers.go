@@ -62,7 +62,7 @@ func (tr *triggersResource) GetByID(request *http.Request, id string) (restful.A
 	return nil, nil
 }
 
-// returns a list of custom routes for the resource
+// GetCustomRoutes returns a list of custom routes for the resource
 func (tr *triggersResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 	// just for demonstration. when stats are supported, this will be wired

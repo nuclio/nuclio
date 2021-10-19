@@ -39,6 +39,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
@@ -1813,7 +1814,6 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	container *v1.Container) {
-	healthCheckHTTPPort := 8082
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
@@ -1847,8 +1847,8 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	container.ReadinessProbe = &v1.Probe{
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
-				Port: intstr.FromInt(healthCheckHTTPPort),
-				Path: "/ready",
+				Port: intstr.FromInt(abstract.FunctionContainerHTTPPort),
+				Path: http.InternalHealthPath,
 			},
 		},
 		InitialDelaySeconds: 1,
@@ -1859,7 +1859,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	container.LivenessProbe = &v1.Probe{
 		Handler: v1.Handler{
 			HTTPGet: &v1.HTTPGetAction{
-				Port: intstr.FromInt(healthCheckHTTPPort),
+				Port: intstr.FromInt(abstract.FunctionContainerHealthCheckHTTPPort),
 				Path: "/live",
 			},
 		},

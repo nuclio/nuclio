@@ -19,6 +19,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/loggersink"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -375,7 +377,7 @@ func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.C
 	}
 
 	if platformConfiguration.WebAdmin.ListenAddress == "" {
-		platformConfiguration.WebAdmin.ListenAddress = ":8081"
+		platformConfiguration.WebAdmin.ListenAddress = fmt.Sprintf(":%d", abstract.FunctionContainerWebAdminHTTPPort)
 	}
 
 	// create the server

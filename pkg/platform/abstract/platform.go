@@ -53,8 +53,10 @@ import (
 //
 
 const (
-	FunctionContainerHTTPPort = 8080
-	DefaultTargetCPU          = 75
+	FunctionContainerHTTPPort            = 8080
+	FunctionContainerWebAdminHTTPPort    = 8081
+	FunctionContainerHealthCheckHTTPPort = 8082
+	DefaultTargetCPU                     = 75
 )
 
 type Platform struct {
