@@ -79,8 +79,14 @@ func (suite *ControllerTestSuite) TestStaleResourceVersion() {
 
 func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 
-	// build a function
+	// create function options
 	createFunctionOptions := suite.CompileCreateFunctionOptions(fmt.Sprintf("test-%s", suite.TestID))
+
+	// enrich with defaults
+	err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+	suite.Require().NoError(err)
+
+	// build function
 	buildFunctionResults, err := suite.Platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 		Logger:              suite.Logger,
 		FunctionConfig:      createFunctionOptions.FunctionConfig,
@@ -89,6 +95,8 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	})
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(buildFunctionResults.Image)
+
+	// update function's image
 	buildFunctionResults.UpdatedFunctionConfig.Spec.Image = fmt.Sprintf("%s/%s",
 		suite.RegistryURL,
 		buildFunctionResults.Image)
