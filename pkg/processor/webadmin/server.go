@@ -35,10 +35,10 @@ func NewServer(parentLogger logger.Logger, processor interface{}, configuration 
 	newServer := &Server{Processor: processor}
 
 	// namespace our logger
-	logger := parentLogger.GetChild("webadmin")
+	loggerInstance := parentLogger.GetChild("webadmin")
 
 	// create server
-	newServer.AbstractServer, err = restful.NewAbstractServer(logger,
+	newServer.AbstractServer, err = restful.NewAbstractServer(loggerInstance,
 		WebAdminResourceRegistrySingleton,
 		newServer,
 		configuration)
