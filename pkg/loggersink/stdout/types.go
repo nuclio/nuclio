@@ -58,7 +58,12 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 	}
 
 	if newConfiguration.VarGroupMode == "" {
-		newConfiguration.VarGroupMode = nucliozap.DefaultVarGroupMode
+		switch newConfiguration.Encoding {
+		case "json":
+			newConfiguration.VarGroupMode = nucliozap.VarGroupModeStructured
+		default:
+			newConfiguration.VarGroupMode = nucliozap.VarGroupModeFlattened
+		}
 	}
 
 	return &newConfiguration, nil
