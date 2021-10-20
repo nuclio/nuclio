@@ -757,6 +757,7 @@ func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 					NodeName:           function.Spec.NodeName,
 					PriorityClassName:  function.Spec.PriorityClassName,
 					PreemptionPolicy:   function.Spec.PreemptionPolicy,
+					HostIPC:            function.Spec.HostIPC,
 				},
 			},
 		}

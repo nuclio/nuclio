@@ -287,6 +287,9 @@ type Spec struct {
 	PriorityClassName string               `json:"priorityClassName,omitempty"`
 	PreemptionPolicy  *v1.PreemptionPolicy `json:"preemptionPolicy,omitempty"`
 
+	// Use the host's ipc namespace
+	HostIPC bool `json:"hostIPC,omitempty"`
+
 	// Currently relevant only for k8s platform
 	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
 	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
