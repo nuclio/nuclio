@@ -873,8 +873,16 @@ func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunctio
 }
 
 func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclioio.NuclioFunction,
-	deployment *appsv1.Deployment, method deploymentResourceMethod) error {
-	var allowSetDeploymentStrategy = true
+	deployment *appsv1.Deployment,
+	method deploymentResourceMethod) error {
+
+	var allowResolvingDeploymentStrategy = true
+
+	// explicit deployment strategy given on function spec
+	if function.Spec.DeploymentStrategy != nil {
+		allowResolvingDeploymentStrategy = false
+		deployment.Spec.Strategy = *function.Spec.DeploymentStrategy
+	}
 
 	// get deployment augmented configurations
 	deploymentAugmentedConfigs, err := lc.getDeploymentAugmentedConfigs(function)
@@ -887,7 +895,7 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 		if augmentedConfig.Kubernetes.Deployment != nil {
 			if augmentedConfig.Kubernetes.Deployment.Spec.Strategy.Type != "" ||
 				augmentedConfig.Kubernetes.Deployment.Spec.Strategy.RollingUpdate != nil {
-				allowSetDeploymentStrategy = false
+				allowResolvingDeploymentStrategy = false
 			}
 			if err := mergo.Merge(&deployment.Spec, &augmentedConfig.Kubernetes.Deployment.Spec); err != nil {
 				return errors.Wrap(err, "Failed to merge deployment spec")
@@ -899,11 +907,11 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 
 	// on create, change inplace the deployment strategy
 	case createDeploymentResourceMethod:
-		if allowSetDeploymentStrategy {
+		if allowResolvingDeploymentStrategy {
 			deployment.Spec.Strategy.Type = lc.resolveDeploymentStrategy(function)
 		}
 	case updateDeploymentResourceMethod:
-		if allowSetDeploymentStrategy {
+		if allowResolvingDeploymentStrategy {
 			newDeploymentStrategyType := lc.resolveDeploymentStrategy(function)
 			if newDeploymentStrategyType != deployment.Spec.Strategy.Type {
 

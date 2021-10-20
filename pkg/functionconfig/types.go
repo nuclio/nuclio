@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/v3io/scaler/pkg/scalertypes"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 )
 
@@ -286,6 +287,9 @@ type Spec struct {
 	// Priority and Preemption
 	PriorityClassName string               `json:"priorityClassName,omitempty"`
 	PreemptionPolicy  *v1.PreemptionPolicy `json:"preemptionPolicy,omitempty"`
+
+	// How to replace existing function pods with new ones
+	DeploymentStrategy *appsv1.DeploymentStrategy `json:"deploymentStrategy,omitempty"`
 
 	// Use the host's ipc namespace
 	HostIPC bool `json:"hostIPC,omitempty"`
