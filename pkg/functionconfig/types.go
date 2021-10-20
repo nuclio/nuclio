@@ -23,6 +23,7 @@ import (
 
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
+	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 )
 
@@ -293,6 +294,9 @@ type Spec struct {
 
 	// Use the host's ipc namespace
 	HostIPC bool `json:"hostIPC,omitempty"`
+
+	// Scale function's replica (when min < max replicas) based on given custom metric specs
+	CustomScalingMetricSpecs []autosv2.MetricSpec `json:"customScalingMetricSpecs,omitempty"`
 
 	// Currently relevant only for k8s platform
 	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy

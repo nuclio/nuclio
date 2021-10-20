@@ -974,11 +974,6 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 		maxReplicas = int32(1)
 	}
 
-	targetCPU := int32(function.Spec.TargetCPU)
-	if targetCPU == 0 {
-		targetCPU = abstract.DefaultTargetCPU
-	}
-
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
 		return lc.kubeClientSet.AutoscalingV2beta1().
 			HorizontalPodAutoscalers(function.Namespace).
@@ -994,7 +989,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 			return nil, nil
 		}
 
-		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name, targetCPU)
+		metricSpecs, err := lc.GetFunctionMetricSpecs(function)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get function metric specs")
 		}
@@ -1023,7 +1018,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 	updateHorizontalPodAutoscaler := func(resourceToUpdate interface{}) (interface{}, error) {
 		hpa := resourceToUpdate.(*autosv2.HorizontalPodAutoscaler)
 
-		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name, targetCPU)
+		metricSpecs, err := lc.GetFunctionMetricSpecs(function)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get function metric specs")
 		}
@@ -1059,7 +1054,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels label
 		createHorizontalPodAutoscaler,
 		updateHorizontalPodAutoscaler)
 
-	// a resource can be nil if it didn't met preconditions and wasn't created
+	// a resource can be nil if it didn't meet preconditions and wasn't created
 	if err != nil || resource == nil {
 		return nil, err
 	}
@@ -2072,22 +2067,31 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 	return nil
 }
 
-func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int32) ([]autosv2.MetricSpec, error) {
+func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) ([]autosv2.MetricSpec, error) {
+	if function.Spec.CustomScalingMetricSpecs != nil {
+		return function.Spec.CustomScalingMetricSpecs, nil
+	}
+
+	targetCPU := int32(function.Spec.TargetCPU)
+	if targetCPU == 0 {
+		targetCPU = abstract.DefaultTargetCPU
+	}
+
 	var metricSpecs []autosv2.MetricSpec
-	config := lc.platformConfigurationProvider.GetPlatformConfiguration()
-	if lc.functionsHaveAutoScaleMetrics(config) {
-		targetValue, err := apiresource.ParseQuantity(config.AutoScale.TargetValue)
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+	if lc.functionsHaveAutoScaleMetrics(platformConfig) {
+		targetValue, err := apiresource.ParseQuantity(platformConfig.AutoScale.TargetValue)
 		if err != nil {
 			return metricSpecs, errors.Wrap(err, "Failed to parse target value for auto scale")
 		}
 
 		// special cases for k8s resources that are supplied by regular metric server, excluding cpu
-		if lc.getMetricResourceByName(config.AutoScale.MetricName) != "" {
+		if lc.getMetricResourceByName(platformConfig.AutoScale.MetricName) != "" {
 			metricSpecs = []autosv2.MetricSpec{
 				{
 					Type: "Resource",
 					Resource: &autosv2.ResourceMetricSource{
-						Name:               lc.getMetricResourceByName(config.AutoScale.MetricName),
+						Name:               lc.getMetricResourceByName(platformConfig.AutoScale.MetricName),
 						TargetAverageValue: &targetValue,
 					},
 				},
@@ -2097,7 +2101,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 				{
 					Type: "Pods",
 					Pods: &autosv2.PodsMetricSource{
-						MetricName:         config.AutoScale.MetricName,
+						MetricName:         platformConfig.AutoScale.MetricName,
 						TargetAverageValue: targetValue,
 					},
 				},
