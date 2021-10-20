@@ -206,7 +206,7 @@ func (ar *AbstractResource) parseURLParamValue(paramValue string) interface{} {
 		return parsedUint
 	}
 
-	parsedFloat, err := strconv.ParseFloat(paramValue, 10)
+	parsedFloat, err := strconv.ParseFloat(paramValue, 64)
 	if err == nil {
 		return parsedFloat
 	}
