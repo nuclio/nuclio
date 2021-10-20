@@ -34,7 +34,7 @@ type Registry struct {
 	registry.Registry
 }
 
-// global singleton
+// RegistrySingleton is a global singleton
 var RegistrySingleton = Registry{
 	Registry: *registry.NewRegistry("loggersink"),
 }

@@ -101,7 +101,7 @@ func (me *mockEvent) GetHeaders() map[string]interface{} {
 // GetField returns the field by name as an interface{}
 func (me *mockEvent) GetField(key string) interface{} {
 	args := me.Called(key)
-	return args.Get(0).(interface{})
+	return args.Get(0)
 }
 
 // GetFieldByteSlice returns the field by name as a byte slice
