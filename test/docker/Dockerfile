@@ -22,7 +22,7 @@ ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DO
 
 # kubectl
 ARG KUBECTL_CLI_ARCH=amd64
-ARG KUBECTL_CLI_VERSION="v1.19.13"
+ARG KUBECTL_CLI_VERSION="v1.20.11"
 ENV KUBECTL_CLI_DOWNLOAD_URL="https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_CLI_VERSION/bin/linux/$KUBECTL_CLI_ARCH/kubectl"
 
 RUN apk --update --no-cache add curl

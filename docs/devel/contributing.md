@@ -19,7 +19,7 @@ Ensure that your setup includes the following prerequisite components:
 - Docker version 17.05+ (because Nuclio
   uses [multi-stage builds](https://docs.docker.com/engine/userguide/eng-image/multistage-build/))
 - The Go toolchain (CI tests with 1.14, best use that)
-- Kubernetes version 1.19+ (mostly for testing) - `minikube` recommended; (you can follow
+- Kubernetes version 1.20+ (mostly for testing) - `minikube` recommended; (you can follow
   the [Minikube getting-started guide](/docs/setup/minikube/getting-started-minikube.md))
 
 <a id="get-source"></a>
