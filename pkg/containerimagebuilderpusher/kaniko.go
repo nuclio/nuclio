@@ -227,17 +227,15 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", k, v))
 	}
 
-	mountPath := "/tmp"
-
 	tmpFolderVolumeMount := v1.VolumeMount{
 		Name:      "tmp",
-		MountPath: mountPath,
+		MountPath: "/tmp",
 	}
 
 	jobName := k.compileJobName(buildOptions.Image)
 
 	assetsURL := fmt.Sprintf("http://%s:8070/assets/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
-	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, mountPath)
+	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
 	kanikoJobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -282,7 +280,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 							Command: []string{
 								"tar",
 								"-xvf",
-								fmt.Sprintf("/tmp/%s", bundleFilename),
+								fmt.Sprintf("%s/%s", tmpFolderVolumeMount.MountPath, bundleFilename),
 								"-C",
 								"/",
 							},
@@ -291,7 +289,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 					},
 					Volumes: []v1.Volume{
 						{
-							Name: "tmp",
+							Name: tmpFolderVolumeMount.Name,
 							VolumeSource: v1.VolumeSource{
 								EmptyDir: &v1.EmptyDirVolumeSource{},
 							},
