@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"os"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
@@ -41,6 +43,7 @@ type Controller struct {
 	imagePullSecrets          string
 	platformConfiguration     *platformconfig.Config
 	platformConfigurationName string
+	externalIPAddresses       []string
 
 	// (re)syncers
 	functionOperator      *functionOperator
@@ -192,6 +195,15 @@ func (c *Controller) Stop() error {
 
 func (c *Controller) GetPlatformConfiguration() *platformconfig.Config {
 	return c.platformConfiguration
+}
+
+func (c *Controller) GetExternalIPAddresses() []string {
+	if len(c.externalIPAddresses) > 0 {
+		return c.externalIPAddresses
+	}
+
+	c.externalIPAddresses = strings.Split(os.Getenv("NUCLIO_CONTROLLER_EXTERNAL_IP_ADDRESSES"), ",")
+	return c.externalIPAddresses
 }
 
 func (c *Controller) GetPlatformConfigurationName() string {
