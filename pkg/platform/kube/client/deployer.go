@@ -190,14 +190,6 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 
 	// update status
 	functionInstance.Status = *functionStatus
-
-	externalIPAddresses, err := d.platform.GetExternalIPAddresses()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get external ip address")
-	}
-
-	// -1 because port was not assigned yet, it is just a placeholder
-	functionInstance.Status.ExternalInvocationURLs = []string{fmt.Sprintf("%s:-1", externalIPAddresses[0])}
 	return nil
 
 }

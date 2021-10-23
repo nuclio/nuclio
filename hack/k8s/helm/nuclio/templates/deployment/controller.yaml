@@ -48,6 +48,8 @@ spec:
           {{ toYaml .Values.controller.resources | nindent 11 }}
         {{- end }}
         env:
+        - name: NUCLIO_CONTROLLER_EXTERNAL_IP_ADDRESSES
+          value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
         - name: NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME
