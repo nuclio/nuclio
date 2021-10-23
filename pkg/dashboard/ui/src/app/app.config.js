@@ -31,7 +31,8 @@
         },
         screenAutoRefreshIntervals: {
             apiGateways: 30000
-        }
+        },
+        i18nextExpirationTime: 60 * 60 * 1000
     };
 
     angular.module('nuclio.app')
