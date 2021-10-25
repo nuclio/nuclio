@@ -98,6 +98,9 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (pl
 		NuclioProjects(newProject.Namespace).
 		Create(&newProject)
 	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return nil, nuclio.WrapErrConflict(err)
+		}
 		return nil, errors.Wrap(err, "Failed to create nuclio project")
 	}
 
