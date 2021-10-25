@@ -550,14 +550,13 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 		// if there's an error
 		if err != nil {
 
-			// if there was an error and it wasn't not found - there was an error. bail
+			// bail if error is not "not found"
 			if !apierrors.IsNotFound(err) {
 				return nil, errors.Wrapf(err, "Failed to get resource")
 			}
 
 			// create the resource
 			resource, err = createResource()
-
 			if err != nil {
 				if !apierrors.IsAlreadyExists(err) {
 					return nil, errors.Wrap(err, "Failed to create resource")
