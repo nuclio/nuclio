@@ -6,7 +6,7 @@
     var defaultConfig = {
         url: {
             nuclio: {
-                baseUrl: location.protocol + '//' + location.hostname + ':8070/api'
+                baseUrl: '/api'
             }
         },
         mode: 'production',

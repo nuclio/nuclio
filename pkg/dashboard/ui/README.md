@@ -2,13 +2,11 @@
 
 ## Setting up for development environment
 1. npm install
-2. bower install
-3. gulp
+2. gulp --dev
 
 ## Setting up for production(staging) environment
 1. npm install --production
-2. bower install
-3. gulp --production (gulp --staging)
+2. gulp --production (gulp --staging)
 
 ## Watch
 Instead of rebuilding the project after every little modification to the source code, `gulp watch` could be used to watch for changes in source code files and automatically re-build.
@@ -28,8 +26,8 @@ to reload every time you make a change in one of your files.
 
 Finally, activate the chrome extension in your tab by clicking on the new LiveReload icon next to the address bar, turning the circle in the middle of it from hollow to opaque.
 
-## Debug flag
-Add `--debug` flag to your `gulp` command in order to prevent minifcation and uglification of source code.  
+## Dev flag
+Add `--dev` flag to your `gulp` command in order to prevent minifcation and uglification of source code.  
 This way it's easier to debug using the browser's developer tools.
 
 # Demo mode
@@ -38,16 +36,20 @@ Add `--demo` to your `gulp` command for building the project with **all** of its
 
 # Configuration
 
-## Run-time configuration file
+## Runtime configuration file
 If a file named `dashboard-config.json` exists in the root of the web-app (i.e. where also 'index.html' exists), then it is used.  
 You can find a sample file in the root of this project.
 
 This file is read on **run-time** and not on build time.  
 This means that if you modify it between refreshes, then the changes will take effect.
 
-This file's JSON is merged with the configuration of the web app, so it doesn't have to consist of _all_ of the avaiable configuration entires.
+This file's JSON is merged with the configuration of the web app, so it does not have to consist of _all_ of the available configuration entries.
 
-## Port number listening
+## Port numbers
 
-Preview server listens by default on port number 8000
-You can override this by setting the environment variable IGZ_PREVIEW_LISTEN_PORT
+Environment variables can be used to override default port numbers:
+
+| Name                    | Description                    | Default value |
+|-------------------------|--------------------------------|---------------|
+| NCL_PREVIEW_LISTEN_PORT | Preview server for development | 8000          |
+| NCL_BACKEND_LISTEN_PORT | Backend server                 | 8070          |
