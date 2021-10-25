@@ -560,6 +560,10 @@ function buildConfigFromArgs() {
               /* default */              'production'
     };
 
+    if (state.isDevMode) {
+        buildConfig.i18nextExpirationTime = 0;
+    }
+
     // if at least one URL was set, create the config
     // eslint-disable-next-line
     return !lodash.isEmpty(buildConfig) ? JSON.stringify(buildConfig) : null;
