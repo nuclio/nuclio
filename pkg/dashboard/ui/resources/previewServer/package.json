@@ -5,6 +5,7 @@
   "main": "app.js",
   "dependencies": {
     "express": "^4.17.1",
+    "express-http-proxy": "^1.6.2",
     "serve-static": "1.9.2"
   }
 }
