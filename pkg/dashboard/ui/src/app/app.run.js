@@ -21,7 +21,6 @@
             })
             .then(function (config) {
                 lodash.merge(ConfigService, config.data);
-                initializeI18next();
             })
             .then(function () {
                 NuclioProjectsDataService.getFrontendSpec()
@@ -50,39 +49,34 @@
             .use($window.i18nextChainedBackend)
             .use($window.i18nextBrowserLanguageDetector);
 
-        /**
-         * Initializes the i18next module and configures it.
-         */
-        function initializeI18next() {
-            i18next.init({
-                debug: false,
-                fallbackLng: 'en',
-                preload: ['en'],
-                initImmediate: false,
-                nonExplicitWhitelist: true,
-                partialBundledLanguages: true,
-                defaultNs: 'common',
-                ns: [
-                    'common',
-                    'functions'
+        i18next.init({
+            debug: false,
+            fallbackLng: 'en',
+            preload: ['en'],
+            initImmediate: false,
+            nonExplicitWhitelist: true,
+            partialBundledLanguages: true,
+            defaultNs: 'common',
+            ns: [
+                'common',
+                'functions'
+            ],
+            // @if !IGZ_TESTING
+            backend: {
+                backends: [
+                    $window.i18nextLocalStorageBackend,
+                    $window.i18nextXHRBackend
                 ],
-                // @if !IGZ_TESTING
-                backend: {
-                    backends: [
-                        $window.i18nextLocalStorageBackend,
-                        $window.i18nextXHRBackend
-                    ],
-                    backendOptions: [
-                        {
-                            expirationTime: ConfigService.i18nextExpirationTime
-                        },
-                        {
-                            loadPath: 'assets/i18n/{{lng}}/{{ns}}.json'
-                        }
-                    ]
-                }
-                // @endif
-            });
-        }
+                backendOptions: [
+                    {
+                        expirationTime: ConfigService.i18nextExpirationTime
+                    },
+                    {
+                        loadPath: 'assets/i18n/{{lng}}/{{ns}}.json'
+                    }
+                ]
+            }
+            // @endif
+        });
     }
 }());
