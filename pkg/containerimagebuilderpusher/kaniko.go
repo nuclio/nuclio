@@ -205,6 +205,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		fmt.Sprintf("--dockerfile=%s", buildOptions.DockerfileInfo.DockerfilePath),
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
 		fmt.Sprintf("--destination=%s", common.CompileImageName(buildOptions.RegistryURL, buildOptions.Image)),
+		fmt.Sprintf("--push-retry=%d", k.builderConfiguration.PushImagesRetries),
 	}
 
 	if !buildOptions.NoCache {
