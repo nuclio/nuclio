@@ -22,7 +22,8 @@
         function createApiGateway(apiGateway, projectName) {
             var headers = {
                 'Content-Type': 'application/json',
-                'x-nuclio-project-name': projectName
+                'x-nuclio-project-name': projectName,
+                'x-nuclio-agw-validate-functions-existence': true
             };
             var namespace = NuclioNamespacesDataService.getNamespace();
 
@@ -117,7 +118,8 @@
         function updateApiGateway(apiGateway, projectName) {
             var headers = {
                 'Content-Type': 'application/json',
-                'x-nuclio-project-name': projectName
+                'x-nuclio-project-name': projectName,
+                'x-nuclio-agw-validate-functions-existence': true
             };
             var namespace = NuclioNamespacesDataService.getNamespace();
 
