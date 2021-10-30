@@ -126,6 +126,9 @@ dashboard:
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m
 
+    # How many times to retry pushing images to registry
+    pushImagesRestries: 3
+
   # Uncomment to configure node port
   # nodePort: 32050
 
