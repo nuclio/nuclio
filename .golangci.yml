@@ -26,6 +26,7 @@ run:
   build-tags:
     - test_unit
     - test_integration
+    - test_functional
     - test_kube
     - test_local
     - test_iguazio
