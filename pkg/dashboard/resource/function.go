@@ -218,7 +218,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	authConfig *platform.AuthConfig,
 	waitForFunction bool) error {
 
-	creationStateUpdatedTimeout := 45 * time.Second
+	creationStateUpdatedTimeout := 1 * time.Minute
 
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
