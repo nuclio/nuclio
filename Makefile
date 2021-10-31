@@ -611,6 +611,17 @@ test-k8s: build-test
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-k8s-undockerized"
 
+# Runs from host to allow full control over Kubernetes cluster
+.PHONY: test-k8s-functional
+test-k8s-functional:
+	go test \
+		-tags="test_kube,test_functional" \
+ 		-v \
+ 		-p 1 \
+ 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+ 		$(shell go list -tags="test_kube,test_functional" ./cmd/... ./pkg/...)
+
+
 .PHONY: build-test
 build-test: ensure-gopath build-base
 	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.20.11)
