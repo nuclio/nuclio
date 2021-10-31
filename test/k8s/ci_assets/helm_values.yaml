@@ -26,18 +26,21 @@ controller:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/controller
     pullPolicy: Never
+
 dashboard:
   image:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/dashboard
     pullPolicy: Never
   baseImagePullPolicy: Never
+
 dlx:
   enabled: true
   image:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/dlx
     pullPolicy: Never
+
 autoscaler:
   enabled: true
   image:

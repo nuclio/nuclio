@@ -591,22 +591,7 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 
 func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
 	namedArgs map[string]string) (cmdrunner.RunResult, error) {
-
-	argsStringSlice := []string{
-		"kubectl",
-	}
-
-	// add positional arguments
-	argsStringSlice = append(argsStringSlice, positionalArgs...)
-
-	for argName, argValue := range namedArgs {
-		argsStringSlice = append(argsStringSlice, fmt.Sprintf("--%s %s", argName, argValue))
-	}
-
-	encodedCommand := strings.Join(argsStringSlice, " ")
-
-	suite.Logger.DebugWith("Running kubectl", "encodedCommand", encodedCommand)
-	return suite.CmdRunner.Run(nil, encodedCommand)
+	return runKubectlCommand(suite.Logger, suite.CmdRunner, positionalArgs, namedArgs, runKubectlCommandDirect, nil)
 }
 
 func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) string {
