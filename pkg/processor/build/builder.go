@@ -229,6 +229,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	// once we're done reading our configuration, we may still have to fill in the blanks
 	// because the user isn't obligated to always pass all the configuration
+	// TODO: enrich and validate using Platform's interface
 	if err := b.validateAndEnrichConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
@@ -481,7 +482,7 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 
 func (b *Builder) validateAndEnrichConfiguration() error {
 	if b.options.FunctionConfig.Meta.Name == "" {
-		return errors.New("Function must have a name")
+		return nuclio.NewErrBadRequest("Function must have a name")
 	}
 
 	// if runtime wasn't passed, use the default from the created runtime
@@ -502,7 +503,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		}
 
 		if len(functionHandlers) == 0 {
-			return errors.New("Could not find any handlers")
+			return nuclio.NewErrBadRequest("Could not find any handlers")
 		}
 
 		// use first for now
@@ -510,7 +511,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	}
 
 	if len(functionconfig.GetTriggersByKind(b.options.FunctionConfig.Spec.Triggers, "http")) > 1 {
-		return errors.New("Function cannot have more than one http trigger")
+		return nuclio.NewErrBadRequest("Function cannot have more than one http trigger")
 	}
 
 	// if output image name isn't set, set it to a derivative of the name
