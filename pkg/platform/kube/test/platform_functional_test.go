@@ -20,12 +20,16 @@ limitations under the License.
 package test
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/suite"
@@ -84,8 +88,45 @@ func (suite *PlatformTestSuite) TearDownTest() {
 	suite.executeKubectl([]string{"delete", "namespace", suite.namespace}, nil)
 }
 
+func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
+	suite.executeHelm([]string{"upgrade", "nuclio", "hack/k8s/helm/nuclio", "--install", "--reuse-values"},
+		map[string]string{
+			"set": "dashboard.containerBuilderKind=kaniko,dashboard.kaniko.insecurePushRegistry=true,dashboard.kaniko.insecurePullRegistry=true",
+		})
+	functionConfig := functionconfig.NewConfig()
+	functionConfig.Meta.Namespace = suite.namespace
+	functionConfig.Meta.Name = "build-deploy-with-kaniko"
+	functionConfig.Spec.RunRegistry = suite.registryURL
+	functionConfig.Spec.Build.Registry = suite.registryURL
+	functionConfig.Spec.Handler = "main:handler"
+	functionConfig.Spec.Runtime = "python:3.8"
+	functionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def handler(context, event):
+  return "hello world"
+`))
+	functionConfig.Spec.Build.NoBaseImagesPull = true
+
+	suite.executeKubectl([]string{"port-forward", "nuclio-dashboard", "8070:8070"}, map[string]string{})
+	encodedFunctionConfig, err := json.Marshal(functionConfig)
+	suite.Require().NoError(err)
+
+	_, _, err = common.SendHTTPRequest(nil,
+		http.MethodPost,
+		"localhost:8070",
+		encodedFunctionConfig,
+		nil,
+		nil,
+		http.StatusAccepted)
+	suite.Require().NoError(err)
+
+}
+
 func (suite *PlatformTestSuite) executeKubectl(positionalArgs []string,
 	namedArgs map[string]string) cmdrunner.RunResult {
+	if namedArgs == nil {
+		namedArgs = map[string]string{}
+	}
+	namedArgs["namespace"] = suite.namespace
 	results, err := runKubectlCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runKubectlCommandMinikube, nil)
 	suite.Require().NoError(err)
 	return results
