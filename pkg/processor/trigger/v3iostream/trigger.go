@@ -17,6 +17,8 @@ limitations under the License.
 package v3iostream
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -92,11 +94,18 @@ func (vs *v3iostream) Start(checkpoint functionconfig.Checkpoint) error {
 	// start consumption in the background
 	go func() {
 		vs.Logger.DebugWith("Starting to consume from v3io")
+		for {
 
-		// start consuming. this will exit without error if a rebalancing occurs
-		if err := vs.streamConsumerGroupMember.Consume(vs); err != nil {
-			vs.Logger.WarnWith("Failed to consume from group, waiting before retrying",
-				"err", errors.GetErrorStackString(err, 10))
+			// start consuming
+			if err := vs.streamConsumerGroupMember.Consume(vs); err != nil {
+				vs.Logger.WarnWith("Failed to consume from group, retrying...",
+					"err", errors.GetErrorStackString(err, 10))
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			// TODO: support rebalance. Once supported, comment out below break
+			break
 		}
 	}()
 
