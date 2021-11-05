@@ -88,9 +88,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
 	function, objectIsFunction := object.(*nuclioio.NuclioFunction)
 	if !objectIsFunction {
-		return fo.setFunctionError(nil,
-			functionconfig.FunctionStateError,
-			errors.New("Received unexpected object, expected function"))
+		return errors.New("Received unexpected object, expected function")
 	}
 
 	defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
