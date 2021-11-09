@@ -454,10 +454,10 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 		return errors.Wrap(err, "Failed to get functions")
 	}
 
-	// function does not exists and hence nothing to validate (that might happen, delete method can be idempotent)
+	// function does not exist and hence nothing to validate (that might happen, delete method can be idempotent)
 	if len(functions) == 0 {
-		ap.Logger.DebugWith("Function is already deleted", "functionName", functionName)
-		return nil
+		ap.Logger.DebugWith("Function might be already deleted", "functionName", functionName)
+		return nuclio.ErrNotFound
 	}
 
 	functionToDelete := functions[0]
