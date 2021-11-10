@@ -163,6 +163,14 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	// submit the events in a goroutine so that we can unblock immediately
 	go vs.eventSubmitter(claim, submittedEventChan)
 
+	if vs.configuration.AckWindowSize == 0 {
+		vs.Logger.DebugWith("Starting claim consumption", "shardID", claim.GetShardID())
+	} else {
+		vs.Logger.DebugWith("Starting claim consumption with commit ack window",
+			"shardID", claim.GetShardID(),
+			"commitAckWindowSize", vs.configuration.AckWindowSize)
+	}
+
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
 	for recordBatch := range claim.GetRecordBatchChan() {
@@ -186,6 +194,9 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 
 			// we successfully submitted the message to the handler. mark it
 			if err == nil {
+
+				// offset record sequence number by the trigger's configured commit ack window size
+				record.SequenceNumber = record.SequenceNumber - uint64(vs.configuration.AckWindowSize)
 				session.MarkRecord(record) // nolint: errcheck
 			}
 
