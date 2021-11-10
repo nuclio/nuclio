@@ -56,7 +56,7 @@ type Configuration struct {
 	PollingIntervalMs int
 
 	// resolved attributes
-	ackWindowSize                   int
+	AckWindowSize int
 }
 
 func NewConfiguration(id string,
@@ -79,12 +79,12 @@ func NewConfiguration(id string,
 		errMessage := "Failed loading ack window size from trigger attributes"
 		switch ackWindowSizeInterface.(type) {
 		case string:
-			newConfiguration.ackWindowSize, err = strconv.Atoi(ackWindowSizeInterface.(string))
+			newConfiguration.AckWindowSize, err = strconv.Atoi(ackWindowSizeInterface.(string))
 			if err != nil {
 				return nil, errors.Wrap(err, errMessage)
 			}
 		case int:
-			newConfiguration.ackWindowSize = ackWindowSizeInterface.(int)
+			newConfiguration.AckWindowSize = ackWindowSizeInterface.(int)
 		default:
 			return nil, errors.New(errMessage)
 		}
