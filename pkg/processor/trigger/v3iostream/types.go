@@ -76,17 +76,17 @@ func NewConfiguration(id string,
 
 	if ackWindowSizeInterface, ok := newConfiguration.Attributes["ackWindowSize"]; ok {
 
-		errMessage := "Failed loading ack window size from trigger attributes"
+		errMessage := "Failed loading ack window size from trigger attributes. Unsupported type: %T"
 		switch ackWindowSize := ackWindowSizeInterface.(type) {
 		case string:
 			newConfiguration.ackWindowSize, err = strconv.Atoi(ackWindowSize)
 			if err != nil {
-				return nil, errors.Wrap(err, errMessage)
+				return nil, errors.Wrapf(err, errMessage, ackWindowSize)
 			}
 		case int:
 			newConfiguration.ackWindowSize = ackWindowSize
 		default:
-			return nil, errors.New(errMessage)
+			return nil, errors.Errorf(errMessage, ackWindowSize)
 		}
 	}
 
