@@ -196,7 +196,7 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 			if err == nil {
 
 				// offset record sequence number by the trigger's configured ack window size
-				record.SequenceNumber = record.SequenceNumber - uint64(vs.configuration.ackWindowSize)
+				record.SequenceNumber -= uint64(vs.configuration.ackWindowSize)
 				session.MarkRecord(record) // nolint: errcheck
 			}
 
