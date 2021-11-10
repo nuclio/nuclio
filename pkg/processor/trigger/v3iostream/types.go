@@ -85,6 +85,8 @@ func NewConfiguration(id string,
 			}
 		case int:
 			newConfiguration.ackWindowSize = ackWindowSize
+		case float64:
+			newConfiguration.ackWindowSize = int(ackWindowSize)
 		default:
 			return nil, errors.Errorf(errMessage, ackWindowSize)
 		}
