@@ -262,8 +262,6 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction,
 	functionErrorState functionconfig.FunctionState,
 	err error) error {
 
-	fo.logger.Debug("Tomer wrote this debug message - please, dont forget to delete me!")
-
 	// whatever the error, try to update the function CR
 	fo.logger.WarnWith("Setting function error",
 		"functionErrorState", functionErrorState,
