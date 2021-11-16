@@ -667,7 +667,8 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 	}); err != nil {
 		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
 		if statusCode > 300 {
-			pr.Logger.WarnWith("Failed to update project", "err", err)
+			pr.Logger.WarnWith("Failed to update project",
+				"err", errors.GetErrorStackString(err, 10))
 		}
 	}
 
