@@ -19,6 +19,7 @@ package v3iostream
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,6 +54,9 @@ type Configuration struct {
 
 	// backwards compatibility
 	PollingIntervalMs int
+
+	// resolved attributes
+	ackWindowSize int
 }
 
 func NewConfiguration(id string,
@@ -60,12 +64,32 @@ func NewConfiguration(id string,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
+	var err error
+
 	// create base
 	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
+
+	if ackWindowSizeInterface, ok := newConfiguration.Attributes["ackWindowSize"]; ok {
+
+		errMessage := "Failed loading ack window size from trigger attributes."
+		switch ackWindowSize := ackWindowSizeInterface.(type) {
+		case string:
+			newConfiguration.ackWindowSize, err = strconv.Atoi(ackWindowSize)
+			if err != nil {
+				return nil, errors.Wrapf(err, errMessage+" Unsupported string: %s", ackWindowSize)
+			}
+		case int:
+			newConfiguration.ackWindowSize = ackWindowSize
+		case float64:
+			newConfiguration.ackWindowSize = int(ackWindowSize)
+		default:
+			return nil, errors.Errorf(errMessage+" Unsupported type: %T", ackWindowSize)
+		}
 	}
 
 	if newConfiguration.NumTransportWorkers == 0 {
@@ -104,7 +128,7 @@ func NewConfiguration(id string,
 	}
 
 	// if the password is a uuid - assume it is an access key and clear out the username/pass
-	_, err := uuid.ParseUUID(newConfiguration.Password)
+	_, err = uuid.ParseUUID(newConfiguration.Password)
 	if err == nil {
 		newConfiguration.Secret = newConfiguration.Password
 		newConfiguration.Username = ""
