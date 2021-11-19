@@ -441,7 +441,8 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 }
 
 // ValidateDeleteFunctionOptions validates and enforces of required function deletion logic
-func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) (
+	platform.Function, error) {
 	functionName := deleteFunctionOptions.FunctionConfig.Meta.Name
 	functionNamespace := deleteFunctionOptions.FunctionConfig.Meta.Namespace
 	functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
@@ -451,13 +452,13 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 		PermissionOptions: deleteFunctionOptions.PermissionOptions,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to get functions")
+		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
 	// function does not exist and hence nothing to validate (that might happen, delete method can be idempotent)
 	if len(functions) == 0 {
-		ap.Logger.DebugWith("Function might be already deleted", "functionName", functionName)
-		return nuclio.ErrNotFound
+		ap.Logger.DebugWith("Function was not found (deleted already?)", "functionName", functionName)
+		return nil, nil
 	}
 
 	functionToDelete := functions[0]
@@ -465,7 +466,7 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 	// validate resource version
 	if err := ap.ValidateResourceVersion(functionToDelete.GetConfigWithStatus(),
 		&deleteFunctionOptions.FunctionConfig); err != nil {
-		return nuclio.WrapErrConflict(err)
+		return functionToDelete, nuclio.WrapErrConflict(err)
 	}
 
 	if !deleteFunctionOptions.IgnoreFunctionStateValidation {
@@ -476,7 +477,7 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 				"functionName", functionToDelete.GetConfig().Meta.Name)
 
 			// update UI when changing text / code
-			return nuclio.NewErrPreconditionFailed("Function is being provisioned and cannot be deleted")
+			return functionToDelete, nuclio.NewErrPreconditionFailed("Function is being provisioned and cannot be deleted")
 		}
 	}
 
@@ -487,10 +488,10 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 		functionToDelete.GetConfig().Meta.Name,
 		opa.ActionDelete,
 		&permissionOptions); err != nil {
-		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+		return functionToDelete, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
 
-	return nil
+	return functionToDelete, nil
 }
 
 // ResolveReservedResourceNames returns a list of reserved resource names
