@@ -258,13 +258,13 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 
 func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 	for _, testCase := range []struct {
+		name                  string
 		existingFunctions     []platform.Function
 		deleteFunctionOptions *platform.DeleteFunctionOptions
 		shouldFailValidation  bool
 	}{
-
-		// happy flow
 		{
+			name: "sanity",
 			existingFunctions: []platform.Function{
 				&platform.AbstractFunction{
 					Logger:   suite.Logger,
@@ -287,9 +287,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 				},
 			},
 		},
-
-		// function may not be existing, validation should pass (delete is idempotent)
 		{
+			name: "idempotent-non-existing-function",
 			deleteFunctionOptions: &platform.DeleteFunctionOptions{
 				FunctionConfig: functionconfig.Config{
 					Meta: functionconfig.Meta{
@@ -301,8 +300,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			},
 		},
 
-		// matching resourceVersion
 		{
+			name: "matching-resource-validation",
 			existingFunctions: []platform.Function{
 				&platform.AbstractFunction{
 					Logger:   suite.Logger,
@@ -328,8 +327,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			},
 		},
 
-		// fail: function is being provisioned
 		{
+			name: "function-being-provisioned",
 			existingFunctions: []platform.Function{
 				&platform.AbstractFunction{
 					Logger:   suite.Logger,
@@ -353,8 +352,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			},
 			shouldFailValidation: true,
 		},
-		// fail: stale resourceVersion
+
 		{
+			name: "fail-stale-resource-version",
 			existingFunctions: []platform.Function{
 				&platform.AbstractFunction{
 					Logger:   suite.Logger,
@@ -378,18 +378,25 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			shouldFailValidation: true,
 		},
 	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.
+				On("GetFunctions", &platform.GetFunctionsOptions{
+					Name:      testCase.deleteFunctionOptions.FunctionConfig.Meta.Name,
+					Namespace: testCase.deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+				}).
+				Return(testCase.existingFunctions, nil).
+				Once()
 
-		suite.mockedPlatform.On("GetFunctions", &platform.GetFunctionsOptions{
-			Name:      testCase.deleteFunctionOptions.FunctionConfig.Meta.Name,
-			Namespace: testCase.deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-		}).Return(testCase.existingFunctions, nil).Once()
+			_, err := suite.Platform.ValidateDeleteFunctionOptions(testCase.deleteFunctionOptions)
 
-		err := suite.Platform.ValidateDeleteFunctionOptions(testCase.deleteFunctionOptions)
-		if testCase.shouldFailValidation {
-			suite.Require().Error(err)
-		} else {
-			suite.Require().NoError(err)
-		}
+			suite.mockedPlatform.AssertExpectations(suite.T())
+
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
 	}
 }
 

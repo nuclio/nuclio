@@ -378,11 +378,16 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 
-	// delete function options validation
-	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
+	// pre delete validation
+	functionToDelete, err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions)
+	if err != nil {
 		return errors.Wrap(err, "Failed to validate function-deletion options")
 	}
 
+	// nothing to delete
+	if functionToDelete == nil {
+		return nil
+	}
 	// actual function and its resources deletion
 	return p.delete(deleteFunctionOptions)
 }
