@@ -70,7 +70,7 @@ type KubeTestSuite struct {
 	DisableControllerStart bool
 }
 
-// To run this test suite you should:
+// SetupSuite To run this test suite you should:
 // - Kubernetes for Mac: Ingress controller installed (you can install it by running "test/k8s/ci_assets/install_nginx_ingress_controller.sh")
 // - have Nuclio CRDs installed (you can install them by running "test/k8s/ci_assets/install_nuclio_crds.sh")
 // - have docker registry running (you can run docker registry by running "docker run --rm -d -p 5000:5000 registry:2")

@@ -2,6 +2,7 @@ package functionres
 
 import (
 	"context"
+	"time"
 
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -34,7 +35,7 @@ type Client interface {
 	CreateOrUpdate(context.Context, *nuclioio.NuclioFunction, string) (Resources, error)
 
 	// WaitAvailable waits until the resources are ready
-	WaitAvailable(context.Context, string, string) error
+	WaitAvailable(context.Context, string, string, time.Time) error
 
 	// Delete deletes resources
 	Delete(context.Context, string, string) error

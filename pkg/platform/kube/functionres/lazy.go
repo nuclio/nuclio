@@ -242,7 +242,10 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 	return &resources, nil
 }
 
-func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name string) error {
+func (lc *lazyClient) WaitAvailable(ctx context.Context,
+	namespace string,
+	name string,
+	functionResourcesCreateOrUpdateTimestamp time.Time) error {
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	lc.logger.DebugWith("Waiting for deployment to be available",
 		"namespace", namespace,
@@ -298,6 +301,21 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 				// we found the condition, wasn't available
 				break
 			}
+		}
+
+		// get the deployment pods. if it doesn't exist yet, retry a bit later
+		pods, err := lc.kubeClientSet.CoreV1().
+			Pods(namespace).
+			List(metav1.ListOptions{
+				LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
+			})
+		if err != nil {
+			continue
+		}
+
+		if functionDeploymentFailed, err := lc.isFunctionDeploymentFailed(pods.Items,
+			functionResourcesCreateOrUpdateTimestamp); functionDeploymentFailed {
+			return errors.Wrapf(err, "NuclioFunction deployment failed")
 		}
 	}
 }
@@ -2138,6 +2156,46 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	default:
 		return ""
 	}
+}
+
+func (lc *lazyClient) isFunctionDeploymentFailed(pods []v1.Pod,
+	functionResourcesCreateOrUpdateTimestamp time.Time) (bool, error) {
+
+	// infer from the pod statuses if the function deployment had failed
+	// failure of one pod is enough to tell that the deployment had failed
+	for _, pod := range pods {
+
+		// skip irrelevant pods (leftovers of previous function deployments)
+		// (subtract 2 seconds from create/update timestamp because of ms accuracy loss of pod.creationTimestamp)
+		if !pod.GetCreationTimestamp().After(functionResourcesCreateOrUpdateTimestamp.Add(-2 * time.Second)) {
+			continue
+		}
+
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+
+			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
+
+				// check if the pod is on a crashLoopBackoff
+				if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
+
+					return true, errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
+				}
+			}
+		}
+
+		for _, condition := range pod.Status.Conditions {
+
+			// check if the pod is in pending state, and the reason is that it is unschedulable
+			// (meaning no k8s node can currently run it, because of insufficient resources etc..)
+			if pod.Status.Phase == v1.PodPending &&
+				condition.Reason == "Unschedulable" {
+
+				return true, errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
+			}
+		}
+	}
+
+	return false, nil
 }
 
 //
