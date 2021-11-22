@@ -254,6 +254,7 @@ class Wrapper(object):
         """
         Reading the expected event length from socket and instantiate an event message
         """
+        self._logger.log('resolving event', event=event)
 
         cumulative_bytes_read = 0
         while cumulative_bytes_read < expected_event_bytes_length:
@@ -304,6 +305,8 @@ class Wrapper(object):
                   'Exception: {0}'.format(str(exc)))
 
     async def _handle_event(self, event):
+
+        self._logger.log('handling event', event=event)
 
         # take call time
         start_time = time.time()
