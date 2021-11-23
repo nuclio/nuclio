@@ -184,7 +184,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			function.Name,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 			return fo.setFunctionError(function,
-				functionconfig.FunctionStateUnhealthy,
+				functionconfig.FunctionStateError,
 				errors.Wrap(err, "Failed to wait for function resources to be available"))
 		}
 	}
