@@ -2161,8 +2161,6 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 func (lc *lazyClient) isFunctionDeploymentFailed(pods []v1.Pod,
 	functionResourcesCreateOrUpdateTimestamp time.Time) (bool, error) {
 
-	lc.logger.Debug("Tomer - Checking if function deployment failed")
-	
 	// infer from the pod statuses if the function deployment had failed
 	// failure of one pod is enough to tell that the deployment had failed
 	for _, pod := range pods {
