@@ -200,6 +200,13 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// submit the events in a goroutine so that we can unblock immediately
 	go k.eventSubmitter(claim, submittedEventChan)
 
+	ackWindowSize := int64(k.configuration.ackWindowSize)
+	if k.configuration.ackWindowSize > 0 {
+		k.Logger.DebugWith("Starting claim consumption with ack window",
+			"partition", claim.Partition(),
+			"ackWindowSize", ackWindowSize)
+	}
+
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
 	for message := range claim.Messages() {
@@ -229,7 +236,12 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 			// we successfully submitted the message to the handler. mark it
 			if err == nil {
-				session.MarkMessage(message, "")
+				session.MarkOffset(
+					message.Topic,
+					message.Partition,
+					message.Offset+1-ackWindowSize,
+					"",
+				)
 			}
 
 		case <-claim.StopConsuming():
