@@ -314,10 +314,14 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		default:
 
 			// keep waiting
+			loggerInstance.DebugWith("TOMER - Deployer - still waiting for function state",
+				"functionState", function.Status.State)
 			return false, nil
 		}
 	}
 
 	err = wait.PollInfinite(250*time.Millisecond, conditionFunc)
+	loggerInstance.DebugWith("TOMER - Deployer - FINISHED waiting for function state",
+		"functionState", function.Status.State)
 	return function, err
 }

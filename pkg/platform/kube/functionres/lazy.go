@@ -303,6 +303,8 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			}
 		}
 
+		lc.logger.Debug("TOMER - Getting pods to check deployment failure")
+
 		// get the deployment pods. if it doesn't exist yet, retry a bit later
 		pods, err := lc.kubeClientSet.CoreV1().
 			Pods(namespace).
@@ -317,6 +319,8 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			functionResourcesCreateOrUpdateTimestamp); functionDeploymentFailed {
 			return errors.Wrapf(err, "NuclioFunction deployment failed")
 		}
+
+		lc.logger.Debug("TOMER - Checked pods, function deployment has not failed")
 	}
 }
 
