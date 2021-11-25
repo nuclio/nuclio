@@ -17,6 +17,7 @@ limitations under the License.
 package kafka
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 )
 
 type Configuration struct {
@@ -71,6 +73,7 @@ type Configuration struct {
 	AccessKey                     string
 	AccessCertificate             string
 	LogLevel                      int
+	AckWindowSize                 int
 
 	// resolved fields
 	brokers                       []string
@@ -84,11 +87,13 @@ type Configuration struct {
 	retryBackoff                  time.Duration
 	maxWaitTime                   time.Duration
 	maxWaitHandlerDuringRebalance time.Duration
+	ackWindowSize                 int
 }
 
 func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
+	runtimeConfiguration *runtime.Configuration,
+	logger logger.Logger) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
@@ -128,6 +133,9 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-sasl-oauth-client-secret", ValueString: &newConfiguration.SASL.OAuth.ClientSecret},
 		{Key: "nuclio.io/kafka-sasl-oauth-token-url", ValueString: &newConfiguration.SASL.OAuth.TokenURL},
 		{Key: "nuclio.io/kafka-sasl-oauth-scopes", ValueListString: newConfiguration.SASL.OAuth.Scopes},
+
+		// window-ack
+		{Key: "custom.nuclio.io/kafka-window-size", ValueInt: &newConfiguration.ackWindowSize},
 	})
 
 	if err != nil {
@@ -135,6 +143,36 @@ func NewConfiguration(id string,
 	}
 
 	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
+
+	if ackWindowSizeInterface, ok := newConfiguration.Attributes["ackWindowSize"]; ok {
+		var ackWindowSize int
+		errMessage := "Failed loading ack window size from trigger attributes."
+		switch ackWindowSizeValue := ackWindowSizeInterface.(type) {
+		case string:
+			ackWindowSize, err = strconv.Atoi(ackWindowSizeValue)
+			if err != nil {
+				return nil, errors.Wrapf(err, errMessage+" Unsupported string: %s", ackWindowSizeValue)
+			}
+		case int:
+			ackWindowSize = ackWindowSizeValue
+		case float64:
+			ackWindowSize = int(ackWindowSizeValue)
+		default:
+			return nil, errors.Errorf(errMessage+" Unsupported type: %T", ackWindowSize)
+		}
+
+		if newConfiguration.ackWindowSize > 0 {
+			logger.DebugWith("Overriding ack window size from trigger attributes",
+				"ackWindowSize", ackWindowSize,
+				"currentAckWindowSize", newConfiguration.ackWindowSize)
+		}
+		newConfiguration.ackWindowSize = ackWindowSize
+	}
+
+	if newConfiguration.ackWindowSize < 0 {
+		return nil, errors.Errorf("Invalid ack window size '%d', window size must be a positive number",
+			newConfiguration.ackWindowSize)
+	}
 
 	// set default
 	if triggerConfiguration.MaxWorkers == 0 {
