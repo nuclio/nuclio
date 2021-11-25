@@ -179,12 +179,12 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		defer cancel()
 
 		// wait until the function resources are ready
-		if err = fo.functionresClient.WaitAvailable(waitContext,
+		if err, functionState := fo.functionresClient.WaitAvailable(waitContext,
 			function.Namespace,
 			function.Name,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 			return fo.setFunctionError(function,
-				functionconfig.FunctionStateError,
+				functionState,
 				errors.Wrap(err, "Failed to wait for function resources to be available"))
 		}
 	}

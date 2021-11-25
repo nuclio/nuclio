@@ -245,7 +245,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	namespace string,
 	name string,
-	functionResourcesCreateOrUpdateTimestamp time.Time) error {
+	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	lc.logger.DebugWith("Waiting for deployment to be available",
 		"namespace", namespace,
@@ -267,7 +267,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 		// check if context is still OK
 		if err := ctx.Err(); err != nil {
-			return err
+			return err, functionconfig.FunctionStateUnhealthy
 		}
 
 		// get the deployment. if it doesn't exist yet, retry a bit later
@@ -290,7 +290,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					lc.logger.DebugWith("Deployment is available",
 						"reason", deploymentCondition.Reason,
 						"deploymentName", deploymentName)
-					return nil
+					return nil, functionconfig.FunctionStateReady
 				}
 
 				lc.logger.DebugWith("Deployment not available yet",
@@ -315,12 +315,12 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			continue
 		}
 
-		if functionDeploymentFailed, err := lc.isFunctionDeploymentFailed(pods.Items,
-			functionResourcesCreateOrUpdateTimestamp); functionDeploymentFailed {
-			return errors.Wrapf(err, "NuclioFunction deployment failed")
-		}
+		// fail-fast mechanism
+		if err := lc.resolveFailFast(pods.Items,
+			functionResourcesCreateOrUpdateTimestamp); err != nil {
 
-		lc.logger.Debug("TOMER - Checked pods, function deployment has not failed")
+			return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
+		}
 	}
 }
 
@@ -2162,8 +2162,8 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	}
 }
 
-func (lc *lazyClient) isFunctionDeploymentFailed(pods []v1.Pod,
-	functionResourcesCreateOrUpdateTimestamp time.Time) (bool, error) {
+func (lc *lazyClient) resolveFailFast(pods []v1.Pod,
+	functionResourcesCreateOrUpdateTimestamp time.Time) error {
 
 	// infer from the pod statuses if the function deployment had failed
 	// failure of one pod is enough to tell that the deployment had failed
@@ -2182,7 +2182,7 @@ func (lc *lazyClient) isFunctionDeploymentFailed(pods []v1.Pod,
 				// check if the pod is on a crashLoopBackoff
 				if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
 
-					return true, errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
+					return errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
 				}
 			}
 		}
@@ -2191,15 +2191,16 @@ func (lc *lazyClient) isFunctionDeploymentFailed(pods []v1.Pod,
 
 			// check if the pod is in pending state, and the reason is that it is unschedulable
 			// (meaning no k8s node can currently run it, because of insufficient resources etc..)
-			if pod.Status.Phase == v1.PodPending &&
-				condition.Reason == "Unschedulable" {
+			if pod.Status.Phase == v1.PodPending && condition.Reason == "Unschedulable" {
 
-				return true, errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
+				// TODO: if pods has an event that cluster is going to scale up - don't return error
+
+				return errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
 			}
 		}
 	}
 
-	return false, nil
+	return nil
 }
 
 //
