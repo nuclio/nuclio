@@ -303,8 +303,6 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			}
 		}
 
-		lc.logger.Debug("TOMER - Getting pods to check deployment failure")
-
 		// get the deployment pods. if it doesn't exist yet, retry a bit later
 		pods, err := lc.kubeClientSet.CoreV1().
 			Pods(namespace).
