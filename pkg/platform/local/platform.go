@@ -133,13 +133,10 @@ func NewPlatform(parentLogger logger.Logger,
 		}(newPlatform)
 	}
 
-	// TODO: use FunctionMountModeVolume on >= 1.6.x by default
-	// this will allow us to remote the dependency of requiring the user to volumize host `tmp` folder
-	// to create a function
+	// Default to mount function configurations from docker volume
 	newPlatform.defaultFunctionMountMode = FunctionMountMode(
-		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_MOUNT_MODE", string(FunctionMountModeBind)),
+		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_MOUNT_MODE", string(FunctionMountModeVolume)),
 	)
-
 	return newPlatform, nil
 }
 
