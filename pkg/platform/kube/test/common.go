@@ -46,7 +46,7 @@ func runCommand(logger logger.Logger,
 	namedArgs map[string]string,
 	runOptions *cmdrunner.RunOptions) (cmdrunner.RunResult, error) {
 
-	var argsStringSlice []string
+	argsStringSlice := make([]string, len(positionalArgs))
 	copy(argsStringSlice, positionalArgs)
 
 	for argName, argValue := range namedArgs {
@@ -55,7 +55,7 @@ func runCommand(logger logger.Logger,
 
 	encodedCommand := strings.Join(argsStringSlice, " ")
 
-	logger.DebugWith("Running kubectl", "encodedCommand", encodedCommand)
+	logger.DebugWith("Running command", "encodedCommand", encodedCommand)
 	return cmdrunner.Run(runOptions, encodedCommand)
 
 }

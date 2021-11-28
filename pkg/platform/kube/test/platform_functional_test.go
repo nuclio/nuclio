@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	nucliozap "github.com/nuclio/zap"
 
 	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/suite"
@@ -52,6 +53,9 @@ func (suite *PlatformTestSuite) SetupSuite() {
 	var err error
 	common.SetVersionFromEnv()
 
+	suite.logger, err = nucliozap.NewNuclioZapTest("platform-functional-test")
+	suite.Require().NoError(err, "Failed to create logger")
+
 	suite.cmdRunner, err = cmdrunner.NewShellRunner(suite.logger)
 	suite.Require().NoError(err, "Failed to create shell runner")
 
@@ -62,7 +66,8 @@ func (suite *PlatformTestSuite) SetupSuite() {
 
 func (suite *PlatformTestSuite) SetupTest() {
 	var err error
-	suite.namespace = fmt.Sprintf("test-nuclio-%s", common.GenerateRandomString(5, common.SmallLettersAndNumbers))
+	suite.namespace = fmt.Sprintf("test-nuclio-%s",
+		common.GenerateRandomString(5, common.SmallLettersAndNumbers))
 
 	renderedHelmValues, err := suite.cmdRunner.Run(nil,
 		fmt.Sprintf("cat %s/test/k8s/ci_assets/helm_values.yaml | envsubst", common.GetSourceDir()))
@@ -150,12 +155,26 @@ func (suite *PlatformTestSuite) executeHelm(positionalArgs []string,
 
 func (suite *PlatformTestSuite) executeMinikube(positionalArgs []string,
 	namedArgs map[string]string) string {
-	positionalArgs = append(positionalArgs, "minikube")
+
+	if len(positionalArgs) == 0 {
+		positionalArgs = []string{"minikube"}
+	} else {
+		positionalArgs = append([]string{"minikube"}, positionalArgs...)
+	}
+
 	if namedArgs == nil {
 		namedArgs = map[string]string{}
 	}
-	namedArgs["namespace"] = suite.namespace
-	namedArgs["profile"] = suite.minikubeProfile
+
+	// auto infer if set
+	if suite.namespace != "" {
+		namedArgs["namespace"] = suite.namespace
+	}
+
+	if suite.minikubeProfile != "" {
+		namedArgs["profile"] = suite.minikubeProfile
+	}
+
 	results, err := runCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, nil)
 	suite.Require().NoError(err)
 	return results.Output
