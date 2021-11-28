@@ -67,7 +67,8 @@ func (suite *ControllerTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	// create controller
-	suite.controller, err = NewController(suite.logger, suite.namespace,
+	suite.controller, err = NewController(suite.logger,
+		suite.namespace,
 		"",
 		suite.k8sClientSet,
 		suite.functionClientSet,
@@ -95,6 +96,7 @@ func (suite *ControllerTestSuite) TestFunctionUpdateFailureInvocationURLs() {
 	functionInstance.Status.State = functionconfig.FunctionStateReady
 	functionInstance.Status.InternalInvocationURLs = []string{"internal.url:port1"}
 	functionInstance.Status.ExternalInvocationURLs = []string{"external.url:port2"}
+	functionInstance.Spec.ReadinessTimeoutSeconds = 1
 
 	// call CreateOrUpdate
 	err := suite.controller.functionOperator.CreateOrUpdate(context.TODO(), functionInstance)
