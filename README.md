@@ -15,13 +15,11 @@ Translations:
 - [简体中文](./README_zh.md)
 
 #### In this document
-- [Nuclio - "Serverless" for Real-Time Events and Data Processing](#nuclio---serverless-for-real-time-events-and-data-processing)
-      - [In this document](#in-this-document)
+
   - [Overview](#overview)
   - [Why another "serverless" project?](#why-another-serverless-project)
   - [Quick-start steps](#quick-start-steps)
   - [How it works](#how-it-works)
-    - [Scaling to Zero](#scaling-to-zero)
   - [Function examples](#function-examples)
   - [Further reading](#further-reading)
 
