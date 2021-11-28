@@ -103,11 +103,11 @@ func (suite *ControllerTestSuite) TestFunctionUpdateFailureInvocationURLs() {
 	// make sure there are no invocation URLs
 	internalInvocationURLs := functionInstance.Status.InternalInvocationURLs
 	externalInvocationURLs := functionInstance.Status.ExternalInvocationURLs
-	suite.logger.DebugWith("Function failed to update", "internalUrls", internalInvocationURLs,
+	suite.logger.DebugWith("Function failed to update",
+		"internalUrls", internalInvocationURLs,
 		"externalUrls", externalInvocationURLs)
 	suite.Require().Empty(internalInvocationURLs)
 	suite.Require().Empty(externalInvocationURLs)
-
 }
 
 func TestControllerUnitTestSuite(t *testing.T) {
