@@ -91,7 +91,11 @@ func (suite *PlatformTestSuite) TearDownTest() {
 func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 	suite.executeHelm([]string{"upgrade", "nuclio", "hack/k8s/helm/nuclio", "--install", "--reuse-values"},
 		map[string]string{
-			"set": "dashboard.containerBuilderKind=kaniko,dashboard.kaniko.insecurePushRegistry=true,dashboard.kaniko.insecurePullRegistry=true",
+			"set": common.StringMapToString(map[string]string{
+				"dashboard.containerBuilderKind":        "kaniko",
+				"dashboard.kaniko.insecurePushRegistry": "true",
+				"dashboard.kaniko.insecurePullRegistry": "true",
+			}),
 		})
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Namespace = suite.namespace
