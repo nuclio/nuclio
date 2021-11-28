@@ -272,9 +272,11 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction,
 		"err", err)
 
 	if setStatusErr := fo.setFunctionStatus(function, &functionconfig.Status{
-		Logs:    function.Status.Logs,
-		State:   functionErrorState,
-		Message: errors.GetErrorStackString(err, 10),
+		Logs:                   function.Status.Logs,
+		State:                  functionErrorState,
+		Message:                errors.GetErrorStackString(err, 10),
+		InternalInvocationURLs: []string{},
+		ExternalInvocationURLs: []string{},
 	}); setStatusErr != nil {
 		fo.logger.WarnWith("Failed to update function on error",
 			"setStatusErr", errors.Cause(setStatusErr))
