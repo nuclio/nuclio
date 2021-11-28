@@ -15,13 +15,12 @@ Translations:
 - [简体中文](./README_zh.md)
 
 #### In this document
-
-  - [Overview](#overview)
-  - [Why another "serverless" project?](#why-another-serverless-project)
-  - [Quick-start steps](#quick-start-steps)
-  - [How it works](#how-it-works)
-  - [Function examples](#function-examples)
-  - [Further reading](#further-reading)
+- [Overview](#overview)
+- [Why another "serverless" project?](#why-another-serverless-project)
+- [Quick-start steps](#quick-start-steps)
+- [How it works](#how-it-works)
+- [Function examples](#function-examples)
+- [Further reading](#further-reading)
 
 ## Overview
 
