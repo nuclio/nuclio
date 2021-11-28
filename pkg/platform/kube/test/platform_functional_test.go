@@ -23,6 +23,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/xid"
 	"net/http"
 	"strings"
 	"testing"
@@ -69,32 +70,48 @@ func (suite *PlatformTestSuite) SetupTest() {
 	suite.namespace = fmt.Sprintf("test-nuclio-%s",
 		common.GenerateRandomString(5, common.SmallLettersAndNumbers))
 
-	renderedHelmValues, err := suite.cmdRunner.Run(nil,
-		fmt.Sprintf("cat %s/test/k8s/ci_assets/helm_values.yaml | envsubst", common.GetSourceDir()))
-	suite.Require().NoError(err)
+	suite.executeKubectl([]string{"create", "namespace", suite.namespace}, nil)
+
+	//renderedHelmValues, err := suite.cmdRunner.Run(nil,
+	//	fmt.Sprintf("cat %s/test/k8s/ci_assets/helm_values.yaml | envsubst", common.GetSourceDir()))
+	//suite.Require().NoError(err)
+
+	nuclioSourceDir := common.GetSourceDir()
 
 	_, err = suite.cmdRunner.Run(&cmdrunner.RunOptions{
-		Stdin: &renderedHelmValues.Output,
-	}, "helm install --debug --wait --values - nuclio hack/k8s/helm/nuclio")
+		WorkingDir: &nuclioSourceDir,
+		//Stdin:      &renderedHelmValues.Output,
+	}, fmt.Sprintf("helm "+
+		"--namespace %s "+
+		"install "+
+		"--debug "+
+		"--wait "+
+		"--set dashboard.ingress.enabled=true "+
+		//"--values "+
+		//"- "+
+		"nuclio hack/k8s/helm/nuclio", suite.namespace))
 	suite.Require().NoError(err)
 }
 
 func (suite *PlatformTestSuite) TearDownTest() {
 
-	suite.executeHelm([]string{"delete", "nuclio"}, nil)
-
-	// delete all resources
+	// delete all nuclio resources
 	suite.executeKubectl([]string{"delete", "all"},
 		map[string]string{
 			"selector": "nuclio.io/app",
 		})
+
+	// cleanup nuclio via helm
+	suite.executeHelm([]string{"delete", "nuclio"}, nil)
 
 	// delete namespace
 	suite.executeKubectl([]string{"delete", "namespace", suite.namespace}, nil)
 }
 
 func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
-	suite.executeHelm([]string{"upgrade", "nuclio", "hack/k8s/helm/nuclio", "--install", "--reuse-values"},
+
+	// set nuclio to build with kaniko
+	suite.executeHelm([]string{"upgrade", "nuclio", "hack/k8s/helm/nuclio", "--wait", "--install", "--reuse-values"},
 		map[string]string{
 			"set": common.StringMapToString(map[string]string{
 				"dashboard.containerBuilderKind":        "kaniko",
@@ -102,9 +119,18 @@ func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 				"dashboard.kaniko.insecurePullRegistry": "true",
 			}),
 		})
+
+	// generate function config
+	functionConfig := suite.compileFunctionConfig()
+
+	// create function
+	suite.createFunction(functionConfig)
+}
+
+func (suite *PlatformTestSuite) compileFunctionConfig() *functionconfig.Config {
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Namespace = suite.namespace
-	functionConfig.Meta.Name = "build-deploy-with-kaniko"
+	functionConfig.Meta.Name = "test-func" + xid.New().String()
 	functionConfig.Spec.RunRegistry = suite.registryURL
 	functionConfig.Spec.Build.Registry = suite.registryURL
 	functionConfig.Spec.Handler = "main:handler"
@@ -114,19 +140,23 @@ def handler(context, event):
   return "hello world"
 `))
 	functionConfig.Spec.Build.NoBaseImagesPull = true
+	return functionConfig
+}
 
-	suite.executeKubectl([]string{"port-forward", "nuclio-dashboard", "8070:8070"}, map[string]string{})
+func (suite *PlatformTestSuite) createFunction(functionConfig *functionconfig.Config) {
+
+	// TODO: make sure - `minikube --profile nuclio-test -n test-nuclio-53jun service nuclio-dashboard --ur`
 	encodedFunctionConfig, err := json.Marshal(functionConfig)
 	suite.Require().NoError(err)
 
 	_, _, err = common.SendHTTPRequest(nil,
 		http.MethodPost,
-		"localhost:8070",
+		"http://nuclio.local",
 		encodedFunctionConfig,
 		nil,
 		nil,
 		http.StatusAccepted)
-	suite.Require().NoError(err)
+	suite.Require().NoError(err, "Failed to create function")
 
 }
 
@@ -136,19 +166,27 @@ func (suite *PlatformTestSuite) executeKubectl(positionalArgs []string,
 		namedArgs = map[string]string{}
 	}
 	namedArgs["namespace"] = suite.namespace
-	results, err := runKubectlCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runKubectlCommandMinikube, nil)
+	runOptions := NewRunOptions(runKubectlCommandMinikube,
+		fmt.Sprintf("minikube --profile %s kubectl --", suite.minikubeProfile))
+	results, err := runKubectlCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runOptions)
 	suite.Require().NoError(err)
 	return results
 }
 
 func (suite *PlatformTestSuite) executeHelm(positionalArgs []string,
 	namedArgs map[string]string) string {
-	positionalArgs = append(positionalArgs, "helm")
+
+	positionalArgs = append([]string{"helm"}, positionalArgs...)
 	if namedArgs == nil {
 		namedArgs = map[string]string{}
 	}
 	namedArgs["namespace"] = suite.namespace
-	results, err := runCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, nil)
+
+	nuclioSourceDir := common.GetSourceDir()
+	runOptions := &cmdrunner.RunOptions{
+		WorkingDir: &nuclioSourceDir,
+	}
+	results, err := runCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runOptions)
 	suite.Require().NoError(err)
 	return results.Output
 }
@@ -182,7 +220,7 @@ func (suite *PlatformTestSuite) executeMinikube(positionalArgs []string,
 
 func (suite *PlatformTestSuite) resolveMinikubeRegistryURL() string {
 	minikubeIP := suite.executeMinikube([]string{"ip"}, nil)
-	result, err := suite.cmdRunner.Run(nil, "docker port minikube 5000")
+	result, err := suite.cmdRunner.Run(nil, fmt.Sprintf("docker port %s 5000", suite.minikubeProfile))
 	suite.Require().NoError(err)
 	return fmt.Sprintf("%s:%s", minikubeIP, strings.TrimSpace(strings.Split(result.Output, ":")[1]))
 }

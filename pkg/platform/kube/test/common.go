@@ -16,28 +16,45 @@ const (
 	runKubectlCommandMinikube runKubectlCommandMode = "minikube"
 )
 
+type RunOptions struct {
+	*cmdrunner.RunOptions
+	mode         runKubectlCommandMode
+	modeExecutor string
+}
+
+func NewRunOptions(mode runKubectlCommandMode, modeExecutor string) *RunOptions {
+	runOptions := &RunOptions{
+		mode:         mode,
+		modeExecutor: modeExecutor,
+	}
+	return runOptions
+}
+
 func runKubectlCommand(logger logger.Logger,
 	cmdrunner cmdrunner.CmdRunner,
 	positionalArgs []string,
 	namedArgs map[string]string,
-	mode runKubectlCommandMode,
-	runOptions *cmdrunner.RunOptions) (cmdrunner.RunResult, error) {
+	runOptions *RunOptions) (cmdrunner.RunResult, error) {
+
+	if runOptions == nil {
+		runOptions = NewRunOptions(runKubectlCommandDirect, "kubectl")
+	}
 
 	var argsStringSlice []string
 
-	switch mode {
+	switch runOptions.mode {
 	case runKubectlCommandDirect:
-		argsStringSlice = append(argsStringSlice, "kubectl")
+		argsStringSlice = append(argsStringSlice, runOptions.modeExecutor)
 	case runKubectlCommandMinikube:
-		argsStringSlice = append(argsStringSlice, "minikube kubectl --")
+		argsStringSlice = append(argsStringSlice, runOptions.modeExecutor)
 	default:
-		argsStringSlice = append(argsStringSlice, "kubectl")
+		argsStringSlice = append(argsStringSlice, runOptions.modeExecutor)
 	}
 
 	// add positional arguments
 	argsStringSlice = append(argsStringSlice, positionalArgs...)
 
-	return runCommand(logger, cmdrunner, argsStringSlice, namedArgs, runOptions)
+	return runCommand(logger, cmdrunner, argsStringSlice, namedArgs, runOptions.RunOptions)
 }
 
 func runCommand(logger logger.Logger,

@@ -591,7 +591,7 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 
 func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
 	namedArgs map[string]string) (cmdrunner.RunResult, error) {
-	return runKubectlCommand(suite.Logger, suite.CmdRunner, positionalArgs, namedArgs, runKubectlCommandDirect, nil)
+	return runKubectlCommand(suite.Logger, suite.CmdRunner, positionalArgs, namedArgs, nil)
 }
 
 func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) string {
