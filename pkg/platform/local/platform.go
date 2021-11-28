@@ -133,13 +133,10 @@ func NewPlatform(parentLogger logger.Logger,
 		}(newPlatform)
 	}
 
-	// TODO: use FunctionMountModeVolume on >= 1.6.x by default
-	// this will allow us to remote the dependency of requiring the user to volumize host `tmp` folder
-	// to create a function
+	// Default to mount function configurations from docker volume
 	newPlatform.defaultFunctionMountMode = FunctionMountMode(
-		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_MOUNT_MODE", string(FunctionMountModeBind)),
+		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_MOUNT_MODE", string(FunctionMountModeVolume)),
 	)
-
 	return newPlatform, nil
 }
 
@@ -378,11 +375,16 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 
-	// delete function options validation
-	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
+	// pre delete validation
+	functionToDelete, err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions)
+	if err != nil {
 		return errors.Wrap(err, "Failed to validate function-deletion options")
 	}
 
+	// nothing to delete
+	if functionToDelete == nil {
+		return nil
+	}
 	// actual function and its resources deletion
 	return p.delete(deleteFunctionOptions)
 }

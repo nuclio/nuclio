@@ -17,6 +17,8 @@ limitations under the License.
 package v3iostream
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -92,11 +94,18 @@ func (vs *v3iostream) Start(checkpoint functionconfig.Checkpoint) error {
 	// start consumption in the background
 	go func() {
 		vs.Logger.DebugWith("Starting to consume from v3io")
+		for {
 
-		// start consuming. this will exit without error if a rebalancing occurs
-		if err := vs.streamConsumerGroupMember.Consume(vs); err != nil {
-			vs.Logger.WarnWith("Failed to consume from group, waiting before retrying",
-				"err", errors.GetErrorStackString(err, 10))
+			// start consuming
+			if err := vs.streamConsumerGroupMember.Consume(vs); err != nil {
+				vs.Logger.WarnWith("Failed to consume from group, retrying...",
+					"err", errors.GetErrorStackString(err, 10))
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			// TODO: support rebalance. Once supported, comment out below break
+			break
 		}
 	}()
 
@@ -163,6 +172,12 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	// submit the events in a goroutine so that we can unblock immediately
 	go vs.eventSubmitter(claim, submittedEventChan)
 
+	if vs.configuration.ackWindowSize > 0 {
+		vs.Logger.DebugWith("Starting claim consumption with ack window",
+			"shardID", claim.GetShardID(),
+			"ackWindowSize", vs.configuration.ackWindowSize)
+	}
+
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
 	for recordBatch := range claim.GetRecordBatchChan() {
@@ -186,6 +201,9 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 
 			// we successfully submitted the message to the handler. mark it
 			if err == nil {
+
+				// offset record sequence number by the trigger's configured ack window size
+				record.SequenceNumber -= uint64(vs.configuration.ackWindowSize)
 				session.MarkRecord(record) // nolint: errcheck
 			}
 

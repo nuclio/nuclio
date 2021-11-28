@@ -88,9 +88,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
 	function, objectIsFunction := object.(*nuclioio.NuclioFunction)
 	if !objectIsFunction {
-		return fo.setFunctionError(nil,
-			functionconfig.FunctionStateError,
-			errors.New("Received unexpected object, expected function"))
+		return errors.New("Received unexpected object, expected function")
 	}
 
 	defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
@@ -163,6 +161,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		"readinessTimeout", readinessTimeout,
 		"functionName", function.Name)
 
+	functionResourcesCreateOrUpdateTimestamp := time.Now()
+
 	// ensure function resources (deployment, ingress, configmap, etc ...)
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
@@ -179,9 +179,12 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		defer cancel()
 
 		// wait until the function resources are ready
-		if err = fo.functionresClient.WaitAvailable(waitContext, function.Namespace, function.Name); err != nil {
+		if err, functionState := fo.functionresClient.WaitAvailable(waitContext,
+			function.Namespace,
+			function.Name,
+			functionResourcesCreateOrUpdateTimestamp); err != nil {
 			return fo.setFunctionError(function,
-				functionconfig.FunctionStateUnhealthy,
+				functionState,
 				errors.Wrap(err, "Failed to wait for function resources to be available"))
 		}
 	}

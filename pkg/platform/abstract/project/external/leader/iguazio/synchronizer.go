@@ -76,7 +76,8 @@ func (c *Synchronizer) startSynchronizationLoop(interval time.Duration, namespac
 			newMostRecentUpdatedProjectTime, err := c.synchronizeProjectsFromLeader(namespace,
 				namespaceToMostRecentUpdatedProjectTimeMap[namespace])
 			if err != nil {
-				c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
+				c.logger.WarnWith("Failed to synchronize projects according to leader",
+					"err", errors.GetErrorStackString(err, 10))
 			}
 
 			// update most recent updated project time

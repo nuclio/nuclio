@@ -498,8 +498,14 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		"functionConfig", deleteFunctionOptions.FunctionConfig)
 
 	// pre delete validation
-	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
+	functionToDelete, err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions)
+	if err != nil {
 		return errors.Wrap(err, "Failed to validate function-deletion options")
+	}
+
+	// nothing to delete
+	if functionToDelete == nil {
+		return nil
 	}
 
 	// user must clean api gateway before deleting the function

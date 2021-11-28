@@ -112,6 +112,9 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nuclio.WrapErrNotFound(err)
+		}
 		return nil, errors.Wrap(err, "Failed to get a project")
 	}
 
