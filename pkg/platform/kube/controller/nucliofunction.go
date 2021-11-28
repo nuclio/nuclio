@@ -105,9 +105,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			},
 		})
 
-	fo.logger.DebugWith("TOMER 1 - Ensuring function resource version",
-		"functionResourceVersion", function.ResourceVersion)
-
 	// validate function name is according to k8s convention
 	errorMessages := validation.IsQualifiedName(function.Name)
 	if len(errorMessages) != 0 {
@@ -138,9 +135,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 		return nil
 	}
-
-	fo.logger.DebugWith("TOMER 2 - Ensuring function resource version",
-		"functionResourceVersion", function.ResourceVersion)
 
 	// imported functions have skip deploy annotation, set its state and bail
 	if functionconfig.ShouldSkipDeploy(function.Annotations) {
@@ -177,9 +171,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			errors.Wrap(err, "Failed to create/update function"))
 	}
 
-	fo.logger.DebugWith("TOMER 3 - Ensuring function resource version",
-		"functionResourceVersion", function.ResourceVersion)
-
 	// readinessTimeout would be zero when
 	// - not defined on function spec
 	// - defined 0 on platform-config
@@ -192,8 +183,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			function.Namespace,
 			function.Name,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
-			fo.logger.DebugWith("TOMER 4 - Ensuring function resource version",
-				"functionResourceVersion", function.ResourceVersion)
 			return fo.setFunctionError(function,
 				functionState,
 				errors.Wrap(err, "Failed to wait for function resources to be available"))
@@ -299,8 +288,7 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction,
 func (fo *functionOperator) setFunctionStatus(function *nuclioio.NuclioFunction,
 	status *functionconfig.Status) error {
 
-	fo.logger.DebugWith("Setting function state", "name", function.Name, "status", status,
-		"functionResourceVersion", function.ResourceVersion)
+	fo.logger.DebugWith("Setting function state", "name", function.Name, "status", status)
 
 	// indicate error state
 	function.Status = *status
