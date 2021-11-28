@@ -93,7 +93,6 @@ func (u *Updater) Update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	}
 
 	// trigger an update
-	functionCreateOrUpdateTimestamp := time.Now()
 	updatedFunction, err := nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
@@ -106,8 +105,7 @@ func (u *Updater) Update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	if _, err := waitForFunctionReadiness(u.logger,
 		u.consumer,
 		updatedFunction.Namespace,
-		updatedFunction.Name,
-		functionCreateOrUpdateTimestamp); err != nil {
+		updatedFunction.Name); err != nil {
 		return errors.Wrap(err, "Failed to wait for function readiness")
 	}
 
