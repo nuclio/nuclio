@@ -20,12 +20,14 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/rs/xid"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -48,6 +50,9 @@ type PlatformTestSuite struct {
 	registryURL     string
 	minikubeProfile string
 	namespace       string
+
+	tunnelChannelsLock sync.Locker
+	tunnelChannels     map[string]chan context.Context
 }
 
 func (suite *PlatformTestSuite) SetupSuite() {
@@ -63,6 +68,8 @@ func (suite *PlatformTestSuite) SetupSuite() {
 	suite.minikubeProfile = common.GetEnvOrDefaultString("NUCLIO_TEST_MINIKUBE_PROFILE", "nuclio-test")
 
 	suite.registryURL = suite.resolveMinikubeRegistryURL()
+	suite.tunnelChannels = map[string]chan context.Context{}
+	suite.tunnelChannelsLock = &sync.Mutex{}
 }
 
 func (suite *PlatformTestSuite) SetupTest() {
@@ -120,11 +127,46 @@ func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 			}),
 		})
 
+	suite.minikubeEnsureTunnel("nuclio-dashboard")
+
 	// generate function config
 	functionConfig := suite.compileFunctionConfig()
 
 	// create function
 	suite.createFunction(functionConfig)
+}
+
+func (suite *PlatformTestSuite) minikubeEnsureTunnel(serviceName string) {
+	if _, exists := suite.tunnelChannels[serviceName]; exists {
+
+		// channel is already open
+		return
+	}
+
+	suite.tunnelChannelsLock.Lock()
+	defer suite.tunnelChannelsLock.Unlock()
+
+	go func() {
+		ctx := context.Background()
+
+		// TODO: why is that blocking anyway?
+		output, err := suite.cmdRunner.Stream(ctx,
+			nil,
+			"minikube --profile %s --namespace %s service %s --url",
+			suite.minikubeProfile,
+			suite.namespace,
+			serviceName)
+		suite.Require().NoError(err)
+		suite.Require().NotEmpty(output)
+		suite.tunnelChannels[serviceName] <- ctx
+
+	}()
+	for {
+		select {
+		case <-suite.tunnelChannels[serviceName]:
+			return
+		}
+	}
 }
 
 func (suite *PlatformTestSuite) compileFunctionConfig() *functionconfig.Config {
