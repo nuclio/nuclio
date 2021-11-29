@@ -143,9 +143,6 @@ func (suite *PlatformTestSuite) minikubeEnsureTunnel(serviceName string) {
 		return
 	}
 
-	suite.tunnelChannelsLock.Lock()
-	defer suite.tunnelChannelsLock.Unlock()
-
 	go func() {
 		ctx := context.Background()
 
@@ -158,6 +155,8 @@ func (suite *PlatformTestSuite) minikubeEnsureTunnel(serviceName string) {
 			serviceName)
 		suite.Require().NoError(err)
 		suite.Require().NotEmpty(output)
+		suite.tunnelChannelsLock.Lock()
+		defer suite.tunnelChannelsLock.Unlock()
 		suite.tunnelChannels[serviceName] <- ctx
 
 	}()
