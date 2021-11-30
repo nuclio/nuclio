@@ -117,13 +117,14 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
+func (ap *Platform) HandleDeployFunction(ctx context.Context,
+	existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func() error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (
 	*platform.CreateFunctionResult, error) {
 
-	createFunctionOptions.Logger.InfoWith("Deploying function",
+	createFunctionOptions.Logger.InfoWithCtx(ctx, "Deploying function",
 		"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 	var buildResult *platform.CreateFunctionBuildResult
@@ -169,7 +170,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
-		createFunctionOptions.Logger.InfoWith("Skipping build",
+		createFunctionOptions.Logger.InfoWithCtx(ctx, "Skipping build",
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// verify user passed runtime
@@ -205,7 +206,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	// indicate that we're done
-	createFunctionOptions.Logger.InfoWith("Function deploy complete",
+	createFunctionOptions.Logger.InfoWithCtx(ctx, "Function deploy complete",
 		"functionName", deployResult.UpdatedFunctionConfig.Meta.Name,
 		"httpPort", deployResult.Port,
 		"internalInvocationURLs", deployResult.FunctionStatus.InternalInvocationURLs,
@@ -214,13 +215,13 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 }
 
 // EnrichFunctionConfig enriches function config
-func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) error {
+func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// if labels is nil assign an empty map to it
 	if functionConfig.Meta.Labels == nil {
 		functionConfig.Meta.Labels = map[string]string{}
 	}
-	ap.EnrichLabelsWithProjectName(functionConfig.Meta.Labels)
+	ap.EnrichLabelsWithProjectName(ctx, functionConfig.Meta.Labels)
 
 	if err := ap.enrichImageName(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching image name")
@@ -257,10 +258,10 @@ func (ap *Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) 
 }
 
 // EnrichLabelsWithProjectName enriches labels with default project name
-func (ap *Platform) EnrichLabelsWithProjectName(labels map[string]string) {
+func (ap *Platform) EnrichLabelsWithProjectName(ctx context.Context, labels map[string]string) {
 	if labels[common.NuclioResourceLabelKeyProjectName] == "" {
 		labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
-		ap.Logger.Debug("No project name specified. Setting to default")
+		ap.Logger.DebugCtx(ctx, "No project name specified. Setting to default")
 	}
 }
 
@@ -278,7 +279,7 @@ func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Conf
 }
 
 // ValidateCreateFunctionOptionsAgainstExistingFunctionConfig validates a function against its existing instance
-func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
+func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(ctx context.Context,
 	existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions) error {
 
@@ -289,7 +290,7 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 	}
 
 	// validate resource version
-	if err := ap.ValidateResourceVersion(existingFunctionConfig, &createFunctionOptions.FunctionConfig); err != nil {
+	if err := ap.ValidateResourceVersion(ctx, existingFunctionConfig, &createFunctionOptions.FunctionConfig); err != nil {
 		return nuclio.WrapErrConflict(err)
 	}
 
@@ -306,7 +307,7 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 	if existingFunctionConfig != nil &&
 		len(existingFunctionConfig.Status.APIGateways) > 0 &&
 		createFunctionOptions.FunctionConfig.Spec.Disable {
-		ap.Logger.WarnWith("Disabling function with assigned api gateway validation failed",
+		ap.Logger.WarnWithCtx(ctx, "Disabling function with assigned api gateway validation failed",
 			"functionName", existingFunctionConfig.Meta.Name,
 			"apiGateways", existingFunctionConfig.Status.APIGateways)
 		return nuclio.NewErrBadRequest("Cannot disable function while used by an API gateway")
@@ -315,7 +316,8 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(
 }
 
 // ValidateResourceVersion validates existing and new create function options resource version
-func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionconfig.ConfigWithStatus,
+func (ap *Platform) ValidateResourceVersion(ctx context.Context,
+	functionConfigWithStatus *functionconfig.ConfigWithStatus,
 	requestFunctionConfig *functionconfig.Config) error {
 
 	// if function has no existing instance, resource version validation is irrelevant.
@@ -331,7 +333,7 @@ func (ap *Platform) ValidateResourceVersion(functionConfigWithStatus *functionco
 	// when requestResourceVersion is empty, the existing one will be overridden
 	if requestResourceVersion != "" &&
 		requestResourceVersion != existingResourceVersion {
-		ap.Logger.WarnWith("Function resource version is stale",
+		ap.Logger.WarnWithCtx(ctx, "Function resource version is stale",
 			"functionName", functionConfigWithStatus.Meta.Name,
 			"requestResourceVersion", requestResourceVersion,
 			"existingResourceVersion", existingResourceVersion)
@@ -352,7 +354,7 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 }
 
 // ValidateFunctionConfig validaets and enforces of required function creation logic
-func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
+func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
 		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
@@ -360,7 +362,7 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 	}
 
 	// check function config for possible malicious content
-	if err := ap.validateDockerImageFields(functionConfig); err != nil {
+	if err := ap.validateDockerImageFields(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Docker image fields validation failed")
 	}
 
@@ -380,7 +382,7 @@ func (ap *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config
 		return errors.Wrap(err, "Project existence validation failed")
 	}
 
-	if err := ap.validateVolumes(functionConfig); err != nil {
+	if err := ap.validateVolumes(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Volumes validation failed")
 	}
 
@@ -1312,7 +1314,7 @@ func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Con
 	return nil
 }
 
-func (ap *Platform) validateVolumes(functionConfig *functionconfig.Config) error {
+func (ap *Platform) validateVolumes(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// volume mount can be shared by many volumes (e.g.: mount volume X in /here and /there)
 	volumeNameToVolumeMounts := map[string][]v1.Volume{}
@@ -1347,7 +1349,7 @@ func (ap *Platform) validateVolumes(functionConfig *functionconfig.Config) error
 		firstVolume := volumes[0]
 		for _, volume := range volumes[1:] {
 			if volumeDiff := cmp.Diff(firstVolume, volume); volumeDiff != "" {
-				ap.Logger.WarnWith("Invalid volumes configuration found",
+				ap.Logger.WarnWithCtx(ctx, "Invalid volumes configuration found",
 					"volumeMountName", volumeMountName,
 					"volumeDiff", volumeDiff)
 				return nuclio.NewErrBadRequest(
@@ -1503,7 +1505,7 @@ func (ap *Platform) getOnbuildImagesOverrides() map[string]string {
 	return ap.Config.ImageRegistryOverrides.OnbuildImageRegistries
 }
 
-func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Config) error {
+func (ap *Platform) validateDockerImageFields(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// here we sanitize registry/image fields for malformed or potentially malicious inputs
 	for fieldName, fieldValue := range map[string]*string{
@@ -1519,7 +1521,7 @@ func (ap *Platform) validateDockerImageFields(functionConfig *functionconfig.Con
 			// HACK: cleanup possible trailing /
 			valueToValidate := strings.TrimSuffix(*fieldValue, "/")
 			if _, err := reference.Parse(valueToValidate); err != nil {
-				ap.Logger.WarnWith("Invalid docker image ref passed in spec field - this may be malicious",
+				ap.Logger.WarnWithCtx(ctx, "Invalid docker image ref passed in spec field - this may be malicious",
 					"err", err,
 					"fieldName", fieldName,
 					"fieldValue", fieldValue)

@@ -50,32 +50,32 @@ type Platform interface {
 	// Function
 	//
 
-	// Build will locally build a processor image and return its name (or the error)
+	// CreateFunctionBuild Build will locally build a processor image and return its name (or the error)
 	CreateFunctionBuild(createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
 
-	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-	CreateFunction(createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
+	// CreateFunction Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+	CreateFunction(ctx context.Context, createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
 
-	// Enrich function config upon creating function
-	EnrichFunctionConfig(functionConfig *functionconfig.Config) error
+	// EnrichFunctionConfig Enrich function config upon creating function
+	EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error
 
-	// Validate function config upon creating function
-	ValidateFunctionConfig(functionConfig *functionconfig.Config) error
+	// ValidateFunctionConfig Validate function config upon creating function
+	ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error
 
 	// UpdateFunction will update a previously deployed function
-	UpdateFunction(updateFunctionOptions *UpdateFunctionOptions) error
+	UpdateFunction(ctx context.Context, updateFunctionOptions *UpdateFunctionOptions) error
 
 	// DeleteFunction will delete a previously deployed function
-	DeleteFunction(deleteFunctionOptions *DeleteFunctionOptions) error
+	DeleteFunction(ctx context.Context, deleteFunctionOptions *DeleteFunctionOptions) error
 
 	// CreateFunctionInvocation will invoke a previously deployed function
-	CreateFunctionInvocation(createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
+	CreateFunctionInvocation(ctx context.Context, createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
 
 	// GetFunctions will list existing functions
-	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
+	GetFunctions(ctx context.Context, getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
 	// FilterFunctionsByPermissions will filter out some functions
-	FilterFunctionsByPermissions(*opa.PermissionOptions, []Function) ([]Function, error)
+	FilterFunctionsByPermissions(context.Context, *opa.PermissionOptions, []Function) ([]Function, error)
 
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)

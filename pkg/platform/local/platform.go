@@ -156,12 +156,13 @@ func (p *Platform) Initialize() error {
 }
 
 // CreateFunction will simply run a docker image
-func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *platform.CreateFunctionOptions) (
+	*platform.CreateFunctionResult, error) {
 	var previousHTTPPort int
 	var err error
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
-	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
@@ -202,7 +203,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// if function exists, perform some validation with new function create options
-	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig,
+	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(ctx,
+		existingFunctionConfig,
 		createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
@@ -220,7 +222,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	createFunctionOptions.Logger = logStream.GetLogger()
 
 	reportCreationError := func(creationError error) error {
-		createFunctionOptions.Logger.WarnWith("Failed to create a function; setting the function status",
+		createFunctionOptions.Logger.WarnWithCtx(ctx, "Failed to create a function; setting the function status",
 			"err", creationError)
 
 		errorStack := bytes.Buffer{}
@@ -242,11 +244,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	onAfterConfigUpdated := func() error {
-		createFunctionOptions.Logger.DebugWith("Creating shadow function",
+		createFunctionOptions.Logger.DebugWithCtx(ctx, "Creating shadow function",
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
-		if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 			return errors.Wrap(err, "Failed to enrich and validate the updated function configuration")
 		}
 
@@ -304,7 +306,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 				return nil, errors.Wrap(err, "Failed to populate function invocation status")
 			}
 		} else {
-			p.Logger.Info("Skipping function deployment")
+			p.Logger.InfoCtx(ctx, "Skipping function deployment")
 			functionStatus.State = functionconfig.FunctionStateImported
 			createFunctionResult = &platform.CreateFunctionResult{
 				CreateFunctionBuildResult: platform.CreateFunctionBuildResult{
@@ -328,7 +330,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// If needed, load any docker image from archive into docker
 	if createFunctionOptions.InputImageFile != "" {
-		p.Logger.InfoWith("Loading docker image from archive",
+		p.Logger.InfoWithCtx(ctx, "Loading docker image from archive",
 			"input", createFunctionOptions.InputImageFile)
 		if err := p.dockerClient.Load(createFunctionOptions.InputImageFile); err != nil {
 			return nil, errors.Wrap(err, "Failed to load a Docker image from an archive")
@@ -337,7 +339,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
-	return p.HandleDeployFunction(existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
+	return p.HandleDeployFunction(ctx, existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
 // GetFunctions will return deployed functions
@@ -368,7 +370,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 }
 
 // UpdateFunction will update a previously deployed function
-func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions) error {
 	return nil
 }
 
@@ -1251,12 +1253,12 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 	return labels
 }
 
-func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfig.Config) error {
-	if err := p.EnrichFunctionConfig(functionConfig); err != nil {
+func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 
-	if err := p.ValidateFunctionConfig(functionConfig); err != nil {
+	if err := p.ValidateFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate a function configuration")
 	}
 
