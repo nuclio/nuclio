@@ -231,8 +231,16 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		// get the function
 		function := suite.GetFunction(getFunctionOptions)
 
+		suite.Logger.DebugWith("Got function",
+			"functionName",
+			function.GetConfig().Meta.Name,
+			"functionState",
+			function.GetStatus().State)
+
 		// ensure function is ready
 		suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
+
+		suite.Logger.Debug("Function is in ready state")
 
 		// ensure function pods are running
 		suite.WaitForFunctionPods(functionName, time.Minute, func(pods []v1.Pod) bool {
@@ -244,6 +252,8 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 			}
 			return true
 		})
+
+		suite.Logger.Debug("Function pods are running, changing resource quota")
 
 		suite.WithResourceQuota(&v1.ResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{
@@ -259,11 +269,14 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 
 			suite.DeleteFunctionPods(functionName)
 
+			suite.Logger.Debug("Deleted all function pods")
+
 			// wait for controller to mark function in error due to pods being unschedulable
 			suite.WaitForFunctionState(getFunctionOptions,
 				functionconfig.FunctionStateUnhealthy,
 				functionMonitoringSleepTimeout)
 
+			suite.Logger.Debug("Function has reached Unhealthy state")
 		})
 
 		// wait for function pods to run, meaning its deployment is available
