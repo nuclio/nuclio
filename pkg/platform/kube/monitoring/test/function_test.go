@@ -266,7 +266,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 				},
 			},
 		}, func() {
-
+			suite.Controller.GetFunctionMonitoring().EnableDebugLog = true
 			suite.DeleteFunctionPods(functionName)
 
 			suite.Logger.Debug("Deleted all function pods")
@@ -277,6 +277,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 				functionMonitoringSleepTimeout)
 
 			suite.Logger.Debug("Function has reached Unhealthy state")
+			suite.Controller.GetFunctionMonitoring().EnableDebugLog = false
 		})
 
 		// wait for function pods to run, meaning its deployment is available

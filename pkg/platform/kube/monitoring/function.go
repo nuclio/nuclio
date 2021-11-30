@@ -49,6 +49,8 @@ type FunctionMonitor struct {
 	interval                   time.Duration
 	stopChan                   chan struct{}
 	lastProvisioningTimestamps sync.Map
+
+	EnableDebugLog bool
 }
 
 func NewFunctionMonitor(parentLogger logger.Logger,
@@ -174,7 +176,9 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 		stateChanged = true
 	}
 
-	fm.logger.DebugWith("Function state may have changed", "stateChanged", stateChanged)
+	if fm.EnableDebugLog {
+		fm.logger.DebugWith("Function state may have changed", "stateChanged", stateChanged)
+	}
 
 	// return if function did not change
 	if !stateChanged {
@@ -206,6 +210,9 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 	// require at least one replica
 	atLeastOneReplicasRequested := deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0
 	if !atLeastOneReplicasRequested {
+		if fm.EnableDebugLog {
+			fm.logger.Debug("No replicas were requested")
+		}
 		return false
 	}
 
@@ -218,7 +225,9 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 	// Iterate over function deployment conditions and "cherry-pick" conditions in which we know the function is no longer available.
 	for _, condition := range deployment.Status.Conditions {
 
-		fm.logger.DebugWith("Checking deployment condition", "type", condition.Type, "status", condition.Status)
+		if fm.EnableDebugLog {
+			fm.logger.DebugWith("Checking deployment condition", "type", condition.Type, "status", condition.Status)
+		}
 		// The errors below are considered errors in which may occur during
 		// - nth deployment (n >= 2)
 		// - function lifetime
@@ -227,7 +236,9 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 		//   - may occur during function lifetime, at any point
 		//   > e.g.: when evicting all pods from a single node
 		if condition.Type == appsv1.DeploymentAvailable && condition.Status == v1.ConditionFalse {
-			fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+			if fm.EnableDebugLog {
+				fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+			}
 			return false
 		}
 
@@ -235,7 +246,9 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 		//   - may occur during/past 2nd deployment while old replica is still considered as the "minimum available"
 		//   > e.g.: failed to find a specific resource specified on deployment spec (configmap / service account, etc)
 		if condition.Type == appsv1.DeploymentReplicaFailure {
-			fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+			if fm.EnableDebugLog {
+				fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+			}
 			return false
 		}
 
@@ -244,13 +257,17 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 		//   > e.g.: when failing to fulfill function CPU request due to CPU quota limit or image does not exists on registry
 		// https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#failed-deployment
 		if condition.Type == appsv1.DeploymentProgressing && condition.Status == v1.ConditionFalse {
-			fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+			if fm.EnableDebugLog {
+				fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+			}
 			return false
 		}
 	}
 
 	// at this stage, all conditions are not a failure as they are either available or progressing
-	fm.logger.DebugWith("Function is available!")
+	if fm.EnableDebugLog {
+		fm.logger.DebugWith("Function is available!", "deploymentConditions", deployment.Status.Conditions)
+	}
 	return true
 }
 
