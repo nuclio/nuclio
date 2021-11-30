@@ -100,12 +100,6 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// V0_10_2_0 is the minimum required for sarama's consumer groups implementation.
-	// Therefore, we do not support anything older that this version.
-	// Update: increasing version to V0_11_0_0 because it's the minimum version that is required
-	// to support kafka headers.
-	newTrigger.kafkaConfig.Version = sarama.V0_11_0_0
-
 	return newTrigger, nil
 }
 
@@ -323,6 +317,7 @@ func (k *kafka) cancelEventHandling(workerInstance *worker.Worker, claim sarama.
 }
 
 func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
+	var err error
 	config := sarama.NewConfig()
 
 	config.ClientID = k.ID
@@ -344,32 +339,35 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.LogLevel = k.configuration.LogLevel
 
 	// configure TLS if applicable
-	if k.configuration.CACert != "" {
+	config.Net.TLS.Enable = k.configuration.CACert != "" || k.configuration.TLS.Enable
+	if config.Net.TLS.Enable {
 		k.Logger.DebugWith("Enabling TLS",
 			"calen", len(k.configuration.CACert))
 
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM([]byte(k.configuration.CACert))
+		if k.configuration.CACert != "" {
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM([]byte(k.configuration.CACert))
 
-		tlsConfig := &tls.Config{
-			RootCAs: caCertPool,
-		}
-
-		if k.configuration.AccessKey != "" && k.configuration.AccessCertificate != "" {
-			k.Logger.DebugWith("Configuring cert authentication",
-				"keylen", len(k.configuration.AccessKey),
-				"certlen", len(k.configuration.AccessCertificate))
-
-			keypair, err := tls.X509KeyPair([]byte(k.configuration.AccessCertificate), []byte(k.configuration.AccessKey))
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to create X.509 key pair")
+			tlsConfig := &tls.Config{
+				RootCAs: caCertPool,
 			}
 
-			tlsConfig.Certificates = []tls.Certificate{keypair}
+			if k.configuration.AccessKey != "" && k.configuration.AccessCertificate != "" {
+				k.Logger.DebugWith("Configuring cert authentication",
+					"keylen", len(k.configuration.AccessKey),
+					"certlen", len(k.configuration.AccessCertificate))
+
+				keypair, err := tls.X509KeyPair([]byte(k.configuration.AccessCertificate), []byte(k.configuration.AccessKey))
+				if err != nil {
+					return nil, errors.Wrap(err, "Failed to create X.509 key pair")
+				}
+
+				tlsConfig.Certificates = []tls.Certificate{keypair}
+			}
+			config.Net.TLS.Config = tlsConfig
 		}
 
 		config.Net.TLS.Enable = true
-		config.Net.TLS.Config = tlsConfig
 	}
 
 	// configure SASL if applicable
@@ -382,6 +380,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 		config.Net.SASL.User = k.configuration.SASL.User
 		config.Net.SASL.Password = k.configuration.SASL.Password
 		config.Net.SASL.Mechanism = sarama.SASLMechanism(k.configuration.SASL.Mechanism)
+		config.Net.SASL.Enable = k.configuration.SASL.Handshake
 
 		// per mechanism configuration
 		if config.Net.SASL.Mechanism == sarama.SASLTypeOAuth {
@@ -392,6 +391,24 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 				k.configuration.SASL.OAuth.Scopes)
 		}
 	}
+
+	// V0_10_2_0 is the minimum required for sarama's consumer groups implementation.
+	// Therefore, we do not support anything older that this version.
+	// Update: increasing version to V0_11_0_0 because it's the minimum version that is required
+	// to support kafka headers.
+	version := sarama.V0_11_0_0
+
+	if k.configuration.Version != "" {
+		version, err = sarama.ParseKafkaVersion(k.configuration.Version)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to parse kafka version - %s", k.configuration.Version)
+		}
+		if !version.IsAtLeast(sarama.V0_11_0_0) {
+			return nil, errors.Errorf("Minimum version of 0.11.0 is required, got - %s", version.String())
+		}
+	}
+
+	config.Version = version
 
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "Kafka config is invalid")
