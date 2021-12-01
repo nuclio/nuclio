@@ -31,6 +31,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,6 +91,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	if !objectIsFunction {
 		return errors.New("Received unexpected object, expected function")
 	}
+
+	fo.logger.InfoWith("Inside CreateOrUpdate controller function", "id", xid.New().String())
 
 	defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
 		fo.logger,
