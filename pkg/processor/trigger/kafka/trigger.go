@@ -380,7 +380,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 		config.Net.SASL.User = k.configuration.SASL.User
 		config.Net.SASL.Password = k.configuration.SASL.Password
 		config.Net.SASL.Mechanism = sarama.SASLMechanism(k.configuration.SASL.Mechanism)
-		config.Net.SASL.Enable = k.configuration.SASL.Handshake
+		config.Net.SASL.Handshake = k.configuration.SASL.Handshake
 
 		// per mechanism configuration
 		if config.Net.SASL.Mechanism == sarama.SASLTypeOAuth {
