@@ -252,6 +252,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 			}
 			return true
 		})
+		suite.Controller.GetFunctionOperator().EnableDebugLog = true
 
 		suite.Logger.Debug("Function pods are running, changing resource quota")
 
@@ -279,6 +280,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 			suite.Logger.Debug("Function has reached Unhealthy state")
 			suite.Controller.GetFunctionMonitoring().EnableDebugLog = false
 		})
+		suite.Controller.GetFunctionOperator().EnableDebugLog = false
 
 		// wait for function pods to run, meaning its deployment is available
 		suite.WaitForFunctionPods(functionName, time.Minute, func(pods []v1.Pod) bool {

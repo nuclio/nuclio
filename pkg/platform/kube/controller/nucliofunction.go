@@ -47,6 +47,8 @@ type functionOperator struct {
 	operator          operator.Operator
 	imagePullSecrets  string
 	functionresClient functionres.Client
+
+	EnableDebugLog bool
 }
 
 func newFunctionOperator(parentLogger logger.Logger,
@@ -92,7 +94,9 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Received unexpected object, expected function")
 	}
 
-	fo.logger.InfoWith("Inside CreateOrUpdate controller function", "id", xid.New().String())
+	if fo.EnableDebugLog {
+		fo.logger.InfoWith("Inside CreateOrUpdate controller function", "id", xid.New().String())
+	}
 
 	defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
 		fo.logger,

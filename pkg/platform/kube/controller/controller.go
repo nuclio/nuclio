@@ -226,6 +226,10 @@ func (c *Controller) GetFunctionMonitoring() *monitoring.FunctionMonitor {
 	return c.functionMonitoring
 }
 
+func (c *Controller) GetFunctionOperator() *functionOperator {
+	return c.functionOperator
+}
+
 func (c *Controller) startOperators() error {
 
 	// start the function operator
