@@ -160,7 +160,7 @@ func (p *Platform) Initialize() error {
 
 	// ensure default project existence only when projects aren't managed by external leader
 	if p.Config.ProjectsLeader == nil {
-		if err := p.EnsureDefaultProjectExistence(); err != nil {
+		if err := p.EnsureDefaultProjectExistence(ctx); err != nil {
 			return errors.Wrap(err, "Failed to ensure default project existence")
 		}
 	}
@@ -351,7 +351,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			// try to report the error
 			reportingErr := reportCreationError(buildErr, "", false)
 			if reportingErr != nil {
-				p.Logger.ErrorWithCtx(ctx,"Failed to report a creation error",
+				p.Logger.ErrorWithCtx(ctx, "Failed to report a creation error",
 					"reportingErr", reportingErr,
 					"buildErr", buildErr)
 				return nil, reportingErr
@@ -364,7 +364,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		}
 
 		if skipDeploy {
-			p.Logger.InfoWithCtx(ctx,"Skipping function deployment",
+			p.Logger.InfoWithCtx(ctx, "Skipping function deployment",
 				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
 				"functionNamespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
 
@@ -399,7 +399,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			// try to report the error
 			reportingErr := reportCreationError(deployErr, briefErrorsMessage, true)
 			if reportingErr != nil {
-				p.Logger.ErrorWithCtx(ctx,"Failed to report a deployment error",
+				p.Logger.ErrorWithCtx(ctx, "Failed to report a deployment error",
 					"reportingErr", reportingErr,
 					"buildErr", buildErr)
 				return nil, reportingErr
@@ -448,7 +448,7 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
@@ -463,7 +463,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	functions, err = p.Platform.FilterFunctionsByPermissions(&getFunctionsOptions.PermissionOptions, functions)
+	functions, err = p.Platform.FilterFunctionsByPermissions(ctx, &getFunctionsOptions.PermissionOptions, functions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
@@ -480,7 +480,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 				return nil, errors.Wrap(err, "Failed to enrich functions with API gateways")
 			}
 
-			p.Logger.DebugWith("Api-gateway crd isn't installed; skipping function api gateways enrichment",
+			p.Logger.DebugWithCtx(ctx, "Api-gateway crd isn't installed; skipping function api gateways enrichment",
 				"err", err)
 		}
 	}
@@ -497,12 +497,12 @@ func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *pl
 }
 
 // DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
-	p.Logger.DebugWith("Deleting function",
+func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	p.Logger.DebugWithCtx(ctx, "Deleting function",
 		"functionConfig", deleteFunctionOptions.FunctionConfig)
 
 	// pre delete validation
-	functionToDelete, err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions)
+	functionToDelete, err := p.ValidateDeleteFunctionOptions(ctx, deleteFunctionOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to validate function-deletion options")
 	}
@@ -517,7 +517,7 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		return errors.Wrap(err, "Failed to validate that the function has no API gateways")
 	}
 
-	return p.deleter.Delete(p.consumer, deleteFunctionOptions)
+	return p.deleter.Delete(ctx, p.consumer, deleteFunctionOptions)
 }
 
 func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
@@ -579,7 +579,7 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 }
 
 // CreateProject creates a new project
-func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 
 	// enrich
 	if err := p.EnrichCreateProjectConfig(createProjectOptions); err != nil {
@@ -592,7 +592,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// create
-	p.Logger.DebugWith("Creating project",
+	p.Logger.DebugWithCtx(ctx, "Creating project",
 		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
@@ -602,7 +602,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 }
 
 // UpdateProject updates an existing project
-func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
 		return nuclio.WrapErrBadRequest(err)
 	}
@@ -615,24 +615,25 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 }
 
 // DeleteProject will delete a previously existing project
-func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
 	// check only, do not delete
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCheck {
-		p.Logger.DebugWith("Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
+		p.Logger.DebugWithCtx(ctx, "Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
 		return nil
 	}
 
-	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
+	p.Logger.DebugWithCtx(ctx, "Deleting project", "projectMeta", deleteProjectOptions.Meta)
 	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to delete project")
 	}
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
-		return p.Platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
+		return p.Platform.WaitForProjectResourcesDeletion(ctx,
+			&deleteProjectOptions.Meta,
 			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
 	}
 
@@ -640,7 +641,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 }
 
 // GetProjects will list existing projects
-func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	projects, err := p.projectsClient.Get(getProjectsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting projects")
@@ -1104,8 +1105,8 @@ func (p *Platform) GetAllowedAuthenticationModes() []string {
 	return allowedAuthenticationModes
 }
 
-func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
-	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
+	functions, err := p.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:      functionName,
 		Namespace: namespace,
 	})
@@ -1118,7 +1119,7 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 
 	function := functions[0]
 
-	return p.updater.Update(&platform.UpdateFunctionOptions{
+	return p.updater.Update(ctx, &platform.UpdateFunctionOptions{
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})

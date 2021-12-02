@@ -152,7 +152,8 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	}
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
-		return c.platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
+		return c.platform.WaitForProjectResourcesDeletion(ctx,
+			&deleteProjectOptions.Meta,
 			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
 	}
 

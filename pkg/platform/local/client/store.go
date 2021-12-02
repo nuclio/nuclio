@@ -261,7 +261,7 @@ func (s *Store) GetFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 	return functions, nil
 }
 
-func (s *Store) DeleteFunction(functionMeta *functionconfig.Meta) error {
+func (s *Store) DeleteFunction(ctx context.Context, functionMeta *functionconfig.Meta) error {
 	functionEvents, err := s.GetFunctionEvents(&platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Namespace: functionMeta.Namespace,
@@ -283,7 +283,7 @@ func (s *Store) DeleteFunction(functionMeta *functionconfig.Meta) error {
 	}
 
 	if err := deleteFunctionEventsErrGroup.Wait(); err != nil {
-		s.logger.WarnWith("Failed to delete function events, deleting function anyway",
+		s.logger.WarnWithCtx(ctx, "Failed to delete function events, deleting function anyway",
 			"err", err)
 		return errors.Wrap(err, "Failed to delete function events")
 	}

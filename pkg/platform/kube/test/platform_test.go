@@ -1151,7 +1151,7 @@ func (suite *ProjectTestSuite) TestCreate() {
 	}()
 
 	// get created project
-	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
+	projects, err := suite.Platform.GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: projectConfig.Meta,
 	})
 	suite.Require().NoError(err, "Failed to get projects")
@@ -1249,7 +1249,7 @@ func (suite *ProjectTestSuite) TestDelete() {
 	suite.Require().NoError(err, "Failed to delete project")
 
 	// ensure project does not exist
-	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
+	projects, err := suite.Platform.GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: projectConfig.Meta,
 	})
 	suite.Require().NoError(err, "Failed to get projects")
@@ -1343,7 +1343,7 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 	suite.Require().NoError(err)
 
 	// assertion - project should be deleted
-	projects, err := suite.Platform.GetProjects(&platform.GetProjectsOptions{
+	projects, err := suite.Platform.GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      projectToDeleteConfig.Meta.Name,
 			Namespace: suite.Namespace,

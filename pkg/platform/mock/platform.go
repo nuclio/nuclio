@@ -74,24 +74,25 @@ func (mp *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *p
 }
 
 // DeleteFunction will delete a previously deployed function
-func (mp *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+func (mp *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	args := mp.Called(deleteFunctionOptions)
 	return args.Error(0)
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
-func (mp *Platform) CreateFunctionInvocation(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
+func (mp *Platform) CreateFunctionInvocation(ctx context.Context, createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
 	args := mp.Called(createFunctionInvocationOptions)
 	return args.Get(0).(*platform.CreateFunctionInvocationResult), args.Error(1)
 }
 
 // GetFunctions will list existing functions
-func (mp *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+func (mp *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	args := mp.Called(getFunctionsOptions)
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
-func (mp *Platform) FilterFunctionsByPermissions(permissionOptions *opa.PermissionOptions,
+func (mp *Platform) FilterFunctionsByPermissions(ctx context.Context,
+	permissionOptions *opa.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
 	args := mp.Called(permissionOptions, functions)
 	return args.Get(0).([]platform.Function), args.Error(1)
@@ -114,7 +115,7 @@ func (mp *Platform) GetFunctionReplicaNames(ctx context.Context, functionConfig 
 //
 
 // CreateProject will probably create a new project
-func (mp *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+func (mp *Platform) CreateProject(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 	args := mp.Called(createProjectOptions)
 	return args.Error(0)
 }
@@ -126,13 +127,13 @@ func (mp *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOp
 }
 
 // DeleteProject will delete a previously existing project
-func (mp *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+func (mp *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	args := mp.Called(deleteProjectOptions)
 	return args.Error(0)
 }
 
 // GetProjects will list existing projects
-func (mp *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (mp *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	args := mp.Called(getProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
@@ -306,7 +307,7 @@ func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {
 	return "nuclio-registry-credentials"
 }
 
-func (mp *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
+func (mp *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
 	return nil
 }
 
@@ -314,7 +315,7 @@ func (mp *Platform) Initialize() error {
 	return nil
 }
 
-func (mp *Platform) EnsureDefaultProjectExistence() error {
+func (mp *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
 	return nil
 }
 
@@ -322,7 +323,7 @@ func (mp *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	return "", ""
 }
 
-func (mp *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.ProjectMeta, duration time.Duration) error {
+func (mp *Platform) WaitForProjectResourcesDeletion(ctx context.Context, projectMeta *platform.ProjectMeta, duration time.Duration) error {
 	return nil
 }
 

@@ -91,22 +91,22 @@ type Platform interface {
 	//
 
 	// CreateProject will probably create a new project
-	CreateProject(createProjectOptions *CreateProjectOptions) error
+	CreateProject(ctx context.Context, createProjectOptions *CreateProjectOptions) error
 
 	// UpdateProject will update a previously existing project
-	UpdateProject(updateProjectOptions *UpdateProjectOptions) error
+	UpdateProject(ctx context.Context, updateProjectOptions *UpdateProjectOptions) error
 
 	// DeleteProject will delete a previously existing project
-	DeleteProject(deleteProjectOptions *DeleteProjectOptions) error
+	DeleteProject(ctx context.Context, deleteProjectOptions *DeleteProjectOptions) error
 
 	// GetProjects will list existing projects
-	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
+	GetProjects(ctx context.Context, getProjectsOptions *GetProjectsOptions) ([]Project, error)
 
 	// EnsureDefaultProjectExistence ensure default project exists, creates it otherwise
-	EnsureDefaultProjectExistence() error
+	EnsureDefaultProjectExistence(ctx context.Context) error
 
 	// WaitForProjectResourcesDeletion waits for all of the project's resources to be deleted
-	WaitForProjectResourcesDeletion(projectMeta *ProjectMeta, duration time.Duration) error
+	WaitForProjectResourcesDeletion(ctx context.Context, projectMeta *ProjectMeta, duration time.Duration) error
 
 	//
 	// Function event
@@ -202,7 +202,7 @@ type Platform interface {
 	GetDefaultRegistryCredentialsSecretName() string
 
 	// Save build logs from platform logger to function store or k8s
-	SaveFunctionDeployLogs(functionName, namespace string) error
+	SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error
 
 	// Parse and construct a function processor logs and brief error
 	GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string)

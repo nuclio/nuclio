@@ -394,7 +394,8 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 }
 
 // ValidateDeleteProjectOptions validates and enforces of required project deletion logic
-func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.DeleteProjectOptions) error {
+func (ap *Platform) ValidateDeleteProjectOptions(ctx context.Context,
+	deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
 	switch projectName {
@@ -412,7 +413,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 	case platform.DeleteProjectStrategyCheck, platform.DeleteProjectStrategyRestricted:
 		// listing project resources might be too excessive
 		// to avoid listing resources for non-existing project, first we ensure it exists
-		projects, err := ap.platform.GetProjects(&platform.GetProjectsOptions{
+		projects, err := ap.platform.GetProjects(ctx, &platform.GetProjectsOptions{
 			Meta:              deleteProjectOptions.Meta,
 			RequestOrigin:     deleteProjectOptions.RequestOrigin,
 			PermissionOptions: deleteProjectOptions.PermissionOptions,
@@ -428,7 +429,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 			return nil
 		}
 
-		functions, apiGateways, err := ap.GetProjectResources(&deleteProjectOptions.Meta)
+		functions, apiGateways, err := ap.GetProjectResources(ctx, &deleteProjectOptions.Meta)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get project resources")
 		}
@@ -443,11 +444,11 @@ func (ap *Platform) ValidateDeleteProjectOptions(deleteProjectOptions *platform.
 }
 
 // ValidateDeleteFunctionOptions validates and enforces of required function deletion logic
-func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platform.DeleteFunctionOptions) (
+func (ap *Platform) ValidateDeleteFunctionOptions(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) (
 	platform.Function, error) {
 	functionName := deleteFunctionOptions.FunctionConfig.Meta.Name
 	functionNamespace := deleteFunctionOptions.FunctionConfig.Meta.Namespace
-	functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+	functions, err := ap.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:              functionName,
 		Namespace:         functionNamespace,
 		AuthSession:       deleteFunctionOptions.AuthSession,
@@ -459,14 +460,15 @@ func (ap *Platform) ValidateDeleteFunctionOptions(deleteFunctionOptions *platfor
 
 	// function does not exist and hence nothing to validate (that might happen, delete method can be idempotent)
 	if len(functions) == 0 {
-		ap.Logger.DebugWith("Function was not found (deleted already?)", "functionName", functionName)
+		ap.Logger.DebugWithCtx(ctx, "Function was not found (deleted already?)", "functionName", functionName)
 		return nil, nil
 	}
 
 	functionToDelete := functions[0]
 
 	// validate resource version
-	if err := ap.ValidateResourceVersion(functionToDelete.GetConfigWithStatus(),
+	if err := ap.ValidateResourceVersion(ctx,
+		functionToDelete.GetConfigWithStatus(),
 		&deleteFunctionOptions.FunctionConfig); err != nil {
 		return functionToDelete, nuclio.WrapErrConflict(err)
 	}
@@ -547,7 +549,8 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.Permissio
 }
 
 // FilterFunctionsByPermissions will filter out some functions
-func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.PermissionOptions,
+func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
+	permissionOptions *opa.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
 
 	// no cleansing is mandated
@@ -580,7 +583,7 @@ func (ap *Platform) FilterFunctionsByPermissions(permissionOptions *opa.Permissi
 	}
 
 	if len(filteredFunctionNames) > 0 {
-		ap.Logger.DebugWith("Some functions were filtered out", "functionNames", filteredFunctionNames)
+		ap.Logger.DebugWithCtx(ctx, "Some functions were filtered out", "functionNames", filteredFunctionNames)
 	}
 	return permittedFunctions, nil
 }
@@ -627,7 +630,7 @@ func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.Per
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
-func (ap *Platform) CreateFunctionInvocation(
+func (ap *Platform) CreateFunctionInvocation(ctx context.Context,
 	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (
 	*platform.CreateFunctionInvocationResult, error) {
 	if createFunctionInvocationOptions.Headers == nil {
@@ -635,7 +638,7 @@ func (ap *Platform) CreateFunctionInvocation(
 	}
 
 	// get the function
-	functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+	functions, err := ap.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:              createFunctionInvocationOptions.Name,
 		Namespace:         createFunctionInvocationOptions.Namespace,
 		AuthSession:       createFunctionInvocationOptions.AuthSession,
@@ -660,7 +663,7 @@ func (ap *Platform) CreateFunctionInvocation(
 		return nil, errors.Wrap(err, "Failed to initialize function")
 	}
 
-	return ap.invoker.invoke(function, createFunctionInvocationOptions)
+	return ap.invoker.invoke(ctx, function, createFunctionInvocationOptions)
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires
@@ -671,7 +674,7 @@ func (ap *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 }
 
 // CreateProject will probably create a new project
-func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+func (ap *Platform) CreateProject(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
@@ -704,17 +707,17 @@ func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig)
 }
 
 // UpdateProject will update a previously existing project
-func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+func (ap *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
 // DeleteProject will delete a previously existing project
-func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+func (ap *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
 // GetProjects will list existing projects
-func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (ap *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
 
@@ -744,7 +747,7 @@ func (ap *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Cre
 	return platform.ErrUnsupportedMethod
 }
 
-func (ap *Platform) EnrichFunctionEvent(functionEventConfig *platform.FunctionEventConfig) error {
+func (ap *Platform) EnrichFunctionEvent(ctx context.Context, functionEventConfig *platform.FunctionEventConfig) error {
 
 	// to avoid blow-ups
 	if functionEventConfig.Meta.Labels == nil {
@@ -787,13 +790,13 @@ func (ap *Platform) EnrichFunctionEvent(functionEventConfig *platform.FunctionEv
 
 	projectName, projectNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 	if !projectNameFound {
-		ap.Logger.DebugWith("Enriching function event project name",
+		ap.Logger.DebugWithCtx(ctx, "Enriching function event project name",
 			"functionEventName", functionEventConfig.Meta.Name,
 			"functionEventNamespace", functionEventConfig.Meta.Namespace,
 			"functionName", functionName)
 
 		// infer project name from its function
-		functions, err := ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := ap.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 			Name:      functionName,
 			Namespace: functionEventConfig.Meta.Namespace,
 		})
@@ -977,18 +980,18 @@ func (ap *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (strin
 	return common.FixEscapeChars(formattedProcessorLogs), common.FixEscapeChars(briefErrorsMessage)
 }
 
-func (ap *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.ProjectMeta, duration time.Duration) error {
+func (ap *Platform) WaitForProjectResourcesDeletion(ctx context.Context, projectMeta *platform.ProjectMeta, duration time.Duration) error {
 	if err := common.RetryUntilSuccessful(duration,
 		5*time.Second,
 		func() bool {
-			functions, APIGateways, err := ap.GetProjectResources(projectMeta)
+			functions, APIGateways, err := ap.GetProjectResources(ctx, projectMeta)
 			if err != nil {
-				ap.Logger.WarnWith("Failed to get project resources",
+				ap.Logger.WarnWithCtx(ctx, "Failed to get project resources",
 					"err", err)
 				return false
 			}
 			if len(functions) > 0 || len(APIGateways) > 0 {
-				ap.Logger.DebugWith("Waiting for project resources to be deleted",
+				ap.Logger.DebugWithCtx(ctx, "Waiting for project resources to be deleted",
 					"functionsLen", len(functions),
 					"apiGatewayLen", len(APIGateways))
 				return false
@@ -1000,7 +1003,7 @@ func (ap *Platform) WaitForProjectResourcesDeletion(projectMeta *platform.Projec
 	return nil
 }
 
-func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]platform.Function,
+func (ap *Platform) GetProjectResources(ctx context.Context, projectMeta *platform.ProjectMeta) ([]platform.Function,
 	[]platform.APIGateway,
 	error) {
 
@@ -1023,7 +1026,7 @@ func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]pl
 
 	// get functions
 	errGroup.Go("GetFunctions", func() error {
-		functions, err = ap.platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err = ap.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 			Namespace: projectMeta.Namespace,
 			Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
 		})
@@ -1039,10 +1042,10 @@ func (ap *Platform) GetProjectResources(projectMeta *platform.ProjectMeta) ([]pl
 	return functions, apiGateways, nil
 }
 
-func (ap *Platform) EnsureDefaultProjectExistence() error {
+func (ap *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
 	resolvedNamespace := ap.platform.ResolveDefaultNamespace(ap.DefaultNamespace)
 
-	projects, err := ap.platform.GetProjects(&platform.GetProjectsOptions{
+	projects, err := ap.platform.GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      platform.DefaultProjectName,
 			Namespace: resolvedNamespace,
@@ -1067,7 +1070,7 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 			return errors.Wrap(err, "Failed to create abstract default project")
 		}
 
-		if err := ap.platform.CreateProject(&platform.CreateProjectOptions{
+		if err := ap.platform.CreateProject(ctx, &platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
 		}); err != nil {
 
@@ -1079,7 +1082,7 @@ func (ap *Platform) EnsureDefaultProjectExistence() error {
 			return errors.Wrap(err, "Failed to create default project")
 		}
 
-		ap.Logger.DebugWith("Default project was successfully created",
+		ap.Logger.DebugWithCtx(ctx, "Default project was successfully created",
 			"name", platform.DefaultProjectName,
 			"namespace", resolvedNamespace)
 	}
@@ -1378,7 +1381,7 @@ func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config)
 		getProjectsOptions.RequestOrigin = ap.Config.ProjectsLeader.Kind
 	}
 
-	projects, err := ap.platform.GetProjects(getProjectsOptions)
+	projects, err := ap.platform.GetProjects(ctx, getProjectsOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get projects")
 	}

@@ -82,7 +82,8 @@ func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig
 }
 
 // NewPlatform instantiates a new local platform
-func NewPlatform(parentLogger logger.Logger,
+func NewPlatform(ctx context.Context,
+	parentLogger logger.Logger,
 	platformConfiguration *platformconfig.Config,
 	defaultNamespace string) (*Platform, error) {
 	newPlatform := &Platform{}
@@ -124,11 +125,11 @@ func NewPlatform(parentLogger logger.Logger,
 
 	// ignite goroutine to check function container healthiness
 	if newPlatform.Config.Local.FunctionContainersHealthinessEnabled {
-		newPlatform.Logger.DebugWith("Igniting container healthiness validator")
+		newPlatform.Logger.DebugWithCtx(ctx, "Igniting container healthiness validator")
 		go func(newPlatform *Platform) {
 			uptimeTicker := time.NewTicker(newPlatform.Config.Local.FunctionContainersHealthinessInterval)
 			for range uptimeTicker.C {
-				newPlatform.ValidateFunctionContainersHealthiness()
+				newPlatform.ValidateFunctionContainersHealthiness(ctx)
 			}
 		}(newPlatform)
 	}
@@ -147,7 +148,7 @@ func (p *Platform) Initialize() error {
 
 	// ensure default project existence only when projects aren't managed by external leader
 	if p.Config.ProjectsLeader == nil {
-		if err := p.EnsureDefaultProjectExistence(); err != nil {
+		if err := p.EnsureDefaultProjectExistence(ctx); err != nil {
 			return errors.Wrap(err, "Failed to ensure default project existence")
 		}
 	}
@@ -343,7 +344,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
@@ -358,7 +359,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to read functions from a local store")
 	}
 
-	functions, err = p.Platform.FilterFunctionsByPermissions(&getFunctionsOptions.PermissionOptions, functions)
+	functions, err = p.Platform.FilterFunctionsByPermissions(ctx, &getFunctionsOptions.PermissionOptions, functions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
@@ -375,10 +376,10 @@ func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *pl
 }
 
 // DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 
 	// pre delete validation
-	functionToDelete, err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions)
+	functionToDelete, err := p.ValidateDeleteFunctionOptions(ctx, deleteFunctionOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to validate function-deletion options")
 	}
@@ -388,7 +389,7 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		return nil
 	}
 	// actual function and its resources deletion
-	return p.delete(deleteFunctionOptions)
+	return p.delete(ctx, deleteFunctionOptions)
 }
 
 func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
@@ -439,7 +440,7 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 }
 
 // CreateProject will create a new project
-func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 
 	// enrich
 	if err := p.EnrichCreateProjectConfig(createProjectOptions); err != nil {
@@ -460,7 +461,7 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 }
 
 // UpdateProject will update an existing project
-func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
 		return nuclio.WrapErrBadRequest(err)
 	}
@@ -473,14 +474,14 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 }
 
 // DeleteProject will delete an existing project
-func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
-	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
+func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
+	if err := p.Platform.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
 	// check only, do not delete
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCheck {
-		p.Logger.DebugWith("Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
+		p.Logger.DebugWithCtx(ctx, "Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
 		return nil
 	}
 
@@ -492,7 +493,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 }
 
 // GetProjects will list existing projects
-func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	projects, err := p.projectsClient.Get(getProjectsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting projects")
@@ -648,11 +649,12 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{"172.17.0.1"}, nil
 }
 
-func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
-	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
-		Name:      functionName,
-		Namespace: namespace,
-	})
+func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
+	functions, err := p.GetFunctions(ctx,
+		&platform.GetFunctionsOptions{
+			Name:      functionName,
+			Namespace: namespace,
+		})
 	if err != nil || len(functions) == 0 {
 		return errors.Wrap(err, "Failed to get existing functions")
 	}
@@ -668,7 +670,7 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 	})
 }
 
-func (p *Platform) ValidateFunctionContainersHealthiness() {
+func (p *Platform) ValidateFunctionContainersHealthiness(ctx context.Context) {
 	namespaces, err := p.GetNamespaces()
 	if err != nil {
 		p.Logger.WarnWith("Cannot not get namespaces", "err", err)
@@ -678,11 +680,11 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 	for _, namespace := range namespaces {
 
 		// get functions for that namespace
-		functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := p.GetFunctions(ctx, &platform.GetFunctionsOptions{
 			Namespace: namespace,
 		})
 		if err != nil {
-			p.Logger.WarnWith("Failed to get namespaced functions",
+			p.Logger.WarnWithCtx(ctx, "Failed to get namespaced functions",
 				"namespace", namespace,
 				"err", err)
 			continue
@@ -720,7 +722,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 				Name: containerName,
 			})
 			if err != nil {
-				p.Logger.WarnWith("Failed to get containers by name",
+				p.Logger.WarnWithCtx(ctx, "Failed to get containers by name",
 					"err", err,
 					"containerName", containerName)
 				continue
@@ -728,11 +730,11 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 
 			// if function container does not exists, mark as unhealthy
 			if len(containers) == 0 {
-				p.Logger.WarnWith("No containers were found", "functionName", functionName)
+				p.Logger.WarnWithCtx(ctx, "No containers were found", "functionName", functionName)
 
 				// no running containers were found for function, set function unhealthy
 				if err := p.setFunctionUnhealthy(function); err != nil {
-					p.Logger.ErrorWith("Failed to mark a function as unhealthy",
+					p.Logger.ErrorWithCtx(ctx, "Failed to mark a function as unhealthy",
 						"err", err,
 						"functionName", functionName,
 						"namespace", namespace)
@@ -745,7 +747,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			// check ready function to ensure its container is healthy
 			if functionIsReady {
 				if err := p.checkAndSetFunctionUnhealthy(container.ID, function); err != nil {
-					p.Logger.ErrorWith("Failed to check a function's health and mark it as unhealthy if necessary",
+					p.Logger.ErrorWithCtx(ctx, "Failed to check a function's health and mark it as unhealthy if necessary",
 						"err", err,
 						"functionName", functionName,
 						"namespace", namespace)
@@ -755,7 +757,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness() {
 			// check unhealthy function to see if its container id is healthy again
 			if functionWasSetAsUnhealthy {
 				if err := p.checkAndSetFunctionHealthy(container.ID, function); err != nil {
-					p.Logger.ErrorWith("Failed to check a function's health and mark it as unhealthy if necessary",
+					p.Logger.ErrorWithCtx(ctx, "Failed to check a function's health and mark it as unhealthy if necessary",
 						"err", err,
 						"functionName", functionName,
 						"namespace", namespace)
@@ -859,12 +861,12 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	}, nil
 }
 
-func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 
 	// delete the function from the local store
-	err := p.localStore.DeleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
+	err := p.localStore.DeleteFunction(ctx, &deleteFunctionOptions.FunctionConfig.Meta)
 	if err != nil && err != nuclio.ErrNotFound {
-		p.Logger.WarnWith("Failed to delete a function from the local store", "err", err.Error())
+		p.Logger.WarnWithCtx(ctx, "Failed to delete a function from the local store", "err", err.Error())
 	}
 
 	getContainerOptions := &dockerclient.GetContainerOptions{
@@ -894,7 +896,7 @@ func (p *Platform) delete(deleteFunctionOptions *platform.DeleteFunctionOptions)
 		return errors.Wrapf(err, "Failed to delete a function volume")
 	}
 
-	p.Logger.InfoWith("Successfully deleted function",
+	p.Logger.InfoWithCtx(ctx, "Successfully deleted function",
 		"name", deleteFunctionOptions.FunctionConfig.Meta.Name)
 	return nil
 }
