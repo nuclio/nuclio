@@ -378,7 +378,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Node selector validation failed")
 	}
 
-	if err := ap.validateProjectExists(functionConfig); err != nil {
+	if err := ap.validateProjectExists(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Project existence validation failed")
 	}
 
@@ -589,7 +589,8 @@ func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
 }
 
 // FilterFunctionEventsByPermissions will filter out some function events
-func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.PermissionOptions,
+func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
+	permissionOptions *opa.PermissionOptions,
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 
 	// no cleansing is mandated
@@ -623,7 +624,7 @@ func (ap *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.Per
 	}
 
 	if len(filteredFunctionEventNames) > 0 {
-		ap.Logger.DebugWith("Some function events were filtered out",
+		ap.Logger.DebugWithCtx(ctx,"Some function events were filtered out",
 			"functionEventNames", filteredFunctionEventNames)
 	}
 	return permittedFunctionEvents, nil
@@ -722,17 +723,17 @@ func (ap *Platform) GetProjects(ctx context.Context, getProjectsOptions *platfor
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
-func (ap *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+func (ap *Platform) CreateAPIGateway(ctx context.Context, createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
 // UpdateAPIGateway will update a previously existing api gateway
-func (ap *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+func (ap *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
 // DeleteAPIGateway will delete a previously existing api gateway
-func (ap *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+func (ap *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
@@ -743,7 +744,7 @@ func (ap *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateway
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
-func (ap *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+func (ap *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
@@ -817,17 +818,17 @@ func (ap *Platform) EnrichFunctionEvent(ctx context.Context, functionEventConfig
 }
 
 // UpdateFunctionEvent will update a previously existing function event
-func (ap *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+func (ap *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
-func (ap *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+func (ap *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	return platform.ErrUnsupportedMethod
 }
 
 // GetFunctionEvents will list existing function events
-func (ap *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+func (ap *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
 
@@ -1364,7 +1365,7 @@ func (ap *Platform) validateVolumes(ctx context.Context, functionConfig *functio
 	return nil
 }
 
-func (ap *Platform) validateProjectExists(functionConfig *functionconfig.Config) error {
+func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// validate the project exists
 	getProjectsOptions := &platform.GetProjectsOptions{

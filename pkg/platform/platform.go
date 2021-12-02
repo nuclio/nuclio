@@ -43,8 +43,8 @@ const (
 // to run over it
 type Platform interface {
 
-	// Initializes the platform
-	Initialize() error
+	// Initialize Initializes the platform
+	Initialize(ctx context.Context) error
 
 	//
 	// Function
@@ -114,32 +114,32 @@ type Platform interface {
 
 	// CreateFunctionEvent will create a new function event that can later be used as a template from
 	// which to invoke functions
-	CreateFunctionEvent(createFunctionEventOptions *CreateFunctionEventOptions) error
+	CreateFunctionEvent(ctx context.Context,createFunctionEventOptions *CreateFunctionEventOptions) error
 
 	// UpdateFunctionEvent will update a previously existing function event
-	UpdateFunctionEvent(updateFunctionEventOptions *UpdateFunctionEventOptions) error
+	UpdateFunctionEvent(ctx context.Context,updateFunctionEventOptions *UpdateFunctionEventOptions) error
 
 	// DeleteFunctionEvent will delete a previously existing function event
-	DeleteFunctionEvent(deleteFunctionEventOptions *DeleteFunctionEventOptions) error
+	DeleteFunctionEvent(ctx context.Context,deleteFunctionEventOptions *DeleteFunctionEventOptions) error
 
 	// GetFunctionEvents will list existing function events
-	GetFunctionEvents(getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
+	GetFunctionEvents(ctx context.Context,getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
 
 	// FilterFunctionEventsByPermissions will filter out some function events
-	FilterFunctionEventsByPermissions(*opa.PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
+	FilterFunctionEventsByPermissions(context.Context, *opa.PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
 
 	//
 	// API Gateway
 	//
 
 	// CreateAPIGateway creates and deploy APIGateway
-	CreateAPIGateway(createAPIGatewayOptions *CreateAPIGatewayOptions) error
+	CreateAPIGateway(ctx context.Context, createAPIGatewayOptions *CreateAPIGatewayOptions) error
 
 	// UpdateAPIGateway will update a previously deployed api gateway
-	UpdateAPIGateway(updateAPIGatewayOptions *UpdateAPIGatewayOptions) error
+	UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *UpdateAPIGatewayOptions) error
 
 	// DeleteAPIGateway will delete a previously deployed api gateway
-	DeleteAPIGateway(deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
+	DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
 
 	// GetAPIGateways will list existing api gateways
 	GetAPIGateways(getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
@@ -186,10 +186,10 @@ type Platform interface {
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error
 
-	// Get Onbuild stage for multistage builds
+	// GetOnbuildStages Get Onbuild stage for multistage builds
 	GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error)
 
-	// Change Onbuild artifact paths depending on the type of the builder used
+	// TransformOnbuildArtifactPaths Change Onbuild artifact paths depending on the type of the builder used
 	TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error)
 
 	// GetOnbuildImageRegistry returns onbuild base registry
@@ -201,10 +201,10 @@ type Platform interface {
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string
 
-	// Save build logs from platform logger to function store or k8s
+	// SaveFunctionDeployLogs Save build logs from platform logger to function store or k8s
 	SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error
 
-	// Parse and construct a function processor logs and brief error
+	// GetProcessorLogsAndBriefError Parse and construct a function processor logs and brief error
 	GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string)
 
 	// GetContainerBuilderKind returns the container-builder kind

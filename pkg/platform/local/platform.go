@@ -141,7 +141,7 @@ func NewPlatform(ctx context.Context,
 	return newPlatform, nil
 }
 
-func (p *Platform) Initialize() error {
+func (p *Platform) Initialize(ctx context.Context) error {
 	if err := p.projectsClient.Initialize(); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
@@ -504,8 +504,8 @@ func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
-func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	if err := p.Platform.EnrichFunctionEvent(&createFunctionEventOptions.FunctionEventConfig); err != nil {
+func (p *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+	if err := p.Platform.EnrichFunctionEvent(ctx, &createFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -527,8 +527,8 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 }
 
 // UpdateFunctionEvent will update a previously existing function event
-func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
-	if err := p.Platform.EnrichFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig); err != nil {
+func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+	if err := p.Platform.EnrichFunctionEvent(ctx, &updateFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -558,7 +558,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
-func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+func (p *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	functionEvents, err := p.localStore.GetFunctionEvents(&platform.GetFunctionEventsOptions{
 		Meta: deleteFunctionEventOptions.Meta,
 	})
@@ -587,13 +587,15 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 }
 
 // GetFunctionEvents will list existing function events
-func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	functionEvents, err := p.localStore.GetFunctionEvents(getFunctionEventsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read function events from a local store")
 	}
 
-	return p.Platform.FilterFunctionEventsByPermissions(&getFunctionEventsOptions.PermissionOptions, functionEvents)
+	return p.Platform.FilterFunctionEventsByPermissions(ctx,
+		&getFunctionEventsOptions.PermissionOptions,
+		functionEvents)
 }
 
 // GetAPIGateways not supported on this platform

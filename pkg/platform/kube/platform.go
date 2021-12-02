@@ -153,7 +153,7 @@ func NewPlatform(parentLogger logger.Logger,
 	return newPlatform, nil
 }
 
-func (p *Platform) Initialize() error {
+func (p *Platform) Initialize(ctx context.Context, ) error {
 	if err := p.projectsClient.Initialize(); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
@@ -616,7 +616,7 @@ func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *plat
 
 // DeleteProject will delete a previously existing project
 func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
-	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
+	if err := p.Platform.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
@@ -651,14 +651,16 @@ func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
-func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+func (p *Platform) CreateAPIGateway(ctx context.Context,
+	createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 
 	// enrich
-	p.enrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig, nil)
+	p.enrichAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig, nil)
 
 	// validate
-	if err := p.validateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig,
+	if err := p.validateAPIGatewayConfig(ctx,
+		createAPIGatewayOptions.APIGatewayConfig,
 		createAPIGatewayOptions.ValidateFunctionsExistence,
 		nil); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
@@ -680,7 +682,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 }
 
 // UpdateAPIGateway will update a previously existing api gateway
-func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
 	apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Get(updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
@@ -689,10 +691,11 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	}
 
 	// enrich
-	p.enrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
+	p.enrichAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
 
 	// validate
-	if err := p.validateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig,
+	if err := p.validateAPIGatewayConfig(ctx,
+		updateAPIGatewayOptions.APIGatewayConfig,
 		updateAPIGatewayOptions.ValidateFunctionsExistence,
 		apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate api gateway")
@@ -716,14 +719,14 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 }
 
 // DeleteAPIGateway will delete a previously existing api gateway
-func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+func (p *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
 
 	// validate
 	if err := p.validateAPIGatewayMeta(&deleteAPIGatewayOptions.Meta); err != nil {
 		return errors.Wrap(err, "Failed to validate an API gateway's metadata")
 	}
 
-	p.Logger.DebugWith("Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
+	p.Logger.DebugWithCtx(ctx,"Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
 
 	// delete
 	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
@@ -805,9 +808,9 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
-func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+func (p *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
 
-	if err := p.Platform.EnrichFunctionEvent(&createFunctionEventOptions.FunctionEventConfig); err != nil {
+	if err := p.Platform.EnrichFunctionEvent(ctx, &createFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -837,7 +840,7 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 }
 
 // UpdateFunctionEvent will update a previously existing function event
-func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
 	updatedFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig, &updatedFunctionEvent)
 
@@ -848,7 +851,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 		return errors.Wrap(err, "Failed to get a function event")
 	}
 
-	if err := p.Platform.EnrichFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig); err != nil {
+	if err := p.Platform.EnrichFunctionEvent(ctx, &updateFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -880,7 +883,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
-func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+func (p *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	functionEventToDelete, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
 		Get(deleteFunctionEventOptions.Meta.Name, metav1.GetOptions{})
@@ -915,7 +918,7 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 }
 
 // GetFunctionEvents will list existing function events
-func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	var platformFunctionEvents []platform.FunctionEvent
 	var functionEvents []nuclioio.NuclioFunctionEvent
 
@@ -985,7 +988,8 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		platformFunctionEvents = append(platformFunctionEvents, newFunctionEvent)
 	}
 
-	return p.Platform.FilterFunctionEventsByPermissions(&getFunctionEventsOptions.PermissionOptions,
+	return p.Platform.FilterFunctionEventsByPermissions(ctx,
+		&getFunctionEventsOptions.PermissionOptions,
 		platformFunctionEvents)
 }
 
@@ -1277,7 +1281,8 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) enrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayConfig,
+func (p *Platform) enrichAPIGatewayConfig(ctx context.Context,
+	apiGatewayConfig *platform.APIGatewayConfig,
 	existingApiGatewayConfig *nuclioio.NuclioAPIGateway) {
 
 	// meta
@@ -1302,7 +1307,7 @@ func (p *Platform) enrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayC
 		}
 	}
 
-	p.EnrichLabelsWithProjectName(apiGatewayConfig.Meta.Labels)
+	p.EnrichLabelsWithProjectName(ctx, apiGatewayConfig.Meta.Labels)
 }
 
 func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
@@ -1317,7 +1322,8 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 	return nil
 }
 
-func (p *Platform) validateAPIGatewayConfig(apiGateway *platform.APIGatewayConfig,
+func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
+	apiGateway *platform.APIGatewayConfig,
 	validateFunctionsExistence bool,
 	existingAPIGateway *nuclioio.NuclioAPIGateway) error {
 
@@ -1349,7 +1355,7 @@ func (p *Platform) validateAPIGatewayConfig(apiGateway *platform.APIGatewayConfi
 		}
 	}
 
-	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(apiGateway, validateFunctionsExistence)
+	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateway upstream functions")
 	}
@@ -1666,7 +1672,8 @@ func (p *Platform) alignIngressHostSubdomainLevel(host string, randomCharsLength
 	return strings.Join(reconstructedHost, ".")
 }
 
-func (p *Platform) getAPIGatewayUpstreamFunctions(apiGateway *platform.APIGatewayConfig,
+func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
+	apiGateway *platform.APIGatewayConfig,
 	validateFunctionExistence bool) ([]platform.Function, error) {
 	var upstreamFunctions []platform.Function
 
@@ -1675,7 +1682,7 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(apiGateway *platform.APIGatewa
 	for _, upstream := range apiGateway.Spec.Upstreams {
 		upstream := upstream
 		errGroup.Go("GetUpstreamFunction", func() error {
-			function, err := p.getFunction(apiGateway.Meta.Namespace, upstream.NuclioFunction.Name)
+			function, err := p.getFunction(ctx, apiGateway.Meta.Namespace, upstream.NuclioFunction.Name)
 			if err != nil {
 				return errors.New("Failed to get upstream function")
 			}

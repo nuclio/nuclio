@@ -46,7 +46,7 @@ func (mp *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-func (mp *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+func (mp *Platform) CreateFunction(ctx context.Context, createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 
 	// release requester
 	if createFunctionOptions.CreationStateUpdated != nil {
@@ -121,7 +121,7 @@ func (mp *Platform) CreateProject(ctx context.Context, createProjectOptions *pla
 }
 
 // UpdateProject will update a previously existing project
-func (mp *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+func (mp *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	args := mp.Called(updateProjectOptions)
 	return args.Error(0)
 }
@@ -147,20 +147,20 @@ func (mp *Platform) GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]stri
 // API Gateway
 //
 
-// Create APIGateway creates and deploys a new api gateway
-func (mp *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+// CreateAPIGateway creates and deploys a new api gateway
+func (mp *Platform) CreateAPIGateway(ctx context.Context, createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	args := mp.Called(createAPIGatewayOptions)
 	return args.Error(0)
 }
 
 // UpdateAPIGateway will update a previously deployed api gateway
-func (mp *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+func (mp *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
 	args := mp.Called(updateAPIGatewayOptions)
 	return args.Error(0)
 }
 
 // DeleteAPIGateway will delete a previously deployed api gateway
-func (mp *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+func (mp *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
 	args := mp.Called(deleteAPIGatewayOptions)
 	return args.Error(0)
 }
@@ -177,30 +177,31 @@ func (mp *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateway
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
-func (mp *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+func (mp *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
 	args := mp.Called(createFunctionEventOptions)
 	return args.Error(0)
 }
 
 // UpdateFunctionEvent will update a previously existing function event
-func (mp *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+func (mp *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
 	args := mp.Called(updateFunctionEventOptions)
 	return args.Error(0)
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
-func (mp *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+func (mp *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	args := mp.Called(deleteFunctionEventOptions)
 	return args.Error(0)
 }
 
 // GetFunctionEvents will list existing function events
-func (mp *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+func (mp *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	args := mp.Called(getFunctionEventsOptions)
 	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
 }
 
-func (mp *Platform) FilterFunctionEventsByPermissions(permissionOptions *opa.PermissionOptions,
+func (mp *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
+	permissionOptions *opa.PermissionOptions,
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 	args := mp.Called(permissionOptions, functionEvents)
 	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
@@ -311,7 +312,7 @@ func (mp *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, na
 	return nil
 }
 
-func (mp *Platform) Initialize() error {
+func (mp *Platform) Initialize(ctx context.Context, ) error {
 	return nil
 }
 

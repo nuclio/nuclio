@@ -19,6 +19,7 @@ limitations under the License.
 package kube
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"testing"
@@ -181,7 +182,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionNodeSelectorEnrichment()
 		suite.Run(testCase.name, func() {
 			functionConfig := functionconfig.NewConfig()
 			functionConfig.Spec.NodeSelector = testCase.nodeSelector
-			err := suite.Platform.EnrichFunctionConfig(functionConfig)
+			err := suite.Platform.EnrichFunctionConfig(context.TODO(), functionConfig)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedNodeSelector, functionConfig.Spec.NodeSelector)
 
@@ -255,7 +256,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err := suite.Platform.ValidateFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -422,7 +423,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
 
 			// run enrichment
-			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
 			if testCase.expectedEnrichedTriggers != nil {
@@ -431,7 +432,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}
 
 			// run validation
-			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
 			if testCase.validationError != "" {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 				suite.Require().Equal(testCase.validationError, errors.RootCause(err).Error())
@@ -525,7 +526,8 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
 			}
 
 			functionInstance, functionConfigAndStatus, err := suite.Platform.
-				getFunctionInstanceAndConfig(suite.Namespace,
+				getFunctionInstanceAndConfig(context.TODO(),
+					suite.Namespace,
 					testCase.functionName,
 					true)
 
@@ -629,7 +631,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
-			functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+			functions, err := suite.Platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.Namespace,
 				PermissionOptions: opa.PermissionOptions{
@@ -730,7 +732,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
+			err := suite.Platform.UpdateFunction(context.TODO(), &platform.UpdateFunctionOptions{
 				FunctionMeta: &functionconfig.Meta{
 					Name:      functionName,
 					Namespace: suite.Namespace,
@@ -821,7 +823,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			err := suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{
 				FunctionConfig: functionconfig.Config{
 					Meta: functionconfig.Meta{
 						Name:      functionName,
@@ -984,7 +986,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 					},
 				},
 			}
-			err := suite.Platform.enrichHTTPTriggers(functionConfig)
+			err := suite.Platform.enrichHTTPTriggers(context.TODO(), functionConfig)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.want,
 				functionConfig.Spec.Triggers[testCase.httpTrigger.Name].Attributes["ingresses"])
@@ -1104,7 +1106,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
-			functionEvents, err := suite.Platform.GetFunctionEvents(&platform.GetFunctionEventsOptions{
+			functionEvents, err := suite.Platform.GetFunctionEvents(context.TODO(), &platform.GetFunctionEventsOptions{
 				Meta: platform.FunctionEventMeta{
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
@@ -1203,7 +1205,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 				defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.UpdateFunctionEvent(&platform.UpdateFunctionEventOptions{
+			err := suite.Platform.UpdateFunctionEvent(context.TODO(), &platform.UpdateFunctionEventOptions{
 				FunctionEventConfig: platform.FunctionEventConfig{
 					Meta: platform.FunctionEventMeta{
 						Name:      functionEventName,
@@ -1292,7 +1294,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 				defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.DeleteFunctionEvent(&platform.DeleteFunctionEventOptions{
+			err := suite.Platform.DeleteFunctionEvent(context.TODO(), &platform.DeleteFunctionEventOptions{
 				Meta: platform.FunctionEventMeta{
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
@@ -1635,7 +1637,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				if testCase.expectedEnrichedAPIGateway.Meta.Labels == nil {
 					testCase.expectedEnrichedAPIGateway.Meta.Labels = map[string]string{}
 				}
-				suite.Platform.EnrichLabelsWithProjectName(testCase.expectedEnrichedAPIGateway.Meta.Labels)
+				suite.Platform.EnrichLabelsWithProjectName(context.TODO(), testCase.expectedEnrichedAPIGateway.Meta.Labels)
 			}
 
 			// run test case specific set up function if given
@@ -1645,7 +1647,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run enrichment
-			suite.Platform.enrichAPIGatewayConfig(testCase.apiGatewayConfig, nil)
+			suite.Platform.enrichAPIGatewayConfig(context.TODO(), testCase.apiGatewayConfig, nil)
 			if testCase.expectedEnrichedAPIGateway != nil {
 				suite.Require().Empty(cmp.Diff(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig))
 			}
@@ -1672,7 +1674,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run validation
-			err := suite.Platform.validateAPIGatewayConfig(testCase.apiGatewayConfig,
+			err := suite.Platform.validateAPIGatewayConfig(context.TODO(), testCase.apiGatewayConfig,
 				testCase.validateFunctionsExistence,
 				nil)
 			if testCase.validationError != "" {
@@ -1765,7 +1767,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 				Once()
 
 			// update
-			err := suite.Platform.UpdateAPIGateway(updateAPIGatewayOptions)
+			err := suite.Platform.UpdateAPIGateway(context.TODO(), updateAPIGatewayOptions)
 			suite.Require().NoError(err)
 		})
 	}
