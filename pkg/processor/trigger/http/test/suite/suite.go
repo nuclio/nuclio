@@ -19,6 +19,7 @@ limitations under the License.
 package httpsuite
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -116,7 +117,7 @@ func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *plat
 	// add some more common CreateFunctionOptions
 	suite.PopulateDeployOptions(createFunctionOptions)
 
-	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
 	suite.Require().Error(err, expectedMessage)
 }
 

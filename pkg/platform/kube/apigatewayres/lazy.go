@@ -121,7 +121,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name string) {
-	lc.logger.Debug("Sleeping for 4 seconds so nginx controller will stabilize")
+	lc.logger.DebugWithCtx(ctx, "Sleeping for 4 seconds so nginx controller will stabilize")
 
 	// sleep 4 seconds as a safety, so nginx will finish updating the ingresses properly (it takes time)
 	time.Sleep(4 * time.Second)

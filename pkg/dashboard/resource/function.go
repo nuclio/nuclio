@@ -224,6 +224,8 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
 
+	ctx := request.Context()
+
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
 		defer func() {
@@ -250,7 +252,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		functionInfo.Spec.Build.Offline = dashboardServer.Offline
 
 		// just deploy. the status is async through polling
-		if _, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{
+		if _, err := fr.getPlatform().CreateFunction(ctx, &platform.CreateFunctionOptions{
 			Logger: fr.Logger,
 			FunctionConfig: functionconfig.Config{
 				Meta: *functionInfo.Meta,

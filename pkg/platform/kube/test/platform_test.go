@@ -863,6 +863,8 @@ type UpdateFunctionTestSuite struct {
 }
 
 func (suite *UpdateFunctionTestSuite) TestSanity() {
+	ctx := context.TODO()
+
 	createFunctionOptions := suite.CompileCreateFunctionOptions("update-sanity")
 	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 		"something": "here",
@@ -875,12 +877,12 @@ func (suite *UpdateFunctionTestSuite) TestSanity() {
 	zero := 0
 	createFunctionOptions.FunctionConfig.Spec.Disable = true
 	createFunctionOptions.FunctionConfig.Spec.Replicas = &zero
-	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(ctx, createFunctionOptions)
 	suite.Require().NoError(err, "Failed to create function")
 
 	// delete leftovers
 	defer func() {
-		err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+		err = suite.Platform.DeleteFunction(ctx, &platform.DeleteFunctionOptions{
 			FunctionConfig: createFunctionOptions.FunctionConfig,
 		})
 		suite.Require().NoError(err, "Failed to delete function")
@@ -891,7 +893,7 @@ func (suite *UpdateFunctionTestSuite) TestSanity() {
 	createFunctionOptions.FunctionConfig.Meta.Annotations["added-annotation"] = "added"
 
 	// update function
-	err = suite.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
+	err = suite.Platform.UpdateFunction(ctx, &platform.UpdateFunctionOptions{
 		FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
 		FunctionSpec: &createFunctionOptions.FunctionConfig.Spec,
 	})

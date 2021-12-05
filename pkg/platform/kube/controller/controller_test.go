@@ -67,7 +67,8 @@ func (suite *ControllerTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	// create controller
-	suite.controller, err = NewController(suite.logger,
+	suite.controller, err = NewController(context.TODO(),
+		suite.logger,
 		suite.namespace,
 		"",
 		suite.k8sClientSet,

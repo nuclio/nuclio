@@ -37,7 +37,8 @@ type functionEventOperator struct {
 	operator   operator.Operator
 }
 
-func newFunctionEventOperator(parentLogger logger.Logger,
+func newFunctionEventOperator(ctx context.Context,
+	parentLogger logger.Logger,
 	controller *Controller,
 	resyncInterval *time.Duration,
 	numWorkers int) (*functionEventOperator, error) {
@@ -62,7 +63,7 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create function event operator")
 	}
 
-	parentLogger.DebugWith("Created function event operator",
+	parentLogger.DebugWithCtx(ctx,"Created function event operator",
 		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval)
 
@@ -76,13 +77,13 @@ func (feo *functionEventOperator) CreateOrUpdate(ctx context.Context, object run
 		return errors.New("Received unexpected object, expected function event")
 	}
 
-	feo.logger.DebugWith("Created/updated", "functionEventName", functionEvent.Name)
+	feo.logger.DebugWithCtx(ctx,"Created/updated", "functionEventName", functionEvent.Name)
 	return nil
 }
 
 // Delete handles delete of an object
 func (feo *functionEventOperator) Delete(ctx context.Context, namespace string, name string) error {
-	feo.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
+	feo.logger.DebugWithCtx(ctx,"Deleted", "namespace", namespace, "name", name)
 
 	return nil
 }

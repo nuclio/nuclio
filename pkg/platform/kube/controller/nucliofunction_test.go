@@ -67,7 +67,8 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 		suite.functionClientSet)
 	suite.Require().NoError(err)
 
-	suite.controller, err = NewController(suite.logger, suite.namespace,
+	suite.controller, err = NewController(context.TODO(),
+		suite.logger, suite.namespace,
 		"",
 		suite.k8sClientSet,
 		suite.functionClientSet,

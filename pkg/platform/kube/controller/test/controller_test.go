@@ -20,6 +20,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -85,7 +86,7 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	createFunctionOptions := suite.CompileCreateFunctionOptions(fmt.Sprintf("test-%s", suite.TestID))
 
 	// enrich with defaults
-	err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+	err := suite.Platform.EnrichFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	// build function

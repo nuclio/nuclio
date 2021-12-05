@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -58,7 +59,8 @@ type Controller struct {
 	functionMonitoringInterval time.Duration
 }
 
-func NewController(parentLogger logger.Logger,
+func NewController(ctx context.Context,
+	parentLogger logger.Logger,
 	namespace string,
 	imagePullSecrets string,
 	kubeClientSet kubernetes.Interface,
@@ -95,7 +97,7 @@ func NewController(parentLogger logger.Logger,
 		functionMonitoringInterval: functionMonitoringInterval,
 	}
 
-	newController.logger.DebugWith("Read configuration",
+	newController.logger.DebugWithCtx(ctx,"Read configuration",
 		"platformConfig", newController.platformConfiguration,
 		"version", version.Get())
 
@@ -162,8 +164,8 @@ func NewController(parentLogger logger.Logger,
 	return newController, nil
 }
 
-func (c *Controller) Start() error {
-	c.logger.InfoWith("Starting controller",
+func (c *Controller) Start(ctx context.Context) error {
+	c.logger.InfoWithCtx(ctx,"Starting controller",
 		"namespace", c.namespace)
 
 	// start operators
@@ -176,7 +178,7 @@ func (c *Controller) Start() error {
 		return errors.Wrap(err, "Failed to start monitors")
 	}
 
-	c.logger.InfoWith("Controller has successfully started", "namespace", c.namespace)
+	c.logger.InfoWithCtx(ctx,"Controller has successfully started", "namespace", c.namespace)
 	return nil
 }
 

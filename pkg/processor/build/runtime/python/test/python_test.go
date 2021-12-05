@@ -20,6 +20,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -77,11 +78,11 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 	// we should see "Looking in indexes: XXX" message in the logs
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install non-existing-package"}
 	suite.PopulateDeployOptions(createFunctionOptions)
-	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
 	suite.Assert().NotNil(err)
 
 	// delete leftovers
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 	stackTrace := errors.GetErrorStackString(err, 10)

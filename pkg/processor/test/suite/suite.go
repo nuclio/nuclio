@@ -19,6 +19,7 @@ limitations under the License.
 package processorsuite
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -276,7 +277,7 @@ func (suite *TestSuite) TearDownTest() {
 
 // GetFunction will return the first function it finds
 func (suite *TestSuite) GetFunction(getFunctionOptions *platform.GetFunctionsOptions) platform.Function {
-	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
+	functions, err := suite.Platform.GetFunctions(context.TODO(), getFunctionOptions)
 	suite.Require().NoError(err, "Failed to get functions")
 	suite.Len(functions, 1, "Expected to find one function")
 	return functions[0]
@@ -323,7 +324,7 @@ func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platfor
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
@@ -340,7 +341,7 @@ func (suite *TestSuite) DeployFunctionExpectErrorAndRedeploy(createFunctionOptio
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
@@ -357,7 +358,7 @@ func (suite *TestSuite) DeployFunctionAndRedeployExpectError(createFunctionOptio
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
@@ -572,7 +573,7 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 
 		}
 
-		suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{ // nolint: errcheck
 			FunctionConfig: functionConfig,
 		})
 	}()
@@ -584,7 +585,7 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 	onAfterContainerRun OnAfterContainerRun) (*platform.CreateFunctionResult, error) {
 
 	// deploy the function
-	deployResult, deployErr := suite.Platform.CreateFunction(createFunctionOptions)
+	deployResult, deployErr := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)

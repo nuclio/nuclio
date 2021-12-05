@@ -131,7 +131,7 @@ func (suite *TestSuite) TestBuildDirWithInvalidInlineFunctionConfig() {
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// deploy the function
-	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(errors.Cause(err).Error(), "Failed to parse inline configuration")
 }

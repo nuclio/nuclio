@@ -74,11 +74,11 @@ func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTim
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// deploy the function - it's OK for it to time out
-	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
 	suite.Require().Error(err)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 }

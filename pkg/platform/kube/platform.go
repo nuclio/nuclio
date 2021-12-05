@@ -82,7 +82,8 @@ func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig
 }
 
 // NewPlatform instantiates a new kubernetes platform
-func NewPlatform(parentLogger logger.Logger,
+func NewPlatform(ctx context.Context,
+	parentLogger logger.Logger,
 	platformConfiguration *platformconfig.Config,
 	defaultNamespace string) (*Platform, error) {
 	newPlatform := &Platform{}
@@ -98,7 +99,7 @@ func NewPlatform(parentLogger logger.Logger,
 	newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
 
 	// create consumer
-	newPlatform.consumer, err = client.NewConsumer(newPlatform.Logger, newPlatform.kubeconfigPath)
+	newPlatform.consumer, err = client.NewConsumer(ctx, newPlatform.Logger, newPlatform.kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a consumer")
 	}
