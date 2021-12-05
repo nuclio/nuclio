@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/kafka/scram"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/kafka/tokenprovider/oauth"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -343,14 +344,14 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	if config.Net.TLS.Enable {
 		k.Logger.DebugWith("Enabling TLS",
 			"calen", len(k.configuration.CACert))
+		config.Net.TLS.Config = &tls.Config{
+			InsecureSkipVerify: k.configuration.TLS.InsecureSkipVerify,
+		}
 
 		if k.configuration.CACert != "" {
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM([]byte(k.configuration.CACert))
-
-			tlsConfig := &tls.Config{
-				RootCAs: caCertPool,
-			}
+			config.Net.TLS.Config.RootCAs = caCertPool
 
 			if k.configuration.AccessKey != "" && k.configuration.AccessCertificate != "" {
 				k.Logger.DebugWith("Configuring cert authentication",
@@ -362,12 +363,9 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 					return nil, errors.Wrap(err, "Failed to create X.509 key pair")
 				}
 
-				tlsConfig.Certificates = []tls.Certificate{keypair}
+				config.Net.TLS.Config.Certificates = []tls.Certificate{keypair}
 			}
-			config.Net.TLS.Config = tlsConfig
 		}
-
-		config.Net.TLS.Enable = true
 	}
 
 	// configure SASL if applicable
@@ -381,6 +379,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 		config.Net.SASL.Password = k.configuration.SASL.Password
 		config.Net.SASL.Mechanism = sarama.SASLMechanism(k.configuration.SASL.Mechanism)
 		config.Net.SASL.Handshake = k.configuration.SASL.Handshake
+		config.Net.SASL.SCRAMClientGeneratorFunc = k.resolveSCRAMClientGeneratorFunc(config.Net.SASL.Mechanism)
 
 		// per mechanism configuration
 		if config.Net.SASL.Mechanism == sarama.SASLTypeOAuth {
@@ -447,5 +446,14 @@ func (k *kafka) createPartitionWorkerAllocator(session sarama.ConsumerGroupSessi
 
 	default:
 		return nil, errors.Errorf("Unknown worker allocation mode: %s", k.configuration.WorkerAllocationMode)
+	}
+}
+
+func (k *kafka) resolveSCRAMClientGeneratorFunc(mechanism sarama.SASLMechanism) func() sarama.SCRAMClient {
+	switch mechanism {
+	case sarama.SASLTypeSCRAMSHA256, sarama.SASLTypeSCRAMSHA512:
+		return func() sarama.SCRAMClient { return scram.NewClient(mechanism) }
+	default:
+		return nil
 	}
 }
