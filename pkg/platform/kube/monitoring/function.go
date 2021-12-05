@@ -206,7 +206,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 
 func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 
-	fm.logger.Debug("Checking if function is available")
+	fm.logger.DebugWith("Checking if function is available", "resourceVersion", deployment.ResourceVersion)
 	// require at least one replica
 	atLeastOneReplicasRequested := deployment.Spec.Replicas != nil && *deployment.Spec.Replicas > 0
 	if !atLeastOneReplicasRequested {
