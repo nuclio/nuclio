@@ -313,6 +313,11 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			continue
 		}
 
+		podEvents, err := lc.kubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{
+			FieldSelector: fmt.Sprintf("involvedObject.name=%s", pods.Items[0].GetName()),
+		})
+		lc.logger.DebugWith("Resolving fail fast", "podEvents", podEvents)
+
 		// fail-fast mechanism
 		if err := lc.resolveFailFast(pods.Items,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
