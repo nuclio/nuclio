@@ -2187,13 +2187,15 @@ func (lc *lazyClient) resolveFailFast(pods []v1.Pod,
 
 			lc.logger.DebugWith("TOMER - Pod event!", "podName", pod.Name, "eventReason", event.Reason, "event", event)
 
-			if event.Reason == "TriggerScaleUp" {
+			if event.Source.Component == "cluster-autoscaler" {
+				if event.Reason == "TriggerScaleUp" {
 
-				// TODO: increase timeout?
-				continue
-			} else if event.Reason == "NotTriggerScaleUp" || event.Reason == "ScaleDown" {
+					// TODO: increase timeout?
+					continue
+				} else if event.Reason == "NotTriggerScaleUp" || event.Reason == "ScaleDown" {
 
-				return errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
+					return errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
+				}
 			}
 		}
 
