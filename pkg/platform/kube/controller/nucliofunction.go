@@ -94,9 +94,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Received unexpected object, expected function")
 	}
 
-
 	fo.logger.InfoWith("Inside CreateOrUpdate controller function", "id", xid.New().String())
-
 
 	defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
 		fo.logger,
