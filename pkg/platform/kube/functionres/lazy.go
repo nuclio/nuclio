@@ -315,6 +315,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 		// fail-fast mechanism
 		if err := lc.resolveFailFast(pods.Items,
+			namespace,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 
 			return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
@@ -2161,6 +2162,7 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 }
 
 func (lc *lazyClient) resolveFailFast(pods []v1.Pod,
+	namespace string,
 	functionResourcesCreateOrUpdateTimestamp time.Time) error {
 
 	// infer from the pod statuses if the function deployment had failed
@@ -2171,6 +2173,28 @@ func (lc *lazyClient) resolveFailFast(pods []v1.Pod,
 		// (subtract 2 seconds from create/update timestamp because of ms accuracy loss of pod.creationTimestamp)
 		if !pod.GetCreationTimestamp().After(functionResourcesCreateOrUpdateTimestamp.Add(-2 * time.Second)) {
 			continue
+		}
+
+		// get pod events to check if pod triggered auto scale
+		podEvents, err := lc.kubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{
+			FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, event := range podEvents.Items {
+
+			lc.logger.DebugWith("TOMER - Pod event!", "podName", pod.Name, "eventReason", event.Reason, "event", event)
+
+			if event.Reason == "TriggerScaleUp" {
+
+				// TODO: increase timeout?
+				continue
+			} else if event.Reason == "NotTriggerScaleUp" || event.Reason == "ScaleDown" {
+
+				return errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
+			}
 		}
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
