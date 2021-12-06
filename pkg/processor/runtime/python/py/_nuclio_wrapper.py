@@ -323,9 +323,11 @@ class Wrapper(object):
 
         response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
                                                               entrypoint_output)
+        self._logger.log('test', event=event, entrypoint_output=entrypoint_output, response=response)
 
         # try to json encode the response
         encoded_response = self._json_encoder.encode(response)
+        self._logger.log('test2', encoded_response=encoded_response)
 
         # write response to the socket
         self._write_packet_to_processor('r' + encoded_response)
