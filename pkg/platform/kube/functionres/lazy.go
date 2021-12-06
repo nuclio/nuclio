@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -47,7 +48,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
-	"golang.org/x/sync/errgroup"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -304,7 +304,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		}
 
 		// get the deployment pods. if it doesn't exist yet, retry a bit later
-		pods, err := lc.kubeClientSet.CoreV1().
+		podsList, err := lc.kubeClientSet.CoreV1().
 			Pods(namespace).
 			List(metav1.ListOptions{
 				LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
@@ -314,7 +314,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		}
 
 		// fail-fast mechanism
-		if err := lc.resolveFailFast(pods.Items,
+		if err := lc.resolveFailFast(podsList,
 			namespace,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 
@@ -511,7 +511,7 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 	errGroup := errgroup.Group{}
 	for _, cronJobToDelete := range cronJobsToDelete.Items {
 		cronJobToDelete := cronJobToDelete
-		errGroup.Go(func() error {
+		errGroup.Go("DeleteCronTrigger", func() error {
 			// delete this removed cron trigger cron job
 			err := lc.kubeClientSet.BatchV1beta1().
 				CronJobs(function.Namespace).
@@ -2053,7 +2053,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.NuclioFuncti
 func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName string, namespace string) error {
 
 	// create error group
-	errGroup, _ := errgroup.WithContext(ctx)
+	errGroup, _ := errgroup.WithContext(ctx, lc.logger)
 
 	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
@@ -2068,7 +2068,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 
 	for _, functionEvent := range result.Items {
 		functionEvent := functionEvent
-		errGroup.Go(func() error {
+		errGroup.Go("DeleteEvents", func() error {
 			err = lc.nuclioClientSet.NuclioV1beta1().
 				NuclioFunctionEvents(namespace).
 				Delete(functionEvent.Name, &metav1.DeleteOptions{})
@@ -2161,46 +2161,24 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	}
 }
 
-func (lc *lazyClient) resolveFailFast(pods []v1.Pod,
+func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 	namespace string,
 	functionResourcesCreateOrUpdateTimestamp time.Time) error {
 
-	// infer from the pod statuses if the function deployment had failed
-	// failure of one pod is enough to tell that the deployment had failed
-	for _, pod := range pods {
+	var pods []v1.Pod
+	for _, pod := range podsList.Items {
 
 		// skip irrelevant pods (leftovers of previous function deployments)
 		// (subtract 2 seconds from create/update timestamp because of ms accuracy loss of pod.creationTimestamp)
 		if !pod.GetCreationTimestamp().After(functionResourcesCreateOrUpdateTimestamp.Add(-2 * time.Second)) {
 			continue
 		}
+		pods = append(pods, pod)
+	}
 
-		// get pod events to check if pod triggered auto scale
-		podEvents, err := lc.kubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{
-			FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
-		})
-		if err != nil {
-			return err
-		}
-
-		for _, event := range podEvents.Items {
-
-			lc.logger.DebugWith("TOMER - Pod event!", "podName", pod.Name, "eventReason", event.Reason, "event", event)
-
-			if event.Source.Component == "cluster-autoscaler" {
-				lc.logger.Debug("TOMER - Cluster autoscaler event!")
-				if event.Reason == "TriggerScaleUp" {
-
-					lc.logger.Debug("TOMER - TriggerScaleUp event!")
-					// TODO: increase timeout?
-					continue
-				} else if event.Reason == "NotTriggerScaleUp" || event.Reason == "ScaleDown" {
-
-					lc.logger.Debug("TOMER - NotTriggerScaleUp or ScaleDown event!")
-					return errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
-				}
-			}
-		}
+	// infer from the pod statuses if the function deployment had failed
+	// failure of one pod is enough to tell that the deployment had failed
+	for _, pod := range pods {
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 
@@ -2213,6 +2191,10 @@ func (lc *lazyClient) resolveFailFast(pods []v1.Pod,
 				}
 			}
 		}
+	}
+
+	errGroup, _ := errgroup.WithContext(context.TODO(), lc.logger)
+	for _, pod := range pods {
 
 		for _, condition := range pod.Status.Conditions {
 
@@ -2220,14 +2202,53 @@ func (lc *lazyClient) resolveFailFast(pods []v1.Pod,
 			// (meaning no k8s node can currently run it, because of insufficient resources etc..)
 			if pod.Status.Phase == v1.PodPending && condition.Reason == "Unschedulable" {
 
-				// TODO: if pods has an event that cluster is going to scale up - don't return error
+				errGroup.Go("WaitAndCheckAutoScaleEvents", func() error {
+					time.Sleep(15 * time.Second)
 
-				return errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
+					err := lc.checkAutoScalerEvents(pod, namespace)
+					return err
+				})
 			}
 		}
 	}
+	if err := errGroup.Wait(); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func (lc *lazyClient) checkAutoScalerEvents(pod v1.Pod, namespace string) error {
+
+	// get pod events to check if pod triggered auto scale
+	podEvents, err := lc.kubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, event := range podEvents.Items {
+
+		lc.logger.DebugWith("TOMER - Pod event!", "podName", pod.Name, "eventReason", event.Reason, "event", event)
+
+		if event.Source.Component == "cluster-autoscaler" {
+
+			lc.logger.Debug("TOMER - Cluster autoscaler event!")
+			if event.Reason == "TriggerScaleUp" {
+
+				lc.logger.Debug("TOMER - TriggerScaleUp event!")
+				// TODO: increase timeout?
+				return nil
+
+			} else if event.Reason == "NotTriggerScaleUp" || event.Reason == "ScaleDown" {
+
+				lc.logger.Debug("TOMER - NotTriggerScaleUp or ScaleDown event!")
+				return errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
+			}
+		}
+	}
+	return errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
 }
 
 //
