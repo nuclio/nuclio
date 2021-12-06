@@ -260,13 +260,14 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	workerInstance *worker.Worker,
 	event nuclio.Event) (response interface{}, processError error) {
-
+	at.Logger.DebugWith("Event", "body", event.GetBody())
 	event, err := at.prepareEvent(event, workerInstance)
 	if err != nil {
 		return nil, err
 	}
 
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)
+	at.Logger.DebugWith("Event2", "response", response)
 
 	// increment statistics based on results. if process error is nil, we successfully handled
 	at.UpdateStatistics(processError == nil)

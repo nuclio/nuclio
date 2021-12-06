@@ -501,6 +501,8 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	// format the response into the context, based on its type
 	switch typedResponse := response.(type) {
 	case nuclio.Response:
+		h.Logger.DebugWith("Event3", "response body", typedResponse.Body)
+
 		fileStreamPath := ""
 		fileStreamDeleteAfterSend := false
 
@@ -554,9 +556,13 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		}
 
 	case []byte:
+		h.Logger.DebugWith("Event4", "typedResponse", typedResponse)
+
 		ctx.Response.SetBodyRaw(typedResponse)
 
 	case string:
+		h.Logger.DebugWith("Event5", "typedResponse", typedResponse)
+
 		ctx.WriteString(typedResponse) // nolint: errcheck
 	}
 }
