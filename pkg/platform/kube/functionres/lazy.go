@@ -2240,20 +2240,12 @@ func (lc *lazyClient) isPodAutoScaledUp(pod v1.Pod, namespace string) (bool, err
 
 	for _, event := range podEvents.Items {
 
-		lc.logger.DebugWith("TOMER - Pod event!", "podName", pod.Name, "eventReason", event.Reason, "event", event)
-
 		if event.Source.Component == "cluster-autoscaler" {
-
-			lc.logger.Debug("TOMER - Cluster autoscaler event!")
 			if event.Reason == "TriggerScaleUp" {
 
-				lc.logger.Debug("TOMER - TriggerScaleUp event!")
 				// TODO: increase timeout?
 				return true, nil
-
 			} else if event.Reason == "NotTriggerScaleUp" || event.Reason == "ScaleDown" {
-
-				lc.logger.Debug("TOMER - NotTriggerScaleUp or ScaleDown event!")
 				return false, errors.Errorf(strings.TrimSpace(event.Message))
 			}
 		}
