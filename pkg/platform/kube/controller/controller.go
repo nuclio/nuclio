@@ -106,7 +106,7 @@ func NewController(ctx context.Context,
 	functionresClient.SetPlatformConfigurationProvider(newController)
 
 	// create a function operator
-	newController.functionOperator, err = newFunctionOperator(parentLogger,
+	newController.functionOperator, err = newFunctionOperator(ctx, parentLogger,
 		newController,
 		&newController.resyncInterval,
 		imagePullSecrets,
@@ -118,7 +118,8 @@ func NewController(ctx context.Context,
 	}
 
 	// create a function event operator
-	newController.functionEventOperator, err = newFunctionEventOperator(parentLogger,
+	newController.functionEventOperator, err = newFunctionEventOperator(ctx,
+		parentLogger,
 		newController,
 		&newController.resyncInterval,
 		functionEventOperatorNumWorkers)
@@ -128,7 +129,8 @@ func NewController(ctx context.Context,
 	}
 
 	// create a project operator
-	newController.projectOperator, err = newProjectOperator(parentLogger,
+	newController.projectOperator, err = newProjectOperator(ctx,
+		parentLogger,
 		newController,
 		&newController.resyncInterval,
 		projectOperatorNumWorkers)
@@ -137,7 +139,8 @@ func NewController(ctx context.Context,
 	}
 
 	// create an api gateway operator
-	newController.apiGatewayOperator, err = newAPIGatewayOperator(parentLogger,
+	newController.apiGatewayOperator, err = newAPIGatewayOperator(ctx,
+		parentLogger,
 		newController,
 		&newController.resyncInterval,
 		apiGatewayOperatorNumWorkers)
@@ -145,7 +148,8 @@ func NewController(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create api gateway operator")
 	}
 
-	newController.functionMonitoring, err = monitoring.NewFunctionMonitor(parentLogger,
+	newController.functionMonitoring, err = monitoring.NewFunctionMonitor(ctx,
+		parentLogger,
 		namespace,
 		kubeClientSet,
 		nuclioClientSet,
@@ -156,7 +160,8 @@ func NewController(ctx context.Context,
 
 	// create cron job monitoring
 	if platformConfiguration.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
-		newController.cronJobMonitoring = NewCronJobMonitoring(parentLogger,
+		newController.cronJobMonitoring = NewCronJobMonitoring(ctx,
+			parentLogger,
 			newController,
 			&cronJobStaleResourcesCleanupInterval)
 	}
@@ -169,12 +174,12 @@ func (c *Controller) Start(ctx context.Context) error {
 		"namespace", c.namespace)
 
 	// start operators
-	if err := c.startOperators(); err != nil {
+	if err := c.startOperators(ctx); err != nil {
 		return errors.Wrap(err, "Failed to start operators")
 	}
 
 	// start monitors
-	if err := c.startMonitors(); err != nil {
+	if err := c.startMonitors(ctx); err != nil {
 		return errors.Wrap(err, "Failed to start monitors")
 	}
 
@@ -182,16 +187,16 @@ func (c *Controller) Start(ctx context.Context) error {
 	return nil
 }
 
-func (c *Controller) Stop() error {
+func (c *Controller) Stop(ctx context.Context) error {
 	// TODO: stop operators
 
 	// stop cronjob monitoring
 	if c.cronJobMonitoring != nil {
-		c.cronJobMonitoring.stop()
+		c.cronJobMonitoring.stop(ctx)
 	}
 
 	// stop function monitor
-	c.functionMonitoring.Stop()
+	c.functionMonitoring.Stop(ctx)
 	return nil
 }
 
@@ -228,7 +233,7 @@ func (c *Controller) GetFunctionMonitoring() *monitoring.FunctionMonitor {
 	return c.functionMonitoring
 }
 
-func (c *Controller) startOperators() error {
+func (c *Controller) startOperators(ctx context.Context,) error {
 
 	// start the function operator
 	if err := c.functionOperator.start(); err != nil {
@@ -246,24 +251,24 @@ func (c *Controller) startOperators() error {
 	}
 
 	// start the api gateway operator
-	if err := c.apiGatewayOperator.start(); err != nil {
+	if err := c.apiGatewayOperator.start(ctx); err != nil {
 		return errors.Wrap(err, "Failed to start api gateway operator")
 	}
 
 	return nil
 }
 
-func (c *Controller) startMonitors() error {
+func (c *Controller) startMonitors(ctx context.Context) error {
 
 	// start function monitor
-	if err := c.functionMonitoring.Start(); err != nil {
+	if err := c.functionMonitoring.Start(ctx); err != nil {
 		return errors.Wrap(err, "Failed to start function monitor")
 	}
 
 	if c.cronJobMonitoring != nil {
 
 		// start cron job monitoring
-		c.cronJobMonitoring.start()
+		c.cronJobMonitoring.start(ctx)
 	}
 
 	return nil

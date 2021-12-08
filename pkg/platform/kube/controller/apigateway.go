@@ -56,7 +56,8 @@ func newAPIGatewayOperator(ctx context.Context,
 	}
 
 	// create an api gateway operator
-	newAPIGatewayOperator.operator, err = operator.NewMultiWorker(loggerInstance,
+	newAPIGatewayOperator.operator, err = operator.NewMultiWorker(ctx,
+		loggerInstance,
 		numWorkers,
 		newAPIGatewayOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioAPIGateway{},
@@ -177,8 +178,8 @@ func (ago *apiGatewayOperator) setAPIGatewayState(ctx context.Context,
 	return err
 }
 
-func (ago *apiGatewayOperator) start() error {
-	go ago.operator.Start() // nolint: errcheck
+func (ago *apiGatewayOperator) start(ctx context.Context) error {
+	go ago.operator.Start(ctx) // nolint: errcheck
 
 	return nil
 }

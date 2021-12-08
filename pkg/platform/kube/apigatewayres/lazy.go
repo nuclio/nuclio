@@ -107,7 +107,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 	// must be done synchronously, first primary and then canary
 	// otherwise, when there is only canary ingress, the endpoint will not work (nginx behavior)
 	for _, ingressResources := range ingressesToCreate {
-		if _, _, err := lc.ingressManager.CreateOrUpdateResources(ingressResources); err != nil {
+		if _, _, err := lc.ingressManager.CreateOrUpdateResources(ctx, ingressResources); err != nil {
 			lc.logger.WarnWithCtx(ctx, "Failed to create/update api gateway ingress resources",
 				"err", errors.Cause(err),
 				"ingressName", ingressResources.Ingress.Name)
@@ -130,7 +130,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) {
 	lc.logger.DebugWithCtx(ctx, "Deleting api gateway base ingress", "name", name)
 
-	err := lc.ingressManager.DeleteByName(kube.IngressNameFromAPIGatewayName(name, false), namespace, true)
+	err := lc.ingressManager.DeleteByName(ctx, kube.IngressNameFromAPIGatewayName(name, false), namespace, true)
 	if err != nil {
 		lc.logger.WarnWithCtx(ctx, "Failed to delete base ingress. Continuing with deletion",
 			"err", errors.Cause(err))
@@ -138,7 +138,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 
 	lc.logger.DebugWithCtx(ctx, "Deleting api gateway canary ingress", "name", name)
 
-	err = lc.ingressManager.DeleteByName(kube.IngressNameFromAPIGatewayName(name, true), namespace, true)
+	err = lc.ingressManager.DeleteByName(ctx, kube.IngressNameFromAPIGatewayName(name, true), namespace, true)
 	if err != nil {
 		lc.logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
 			"err", errors.Cause(err))
@@ -152,7 +152,8 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 	// remove old canary ingress if it exists
 	// this works thanks to an assumption that ingress names == api gateway name
 	previousCanaryIngressName := kube.IngressNameFromAPIGatewayName(apiGateway.Name, true)
-	if err := lc.ingressManager.DeleteByName(previousCanaryIngressName,
+	if err := lc.ingressManager.DeleteByName(ctx,
+		previousCanaryIngressName,
 		apiGateway.Namespace,
 		true); err != nil {
 		lc.logger.WarnWithCtx(ctx,

@@ -20,6 +20,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"testing"
@@ -301,7 +302,8 @@ func (suite *FunctionMonitoringTestSuite) TestPausedFunctionShouldRemainInReadyS
 		deployResults.UpdatedFunctionConfig.Spec.Replicas = &zero
 		deployResults.UpdatedFunctionConfig.Spec.Disable = true
 		deployResults.UpdatedFunctionConfig.Spec.Image = deployResults.Image
-		err := suite.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
+		err := suite.Platform.UpdateFunction(context.TODO(),
+			&platform.UpdateFunctionOptions{
 			FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
 			FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,
 		})

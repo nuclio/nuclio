@@ -56,11 +56,13 @@ type lazyTestSuite struct {
 	suite.Suite
 	logger logger.Logger
 	client lazyClient
+	ctx    context.Context
 }
 
 func (suite *lazyTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.client.logger = suite.logger
+	suite.ctx = context.TODO()
 
 	// use a fake kube client
 	suite.client.kubeClientSet = fake.NewSimpleClientset()
@@ -189,7 +191,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			suite.client.nginxIngressUpdateGracePeriod = 0
 
 			// "create the ingress
-			ingressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+			ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 			suite.Require().NoError(err)
 			suite.Require().NotNil(ingressInstance)
 			suite.Require().NotEmpty(ingressInstance.Annotations)
@@ -250,12 +252,13 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	suite.client.nginxIngressUpdateGracePeriod = 0
 
 	// "create the ingress
-	ingressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+	ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(ingressInstance)
 
 	// "create" the deployment
-	deploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
+	deploymentInstance, err := suite.client.createOrUpdateDeployment(suite.ctx,
+		functionLabels,
 		"image-pull-secret-str",
 		&function)
 	suite.Require().NoError(err)
@@ -265,7 +268,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	for i := 0; i < 1000; i++ {
 
 		// "update" the ingress
-		updatedIngressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+		updatedIngressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 		suite.Require().NoError(err)
 		suite.Require().NotNil(updatedIngressInstance)
 
@@ -273,7 +276,8 @@ func (suite *lazyTestSuite) TestNoChanges() {
 		suite.Require().Empty(cmp.Diff(ingressInstance, updatedIngressInstance))
 
 		// "update" the deployment
-		updatedDeploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
+		updatedDeploymentInstance, err := suite.client.createOrUpdateDeployment(suite.ctx,
+			functionLabels,
 			"image-pull-secret-str",
 			&function)
 		suite.Require().NoError(err)
@@ -298,7 +302,8 @@ func (suite *lazyTestSuite) TestNoTriggers() {
 		"nuclio.io/function-version": "latest",
 	}
 
-	err := suite.client.populateIngressConfig(labels,
+	err := suite.client.populateIngressConfig(suite.ctx,
+		labels,
 		&functionInstance,
 		&ingressMeta,
 		&ingressSpec)
@@ -326,7 +331,8 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 	}
 
 	// ensure no ingress rules are populated
-	err := suite.client.populateIngressConfig(labels,
+	err := suite.client.populateIngressConfig(suite.ctx,
+		labels,
 		&functionInstance,
 		&ingressMeta,
 		&ingressSpec)
@@ -357,7 +363,8 @@ func (suite *lazyTestSuite) TestScaleToZeroSpecificAnnotations() {
 	}
 
 	functionLabels := suite.client.getFunctionLabels(functionInstance)
-	err := suite.client.populateIngressConfig(functionLabels,
+	err := suite.client.populateIngressConfig(suite.ctx,
+		functionLabels,
 		functionInstance,
 		&ingressMeta,
 		&extv1beta1.IngressSpec{})
@@ -420,7 +427,8 @@ func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 		"nuclio.io/function-version": "latest",
 	}
 
-	err := suite.client.populateIngressConfig(labels,
+	err := suite.client.populateIngressConfig(suite.ctx,
+		labels,
 		&functionInstance,
 		&ingressMeta,
 		&ingressSpec)

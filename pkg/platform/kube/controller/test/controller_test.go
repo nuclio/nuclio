@@ -71,7 +71,7 @@ func (suite *ControllerTestSuite) TestStaleResourceVersion() {
 	suite.Require().Equal(0, int(suite.Controller.GetResyncInterval()))
 
 	// start controller
-	err = suite.Controller.Start()
+	err = suite.Controller.Start(context.TODO())
 	suite.Require().NoError(err)
 
 	suite.WaitForFunctionState(&platform.GetFunctionsOptions{

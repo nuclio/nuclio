@@ -119,7 +119,7 @@ func (suite *KubeTestSuite) SetupSuite() {
 	if !suite.DisableControllerStart {
 
 		// start controller
-		if err := suite.Controller.Start(); err != nil {
+		if err := suite.Controller.Start(context.TODO()); err != nil {
 			suite.Require().NoError(err, "Failed to start controller")
 		}
 	}
@@ -129,7 +129,7 @@ func (suite *KubeTestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
 	// default project gets deleted during testings, ensure it is being recreated
-	err := suite.Platform.EnsureDefaultProjectExistence()
+	err := suite.Platform.EnsureDefaultProjectExistence(context.TODO())
 	suite.Require().NoError(err, "Failed to ensure default project exists")
 }
 
@@ -302,7 +302,7 @@ func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIG
 }
 
 func (suite *KubeTestSuite) GetProject(getProjectFunctions *platform.GetProjectsOptions) platform.Project {
-	projects, err := suite.Platform.GetProjects(getProjectFunctions)
+	projects, err := suite.Platform.GetProjects(context.TODO(), getProjectFunctions)
 	suite.Require().NoError(err, "Failed to get projects")
 	return projects[0]
 }
@@ -494,14 +494,14 @@ func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.C
 	onAfterIngressCreated OnAfterIngressCreated) error {
 
 	// deploy the api gateway
-	if err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions); err != nil {
+	if err := suite.Platform.CreateAPIGateway(context.TODO(), createAPIGatewayOptions); err != nil {
 		return err
 	}
 
 	// delete the api gateway when done
 	defer func() {
 		suite.Logger.Debug("Deleting deployed api gateway")
-		err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
+		err := suite.Platform.DeleteAPIGateway(context.TODO(), &platform.DeleteAPIGatewayOptions{
 			Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
 		})
 		suite.Require().NoError(err)
@@ -614,7 +614,8 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		ingressManager)
 	suite.Require().NoError(err)
 
-	controllerInstance, err := controller.NewController(suite.Logger,
+	controllerInstance, err := controller.NewController(context.TODO(),
+		suite.Logger,
 		suite.Namespace,
 		"",
 		suite.KubeClientSet,
