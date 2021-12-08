@@ -21,6 +21,7 @@ package functionres
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -585,6 +586,86 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 	suite.True(deployment.Spec.Paused)
 	suite.Equal(deployment.Spec.Template.Spec.ServiceAccountName, "")
 	suite.Require().NoError(err)
+}
+
+func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
+	namespace := "some-namespace"
+	podName := "my-pod"
+
+	for _, testCase := range []struct {
+		name          string
+		event         v1.Event
+		expectedError bool
+	}{
+		{
+			name: "PodScalingUp",
+			event: v1.Event{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "PodScalingUpEvent",
+				},
+				InvolvedObject: v1.ObjectReference{
+					Name: podName,
+				},
+				Source: v1.EventSource{
+					Component: "cluster-autoscaler",
+				},
+				Reason: "TriggerScaleUp",
+			},
+			expectedError: false,
+		},
+		{
+			name: "PodScalingDown",
+			event: v1.Event{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "PodScalingDownEvent",
+				},
+				InvolvedObject: v1.ObjectReference{
+					Name: podName,
+				},
+				Source: v1.EventSource{
+					Component: "cluster-autoscaler",
+				},
+				Reason: "ScaleDown",
+			},
+			expectedError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+
+			pod := v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              podName,
+					Namespace:         namespace,
+					CreationTimestamp: metav1.Now(),
+				},
+				Status: v1.PodStatus{
+					Phase: v1.PodPending,
+					Conditions: []v1.PodCondition{
+						{
+							Reason: "Unschedulable",
+						},
+					},
+				},
+			}
+			podsList := v1.PodList{
+				Items: []v1.Pod{pod},
+			}
+
+			_, err := suite.client.kubeClientSet.CoreV1().Events(namespace).Create(&testCase.event)
+			suite.Require().NoError(err)
+
+			// call resolveFailFast
+			err = suite.client.resolveFailFast(&podsList, namespace, time.Now())
+			if testCase.expectedError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+
+			err = suite.client.kubeClientSet.CoreV1().Events(namespace).Delete(testCase.event.Name, nil)
+			suite.Require().NoError(err)
+		})
+	}
 }
 
 func (suite *lazyTestSuite) getIngressRuleByHost(rules []extv1beta1.IngressRule, host string) *extv1beta1.IngressRule {
