@@ -224,8 +224,9 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
+	suite.Controller.GetFunctionOperator().EnableDebugLog = true
 	functionMonitoringSleepTimeout := 2*suite.Controller.GetFunctionMonitoringInterval() +
-		monitoring.PostDeploymentMonitoringBlockingInterval
+		monitoring.PostDeploymentMonitoringBlockingInterval + 60 * time.Second // TOMER - increased sleep interval
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
@@ -252,7 +253,6 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 			}
 			return true
 		})
-		suite.Controller.GetFunctionOperator().EnableDebugLog = true
 
 		suite.Logger.Debug("Function pods are running, changing resource quota")
 
@@ -267,6 +267,17 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 				},
 			},
 		}, func() {
+
+			resourceQuota, err := suite.KubeClientSet.
+				CoreV1().
+				ResourceQuotas(suite.Namespace).
+				List(metav1.ListOptions{})
+			suite.Require().NoError(err)
+
+			suite.Logger.InfoWith("Verifying resource quota",
+				"resourceQuota",
+				resourceQuota)
+
 			suite.Controller.GetFunctionMonitoring().EnableDebugLog = true
 			suite.DeleteFunctionPods(functionName)
 
