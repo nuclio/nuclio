@@ -226,7 +226,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 
 	suite.Controller.GetFunctionOperator().EnableDebugLog = true
 	functionMonitoringSleepTimeout := 2*suite.Controller.GetFunctionMonitoringInterval() +
-		monitoring.PostDeploymentMonitoringBlockingInterval + 60 * time.Second // TOMER - increased sleep interval
+		monitoring.PostDeploymentMonitoringBlockingInterval + 30*time.Second // TOMER - increased sleep interval
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
