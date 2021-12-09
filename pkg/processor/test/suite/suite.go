@@ -287,6 +287,8 @@ func (suite *TestSuite) WaitForFunctionState(getFunctionOptions *platform.GetFun
 	desiredFunctionState functionconfig.FunctionState,
 	duration time.Duration) {
 
+	suite.Logger.InfoWith("Inside WaitForFunctionState", "timeout", duration.String)
+
 	err := common.RetryUntilSuccessful(duration,
 		1*time.Second,
 		func() bool {

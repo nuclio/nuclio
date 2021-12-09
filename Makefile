@@ -496,18 +496,18 @@ generate-crds: modules ensure-gopath
 test-unit: modules ensure-gopath
 	go test -tags=test_unit -v ./cmd/... ./pkg/... -short
 
-.PHONY: test-k8s-nuctl
-test-k8s-nuctl:
-	NUCTL_EXTERNAL_IP_ADDRESSES=$(if $(NUCTL_EXTERNAL_IP_ADDRESSES),$(NUCTL_EXTERNAL_IP_ADDRESSES),"localhost") \
-		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
-		NUCTL_PLATFORM=kube \
-		NUCTL_NAMESPACE=$(if $(NUCTL_NAMESPACE),$(NUCTL_NAMESPACE),"default") \
-		go test -tags="test_integration,test_kube" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+#.PHONY: test-k8s-nuctl
+#test-k8s-nuctl:
+#	NUCTL_EXTERNAL_IP_ADDRESSES=$(if $(NUCTL_EXTERNAL_IP_ADDRESSES),$(NUCTL_EXTERNAL_IP_ADDRESSES),"localhost") \
+#		NUCTL_RUN_REGISTRY=$(NUCTL_REGISTRY) \
+#		NUCTL_PLATFORM=kube \
+#		NUCTL_NAMESPACE=$(if $(NUCTL_NAMESPACE),$(NUCTL_NAMESPACE),"default") \
+#		go test -tags="test_integration,test_kube" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
-.PHONY: test-docker-nuctl
-test-docker-nuctl:
-	NUCTL_PLATFORM=local \
-		go test -tags="test_integration,test_local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+#.PHONY: test-docker-nuctl
+#test-docker-nuctl:
+#	NUCTL_PLATFORM=local \
+#		go test -tags="test_integration,test_local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
@@ -523,7 +523,7 @@ test-k8s-undockerized: ensure-gopath
 	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
 	go test \
 		-tags="test_integration,test_kube" \
-		-count 15 \
+		-count 20 \
  		-v \
  		-p 1 \
  		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
@@ -601,16 +601,16 @@ build-test: ensure-gopath build-base
 # Test runtime wrappers
 #
 
-.PHONY: test-nodejs
-test-nodejs:
-	docker run \
-	 --rm \
-	 --volume $(NUCLIO_PATH)/pkg/processor/runtime/nodejs/js:/nuclio/nodejs \
-	 --volume $(NUCLIO_PATH)/test:/nuclio/test \
-	 --workdir /nuclio/nodejs \
-	 --env RUN_MODE=CI \
-	 node:10.20-alpine \
-	 sh -c 'npm install && npm run lint && npm run test'
+#.PHONY: test-nodejs
+#test-nodejs:
+#	docker run \
+#	 --rm \
+#	 --volume $(NUCLIO_PATH)/pkg/processor/runtime/nodejs/js:/nuclio/nodejs \
+#	 --volume $(NUCLIO_PATH)/test:/nuclio/test \
+#	 --workdir /nuclio/nodejs \
+#	 --env RUN_MODE=CI \
+#	 node:10.20-alpine \
+#	 sh -c 'npm install && npm run lint && npm run test'
 
 .PHONY: test-python
 test-python:
