@@ -224,8 +224,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
-	functionMonitoringSleepTimeout := 2 * (suite.Controller.GetFunctionMonitoringInterval() +
-		monitoring.PostDeploymentMonitoringBlockingInterval)
+	functionMonitoringSleepTimeout := suite.Controller.GetFunctionMonitoringInterval() + 60*time.Second
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
