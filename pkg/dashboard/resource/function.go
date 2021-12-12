@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -54,6 +55,7 @@ func (fr *functionResource) ExtendMiddlewares() error {
 
 // GetAll returns all functions
 func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
+	ctx := request.Context()
 	response := map[string]restful.Attributes{}
 
 	// get namespace
@@ -64,7 +66,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 
 	functionName := request.Header.Get("x-nuclio-function-name")
 	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, functionName, false)
-	functions, err := fr.getPlatform().GetFunctions(getFunctionOptions)
+	functions, err := fr.getPlatform().GetFunctions(ctx, getFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -74,7 +76,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		if exportFunction {
-			response[function.GetConfig().Meta.Name] = fr.export(function)
+			response[function.GetConfig().Meta.Name] = fr.export(ctx, function)
 		} else {
 			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
 		}
@@ -85,6 +87,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 
 // GetByID returns a specific function by id
 func (fr *functionResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
+	ctx := request.Context()
 
 	// get and validate namespace
 	namespace := fr.getNamespaceFromRequest(request)
@@ -99,7 +102,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	}
 
 	if fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
-		return fr.export(function), nil
+		return fr.export(ctx, function), nil
 	}
 
 	return fr.functionToAttributes(function), nil
@@ -107,6 +110,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 
 // Create and deploy a function
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
+	ctx := request.Context()
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
@@ -114,7 +118,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
 	// validate there are no 2 functions with the same name
-	functions, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
+	functions, err := fr.getPlatform().GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:        functionInfo.Meta.Name,
 		Namespace:   fr.resolveNamespace(request, functionInfo),
 		AuthSession: fr.getCtxSession(request),
@@ -197,13 +201,13 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) export(function platform.Function) restful.Attributes {
+func (fr *functionResource) export(ctx context.Context, function platform.Function) restful.Attributes {
 	functionConfig := function.GetConfig()
 
-	fr.Logger.DebugWith("Preparing function for export", "functionName", functionConfig.Meta.Name)
+	fr.Logger.DebugWithCtx(ctx,"Preparing function for export", "functionName", functionConfig.Meta.Name)
 	functionConfig.PrepareFunctionForExport(false)
 
-	fr.Logger.DebugWith("Exporting function", "functionName", functionConfig.Meta.Name)
+	fr.Logger.DebugWithCtx(ctx,"Exporting function", "functionName", functionConfig.Meta.Name)
 
 	attributes := restful.Attributes{
 		"metadata": functionConfig.Meta,
@@ -217,7 +221,6 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	functionInfo *functionInfo,
 	authConfig *platform.AuthConfig,
 	waitForFunction bool) error {
-
 	creationStateUpdatedTimeout := 1 * time.Minute
 
 	doneChan := make(chan bool, 1)
@@ -231,7 +234,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				fr.Logger.ErrorWith("Panic caught while creating function",
+				fr.Logger.ErrorWithCtx(ctx,"Panic caught while creating function",
 					"err", err,
 					"stack", string(callStack))
 			}
@@ -267,7 +270,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
 		}); err != nil {
-			fr.Logger.WarnWith("Failed to deploy function", "err", err)
+			fr.Logger.WarnWithCtx(ctx,"Failed to deploy function", "err", err)
 			errDeployingChan <- err
 		}
 
@@ -395,11 +398,12 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 }
 
 func (fr *functionResource) deleteFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	ctx := request.Context()
 
 	// get function config and status from body
 	functionInfo, err := fr.getFunctionInfoFromRequest(request)
 	if err != nil {
-		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
+		fr.Logger.WarnWithCtx(ctx,"Failed to get function config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -429,7 +433,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
 
-	if err := fr.getPlatform().DeleteFunction(&deleteFunctionOptions); err != nil {
+	if err := fr.getPlatform().DeleteFunction(ctx, &deleteFunctionOptions); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError),
@@ -489,8 +493,9 @@ func (fr *functionResource) resolveNamespace(request *http.Request, function *fu
 }
 
 func (fr *functionResource) getFunction(request *http.Request, name string) (platform.Function, error) {
+	ctx := request.Context()
 	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, name, true)
-	functions, err := fr.getPlatform().GetFunctions(getFunctionOptions)
+	functions, err := fr.getPlatform().GetFunctions(ctx, getFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}

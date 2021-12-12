@@ -20,6 +20,7 @@ limitations under the License.
 package buildsuite
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -112,7 +113,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -148,7 +149,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -186,7 +187,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -206,7 +207,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -237,7 +238,7 @@ func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -602,7 +603,7 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 }
 
 func (suite *testSuite) TestGenerateProcessorDockerfile() {
-	newPlatform, err := local.NewPlatform(suite.Logger, &platformconfig.Config{}, "")
+	newPlatform, err := local.NewPlatform(context.TODO(), suite.Logger, &platformconfig.Config{}, "")
 	suite.Require().NoErrorf(err, "Instantiating Platform failed: %s", err)
 
 	builder, err := build.NewBuilder(suite.Logger, newPlatform, nil)

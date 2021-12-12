@@ -36,7 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-type deployCommandeer struct {
+type 	deployCommandeer struct {
 	cmd                             *cobra.Command
 	rootCommandeer                  *RootCommandeer
 	functionConfig                  functionconfig.Config

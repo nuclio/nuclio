@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -66,6 +67,7 @@ func (pr *projectResource) ExtendMiddlewares() error {
 
 // GetAll returns all projects
 func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
+	ctx := request.Context()
 	response := map[string]restful.Attributes{}
 
 	// get namespace
@@ -75,7 +77,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 	}
 
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
-	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
+	projects, err := pr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      request.Header.Get("x-nuclio-project-name"),
 			Namespace: namespace,
@@ -157,7 +159,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 	return pr.createProject(request, projectInfo)
 }
 
-// returns a list of custom routes for the resource
+// GetCustomRoutes returns a list of custom routes for the resource
 func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
@@ -178,8 +180,8 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 func (pr *projectResource) export(request *http.Request, project platform.Project) restful.Attributes {
 	projectMeta := project.GetConfig().Meta
-
-	pr.Logger.InfoWith("Exporting project", "projectName", projectMeta.Name)
+	ctx := request.Context()
+	pr.Logger.InfoWithCtx(ctx,"Exporting project", "projectName", projectMeta.Name)
 
 	// scrub namespace from project
 	projectMeta.Namespace = ""
@@ -198,7 +200,7 @@ func (pr *projectResource) export(request *http.Request, project platform.Projec
 	functionsMap, functionEventsMap := pr.getFunctionsAndFunctionEventsMap(request, project)
 
 	// get api-gateways to export
-	apiGatewaysMap := pr.getAPIGatewaysMap(project)
+	apiGatewaysMap := pr.getAPIGatewaysMap(ctx, project)
 
 	attributes["functions"] = functionsMap
 	attributes["functionEvents"] = functionEventsMap
@@ -207,11 +209,11 @@ func (pr *projectResource) export(request *http.Request, project platform.Projec
 	return attributes
 }
 
-func (pr *projectResource) getAPIGatewaysMap(project platform.Project) map[string]restful.Attributes {
+func (pr *projectResource) getAPIGatewaysMap(ctx context.Context, project platform.Project) map[string]restful.Attributes {
 	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{Namespace: project.GetConfig().Meta.Namespace}
 	apiGatewaysMap, err := apiGatewayResourceInstance.GetAllByNamespace(&getAPIGatewaysOptions, true)
 	if err != nil {
-		pr.Logger.WarnWith("Failed to get all api-gateways in the namespace",
+		pr.Logger.WarnWithCtx(ctx,"Failed to get all api-gateways in the namespace",
 			"namespace", project.GetConfig().Meta.Namespace,
 			"err", err)
 	}
@@ -222,6 +224,7 @@ func (pr *projectResource) getAPIGatewaysMap(project platform.Project) map[strin
 func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Request, project platform.Project) (map[string]restful.Attributes,
 	map[string]restful.Attributes) {
 
+	ctx := request.Context()
 	functionsMap := map[string]restful.Attributes{}
 	functionEventsMap := map[string]restful.Attributes{}
 
@@ -238,7 +241,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 		},
 	}
 
-	functions, err := pr.getPlatform().GetFunctions(getFunctionsOptions)
+	functions, err := pr.getPlatform().GetFunctions(ctx, getFunctionsOptions)
 
 	if err != nil {
 		return functionsMap, functionEventsMap
@@ -263,6 +266,8 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 func (pr *projectResource) createProject(request *http.Request, projectInfoInstance *projectInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
+	ctx := request.Context()
+
 	// create a project config
 	projectConfig := platform.ProjectConfig{
 		Meta: *projectInfoInstance.Meta,
@@ -278,8 +283,8 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
 	// just deploy. the status is async through polling
-	pr.Logger.DebugWith("Creating project", "newProject", newProject)
-	if err := pr.getPlatform().CreateProject(&platform.CreateProjectOptions{
+	pr.Logger.DebugWithCtx(ctx,"Creating project", "newProject", newProject)
+	if err := pr.getPlatform().CreateProject(ctx, &platform.CreateProjectOptions{
 		ProjectConfig: newProject.GetConfig(),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
@@ -300,7 +305,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 
 	// set attributes
 	attributes = pr.projectToAttributes(newProject)
-	pr.Logger.DebugWith("Successfully created project",
+	pr.Logger.DebugWithCtx(ctx,"Successfully created project",
 		"id", id,
 		"attributes", attributes)
 	return
@@ -317,7 +322,7 @@ func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Reques
 
 func (pr *projectResource) importProject(request *http.Request, projectImportOptions *ProjectImportOptions) (
 	id string, attributes restful.Attributes, responseErr error) {
-
+	ctx := request.Context()
 	project, err := pr.importProjectIfMissing(request, projectImportOptions)
 	if err != nil {
 		return "", nil, err
@@ -330,7 +335,7 @@ func (pr *projectResource) importProject(request *http.Request, projectImportOpt
 	}
 
 	// enrich
-	pr.enrichProjectImportInfoImportResources(projectImportOptions.projectInfo)
+	pr.enrichProjectImportInfoImportResources(ctx, projectImportOptions.projectInfo)
 
 	// import
 	failedFunctions := pr.importProjectFunctions(request, projectImportOptions.projectInfo, projectImportOptions.authConfig)
@@ -361,13 +366,15 @@ func (pr *projectResource) importProject(request *http.Request, projectImportOpt
 func (pr *projectResource) importProjectIfMissing(request *http.Request, projectImportOptions *ProjectImportOptions) (
 	platform.Project, error) {
 
+	ctx := request.Context()
+
 	projectName := projectImportOptions.projectInfo.Project.Meta.Name
 	projectNamespace := projectImportOptions.projectInfo.Project.Meta.Namespace
-	pr.Logger.InfoWith("Importing project",
+	pr.Logger.InfoWithCtx(ctx,"Importing project",
 		"projectNamespace", projectNamespace,
 		"projectName", projectName)
 
-	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
+	projects, err := pr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta:        *projectImportOptions.projectInfo.Project.Meta,
 		AuthSession: pr.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
@@ -381,7 +388,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 	// if not exists, create it
 	if len(projects) == 0 {
-		pr.Logger.DebugWith("Project doesn't exist, creating it",
+		pr.Logger.DebugWithCtx(ctx,"Project doesn't exist, creating it",
 			"projectNamespace", projectNamespace,
 			"projectName", projectName)
 
@@ -426,7 +433,9 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 func (pr *projectResource) importProjectFunctions(request *http.Request, projectImportInfoInstance *projectImportInfo,
 	authConfig *platform.AuthConfig) []restful.Attributes {
 
-	pr.Logger.InfoWith("Importing project functions", "project", projectImportInfoInstance.Project.Meta.Name)
+	ctx := request.Context()
+
+	pr.Logger.InfoWithCtx(ctx,"Importing project functions", "project", projectImportInfoInstance.Project.Meta.Name)
 
 	functionCreateChan := make(chan restful.Attributes, len(projectImportInfoInstance.Functions))
 	var functionCreateWaitGroup sync.WaitGroup
@@ -442,7 +451,7 @@ func (pr *projectResource) importProjectFunctions(request *http.Request, project
 			function.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectImportInfoInstance.Project.Meta.Name
 
 			if err := pr.importFunction(request, function, authConfig); err != nil {
-				pr.Logger.WarnWith("Failed importing function upon project import ",
+				pr.Logger.WarnWithCtx(ctx,"Failed importing function upon project import ",
 					"functionName", functionName,
 					"err", err,
 					"projectName", projectImportInfoInstance.Project.Meta.Name)
@@ -469,10 +478,13 @@ func (pr *projectResource) importProjectFunctions(request *http.Request, project
 }
 
 func (pr *projectResource) importFunction(request *http.Request, function *functionInfo, authConfig *platform.AuthConfig) error {
-	pr.Logger.InfoWith("Importing project function",
+	ctx := request.Context()
+
+	pr.Logger.InfoWithCtx(ctx,
+		"Importing project function",
 		"function", function.Meta.Name,
 		"project", function.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
-	functions, err := pr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
+	functions, err := pr.getPlatform().GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:        function.Meta.Name,
 		Namespace:   function.Meta.Namespace,
 		AuthSession: pr.getCtxSession(request),
@@ -572,8 +584,10 @@ func (pr *projectResource) importProjectFunctionEvents(request *http.Request,
 }
 
 func (pr *projectResource) getProjectByName(request *http.Request, projectName, projectNamespace string) (platform.Project, error) {
+	ctx := request.Context()
+
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
-	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
+	projects, err := pr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      projectName,
 			Namespace: projectNamespace,
@@ -599,11 +613,12 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 }
 
 func (pr *projectResource) deleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	ctx := request.Context()
 
 	// get project config and status from body
 	projectInfo, err := pr.getProjectInfoFromRequest(request)
 	if err != nil {
-		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
+		pr.Logger.WarnWithCtx(ctx,"Failed to get project config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -614,7 +629,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 	projectDeletionStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
-	if err := pr.getPlatform().DeleteProject(&platform.DeleteProjectOptions{
+	if err := pr.getPlatform().DeleteProject(ctx, &platform.DeleteProjectOptions{
 		Meta:          *projectInfo.Meta,
 		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
 		RequestOrigin: requestOrigin,
@@ -638,13 +653,13 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 }
 
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-
+	ctx := request.Context()
 	statusCode := http.StatusNoContent
 
 	// get project config and status from body
 	projectInfo, err := pr.getProjectInfoFromRequest(request)
 	if err != nil {
-		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
+		pr.Logger.WarnWithCtx(ctx,"Failed to get project config and status from body", "err", err)
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
@@ -653,7 +668,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
-	if err := pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
+	if err := pr.getPlatform().UpdateProject(ctx, &platform.UpdateProjectOptions{
 		ProjectConfig: platform.ProjectConfig{
 			Meta: *projectInfo.Meta,
 			Spec: *projectInfo.Spec,
@@ -667,7 +682,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 	}); err != nil {
 		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
 		if statusCode > 300 {
-			pr.Logger.WarnWith("Failed to update project",
+			pr.Logger.WarnWithCtx(ctx,"Failed to update project",
 				"err", errors.GetErrorStackString(err, 10))
 		}
 	}
@@ -765,11 +780,12 @@ func (pr *projectResource) processProjectInfo(projectInfoInstance *projectInfo) 
 	return nil
 }
 
-func (pr *projectResource) enrichProjectImportInfoImportResources(projectImportInfoInstance *projectImportInfo) {
+func (pr *projectResource) enrichProjectImportInfoImportResources(ctx context.Context,
+	projectImportInfoInstance *projectImportInfo) {
 	projectName := projectImportInfoInstance.Project.Meta.Name
 	projectNamespace := projectImportInfoInstance.Project.Meta.Namespace
 
-	pr.Logger.DebugWith("Enriching project resources with project name",
+	pr.Logger.DebugWithCtx(ctx,"Enriching project resources with project name",
 		"projectNamespace", projectNamespace,
 		"projectName", projectName)
 
