@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -315,7 +316,6 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 		// fail-fast mechanism
 		if err := lc.resolveFailFast(podsList,
-			namespace,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 
 			return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
@@ -508,10 +508,11 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(functionLabels labels.Set
 	lc.logger.DebugWith("Deleting removed cron trigger cron job",
 		"cronJobsToDelete", cronJobsToDelete)
 
-	errGroup := errgroup.Group{}
+	errGroup, _ := errgroup.WithContext(context.TODO(), lc.logger)
 	for _, cronJobToDelete := range cronJobsToDelete.Items {
 		cronJobToDelete := cronJobToDelete
 		errGroup.Go("DeleteCronTrigger", func() error {
+
 			// delete this removed cron trigger cron job
 			err := lc.kubeClientSet.BatchV1beta1().
 				CronJobs(function.Namespace).
@@ -2162,7 +2163,6 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 }
 
 func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
-	namespace string,
 	functionResourcesCreateOrUpdateTimestamp time.Time) error {
 
 	var pods []v1.Pod
@@ -2193,7 +2193,10 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 		}
 	}
 
+	// check each pod's conditions to determine if there is at least one unschedulable pod
 	errGroup, _ := errgroup.WithContext(context.TODO(), lc.logger)
+	lock := sync.Mutex{}
+	scaleUpOccurred := false
 	for _, pod := range pods {
 		pod := pod
 		for _, condition := range pod.Status.Conditions {
@@ -2205,14 +2208,21 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 				errGroup.Go("WaitAndCheckAutoScaleEvents", func() error {
 					time.Sleep(15 * time.Second)
 
-					triggeredScaleUp, err := lc.isPodAutoScaledUp(pod, namespace)
+					// check if the pod is unschedulable due to scaling up
+					triggeredScaleUp, err := lc.isPodAutoScaledUp(pod)
 					if err != nil {
-						if triggeredScaleUp {
-							return errors.Wrap(err, "Failed to get pod events")
-						}
 						return errors.Wrapf(err,
-							"Autoscaler is unable to schedule NuclioFunction pod (%s)",
+							"Failed to resolve pod (%s) triggered a node scale up",
 							pod.Name)
+					}
+					if triggeredScaleUp {
+						lc.logger.InfoWith("Nuclio function pod has triggered a scale up", "podName", pod.Name)
+						lock.Lock()
+						defer lock.Unlock()
+
+						scaleUpOccurred = true
+					} else {
+						return errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
 					}
 					return nil
 				})
@@ -2220,37 +2230,37 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 		}
 	}
 	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "NuclioFunction pod is unavailable")
+		return errors.Wrap(err, "Failed to verify at least one pod schedulability")
+	}
+	if scaleUpOccurred {
+
+		// TODO: Increase wait timeout?
+		lc.logger.Debug("Scale up occurred")
 	}
 	return nil
 }
 
-func (lc *lazyClient) isPodAutoScaledUp(pod v1.Pod, namespace string) (bool, error) {
+func (lc *lazyClient) isPodAutoScaledUp(pod v1.Pod) (bool, error) {
 
 	// get pod events to check if pod triggered auto scale
-	//podEvents, err := lc.kubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{
-	//	FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
-	//})
-	podEvents, err := lc.kubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{})
+	podEvents, err := lc.kubeClientSet.CoreV1().Events(pod.Namespace).List(metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
+	})
 	if err != nil {
-
-		// true + err tell us there was an error getting events
-		return true, err
+		return false, errors.Wrap(err, "Failed to list pod events")
 	}
 
 	for _, event := range podEvents.Items {
 
 		if event.Source.Component == "cluster-autoscaler" {
 			if event.Reason == "TriggerScaleUp" {
-
-				// TODO: increase timeout?
 				return true, nil
 			} else if event.Reason == "NotTriggerScaleUp" || event.Reason == "ScaleDown" {
-				return false, errors.Errorf(strings.TrimSpace(event.Message))
+				return false, nil
 			}
 		}
 	}
-	return false, errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
+	return false, nil
 }
 
 //

@@ -655,7 +655,7 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 			suite.Require().NoError(err)
 
 			// call resolveFailFast
-			err = suite.client.resolveFailFast(&podsList, namespace, time.Now())
+			err = suite.client.resolveFailFast(&podsList, time.Now())
 			if testCase.expectedError {
 				suite.Require().Error(err)
 			} else {
