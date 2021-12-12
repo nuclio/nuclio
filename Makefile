@@ -526,7 +526,7 @@ test-k8s-undockerized: ensure-gopath
 		-count 20 \
  		-v \
  		-p 1 \
- 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+ 		--timeout 50m \
  		$(shell go list -tags="test_integration,test_kube" ./cmd/... ./pkg/... | grep -v nuctl | grep monitoring)
 
 .PHONY: test-broken-undockerized
