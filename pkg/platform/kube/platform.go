@@ -44,6 +44,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	"github.com/rs/xid"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -172,6 +173,8 @@ func (p *Platform) Initialize() error {
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (
 	*platform.CreateFunctionResult, error) {
 
+	createFunctionCallerID := xid.New().String()
+
 	var err error
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
@@ -277,6 +280,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			// function recovery later on, when Kubernetes become stable
 			// alternatively, set function in error state to indicate deployment has failed
 			if existingFunctionInstance.Status.State == functionconfig.FunctionStateUnhealthy {
+				p.Logger.InfoWith("Tomer - Changing function state to unhealthy", "callerID", createFunctionCallerID)
 				functionStatus.State = functionconfig.FunctionStateUnhealthy
 			}
 		}

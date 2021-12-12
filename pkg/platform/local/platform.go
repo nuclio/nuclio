@@ -50,6 +50,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	"github.com/rs/xid"
 )
 
 type Platform struct {
@@ -1109,6 +1110,8 @@ func (p *Platform) checkAndSetFunctionUnhealthy(containerID string, function pla
 func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 	functionStatus := function.GetStatus()
 
+	callerID := xid.New().String()
+
 	// set function state to error
 	functionStatus.State = functionconfig.FunctionStateUnhealthy
 
@@ -1117,7 +1120,8 @@ func (p *Platform) setFunctionUnhealthy(function platform.Function) error {
 
 	p.Logger.WarnWith("Setting function state as unhealthy",
 		"functionName", function.GetConfig().Meta.Name,
-		"functionStatus", functionStatus)
+		"functionStatus", functionStatus,
+		"callerID", callerID)
 
 	// function container is not healthy or missing, set function state as error
 	return p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{

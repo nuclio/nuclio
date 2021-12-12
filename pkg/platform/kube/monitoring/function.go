@@ -31,6 +31,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -149,9 +150,12 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 		return nil
 	}
 
+	callerID := xid.New().String()
+
 	fm.logger.DebugWith("Getting function deployment function",
 		"functionName", function.Name,
-		"functionNamespace", function.Namespace)
+		"functionNamespace", function.Namespace,
+		"callerID", callerID)
 
 	functionDeployment, err := fm.kubeClientSet.
 		AppsV1().
@@ -170,14 +174,26 @@ func (fm *FunctionMonitor) updateFunctionStatus(function *nuclioio.NuclioFunctio
 		function.Status.State = functionconfig.FunctionStateReady
 		function.Status.Message = ""
 		stateChanged = true
+		if fm.EnableDebugLog {
+			fm.logger.DebugWith("Function state changed to Ready",
+				"stateChanged", stateChanged,
+				"callerID", callerID)
+		}
 	} else if !functionIsAvailable && function.Status.State == functionconfig.FunctionStateReady {
 		function.Status.State = functionconfig.FunctionStateUnhealthy
 		function.Status.Message = string(common.FunctionStateMessageUnhealthy)
 		stateChanged = true
+		if fm.EnableDebugLog {
+			fm.logger.DebugWith("Function state changed to Unhealthy",
+				"stateChanged", stateChanged,
+				"callerID", callerID)
+		}
 	}
 
 	if fm.EnableDebugLog {
-		fm.logger.DebugWith("Function state may have changed", "stateChanged", stateChanged)
+		fm.logger.DebugWith("Function state may have changed",
+			"stateChanged", stateChanged,
+			"callerID", callerID)
 	}
 
 	// return if function did not change
