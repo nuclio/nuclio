@@ -224,9 +224,14 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
+	one := 1
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+
 	suite.Controller.GetFunctionOperator().EnableDebugLog = true
-	functionMonitoringSleepTimeout := suite.Controller.GetFunctionMonitoringInterval() +
-		60*time.Second // TOMER - increased sleep interval
+	functionMonitoringSleepTimeout := 2*suite.Controller.GetFunctionMonitoringInterval() +
+		monitoring.PostDeploymentMonitoringBlockingInterval
+	//functionMonitoringSleepTimeout := suite.Controller.GetFunctionMonitoringInterval() +
+	//	60*time.Second // TOMER - increased sleep interval
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
@@ -283,7 +288,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 
 			suite.Logger.Debug("Deleted all function pods")
 
-			time.Sleep(20 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// wait for controller to mark function in error due to pods being unschedulable
 			suite.WaitForFunctionState(getFunctionOptions,
