@@ -35,6 +35,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type FunctionMonitoringTestSuite struct {
@@ -224,7 +225,9 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
+	zero := intstr.FromInt(0)
 	one := 1
+	createFunctionOptions.FunctionConfig.Spec.DeploymentStrategy.RollingUpdate.MaxUnavailable = &zero
 	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
 
 	suite.Controller.GetFunctionOperator().EnableDebugLog = true
