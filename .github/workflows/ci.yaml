@@ -284,9 +284,9 @@ jobs:
 
       - name: Load nuclio docker images
         run: |
-          make pull-docker-images
-#          make load-docker-images
-#          rm nuclio-docker-images*.tar.gz
+#          make pull-docker-images
+          make load-docker-images
+          rm nuclio-docker-images*.tar.gz
 
       - name: Export env
         run: |
