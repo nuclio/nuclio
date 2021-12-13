@@ -253,7 +253,7 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 		//   > e.g.: when evicting all pods from a single node
 		if condition.Type == appsv1.DeploymentAvailable && condition.Status == v1.ConditionFalse {
 			if fm.EnableDebugLog {
-				fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+				fm.logger.DebugWith("Function is not available 1", "type", condition.Type, "status", condition.Status)
 			}
 			return false
 		}
@@ -263,7 +263,7 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 		//   > e.g.: failed to find a specific resource specified on deployment spec (configmap / service account, etc)
 		if condition.Type == appsv1.DeploymentReplicaFailure {
 			if fm.EnableDebugLog {
-				fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+				fm.logger.DebugWith("Function is not available 2", "type", condition.Type, "status", condition.Status)
 			}
 			return false
 		}
@@ -274,7 +274,7 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 		// https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#failed-deployment
 		if condition.Type == appsv1.DeploymentProgressing && condition.Status == v1.ConditionFalse {
 			if fm.EnableDebugLog {
-				fm.logger.DebugWith("Function is not available", "type", condition.Type, "status", condition.Status)
+				fm.logger.DebugWith("Function is not available 3", "type", condition.Type, "status", condition.Status)
 			}
 			return false
 		}

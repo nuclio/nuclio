@@ -283,6 +283,8 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 
 			suite.Logger.Debug("Deleted all function pods")
 
+			time.Sleep(20 * time.Second)
+
 			// wait for controller to mark function in error due to pods being unschedulable
 			suite.WaitForFunctionState(getFunctionOptions,
 				functionconfig.FunctionStateUnhealthy,
