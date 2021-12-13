@@ -14,7 +14,7 @@ on:
 env:
   REPO: quay.io
   REPO_NAME: nuclio
-  NUCLIO_LABEL: ${{ github.run_number }}
+  NUCLIO_LABEL: 1.7.2 # ${{ github.run_number }}
   NAMESPACE: nuclio
   NUCLIO_GO_TEST_TIMEOUT: "30m"
 
@@ -118,130 +118,130 @@ jobs:
           chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
           "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-      - name: Build
-        run: make docker-images
-        env:
-          NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+#      - name: Build
+#        run: make docker-images
+#        env:
+#          NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+#
+#      # Clean build leftovers
+#      - name: Post build cleanup
+#        run: docker system prune --force
+#
+#      - name: Save
+#        run: make save-docker-images
+#
+#      - name: Upload
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: nuclio-docker-images
+#          path: nuclio-docker-images-*.tar.gz
 
-      # Clean build leftovers
-      - name: Post build cleanup
-        run: docker system prune --force
-
-      - name: Save
-        run: make save-docker-images
-
-      - name: Upload
-        uses: actions/upload-artifact@v2
-        with:
-          name: nuclio-docker-images
-          path: nuclio-docker-images-*.tar.gz
-
-  test_k8s_nuctl:
-    name: Test Kubernetes nuctl
-    runs-on: ubuntu-latest
-    needs:
-      - build_docker_images
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: azure/setup-helm@v1
-        with:
-          version: "v3.6.3"
-
-      - uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.22.0"
-          kubernetes version: "v1.20.11"
-          driver: docker
-          github token: ${{ github.token }}
-          start args: "--addons registry --addons ingress"
-
-      - name: Post minikube setup
-        run: |
-
-          # redirect $(minikube ip):5000 -> localhost:5000
-          docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
-          minikube kubectl -- config view --flatten > kubeconfig_flatten
-
-      - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v2
-        with:
-          name: nuclio-docker-images
-
-      - name: Load nuclio docker images
-        run: |
-
-          # load nuclio docker images to host docker
-          make load-docker-images
-
-          # activate minikube docker
-          eval $(minikube -p minikube docker-env)
-
-          # load nuclio docker images to minikube
-          make load-docker-images
-          rm nuclio-docker-images*.tar.gz
-
-      - name: Export env
-        run: |
-          echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
-          echo "NUCTL_REGISTRY=localhost:5000" >> $GITHUB_ENV
-          echo "NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL=$REPO" >> $GITHUB_ENV
-          echo "NUCTL_NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
-          echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
-          echo "NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
-          echo "NUCTL_DEFAULT_SERVICE_TYPE=NodePort" >> $GITHUB_ENV
-
-      - name: Install nuclio helm chart
-        run: |
-          minikube kubectl -- create namespace ${NAMESPACE}
-          cat test/k8s/ci_assets/helm_values.yaml \
-            | envsubst \
-            | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
-
-      - name: Run nuctl k8s tests
-        run: |
-
-          # write function host to /etc/hosts
-          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
-
-          # run test
-          make test-k8s-nuctl
-
-  test_docker_nuctl:
-    name: Test Docker nuctl
-    runs-on: ubuntu-latest
-    needs:
-      - build_docker_images
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v2
-        with:
-          name: nuclio-docker-images
-
-      - name: Load nuclio docker images
-        run: |
-          make load-docker-images
-          rm nuclio-docker-images*.tar.gz
-
-      - name: Run nuctl docker tests
-        run: |
-          make test-docker-nuctl
+#  test_k8s_nuctl:
+#    name: Test Kubernetes nuctl
+#    runs-on: ubuntu-latest
+#    needs:
+#      - build_docker_images
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - uses: azure/setup-helm@v1
+#        with:
+#          version: "v3.6.3"
+#
+#      - uses: actions/cache@v2
+#        with:
+#          path: ~/go/pkg/mod
+#          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+#          restore-keys: |
+#            ${{ runner.os }}-go-
+#
+#      - uses: manusa/actions-setup-minikube@v2.4.2
+#        with:
+#          minikube version: "v1.22.0"
+#          kubernetes version: "v1.20.11"
+#          driver: docker
+#          github token: ${{ github.token }}
+#          start args: "--addons registry --addons ingress"
+#
+#      - name: Post minikube setup
+#        run: |
+#
+#          # redirect $(minikube ip):5000 -> localhost:5000
+#          docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
+#          minikube kubectl -- config view --flatten > kubeconfig_flatten
+#
+#      - name: Fetch nuclio docker images
+#        uses: actions/download-artifact@v2
+#        with:
+#          name: nuclio-docker-images
+#
+#      - name: Load nuclio docker images
+#        run: |
+#
+#          # load nuclio docker images to host docker
+#          make load-docker-images
+#
+#          # activate minikube docker
+#          eval $(minikube -p minikube docker-env)
+#
+#          # load nuclio docker images to minikube
+#          make load-docker-images
+#          rm nuclio-docker-images*.tar.gz
+#
+#      - name: Export env
+#        run: |
+#          echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
+#          echo "NUCTL_REGISTRY=localhost:5000" >> $GITHUB_ENV
+#          echo "NUCLIO_DASHBOARD_DEFAULT_ONBUILD_REGISTRY_URL=$REPO" >> $GITHUB_ENV
+#          echo "NUCTL_NAMESPACE=$NAMESPACE" >> $GITHUB_ENV
+#          echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
+#          echo "NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
+#          echo "NUCTL_DEFAULT_SERVICE_TYPE=NodePort" >> $GITHUB_ENV
+#
+#      - name: Install nuclio helm chart
+#        run: |
+#          minikube kubectl -- create namespace ${NAMESPACE}
+#          cat test/k8s/ci_assets/helm_values.yaml \
+#            | envsubst \
+#            | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
+#
+#      - name: Run nuctl k8s tests
+#        run: |
+#
+#          # write function host to /etc/hosts
+#          echo "${NUCTL_EXTERNAL_IP_ADDRESSES} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
+#
+#          # run test
+#          make test-k8s-nuctl
+#
+#  test_docker_nuctl:
+#    name: Test Docker nuctl
+#    runs-on: ubuntu-latest
+#    needs:
+#      - build_docker_images
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - uses: actions/cache@v2
+#        with:
+#          path: ~/go/pkg/mod
+#          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+#          restore-keys: |
+#            ${{ runner.os }}-go-
+#
+#      - name: Fetch nuclio docker images
+#        uses: actions/download-artifact@v2
+#        with:
+#          name: nuclio-docker-images
+#
+#      - name: Load nuclio docker images
+#        run: |
+#          make load-docker-images
+#          rm nuclio-docker-images*.tar.gz
+#
+#      - name: Run nuctl docker tests
+#        run: |
+#          make test-docker-nuctl
 
   test_k8s:
     name: Test Kubernetes
@@ -277,15 +277,16 @@ jobs:
           docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
           minikube kubectl -- config view --flatten > kubeconfig_flatten
 
-      - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v2
-        with:
-          name: nuclio-docker-images
+#      - name: Fetch nuclio docker images
+#        uses: actions/download-artifact@v2
+#        with:
+#          name: nuclio-docker-images
 
       - name: Load nuclio docker images
         run: |
-          make load-docker-images
-          rm nuclio-docker-images*.tar.gz
+          make pull-docker-images
+#          make load-docker-images
+#          rm nuclio-docker-images*.tar.gz
 
       - name: Export env
         run: |
@@ -311,22 +312,22 @@ jobs:
 
           make test-k8s
 
-  test_python:
-    name: Test python
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Run python test
-        run: |
-          make test-python
-
-  test_nodejs:
-    name: Test NodeJS
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Run NodeJS test
-        run: |
-          make test-nodejs
+#  test_python:
+#    name: Test python
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Run python test
+#        run: |
+#          make test-python
+#
+#  test_nodejs:
+#    name: Test NodeJS
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v2
+#
+#      - name: Run NodeJS test
+#        run: |
+#          make test-nodejs
