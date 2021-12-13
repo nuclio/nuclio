@@ -14,7 +14,7 @@ on:
 env:
   REPO: quay.io
   REPO_NAME: nuclio
-  NUCLIO_LABEL: 1.7.2 # ${{ github.run_number }}
+  NUCLIO_LABEL: 1.7.0 # ${{ github.run_number }}
   NAMESPACE: nuclio
   NUCLIO_GO_TEST_TIMEOUT: "30m"
 
@@ -152,9 +152,16 @@ jobs:
           docker run --rm --detach --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
           minikube kubectl -- config view --flatten > kubeconfig_flatten
 
+      - name: Fetch nuclio docker images
+        uses: actions/download-artifact@v2
+        with:
+          name: nuclio-docker-images
+
       - name: Load nuclio docker images
         run: |
-          make pull-docker-images
+          # make pull-docker-images
+          make load-docker-images
+          rm nuclio-docker-images*.tar.gz
 
       - name: Export env
         run: |
