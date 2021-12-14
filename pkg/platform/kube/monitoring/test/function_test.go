@@ -224,7 +224,11 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
-	functionMonitoringSleepTimeout := suite.Controller.GetFunctionMonitoringInterval() + 60*time.Second
+	one := 1
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+
+	functionMonitoringSleepTimeout := 2*suite.Controller.GetFunctionMonitoringInterval() +
+		monitoring.PostDeploymentMonitoringBlockingInterval
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
@@ -257,6 +261,8 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		}, func() {
 
 			suite.DeleteFunctionPods(functionName)
+
+			time.Sleep(10 * time.Second)
 
 			// wait for controller to mark function in error due to pods being unschedulable
 			suite.WaitForFunctionState(getFunctionOptions,
