@@ -1708,7 +1708,7 @@ func (b *Builder) downloadFunctionFromURL(tempFile *os.File,
 func (b *Builder) populateFunctionSourceCodeFromFilePath() {
 	functionSourceCode, err := b.getSourceCodeFromFilePath()
 	if err != nil {
-		b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
+		b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err).Error())
 	} else {
 
 		// set into source code
