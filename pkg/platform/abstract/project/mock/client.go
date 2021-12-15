@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/stretchr/testify/mock"
@@ -15,22 +16,22 @@ func (c *Client) Initialize() error {
 	return args.Error(0)
 }
 
-func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	args := c.Called(getProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
-func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
+func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	args := c.Called(createProjectOptions)
 	return args.Get(0).(platform.Project), args.Error(1)
 }
 
-func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
+func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
 	args := c.Called(updateProjectOptions)
 	return args.Get(0).(platform.Project), args.Error(1)
 }
 
-func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
+func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	args := c.Called(deleteProjectOptions)
 	return args.Error(0)
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"context"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -69,7 +70,7 @@ func NewRootCommandeer() *RootCommandeer {
 	// add children
 	cmd.AddCommand(
 		newBuildCommandeer(commandeer).cmd,
-		newDeployCommandeer(commandeer).cmd,
+		newDeployCommandeer(context.TODO(), commandeer).cmd,
 		newInvokeCommandeer(commandeer).cmd,
 		newGetCommandeer(commandeer).cmd,
 		newDeleteCommandeer(commandeer).cmd,

@@ -67,7 +67,8 @@ func newFunctionOperator(ctx context.Context,
 	}
 
 	// create a function operator
-	newFunctionOperator.operator, err = operator.NewMultiWorker(loggerInstance,
+	newFunctionOperator.operator, err = operator.NewMultiWorker(ctx,
+		loggerInstance,
 		numWorkers,
 		newFunctionOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioFunction{},
@@ -260,8 +261,8 @@ func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 	return nil
 }
 
-func (fo *functionOperator) start() error {
-	go fo.operator.Start() // nolint: errcheck
+func (fo *functionOperator) start(ctx context.Context) error {
+	go fo.operator.Start(ctx) // nolint: errcheck
 
 	return nil
 }

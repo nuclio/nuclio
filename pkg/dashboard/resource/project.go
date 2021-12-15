@@ -211,7 +211,7 @@ func (pr *projectResource) export(request *http.Request, project platform.Projec
 
 func (pr *projectResource) getAPIGatewaysMap(ctx context.Context, project platform.Project) map[string]restful.Attributes {
 	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{Namespace: project.GetConfig().Meta.Namespace}
-	apiGatewaysMap, err := apiGatewayResourceInstance.GetAllByNamespace(&getAPIGatewaysOptions, true)
+	apiGatewaysMap, err := apiGatewayResourceInstance.GetAllByNamespace(ctx, &getAPIGatewaysOptions, true)
 	if err != nil {
 		pr.Logger.WarnWithCtx(ctx,"Failed to get all api-gateways in the namespace",
 			"namespace", project.GetConfig().Meta.Namespace,
@@ -251,7 +251,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
-		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(function)
+		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(ctx, function)
 
 		functionEvents := functionEventResourceInstance.getFunctionEvents(request, function, namespace)
 		for _, functionEvent := range functionEvents {
@@ -408,7 +408,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 			return nil, nuclio.WrapErrInternalServerError(err)
 		}
 
-		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
+		if err := newProject.CreateAndWait(ctx, &platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
 			AuthSession:   pr.getCtxSession(request),
 			PermissionOptions: opa.PermissionOptions{

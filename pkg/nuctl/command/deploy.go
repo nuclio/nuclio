@@ -302,7 +302,7 @@ func parseVolumes(volumes stringSliceFlag) ([]functionconfig.Volume, error) {
 // If user runs deploy with a function name of a function that was already imported, this checks if that function
 // exists and is imported. If so, returns that function, otherwise returns nil.
 func (d *deployCommandeer) getImportedFunction(functionName string) (platform.Function, error) {
-	functions, err := d.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
+	functions, err := d.rootCommandeer.platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
 		Name:      functionName,
 		Namespace: d.rootCommandeer.namespace,
 	})

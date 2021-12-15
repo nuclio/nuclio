@@ -102,7 +102,7 @@ func (s *Store) GetProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	return projects, nil
 }
 
-func (s *Store) DeleteProject(projectMeta *platform.ProjectMeta) error {
+func (s *Store) DeleteProject(ctx context.Context, projectMeta *platform.ProjectMeta) error {
 	functions, err := s.GetProjectFunctions(&platform.GetFunctionsOptions{
 		Namespace: projectMeta.Namespace,
 		Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
@@ -116,7 +116,7 @@ func (s *Store) DeleteProject(projectMeta *platform.ProjectMeta) error {
 	for _, function := range functions {
 		function := function
 		deleteFunctionsErrGroup.Go(func() error {
-			return s.DeleteFunction(&function.GetConfig().Meta)
+			return s.DeleteFunction(ctx, &function.GetConfig().Meta)
 		})
 	}
 	if err := deleteFunctionsErrGroup.Wait(); err != nil {

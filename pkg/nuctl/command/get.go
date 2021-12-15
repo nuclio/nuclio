@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"context"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -89,7 +90,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 
 			commandeer.getFunctionsOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
-			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getFunctionsOptions)
+			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(context.TODO(), &commandeer.getFunctionsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}
@@ -164,7 +165,7 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 			// get namespace
 			commandeer.getProjectsOptions.Meta.Namespace = getCommandeer.rootCommandeer.namespace
 
-			projects, err := getCommandeer.rootCommandeer.platform.GetProjects(&commandeer.getProjectsOptions)
+			projects, err := getCommandeer.rootCommandeer.platform.GetProjects(context.TODO(), &commandeer.getProjectsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get projects")
 			}
@@ -303,7 +304,8 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 				}
 			}
 
-			functionEvents, err := getCommandeer.rootCommandeer.platform.GetFunctionEvents(&commandeer.getFunctionEventsOptions)
+			functionEvents, err := getCommandeer.rootCommandeer.platform.GetFunctionEvents(context.TODO(),
+				&commandeer.getFunctionEventsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get function events")
 			}

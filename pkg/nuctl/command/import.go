@@ -273,7 +273,7 @@ Use --help for more information`)
 }
 
 func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.FunctionEventConfig) error {
-	functions, err := i.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
+	functions, err := i.rootCommandeer.platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
 		Name:      functionEvent.Meta.Labels["nuclio.io/function-name"],
 		Namespace: i.rootCommandeer.namespace,
 	})
@@ -291,7 +291,7 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 	functionEvent.Meta.Namespace = i.rootCommandeer.namespace
 
 	// just deploy; the status is async through polling
-	return i.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
+	return i.rootCommandeer.platform.CreateFunctionEvent(context.TODO(), &platform.CreateFunctionEventOptions{
 		FunctionEventConfig: platform.FunctionEventConfig{
 			Meta: functionEvent.Meta,
 			Spec: functionEvent.Spec,
@@ -305,7 +305,7 @@ func (i *importProjectCommandeer) importAPIGateway(apiGateway *platform.APIGatew
 	apiGateway.Meta.Namespace = i.rootCommandeer.namespace
 
 	// just create; the status is async through polling
-	return i.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
+	return i.rootCommandeer.platform.CreateAPIGateway(context.TODO(), &platform.CreateAPIGatewayOptions{
 		APIGatewayConfig: &platform.APIGatewayConfig{
 			Meta: apiGateway.Meta,
 			Spec: apiGateway.Spec,
@@ -532,7 +532,7 @@ func (i *importProjectCommandeer) importProjectIfMissing(projectImportOptions *P
 	platform.Project, error) {
 
 	projectImportConfig := projectImportOptions.projectImportConfig
-	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
+	projects, err := i.rootCommandeer.platform.GetProjects(context.TODO(), &platform.GetProjectsOptions{
 		Meta: projectImportConfig.Project.Meta,
 	})
 	if err != nil {
@@ -551,7 +551,7 @@ func (i *importProjectCommandeer) importProjectIfMissing(projectImportOptions *P
 			return nil, err
 		}
 
-		if err := newProject.CreateAndWait(&platform.CreateProjectOptions{
+		if err := newProject.CreateAndWait(context.TODO(), &platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
 		}); err != nil {
 			return nil, err
@@ -564,7 +564,7 @@ func (i *importProjectCommandeer) importProjectIfMissing(projectImportOptions *P
 }
 
 func (i *importProjectCommandeer) getProject(projectName, projectNamespace string) (platform.Project, error) {
-	projects, err := i.rootCommandeer.platform.GetProjects(&platform.GetProjectsOptions{
+	projects, err := i.rootCommandeer.platform.GetProjects(context.TODO(), &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      projectName,
 			Namespace: projectNamespace,

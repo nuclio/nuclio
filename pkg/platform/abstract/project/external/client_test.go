@@ -3,6 +3,7 @@
 package external
 
 import (
+	"context"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -69,7 +70,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
 		Return(&platform.AbstractProject{}, nil).
 		Once()
 
-	_, err := suite.Client.Create(&createProjectOptions)
+	_, err := suite.Client.Create(context.TODO(), &createProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -88,7 +89,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 		Return(&platform.AbstractProject{}, nil).
 		Once()
 
-	_, err := suite.Client.Update(&updateProjectOptions)
+	_, err := suite.Client.Update(context.TODO(), &updateProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -105,7 +106,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 		Return(nil).
 		Once()
 
-	err := suite.Client.Delete(&deleteProjectOptions)
+	err := suite.Client.Delete(context.TODO(), &deleteProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -124,7 +125,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderCreate() {
 		Return(nil, nil).
 		Once()
 
-	_, err := suite.Client.Create(&createProjectOptions)
+	_, err := suite.Client.Create(context.TODO(), &createProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulCreateProjectLeader)
 }
@@ -144,7 +145,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderUpdate() {
 		Return(nil, nil).
 		Once()
 
-	_, err := suite.Client.Update(&updateProjectOptions)
+	_, err := suite.Client.Update(context.TODO(), &updateProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulUpdateProjectLeader)
 }
@@ -162,7 +163,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderDelete() {
 		Return(nil).
 		Once()
 
-	err := suite.Client.Delete(&deleteProjectOptions)
+	err := suite.Client.Delete(context.TODO(), &deleteProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulDeleteProjectLeader)
 }
@@ -179,7 +180,7 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 		Return([]platform.Project{}, nil).
 		Once()
 
-	_, err := suite.Client.Get(&getProjectOptions)
+	_, err := suite.Client.Get(context.TODO(), &getProjectOptions)
 	suite.Require().NoError(err)
 }
 

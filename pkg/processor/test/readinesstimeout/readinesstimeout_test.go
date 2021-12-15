@@ -20,6 +20,7 @@ limitations under the License.
 package readinesstimeout
 
 import (
+	"context"
 	"path"
 	"testing"
 	"time"

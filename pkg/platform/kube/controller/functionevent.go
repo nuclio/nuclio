@@ -52,7 +52,8 @@ func newFunctionEventOperator(ctx context.Context,
 	}
 
 	// create a function event operator
-	newFunctionEventOperator.operator, err = operator.NewMultiWorker(loggerInstance,
+	newFunctionEventOperator.operator, err = operator.NewMultiWorker(ctx,
+		loggerInstance,
 		numWorkers,
 		newFunctionEventOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioFunctionEvent{},
@@ -99,8 +100,8 @@ func (feo *functionEventOperator) getListWatcher(namespace string) cache.ListerW
 	}
 }
 
-func (feo *functionEventOperator) start() error {
-	go feo.operator.Start() // nolint: errcheck
+func (feo *functionEventOperator) start(ctx context.Context) error {
+	go feo.operator.Start(ctx) // nolint: errcheck
 
 	return nil
 }

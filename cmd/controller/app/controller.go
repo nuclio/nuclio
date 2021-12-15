@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -65,7 +66,7 @@ func Run(kubeconfigPath string,
 	}
 
 	// start the controller
-	if err := newController.Start(); err != nil {
+	if err := newController.Start(context.TODO()); err != nil {
 		return errors.Wrap(err, "Failed to start controller")
 	}
 
@@ -166,7 +167,8 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create api gateway provisioner")
 	}
 
-	newController, err := controller.NewController(rootLogger,
+	newController, err := controller.NewController(context.TODO(),
+		rootLogger,
 		namespace,
 		imagePullSecrets,
 		kubeClientSet,

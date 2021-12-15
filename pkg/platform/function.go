@@ -98,7 +98,7 @@ func (af *AbstractFunction) GetVersion() string {
 }
 
 // GetInvokeURL returns the URL on which the function can be invoked
-func (af *AbstractFunction) GetInvokeURL(InvokeViaType) (string, error) {
+func (af *AbstractFunction) GetInvokeURL(context.Context, InvokeViaType) (string, error) {
 	return "", errors.New("Unsupported")
 }
 

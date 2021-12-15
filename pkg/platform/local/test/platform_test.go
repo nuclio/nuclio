@@ -19,6 +19,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -112,7 +113,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 			suite.Require().NoError(err, "Could not stop container")
 
 			// Trigger function containers healthiness validation
-			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
+			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness(context.TODO())
 
 			// Wait for function to become unhealthy
 			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
@@ -125,7 +126,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 			suite.Require().NoError(err, "Failed to start container")
 
 			// Trigger function containers healthiness validation
-			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
+			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness(context.TODO())
 
 			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
 				Name:      functionName,
@@ -239,7 +240,8 @@ func (suite *TestSuite) TestDeleteFunctionMissingVolumeMount() {
 			suite.Require().NoError(err)
 
 			// ensure delete function succeeded
-			err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			err = suite.Platform.DeleteFunction(context.TODO(),
+				&platform.DeleteFunctionOptions{
 				FunctionConfig: functionconfig.Config{
 					Meta: createFunctionOptions.FunctionConfig.Meta,
 				},

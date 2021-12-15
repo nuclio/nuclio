@@ -136,5 +136,5 @@ func (i *invoker) resolveInvokeURL(ctx context.Context,
 	}
 
 	// get where the function resides
-	return function.GetInvokeURL(createFunctionInvocationOptions.Via)
+	return function.GetInvokeURL(ctx, createFunctionInvocationOptions.Via)
 }

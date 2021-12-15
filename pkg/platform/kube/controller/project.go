@@ -54,7 +54,8 @@ func newProjectOperator(ctx context.Context,
 	}
 
 	// create a project operator
-	newProjectOperator.operator, err = operator.NewMultiWorker(loggerInstance,
+	newProjectOperator.operator, err = operator.NewMultiWorker(ctx,
+		loggerInstance,
 		numWorkers,
 		newProjectOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioProject{},
@@ -139,8 +140,8 @@ func (po *projectOperator) getListWatcher(namespace string) cache.ListerWatcher 
 	}
 }
 
-func (po *projectOperator) start() error {
-	go po.operator.Start() // nolint: errcheck
+func (po *projectOperator) start(ctx context.Context) error {
+	go po.operator.Start(ctx) // nolint: errcheck
 
 	return nil
 }

@@ -129,7 +129,7 @@ func NewPlatform(ctx context.Context,
 	}
 
 	// create projects client
-	newPlatform.projectsClient, err = NewProjectsClient(newPlatform, platformConfiguration)
+	newPlatform.projectsClient, err = NewProjectsClient(ctx, newPlatform, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create projects client")
 	}
@@ -595,7 +595,7 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 	// create
 	p.Logger.DebugWithCtx(ctx, "Creating project",
 		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
-	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
+	if _, err := p.projectsClient.Create(ctx, createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
 	}
 
@@ -608,7 +608,7 @@ func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *plat
 		return nuclio.WrapErrBadRequest(err)
 	}
 
-	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
+	if _, err := p.projectsClient.Update(ctx, updateProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to update project")
 	}
 
@@ -628,7 +628,7 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 	}
 
 	p.Logger.DebugWithCtx(ctx, "Deleting project", "projectMeta", deleteProjectOptions.Meta)
-	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
+	if err := p.projectsClient.Delete(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to delete project")
 	}
 
@@ -643,7 +643,7 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	projects, err := p.projectsClient.Get(getProjectsOptions)
+	projects, err := p.projectsClient.Get(ctx, getProjectsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}

@@ -236,17 +236,17 @@ func (c *Controller) GetFunctionMonitoring() *monitoring.FunctionMonitor {
 func (c *Controller) startOperators(ctx context.Context,) error {
 
 	// start the function operator
-	if err := c.functionOperator.start(); err != nil {
+	if err := c.functionOperator.start(ctx); err != nil {
 		return errors.Wrap(err, "Failed to start function operator")
 	}
 
 	// start the project operator
-	if err := c.projectOperator.start(); err != nil {
+	if err := c.projectOperator.start(ctx); err != nil {
 		return errors.Wrap(err, "Failed to start project operator")
 	}
 
 	// start the function event operator
-	if err := c.functionEventOperator.start(); err != nil {
+	if err := c.functionEventOperator.start(ctx); err != nil {
 		return errors.Wrap(err, "Failed to start function event operator")
 	}
 

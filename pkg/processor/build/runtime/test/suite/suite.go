@@ -20,6 +20,7 @@ limitations under the License.
 package buildsuite
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -287,7 +288,7 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	suite.DeployFunctionAndExpectError(createFunctionOptions, "Function wasn't ready in time")
 
 	// since the function does actually get deployed (just not ready in time), we need to delete it
-	err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+	err := suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 	suite.Require().NoError(err)
