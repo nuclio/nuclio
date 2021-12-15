@@ -2206,6 +2206,9 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 			if pod.Status.Phase == v1.PodPending && condition.Reason == "Unschedulable" {
 
 				errGroup.Go("WaitAndCheckAutoScaleEvents", func() error {
+
+					// sleeping for 15s because autoscale cycle is 10s minimum
+					lc.logger.Debug("Waiting 15 seconds for autoscale evaluation")
 					time.Sleep(15 * time.Second)
 
 					// check if the pod is unschedulable due to scaling up
@@ -2215,15 +2218,13 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 							"Failed to resolve pod (%s) triggered a node scale up",
 							pod.Name)
 					}
-					if triggeredScaleUp {
-						lc.logger.InfoWith("Nuclio function pod has triggered a scale up", "podName", pod.Name)
-						lock.Lock()
-						defer lock.Unlock()
-
-						scaleUpOccurred = true
-					} else {
+					if !triggeredScaleUp {
 						return errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
 					}
+					lc.logger.InfoWith("Nuclio function pod has triggered a scale up", "podName", pod.Name)
+					lock.Lock()
+					scaleUpOccurred = true
+					lock.Unlock()
 					return nil
 				})
 			}
@@ -2233,9 +2234,7 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 		return errors.Wrap(err, "Failed to verify at least one pod schedulability")
 	}
 	if scaleUpOccurred {
-
-		// TODO: Increase wait timeout?
-		lc.logger.Debug("Scale up occurred")
+		lc.logger.Debug("Pod triggered a scale up. Still waiting for deployment to be available")
 	}
 	return nil
 }
@@ -2253,9 +2252,18 @@ func (lc *lazyClient) isPodAutoScaledUp(pod v1.Pod) (bool, error) {
 	for _, event := range podEvents.Items {
 
 		if event.Source.Component == "cluster-autoscaler" {
-			if event.Reason == "TriggerScaleUp" {
+			switch event.Reason {
+			case "TriggerScaleUp":
+				lc.logger.DebugWith("Found a pod event that a node scale up is triggered",
+					"podName", pod.Name)
 				return true, nil
-			} else if event.Reason == "NotTriggerScaleUp" || event.Reason == "ScaleDown" {
+			case "NotTriggerScaleUp":
+				lc.logger.DebugWith("Couldn't find node group that can be scaled up to make this pod schedulable",
+					"podName", pod.Name)
+				return false, nil
+			case "ScaleDown":
+				lc.logger.DebugWith("Pod is evicted as part of scale down",
+					"podName", pod.Name)
 				return false, nil
 			}
 		}
