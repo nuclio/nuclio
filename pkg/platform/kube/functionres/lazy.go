@@ -315,7 +315,8 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		}
 
 		// fail-fast mechanism
-		if err := lc.resolveFailFast(podsList,
+		if err := lc.resolveFailFast(ctx,
+			podsList,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 
 			return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
@@ -2162,7 +2163,8 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	}
 }
 
-func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
+func (lc *lazyClient) resolveFailFast(ctx context.Context,
+	podsList *v1.PodList,
 	functionResourcesCreateOrUpdateTimestamp time.Time) error {
 
 	var pods []v1.Pod
@@ -2194,7 +2196,7 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 	}
 
 	// check each pod's conditions to determine if there is at least one unschedulable pod
-	errGroup, _ := errgroup.WithContext(context.TODO(), lc.logger)
+	errGroup, errGroupCtx := errgroup.WithContext(ctx, lc.logger)
 	lock := sync.Mutex{}
 	scaleUpOccurred := false
 	for _, pod := range pods {
@@ -2207,21 +2209,25 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 
 				errGroup.Go("WaitAndCheckAutoScaleEvents", func() error {
 
-					// sleeping for 15s because autoscale cycle is 10s minimum
-					lc.logger.Debug("Waiting 15 seconds for autoscale evaluation")
+					// sleep for 15s because autoscale cycle is 10s minimum
+					lc.logger.DebugWithCtx(errGroupCtx,
+						"Waiting 15 seconds for autoscale evaluation",
+						"podName", pod.Name)
 					time.Sleep(15 * time.Second)
 
 					// check if the pod is unschedulable due to scaling up
-					triggeredScaleUp, err := lc.isPodAutoScaledUp(pod)
+					triggeredScaleUp, err := lc.isPodAutoScaledUp(errGroupCtx, pod)
 					if err != nil {
-						return errors.Wrapf(err,
-							"Failed to resolve pod (%s) triggered a node scale up",
-							pod.Name)
+
+						// log the error and keep waiting for deployment
+						lc.logger.WarnWithCtx(errGroupCtx,
+							"Failed to resolve pod autoscaling",
+							"podName", pod.Name)
+						return nil
 					}
 					if !triggeredScaleUp {
 						return errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
 					}
-					lc.logger.InfoWith("Nuclio function pod has triggered a scale up", "podName", pod.Name)
 					lock.Lock()
 					scaleUpOccurred = true
 					lock.Unlock()
@@ -2234,12 +2240,12 @@ func (lc *lazyClient) resolveFailFast(podsList *v1.PodList,
 		return errors.Wrap(err, "Failed to verify at least one pod schedulability")
 	}
 	if scaleUpOccurred {
-		lc.logger.Debug("Pod triggered a scale up. Still waiting for deployment to be available")
+		lc.logger.DebugWithCtx(ctx, "Pod triggered a scale up. Still waiting for deployment to be available")
 	}
 	return nil
 }
 
-func (lc *lazyClient) isPodAutoScaledUp(pod v1.Pod) (bool, error) {
+func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, error) {
 
 	// get pod events to check if pod triggered auto scale
 	podEvents, err := lc.kubeClientSet.CoreV1().Events(pod.Namespace).List(metav1.ListOptions{
@@ -2254,15 +2260,18 @@ func (lc *lazyClient) isPodAutoScaledUp(pod v1.Pod) (bool, error) {
 		if event.Source.Component == "cluster-autoscaler" {
 			switch event.Reason {
 			case "TriggerScaleUp":
-				lc.logger.DebugWith("Found a pod event that a node scale up is triggered",
+				lc.logger.InfoWithCtx(ctx,
+					"Nuclio function pod has triggered a node scale up",
 					"podName", pod.Name)
 				return true, nil
 			case "NotTriggerScaleUp":
-				lc.logger.DebugWith("Couldn't find node group that can be scaled up to make this pod schedulable",
+				lc.logger.DebugWithCtx(ctx,
+					"Couldn't find node group that can be scaled up to make this pod schedulable",
 					"podName", pod.Name)
 				return false, nil
 			case "ScaleDown":
-				lc.logger.DebugWith("Pod is evicted as part of scale down",
+				lc.logger.DebugWithCtx(ctx,
+					"Pod is evicted as part of scale down",
 					"podName", pod.Name)
 				return false, nil
 			}
