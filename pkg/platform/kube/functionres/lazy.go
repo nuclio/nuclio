@@ -2222,7 +2222,8 @@ func (lc *lazyClient) resolveFailFast(ctx context.Context,
 						// log the error and keep waiting for deployment
 						lc.logger.WarnWithCtx(errGroupCtx,
 							"Failed to resolve pod autoscaling",
-							"podName", pod.Name)
+							"podName", pod.Name,
+							"err", errors.RootCause(err).Error())
 						return nil
 					}
 					if !triggeredScaleUp {
@@ -2254,6 +2255,7 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to list pod events")
 	}
+	lc.logger.DebugWithCtx(ctx, "Received pod events", "podEventsLength", len(podEvents.Items))
 
 	for _, event := range podEvents.Items {
 
