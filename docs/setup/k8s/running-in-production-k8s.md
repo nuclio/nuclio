@@ -6,34 +6,33 @@ This document describes advanced configuration options and best-practice guideli
 
 #### In this document
 
-- [The preferred deployment method](#preferred-deployment-method)
-- [Freezing a qualified version](#version-freezing)
+- [The preferred deployment method](#the-preferred-deployment-method)
+- [Freezing a qualified version](#freezing-a-qualified-version)
 - [Multi-Tenancy](#multi-tenancy)
 - [Air-gapped deployment](#air-gapped-deployment)
-- [Using Kaniko as an image builder](#kaniko-image-builder)
+- [Using Kaniko as an image builder](#using-kaniko-as-an-image-builder)
 
-<a id="preferred-deployment-method"></a>
+<a id="the-preferred-deployment-method"></a>
 ## The preferred deployment method
 
 There are several alternatives to deploying (installing) Nuclio in production, but the recommended method is by using [Helm charts](/hack/k8s/helm/nuclio/).
 This is currently the preferred deployment method at Iguazio as it's the most tightly maintained, it's best suited for "heavy lifting" over Kubernetes, and it's often used to roll out new production-oriented features.
 
 Following is a quick example of how to use Helm charts to set up a specific stable version of Nuclio.
-Replace the `<...>` placeholders with your specific values; the Nuclio version number is configured in the `image.tag` values (see the `<version>` placeholder):
 
-1.  Create a namespace for your Nuclio functions:
+1. Create a namespace for your Nuclio functions:
 
     ```sh
     kubectl create namespace nuclio
     ```
 
-2.  Create a secret with valid credentials for logging into your target container (Docker) registry:
+2. Create a secret with valid credentials for logging into your target container (Docker) registry:
 
     ```sh
     read -s mypassword
     <enter your password>
 
-    kubectl create secret docker-registry registry-credentials \
+    kubectl --namespace nuclio create secret docker-registry registry-credentials \
         --docker-username <username> \
         --docker-password $mypassword \
         --docker-server <URL> \
@@ -42,30 +41,22 @@ Replace the `<...>` placeholders with your specific values; the Nuclio version n
     unset mypassword
     ```
 
-3.  Copy your secret to the `nuclio` namespace, as Kubernetes doesn't allow namespaces to share secrets:
-    ```sh
-    kubectl get secret registry-credentials -n default -o yaml \
-    | sed s/"namespace: default"/"namespace: nuclio"/ \
-    | kubectl apply -f -
-    ```
-
-4.  Clone the `nuclio` project and install Nuclio from its Helm chart; for a full list of configuration parameters, see the Helm values file ([**values.yaml**](/hack/k8s/helm/nuclio/values.yaml)):
+3. Add and Install `nuclio` Helm chart:
 
     ```sh
-    git clone https://github.com/nuclio/nuclio.git
-
-    helm install \
+    helm repo add nuclio https://nuclio.github.io/nuclio/charts
+    helm install nuclio \
         --set registry.secretName=registry-credentials \
         --set registry.pushPullUrl=<your registry URL> \
-        --set controller.image.tag=<version>-amd64 \
-        --set dashboard.image.tag=<version>-amd64 \
-        ./hack/k8s/helm/nuclio/
+        nuclio/nuclio
     ```
+
+> NOTE: for a full list of configuration parameters, see the Helm values file ([**values.yaml**](/hack/k8s/helm/nuclio/values.yaml))
 
 <a id="multi-tenancy"></a>
 ## Multi-Tenancy
 
-Implementation of multi-tenancy can be done in many different ways and to various degrees.
+Implementation of multi-tenancy can be done in many ways and to various degrees.
 The experience of the Nuclio team has lead to the adoption of the Kubernetes approach of tenant isolation using namespaces.
 Note:
 
@@ -74,7 +65,7 @@ Note:
   This is supported by using the `controller.namespace` and `rbac.crdAccessMode` [Helm values](/hack/k8s/helm/nuclio/values.yaml) configurations.
 - To provide ample separation at the level of the container registry, it's highly recommended that the Nuclio deployments of multiple tenants either don't share container registries, or that they don't share a tenant when using a multi-tenant registry (such as `registry.hub.docker.com` or `quay.io`).
 
-<a id="version-freezing"></a>
+<a id="freezing-a-qualified-version"></a>
 ## Freezing a qualified version
 
 When working in production, you need reproducibility and consistency.
@@ -109,7 +100,7 @@ If you select to handle the implementation yourself, follow these guidelines; th
 
 - To use the Nuclio templates library (optional), package the templates into an archive; serve the templates archive via a local server whose address is accessible to your system; and set `dashboard.templatesArchiveAddress` to the address of this local server.
 
-<a id="kaniko-image-builder"></a>
+<a id="using-kaniko-as-an-image-builder"></a>
 ## Using Kaniko as an image builder
 
 When dealing with production deployments, you should avoid bind-mounting the Docker socket to the service pod of the Nuclio dashboard; doing so would allow the dashboard access to the host machine's Docker daemon, which is akin to giving it root access to your machine.
@@ -122,13 +113,13 @@ Nuclio currently supports Kaniko only on Kubernetes.
 To deploy Nuclio and direct it to use the Kaniko engine to build images, use the following [Helm values](/hack/k8s/helm/nuclio/values.yaml) parameters; replace the `<...>` placeholders with your specific values:
 
 ```sh
-helm install \
+helm upgrade --install --reuse-values nuclio \
     --set registry.secretName=<your secret name> \
     --set registry.pushPullUrl=<your registry URL> \
     --set dashboard.containerBuilderKind=kaniko \
     --set controller.image.tag=<version>-amd64 \
     --set dashboard.image.tag=<version>-amd64\
-    .
+    nuclio/nuclio
 ```
 
 This is rather straightforward; however, note the following:

@@ -7,8 +7,6 @@ Follow this step-by-step guide to set up a Nuclio development environment that u
 - [Prerequisites](#prerequisites)
 - [Set up a Kubernetes cluster and a local environment](#set-up-a-kubernetes-cluster-and-a-local-environment)
 - [Install Nuclio](#install-nuclio)
-- [Deploy a function with the Nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
-- [Deploy a function with the Nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli)
 - [What's next](#whats-next)
 
 ## Prerequisites
@@ -81,15 +79,11 @@ gcloud iam service-accounts keys create credentials.json --iam-account $(gcloud 
 
 At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
 
-**Create a Nuclio namespace** by running the following command:
+**Create a Kubernetes Docker-registry secret** from service-key file that you created as part of the [Kubernetes cluster setup](#set-up-a-kubernetes-cluster-and-a-local-environment)
 
-> **Note:** All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
+And then follow the instructions of [How to run nuclio in Production](/docs/setup/k8s/running-in-production-k8s.md#the-preferred-deployment-method)
 
-```sh
-kubectl create namespace nuclio
-```
-
-**Create a Kubernetes Docker-registry secret** from service-key file that you created as part of the [Kubernetes cluster setup](#set-up-a-kubernetes-cluster-and-a-local-environment), and delete this file:
+> NOTE: use the below  docker registry secret creation command:
 
 ```sh
 kubectl create secret docker-registry registry-credentials \
@@ -102,91 +96,7 @@ kubectl create secret docker-registry registry-credentials \
 rm credentials.json
 ```
 
-**Create a registry configuration file:** create a **nuclio-registry** ConfigMap file that will be used by the Nuclio dashboard to determine which repository should be used for pushing and pulling images:
-
-```sh
-kubectl create configmap --namespace nuclio nuclio-registry --from-literal=registry_url=gcr.io/$(gcloud config list --format 'value(core.project)')
-```
-
-**Create the RBAC roles** that are required for using Nuclio:
-> **Note:** You are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
-```
-
-**Deploy Nuclio to the cluster:** The following command deploys the Nuclio controller and dashboard, among other resources:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/gke/resources/nuclio.yaml
-```
-
-Use the command `kubectl get pods --namespace nuclio` to verify both the controller and dashboard are running.
-
-**Forward the Nuclio dashboard port:** the Nuclio dashboard publishes a service at port 8070. To use the dashboard, you first need to forward this port to your local IP address:
-```sh
-kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
-```
-
-<a id="deploy-a-function-with-the-nuclio-dashboard"></a>
-## Deploy a function with the Nuclio dashboard
-
-Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation) to see the [Nuclio dashboard](/README.md#dashboard).
-Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).
-Choose one of the predefined template functions, and select **Deploy**. 
-The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.
-When the function deployment completes, you can select **Test** to invoke the function with a body.
-
-<a id="deploy-a-function-with-the-nuclio-cli"></a>
-## Deploy a function with the Nuclio CLI (nuctl)
-
-Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](/hack/examples/golang/helloworld/helloworld.go) Go function.
-Replace the `<URL>` placeholder with the URL of your Docker registry.
-If you're using Docker Hub, the URL should include your username - `docker.io/<username>` - and you might also need to log into your Docker Hub account (`docker login`) on the installation machine before running the deployment command.
-You can add the `--verbose` flag if you want to peek under the hood.
-```sh
-nuctl deploy helloworld \
-    --namespace nuclio \
-    --path https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go \
-    --http-trigger-service-type nodePort \
-    --registry <URL>
-```
->**Note:** The command above exposes the function externally using a `nodePort`. This is done for demonstration
-> purposes only. Please read more about [exposing your function](/docs/tasks/deploying-functions.md#exposing-a-function)
-> for more information.
-
-When the function deployment completes, you can get the function information by running the following CLI command:
-
-```sh
-nuctl get function helloworld
-```
-
-Sample output -
-
-```sh
-  NAMESPACE | NAME        | PROJECT | STATE | NODE PORT | REPLICAS  
-  nuclio    | helloworld  | default | ready |     42089 | 1/1   
-```
-You can see from the sample output that the deployed function `helloworld` is running and using port `42089`.
-
-Since the function is exposed using a `nodePort`, you can run the following CLI command to invoke it:
-
-```sh
-nuctl invoke helloworld --method POST --body '{"hello":"world"}' --content-type "application/json"
-```
-
-Sample output -
-
-```sh
-> Response headers:
-Server = nuclio
-Date = Thu, 18 Jun 2020 06:56:27 GMT
-Content-Type = application/text
-Content-Length = 21
-
-> Response body:
-Hello, from Nuclio :]
-```
+Use the command `kubectl --namespace nuclio get pods` to verify both the controller and dashboard are running.
 
 ## What's next?
 
@@ -195,6 +105,5 @@ See the following resources to make the best of your new Nuclio environment:
 - [Deploying Functions](/docs/tasks/deploying-functions.md)
 - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
-- [References](/docs/reference/)
+- [References](/docs/reference)
 - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
-

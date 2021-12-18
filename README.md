@@ -2,7 +2,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 [![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
 
-<p align="center"><img src="/docs/assets/images/logo.png" width="180"/></p>
+<p align="center"><img src="/docs/assets/images/logo.png" width="180" alt="nuclio"/></p>
 
 # Nuclio - "Serverless" for Real-Time Events and Data Processing
 
@@ -49,7 +49,7 @@ Nuclio was created to fulfill these requirements.  It was intentionally designed
 
 ## Quick-start steps
 
-The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio [dashboard](#dashboard). All you need to run the dashboard is Docker:
+The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio dashboard. All you need to run the dashboard is Docker:
 
 ```sh
 docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp --name nuclio-dashboard quay.io/nuclio/dashboard:stable-amd64
@@ -98,7 +98,8 @@ However, scaling to zero is not something they can do on their own. Rather - onc
 
 The following sample function implementation uses the `Event` and `Context` interfaces to handle inputs and logs, returning a structured HTTP response; (it's also possible to use a simple string as the returned value).
 
-In Go
+In Go:
+
 ```golang
 package handler
 
@@ -117,7 +118,8 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 }
 ```
 
-In Python
+In Python:
+
 ```python
 def handler(context, event):
     response_body = f'Got {event.method} to {event.path} with "{event.body}"'
