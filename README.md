@@ -98,8 +98,7 @@ However, scaling to zero is not something they can do on their own. Rather - onc
 
 The following sample function implementation uses the `Event` and `Context` interfaces to handle inputs and logs, returning a structured HTTP response; (it's also possible to use a simple string as the returned value).
 
-In Go:
-
+In Go
 ```golang
 package handler
 
@@ -118,8 +117,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 }
 ```
 
-In Python:
-
+In Python
 ```python
 def handler(context, event):
     response_body = f'Got {event.method} to {event.path} with "{event.body}"'
