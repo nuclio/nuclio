@@ -3,11 +3,29 @@
 This tutorial guides you through the process of deploying functions and specifying the function configuration.
 
 #### In this document
-- [Writing a simple function](#writing-a-simple-function)
-- [Deploying a simple function](#deploying-a-simple-function)
-- [Providing function configuration](#providing-function-configuration)
+- [Deploy a function with the Nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
+- [Writing a simple function (nuctl)](#writing-a-simple-function)
+- [Deploying a simple function (nuctl)](#deploying-a-simple-function)
+- [Providing function configuration (nuctl)](#providing-function-configuration)
 - [Exposing a function](#exposing-a-function)
 - [What's next](#whats-next)
+
+
+<a id="deploy-a-function-with-the-nuclio-dashboard"></a>
+## Deploy a function with the Nuclio dashboard
+
+Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation) to see the Nuclio Dashboard.
+
+> NOTE: if running on kubernetes, you may want to port-forward nuclio dashboard to your localhost using below command:
+
+```shell
+kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
+```
+
+Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).  
+Choose one of the predefined template functions, and select **Deploy**.  
+The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.  
+When the function deployment completes, you can select **Test** to invoke the function with a body.
 
 <a id="writing-a-simple-function"></a>
 ## Writing a simple function
@@ -76,14 +94,16 @@ nuctl deploy my-function \
 	--runtime python \
 	--handler my_function:my_entry_point \
 	--http-trigger-service-type nodePort \
-	--registry $(minikube ip):5000 --run-registry localhost:5000
+	--registry <registry-url> \
+	--run-registry <registry-url>
 ```
 
 > **Notes:**
-> 1. `--path` can also hold a URL.
-> 2. See the applicable setup guide to get registry information.
-> 3. Notice we used a `nodePort` to expose the function and make it reachable externally. This
+1. `--path` can also hold a URL.
+2. See the applicable setup guide to get registry information.
+3. Notice we used a `nodePort` to expose the function and make it reachable externally. This
 > is for demonstration purposes only. See [exposing a function](#exposing-a-function) to learn more about why this is here.
+4. Replace <registry-url> with your docker registry (e.g.: `$(minikube ip):5000` for minikube or `<registry-name>.azurecr.io` for AKS)
 
 Once the function deploys, you should see `Function deploy complete` and an HTTP port through which you can invoke it. If there's a problem, invoke the above with `--verbose` and try to understand what went wrong. You can see your function through `nuctl get`:
 
@@ -99,7 +119,7 @@ To illustrate that the function is indeed accessible via HTTP, you'll use [httpi
 the function at the port specified by the deployment log:
 
 ```sh
-http $(minikube ip):<port from log>
+http <external-ip-address>:<port from log>
 
 HTTP/1.1 200 OK
 Content-Length: 17
@@ -109,6 +129,8 @@ Server: nuclio
 
 A string response
 ```
+
+> NOTE: if running in minikube, replace external-ip-address with `$(minikube ip)`
 
 You can use `nuctl invoke` to invoke the function by name, and even get function logs in the process:
 
@@ -192,7 +214,8 @@ nuctl deploy my-function \
     --runtime python \
     --handler my_function:my_entry_point \
     --http-trigger-service-type nodePort \
-    --registry $(minikube ip):5000 --run-registry localhost:5000 \
+    --registry $(minikube ip):5000 \
+    --run-registry localhost:5000 \
     --env MY_ENV_VALUE='my value' \
     --triggers '{"periodic": {"kind": "cron", "attributes": {"interval": "3s"}}}'
 ```
@@ -225,7 +248,8 @@ spec:
       kind: cron
 ```
 
-With all the information in the `function.yaml`, you can pass the _directory_ of the source and configuration to `nuctl`. The name, namespace, trigger, env are all taken from the configuration file:
+With all the information in the `function.yaml`, you can pass the _directory_ of the source and configuration to `nuctl`. 
+The name, namespace, trigger, env are all taken from the configuration file:
 
 ```sh
 nuctl deploy \
