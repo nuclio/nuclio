@@ -119,7 +119,7 @@ func (suite *KubeTestSuite) SetupSuite() {
 	if !suite.DisableControllerStart {
 
 		// start controller
-		if err := suite.Controller.Start(context.TODO()); err != nil {
+		if err := suite.Controller.Start(context.Background()); err != nil {
 			suite.Require().NoError(err, "Failed to start controller")
 		}
 	}
@@ -129,7 +129,7 @@ func (suite *KubeTestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
 	// default project gets deleted during testings, ensure it is being recreated
-	err := suite.Platform.EnsureDefaultProjectExistence(context.TODO())
+	err := suite.Platform.EnsureDefaultProjectExistence(context.Background())
 	suite.Require().NoError(err, "Failed to ensure default project exists")
 }
 
@@ -146,7 +146,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 	}()
 
 	// remove nuclio function leftovers
-	errGroup, _ := errgroup.WithContext(context.TODO(), suite.Logger)
+	errGroup, _ := errgroup.WithContext(context.Background(), suite.Logger)
 	for _, resourceKind := range []string{
 		"nucliofunctions",
 		"nuclioprojects",
@@ -302,7 +302,7 @@ func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIG
 }
 
 func (suite *KubeTestSuite) GetProject(getProjectFunctions *platform.GetProjectsOptions) platform.Project {
-	projects, err := suite.Platform.GetProjects(context.TODO(), getProjectFunctions)
+	projects, err := suite.Platform.GetProjects(context.Background(), getProjectFunctions)
 	suite.Require().NoError(err, "Failed to get projects")
 	return projects[0]
 }
@@ -379,7 +379,7 @@ func (suite *KubeTestSuite) GetNodes() []v1.Node {
 
 func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
 	suite.Logger.InfoWith("Deleting function pods", "functionName", functionName)
-	errGroup, _ := errgroup.WithContext(context.TODO(), suite.Logger)
+	errGroup, _ := errgroup.WithContext(context.Background(), suite.Logger)
 	for _, pod := range suite.GetFunctionPods(functionName) {
 		pod := pod
 		errGroup.Go("Delete function pods", func() error {
@@ -409,7 +409,7 @@ func (suite *KubeTestSuite) CreateImportedFunction(functionName, projectName str
 	}
 	createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 	suite.PopulateDeployOptions(createFunctionOptions)
-	_, err := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(context.Background(), createFunctionOptions)
 	suite.Require().NoError(err)
 	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
 		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
@@ -494,14 +494,14 @@ func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.C
 	onAfterIngressCreated OnAfterIngressCreated) error {
 
 	// deploy the api gateway
-	if err := suite.Platform.CreateAPIGateway(context.TODO(), createAPIGatewayOptions); err != nil {
+	if err := suite.Platform.CreateAPIGateway(context.Background(), createAPIGatewayOptions); err != nil {
 		return err
 	}
 
 	// delete the api gateway when done
 	defer func() {
 		suite.Logger.Debug("Deleting deployed api gateway")
-		err := suite.Platform.DeleteAPIGateway(context.TODO(), &platform.DeleteAPIGatewayOptions{
+		err := suite.Platform.DeleteAPIGateway(context.Background(), &platform.DeleteAPIGatewayOptions{
 			Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
 		})
 		suite.Require().NoError(err)
@@ -614,7 +614,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		ingressManager)
 	suite.Require().NoError(err)
 
-	controllerInstance, err := controller.NewController(context.TODO(),
+	controllerInstance, err := controller.NewController(context.Background(),
 		suite.Logger,
 		suite.Namespace,
 		"",

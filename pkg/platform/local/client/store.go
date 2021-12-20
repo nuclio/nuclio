@@ -112,7 +112,7 @@ func (s *Store) DeleteProject(ctx context.Context, projectMeta *platform.Project
 	}
 
 	// NOTE: functions delete their related function events
-	deleteFunctionsErrGroup, _ := errgroup.WithContext(context.TODO())
+	deleteFunctionsErrGroup, _ := errgroup.WithContext(ctx)
 	for _, function := range functions {
 		function := function
 		deleteFunctionsErrGroup.Go(func() error {
@@ -274,7 +274,7 @@ func (s *Store) DeleteFunction(ctx context.Context, functionMeta *functionconfig
 		return errors.Wrap(err, "Failed to get function events")
 	}
 
-	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(context.TODO())
+	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(ctx)
 	for _, functionEvent := range functionEvents {
 		functionEvent := functionEvent
 		deleteFunctionEventsErrGroup.Go(func() error {

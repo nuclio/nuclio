@@ -131,7 +131,7 @@ func (fm *FunctionMonitor) checkFunctionStatuses(ctx context.Context) error {
 		return errors.Wrap(err, "Failed to list functions")
 	}
 
-	errGroup, _ := errgroup.WithContext(context.TODO(), fm.logger)
+	errGroup, _ := errgroup.WithContext(ctx, fm.logger)
 	for _, function := range functions.Items {
 		function := function
 		errGroup.Go("update-function-status", func() error {

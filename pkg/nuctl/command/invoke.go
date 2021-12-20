@@ -126,7 +126,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			}
 
 			commandeer.createFunctionInvocationOptions.Timeout = commandeer.timeout
-			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(context.TODO(),
+			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(context.Background(),
 				&commandeer.createFunctionInvocationOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to invoke function")

@@ -243,11 +243,11 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 		functionConfig.Spec.Triggers = testCase.Triggers
 
 		// enrich
-		err := suite.Platform.EnrichFunctionConfig(context.TODO(), functionConfig)
+		err := suite.Platform.EnrichFunctionConfig(context.Background(), functionConfig)
 		suite.Require().NoError(err)
 
 		// validate
-		err = suite.Platform.ValidateFunctionConfig(context.TODO(), functionConfig)
+		err = suite.Platform.ValidateFunctionConfig(context.Background(), functionConfig)
 		if testCase.ExpectedError != "" {
 			suite.Assert().Error(err)
 			suite.Assert().Equal(testCase.ExpectedError, errors.RootCause(err).Error())
@@ -388,7 +388,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 				Return(testCase.existingFunctions, nil).
 				Once()
 
-			_, err := suite.Platform.ValidateDeleteFunctionOptions(context.TODO(), testCase.deleteFunctionOptions)
+			_, err := suite.Platform.ValidateDeleteFunctionOptions(context.Background(), testCase.deleteFunctionOptions)
 
 			suite.mockedPlatform.AssertExpectations(suite.T())
 
@@ -525,7 +525,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 				suite.mockedPlatform.AssertNotCalled(suite.T(), "GetAPIGateways", mock.Anything)
 			}
 
-			err := suite.Platform.ValidateDeleteProjectOptions(context.TODO(), testCase.deleteProjectOptions)
+			err := suite.Platform.ValidateDeleteProjectOptions(context.Background(), testCase.deleteProjectOptions)
 			if testCase.expectedFailure {
 				suite.Require().Error(err)
 				return
@@ -574,7 +574,7 @@ func (suite *AbstractPlatformTestSuite) TestGetProjectResources() {
 				On("GetFunctions", mock.Anything).
 				Return(testCase.functions, testCase.getFunctionsError).Once()
 
-			projectFunctions, projectAPIGateways, err := suite.Platform.GetProjectResources(context.TODO(),
+			projectFunctions, projectAPIGateways, err := suite.Platform.GetProjectResources(context.Background(),
 				&platform.ProjectMeta{
 					Namespace: suite.DefaultNamespace,
 					Name:      xid.New().String(),
@@ -664,7 +664,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			err := suite.Platform.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(context.TODO(),
+			err := suite.Platform.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(context.Background(),
 				testCase.existingFunction,
 				testCase.createFunctionOptions)
 			if testCase.expectValidationFailure {
@@ -776,10 +776,10 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = MinMaxReplicas.MaxReplicas
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+		err := suite.Platform.EnrichFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function config")
 
-		err = suite.Platform.ValidateFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+		err = suite.Platform.ValidateFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 		if MinMaxReplicas.shouldFailValidation {
 			suite.Error(err, "Validation should fail")
 			suite.Logger.DebugWith("Validation failed as expected ", "functionName", functionName)
@@ -897,10 +897,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+		err := suite.Platform.EnrichFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function")
 
-		err = suite.Platform.ValidateFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+		err = suite.Platform.ValidateFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 		if testCase.shouldFailValidation {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			continue
@@ -963,7 +963,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			Return([]platform.Project{&platform.AbstractProject{}}, nil).
 			Once()
 
-		err := suite.Platform.ValidateFunctionConfig(context.TODO(), &functionConfig)
+		err := suite.Platform.ValidateFunctionConfig(context.Background(), &functionConfig)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
@@ -1105,7 +1105,7 @@ func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
 
 	// key not exists / enriched
 	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], "")
-	err := suite.Platform.EnrichFunctionEvent(context.TODO(), &functionEvent)
+	err := suite.Platform.EnrichFunctionEvent(context.Background(), &functionEvent)
 
 	// enriched with project name
 	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], projectName)
@@ -1199,10 +1199,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
-			err = suite.Platform.ValidateFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -1279,10 +1279,10 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 			suite.Platform.Config.Kube.ValidFunctionPriorityClassNames = testCase.validFunctionPriorityClassNames
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
-			err = suite.Platform.ValidateFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -1445,10 +1445,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			}
 			suite.Logger.DebugWith("Checking function", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err)
 
-			err = suite.Platform.ValidateFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {

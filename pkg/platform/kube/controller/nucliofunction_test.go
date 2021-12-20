@@ -67,7 +67,7 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 		suite.functionClientSet)
 	suite.Require().NoError(err)
 
-	suite.controller, err = NewController(context.TODO(),
+	suite.controller, err = NewController(context.Background(),
 		suite.logger, suite.namespace,
 		"",
 		suite.k8sClientSet,
@@ -104,7 +104,7 @@ func (suite *NuclioFunctionTestSuite) TestPreserveBuildLogs() {
 			panic("Oh nooo")
 		})
 
-	err := suite.controller.functionOperator.CreateOrUpdate(context.TODO(), functionInstance)
+	err := suite.controller.functionOperator.CreateOrUpdate(context.Background(), functionInstance)
 	suite.Require().NoError(err)
 
 	// function state must be change to error after panicking during its create/update
@@ -124,7 +124,7 @@ func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {
 			panic("Oh nooo")
 		})
 
-	err := suite.controller.functionOperator.CreateOrUpdate(context.TODO(), functionInstance)
+	err := suite.controller.functionOperator.CreateOrUpdate(context.Background(), functionInstance)
 	suite.Require().NoError(err)
 
 	// function state must be change to error after panicking during its create/update

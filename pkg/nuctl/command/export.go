@@ -81,7 +81,7 @@ Arguments:
 
 			commandeer.getFunctionsOptions.Namespace = exportCommandeer.rootCommandeer.namespace
 
-			functions, err := exportCommandeer.rootCommandeer.platform.GetFunctions(context.TODO(),
+			functions, err := exportCommandeer.rootCommandeer.platform.GetFunctions(context.Background(),
 				&commandeer.getFunctionsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
@@ -171,7 +171,7 @@ Arguments:
 			// get namespace
 			commandeer.getProjectsOptions.Meta.Namespace = exportCommandeer.rootCommandeer.namespace
 
-			projects, err := exportCommandeer.rootCommandeer.platform.GetProjects(context.TODO(),
+			projects, err := exportCommandeer.rootCommandeer.platform.GetProjects(context.Background(),
 				&commandeer.getProjectsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get projects")
@@ -246,7 +246,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projec
 		Namespace: projectConfig.Meta.Namespace,
 		Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectConfig.Meta.Name),
 	}
-	functions, err := e.rootCommandeer.platform.GetFunctions(context.TODO(), getFunctionOptions)
+	functions, err := e.rootCommandeer.platform.GetFunctions(context.Background(), getFunctionOptions)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get functions")
 	}

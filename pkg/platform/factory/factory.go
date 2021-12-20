@@ -32,7 +32,8 @@ import (
 
 // CreatePlatform creates a platform based on a requested type (platformType) and configuration it receives
 // and probes
-func CreatePlatform(parentLogger logger.Logger,
+func CreatePlatform(ctx context.Context,
+	parentLogger logger.Logger,
 	platformType string,
 	platformConfiguration *platformconfig.Config,
 	defaultNamespace string) (platform.Platform, error) {
@@ -48,10 +49,10 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	switch platformType {
 	case "local":
-		newPlatform, err = local.NewPlatform(context.TODO(), parentLogger, platformConfiguration, defaultNamespace)
+		newPlatform, err = local.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace)
 
 	case "kube":
-		newPlatform, err = kube.NewPlatform(context.TODO(), parentLogger, platformConfiguration, defaultNamespace)
+		newPlatform, err = kube.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace)
 
 	case "auto":
 
@@ -60,11 +61,11 @@ func CreatePlatform(parentLogger logger.Logger,
 			common.IsInKubernetesCluster() {
 
 			// call again, but force kube
-			newPlatform, err = CreatePlatform(parentLogger, "kube", platformConfiguration, defaultNamespace)
+			newPlatform, err = CreatePlatform(ctx, parentLogger, "kube", platformConfiguration, defaultNamespace)
 		} else {
 
 			// call again, force local
-			newPlatform, err = CreatePlatform(parentLogger, "local", platformConfiguration, defaultNamespace)
+			newPlatform, err = CreatePlatform(ctx, parentLogger, "local", platformConfiguration, defaultNamespace)
 		}
 
 	default:
@@ -78,8 +79,8 @@ func CreatePlatform(parentLogger logger.Logger,
 	// under this section, add actions to be performed only after platform type had been resolved
 	// (so it won't be performed more than once)
 	if platformType != "auto" {
-		parentLogger.DebugWithCtx(context.TODO(), "Initializing platform", "platformType", platformType)
-		if err = newPlatform.Initialize(context.TODO()); err != nil {
+		parentLogger.DebugWithCtx(ctx, "Initializing platform", "platformType", platformType)
+		if err = newPlatform.Initialize(ctx); err != nil {
 			return nil, errors.Wrap(err, "Failed to initialize platform")
 		}
 	}

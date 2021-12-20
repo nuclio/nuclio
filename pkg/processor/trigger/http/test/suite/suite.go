@@ -117,7 +117,7 @@ func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *plat
 	// add some more common CreateFunctionOptions
 	suite.PopulateDeployOptions(createFunctionOptions)
 
-	_, err := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(context.Background(), createFunctionOptions)
 	suite.Require().Error(err, expectedMessage)
 }
 

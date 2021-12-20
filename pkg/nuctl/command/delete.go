@@ -90,7 +90,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 			commandeer.functionConfig.Meta.Name = args[0]
 			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(context.Background(), &platform.DeleteFunctionOptions{
 				FunctionConfig: commandeer.functionConfig,
 			})
 		},
@@ -133,7 +133,7 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 			commandeer.projectMeta.Name = args[0]
 			commandeer.projectMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteProject(context.TODO(), &platform.DeleteProjectOptions{
+			return deleteCommandeer.rootCommandeer.platform.DeleteProject(context.Background(), &platform.DeleteProjectOptions{
 				Meta:     commandeer.projectMeta,
 				Strategy: platform.ResolveProjectDeletionStrategyOrDefault(commandeer.deletionStrategy),
 
@@ -181,7 +181,7 @@ func newDeleteAPIGatewayCommandeer(deleteCommandeer *deleteCommandeer) *deleteAP
 			commandeer.apiGatewayMeta.Name = args[0]
 			commandeer.apiGatewayMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteAPIGateway(context.TODO(), &platform.DeleteAPIGatewayOptions{
+			return deleteCommandeer.rootCommandeer.platform.DeleteAPIGateway(context.Background(), &platform.DeleteAPIGatewayOptions{
 				Meta: commandeer.apiGatewayMeta,
 			})
 		},
@@ -221,7 +221,7 @@ func newDeleteFunctionEventCommandeer(deleteCommandeer *deleteCommandeer) *delet
 			commandeer.functionEventMeta.Name = args[0]
 			commandeer.functionEventMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunctionEvent(context.TODO(), &platform.DeleteFunctionEventOptions{
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunctionEvent(context.Background(), &platform.DeleteFunctionEventOptions{
 				Meta: commandeer.functionEventMeta,
 			})
 		},

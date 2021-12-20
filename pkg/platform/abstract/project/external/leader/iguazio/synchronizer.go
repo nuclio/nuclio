@@ -151,7 +151,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 	}
 
 	// fetch all internal projects
-	internalProjects, err := c.internalProjectsClient.Get(context.TODO(), &platform.GetProjectsOptions{
+	internalProjects, err := c.internalProjectsClient.Get(context.Background(), &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Namespace: namespace,
 		},
@@ -186,7 +186,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 					Status: projectInstance.Status,
 				},
 			}
-			if _, err := c.internalProjectsClient.Create(context.TODO(), createProjectConfig); err != nil {
+			if _, err := c.internalProjectsClient.Create(context.Background(), createProjectConfig); err != nil {
 				c.logger.WarnWith("Failed to create project from leader sync",
 					"name", createProjectConfig.ProjectConfig.Meta.Name,
 					"namespace", createProjectConfig.ProjectConfig.Meta.Namespace,
@@ -217,7 +217,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 					Status: projectInstance.Status,
 				},
 			}
-			if _, err := c.internalProjectsClient.Update(context.TODO(), updateProjectOptions); err != nil {
+			if _, err := c.internalProjectsClient.Update(context.Background(), updateProjectOptions); err != nil {
 				c.logger.WarnWith("Failed to update project from leader sync",
 					"name", updateProjectOptions.ProjectConfig.Meta.Name,
 					"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace,

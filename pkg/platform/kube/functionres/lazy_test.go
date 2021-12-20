@@ -63,7 +63,7 @@ type lazyTestSuite struct {
 func (suite *lazyTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.client.logger = suite.logger
-	suite.ctx = context.TODO()
+	suite.ctx = context.Background()
 
 	// use a fake kube client
 	suite.client.kubeClientSet = fake.NewSimpleClientset()
@@ -102,7 +102,7 @@ func (suite *lazyTestSuite) TestNodeConstrains() {
 			},
 		},
 	}
-	resources, err := suite.client.CreateOrUpdate(context.TODO(), functionInstance, "")
+	resources, err := suite.client.CreateOrUpdate(context.Background(), functionInstance, "")
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(resources)
 	deployment, err := resources.Deployment()
@@ -663,7 +663,7 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 			suite.Require().NoError(err)
 
 			// call resolveFailFast
-			err = suite.client.resolveFailFast(context.TODO(), &podsList, time.Now())
+			err = suite.client.resolveFailFast(context.Background(), &podsList, time.Now())
 			if testCase.expectedError {
 				suite.Require().Error(err)
 			} else {

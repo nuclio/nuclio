@@ -48,7 +48,7 @@ type FunctionMonitoringTestSuite struct {
 func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 	var err error
 	suite.Namespace = "default-namespace"
-	suite.ctx = context.TODO()
+	suite.ctx = context.Background()
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Failed to create logger")
 }

@@ -515,7 +515,7 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(ctx context.Context,
 	lc.logger.DebugWithCtx(ctx, "Deleting removed cron trigger cron job",
 		"cronJobsToDelete", cronJobsToDelete)
 
-	errGroup, _ := errgroup.WithContext(context.TODO(), lc.logger)
+	errGroup, _ := errgroup.WithContext(ctx, lc.logger)
 	for _, cronJobToDelete := range cronJobsToDelete.Items {
 		cronJobToDelete := cronJobToDelete
 		errGroup.Go("DeleteCronTrigger", func() error {

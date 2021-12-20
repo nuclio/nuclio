@@ -104,7 +104,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 			if len(args) == 1 {
 				commandeer.functionName = args[0]
 
-				importedFunction, err = commandeer.getImportedFunction(args[0])
+				importedFunction, err = commandeer.getImportedFunction(ctx, args[0])
 				if err != nil {
 					return errors.Wrap(err, "Failed getting the imported function's data")
 				}
@@ -301,8 +301,8 @@ func parseVolumes(volumes stringSliceFlag) ([]functionconfig.Volume, error) {
 
 // If user runs deploy with a function name of a function that was already imported, this checks if that function
 // exists and is imported. If so, returns that function, otherwise returns nil.
-func (d *deployCommandeer) getImportedFunction(functionName string) (platform.Function, error) {
-	functions, err := d.rootCommandeer.platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
+func (d *deployCommandeer) getImportedFunction(ctx context.Context, functionName string) (platform.Function, error) {
+	functions, err := d.rootCommandeer.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:      functionName,
 		Namespace: d.rootCommandeer.namespace,
 	})

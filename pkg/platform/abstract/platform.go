@@ -1012,7 +1012,7 @@ func (ap *Platform) GetProjectResources(ctx context.Context, projectMeta *platfo
 	var err error
 	var functions []platform.Function
 	var apiGateways []platform.APIGateway
-	errGroup, _ := errgroup.WithContext(context.TODO(), ap.Logger)
+	errGroup, _ := errgroup.WithContext(ctx, ap.Logger)
 
 	// get api gateways
 	errGroup.Go("GetAPIGateways", func() error {

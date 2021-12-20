@@ -71,7 +71,7 @@ func (suite *ControllerTestSuite) TestStaleResourceVersion() {
 	suite.Require().Equal(0, int(suite.Controller.GetResyncInterval()))
 
 	// start controller
-	err = suite.Controller.Start(context.TODO())
+	err = suite.Controller.Start(context.Background())
 	suite.Require().NoError(err)
 
 	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
@@ -86,7 +86,7 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	createFunctionOptions := suite.CompileCreateFunctionOptions(fmt.Sprintf("test-%s", suite.TestID))
 
 	// enrich with defaults
-	err := suite.Platform.EnrichFunctionConfig(context.TODO(), &createFunctionOptions.FunctionConfig)
+	err := suite.Platform.EnrichFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	// build function

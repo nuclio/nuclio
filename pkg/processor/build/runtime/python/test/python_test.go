@@ -78,11 +78,11 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 	// we should see "Looking in indexes: XXX" message in the logs
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install non-existing-package"}
 	suite.PopulateDeployOptions(createFunctionOptions)
-	_, err := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(context.Background(), createFunctionOptions)
 	suite.Assert().NotNil(err)
 
 	// delete leftovers
-	defer suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(context.Background(), &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 	stackTrace := errors.GetErrorStackString(err, 10)

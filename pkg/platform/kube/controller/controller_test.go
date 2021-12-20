@@ -67,7 +67,7 @@ func (suite *ControllerTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	// create controller
-	suite.controller, err = NewController(context.TODO(),
+	suite.controller, err = NewController(context.Background(),
 		suite.logger,
 		suite.namespace,
 		"",
@@ -100,7 +100,7 @@ func (suite *ControllerTestSuite) TestFunctionUpdateFailureInvocationURLs() {
 	functionInstance.Spec.ReadinessTimeoutSeconds = 1
 
 	// call CreateOrUpdate
-	err := suite.controller.functionOperator.CreateOrUpdate(context.TODO(), functionInstance)
+	err := suite.controller.functionOperator.CreateOrUpdate(context.Background(), functionInstance)
 	suite.Require().Error(err)
 
 	// make sure there are no invocation URLs

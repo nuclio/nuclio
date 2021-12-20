@@ -302,7 +302,7 @@ func (suite *FunctionMonitoringTestSuite) TestPausedFunctionShouldRemainInReadyS
 		deployResults.UpdatedFunctionConfig.Spec.Replicas = &zero
 		deployResults.UpdatedFunctionConfig.Spec.Disable = true
 		deployResults.UpdatedFunctionConfig.Spec.Image = deployResults.Image
-		err := suite.Platform.UpdateFunction(context.TODO(),
+		err := suite.Platform.UpdateFunction(context.Background(),
 			&platform.UpdateFunctionOptions{
 				FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
 				FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,

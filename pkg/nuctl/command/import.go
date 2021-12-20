@@ -63,7 +63,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
-func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config, project *platform.ProjectConfig) error {
+func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *functionconfig.Config, project *platform.ProjectConfig) error {
 
 	// populate namespace
 	functionConfig.Meta.Namespace = project.Meta.Namespace
@@ -72,7 +72,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = project.Meta.Name
 	}
 
-	functions, err := i.rootCommandeer.platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
+	functions, err := i.rootCommandeer.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:      functionConfig.Meta.Name,
 		Namespace: i.rootCommandeer.namespace,
 	})
@@ -85,7 +85,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 	}
 
 	// create function
-	_, err = i.rootCommandeer.platform.CreateFunction(context.TODO(), &platform.CreateFunctionOptions{
+	_, err = i.rootCommandeer.platform.CreateFunction(ctx, &platform.CreateFunctionOptions{
 		Logger:         i.rootCommandeer.loggerInstance,
 		FunctionConfig: *functionConfig,
 	})
@@ -93,15 +93,16 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 	return err
 }
 
-func (i *importCommandeer) importFunctions(functionConfigs map[string]*functionconfig.Config,
+func (i *importCommandeer) importFunctions(ctx context.Context,
+	functionConfigs map[string]*functionconfig.Config,
 	project *platform.ProjectConfig) error {
 	var errGroup errgroup.Group
 
-	i.rootCommandeer.loggerInstance.DebugWith("Importing functions", "functions", functionConfigs)
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing functions", "functions", functionConfigs)
 	for _, functionConfig := range functionConfigs {
 		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
-			return i.importFunction(functionConfig, project)
+			return i.importFunction(ctx, functionConfig, project)
 		})
 	}
 
@@ -165,7 +166,7 @@ Use --help for more information`)
 				},
 			}
 
-			return commandeer.importFunctions(functionConfigs, platformConfig)
+			return commandeer.importFunctions(context.Background(), functionConfigs, platformConfig)
 		},
 	}
 
@@ -257,7 +258,7 @@ Use --help for more information`)
 				return errors.Wrap(err, "Failed to resolve the imported project configuration")
 			}
 
-			return commandeer.importProjects(importProjectsOptions)
+			return commandeer.importProjects(context.Background(), importProjectsOptions)
 		},
 	}
 
@@ -273,8 +274,8 @@ Use --help for more information`)
 	return commandeer
 }
 
-func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.FunctionEventConfig) error {
-	functions, err := i.rootCommandeer.platform.GetFunctions(context.TODO(), &platform.GetFunctionsOptions{
+func (i *importProjectCommandeer) importFunctionEvent(ctx context.Context, functionEvent *platform.FunctionEventConfig) error {
+	functions, err := i.rootCommandeer.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:      functionEvent.Meta.Labels["nuclio.io/function-name"],
 		Namespace: i.rootCommandeer.namespace,
 	})
@@ -292,7 +293,7 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 	functionEvent.Meta.Namespace = i.rootCommandeer.namespace
 
 	// just deploy; the status is async through polling
-	return i.rootCommandeer.platform.CreateFunctionEvent(context.TODO(), &platform.CreateFunctionEventOptions{
+	return i.rootCommandeer.platform.CreateFunctionEvent(ctx, &platform.CreateFunctionEventOptions{
 		FunctionEventConfig: platform.FunctionEventConfig{
 			Meta: functionEvent.Meta,
 			Spec: functionEvent.Spec,
@@ -300,13 +301,13 @@ func (i *importProjectCommandeer) importFunctionEvent(functionEvent *platform.Fu
 	})
 }
 
-func (i *importProjectCommandeer) importAPIGateway(apiGateway *platform.APIGatewayConfig) error {
+func (i *importProjectCommandeer) importAPIGateway(ctx context.Context, apiGateway *platform.APIGatewayConfig) error {
 
 	// populate namespace
 	apiGateway.Meta.Namespace = i.rootCommandeer.namespace
 
 	// just create; the status is async through polling
-	return i.rootCommandeer.platform.CreateAPIGateway(context.TODO(), &platform.CreateAPIGatewayOptions{
+	return i.rootCommandeer.platform.CreateAPIGateway(ctx, &platform.CreateAPIGatewayOptions{
 		APIGatewayConfig: &platform.APIGatewayConfig{
 			Meta: apiGateway.Meta,
 			Spec: apiGateway.Spec,
@@ -314,25 +315,27 @@ func (i *importProjectCommandeer) importAPIGateway(apiGateway *platform.APIGatew
 	})
 }
 
-func (i *importProjectCommandeer) importFunctionEvents(functionEvents map[string]*platform.FunctionEventConfig) error {
+func (i *importProjectCommandeer) importFunctionEvents(ctx context.Context,
+	functionEvents map[string]*platform.FunctionEventConfig) error {
 	var errGroup errgroup.Group
 
-	i.rootCommandeer.loggerInstance.DebugWith("Importing function events",
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing function events",
 		"functionEvents", functionEvents)
 	for _, functionEventConfig := range functionEvents {
 		functionEventConfig := functionEventConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
-			return i.importFunctionEvent(functionEventConfig)
+			return i.importFunctionEvent(ctx, functionEventConfig)
 		})
 	}
 
 	return errGroup.Wait()
 }
 
-func (i *importProjectCommandeer) importAPIGateways(apiGateways map[string]*platform.APIGatewayConfig) error {
+func (i *importProjectCommandeer) importAPIGateways(ctx context.Context,
+	apiGateways map[string]*platform.APIGatewayConfig) error {
 	var errGroup errgroup.Group
 
-	i.rootCommandeer.loggerInstance.DebugWith("Importing api gateways", "apiGateways", apiGateways)
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing api gateways", "apiGateways", apiGateways)
 
 	if apiGateways == nil {
 		return nil
@@ -341,16 +344,17 @@ func (i *importProjectCommandeer) importAPIGateways(apiGateways map[string]*plat
 	for _, apiGatewayConfig := range apiGateways {
 		apiGatewayConfig := apiGatewayConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go(func() error {
-			return i.importAPIGateway(apiGatewayConfig)
+			return i.importAPIGateway(ctx, apiGatewayConfig)
 		})
 	}
 
 	return errGroup.Wait()
 }
 
-func (i *importProjectCommandeer) importProject(projectImportOptions *ProjectImportOptions) error {
+func (i *importProjectCommandeer) importProject(ctx context.Context,
+	projectImportOptions *ProjectImportOptions) error {
 	var err error
-	project, err := i.importProjectIfMissing(projectImportOptions)
+	project, err := i.importProjectIfMissing(ctx, projectImportOptions)
 	if err != nil {
 		return err
 	}
@@ -362,10 +366,10 @@ func (i *importProjectCommandeer) importProject(projectImportOptions *ProjectImp
 	i.enrichProjectImportConfig(projectImportOptions.projectImportConfig)
 
 	// import functions
-	functionImportErr := i.importFunctions(projectImportOptions.projectImportConfig.Functions,
+	functionImportErr := i.importFunctions(ctx, projectImportOptions.projectImportConfig.Functions,
 		projectImportOptions.projectImportConfig.Project)
 	if functionImportErr != nil {
-		i.rootCommandeer.loggerInstance.WarnWith("Failed to import all project functions",
+		i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to import all project functions",
 			"functionImportErr", functionImportErr)
 
 		// return this error
@@ -373,9 +377,9 @@ func (i *importProjectCommandeer) importProject(projectImportOptions *ProjectImp
 	}
 
 	// import function events
-	functionEventImportErr := i.importFunctionEvents(projectImportOptions.projectImportConfig.FunctionEvents)
+	functionEventImportErr := i.importFunctionEvents(ctx, projectImportOptions.projectImportConfig.FunctionEvents)
 	if functionEventImportErr != nil {
-		i.rootCommandeer.loggerInstance.WarnWith("Failed to import all function events",
+		i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to import all function events",
 			"functionEventImportErr", functionEventImportErr)
 
 		// return this err only if not previously set
@@ -388,9 +392,9 @@ func (i *importProjectCommandeer) importProject(projectImportOptions *ProjectImp
 	if i.rootCommandeer.platform.GetName() == "kube" {
 
 		// import api gateways
-		apiGatewaysImportErr := i.importAPIGateways(projectImportOptions.projectImportConfig.APIGateways)
+		apiGatewaysImportErr := i.importAPIGateways(ctx, projectImportOptions.projectImportConfig.APIGateways)
 		if apiGatewaysImportErr != nil {
-			i.rootCommandeer.loggerInstance.WarnWith("Unable to import all api gateways",
+			i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Unable to import all api gateways",
 				"apiGatewaysImportErr", apiGatewaysImportErr)
 
 			// return this err only if not previously set
@@ -403,7 +407,8 @@ func (i *importProjectCommandeer) importProject(projectImportOptions *ProjectImp
 	return err
 }
 
-func (i *importProjectCommandeer) importProjects(projectsImportOptions map[string]*ProjectImportOptions) error {
+func (i *importProjectCommandeer) importProjects(ctx context.Context,
+	projectsImportOptions map[string]*ProjectImportOptions) error {
 	i.rootCommandeer.loggerInstance.DebugWith("Importing projects",
 		"projectsImportOptions", projectsImportOptions,
 		"skipLabelSelectors", i.skipLabelSelectors,
@@ -419,13 +424,13 @@ func (i *importProjectCommandeer) importProjects(projectsImportOptions map[strin
 			return errors.Wrap(err, "Failed to check whether project needs to be skipped")
 		}
 		if skipProject {
-			i.rootCommandeer.loggerInstance.DebugWith("Skipping import for project",
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Skipping import for project",
 				"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 				"projectName", projectImportConfig.Project.Meta.Name)
 			continue
 		}
 
-		i.rootCommandeer.loggerInstance.DebugWith("Importing project",
+		i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing project",
 			"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 			"projectName", projectName)
 
@@ -435,11 +440,11 @@ func (i *importProjectCommandeer) importProjects(projectsImportOptions map[strin
 		}
 
 		// import project
-		if err := i.importProject(projectImportOptions); err != nil {
+		if err := i.importProject(ctx, projectImportOptions); err != nil {
 			return errors.Wrap(err, "Failed to import project")
 		}
 
-		i.rootCommandeer.loggerInstance.InfoWith("Successfully imported project",
+		i.rootCommandeer.loggerInstance.InfoWithCtx(ctx, "Successfully imported project",
 			"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 			"projectName", projectName)
 	}
@@ -529,11 +534,11 @@ func (i *importProjectCommandeer) enrichProjectImportConfig(projectImportConfig 
 	}
 }
 
-func (i *importProjectCommandeer) importProjectIfMissing(projectImportOptions *ProjectImportOptions) (
+func (i *importProjectCommandeer) importProjectIfMissing(ctx context.Context, projectImportOptions *ProjectImportOptions) (
 	platform.Project, error) {
 
 	projectImportConfig := projectImportOptions.projectImportConfig
-	projects, err := i.rootCommandeer.platform.GetProjects(context.TODO(), &platform.GetProjectsOptions{
+	projects, err := i.rootCommandeer.platform.GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: projectImportConfig.Project.Meta,
 	})
 	if err != nil {
@@ -552,20 +557,20 @@ func (i *importProjectCommandeer) importProjectIfMissing(projectImportOptions *P
 			return nil, err
 		}
 
-		if err := newProject.CreateAndWait(context.TODO(), &platform.CreateProjectOptions{
+		if err := newProject.CreateAndWait(ctx, &platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
 		}); err != nil {
 			return nil, err
 		}
 
 		// get imported project
-		return i.getProject(newProject.GetConfig().Meta.Name, newProject.GetConfig().Meta.Namespace)
+		return i.getProject(ctx, newProject.GetConfig().Meta.Name, newProject.GetConfig().Meta.Namespace)
 	}
 	return projects[0], nil
 }
 
-func (i *importProjectCommandeer) getProject(projectName, projectNamespace string) (platform.Project, error) {
-	projects, err := i.rootCommandeer.platform.GetProjects(context.TODO(), &platform.GetProjectsOptions{
+func (i *importProjectCommandeer) getProject(ctx context.Context, projectName, projectNamespace string) (platform.Project, error) {
+	projects, err := i.rootCommandeer.platform.GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      projectName,
 			Namespace: projectNamespace,

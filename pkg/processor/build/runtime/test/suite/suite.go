@@ -132,7 +132,7 @@ func (suite *TestSuite) TestBuildDirWithInvalidInlineFunctionConfig() {
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// deploy the function
-	_, err := suite.Platform.CreateFunction(context.TODO(), createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(context.Background(), createFunctionOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(errors.Cause(err).Error(), "Failed to parse inline configuration")
 }
@@ -288,7 +288,7 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	suite.DeployFunctionAndExpectError(createFunctionOptions, "Function wasn't ready in time")
 
 	// since the function does actually get deployed (just not ready in time), we need to delete it
-	err := suite.Platform.DeleteFunction(context.TODO(), &platform.DeleteFunctionOptions{
+	err := suite.Platform.DeleteFunction(context.Background(), &platform.DeleteFunctionOptions{
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 	suite.Require().NoError(err)
