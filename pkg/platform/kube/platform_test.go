@@ -68,6 +68,7 @@ type KubePlatformTestSuite struct {
 	PlatformKubeConfig               *platformconfig.PlatformKubeConfig
 	mockedOpaClient                  *opa.MockClient
 	opaOverrideHeaderValue           string
+	ctx                              context.Context
 }
 
 func (suite *KubePlatformTestSuite) SetupSuite() {
@@ -78,6 +79,8 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	suite.Namespace = "default-namespace"
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
+
+	suite.ctx = context.Background()
 
 	suite.PlatformKubeConfig = &platformconfig.PlatformKubeConfig{
 		DefaultServiceType: v1.ServiceTypeClusterIP,
@@ -182,7 +185,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionNodeSelectorEnrichment()
 		suite.Run(testCase.name, func() {
 			functionConfig := functionconfig.NewConfig()
 			functionConfig.Spec.NodeSelector = testCase.nodeSelector
-			err := suite.Platform.EnrichFunctionConfig(context.Background(), functionConfig)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedNodeSelector, functionConfig.Spec.NodeSelector)
 
@@ -256,7 +259,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.ValidateFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
+			err := suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -423,7 +426,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
 
 			// run enrichment
-			err := suite.Platform.EnrichFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
 			if testCase.expectedEnrichedTriggers != nil {
@@ -432,7 +435,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}
 
 			// run validation
-			err = suite.Platform.ValidateFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.validationError != "" {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 				suite.Require().Equal(testCase.validationError, errors.RootCause(err).Error())
@@ -526,7 +529,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
 			}
 
 			functionInstance, functionConfigAndStatus, err := suite.Platform.
-				getFunctionInstanceAndConfig(context.Background(),
+				getFunctionInstanceAndConfig(suite.ctx,
 					suite.Namespace,
 					testCase.functionName,
 					true)
@@ -631,7 +634,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
-			functions, err := suite.Platform.GetFunctions(context.Background(), &platform.GetFunctionsOptions{
+			functions, err := suite.Platform.GetFunctions(suite.ctx, &platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.Namespace,
 				PermissionOptions: opa.PermissionOptions{
@@ -732,7 +735,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.UpdateFunction(context.Background(), &platform.UpdateFunctionOptions{
+			err := suite.Platform.UpdateFunction(suite.ctx, &platform.UpdateFunctionOptions{
 				FunctionMeta: &functionconfig.Meta{
 					Name:      functionName,
 					Namespace: suite.Namespace,
@@ -823,7 +826,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.DeleteFunction(context.Background(), &platform.DeleteFunctionOptions{
+			err := suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{
 				FunctionConfig: functionconfig.Config{
 					Meta: functionconfig.Meta{
 						Name:      functionName,
@@ -986,7 +989,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 					},
 				},
 			}
-			err := suite.Platform.enrichHTTPTriggers(context.Background(), functionConfig)
+			err := suite.Platform.enrichHTTPTriggers(suite.ctx, functionConfig)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.want,
 				functionConfig.Spec.Triggers[testCase.httpTrigger.Name].Attributes["ingresses"])
@@ -1106,7 +1109,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
-			functionEvents, err := suite.Platform.GetFunctionEvents(context.Background(), &platform.GetFunctionEventsOptions{
+			functionEvents, err := suite.Platform.GetFunctionEvents(suite.ctx, &platform.GetFunctionEventsOptions{
 				Meta: platform.FunctionEventMeta{
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
@@ -1205,7 +1208,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 				defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.UpdateFunctionEvent(context.Background(), &platform.UpdateFunctionEventOptions{
+			err := suite.Platform.UpdateFunctionEvent(suite.ctx, &platform.UpdateFunctionEventOptions{
 				FunctionEventConfig: platform.FunctionEventConfig{
 					Meta: platform.FunctionEventMeta{
 						Name:      functionEventName,
@@ -1294,7 +1297,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 				defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.DeleteFunctionEvent(context.Background(), &platform.DeleteFunctionEventOptions{
+			err := suite.Platform.DeleteFunctionEvent(suite.ctx, &platform.DeleteFunctionEventOptions{
 				Meta: platform.FunctionEventMeta{
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
@@ -1637,7 +1640,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				if testCase.expectedEnrichedAPIGateway.Meta.Labels == nil {
 					testCase.expectedEnrichedAPIGateway.Meta.Labels = map[string]string{}
 				}
-				suite.Platform.EnrichLabelsWithProjectName(context.Background(), testCase.expectedEnrichedAPIGateway.Meta.Labels)
+				suite.Platform.EnrichLabelsWithProjectName(suite.ctx, testCase.expectedEnrichedAPIGateway.Meta.Labels)
 			}
 
 			// run test case specific set up function if given
@@ -1647,7 +1650,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run enrichment
-			suite.Platform.enrichAPIGatewayConfig(context.Background(), testCase.apiGatewayConfig, nil)
+			suite.Platform.enrichAPIGatewayConfig(suite.ctx, testCase.apiGatewayConfig, nil)
 			if testCase.expectedEnrichedAPIGateway != nil {
 				suite.Require().Empty(cmp.Diff(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig))
 			}
@@ -1674,7 +1677,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run validation
-			err := suite.Platform.validateAPIGatewayConfig(context.Background(), testCase.apiGatewayConfig,
+			err := suite.Platform.validateAPIGatewayConfig(suite.ctx, testCase.apiGatewayConfig,
 				testCase.validateFunctionsExistence,
 				nil)
 			if testCase.validationError != "" {
@@ -1767,7 +1770,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 				Once()
 
 			// update
-			err := suite.Platform.UpdateAPIGateway(context.Background(), updateAPIGatewayOptions)
+			err := suite.Platform.UpdateAPIGateway(suite.ctx, updateAPIGatewayOptions)
 			suite.Require().NoError(err)
 		})
 	}

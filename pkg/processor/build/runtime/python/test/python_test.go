@@ -40,10 +40,13 @@ import (
 type TestSuite struct {
 	buildsuite.TestSuite
 	runtime string
+	ctx     context.Context
 }
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+
+	suite.ctx = context.Background()
 
 	suite.TestSuite.RuntimeSuite = suite
 	suite.TestSuite.ArchivePattern = "python"
@@ -78,11 +81,11 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 	// we should see "Looking in indexes: XXX" message in the logs
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install non-existing-package"}
 	suite.PopulateDeployOptions(createFunctionOptions)
-	_, err := suite.Platform.CreateFunction(context.Background(), createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(suite.ctx, createFunctionOptions)
 	suite.Assert().NotNil(err)
 
 	// delete leftovers
-	defer suite.Platform.DeleteFunction(context.Background(), &platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 	stackTrace := errors.GetErrorStackString(err, 10)

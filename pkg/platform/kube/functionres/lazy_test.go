@@ -102,7 +102,7 @@ func (suite *lazyTestSuite) TestNodeConstrains() {
 			},
 		},
 	}
-	resources, err := suite.client.CreateOrUpdate(context.Background(), functionInstance, "")
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(resources)
 	deployment, err := resources.Deployment()
@@ -663,7 +663,7 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 			suite.Require().NoError(err)
 
 			// call resolveFailFast
-			err = suite.client.resolveFailFast(context.Background(), &podsList, time.Now())
+			err = suite.client.resolveFailFast(suite.ctx, &podsList, time.Now())
 			if testCase.expectedError {
 				suite.Require().Error(err)
 			} else {

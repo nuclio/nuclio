@@ -42,6 +42,7 @@ type ControllerTestSuite struct {
 	namespace         string
 	functionClientSet *fake.Clientset
 	k8sClientSet      *k8sfake.Clientset
+	ctx               context.Context
 }
 
 func (suite *ControllerTestSuite) SetupTest() {
@@ -55,6 +56,8 @@ func (suite *ControllerTestSuite) SetupTest() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
+	suite.ctx = context.Background()
+
 	platformConfig, err := platformconfig.NewPlatformConfig("")
 	suite.Require().NoError(err)
 
@@ -67,8 +70,7 @@ func (suite *ControllerTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	// create controller
-	suite.controller, err = NewController(context.Background(),
-		suite.logger,
+	suite.controller, err = NewController(suite.logger,
 		suite.namespace,
 		"",
 		suite.k8sClientSet,
@@ -100,7 +102,7 @@ func (suite *ControllerTestSuite) TestFunctionUpdateFailureInvocationURLs() {
 	functionInstance.Spec.ReadinessTimeoutSeconds = 1
 
 	// call CreateOrUpdate
-	err := suite.controller.functionOperator.CreateOrUpdate(context.Background(), functionInstance)
+	err := suite.controller.functionOperator.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().Error(err)
 
 	// make sure there are no invocation URLs

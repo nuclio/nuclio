@@ -60,10 +60,13 @@ type TestSuite struct {
 	RuntimeSuite   RuntimeSuite
 	ArchivePattern string
 	archiveInfos   []archiveInfo
+	ctx            context.Context
 }
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+
+	suite.ctx = context.Background()
 
 	suite.archiveInfos = []archiveInfo{
 		{".zip", archiver.DefaultZip.Archive},
@@ -132,7 +135,7 @@ func (suite *TestSuite) TestBuildDirWithInvalidInlineFunctionConfig() {
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// deploy the function
-	_, err := suite.Platform.CreateFunction(context.Background(), createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(suite.ctx, createFunctionOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(errors.Cause(err).Error(), "Failed to parse inline configuration")
 }
@@ -288,7 +291,7 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	suite.DeployFunctionAndExpectError(createFunctionOptions, "Function wasn't ready in time")
 
 	// since the function does actually get deployed (just not ready in time), we need to delete it
-	err := suite.Platform.DeleteFunction(context.Background(), &platform.DeleteFunctionOptions{
+	err := suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 	suite.Require().NoError(err)

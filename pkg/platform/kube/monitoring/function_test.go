@@ -57,7 +57,8 @@ func (suite *FunctionMonitoringTestSuite) SetupTest() {
 	var err error
 	suite.kubeClientSet = fake.NewSimpleClientset()
 	suite.nuclioioClientSet = nuclioiofake.NewSimpleClientset()
-	suite.functionMonitor, err = NewFunctionMonitor(suite.ctx, suite.Logger,
+	suite.functionMonitor, err = NewFunctionMonitor(suite.ctx,
+		suite.Logger,
 		suite.Namespace,
 		suite.kubeClientSet,
 		suite.nuclioioClientSet,

@@ -24,6 +24,7 @@ type ExternalProjectClientTestSuite struct {
 	Logger                     logger.Logger
 	mockInternalProjectsClient *internalmock.Client
 	mockLeaderProjectsClient   *leadermock.Client
+	ctx                        context.Context
 }
 
 func (suite *ExternalProjectClientTestSuite) SetupSuite() {
@@ -32,6 +33,9 @@ func (suite *ExternalProjectClientTestSuite) SetupSuite() {
 	// create logger
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
+
+	// create context
+	suite.ctx = context.Background()
 
 	// mock internal client
 	suite.mockInternalProjectsClient = &internalmock.Client{}
@@ -70,7 +74,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
 		Return(&platform.AbstractProject{}, nil).
 		Once()
 
-	_, err := suite.Client.Create(context.Background(), &createProjectOptions)
+	_, err := suite.Client.Create(suite.ctx, &createProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -89,7 +93,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 		Return(&platform.AbstractProject{}, nil).
 		Once()
 
-	_, err := suite.Client.Update(context.Background(), &updateProjectOptions)
+	_, err := suite.Client.Update(suite.ctx, &updateProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -106,7 +110,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 		Return(nil).
 		Once()
 
-	err := suite.Client.Delete(context.Background(), &deleteProjectOptions)
+	err := suite.Client.Delete(suite.ctx, &deleteProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -125,7 +129,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderCreate() {
 		Return(nil, nil).
 		Once()
 
-	_, err := suite.Client.Create(context.Background(), &createProjectOptions)
+	_, err := suite.Client.Create(suite.ctx, &createProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulCreateProjectLeader)
 }
@@ -145,7 +149,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderUpdate() {
 		Return(nil, nil).
 		Once()
 
-	_, err := suite.Client.Update(context.Background(), &updateProjectOptions)
+	_, err := suite.Client.Update(suite.ctx, &updateProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulUpdateProjectLeader)
 }
@@ -163,7 +167,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderDelete() {
 		Return(nil).
 		Once()
 
-	err := suite.Client.Delete(context.Background(), &deleteProjectOptions)
+	err := suite.Client.Delete(suite.ctx, &deleteProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulDeleteProjectLeader)
 }
@@ -180,7 +184,7 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 		Return([]platform.Project{}, nil).
 		Once()
 
-	_, err := suite.Client.Get(context.Background(), &getProjectOptions)
+	_, err := suite.Client.Get(suite.ctx, &getProjectOptions)
 	suite.Require().NoError(err)
 }
 

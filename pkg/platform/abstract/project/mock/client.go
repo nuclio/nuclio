@@ -18,21 +18,21 @@ func (c *Client) Initialize() error {
 }
 
 func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	args := c.Called(getProjectsOptions)
+	args := c.Called(ctx, getProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
-	args := c.Called(createProjectOptions)
+	args := c.Called(ctx, createProjectOptions)
 	return args.Get(0).(platform.Project), args.Error(1)
 }
 
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
-	args := c.Called(updateProjectOptions)
+	args := c.Called(ctx, updateProjectOptions)
 	return args.Get(0).(platform.Project), args.Error(1)
 }
 
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
-	args := c.Called(deleteProjectOptions)
+	args := c.Called(ctx, deleteProjectOptions)
 	return args.Error(0)
 }

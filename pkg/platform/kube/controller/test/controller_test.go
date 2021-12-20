@@ -20,7 +20,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -71,7 +70,7 @@ func (suite *ControllerTestSuite) TestStaleResourceVersion() {
 	suite.Require().Equal(0, int(suite.Controller.GetResyncInterval()))
 
 	// start controller
-	err = suite.Controller.Start(context.Background())
+	err = suite.Controller.Start(suite.KubeTestSuite.Ctx)
 	suite.Require().NoError(err)
 
 	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
@@ -86,7 +85,7 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	createFunctionOptions := suite.CompileCreateFunctionOptions(fmt.Sprintf("test-%s", suite.TestID))
 
 	// enrich with defaults
-	err := suite.Platform.EnrichFunctionConfig(context.Background(), &createFunctionOptions.FunctionConfig)
+	err := suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	// build function

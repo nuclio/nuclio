@@ -100,6 +100,7 @@ func (r *Request) Enrich(deployResult *platform.CreateFunctionResult) {
 type TestSuite struct {
 	processorsuite.TestSuite
 	httpClient *http.Client
+	Ctx        context.Context
 }
 
 // SetupTest runs before every test
@@ -109,6 +110,8 @@ func (suite *TestSuite) SetupTest() {
 	suite.httpClient = &http.Client{
 		Timeout: 10 * time.Second,
 	}
+
+	suite.Ctx = context.Background()
 }
 
 // DeployFunctionAndExpectError runs a function, expecting an error
@@ -117,7 +120,7 @@ func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *plat
 	// add some more common CreateFunctionOptions
 	suite.PopulateDeployOptions(createFunctionOptions)
 
-	_, err := suite.Platform.CreateFunction(context.Background(), createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(suite.Ctx, createFunctionOptions)
 	suite.Require().Error(err, expectedMessage)
 }
 

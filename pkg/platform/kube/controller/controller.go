@@ -59,8 +59,7 @@ type Controller struct {
 	functionMonitoringInterval time.Duration
 }
 
-func NewController(ctx context.Context,
-	parentLogger logger.Logger,
+func NewController(parentLogger logger.Logger,
 	namespace string,
 	imagePullSecrets string,
 	kubeClientSet kubernetes.Interface,
@@ -82,6 +81,8 @@ func NewController(ctx context.Context,
 	if namespace == "*" {
 		namespace = ""
 	}
+
+	ctx := context.Background()
 
 	newController := &Controller{
 		logger:                     parentLogger,

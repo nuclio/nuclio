@@ -167,8 +167,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create api gateway provisioner")
 	}
 
-	newController, err := controller.NewController(context.Background(),
-		rootLogger,
+	newController, err := controller.NewController(rootLogger,
 		namespace,
 		imagePullSecrets,
 		kubeClientSet,
