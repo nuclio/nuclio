@@ -129,7 +129,7 @@ func NewPlatform(ctx context.Context,
 	}
 
 	// create projects client
-	newPlatform.projectsClient, err = NewProjectsClient(ctx, newPlatform, platformConfiguration)
+	newPlatform.projectsClient, err = NewProjectsClient(newPlatform, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create projects client")
 	}

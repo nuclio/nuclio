@@ -2,13 +2,17 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 [![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
 
-<p align="center"><img src="/docs/assets/images/logo.png" width="180"/></p>
+<p align="center"><img src="/docs/assets/images/logo.png" width="180" alt="nuclio"/></p>
 
 # Nuclio - "Serverless" for Real-Time Events and Data Processing
 
 <p align="center">
 Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news and a friendly web presentation of the Nuclio <a href="https://nuclio.io/docs/latest/">documentation</a>.
 </p>
+
+Translations: 
+
+- [简体中文](./README_zh.md)
 
 #### In this document
 - [Overview](#overview)
@@ -49,7 +53,7 @@ Nuclio was created to fulfill these requirements.  It was intentionally designed
 
 ## Quick-start steps
 
-The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio [dashboard](#dashboard). All you need to run the dashboard is Docker:
+The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio dashboard. All you need to run the dashboard is Docker:
 
 ```sh
 docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp --name nuclio-dashboard quay.io/nuclio/dashboard:stable-amd64

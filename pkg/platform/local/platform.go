@@ -388,6 +388,7 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 	if functionToDelete == nil {
 		return nil
 	}
+
 	// actual function and its resources deletion
 	return p.delete(ctx, deleteFunctionOptions)
 }
@@ -866,12 +867,13 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 
 	// delete the function from the local store
-	err := p.localStore.DeleteFunction(ctx, &deleteFunctionOptions.FunctionConfig.Meta)
-	if err != nil && err != nuclio.ErrNotFound {
+	if err := p.localStore.DeleteFunction(ctx, &deleteFunctionOptions.FunctionConfig.Meta); err != nil &&
+		err != nuclio.ErrNotFound {
 		p.Logger.WarnWithCtx(ctx, "Failed to delete a function from the local store", "err", err.Error())
 	}
 
 	getContainerOptions := &dockerclient.GetContainerOptions{
+		Stopped: true,
 		Labels: map[string]string{
 			"nuclio.io/platform":                      "local",
 			"nuclio.io/namespace":                     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
@@ -884,18 +886,22 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 		return errors.Wrap(err, "Failed to get containers")
 	}
 
+	p.Logger.DebugWith("Got function containers", "containersInfoLength", len(containersInfo))
+
 	// iterate over contains and delete them. It's possible that under some weird circumstances
 	// there are a few instances of this function in the namespace
 	for _, containerInfo := range containersInfo {
+		p.Logger.DebugWith("Removing function container", "containerName", containerInfo.Name)
 		if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to remove container %s", containerInfo.ID)
 		}
 	}
 
 	// delete function volume mount after containers are deleted
 	functionVolumeMountName := p.GetFunctionVolumeMountName(&deleteFunctionOptions.FunctionConfig)
+	p.Logger.DebugWith("Removing function volume", "functionVolumeMountName", functionVolumeMountName)
 	if err := p.dockerClient.DeleteVolume(functionVolumeMountName); err != nil {
-		return errors.Wrapf(err, "Failed to delete a function volume")
+		return errors.Wrapf(err, "Failed to delete a function volume %s", functionVolumeMountName)
 	}
 
 	p.Logger.InfoWithCtx(ctx, "Successfully deleted function",
@@ -1212,7 +1218,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 	}
 
 	// dumping contents to volume's processor path
-	if _, err := p.dockerClient.RunContainer("alpine:3.11", &dockerclient.RunOptions{
+	if _, err := p.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.11", &dockerclient.RunOptions{
 		Remove: true,
 		MountPoints: []dockerclient.MountPoint{
 			{

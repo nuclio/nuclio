@@ -15,7 +15,7 @@
 {{- if .Values.rbac.create }}
 # Bind the service account (used by controller / dashboard) to the crd-admin role,
 # allowing them to create / delete custom resource definitions in the appropriate namespace
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-clusterrolebinding
@@ -34,7 +34,7 @@ subjects:
 {{- if eq .Values.rbac.crdAccessMode "namespaced" }}
 
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-rolebinding
