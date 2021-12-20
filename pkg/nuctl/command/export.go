@@ -207,7 +207,7 @@ func (e *exportProjectCommandeer) getFunctionEvents(functionConfig *functionconf
 		},
 	}
 
-	functionEvents, err := e.rootCommandeer.platform.GetFunctionEvents(context.TODO(), &getFunctionEventOptions)
+	functionEvents, err := e.rootCommandeer.platform.GetFunctionEvents(context.Background(), &getFunctionEventOptions)
 	if err != nil {
 		return nil, err
 	}
