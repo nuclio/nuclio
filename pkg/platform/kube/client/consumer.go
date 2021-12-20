@@ -39,7 +39,7 @@ type Consumer struct {
 }
 
 func NewConsumer(ctx context.Context, logger logger.Logger, kubeconfigPath string) (*Consumer, error) {
-	logger.DebugWithCtx(ctx,"Using kubeconfig", "kubeconfigPath", kubeconfigPath)
+	logger.DebugWithCtx(ctx, "Using kubeconfig", "kubeconfigPath", kubeconfigPath)
 
 	newConsumer := Consumer{
 		kubeconfigPath: kubeconfigPath,

@@ -304,9 +304,9 @@ func (suite *FunctionMonitoringTestSuite) TestPausedFunctionShouldRemainInReadyS
 		deployResults.UpdatedFunctionConfig.Spec.Image = deployResults.Image
 		err := suite.Platform.UpdateFunction(context.TODO(),
 			&platform.UpdateFunctionOptions{
-			FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
-			FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,
-		})
+				FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
+				FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,
+			})
 		suite.Require().NoError(err, "Failed to update function")
 
 		// wait for function deployment replicas gets to zero

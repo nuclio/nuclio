@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+
 	"github.com/nuclio/nuclio/pkg/platform"
 )
 

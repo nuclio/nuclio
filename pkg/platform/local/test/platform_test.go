@@ -242,10 +242,10 @@ func (suite *TestSuite) TestDeleteFunctionMissingVolumeMount() {
 			// ensure delete function succeeded
 			err = suite.Platform.DeleteFunction(context.TODO(),
 				&platform.DeleteFunctionOptions{
-				FunctionConfig: functionconfig.Config{
-					Meta: createFunctionOptions.FunctionConfig.Meta,
-				},
-			})
+					FunctionConfig: functionconfig.Config{
+						Meta: createFunctionOptions.FunctionConfig.Meta,
+					},
+				})
 			suite.Require().NoError(err)
 			return true
 		})

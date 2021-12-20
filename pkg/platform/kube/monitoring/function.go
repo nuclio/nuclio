@@ -67,7 +67,7 @@ func NewFunctionMonitor(ctx context.Context,
 		lastProvisioningTimestamps: sync.Map{},
 	}
 
-	newFunctionMonitor.logger.DebugWithCtx(ctx,"Created function monitor",
+	newFunctionMonitor.logger.DebugWithCtx(ctx, "Created function monitor",
 		"namespace", namespace,
 		"interval", interval)
 
@@ -75,14 +75,14 @@ func NewFunctionMonitor(ctx context.Context,
 }
 
 func (fm *FunctionMonitor) Start(ctx context.Context) error {
-	fm.logger.InfoWithCtx(ctx,"Starting",
+	fm.logger.InfoWithCtx(ctx, "Starting",
 		"interval", fm.interval,
 		"namespace", fm.namespace)
 
 	// create stop channel
 	fm.stopChan = make(chan struct{}, 1)
 	if fm.interval == 0 {
-		fm.logger.WarnCtx(ctx,"Function monitoring is disabled")
+		fm.logger.WarnCtx(ctx, "Function monitoring is disabled")
 		return nil
 	}
 
@@ -91,7 +91,7 @@ func (fm *FunctionMonitor) Start(ctx context.Context) error {
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				fm.logger.ErrorWithCtx(ctx,"Panic caught while monitoring functions",
+				fm.logger.ErrorWithCtx(ctx, "Panic caught while monitoring functions",
 					"err", err,
 					"stack", string(callStack))
 			}
@@ -100,13 +100,13 @@ func (fm *FunctionMonitor) Start(ctx context.Context) error {
 			select {
 			case <-time.After(fm.interval):
 				if err := fm.checkFunctionStatuses(ctx); err != nil {
-					fm.logger.WarnWithCtx(ctx,"Failed check function statuses",
+					fm.logger.WarnWithCtx(ctx, "Failed check function statuses",
 						"namespace", fm.namespace,
 						"err", errors.Cause(err))
 				}
 
 			case <-fm.stopChan:
-				fm.logger.DebugWithCtx(ctx,"Stopped function monitoring",
+				fm.logger.DebugWithCtx(ctx, "Stopped function monitoring",
 					"namespace", fm.namespace)
 				return
 			}
@@ -117,7 +117,7 @@ func (fm *FunctionMonitor) Start(ctx context.Context) error {
 }
 
 func (fm *FunctionMonitor) Stop(ctx context.Context) {
-	fm.logger.InfoWithCtx(ctx,"Stopping function monitoring", "namespace", fm.namespace)
+	fm.logger.InfoWithCtx(ctx, "Stopping function monitoring", "namespace", fm.namespace)
 
 	// post to channel
 	if fm.stopChan != nil {
@@ -148,7 +148,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 		return nil
 	}
 
-	fm.logger.DebugWithCtx(ctx,"Getting function deployment function",
+	fm.logger.DebugWithCtx(ctx, "Getting function deployment function",
 		"functionName", function.Name,
 		"functionNamespace", function.Namespace)
 
@@ -157,7 +157,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 		Deployments(function.Namespace).
 		Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 	if err != nil {
-		fm.logger.WarnWithCtx(ctx,"Failed to get function deployment",
+		fm.logger.WarnWithCtx(ctx, "Failed to get function deployment",
 			"functionName", function.Name,
 			"functionNamespace", function.Namespace)
 		return nil
@@ -181,7 +181,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 	}
 
 	// function state has changed, update CRD correspondingly
-	fm.logger.InfoWithCtx(ctx,"Function state has changed, updating",
+	fm.logger.InfoWithCtx(ctx, "Function state has changed, updating",
 		"functionName", function.Name,
 		"functionStatus", function.Status,
 		"functionNamespace", function.Namespace,
@@ -191,7 +191,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 		NuclioV1beta1().
 		NuclioFunctions(fm.namespace).
 		Update(function); err != nil {
-		fm.logger.WarnWithCtx(ctx,"Failed to update function",
+		fm.logger.WarnWithCtx(ctx, "Failed to update function",
 			"functionName", function.Name,
 			"functionStatus", function.Status,
 			"functionNamespace", function.Namespace)
@@ -257,7 +257,7 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, fun
 	// ignore provisioning states
 	// ignore recently deployed function
 	if fm.resolveFunctionProvisionedOrRecentlyDeployed(ctx, function) {
-		fm.logger.DebugWithCtx(ctx,"Function is being provisioned or recently deployed, skipping",
+		fm.logger.DebugWithCtx(ctx, "Function is being provisioned or recently deployed, skipping",
 			"functionName", function.Name,
 			"functionState", function.Status.State)
 		return true
@@ -268,7 +268,7 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, fun
 		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateUnhealthy,
 	}) {
-		fm.logger.DebugWithCtx(ctx,"Function state is not ready or unhealthy, skipping",
+		fm.logger.DebugWithCtx(ctx, "Function state is not ready or unhealthy, skipping",
 			"functionName", function.Name,
 			"functionState", function.Status.State)
 		return true
@@ -276,7 +276,7 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, fun
 
 	// skip disabled functions / 0-ed replicas functions
 	if function.Spec.Disable || (function.Spec.Replicas != nil && *function.Spec.Replicas == 0) {
-		fm.logger.DebugWithCtx(ctx,"Function is disabled or has 0 desired replicas, skipping",
+		fm.logger.DebugWithCtx(ctx, "Function is disabled or has 0 desired replicas, skipping",
 			"functionName", function.Name,
 			"functionReplicas", function.Spec.Replicas,
 			"functionDisabled", function.Spec.Disable)
@@ -291,13 +291,13 @@ func (fm *FunctionMonitor) resolveFunctionProvisionedOrRecentlyDeployed(ctx cont
 	function *nuclioio.NuclioFunction) bool {
 	if functionconfig.FunctionStateProvisioning(function.Status.State) {
 		fm.lastProvisioningTimestamps.Store(function.Name, time.Now())
-		fm.logger.DebugWithCtx(ctx,"Function is in provisioning state",
+		fm.logger.DebugWithCtx(ctx, "Function is in provisioning state",
 			"functionState", function.Status.State,
 			"functionName", function.Name)
 		return true
 	} else if lastProvisioningTimestamp, ok := fm.lastProvisioningTimestamps.Load(function.Name); ok {
 		if lastProvisioningTimestamp.(time.Time).Add(PostDeploymentMonitoringBlockingInterval).After(time.Now()) {
-			fm.logger.DebugWithCtx(ctx,"Function was recently deployed",
+			fm.logger.DebugWithCtx(ctx, "Function was recently deployed",
 				"functionName", function.Name,
 				"lastProvisioningTimestamp", lastProvisioningTimestamp)
 			return true

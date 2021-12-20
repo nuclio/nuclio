@@ -134,7 +134,7 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 	var appliedBasicAuthSecret *v1.Secret
 	var err error
 
-	m.logger.InfoWithCtx(ctx,"Creating/Updating ingress resources", "ingressName", resources.Ingress.Name)
+	m.logger.InfoWithCtx(ctx, "Creating/Updating ingress resources", "ingressName", resources.Ingress.Name)
 
 	if appliedIngress, err = m.kubeClientSet.
 		ExtensionsV1beta1().
@@ -146,7 +146,7 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 		}
 
 		// if the ingress already exists - update it
-		m.logger.InfoWithCtx(ctx,"Ingress already exists. Updating it",
+		m.logger.InfoWithCtx(ctx, "Ingress already exists. Updating it",
 			"ingressName", resources.Ingress.Name)
 		if appliedIngress, err = m.kubeClientSet.
 			ExtensionsV1beta1().
@@ -155,16 +155,16 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 
 			return nil, nil, errors.Wrap(err, "Failed to update ingress")
 		}
-		m.logger.InfoWithCtx(ctx,"Successfully updated ingress", "ingressName", resources.Ingress.Name)
+		m.logger.InfoWithCtx(ctx, "Successfully updated ingress", "ingressName", resources.Ingress.Name)
 
 	} else {
-		m.logger.InfoWithCtx(ctx,"Successfully created ingress", "ingressName", resources.Ingress.Name)
+		m.logger.InfoWithCtx(ctx, "Successfully created ingress", "ingressName", resources.Ingress.Name)
 	}
 
 	// if there's a secret among the ingress resources - create/update it
 	if resources.BasicAuthSecret != nil {
 
-		m.logger.InfoWithCtx(ctx,"Creating/Updating ingress's basic-auth secret",
+		m.logger.InfoWithCtx(ctx, "Creating/Updating ingress's basic-auth secret",
 			"ingressName", resources.Ingress.Name,
 			"secretName", resources.BasicAuthSecret.Name)
 
@@ -178,7 +178,7 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 			}
 
 			// if the secret already exists - update it
-			m.logger.InfoWithCtx(ctx,"Secret already exists. Updating it",
+			m.logger.InfoWithCtx(ctx, "Secret already exists. Updating it",
 				"secretName", resources.BasicAuthSecret.Name)
 			if appliedBasicAuthSecret, err = m.kubeClientSet.
 				CoreV1().
@@ -187,10 +187,10 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 
 				return nil, nil, errors.Wrap(err, "Failed to update secret")
 			}
-			m.logger.InfoWithCtx(ctx,"Successfully updated secret", "secretName", resources.BasicAuthSecret.Name)
+			m.logger.InfoWithCtx(ctx, "Successfully updated secret", "secretName", resources.BasicAuthSecret.Name)
 
 		} else {
-			m.logger.InfoWithCtx(ctx,"Successfully created basic-auth secret",
+			m.logger.InfoWithCtx(ctx, "Successfully created basic-auth secret",
 				"secretName", resources.BasicAuthSecret.Name)
 		}
 	}
@@ -204,7 +204,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 	var ingress *v1beta1.Ingress
 	var err error
 
-	m.logger.InfoWithCtx(ctx,"Deleting ingress by name",
+	m.logger.InfoWithCtx(ctx, "Deleting ingress by name",
 		"ingressName", ingressName,
 		"deleteAuthSecret", deleteAuthSecret)
 
@@ -218,7 +218,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 			Get(ingressName, metav1.GetOptions{}); err != nil {
 
 			if apierrors.IsNotFound(err) {
-				m.logger.DebugWithCtx(ctx,"Ingress resource not found. Aborting deletion",
+				m.logger.DebugWithCtx(ctx, "Ingress resource not found. Aborting deletion",
 					"ingressName", ingressName)
 				return nil
 			}
@@ -230,7 +230,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 		secretName := ingress.Annotations["nginx.ingress.kubernetes.io/auth-secret"]
 		if secretName != "" {
 
-			m.logger.InfoWithCtx(ctx,"Deleting ingress's auth secret",
+			m.logger.InfoWithCtx(ctx, "Deleting ingress's auth secret",
 				"ingressName", ingressName,
 				"secretName", secretName)
 
@@ -240,7 +240,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 				Delete(secretName, &metav1.DeleteOptions{}); err != nil {
 
 				if apierrors.IsNotFound(err) {
-					m.logger.DebugWithCtx(ctx,"Ingress's secret not found. Continuing with ingress deletion",
+					m.logger.DebugWithCtx(ctx, "Ingress's secret not found. Continuing with ingress deletion",
 						"ingressName", ingressName,
 						"secretName", secretName)
 
@@ -249,7 +249,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 				}
 
 			} else {
-				m.logger.DebugWithCtx(ctx,"Successfully deleted ingress's secret",
+				m.logger.DebugWithCtx(ctx, "Successfully deleted ingress's secret",
 					"ingressName", ingressName,
 					"secretName", secretName)
 			}
@@ -266,12 +266,12 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 			return errors.Wrap(err, "Failed to delete ingress")
 		}
 
-		m.logger.DebugWithCtx(ctx,"Ingress resource was not found. Nothing to delete", "ingressName", ingressName)
+		m.logger.DebugWithCtx(ctx, "Ingress resource was not found. Nothing to delete", "ingressName", ingressName)
 
 		return nil
 	}
 
-	m.logger.DebugWithCtx(ctx,"Successfully deleted ingress", "ingressName", ingressName)
+	m.logger.DebugWithCtx(ctx, "Successfully deleted ingress", "ingressName", ingressName)
 
 	return nil
 }

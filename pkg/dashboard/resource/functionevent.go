@@ -232,7 +232,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 	// get function event config and status from body
 	functionEventInfo, err := fer.getFunctionEventInfoFromRequest(request, true)
 	if err != nil {
-		fer.Logger.WarnWithCtx(ctx,"Failed to get function event config and status from body", "err", err)
+		fer.Logger.WarnWithCtx(ctx, "Failed to get function event config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -271,7 +271,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 	// get function event config and status from body
 	functionEventInfo, err := fer.getFunctionEventInfoFromRequest(request, true)
 	if err != nil {
-		fer.Logger.WarnWithCtx(ctx,"Failed to get function event config and status from body", "err", err)
+		fer.Logger.WarnWithCtx(ctx, "Failed to get function event config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,

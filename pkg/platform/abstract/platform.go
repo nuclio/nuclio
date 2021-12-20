@@ -624,7 +624,8 @@ func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
 	}
 
 	if len(filteredFunctionEventNames) > 0 {
-		ap.Logger.DebugWithCtx(ctx,"Some function events were filtered out",
+		ap.Logger.DebugWithCtx(ctx,
+			"Some function events were filtered out",
 			"functionEventNames", filteredFunctionEventNames)
 	}
 	return permittedFunctionEvents, nil

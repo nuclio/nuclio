@@ -312,7 +312,7 @@ func (mp *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, na
 	return nil
 }
 
-func (mp *Platform) Initialize(ctx context.Context, ) error {
+func (mp *Platform) Initialize(ctx context.Context) error {
 	return nil
 }
 

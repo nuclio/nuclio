@@ -117,12 +117,6 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 func (d *Deployer) Deploy(ctx context.Context, functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, *nuclioio.NuclioFunction, string, error) {
 
-	// Get the logger with which we need to Deploy
-	deployLogger := createFunctionOptions.Logger
-	if deployLogger == nil {
-		deployLogger = d.logger
-	}
-
 	// do the create / update
 	// TODO: Infer timestamp from function config (consider create/update scenarios)
 	if _, err := d.CreateOrUpdateFunction(ctx, functionInstance,

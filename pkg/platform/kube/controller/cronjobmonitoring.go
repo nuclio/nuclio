@@ -33,7 +33,7 @@ func NewCronJobMonitoring(ctx context.Context,
 		cronJobStaleResourcesCleanupInterval: cronJobStaleResourcesCleanupInterval,
 	}
 
-	parentLogger.DebugWithCtx(ctx,"Successfully created cron job monitoring instance",
+	parentLogger.DebugWithCtx(ctx, "Successfully created cron job monitoring instance",
 		"cronJobStaleResourcesCleanupInterval", cronJobStaleResourcesCleanupInterval)
 
 	return newCronJobMonitoring
@@ -49,13 +49,13 @@ func (cjm *CronJobMonitoring) start(ctx context.Context) {
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				cjm.logger.ErrorWithCtx(ctx,"Panic caught while monitoring cronjobs",
+				cjm.logger.ErrorWithCtx(ctx, "Panic caught while monitoring cronjobs",
 					"err", err,
 					"stack", string(callStack))
 			}
 		}()
 		stalePodsFieldSelector := cjm.compileStalePodsFieldSelector()
-		cjm.logger.InfoWithCtx(ctx,"Starting cron job stale resources cleanup loop",
+		cjm.logger.InfoWithCtx(ctx, "Starting cron job stale resources cleanup loop",
 			"cronJobStaleResourcesCleanupInterval", cjm.cronJobStaleResourcesCleanupInterval,
 			"fieldSelectors", stalePodsFieldSelector)
 		for {
@@ -67,7 +67,7 @@ func (cjm *CronJobMonitoring) start(ctx context.Context) {
 				cjm.deleteStalePods(ctx, stalePodsFieldSelector)
 
 			case <-cjm.stopChan:
-				cjm.logger.DebugCtx(ctx,"Stopped cronjob monitoring")
+				cjm.logger.DebugCtx(ctx, "Stopped cronjob monitoring")
 				return
 			}
 		}
@@ -75,7 +75,7 @@ func (cjm *CronJobMonitoring) start(ctx context.Context) {
 }
 
 func (cjm *CronJobMonitoring) stop(ctx context.Context) {
-	cjm.logger.InfoCtx(ctx,"Stopping cron job monitoring")
+	cjm.logger.InfoCtx(ctx, "Stopping cron job monitoring")
 
 	// post to channel
 	if cjm.stopChan != nil {
@@ -93,7 +93,7 @@ func (cjm *CronJobMonitoring) deleteStalePods(ctx context.Context, stalePodsFiel
 				FieldSelector: stalePodsFieldSelector,
 			})
 	if err != nil {
-		cjm.logger.WarnWithCtx(ctx,"Failed to delete stale cron-job pods",
+		cjm.logger.WarnWithCtx(ctx, "Failed to delete stale cron-job pods",
 			"namespace", cjm.controller.namespace,
 			"err", err)
 	}
@@ -107,7 +107,7 @@ func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
 			LabelSelector: "nuclio.io/function-cron-job-pod=true",
 		})
 	if err != nil {
-		cjm.logger.WarnWithCtx(ctx,"Failed to list cron-job jobs",
+		cjm.logger.WarnWithCtx(ctx, "Failed to list cron-job jobs",
 			"namespace", cjm.controller.namespace,
 			"err", err)
 	}
@@ -127,7 +127,7 @@ func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
 				Jobs(cjm.controller.namespace).
 				Delete(job.Name, &metav1.DeleteOptions{})
 			if err != nil && !apierrors.IsNotFound(err) {
-				cjm.logger.WarnWithCtx(ctx,"Failed to delete cron-job job",
+				cjm.logger.WarnWithCtx(ctx, "Failed to delete cron-job job",
 					"name", job.Name,
 					"namespace", job.Namespace,
 					"err", err)

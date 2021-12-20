@@ -204,10 +204,10 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 func (fr *functionResource) export(ctx context.Context, function platform.Function) restful.Attributes {
 	functionConfig := function.GetConfig()
 
-	fr.Logger.DebugWithCtx(ctx,"Preparing function for export", "functionName", functionConfig.Meta.Name)
+	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
 	functionConfig.PrepareFunctionForExport(false)
 
-	fr.Logger.DebugWithCtx(ctx,"Exporting function", "functionName", functionConfig.Meta.Name)
+	fr.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)
 
 	attributes := restful.Attributes{
 		"metadata": functionConfig.Meta,
@@ -234,7 +234,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				fr.Logger.ErrorWithCtx(ctx,"Panic caught while creating function",
+				fr.Logger.ErrorWithCtx(ctx, "Panic caught while creating function",
 					"err", err,
 					"stack", string(callStack))
 			}
@@ -270,7 +270,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
 		}); err != nil {
-			fr.Logger.WarnWithCtx(ctx,"Failed to deploy function", "err", err)
+			fr.Logger.WarnWithCtx(ctx, "Failed to deploy function", "err", err)
 			errDeployingChan <- err
 		}
 
@@ -403,7 +403,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	// get function config and status from body
 	functionInfo, err := fr.getFunctionInfoFromRequest(request)
 	if err != nil {
-		fr.Logger.WarnWithCtx(ctx,"Failed to get function config and status from body", "err", err)
+		fr.Logger.WarnWithCtx(ctx, "Failed to get function config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,

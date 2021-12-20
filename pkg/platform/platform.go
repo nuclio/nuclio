@@ -114,16 +114,16 @@ type Platform interface {
 
 	// CreateFunctionEvent will create a new function event that can later be used as a template from
 	// which to invoke functions
-	CreateFunctionEvent(ctx context.Context,createFunctionEventOptions *CreateFunctionEventOptions) error
+	CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *CreateFunctionEventOptions) error
 
 	// UpdateFunctionEvent will update a previously existing function event
-	UpdateFunctionEvent(ctx context.Context,updateFunctionEventOptions *UpdateFunctionEventOptions) error
+	UpdateFunctionEvent(ctx context.Context, updateFunctionEventOptions *UpdateFunctionEventOptions) error
 
 	// DeleteFunctionEvent will delete a previously existing function event
-	DeleteFunctionEvent(ctx context.Context,deleteFunctionEventOptions *DeleteFunctionEventOptions) error
+	DeleteFunctionEvent(ctx context.Context, deleteFunctionEventOptions *DeleteFunctionEventOptions) error
 
 	// GetFunctionEvents will list existing function events
-	GetFunctionEvents(ctx context.Context,getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
+	GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
 
 	// FilterFunctionEventsByPermissions will filter out some function events
 	FilterFunctionEventsByPermissions(context.Context, *opa.PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)

@@ -154,7 +154,7 @@ func NewPlatform(ctx context.Context,
 	return newPlatform, nil
 }
 
-func (p *Platform) Initialize(ctx context.Context, ) error {
+func (p *Platform) Initialize(ctx context.Context) error {
 	if err := p.projectsClient.Initialize(); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
@@ -727,7 +727,7 @@ func (p *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions
 		return errors.Wrap(err, "Failed to validate an API gateway's metadata")
 	}
 
-	p.Logger.DebugWithCtx(ctx,"Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
+	p.Logger.DebugWithCtx(ctx, "Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
 
 	// delete
 	if err := p.consumer.NuclioClientSet.NuclioV1beta1().

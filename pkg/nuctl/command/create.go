@@ -299,8 +299,8 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 
 			if err := createCommandeer.rootCommandeer.platform.CreateFunctionEvent(context.TODO(),
 				&platform.CreateFunctionEventOptions{
-				FunctionEventConfig: commandeer.functionEventConfig,
-			}); err != nil {
+					FunctionEventConfig: commandeer.functionEventConfig,
+				}); err != nil {
 				return err
 			}
 

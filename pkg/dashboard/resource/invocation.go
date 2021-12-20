@@ -115,7 +115,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	})
 
 	if err != nil {
-		tr.Logger.WarnWithCtx(ctx,"Failed to invoke function", "err", err)
+		tr.Logger.WarnWithCtx(ctx, "Failed to invoke function", "err", err)
 		tr.writeErrorHeader(responseWriter, common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError))
 		tr.writeErrorMessage(responseWriter, fmt.Sprintf("Failed to invoke function: %v", errors.RootCause(err)))
 		return

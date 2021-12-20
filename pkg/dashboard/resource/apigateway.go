@@ -135,7 +135,7 @@ func (agr *apiGatewayResource) Create(request *http.Request) (string, restful.At
 	ctx := request.Context()
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
 	if err != nil {
-		agr.Logger.WarnWithCtx(ctx,"Failed to get api gateway config and status from body", "err", err)
+		agr.Logger.WarnWithCtx(ctx, "Failed to get api gateway config and status from body", "err", err)
 		return "", nil, err
 	}
 
@@ -148,7 +148,7 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 	// get api gateway config and status from body
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
 	if err != nil {
-		agr.Logger.WarnWithCtx(ctx,"Failed to get api gateway config and status from body", "err", err)
+		agr.Logger.WarnWithCtx(ctx, "Failed to get api gateway config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -167,7 +167,7 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 		AuthSession:                agr.getCtxSession(request),
 		ValidateFunctionsExistence: agr.headerValueIsTrue(request, "x-nuclio-agw-validate-functions-existence"),
 	}); err != nil {
-		agr.Logger.WarnWithCtx(ctx,"Failed to update api gateway", "err", err)
+		agr.Logger.WarnWithCtx(ctx, "Failed to update api gateway", "err", err)
 	}
 
 	// return the stuff
@@ -200,10 +200,10 @@ func (agr *apiGatewayResource) GetCustomRoutes() ([]restful.CustomRoute, error) 
 func (agr *apiGatewayResource) export(ctx context.Context, apiGateway platform.APIGateway) restful.Attributes {
 	apiGatewayConfig := apiGateway.GetConfig()
 
-	agr.Logger.DebugWithCtx(ctx,"Preparing api-gateway for export", "apiGatewayName", apiGatewayConfig.Meta.Name)
+	agr.Logger.DebugWithCtx(ctx, "Preparing api-gateway for export", "apiGatewayName", apiGatewayConfig.Meta.Name)
 	apiGatewayConfig.PrepareAPIGatewayForExport(false)
 
-	agr.Logger.DebugWithCtx(ctx,"Exporting api-gateway", "functionName", apiGatewayConfig.Meta.Name)
+	agr.Logger.DebugWithCtx(ctx, "Exporting api-gateway", "functionName", apiGatewayConfig.Meta.Name)
 
 	attributes := restful.Attributes{
 		"metadata": apiGatewayConfig.Meta,
@@ -235,7 +235,7 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 	}
 
 	// just deploy. the status is async through polling
-	agr.Logger.DebugWithCtx(ctx,"Creating api gateway", "newAPIGateway", newAPIGateway)
+	agr.Logger.DebugWithCtx(ctx, "Creating api gateway", "newAPIGateway", newAPIGateway)
 	if err = agr.getPlatform().CreateAPIGateway(ctx, &platform.CreateAPIGatewayOptions{
 		AuthSession:                agr.getCtxSession(request),
 		APIGatewayConfig:           newAPIGateway.GetConfig(),
@@ -250,7 +250,7 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 
 	// set attributes
 	attributes := agr.apiGatewayToAttributes(newAPIGateway)
-	agr.Logger.DebugWithCtx(ctx,"Successfully created api gateway", "attributes", attributes)
+	agr.Logger.DebugWithCtx(ctx, "Successfully created api gateway", "attributes", attributes)
 
 	return apiGatewayConfig.Meta.Name, attributes, nil
 }
@@ -261,7 +261,7 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 	// get api gateway config and status from body
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
 	if err != nil {
-		agr.Logger.WarnWithCtx(ctx,"Failed to get api gateway config and status from body", "err", err)
+		agr.Logger.WarnWithCtx(ctx, "Failed to get api gateway config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,

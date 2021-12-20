@@ -56,7 +56,8 @@ func NewMultiWorker(ctx context.Context,
 		changeHandler:        changeHandler,
 	}
 
-	newMultiWorker.logger.DebugWithCtx(ctx,"Creating multiworker",
+	newMultiWorker.logger.DebugWithCtx(ctx,
+		"Creating multiworker",
 		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval,
 		"objectKind", fmt.Sprintf("%T", object))
@@ -99,7 +100,7 @@ func NewMultiWorker(ctx context.Context,
 }
 
 func (mw *MultiWorker) Start(ctx context.Context) error {
-	mw.logger.InfoWithCtx(ctx,"Starting")
+	mw.logger.InfoWithCtx(ctx, "Starting")
 
 	// run the informer
 	go func() {
@@ -128,7 +129,7 @@ func (mw *MultiWorker) Start(ctx context.Context) error {
 	// wait for stop signal
 	<-mw.stopChannel
 
-	mw.logger.InfoWithCtx(ctx,"Stopped")
+	mw.logger.InfoWithCtx(ctx, "Stopped")
 
 	return nil
 }

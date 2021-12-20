@@ -68,7 +68,7 @@ func newAPIGatewayOperator(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create api gateway operator")
 	}
 
-	parentLogger.DebugWithCtx(ctx,"Created api gateway operator",
+	parentLogger.DebugWithCtx(ctx, "Created api gateway operator",
 		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval)
 
@@ -86,7 +86,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 
 	// validate the state is inside states to respond to
 	if !ago.shouldRespondToState(apiGateway.Status.State) {
-		ago.logger.DebugWithCtx(ctx,"Api gateway state is not waiting for creation/update, skipping create/update",
+		ago.logger.DebugWithCtx(ctx, "Api gateway state is not waiting for creation/update, skipping create/update",
 			"name", apiGateway.Spec.Name,
 			"state", apiGateway.Status.State)
 		return nil
@@ -112,9 +112,9 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 
 	// create/update the api gateway
 	if _, err = ago.controller.apigatewayresClient.CreateOrUpdate(ctx, apiGateway); err != nil {
-		ago.logger.WarnWithCtx(ctx,"Failed to create/update api gateway. Updating state accordingly")
+		ago.logger.WarnWithCtx(ctx, "Failed to create/update api gateway. Updating state accordingly")
 		if err := ago.setAPIGatewayState(ctx, apiGateway, platform.APIGatewayStateError, err); err != nil {
-			ago.logger.WarnWithCtx(ctx,"Failed to set api gateway state as error", "err", err)
+			ago.logger.WarnWithCtx(ctx, "Failed to set api gateway state as error", "err", err)
 		}
 
 		return errors.Wrap(err, "Failed to create/update api gateway")
@@ -128,7 +128,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 		return errors.Wrap(err, "Failed to set api gateway state after it was successfully created")
 	}
 
-	ago.logger.DebugWithCtx(ctx,"Successfully created/updated api gateway", "apiGateway", apiGateway)
+	ago.logger.DebugWithCtx(ctx, "Successfully created/updated api gateway", "apiGateway", apiGateway)
 
 	return nil
 }
@@ -164,7 +164,7 @@ func (ago *apiGatewayOperator) setAPIGatewayState(ctx context.Context,
 	apiGateway *nuclioio.NuclioAPIGateway,
 	state platform.APIGatewayState,
 	lastError error) error {
-	ago.logger.DebugWithCtx(ctx,"Setting api gateway state", "name", apiGateway.Name, "state", state)
+	ago.logger.DebugWithCtx(ctx, "Setting api gateway state", "name", apiGateway.Name, "state", state)
 
 	apiGateway.Status.State = state
 

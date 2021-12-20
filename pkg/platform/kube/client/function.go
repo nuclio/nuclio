@@ -273,14 +273,14 @@ func (f *Function) getInvokeURLFields(ctx context.Context, invokeViaType platfor
 		host, port, path, err = urlGetter()
 
 		if err != nil {
-			f.Logger.DebugWithCtx(ctx,"Could not get invoke URL with method",
+			f.Logger.DebugWithCtx(ctx, "Could not get invoke URL with method",
 				"index", urlGetterIndex,
 				"err", err)
 		}
 
 		// if we found something, return it
 		if host != "" {
-			f.Logger.DebugWithCtx(ctx,"Resolved invoke URL with method",
+			f.Logger.DebugWithCtx(ctx, "Resolved invoke URL with method",
 				"index", urlGetterIndex,
 				"host", host,
 				"port", port,

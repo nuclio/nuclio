@@ -97,7 +97,7 @@ func NewController(ctx context.Context,
 		functionMonitoringInterval: functionMonitoringInterval,
 	}
 
-	newController.logger.DebugWithCtx(ctx,"Read configuration",
+	newController.logger.DebugWithCtx(ctx, "Read configuration",
 		"platformConfig", newController.platformConfiguration,
 		"version", version.Get())
 
@@ -170,7 +170,7 @@ func NewController(ctx context.Context,
 }
 
 func (c *Controller) Start(ctx context.Context) error {
-	c.logger.InfoWithCtx(ctx,"Starting controller",
+	c.logger.InfoWithCtx(ctx, "Starting controller",
 		"namespace", c.namespace)
 
 	// start operators
@@ -183,7 +183,7 @@ func (c *Controller) Start(ctx context.Context) error {
 		return errors.Wrap(err, "Failed to start monitors")
 	}
 
-	c.logger.InfoWithCtx(ctx,"Controller has successfully started", "namespace", c.namespace)
+	c.logger.InfoWithCtx(ctx, "Controller has successfully started", "namespace", c.namespace)
 	return nil
 }
 
@@ -233,7 +233,7 @@ func (c *Controller) GetFunctionMonitoring() *monitoring.FunctionMonitor {
 	return c.functionMonitoring
 }
 
-func (c *Controller) startOperators(ctx context.Context,) error {
+func (c *Controller) startOperators(ctx context.Context) error {
 
 	// start the function operator
 	if err := c.functionOperator.start(ctx); err != nil {

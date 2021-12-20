@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/stretchr/testify/mock"

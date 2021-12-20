@@ -66,7 +66,7 @@ func newProjectOperator(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create project operator")
 	}
 
-	parentLogger.DebugWithCtx(ctx,"Created project operator",
+	parentLogger.DebugWithCtx(ctx, "Created project operator",
 		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval)
 
@@ -80,13 +80,13 @@ func (po *projectOperator) CreateOrUpdate(ctx context.Context, object runtime.Ob
 		return errors.New("Received unexpected object, expected project")
 	}
 
-	po.logger.DebugWithCtx(ctx,"Created/updated", "projectName", project.Name)
+	po.logger.DebugWithCtx(ctx, "Created/updated", "projectName", project.Name)
 	return nil
 }
 
 // Delete handles delete of an object
 func (po *projectOperator) Delete(ctx context.Context, namespace string, name string) error {
-	po.logger.InfoWithCtx(ctx,"Deleting project resources", "namespace", namespace, "projectName", name)
+	po.logger.InfoWithCtx(ctx, "Deleting project resources", "namespace", namespace, "projectName", name)
 
 	projectNameLabelSelector := fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, name)
 
@@ -98,7 +98,7 @@ func (po *projectOperator) Delete(ctx context.Context, namespace string, name st
 			metav1.ListOptions{
 				LabelSelector: projectNameLabelSelector,
 			}); err != nil {
-		po.logger.WarnWithCtx(ctx,"Failed to delete project api gateway",
+		po.logger.WarnWithCtx(ctx, "Failed to delete project api gateway",
 			"namespace", namespace,
 			"projectName", name,
 			"err", err)
@@ -115,7 +115,7 @@ func (po *projectOperator) Delete(ctx context.Context, namespace string, name st
 				LabelSelector: projectNameLabelSelector,
 			}); err != nil {
 
-		po.logger.WarnWithCtx(ctx,"Failed to delete project functions",
+		po.logger.WarnWithCtx(ctx, "Failed to delete project functions",
 			"namespace", namespace,
 			"projectName", name,
 			"err", err)
@@ -123,7 +123,7 @@ func (po *projectOperator) Delete(ctx context.Context, namespace string, name st
 	}
 
 	// done
-	po.logger.DebugWithCtx(ctx,"Successfully deleted project resources",
+	po.logger.DebugWithCtx(ctx, "Successfully deleted project resources",
 		"namespace", namespace,
 		"projectName", name)
 	return nil

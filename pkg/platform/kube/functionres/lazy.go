@@ -118,7 +118,7 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 		return nil, errors.Wrap(err, "Failed to list deployments")
 	}
 
-	lc.logger.DebugWithCtx(ctx,"Got deployments", "num", len(result.Items))
+	lc.logger.DebugWithCtx(ctx, "Got deployments", "num", len(result.Items))
 
 	var resources []Resources
 
@@ -239,7 +239,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 		}
 	}
 
-	lc.logger.DebugWithCtx(ctx,"Successfully created/updated resources",
+	lc.logger.DebugWithCtx(ctx, "Successfully created/updated resources",
 		"functionName", function.Name,
 		"functionNamespace", function.Namespace)
 	return &resources, nil
@@ -250,7 +250,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	name string,
 	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
-	lc.logger.DebugWithCtx(ctx,"Waiting for deployment to be available",
+	lc.logger.DebugWithCtx(ctx, "Waiting for deployment to be available",
 		"namespace", namespace,
 		"functionName", name,
 		"deploymentName", deploymentName)
@@ -290,13 +290,13 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				available := deploymentCondition.Status == v1.ConditionTrue
 
 				if available && result.Status.UnavailableReplicas == 0 {
-					lc.logger.DebugWithCtx(ctx,"Deployment is available",
+					lc.logger.DebugWithCtx(ctx, "Deployment is available",
 						"reason", deploymentCondition.Reason,
 						"deploymentName", deploymentName)
 					return nil, functionconfig.FunctionStateReady
 				}
 
-				lc.logger.DebugWithCtx(ctx,"Deployment not available yet",
+				lc.logger.DebugWithCtx(ctx, "Deployment not available yet",
 					"reason", deploymentCondition.Reason,
 					"unavailableReplicas", result.Status.UnavailableReplicas,
 					"deploymentName", deploymentName)
@@ -340,7 +340,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			return errors.Wrap(err, "Failed to delete ingress")
 		}
 	} else {
-		lc.logger.DebugWithCtx(ctx,"Deleted ingress", "namespace", namespace, "ingressName", ingressName)
+		lc.logger.DebugWithCtx(ctx, "Deleted ingress", "namespace", namespace, "ingressName", ingressName)
 	}
 
 	// Delete HPA if exists
@@ -351,7 +351,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			return errors.Wrap(err, "Failed to delete HPA")
 		}
 	} else {
-		lc.logger.DebugWithCtx(ctx,"Deleted HPA", "namespace", namespace, "hpaName", hpaName)
+		lc.logger.DebugWithCtx(ctx, "Deleted HPA", "namespace", namespace, "hpaName", hpaName)
 	}
 
 	// Delete Service if exists
@@ -362,7 +362,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			return errors.Wrap(err, "Failed to delete service")
 		}
 	} else {
-		lc.logger.DebugWithCtx(ctx,"Deleted service", "namespace", namespace, "serviceName", serviceName)
+		lc.logger.DebugWithCtx(ctx, "Deleted service", "namespace", namespace, "serviceName", serviceName)
 	}
 
 	// Delete Deployment if exists
@@ -373,7 +373,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			return errors.Wrap(err, "Failed to delete deployment")
 		}
 	} else {
-		lc.logger.DebugWithCtx(ctx,"Deleted deployment",
+		lc.logger.DebugWithCtx(ctx, "Deleted deployment",
 			"namespace", namespace,
 			"deploymentName", deploymentName)
 	}
@@ -386,7 +386,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			return errors.Wrap(err, "Failed to delete configMap")
 		}
 	} else {
-		lc.logger.DebugWithCtx(ctx,"Deleted configMap", "namespace", namespace, "configMapName", configMapName)
+		lc.logger.DebugWithCtx(ctx, "Deleted configMap", "namespace", namespace, "configMapName", configMapName)
 	}
 
 	if err = lc.deleteFunctionEvents(ctx, name, namespace); err != nil {
@@ -399,7 +399,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		}
 	}
 
-	lc.logger.DebugWithCtx(ctx,"Deleted deployed function", "namespace", namespace, "name", name)
+	lc.logger.DebugWithCtx(ctx, "Deleted deployed function", "namespace", namespace, "name", name)
 
 	return nil
 }
@@ -468,7 +468,7 @@ func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(ctx context.Context,
 
 			go func() {
 				if deleteCronJobsErr := lc.deleteCronJobs(ctx, function.Name, function.Namespace); deleteCronJobsErr != nil {
-					lc.logger.WarnWithCtx(ctx,"Failed to delete cron jobs on cron job creation failure",
+					lc.logger.WarnWithCtx(ctx, "Failed to delete cron jobs on cron job creation failure",
 						"deleteCronJobsErr", deleteCronJobsErr)
 				}
 			}()
@@ -512,7 +512,7 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(ctx context.Context,
 		return nil
 	}
 
-	lc.logger.DebugWithCtx(ctx,"Deleting removed cron trigger cron job",
+	lc.logger.DebugWithCtx(ctx, "Deleting removed cron trigger cron job",
 		"cronJobsToDelete", cronJobsToDelete)
 
 	errGroup, _ := errgroup.WithContext(context.TODO(), lc.logger)
@@ -560,7 +560,7 @@ func (lc *lazyClient) createOrUpdateResource(ctx context.Context,
 
 			// if the resource is deleting, wait for it to complete deleting
 			if err == nil && resourceIsDeleting(resource) {
-				lc.logger.DebugWithCtx(ctx,"Resource is deleting, waiting", "name", resourceName)
+				lc.logger.DebugWithCtx(ctx, "Resource is deleting, waiting", "name", resourceName)
 
 				// we need to wait a bit and try again
 				time.Sleep(1 * time.Second)
@@ -593,13 +593,13 @@ func (lc *lazyClient) createOrUpdateResource(ctx context.Context,
 				}
 
 				// this case could happen if several controllers are running in parallel. (may happen on rolling upgrade of the controller)
-				lc.logger.WarnWithCtx(ctx,"Got \"resource already exists\" error on creation. Retrying (Perhaps more than 1 controller is running?)",
+				lc.logger.WarnWithCtx(ctx, "Got \"resource already exists\" error on creation. Retrying (Perhaps more than 1 controller is running?)",
 					"name", resourceName,
 					"err", err.Error())
 				continue
 			}
 
-			lc.logger.DebugWithCtx(ctx,"Resource created", "name", resourceName)
+			lc.logger.DebugWithCtx(ctx, "Resource created", "name", resourceName)
 			return resource, nil
 		}
 
@@ -616,11 +616,11 @@ func (lc *lazyClient) createOrUpdateResource(ctx context.Context,
 				return nil, errors.Errorf("Timed out updating resource: %s", resourceName)
 			}
 
-			lc.logger.DebugWithCtx(ctx,"Got conflict while trying to update resource. Retrying", "name", resourceName)
+			lc.logger.DebugWithCtx(ctx, "Got conflict while trying to update resource. Retrying", "name", resourceName)
 			continue
 		}
 
-		lc.logger.DebugWithCtx(ctx,"Resource updated", "name", resourceName)
+		lc.logger.DebugWithCtx(ctx, "Resource updated", "name", resourceName)
 		return resource, nil
 	}
 }
@@ -736,7 +736,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 
 	replicas := function.GetComputedReplicas()
 	if replicas != nil {
-		lc.logger.DebugWithCtx(ctx,"Got replicas", "replicas", *replicas, "functionName", function.Name)
+		lc.logger.DebugWithCtx(ctx, "Got replicas", "replicas", *replicas, "functionName", function.Name)
 	}
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
@@ -829,7 +829,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			minReplicas := function.GetComputedMinReplicas()
 			maxReplicas := function.GetComputedMaxReplicas()
 			deploymentReplicas := deployment.Status.Replicas
-			lc.logger.DebugWithCtx(ctx,"Verifying current replicas not lower than minReplicas or higher than max",
+			lc.logger.DebugWithCtx(ctx, "Verifying current replicas not lower than minReplicas or higher than max",
 				"functionName", function.Name,
 				"maxReplicas", maxReplicas,
 				"minReplicas", minReplicas,
@@ -994,7 +994,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 
 	minReplicas := function.GetComputedMinReplicas()
 	maxReplicas := function.GetComputedMaxReplicas()
-	lc.logger.DebugWithCtx(ctx,"Create/Update hpa",
+	lc.logger.DebugWithCtx(ctx, "Create/Update hpa",
 		"functionName", function.Name,
 		"minReplicas", minReplicas,
 		"maxReplicas", maxReplicas)
@@ -1070,7 +1070,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			lc.logger.DebugWithCtx(ctx,"Deleting hpa - min replicas and max replicas are equal",
+			lc.logger.DebugWithCtx(ctx, "Deleting hpa - min replicas and max replicas are equal",
 				"functionName", function.Name,
 				"name", hpa.Name)
 
@@ -1200,7 +1200,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 }
 
 func (lc *lazyClient) deleteCronJobs(ctx context.Context, functionName, functionNamespace string) error {
-	lc.logger.InfoWithCtx(ctx,"Deleting function cron jobs", "functionName", functionName)
+	lc.logger.InfoWithCtx(ctx, "Deleting function cron jobs", "functionName", functionName)
 
 	functionNameLabel := fmt.Sprintf("nuclio.io/function-name=%s", functionName)
 
@@ -1338,13 +1338,13 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
 func (lc *lazyClient) waitForNginxIngressToStabilize(ctx context.Context, ingress *extv1beta1.Ingress) {
-	lc.logger.DebugWithCtx(ctx,"Waiting for nginx ingress to stabilize",
+	lc.logger.DebugWithCtx(ctx, "Waiting for nginx ingress to stabilize",
 		"nginxIngressUpdateGracePeriod", lc.nginxIngressUpdateGracePeriod,
 		"ingressNamespace", ingress.Namespace,
 		"ingressName", ingress.Name)
 
 	time.Sleep(lc.nginxIngressUpdateGracePeriod)
-	lc.logger.DebugWithCtx(ctx,"Finished waiting for nginx ingress to stabilize",
+	lc.logger.DebugWithCtx(ctx, "Finished waiting for nginx ingress to stabilize",
 		"ingressNamespace", ingress.Namespace,
 		"ingressName", ingress.Name)
 }
@@ -1492,7 +1492,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 		} else {
 			spec.Ports[0].NodePort = 0
 		}
-		lc.logger.DebugWithCtx(ctx,"Updating service node port",
+		lc.logger.DebugWithCtx(ctx, "Updating service node port",
 			"functionName", function.Name,
 			"ports", spec.Ports)
 	}
@@ -1998,7 +1998,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	// ignore HostPath volumes
 	for _, configVolume := range function.Spec.Volumes {
 		if configVolume.Volume.HostPath != nil {
-			lc.logger.WarnWithCtx(ctx,"Ignoring volume. HostPath volumes are now deprecated",
+			lc.logger.WarnWithCtx(ctx, "Ignoring volume. HostPath volumes are now deprecated",
 				"configVolume",
 				configVolume)
 
@@ -2042,7 +2042,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			}
 		}
 
-		lc.logger.DebugWithCtx(ctx,"Adding volume",
+		lc.logger.DebugWithCtx(ctx, "Adding volume",
 			"configVolume", configVolume,
 			"functionName", function.Name)
 
@@ -2089,7 +2089,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 		return errors.Wrap(err, "Failed to list function events")
 	}
 
-	lc.logger.DebugWithCtx(ctx,"Got function events", "num", len(result.Items))
+	lc.logger.DebugWithCtx(ctx, "Got function events", "num", len(result.Items))
 
 	for _, functionEvent := range result.Items {
 		functionEvent := functionEvent

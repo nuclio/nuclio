@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+
 	"github.com/nuclio/nuclio/pkg/platform"
 	abstractproject "github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/local/client"

@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -84,7 +85,7 @@ func (i *importCommandeer) importFunction(functionConfig *functionconfig.Config,
 	}
 
 	// create function
-	_, err = i.rootCommandeer.platform.CreateFunction(context.TODO(),&platform.CreateFunctionOptions{
+	_, err = i.rootCommandeer.platform.CreateFunction(context.TODO(), &platform.CreateFunctionOptions{
 		Logger:         i.rootCommandeer.loggerInstance,
 		FunctionConfig: *functionConfig,
 	})
