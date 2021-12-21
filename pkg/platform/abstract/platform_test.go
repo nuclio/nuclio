@@ -384,7 +384,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 	} {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.
-				On("GetFunctions", &platform.GetFunctionsOptions{
+				On("GetFunctions", mock.MatchedBy(suite.matchContext), &platform.GetFunctionsOptions{
 					Name:      testCase.deleteFunctionOptions.FunctionConfig.Meta.Name,
 					Namespace: testCase.deleteFunctionOptions.FunctionConfig.Meta.Namespace,
 				}).
@@ -497,7 +497,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 			}()
 
 			suite.mockedPlatform.
-				On("GetProjects", mock.Anything).
+				On("GetProjects", mock.MatchedBy(suite.matchContext), mock.Anything).
 				Return(testCase.existingProjects, nil).
 				Once()
 
@@ -507,7 +507,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 
 			if len(testCase.existingProjects) > 0 {
 				suite.mockedPlatform.
-					On("GetFunctions", &platform.GetFunctionsOptions{
+					On("GetFunctions", mock.MatchedBy(suite.matchContext), &platform.GetFunctionsOptions{
 						Namespace: suite.DefaultNamespace,
 						Labels:    fmt.Sprintf("nuclio.io/project-name=%s", testCase.deleteProjectOptions.Meta.Name),
 					}).
@@ -574,7 +574,7 @@ func (suite *AbstractPlatformTestSuite) TestGetProjectResources() {
 				Return(testCase.apiGateways, nil).Once()
 
 			suite.mockedPlatform.
-				On("GetFunctions", mock.Anything).
+				On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.Anything).
 				Return(testCase.functions, testCase.getFunctionsError).Once()
 
 			projectFunctions, projectAPIGateways, err := suite.Platform.GetProjectResources(suite.ctx,
@@ -753,7 +753,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 		{MinReplicas: &two, MaxReplicas: &two, ExpectedMinReplicas: &two, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 	} {
 
-		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+		suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
 				Name:      platform.DefaultProjectName,
 				Namespace: "default",
@@ -876,7 +876,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		},
 	} {
 
-		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+		suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
 				Name:      platform.DefaultProjectName,
 				Namespace: "default",
@@ -960,7 +960,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			"valid", testCase.valid)
 
 		suite.mockedPlatform.
-			On("GetProjects", &platform.GetProjectsOptions{
+			On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{Namespace: "default"},
 			}).
 			Return([]platform.Project{&platform.AbstractProject{}}, nil).
@@ -1080,20 +1080,21 @@ func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsWithConsecutiveDupli
 func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
 	functionName := "some-function-name"
 	projectName := "some-project-name"
-	suite.mockedPlatform.On("GetFunctions", mock.Anything).Return([]platform.Function{
-		&platform.AbstractFunction{
-			Logger:   suite.Logger,
-			Platform: suite.Platform.platform,
-			Config: functionconfig.Config{
-				Meta: functionconfig.Meta{
-					Name: functionName,
-					Labels: map[string]string{
-						common.NuclioResourceLabelKeyProjectName: projectName,
+	suite.mockedPlatform.On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.Anything).
+		Return([]platform.Function{
+			&platform.AbstractFunction{
+				Logger:   suite.Logger,
+				Platform: suite.Platform.platform,
+				Config: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name: functionName,
+						Labels: map[string]string{
+							common.NuclioResourceLabelKeyProjectName: projectName,
+						},
 					},
 				},
 			},
-		},
-	}, nil).Once()
+		}, nil).Once()
 	defer suite.mockedPlatform.AssertExpectations(suite.T())
 
 	functionEvent := platform.FunctionEventConfig{
@@ -1178,7 +1179,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
 					Name:      platform.DefaultProjectName,
 					Namespace: "default",
@@ -1257,7 +1258,7 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
 					Name:      platform.DefaultProjectName,
 					Namespace: "default",
@@ -1422,7 +1423,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 	} {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.
-				On("GetProjects", &platform.GetProjectsOptions{
+				On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 					Meta: platform.ProjectMeta{
 						Name:      platform.DefaultProjectName,
 						Namespace: "default",
@@ -1481,6 +1482,10 @@ func (suite *AbstractPlatformTestSuite) testGetProcessorLogsTestFromFile(functio
 	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
 	suite.Require().NoError(err, "Failed to read brief errors message file")
 	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
+}
+
+func (suite *AbstractPlatformTestSuite) matchContext(ctx context.Context) bool {
+	return true
 }
 
 func TestAbstractPlatformTestSuite(t *testing.T) {

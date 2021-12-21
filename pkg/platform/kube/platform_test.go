@@ -148,6 +148,10 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 	suite.Platform.projectsClient, _ = NewProjectsClient(suite.Platform, suite.abstractPlatform.Config)
 }
 
+func (suite *KubePlatformTestSuite) matchContext(ctx context.Context) bool {
+	return true
+}
+
 type FunctionKubePlatformTestSuite struct {
 	KubePlatformTestSuite
 }
@@ -233,7 +237,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 	} {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.
-				On("GetProjects", &platform.GetProjectsOptions{
+				On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 					Meta: platform.ProjectMeta{
 						Name:      platform.DefaultProjectName,
 						Namespace: "default",
@@ -400,7 +404,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}
 
 			// mock get projects
-			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
 					Name:      platform.DefaultProjectName,
 					Namespace: suite.Namespace,
@@ -787,7 +791,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 			}
 
 			suite.mockedPlatform.
-				On("GetFunctions", &platform.GetFunctionsOptions{
+				On("GetFunctions", mock.MatchedBy(suite.matchContext), &platform.GetFunctionsOptions{
 					Name:      functionName,
 					Namespace: suite.Namespace,
 					PermissionOptions: opa.PermissionOptions{

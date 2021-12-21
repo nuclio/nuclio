@@ -14,6 +14,7 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -70,7 +71,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
 	}
 
 	suite.mockInternalProjectsClient.
-		On("Create", &createProjectOptions).
+		On("Create", mock.MatchedBy(suite.matchContext), &createProjectOptions).
 		Return(&platform.AbstractProject{}, nil).
 		Once()
 
@@ -89,7 +90,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 	}
 
 	suite.mockInternalProjectsClient.
-		On("Update", &updateProjectOptions).
+		On("Update", mock.MatchedBy(suite.matchContext), &updateProjectOptions).
 		Return(&platform.AbstractProject{}, nil).
 		Once()
 
@@ -106,7 +107,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 	}
 
 	suite.mockInternalProjectsClient.
-		On("Delete", &deleteProjectOptions).
+		On("Delete", mock.MatchedBy(suite.matchContext), &deleteProjectOptions).
 		Return(nil).
 		Once()
 
@@ -180,12 +181,16 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 	}
 
 	suite.mockInternalProjectsClient.
-		On("Get", &getProjectOptions).
+		On("Get", mock.MatchedBy(suite.matchContext), &getProjectOptions).
 		Return([]platform.Project{}, nil).
 		Once()
 
 	_, err := suite.Client.Get(suite.ctx, &getProjectOptions)
 	suite.Require().NoError(err)
+}
+
+func (suite *ExternalProjectClientTestSuite) matchContext(ctx context.Context) bool {
+	return true
 }
 
 func TestExternalProjectClientTestSuite(t *testing.T) {
