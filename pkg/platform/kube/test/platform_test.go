@@ -154,7 +154,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFailureBriefErrorMessage() {
 import (
   "github.com/nuclio/nuclio-sdk-go"
 )
-func NotExpectedHandler(context *nuclio.ctx, event nuclio.Event) (interface{}, error) {
+func NotExpectedHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
   return nil, nil
 }`
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
