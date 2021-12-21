@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -37,8 +38,8 @@ type Consumer struct {
 	kubeconfigPath  string
 }
 
-func NewConsumer(logger logger.Logger, kubeconfigPath string) (*Consumer, error) {
-	logger.DebugWith("Using kubeconfig", "kubeconfigPath", kubeconfigPath)
+func NewConsumer(ctx context.Context, logger logger.Logger, kubeconfigPath string) (*Consumer, error) {
+	logger.DebugWithCtx(ctx, "Using kubeconfig", "kubeconfigPath", kubeconfigPath)
 
 	newConsumer := Consumer{
 		kubeconfigPath: kubeconfigPath,

@@ -18,6 +18,7 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -53,7 +54,8 @@ func NewDeployer(parentLogger logger.Logger, consumer *Consumer, platform platfo
 	return newDeployer, nil
 }
 
-func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunction,
+func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
+	functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	functionStatus *functionconfig.Status) (*nuclioio.NuclioFunction, error) {
 
@@ -63,7 +65,7 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	// the function will be created if it doesn't exit, otherwise will updated
 	functionExists := functionInstance != nil
 
-	createFunctionOptions.Logger.DebugWith("Creating/updating function",
+	createFunctionOptions.Logger.DebugWithCtx(ctx, "Creating/updating function",
 		"functionExists", functionExists,
 		"functionInstance", functionInstance)
 
@@ -84,7 +86,7 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 		return nil, errors.Wrap(err, "Failed to populate function")
 	}
 
-	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
+	createFunctionOptions.Logger.DebugWithCtx(ctx, "Populated function with configuration and status",
 		"function", functionInstance,
 		"functionExists", functionExists)
 
@@ -112,18 +114,12 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	return functionInstance, nil
 }
 
-func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
+func (d *Deployer) Deploy(ctx context.Context, functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, *nuclioio.NuclioFunction, string, error) {
-
-	// Get the logger with which we need to Deploy
-	deployLogger := createFunctionOptions.Logger
-	if deployLogger == nil {
-		deployLogger = d.logger
-	}
 
 	// do the create / update
 	// TODO: Infer timestamp from function config (consider create/update scenarios)
-	if _, err := d.CreateOrUpdateFunction(functionInstance,
+	if _, err := d.CreateOrUpdateFunction(ctx, functionInstance,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
@@ -132,8 +128,7 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 	}
 
 	// wait for the function to be ready
-	updatedFunctionInstance, err := waitForFunctionReadiness(deployLogger,
-		d.consumer,
+	updatedFunctionInstance, err := waitForFunctionReadiness(d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
@@ -286,8 +281,7 @@ func (d *Deployer) getLastCreatedPod(pods []v1.Pod) v1.Pod {
 	return latestPod
 }
 
-func waitForFunctionReadiness(loggerInstance logger.Logger,
-	consumer *Consumer,
+func waitForFunctionReadiness(consumer *Consumer,
 	namespace string,
 	name string) (*nuclioio.NuclioFunction, error) {
 	var err error

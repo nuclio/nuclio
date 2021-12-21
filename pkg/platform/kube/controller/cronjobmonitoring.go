@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -19,7 +20,8 @@ type CronJobMonitoring struct {
 	stopChan                             chan struct{}
 }
 
-func NewCronJobMonitoring(parentLogger logger.Logger,
+func NewCronJobMonitoring(ctx context.Context,
+	parentLogger logger.Logger,
 	controller *Controller,
 	cronJobStaleResourcesCleanupInterval *time.Duration) *CronJobMonitoring {
 
@@ -31,13 +33,13 @@ func NewCronJobMonitoring(parentLogger logger.Logger,
 		cronJobStaleResourcesCleanupInterval: cronJobStaleResourcesCleanupInterval,
 	}
 
-	parentLogger.DebugWith("Successfully created cron job monitoring instance",
+	parentLogger.DebugWithCtx(ctx, "Successfully created cron job monitoring instance",
 		"cronJobStaleResourcesCleanupInterval", cronJobStaleResourcesCleanupInterval)
 
 	return newCronJobMonitoring
 }
 
-func (cjm *CronJobMonitoring) start() {
+func (cjm *CronJobMonitoring) start(ctx context.Context) {
 
 	// create stop channel
 	cjm.stopChan = make(chan struct{}, 1)
@@ -47,13 +49,13 @@ func (cjm *CronJobMonitoring) start() {
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				cjm.logger.ErrorWith("Panic caught while monitoring cronjobs",
+				cjm.logger.ErrorWithCtx(ctx, "Panic caught while monitoring cronjobs",
 					"err", err,
 					"stack", string(callStack))
 			}
 		}()
 		stalePodsFieldSelector := cjm.compileStalePodsFieldSelector()
-		cjm.logger.InfoWith("Starting cron job stale resources cleanup loop",
+		cjm.logger.InfoWithCtx(ctx, "Starting cron job stale resources cleanup loop",
 			"cronJobStaleResourcesCleanupInterval", cjm.cronJobStaleResourcesCleanupInterval,
 			"fieldSelectors", stalePodsFieldSelector)
 		for {
@@ -61,19 +63,19 @@ func (cjm *CronJobMonitoring) start() {
 			case <-time.After(*cjm.cronJobStaleResourcesCleanupInterval):
 
 				// cleanup all cron job related stale resources (as k8s lacks this logic)
-				cjm.deleteStaleJobs()
-				cjm.deleteStalePods(stalePodsFieldSelector)
+				cjm.deleteStaleJobs(ctx)
+				cjm.deleteStalePods(ctx, stalePodsFieldSelector)
 
 			case <-cjm.stopChan:
-				cjm.logger.Debug("Stopped cronjob monitoring")
+				cjm.logger.DebugCtx(ctx, "Stopped cronjob monitoring")
 				return
 			}
 		}
 	}()
 }
 
-func (cjm *CronJobMonitoring) stop() {
-	cjm.logger.Info("Stopping cron job monitoring")
+func (cjm *CronJobMonitoring) stop(ctx context.Context) {
+	cjm.logger.InfoCtx(ctx, "Stopping cron job monitoring")
 
 	// post to channel
 	if cjm.stopChan != nil {
@@ -81,7 +83,7 @@ func (cjm *CronJobMonitoring) stop() {
 	}
 }
 
-func (cjm *CronJobMonitoring) deleteStalePods(stalePodsFieldSelector string) {
+func (cjm *CronJobMonitoring) deleteStalePods(ctx context.Context, stalePodsFieldSelector string) {
 	err := cjm.controller.kubeClientSet.
 		CoreV1().
 		Pods(cjm.controller.namespace).
@@ -91,13 +93,13 @@ func (cjm *CronJobMonitoring) deleteStalePods(stalePodsFieldSelector string) {
 				FieldSelector: stalePodsFieldSelector,
 			})
 	if err != nil {
-		cjm.logger.WarnWith("Failed to delete stale cron-job pods",
+		cjm.logger.WarnWithCtx(ctx, "Failed to delete stale cron-job pods",
 			"namespace", cjm.controller.namespace,
 			"err", err)
 	}
 }
 
-func (cjm *CronJobMonitoring) deleteStaleJobs() {
+func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
 	jobs, err := cjm.controller.kubeClientSet.
 		BatchV1().
 		Jobs(cjm.controller.namespace).
@@ -105,7 +107,7 @@ func (cjm *CronJobMonitoring) deleteStaleJobs() {
 			LabelSelector: "nuclio.io/function-cron-job-pod=true",
 		})
 	if err != nil {
-		cjm.logger.WarnWith("Failed to list cron-job jobs",
+		cjm.logger.WarnWithCtx(ctx, "Failed to list cron-job jobs",
 			"namespace", cjm.controller.namespace,
 			"err", err)
 	}
@@ -125,7 +127,7 @@ func (cjm *CronJobMonitoring) deleteStaleJobs() {
 				Jobs(cjm.controller.namespace).
 				Delete(job.Name, &metav1.DeleteOptions{})
 			if err != nil && !apierrors.IsNotFound(err) {
-				cjm.logger.WarnWith("Failed to delete cron-job job",
+				cjm.logger.WarnWithCtx(ctx, "Failed to delete cron-job job",
 					"name", job.Name,
 					"namespace", job.Namespace,
 					"err", err)

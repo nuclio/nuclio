@@ -62,6 +62,7 @@ func (tr *invocationResource) OnAfterInitialize() error {
 }
 
 func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
 	path := request.Header.Get("x-nuclio-path")
 	functionName := request.Header.Get("x-nuclio-function-name")
 	invokeURL := request.Header.Get("x-nuclio-invoke-url")
@@ -93,7 +94,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	}
 
 	// resolve the function host
-	invocationResult, err := tr.getPlatform().CreateFunctionInvocation(&platform.CreateFunctionInvocationOptions{
+	invocationResult, err := tr.getPlatform().CreateFunctionInvocation(ctx, &platform.CreateFunctionInvocationOptions{
 		Name:      functionName,
 		Namespace: functionNamespace,
 		Path:      path,
@@ -114,7 +115,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	})
 
 	if err != nil {
-		tr.Logger.WarnWith("Failed to invoke function", "err", err)
+		tr.Logger.WarnWithCtx(ctx, "Failed to invoke function", "err", err)
 		tr.writeErrorHeader(responseWriter, common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError))
 		tr.writeErrorMessage(responseWriter, fmt.Sprintf("Failed to invoke function: %v", errors.RootCause(err)))
 		return

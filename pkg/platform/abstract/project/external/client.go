@@ -1,6 +1,8 @@
 package external
 
 import (
+	"context"
+
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -68,16 +70,16 @@ func (c *Client) Initialize() error {
 	return c.internalClient.Initialize()
 }
 
-func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return c.internalClient.Get(getProjectsOptions)
+func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return c.internalClient.Get(ctx, getProjectsOptions)
 }
 
-func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
+func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	switch createProjectOptions.RequestOrigin {
 
 	// if request came from leader, create it internally
 	case c.platformConfiguration.ProjectsLeader.Kind:
-		return c.internalClient.Create(createProjectOptions)
+		return c.internalClient.Create(ctx, createProjectOptions)
 
 	// request came from user / non-leader client
 	// ask leader to create
@@ -90,10 +92,10 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (pl
 	}
 }
 
-func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
+func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
 	switch updateProjectOptions.RequestOrigin {
 	case c.platformConfiguration.ProjectsLeader.Kind:
-		return c.internalClient.Update(updateProjectOptions)
+		return c.internalClient.Update(ctx, updateProjectOptions)
 	default:
 		if err := c.leaderClient.Update(updateProjectOptions); err != nil {
 			return nil, errors.Wrap(err, "Failed while requesting from the leader to update the project")
@@ -103,10 +105,10 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 	}
 }
 
-func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
+func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	switch deleteProjectOptions.RequestOrigin {
 	case c.platformConfiguration.ProjectsLeader.Kind:
-		return c.internalClient.Delete(deleteProjectOptions)
+		return c.internalClient.Delete(ctx, deleteProjectOptions)
 	default:
 		if err := c.leaderClient.Delete(deleteProjectOptions); err != nil {
 			return errors.Wrap(err, "Failed while requesting from the leader to delete the project")

@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -40,7 +41,7 @@ func NewDeleter(parentLogger logger.Logger, platform platform.Platform) (*Delete
 	return newDeleter, nil
 }
 
-func (d *Deleter) Delete(consumer *Consumer, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+func (d *Deleter) Delete(ctx context.Context, consumer *Consumer, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	var err error
 
 	resourceName, _, err := nuctl.ParseResourceIdentifier(deleteFunctionOptions.FunctionConfig.Meta.Name)
@@ -71,7 +72,7 @@ func (d *Deleter) Delete(consumer *Consumer, deleteFunctionOptions *platform.Del
 		return errors.Wrap(err, "Failed to delete function CR")
 	}
 
-	d.logger.InfoWith("Function deleted", "name", resourceName)
+	d.logger.InfoWithCtx(ctx, "Function deleted", "name", resourceName)
 
 	return nil
 }

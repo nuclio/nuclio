@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -112,7 +113,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			commandeer.functionConfig.Meta.Namespace = updateCommandeer.rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = updateCommandeer.commands
 
-			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateFunctionOptions{
+			return updateCommandeer.rootCommandeer.platform.UpdateFunction(context.Background(), &platform.UpdateFunctionOptions{
 				FunctionMeta: &commandeer.functionConfig.Meta,
 				FunctionSpec: &commandeer.functionConfig.Spec,
 			})
