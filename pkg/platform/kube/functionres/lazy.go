@@ -2284,7 +2284,7 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 
 		if event.Source.Component == "cluster-autoscaler" {
 			switch event.Reason {
-			case "TriggerScaleUp":
+			case "TriggeredScaleUp":
 				lc.logger.InfoWithCtx(ctx,
 					"Nuclio function pod has triggered a node scale up",
 					"podName", pod.Name)
