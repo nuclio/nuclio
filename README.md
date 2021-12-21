@@ -1,6 +1,7 @@
 ![Periodic](https://github.com/nuclio/nuclio/workflows/Periodic/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 [![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
+[![Iguazio Careers](https://img.shields.io/badge/careers-We're%20Hiring!-informational?style=square-flat-square)](https://www.iguazio.com/careers)
 
 <p align="center"><img src="/docs/assets/images/logo.png" width="180" alt="nuclio"/></p>
 
@@ -15,6 +16,7 @@ Translations:
 - [简体中文](./README_zh.md)
 
 #### In this document
+
 - [Overview](#overview)
 - [Why another "serverless" project?](#why-another-serverless-project)
 - [Quick-start steps](#quick-start-steps)
