@@ -109,8 +109,11 @@ class Wrapper(object):
                 # resolve event message length
                 event_message_length = await self._resolve_event_message_length()
 
+                self._logger.debug_with("resolving event", event_message_length=event_message_length)
+
                 # resolve event message
                 event = await self._resolve_event(event_message_length)
+                self._logger.debug_with("resolved event", event=event)
 
                 try:
 
@@ -322,11 +325,9 @@ class Wrapper(object):
 
         response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
                                                               entrypoint_output)
-        self._logger.debug_with('test', event=event, entrypoint_output=entrypoint_output, response=response)
 
         # try to json encode the response
         encoded_response = self._json_encoder.encode(response)
-        self._logger.debug_with('test2', encoded_response=encoded_response)
 
         # write response to the socket
         self._write_packet_to_processor('r' + encoded_response)
