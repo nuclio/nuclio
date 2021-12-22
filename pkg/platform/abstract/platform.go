@@ -661,7 +661,7 @@ func (ap *Platform) CreateFunctionInvocation(ctx context.Context,
 	function := functions[0]
 
 	// make sure to initialize the function (some underlying functions are lazy load)
-	if err := function.Initialize(nil); err != nil {
+	if err := function.Initialize(ctx, nil); err != nil {
 		return nil, errors.Wrap(err, "Failed to initialize function")
 	}
 

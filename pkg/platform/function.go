@@ -32,7 +32,7 @@ type Function interface {
 	// Initialize instructs the function to load the fields specified by "fields". Some function implementations
 	// are lazy-load - this ensures that the fields are populated properly. if "fields" is nil, all fields
 	// are loaded
-	Initialize([]string) error
+	Initialize(context.Context, []string) error
 
 	// GetConfig will return the configuration of the function
 	GetConfig() *functionconfig.Config

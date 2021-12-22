@@ -85,7 +85,7 @@ func NuclioioToFunctionConfig(nuclioioFunction *nuclioio.NuclioFunction) *functi
 }
 
 // Initialize loads sub-resources so we can populate our configuration
-func (f *Function) Initialize([]string) error {
+func (f *Function) Initialize(ctx context.Context, str []string) error {
 	var deploymentList *appsv1.DeploymentList
 	var ingressList *extv1beta1.IngressList
 	var serviceList *v1.ServiceList
@@ -109,7 +109,7 @@ func (f *Function) Initialize([]string) error {
 		if deploymentList == nil {
 			deploymentList, deploymentErr = f.consumer.KubeClientSet.AppsV1().
 				Deployments(f.Config.Meta.Namespace).
-				List(listOptions)
+				List(ctx, listOptions)
 
 			if deploymentErr != nil {
 				return
@@ -133,7 +133,7 @@ func (f *Function) Initialize([]string) error {
 		if serviceList == nil {
 			serviceList, serviceErr = f.consumer.KubeClientSet.CoreV1().
 				Services(f.Config.Meta.Namespace).
-				List(listOptions)
+				List(ctx, listOptions)
 
 			if serviceErr != nil {
 				return
@@ -157,7 +157,7 @@ func (f *Function) Initialize([]string) error {
 		if ingressList == nil {
 			ingressList, ingressErr = f.consumer.KubeClientSet.ExtensionsV1beta1().
 				Ingresses(f.Config.Meta.Namespace).
-				List(listOptions)
+				List(ctx, listOptions)
 
 			if ingressErr != nil {
 				return

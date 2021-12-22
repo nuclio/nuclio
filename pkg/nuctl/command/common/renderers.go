@@ -36,7 +36,7 @@ func RenderFunctions(logger logger.Logger,
 	for _, function := range functions {
 		function := function
 		errGroup.Go("initialize function", func() error {
-			if err := function.Initialize(nil); err != nil {
+			if err := function.Initialize(context.Background(), nil); err != nil {
 				logger.DebugWith("Failed to initialize function", "err", err.Error())
 			}
 			if function.GetStatus().HTTPPort > 0 {

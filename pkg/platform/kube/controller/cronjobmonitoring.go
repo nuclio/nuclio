@@ -87,7 +87,7 @@ func (cjm *CronJobMonitoring) deleteStalePods(ctx context.Context, stalePodsFiel
 	err := cjm.controller.kubeClientSet.
 		CoreV1().
 		Pods(cjm.controller.namespace).
-		DeleteCollection(&metav1.DeleteOptions{},
+		DeleteCollection(ctx, metav1.DeleteOptions{},
 			metav1.ListOptions{
 				LabelSelector: "nuclio.io/function-cron-job-pod=true",
 				FieldSelector: stalePodsFieldSelector,
@@ -103,7 +103,7 @@ func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
 	jobs, err := cjm.controller.kubeClientSet.
 		BatchV1().
 		Jobs(cjm.controller.namespace).
-		List(metav1.ListOptions{
+		List(ctx, metav1.ListOptions{
 			LabelSelector: "nuclio.io/function-cron-job-pod=true",
 		})
 	if err != nil {
@@ -125,7 +125,7 @@ func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
 			err := cjm.controller.kubeClientSet.
 				BatchV1().
 				Jobs(cjm.controller.namespace).
-				Delete(job.Name, &metav1.DeleteOptions{})
+				Delete(ctx, job.Name, metav1.DeleteOptions{})
 			if err != nil && !apierrors.IsNotFound(err) {
 				cjm.logger.WarnWithCtx(ctx, "Failed to delete cron-job job",
 					"name", job.Name,

@@ -132,7 +132,7 @@ func (d *Deployer) Deploy(ctx context.Context, functionInstance *nuclioio.Nuclio
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
-		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
+		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(ctx, functionInstance.Namespace, functionInstance.Name)
 		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
@@ -187,14 +187,14 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 
 }
 
-func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (string, string) {
+func (d *Deployer) getFunctionPodLogsAndEvents(ctx context.Context, namespace string, name string) (string, string) {
 	var briefErrorsMessage string
 	podLogsMessage := "\nPod logs:\n"
 
 	// list pods
 	functionPods, listPodErr := d.consumer.KubeClientSet.CoreV1().
 		Pods(namespace).
-		List(metav1.ListOptions{
+		List(ctx, metav1.ListOptions{
 			LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
 		})
 
@@ -222,7 +222,7 @@ func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	if logsRequest, getLogsErr := d.consumer.KubeClientSet.CoreV1().
 		Pods(namespace).
 		GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
-		Stream(); getLogsErr != nil {
+		Stream(ctx); getLogsErr != nil {
 		podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 	} else {
 		scanner := bufio.NewScanner(logsRequest)
@@ -237,7 +237,7 @@ func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 		podLogsMessage += formattedProcessorLogs
 	}
 
-	podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
+	podWarningEvents, err := d.getFunctionPodWarningEvents(ctx, namespace, pod.Name)
 	if err != nil {
 		podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
 	} else if briefErrorsMessage == "" && podWarningEvents != "" {
@@ -250,8 +250,8 @@ func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	return podLogsMessage, briefErrorsMessage
 }
 
-func (d *Deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {
-	eventList, err := d.consumer.KubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{})
+func (d *Deployer) getFunctionPodWarningEvents(ctx context.Context, namespace string, podName string) (string, error) {
+	eventList, err := d.consumer.KubeClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}

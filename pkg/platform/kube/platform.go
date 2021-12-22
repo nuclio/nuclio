@@ -532,8 +532,7 @@ func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
 			TailLines:    options.TailLines,
 			Follow:       options.Follow,
 		}).
-		Context(ctx).
-		Stream()
+		Stream(ctx)
 }
 
 func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
@@ -542,7 +541,7 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 	pods, err := p.consumer.KubeClientSet.
 		CoreV1().
 		Pods(functionConfig.Meta.Namespace).
-		List(metav1.ListOptions{
+		List(ctx, metav1.ListOptions{
 			LabelSelector: common.CompileListFunctionPodsLabelSelector(functionConfig.Meta.Name),
 		})
 	if err != nil {
@@ -564,7 +563,7 @@ func (p *Platform) GetName() string {
 func (p *Platform) GetNodes() ([]platform.Node, error) {
 	var platformNodes []platform.Node
 
-	kubeNodes, err := p.consumer.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
+	kubeNodes, err := p.consumer.KubeClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get nodes")
 	}
@@ -1072,12 +1071,12 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 }
 
 // GetNamespaces returns all the namespaces in the platform
-func (p *Platform) GetNamespaces() ([]string, error) {
+func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	if len(p.Config.ManagedNamespaces) > 0 {
 		return p.Config.ManagedNamespaces, nil
 	}
 
-	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
+	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			return nil, nuclio.WrapErrForbidden(err)
@@ -1372,7 +1371,7 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 	}
 
 	// ingresses
-	if err := p.validateAPIGatewayIngresses(apiGateway); err != nil {
+	if err := p.validateAPIGatewayIngresses(ctx, apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate ingresses")
 	}
 
@@ -1388,7 +1387,7 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Service type validation failed")
 	}
 
-	return p.validateFunctionIngresses(functionConfig)
+	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
 func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
@@ -1467,7 +1466,7 @@ func (p *Platform) enrichTriggerWithServiceType(ctx context.Context,
 	}
 }
 
-func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
+func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayConfig *platform.APIGatewayConfig) error {
 
 	// create a map to be used for ingress host and path-availability validation
 	apiGatewayIngresses := map[string]functionconfig.Ingress{
@@ -1485,7 +1484,8 @@ func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGat
 		FieldSelector: fmt.Sprintf("metadata.name!=%s,metadata.name!=%s", ingressName, ingressNameWithCanary),
 	}
 
-	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
+	if err := p.validateIngressHostAndPathAvailability(ctx,
+		listIngressesOptions,
 		apiGatewayConfig.Meta.Namespace,
 		apiGatewayIngresses); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway host and path availability")
@@ -1494,7 +1494,7 @@ func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGat
 	return nil
 }
 
-func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Config) error {
+func (p *Platform) validateFunctionIngresses(ctx context.Context, functionConfig *functionconfig.Config) error {
 	if err := p.validateFunctionNoIngressAndAPIGateway(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate: the function isn't exposed by an internal ingresses or an API gateway")
 	}
@@ -1506,7 +1506,8 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 	}
 
 	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
-	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
+	if err := p.validateIngressHostAndPathAvailability(ctx,
+		listIngressesOptions,
 		functionConfig.Meta.Namespace,
 		ingresses); err != nil {
 		return errors.Wrapf(err, "Failed to validate the function-ingress host and path availability")
@@ -1515,15 +1516,16 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 	return nil
 }
 
-func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions metav1.ListOptions,
+func (p *Platform) validateIngressHostAndPathAvailability(ctx context.Context,
+	listIngressesOptions metav1.ListOptions,
 	namespace string,
 	ingresses map[string]functionconfig.Ingress) error {
 
 	// get all ingresses on the namespace
 	existingIngresses, err := p.consumer.KubeClientSet.
-		ExtensionsV1beta1().
+		NetworkingV1().
 		Ingresses(namespace).
-		List(listIngressesOptions)
+		List(ctx, listIngressesOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list ingresses")
 	}
