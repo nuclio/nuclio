@@ -391,9 +391,9 @@ func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
 				Pods(suite.Namespace).
 				Delete(pod.Name, metav1.NewDeleteOptions(0))
 		})
-		suite.Logger.DebugWith("Deleted pod", "functionName", functionName, "podName", pod.Name)
 	}
 	suite.Require().NoError(errGroup.Wait(), "Failed to delete function pods")
+	suite.Logger.Debug("Deleted all function pod")
 }
 
 func (suite *KubeTestSuite) GetResourceAndUnmarshal(resourceKind, resourceName string, resource interface{}) {
