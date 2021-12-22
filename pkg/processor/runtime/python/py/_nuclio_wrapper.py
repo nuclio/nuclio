@@ -109,11 +109,8 @@ class Wrapper(object):
                 # resolve event message length
                 event_message_length = await self._resolve_event_message_length()
 
-                self._logger.debug_with("resolving event", event_message_length=event_message_length)
-
                 # resolve event message
                 event = await self._resolve_event(event_message_length)
-                self._logger.debug_with("resolved event", event=event)
 
                 try:
 
@@ -239,8 +236,6 @@ class Wrapper(object):
         else:
             int_buf = self._processor_sock.recv(4)
 
-        self._logger.debug_with('msg length', int_buf=int_buf, int_buf3=int_buf[3])
-
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
             raise WrapperFatalException('Client disconnected')
@@ -309,8 +304,6 @@ class Wrapper(object):
                   'Exception: {0}'.format(str(exc)))
 
     async def _handle_event(self, event):
-
-        self._logger.debug_with('handling event', event=event)
 
         # take call time
         start_time = time.time()

@@ -202,7 +202,6 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	h.answering[workerIndex] = 0
 	event := &h.events[workerIndex]
 	event.ctx = ctx
-	h.Logger.DebugWith("submitting Event", "body", event.GetBody(), "workerIndex", workerIndex, "events", &h.events, "len(h.events)", len(h.events))
 
 	// submit to worker
 	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, event)
@@ -225,10 +224,14 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
-		h.Logger.DebugWith("ctx on req", "ctx", ctx.Request.Body(), "length", ctx.Request.Header.ContentLength())
-		var ctxCopy fasthttp.Request
-		ctx.Request.CopyTo(&ctxCopy)
-		ctx.Request = ctxCopy
+
+		// it is unsafe to use fasthttp.RequestCtx from concurrently running goroutines, copy it if we can
+		if common.ByteSliceToString(ctx.Request.Header.Peek("Content-Type")) != "multipart/form-data" {
+			ctxCopy := &fasthttp.RequestCtx{}
+			ctxCopy.Init(&ctx.Request, ctx.RemoteAddr(), ctx.Logger())
+			ctx = ctxCopy
+		}
+
 		// ensure request is part of CORS pre-flight
 		if h.ensureRequestIsCORSPreflightRequest(ctx) {
 			h.handlePreflightRequest(ctx)
@@ -505,8 +508,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	// format the response into the context, based on its type
 	switch typedResponse := response.(type) {
 	case nuclio.Response:
-		h.Logger.DebugWith("Event3", "response body", typedResponse.Body)
-
 		fileStreamPath := ""
 		fileStreamDeleteAfterSend := false
 
@@ -560,13 +561,9 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		}
 
 	case []byte:
-		h.Logger.DebugWith("Event4", "typedResponse", typedResponse)
-
 		ctx.Response.SetBodyRaw(typedResponse)
 
 	case string:
-		h.Logger.DebugWith("Event5", "typedResponse", typedResponse)
-
 		ctx.WriteString(typedResponse) // nolint: errcheck
 	}
 }
