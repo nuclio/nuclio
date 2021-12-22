@@ -229,7 +229,7 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 		if common.ByteSliceToString(ctx.Request.Header.Peek("Content-Type")) != "multipart/form-data" {
 			ctxCopy := fasthttp.Request{}
 			ctx.Request.CopyTo(&ctxCopy)
-			ctx.Request = ctxCopy // nolint: errcheck
+			ctx.Request = ctxCopy // nolint: govet
 		}
 
 		// ensure request is part of CORS pre-flight
