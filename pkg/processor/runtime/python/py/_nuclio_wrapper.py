@@ -305,7 +305,7 @@ class Wrapper(object):
 
     async def _handle_event(self, event):
 
-        self._logger.log('handling event', event=event)
+        self._logger.debug_with('handling event', event=event)
 
         # take call time
         start_time = time.time()
@@ -322,11 +322,11 @@ class Wrapper(object):
 
         response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
                                                               entrypoint_output)
-        self._logger.log('test', event=event, entrypoint_output=entrypoint_output, response=response)
+        self._logger.debug_with('test', event=event, entrypoint_output=entrypoint_output, response=response)
 
         # try to json encode the response
         encoded_response = self._json_encoder.encode(response)
-        self._logger.log('test2', encoded_response=encoded_response)
+        self._logger.debug_with('test2', encoded_response=encoded_response)
 
         # write response to the socket
         self._write_packet_to_processor('r' + encoded_response)
