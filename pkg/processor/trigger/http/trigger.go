@@ -227,9 +227,9 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 
 		// it is unsafe to use fasthttp.RequestCtx from concurrently running goroutines, copy it if we can
 		if common.ByteSliceToString(ctx.Request.Header.Peek("Content-Type")) != "multipart/form-data" {
-			ctxCopy := &fasthttp.RequestCtx{}
-			ctxCopy.Init(&ctx.Request, ctx.RemoteAddr(), ctx.Logger())
-			ctx = ctxCopy
+			ctxCopy := fasthttp.Request{}
+			ctx.Request.CopyTo(&ctxCopy)
+			ctx.Request = ctxCopy
 		}
 
 		// ensure request is part of CORS pre-flight
