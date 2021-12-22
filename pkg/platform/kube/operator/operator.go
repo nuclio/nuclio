@@ -16,11 +16,13 @@ limitations under the License.
 
 package operator
 
+import "context"
+
 // Operator is a controller with a CRD
 type Operator interface {
 
 	// Start starts the operator, listening for changes
-	Start() error
+	Start(ctx context.Context) error
 
 	// Stop stops the operator, returning a completion channel
 	Stop() chan struct{}

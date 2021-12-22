@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -205,8 +206,8 @@ func (f *Function) Initialize([]string) error {
 }
 
 // GetInvokeURL returns the URL on which the function can be invoked
-func (f *Function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
-	host, port, path, err := f.getInvokeURLFields(invokeViaType)
+func (f *Function) GetInvokeURL(ctx context.Context, invokeViaType platform.InvokeViaType) (string, error) {
+	host, port, path, err := f.getInvokeURLFields(ctx, invokeViaType)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get address")
 	}
@@ -232,7 +233,7 @@ func (f *Function) GetConfig() *functionconfig.Config {
 	}
 }
 
-func (f *Function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (string, int, string, error) {
+func (f *Function) getInvokeURLFields(ctx context.Context, invokeViaType platform.InvokeViaType) (string, int, string, error) {
 	var host, path string
 	var port int
 	var err error
@@ -272,14 +273,14 @@ func (f *Function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (str
 		host, port, path, err = urlGetter()
 
 		if err != nil {
-			f.Logger.DebugWith("Could not get invoke URL with method",
+			f.Logger.DebugWithCtx(ctx, "Could not get invoke URL with method",
 				"index", urlGetterIndex,
 				"err", err)
 		}
 
 		// if we found something, return it
 		if host != "" {
-			f.Logger.DebugWith("Resolved invoke URL with method",
+			f.Logger.DebugWithCtx(ctx, "Resolved invoke URL with method",
 				"index", urlGetterIndex,
 				"host", host,
 				"port", port,

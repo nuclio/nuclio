@@ -18,6 +18,7 @@ package abstract
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -46,15 +47,15 @@ func newInvoker(parentLogger logger.Logger, platform platform.Platform) (*invoke
 	return newinvoker, nil
 }
 
-func (i *invoker) invoke(function platform.Function,
+func (i *invoker) invoke(ctx context.Context,
+	function platform.Function,
 	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (
-
 	*platform.CreateFunctionInvocationResult, error) {
 
 	// save options
 	i.createFunctionInvocationOptions = createFunctionInvocationOptions
 
-	invokeURL, err := i.resolveInvokeURL(function, createFunctionInvocationOptions)
+	invokeURL, err := i.resolveInvokeURL(ctx, function, createFunctionInvocationOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve invocation url")
 	}
@@ -90,7 +91,7 @@ func (i *invoker) invoke(function platform.Function,
 		req.Header.Set("x-nuclio-log-level", createFunctionInvocationOptions.LogLevelName)
 	}
 
-	i.logger.InfoWith("Executing function",
+	i.logger.InfoWithCtx(ctx, "Executing function",
 		"method", createFunctionInvocationOptions.Method,
 		"url", fullpath,
 		"headers", req.Header)
@@ -102,7 +103,7 @@ func (i *invoker) invoke(function platform.Function,
 
 	defer response.Body.Close() // nolint: errcheck
 
-	i.logger.InfoWith("Got response", "status", response.Status)
+	i.logger.InfoWithCtx(ctx, "Got response", "status", response.Status)
 
 	// read the body
 	responseBody, err := ioutil.ReadAll(response.Body)
@@ -117,14 +118,15 @@ func (i *invoker) invoke(function platform.Function,
 	}, nil
 }
 
-func (i *invoker) resolveInvokeURL(function platform.Function,
+func (i *invoker) resolveInvokeURL(ctx context.Context,
+	function platform.Function,
 	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (string, error) {
 	if createFunctionInvocationOptions.URL != "" {
 
 		// validate given url, must matching one of the function status invocation urls
 		if !common.StringSliceContainsString(function.GetStatus().InvocationURLs(),
 			createFunctionInvocationOptions.URL) {
-			i.logger.WarnWith("Invocation URL does not match any of function status invocation urls",
+			i.logger.WarnWithCtx(ctx, "Invocation URL does not match any of function status invocation urls",
 				"url", createFunctionInvocationOptions.URL,
 				"invocationURLs", function.GetStatus().InvocationURLs())
 			return "", nuclio.NewErrBadRequest(fmt.Sprintf("Invalid function url %s",
@@ -134,5 +136,5 @@ func (i *invoker) resolveInvokeURL(function platform.Function,
 	}
 
 	// get where the function resides
-	return function.GetInvokeURL(createFunctionInvocationOptions.Via)
+	return function.GetInvokeURL(ctx, createFunctionInvocationOptions.Via)
 }

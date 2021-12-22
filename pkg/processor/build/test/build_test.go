@@ -52,6 +52,10 @@ type testSuite struct {
 	httpsuite.TestSuite
 }
 
+func (suite *testSuite) SetupSuite() {
+	suite.TestSuite.SetupSuite()
+}
+
 func (suite *testSuite) TestBuildFuncFromSourceWithInlineConfig() {
 	functionSourceCode := `
 # @nuclio.configure
@@ -112,7 +116,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -148,7 +152,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -186,7 +190,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -206,7 +210,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -237,7 +241,7 @@ func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -602,7 +606,7 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 }
 
 func (suite *testSuite) TestGenerateProcessorDockerfile() {
-	newPlatform, err := local.NewPlatform(suite.Logger, &platformconfig.Config{}, "")
+	newPlatform, err := local.NewPlatform(suite.TestSuite.Ctx, suite.Logger, &platformconfig.Config{}, "")
 	suite.Require().NoErrorf(err, "Instantiating Platform failed: %s", err)
 
 	builder, err := build.NewBuilder(suite.Logger, newPlatform, nil)

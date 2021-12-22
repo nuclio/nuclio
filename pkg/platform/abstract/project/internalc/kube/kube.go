@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -38,7 +39,7 @@ func (c *Client) Initialize() error {
 	return nil
 }
 
-func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	var platformProjects []platform.Project
 	var projects []nuclioio.NuclioProject
 
@@ -90,7 +91,7 @@ func (c *Client) Get(getProjectsOptions *platform.GetProjectsOptions) ([]platfor
 	return platformProjects, nil
 }
 
-func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
+func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
 	newProject := nuclioio.NuclioProject{}
 	c.platformProjectToProject(createProjectOptions.ProjectConfig, &newProject)
 
@@ -107,7 +108,7 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) (pl
 	return c.nuclioProjectToPlatformProject(nuclioProject)
 }
 
-func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
+func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
 	projectInstance, err := c.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioProjects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, metav1.GetOptions{})
@@ -137,7 +138,7 @@ func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) (pl
 	return c.nuclioProjectToPlatformProject(nuclioProject)
 }
 
-func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
+func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	if err := c.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioProjects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
@@ -152,7 +153,8 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 	}
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
-		return c.platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
+		return c.platform.WaitForProjectResourcesDeletion(ctx,
+			&deleteProjectOptions.Meta,
 			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
 	}
 

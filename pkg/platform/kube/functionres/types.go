@@ -63,6 +63,6 @@ type Resources interface {
 	// Ingress returns the ingress
 	Ingress() (*extv1beta1.Ingress, error)
 
-	// CronJob returns the cron job
+	// CronJobs returns the cron job
 	CronJobs() ([]*batchv1beta1.CronJob, error)
 }

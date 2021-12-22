@@ -19,6 +19,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -36,10 +37,12 @@ import (
 type TestSuite struct {
 	processorsuite.TestSuite
 	namespace string
+	ctx       context.Context
 }
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+	suite.ctx = context.Background()
 	suite.Runtime = "python:3.6"
 
 	namespaces, err := suite.Platform.GetNamespaces()
@@ -112,7 +115,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 			suite.Require().NoError(err, "Could not stop container")
 
 			// Trigger function containers healthiness validation
-			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
+			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness(suite.ctx)
 
 			// Wait for function to become unhealthy
 			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
@@ -125,7 +128,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 			suite.Require().NoError(err, "Failed to start container")
 
 			// Trigger function containers healthiness validation
-			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness()
+			go suite.Platform.(*local.Platform).ValidateFunctionContainersHealthiness(suite.ctx)
 
 			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
 				Name:      functionName,
@@ -239,11 +242,12 @@ func (suite *TestSuite) TestDeleteFunctionMissingVolumeMount() {
 			suite.Require().NoError(err)
 
 			// ensure delete function succeeded
-			err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
-				FunctionConfig: functionconfig.Config{
-					Meta: createFunctionOptions.FunctionConfig.Meta,
-				},
-			})
+			err = suite.Platform.DeleteFunction(suite.ctx,
+				&platform.DeleteFunctionOptions{
+					FunctionConfig: functionconfig.Config{
+						Meta: createFunctionOptions.FunctionConfig.Meta,
+					},
+				})
 			suite.Require().NoError(err)
 			return true
 		})

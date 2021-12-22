@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -80,7 +81,7 @@ type deployCommandeer struct {
 	overrideHTTPTriggerServiceType  string
 }
 
-func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
+func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *deployCommandeer {
 	commandeer := &deployCommandeer{
 		rootCommandeer: rootCommandeer,
 		functionConfig: *functionconfig.NewConfig(),
@@ -103,7 +104,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			if len(args) == 1 {
 				commandeer.functionName = args[0]
 
-				importedFunction, err = commandeer.getImportedFunction(args[0])
+				importedFunction, err = commandeer.getImportedFunction(ctx, args[0])
 				if err != nil {
 					return errors.Wrap(err, "Failed getting the imported function's data")
 				}
@@ -115,7 +116,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 			// If config file is provided
 			if importedFunction == nil && commandeer.functionConfigPath != "" {
-				commandeer.rootCommandeer.loggerInstance.DebugWith("Loading function config from file", "file", commandeer.functionConfigPath)
+				commandeer.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Loading function config from file", "file", commandeer.functionConfigPath)
 				functionConfigFile, err := nuctlcommon.OpenFile(commandeer.functionConfigPath)
 				if err != nil {
 					return errors.Wrap(err, "Failed opening function config file")
@@ -136,7 +137,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 					return errors.Wrap(err, "Failed parsing function config file")
 				}
 
-				commandeer.rootCommandeer.loggerInstance.DebugWith("Successfully loaded function config", "functionConfig", commandeer.functionConfig)
+				commandeer.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Successfully loaded function config", "functionConfig", commandeer.functionConfig)
 			}
 
 			// Populate initial defaults in the function spec, but consider existing values
@@ -167,8 +168,8 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.RemoveSkipBuildAnnotation()
 			commandeer.functionConfig.Meta.RemoveSkipDeployAnnotation()
 
-			commandeer.rootCommandeer.loggerInstance.DebugWith("Deploying function", "functionConfig", commandeer.functionConfig)
-			_, deployErr := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
+			commandeer.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Deploying function", "functionConfig", commandeer.functionConfig)
+			_, deployErr := rootCommandeer.platform.CreateFunction(ctx, &platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
 				InputImageFile: commandeer.inputImageFile,
@@ -176,7 +177,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 			// don't check deploy error yet, first try to save the logs either way, and then return the error if necessary
 			commandeer.rootCommandeer.loggerInstance.Debug("Saving deployment logs")
-			logSaveErr := rootCommandeer.platform.SaveFunctionDeployLogs(commandeer.functionName, rootCommandeer.namespace)
+			logSaveErr := rootCommandeer.platform.SaveFunctionDeployLogs(ctx, commandeer.functionName, rootCommandeer.namespace)
 
 			if deployErr != nil {
 
@@ -300,8 +301,8 @@ func parseVolumes(volumes stringSliceFlag) ([]functionconfig.Volume, error) {
 
 // If user runs deploy with a function name of a function that was already imported, this checks if that function
 // exists and is imported. If so, returns that function, otherwise returns nil.
-func (d *deployCommandeer) getImportedFunction(functionName string) (platform.Function, error) {
-	functions, err := d.rootCommandeer.platform.GetFunctions(&platform.GetFunctionsOptions{
+func (d *deployCommandeer) getImportedFunction(ctx context.Context, functionName string) (platform.Function, error) {
+	functions, err := d.rootCommandeer.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:      functionName,
 		Namespace: d.rootCommandeer.namespace,
 	})

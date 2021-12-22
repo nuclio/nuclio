@@ -48,6 +48,7 @@ func (fer *functionEventResource) ExtendMiddlewares() error {
 
 // GetAll returns all function events
 func (fer *functionEventResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
+	ctx := request.Context()
 	response := map[string]restful.Attributes{}
 
 	// get namespace
@@ -76,7 +77,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 		}
 	}
 
-	functionEvents, err := fer.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
+	functionEvents, err := fer.getPlatform().GetFunctionEvents(ctx, &getFunctionEventOptions)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function events")
@@ -92,6 +93,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 
 // GetByID returns a specific function event by id
 func (fer *functionEventResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
+	ctx := request.Context()
 
 	// get namespace
 	namespace := fer.getNamespaceFromRequest(request)
@@ -99,7 +101,7 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	functionEvent, err := fer.getPlatform().GetFunctionEvents(&platform.GetFunctionEventsOptions{
+	functionEvent, err := fer.getPlatform().GetFunctionEvents(ctx, &platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Name:      id,
 			Namespace: fer.getNamespaceFromRequest(request),
@@ -168,6 +170,7 @@ func (fer *functionEventResource) GetCustomRoutes() ([]restful.CustomRoute, erro
 
 func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Request,
 	functionEvent *functionEventInfo) (platform.FunctionEvent, error) {
+	ctx := request.Context()
 
 	// create a functionEvent config
 	functionEventConfig := platform.FunctionEventConfig{
@@ -182,7 +185,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 	}
 
 	// just deploy. the status is async through polling
-	err = fer.getPlatform().CreateFunctionEvent(&platform.CreateFunctionEventOptions{
+	err = fer.getPlatform().CreateFunctionEvent(ctx, &platform.CreateFunctionEventOptions{
 		FunctionEventConfig: *newFunctionEvent.GetConfig(),
 		AuthSession:         fer.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
@@ -198,6 +201,8 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 }
 
 func (fer *functionEventResource) getFunctionEvents(request *http.Request, function platform.Function, namespace string) []platform.FunctionEvent {
+	ctx := request.Context()
+
 	getFunctionEventOptions := platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Name:      "",
@@ -213,7 +218,7 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 		},
 	}
 
-	functionEvents, err := fer.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
+	functionEvents, err := fer.getPlatform().GetFunctionEvents(ctx, &getFunctionEventOptions)
 	if err == nil {
 		return functionEvents
 	}
@@ -222,11 +227,12 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 }
 
 func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	ctx := request.Context()
 
 	// get function event config and status from body
 	functionEventInfo, err := fer.getFunctionEventInfoFromRequest(request, true)
 	if err != nil {
-		fer.Logger.WarnWith("Failed to get function event config and status from body", "err", err)
+		fer.Logger.WarnWithCtx(ctx, "Failed to get function event config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -243,7 +249,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 	}
 	deleteFunctionEventOptions.Meta = *functionEventInfo.Meta
 
-	err = fer.getPlatform().DeleteFunctionEvent(&deleteFunctionEventOptions)
+	err = fer.getPlatform().DeleteFunctionEvent(ctx, &deleteFunctionEventOptions)
 	if err != nil {
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -259,13 +265,13 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 }
 
 func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-
+	ctx := request.Context()
 	statusCode := http.StatusNoContent
 
 	// get function event config and status from body
 	functionEventInfo, err := fer.getFunctionEventInfoFromRequest(request, true)
 	if err != nil {
-		fer.Logger.WarnWith("Failed to get function event config and status from body", "err", err)
+		fer.Logger.WarnWithCtx(ctx, "Failed to get function event config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -278,7 +284,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 		Spec: *functionEventInfo.Spec,
 	}
 
-	if err = fer.getPlatform().UpdateFunctionEvent(&platform.UpdateFunctionEventOptions{
+	if err = fer.getPlatform().UpdateFunctionEvent(ctx, &platform.UpdateFunctionEventOptions{
 		FunctionEventConfig: functionEventConfig,
 		AuthSession:         fer.getCtxSession(request),
 		PermissionOptions: opa.PermissionOptions{
