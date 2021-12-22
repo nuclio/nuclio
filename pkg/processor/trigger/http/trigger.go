@@ -202,7 +202,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	h.answering[workerIndex] = 0
 	event := &h.events[workerIndex]
 	event.ctx = ctx
-	h.Logger.DebugWith("submitting Event", "event", event.GetBody())
+	h.Logger.DebugWith("submitting Event", "body", event.GetBody(), "workerIndex", workerIndex, "events", &h.events, "len(h.events)", len(h.events))
 
 	// submit to worker
 	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, event)
