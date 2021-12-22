@@ -169,7 +169,7 @@ type Platform interface {
 	GetAllowedAuthenticationModes() []string
 
 	// GetNamespaces returns all the namespaces in the platform
-	GetNamespaces() ([]string, error)
+	GetNamespaces(context.Context) ([]string, error)
 
 	// GetHealthCheckMode returns the healthcheck mode the platform requires
 	GetHealthCheckMode() HealthCheckMode

@@ -36,7 +36,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -291,7 +291,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 
 func (suite *lazyTestSuite) TestNoTriggers() {
 	ingressMeta := metav1.ObjectMeta{}
-	ingressSpec := extv1beta1.IngressSpec{}
+	ingressSpec := networkingv1.IngressSpec{}
 
 	// function instance has no triggers
 	functionInstance := nuclioio.NuclioFunction{}
@@ -315,7 +315,7 @@ func (suite *lazyTestSuite) TestNoTriggers() {
 
 func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 	ingressMeta := metav1.ObjectMeta{}
-	ingressSpec := extv1beta1.IngressSpec{}
+	ingressSpec := networkingv1.IngressSpec{}
 
 	// function instance has no triggers
 	functionInstance := nuclioio.NuclioFunction{}
@@ -368,14 +368,14 @@ func (suite *lazyTestSuite) TestScaleToZeroSpecificAnnotations() {
 		functionLabels,
 		functionInstance,
 		&ingressMeta,
-		&extv1beta1.IngressSpec{})
+		&networkingv1.IngressSpec{})
 	suite.Require().NoError(err)
 	suite.Require().Equal("added", ingressMeta.Annotations["something"])
 }
 
 func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 	ingressMeta := metav1.ObjectMeta{}
-	ingressSpec := extv1beta1.IngressSpec{}
+	ingressSpec := networkingv1.IngressSpec{}
 
 	annotations := map[string]string{
 		"a1": "v1",
@@ -659,7 +659,7 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 				Items: []v1.Pod{pod},
 			}
 
-			_, err := suite.client.kubeClientSet.CoreV1().Events(namespace).Create(&testCase.event)
+			_, err := suite.client.kubeClientSet.CoreV1().Events(namespace).Create(suite.ctx, &testCase.event, metav1.CreateOptions{})
 			suite.Require().NoError(err)
 
 			// call resolveFailFast
@@ -670,13 +670,13 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 				suite.Require().NoError(err)
 			}
 
-			err = suite.client.kubeClientSet.CoreV1().Events(namespace).Delete(testCase.event.Name, nil)
+			err = suite.client.kubeClientSet.CoreV1().Events(namespace).Delete(suite.ctx, testCase.event.Name, metav1.DeleteOptions{})
 			suite.Require().NoError(err)
 		})
 	}
 }
 
-func (suite *lazyTestSuite) getIngressRuleByHost(rules []extv1beta1.IngressRule, host string) *extv1beta1.IngressRule {
+func (suite *lazyTestSuite) getIngressRuleByHost(rules []networkingv1.IngressRule, host string) *networkingv1.IngressRule {
 	for _, rule := range rules {
 		if rule.Host == host {
 			return &rule

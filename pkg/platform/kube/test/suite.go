@@ -339,20 +339,20 @@ func (suite *KubeTestSuite) WithResourceQuota(rq *v1.ResourceQuota, handler func
 	resourceQuota, err := suite.KubeClientSet.
 		CoreV1().
 		ResourceQuotas(suite.Namespace).
-		Create(rq)
+		Create(suite.Ctx, rq, metav1.CreateOptions{})
 	suite.Require().NoError(err)
 
 	// clean leftovers
 	defer suite.KubeClientSet.
 		CoreV1().
 		ResourceQuotas(suite.Namespace).
-		Delete(resourceQuota.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+		Delete(suite.Ctx, resourceQuota.Name, metav1.DeleteOptions{}) // nolint: errcheck
 
 	handler()
 }
 
 func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
-	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(metav1.ListOptions{
+	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
 	})
 
@@ -375,7 +375,7 @@ func (suite *KubeTestSuite) UnCordonNode(nodeName string) error {
 }
 
 func (suite *KubeTestSuite) GetNodes() []v1.Node {
-	nodesList, err := suite.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
+	nodesList, err := suite.KubeClientSet.CoreV1().Nodes().List(suite.Ctx, metav1.ListOptions{})
 	suite.Require().NoError(err)
 	return nodesList.Items
 }
@@ -392,7 +392,7 @@ func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
 			return suite.KubeClientSet.
 				CoreV1().
 				Pods(suite.Namespace).
-				Delete(pod.Name, metav1.NewDeleteOptions(0))
+				Delete(suite.Ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		})
 	}
 	suite.Require().NoError(errGroup.Wait(), "Failed to delete function pods")
@@ -536,7 +536,8 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 		ingressObject, err = suite.KubeClientSet.
 			ExtensionsV1beta1().
 			Ingresses(suite.Namespace).
-			Get(
+			Get(suite.Ctx,
+
 				// TODO: consider canary ingress as well
 				kube.IngressNameFromAPIGatewayName(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false),
 				metav1.GetOptions{})

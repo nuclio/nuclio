@@ -155,7 +155,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 	functionDeployment, err := fm.kubeClientSet.
 		AppsV1().
 		Deployments(function.Namespace).
-		Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 	if err != nil {
 		fm.logger.WarnWithCtx(ctx, "Failed to get function deployment",
 			"functionName", function.Name,

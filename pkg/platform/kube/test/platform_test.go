@@ -137,7 +137,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFailureBriefErrorMessage() {
 	defer suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Delete(platformConfigConfigmap.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+		Delete(suite.Ctx, platformConfigConfigmap.Name, metav1.DeleteOptions{}) // nolint: errcheck
 
 	for _, testCase := range []struct {
 		Name                       string
@@ -240,22 +240,24 @@ func (suite *DeployFunctionTestSuite) TestVolumeOnceMountTwice() {
 	configMap, err := suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Create(&v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      configMapName,
-				Namespace: suite.Namespace,
+		Create(suite.Ctx,
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      configMapName,
+					Namespace: suite.Namespace,
+				},
+				Data: map[string]string{
+					"key": configMapData,
+				},
 			},
-			Data: map[string]string{
-				"key": configMapData,
-			},
-		})
+			metav1.CreateOptions{})
 	suite.Require().NoError(err)
 
 	// delete leftovers
 	defer suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Delete(configMap.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+		Delete(suite.Ctx, configMap.Name, metav1.DeleteOptions{}) // nolint: errcheck
 
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{}
@@ -398,14 +400,14 @@ func (suite *DeployFunctionTestSuite) TestAssigningFunctionPodToNodes() {
 	testLabelKey := "test-nuclio.io"
 
 	labelPatch := fmt.Sprintf(`[{"op":"add","path":"/metadata/labels/%s","value":"%s"}]`, testLabelKey, "true")
-	_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(testNodeName, types.JSONPatchType, []byte(labelPatch))
+	_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(suite.Ctx, testNodeName, types.JSONPatchType, []byte(labelPatch), metav1.PatchOptions{})
 	suite.Require().NoError(err, "Failed to patch node labels")
 
 	// undo changes
 	defer func() {
 		suite.Logger.DebugWith("Rolling back node labels change")
 		labelPatch = fmt.Sprintf(`[{"op":"remove","path":"/metadata/labels/%s"}]`, testLabelKey)
-		_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(testNodeName, types.JSONPatchType, []byte(labelPatch))
+		_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(suite.Ctx, testNodeName, types.JSONPatchType, []byte(labelPatch), metav1.PatchOptions{})
 		suite.Require().NoError(err, "Failed to patch node labels")
 	}()
 
@@ -459,7 +461,7 @@ func (suite *DeployFunctionTestSuite) TestAssigningFunctionPodToNodes() {
 
 				if testCase.nodeSelector != nil {
 					pods := suite.GetFunctionPods(functionName)
-					podEvents, err := suite.KubeClientSet.CoreV1().Events(suite.Namespace).List(metav1.ListOptions{
+					podEvents, err := suite.KubeClientSet.CoreV1().Events(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
 						FieldSelector: fmt.Sprintf("involvedObject.name=%s", pods[0].GetName()),
 					})
 					suite.Require().NoError(err)
@@ -657,13 +659,14 @@ func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v
 	platformConfigConfigmap, err := suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Create(&v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "nuclio-platform-config",
-				Namespace: suite.Namespace,
-			},
-			Data: map[string]string{
-				"platform.yaml": `logger:
+		Create(suite.Ctx,
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nuclio-platform-config",
+					Namespace: suite.Namespace,
+				},
+				Data: map[string]string{
+					"platform.yaml": `logger:
   functions:
   - level: debug
     sink: myStdoutLoggerSink
@@ -678,8 +681,9 @@ func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v
   system:
   - level: debug
     sink: myStdoutLoggerSink`,
+				},
 			},
-		})
+			metav1.CreateOptions{})
 	suite.Require().NoError(err)
 
 	return platformConfigConfigmap

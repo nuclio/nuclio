@@ -114,7 +114,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoveryAfterDeployError() {
 	defer suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Delete(configMap.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+		Delete(suite.Ctx, configMap.Name, metav1.DeleteOptions{}) // nolint: errcheck
 
 	functionVolume := functionconfig.Volume{
 		Volume: v1.Volume{
@@ -157,7 +157,7 @@ def handler(context, event):
 			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateUnhealthy)
 
 			// create the missing configmap
-			configMap, err = suite.KubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Create(configMap)
+			configMap, err = suite.KubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Create(suite.Ctx, configMap, metav1.CreateOptions{})
 			suite.Require().NoError(err, "Failed to create configmap")
 
 			// wait for k8s to recover deployment from missing configmap error
