@@ -225,7 +225,7 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
-		h.Logger.DebugWith("ctx on req", "ctx", ctx.Request.Body())
+		h.Logger.DebugWith("ctx on req", "ctx", ctx.Request.Body(), "length", ctx.Request.Header.ContentLength())
 
 		// ensure request is part of CORS pre-flight
 		if h.ensureRequestIsCORSPreflightRequest(ctx) {
