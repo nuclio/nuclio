@@ -225,7 +225,7 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
 
-		// it is unsafe to use fasthttp.RequestCtx from concurrently running goroutines, copy it if we can
+		// it is unsafe to use fasthttp.Request from concurrently running goroutines, copy it if we can
 		if common.ByteSliceToString(ctx.Request.Header.Peek("Content-Type")) != "multipart/form-data" {
 			ctxCopy := fasthttp.Request{}
 			ctx.Request.CopyTo(&ctxCopy)
