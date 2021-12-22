@@ -609,7 +609,7 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 				Source: v1.EventSource{
 					Component: "cluster-autoscaler",
 				},
-				Reason: "TriggerScaleUp",
+				Reason: "TriggeredScaleUp",
 			},
 			expectedError: false,
 		},
