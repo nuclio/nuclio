@@ -239,7 +239,7 @@ class Wrapper(object):
         else:
             int_buf = self._processor_sock.recv(4)
 
-        self._logger.debug_with('msg length', int_buf=int_buf, int_buf0=int_buf[0])
+        self._logger.debug_with('msg length', int_buf=int_buf, int_buf3=int_buf[3])
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:

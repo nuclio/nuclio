@@ -226,8 +226,9 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
 		h.Logger.DebugWith("ctx on req", "ctx", ctx.Request.Body(), "length", ctx.Request.Header.ContentLength())
-		defer ctx.Request.Reset()
-
+		var ctxCopy fasthttp.Request
+		ctx.Request.CopyTo(&ctxCopy)
+		ctx.Request = ctxCopy
 		// ensure request is part of CORS pre-flight
 		if h.ensureRequestIsCORSPreflightRequest(ctx) {
 			h.handlePreflightRequest(ctx)
