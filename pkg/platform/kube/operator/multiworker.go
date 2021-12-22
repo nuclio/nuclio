@@ -41,7 +41,8 @@ type MultiWorker struct {
 	changeHandler        ChangeHandler
 }
 
-func NewMultiWorker(parentLogger logger.Logger,
+func NewMultiWorker(ctx context.Context,
+	parentLogger logger.Logger,
 	numWorkers int,
 	listWatcher cache.ListerWatcher,
 	object runtime.Object,
@@ -55,7 +56,8 @@ func NewMultiWorker(parentLogger logger.Logger,
 		changeHandler:        changeHandler,
 	}
 
-	newMultiWorker.logger.DebugWith("Creating multiworker",
+	newMultiWorker.logger.DebugWithCtx(ctx,
+		"Creating multiworker",
 		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval,
 		"objectKind", fmt.Sprintf("%T", object))
@@ -97,8 +99,8 @@ func NewMultiWorker(parentLogger logger.Logger,
 	return newMultiWorker, nil
 }
 
-func (mw *MultiWorker) Start() error {
-	mw.logger.InfoWith("Starting")
+func (mw *MultiWorker) Start(ctx context.Context) error {
+	mw.logger.InfoWithCtx(ctx, "Starting")
 
 	// run the informer
 	go func() {
@@ -127,7 +129,7 @@ func (mw *MultiWorker) Start() error {
 	// wait for stop signal
 	<-mw.stopChannel
 
-	mw.logger.InfoWith("Stopped")
+	mw.logger.InfoWithCtx(ctx, "Stopped")
 
 	return nil
 }

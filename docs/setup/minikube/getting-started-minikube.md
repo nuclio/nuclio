@@ -7,8 +7,7 @@ Follow this step-by-step guide to set up Nuclio on [Minikube](https://github.com
 - [Prerequisites](#prerequisites)
 - [Prepare Minikube](#prepare-minikube)
 - [Install Nuclio](#install-nuclio)
-- [Deploy a function with the Nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
-- [Deploy a function with the Nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli)
+- [Deploy a function with the Nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
 - [What's next](#whats-next)
 
 ## Prerequisites
@@ -19,7 +18,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
     - [Docker](https://docs.docker.com/get-docker/)
     - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
     - [Helm](https://helm.sh/docs/intro/install/)
-- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
+- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli-nuctl).
     To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 - It's recommended that you use these drivers:
 
@@ -63,7 +62,7 @@ minikube ssh -- docker run -d -p 5000:5000 registry:2
 Before Docker container images can be pushed to your newly created, insecure registry, you need to add its
 address (`$(minikube ip):5000`) to the list of insecure registries to instruct Docker to accept working against it:
 
-- **Docker for Mac OS** -  you can add it under **Preferences | Daemon**.
+- **Docker for macOS** -  you can add it under **Preferences | Daemon**.
 - **Linux** - follow the instructions in the [Docker documentation](https://docs.docker.com/registry/insecure/#deploy-a-plain-http-registry).
 
 ## Install Nuclio
@@ -91,21 +90,8 @@ helm --namespace nuclio install nuclio nuclio/nuclio
 
 Use the command `minikube kubectl -- get pods --namespace nuclio` to verify both the controller and dashboard are running.
 
-**Forward the Nuclio dashboard port:** the Nuclio dashboard publishes a service at port 8070. To use the dashboard, you first need to forward this port to your local IP address:
-```sh
-minikube kubectl -- port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
-```
 
-<a id="deploy-a-function-with-the-nuclio-dashboard"></a>
-## Deploy a function with the Nuclio dashboard
-
-Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation) to see the [Nuclio dashboard](/README.md#dashboard).
-Select the "default" project and then select **New Function** from the action toolbar to display the **Create function** page (http://localhost:8070/projects/default/create-function).
-Choose one of the predefined template functions, and select **Deploy**. 
-The first build populates the local Docker cache with base images and other files, so it might take a while to complete, depending on your network.
-When the function deployment completes, you can select **Test** to invoke the function with a body.
-
-<a id="deploy-a-function-with-the-nuclio-cli"></a>
+<a id="deploy-a-function-with-the-nuclio-cli-nuctl"></a>
 ## Deploy a function with the Nuclio CLI (nuctl)
 
 Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](/hack/examples/golang/helloworld/helloworld.go) Go function.
@@ -164,6 +150,5 @@ See the following resources to make the best of your new Nuclio environment:
 - [Deploying Functions](/docs/tasks/deploying-functions.md)
 - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
-- [References](/docs/reference/)
+- [References](/docs/reference)
 - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
-

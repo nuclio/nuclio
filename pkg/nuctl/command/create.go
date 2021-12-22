@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -88,7 +89,7 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 			commandeer.projectConfig.Meta.Name = args[0]
 			commandeer.projectConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 
-			if err := createCommandeer.rootCommandeer.platform.CreateProject(&platform.CreateProjectOptions{
+			if err := createCommandeer.rootCommandeer.platform.CreateProject(context.Background(), &platform.CreateProjectOptions{
 				ProjectConfig: &commandeer.projectConfig,
 			}); err != nil {
 				return err
@@ -220,9 +221,10 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 
 			commandeer.apiGatewayConfig.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
-			if err := createCommandeer.rootCommandeer.platform.CreateAPIGateway(&platform.CreateAPIGatewayOptions{
-				APIGatewayConfig: &commandeer.apiGatewayConfig,
-			}); err != nil {
+			if err := createCommandeer.rootCommandeer.platform.CreateAPIGateway(context.Background(),
+				&platform.CreateAPIGatewayOptions{
+					APIGatewayConfig: &commandeer.apiGatewayConfig,
+				}); err != nil {
 				return err
 			}
 
@@ -296,9 +298,10 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 				return errors.Wrap(err, "Failed to decode a function's event attributes")
 			}
 
-			if err := createCommandeer.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
-				FunctionEventConfig: commandeer.functionEventConfig,
-			}); err != nil {
+			if err := createCommandeer.rootCommandeer.platform.CreateFunctionEvent(context.Background(),
+				&platform.CreateFunctionEventOptions{
+					FunctionEventConfig: commandeer.functionEventConfig,
+				}); err != nil {
 				return err
 			}
 

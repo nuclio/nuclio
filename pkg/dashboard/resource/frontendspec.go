@@ -40,10 +40,12 @@ func (fsr *frontendSpecResource) ExtendMiddlewares() error {
 }
 
 func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	ctx := request.Context()
 	externalIPAddresses, err := fsr.getPlatform().GetExternalIPAddresses()
 	if err != nil {
 		externalIPAddresses = []string{"localhost"}
-		fsr.Logger.WarnWith("Failed to get external IP addresses, falling back to default",
+		fsr.Logger.WarnWithCtx(ctx,
+			"Failed to get external IP addresses, falling back to default",
 			"err", err,
 			"externalIPAddresses", externalIPAddresses)
 	}
@@ -145,7 +147,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 	return map[string]interface{}{"attributes": functionconfig.Config{Spec: defaultFunctionSpec}}
 }
 
-// returns a list of custom routes for the resource
+// GetCustomRoutes returns a list of custom routes for the resource
 func (fsr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 	// since frontendSpec is a singleton we create a custom route that will return this single object

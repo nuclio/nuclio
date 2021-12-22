@@ -17,6 +17,7 @@ limitations under the License.
 package platform
 
 import (
+	"context"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -59,8 +60,8 @@ func (ap *AbstractProject) GetConfig() *ProjectConfig {
 	return &ap.ProjectConfig
 }
 
-func (ap *AbstractProject) CreateAndWait(createProjectOptions *CreateProjectOptions) error {
-	if err := ap.Platform.CreateProject(createProjectOptions); err != nil {
+func (ap *AbstractProject) CreateAndWait(ctx context.Context, createProjectOptions *CreateProjectOptions) error {
+	if err := ap.Platform.CreateProject(ctx, createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
 	}
 
@@ -69,7 +70,7 @@ func (ap *AbstractProject) CreateAndWait(createProjectOptions *CreateProjectOpti
 			"projectMeta", ap.GetConfig().Meta,
 			"timeout", ProjectGetUponCreationTimeout,
 			"retryInterval", ProjectGetUponCreationRetryInterval)
-		projects, err := ap.Platform.GetProjects(&GetProjectsOptions{
+		projects, err := ap.Platform.GetProjects(ctx, &GetProjectsOptions{
 			Meta: ap.GetConfig().Meta,
 		})
 		return err == nil && len(projects) > 0

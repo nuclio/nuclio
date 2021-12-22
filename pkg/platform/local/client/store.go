@@ -102,7 +102,7 @@ func (s *Store) GetProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	return projects, nil
 }
 
-func (s *Store) DeleteProject(projectMeta *platform.ProjectMeta) error {
+func (s *Store) DeleteProject(ctx context.Context, projectMeta *platform.ProjectMeta) error {
 	functions, err := s.GetProjectFunctions(&platform.GetFunctionsOptions{
 		Namespace: projectMeta.Namespace,
 		Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
@@ -112,11 +112,11 @@ func (s *Store) DeleteProject(projectMeta *platform.ProjectMeta) error {
 	}
 
 	// NOTE: functions delete their related function events
-	deleteFunctionsErrGroup, _ := errgroup.WithContext(context.TODO())
+	deleteFunctionsErrGroup, _ := errgroup.WithContext(ctx)
 	for _, function := range functions {
 		function := function
 		deleteFunctionsErrGroup.Go(func() error {
-			return s.DeleteFunction(&function.GetConfig().Meta)
+			return s.DeleteFunction(ctx, &function.GetConfig().Meta)
 		})
 	}
 	if err := deleteFunctionsErrGroup.Wait(); err != nil {
@@ -261,7 +261,7 @@ func (s *Store) GetFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 	return functions, nil
 }
 
-func (s *Store) DeleteFunction(functionMeta *functionconfig.Meta) error {
+func (s *Store) DeleteFunction(ctx context.Context, functionMeta *functionconfig.Meta) error {
 	functionEvents, err := s.GetFunctionEvents(&platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Namespace: functionMeta.Namespace,
@@ -274,7 +274,7 @@ func (s *Store) DeleteFunction(functionMeta *functionconfig.Meta) error {
 		return errors.Wrap(err, "Failed to get function events")
 	}
 
-	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(context.TODO())
+	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(ctx)
 	for _, functionEvent := range functionEvents {
 		functionEvent := functionEvent
 		deleteFunctionEventsErrGroup.Go(func() error {
@@ -283,7 +283,7 @@ func (s *Store) DeleteFunction(functionMeta *functionconfig.Meta) error {
 	}
 
 	if err := deleteFunctionEventsErrGroup.Wait(); err != nil {
-		s.logger.WarnWith("Failed to delete function events, deleting function anyway",
+		s.logger.WarnWithCtx(ctx, "Failed to delete function events, deleting function anyway",
 			"err", err)
 		return errors.Wrap(err, "Failed to delete function events")
 	}

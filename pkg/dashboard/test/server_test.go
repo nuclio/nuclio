@@ -24,6 +24,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -61,6 +62,7 @@ type dashboardTestSuite struct {
 	dashboardServer *dashboard.Server
 	httpServer      *httptest.Server
 	mockPlatform    *mockplatform.Platform
+	ctx             context.Context
 }
 
 func (suite *dashboardTestSuite) SetupTest() {
@@ -68,6 +70,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 	trueValue := true
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.ctx = context.Background()
 	suite.mockPlatform = &mockplatform.Platform{}
 
 	templateRepository, err := functiontemplates.NewRepository(suite.logger, []functiontemplates.FunctionTemplateFetcher{})
@@ -170,6 +173,10 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 	return response, decodedResponseBody
 }
 
+func (suite *dashboardTestSuite) matchContext(ctx context.Context) bool {
+	return true
+}
+
 //
 // Function
 //
@@ -194,7 +201,7 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&returnedFunction}, nil).
 		Once()
 
@@ -261,7 +268,7 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
 		Once()
 
@@ -342,12 +349,12 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
+		On("CreateFunction", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateFunction)).
 		Return(&platform.CreateFunctionResult{}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{}, nil).
 		Once()
 
@@ -440,7 +447,7 @@ func (suite *functionTestSuite) TestUpdateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("UpdateFunction", mock.MatchedBy(verifyUpdateFunction)).
+		On("UpdateFunction", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyUpdateFunction)).
 		Return(nil).
 		Once()
 
@@ -501,7 +508,7 @@ func (suite *functionTestSuite) TestDeleteSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("DeleteFunction", mock.MatchedBy(verifyDeleteFunction)).
+		On("DeleteFunction", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyDeleteFunction)).
 		Return(nil).
 		Once()
 
@@ -596,7 +603,7 @@ func (suite *functionTestSuite) TestInvokeUnSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("CreateFunctionInvocation", mock.MatchedBy(verifyCreateFunctionInvocation)).
+		On("CreateFunctionInvocation", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateFunctionInvocation)).
 		Return(&expectedInvokeResult, nuclio.NewErrBadRequest(errMessage)).
 		Once()
 
@@ -680,7 +687,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("CreateFunctionInvocation", mock.MatchedBy(verifyCreateFunctionInvocation)).
+		On("CreateFunctionInvocation", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateFunctionInvocation)).
 		Return(&expectedInvokeResult, nil).
 		Once()
 
@@ -756,7 +763,7 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctionsOptions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctionsOptions)).
 		Return([]platform.Function{&returnedFunction}, nil).
 		Once()
 
@@ -813,7 +820,7 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctionsOptions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctionsOptions)).
 		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
 		Once()
 
@@ -903,7 +910,7 @@ func (suite *functionTestSuite) sendRequestWithExistingName(method string) {
 		return true
 	}
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&returnedFunction}, nil).
 		Once()
 
@@ -994,7 +1001,7 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		On("GetProjects", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&returnedProject}, nil).
 		Once()
 
@@ -1057,7 +1064,7 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		On("GetProjects", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&returnedProject1, &returnedProject2}, nil).
 		Once()
 
@@ -1174,21 +1181,21 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		On("GetProjects", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&returnedProject1}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunction1Events)).
+		On("GetFunctionEvents", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunction1Events)).
 		Return([]platform.FunctionEvent{&returnedFunctionEvent}, nil).Once()
 
 	suite.mockPlatform.
-		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunction2Events)).
+		On("GetFunctionEvents", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunction2Events)).
 		Return([]platform.FunctionEvent{}, nil).Once()
 
 	suite.mockPlatform.
@@ -1334,17 +1341,17 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		On("GetProjects", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&returnedProject1, &returnedProject2}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&returnedFunction1}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&returnedFunction2}, nil).
 		Once()
 
@@ -1359,7 +1366,7 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		Once()
 
 	suite.mockPlatform.
-		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
+		On("GetFunctionEvents", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctionEvents)).
 		Return([]platform.FunctionEvent{}, nil).Twice()
 
 	headers := map[string]string{
@@ -1465,7 +1472,7 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("CreateProject", mock.MatchedBy(verifyCreateProject)).
+		On("CreateProject", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateProject)).
 		Return(nil).
 		Once()
 
@@ -1506,7 +1513,7 @@ func (suite *projectTestSuite) TestCreateNoMetadata() {
 
 func (suite *projectTestSuite) TestCreateNoName() {
 	suite.mockPlatform.
-		On("CreateProject", mock.Anything).
+		On("CreateProject", mock.MatchedBy(suite.matchContext), mock.Anything).
 		Return(nil).
 		Once()
 
@@ -1559,7 +1566,7 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("UpdateProject", mock.MatchedBy(verifyUpdateProject)).
+		On("UpdateProject", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyUpdateProject)).
 		Return(nil).
 		Once()
 
@@ -1607,7 +1614,7 @@ func (suite *projectTestSuite) TestDeleteSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("DeleteProject", mock.MatchedBy(verifyDeleteProject)).
+		On("DeleteProject", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyDeleteProject)).
 		Return(nil).
 		Once()
 
@@ -1684,7 +1691,7 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 		suite.Run(testCase.name, func() {
 			testCase.deleteProjectOptions.AuthSession = &auth.NopSession{}
 			suite.mockPlatform.
-				On("DeleteProject", testCase.deleteProjectOptions).
+				On("DeleteProject", mock.MatchedBy(suite.matchContext), testCase.deleteProjectOptions).
 				Return(testCase.deleteProjectReturnedError).
 				Once()
 
@@ -1767,37 +1774,37 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		On("GetProjects", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("CreateProject", mock.MatchedBy(verifyCreateProject)).
+		On("CreateProject", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateProject)).
 		Return(nil).
 		Once()
 
 	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		On("GetProjects", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&createdProject}, nil).
 		Twice()
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
+		On("CreateFunction", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateFunction)).
 		Return(&platform.CreateFunctionResult{}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("CreateFunctionEvent", mock.MatchedBy(verifyCreateFunctionEvent)).
+		On("CreateFunctionEvent", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateFunctionEvent)).
 		Return(nil).
 		Once()
 
 	suite.mockPlatform.
-		On("CreateAPIGateway", mock.MatchedBy(verifyCreateAPIGateway)).
+		On("CreateAPIGateway", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateAPIGateway)).
 		Return(nil).
 		Once()
 
@@ -1952,27 +1959,27 @@ func (suite *projectTestSuite) TestImportFunctionExistsSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		On("GetProjects", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("CreateProject", mock.MatchedBy(verifyCreateProject)).
+		On("CreateProject", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateProject)).
 		Return(nil).
 		Once()
 
 	suite.mockPlatform.
-		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		On("GetProjects", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetProjects)).
 		Return([]platform.Project{&createdProject}, nil).
 		Twice()
 
 	suite.mockPlatform.
-		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctions)).
 		Return([]platform.Function{&existingFunction1}, nil).
 		Once()
 
 	suite.mockPlatform.
-		On("CreateAPIGateway", mock.MatchedBy(verifyCreateAPIGateway)).
+		On("CreateAPIGateway", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateAPIGateway)).
 		Return(nil).
 		Once()
 
@@ -2159,7 +2166,7 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
+		On("GetFunctionEvents", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctionEvents)).
 		Return([]platform.FunctionEvent{&returnedFunctionEvent}, nil).
 		Once()
 
@@ -2247,7 +2254,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
+		On("GetFunctionEvents", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyGetFunctionEvents)).
 		Return([]platform.FunctionEvent{&returnedFunctionEvent1, &returnedFunctionEvent2}, nil).
 		Once()
 
@@ -2341,7 +2348,7 @@ func (suite *functionEventTestSuite) TestCreateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("CreateFunctionEvent", mock.MatchedBy(verifyCreateFunctionEvent)).
+		On("CreateFunctionEvent", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateFunctionEvent)).
 		Return(nil).
 		Once()
 
@@ -2382,7 +2389,7 @@ func (suite *functionEventTestSuite) TestCreateNoMetadata() {
 
 func (suite *functionEventTestSuite) TestCreateNoName() {
 	suite.mockPlatform.
-		On("CreateFunctionEvent", mock.Anything).
+		On("CreateFunctionEvent", mock.MatchedBy(suite.matchContext), mock.Anything).
 		Return(nil).
 		Once()
 
@@ -2453,7 +2460,7 @@ func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("UpdateFunctionEvent", mock.MatchedBy(verifyUpdateFunctionEvent)).
+		On("UpdateFunctionEvent", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyUpdateFunctionEvent)).
 		Return(nil).
 		Once()
 
@@ -2511,7 +2518,7 @@ func (suite *functionEventTestSuite) TestDeleteSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("DeleteFunctionEvent", mock.MatchedBy(verifyDeleteFunctionEvent)).
+		On("DeleteFunctionEvent", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyDeleteFunctionEvent)).
 		Return(nil).
 		Once()
 
@@ -2898,7 +2905,7 @@ func (suite *apiGatewayTestSuite) TestCreateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("CreateAPIGateway", mock.MatchedBy(verifyCreateAPIGateway)).
+		On("CreateAPIGateway", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyCreateAPIGateway)).
 		Return(nil).
 		Once()
 
@@ -2963,7 +2970,7 @@ func (suite *apiGatewayTestSuite) TestUpdateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("UpdateAPIGateway", mock.MatchedBy(verifyUpdateAPIGateway)).
+		On("UpdateAPIGateway", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyUpdateAPIGateway)).
 		Return(nil).
 		Once()
 
@@ -3018,7 +3025,7 @@ func (suite *apiGatewayTestSuite) TestDeleteSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("DeleteAPIGateway", mock.MatchedBy(verifyDeleteAPIGateway)).
+		On("DeleteAPIGateway", mock.MatchedBy(suite.matchContext), mock.MatchedBy(verifyDeleteAPIGateway)).
 		Return(nil).
 		Once()
 
