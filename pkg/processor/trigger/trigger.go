@@ -260,6 +260,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	workerInstance *worker.Worker,
 	event nuclio.Event) (response interface{}, processError error) {
+
 	event, err := at.prepareEvent(event, workerInstance)
 	if err != nil {
 		return nil, err
