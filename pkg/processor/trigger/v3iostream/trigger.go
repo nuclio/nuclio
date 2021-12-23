@@ -172,11 +172,13 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	// submit the events in a goroutine so that we can unblock immediately
 	go vs.eventSubmitter(claim, submittedEventChan)
 
-	if vs.configuration.ackWindowSize > 0 {
+	if vs.configuration.AckWindowSize > 0 {
 		vs.Logger.DebugWith("Starting claim consumption with ack window",
 			"shardID", claim.GetShardID(),
-			"ackWindowSize", vs.configuration.ackWindowSize)
+			"ackWindowSize", vs.configuration.AckWindowSize)
 	}
+
+	commitRecordFuncHandler := vs.resolveCommitRecordFuncHandler(session)
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
@@ -201,10 +203,7 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 
 			// we successfully submitted the message to the handler. mark it
 			if err == nil {
-
-				// offset record sequence number by the trigger's configured ack window size
-				record.SequenceNumber -= uint64(vs.configuration.ackWindowSize)
-				session.MarkRecord(record) // nolint: errcheck
+				commitRecordFuncHandler(record)
 			}
 
 			// release the worker from whence it came
@@ -336,4 +335,28 @@ func (vs *v3iostream) createPartitionWorkerAllocator(session streamconsumergroup
 	default:
 		return nil, errors.Errorf("Unknown worker allocation mode: %s", vs.configuration.WorkerAllocationMode)
 	}
+}
+
+func (vs *v3iostream) resolveCommitRecordFuncHandler(session streamconsumergroup.Session) func(*v3io.StreamRecord) {
+
+	commitRecordDefaultFuncHandler := func(record *v3io.StreamRecord) {
+		session.MarkRecord(record) // nolint: errcheck
+	}
+
+	commitRecordWithWindowAckSizeFuncHandler := func(record *v3io.StreamRecord) {
+
+		// offset record sequence number by the trigger's configured ack window size
+		if record.SequenceNumber >= vs.configuration.AckWindowSize {
+			record.SequenceNumber -= vs.configuration.AckWindowSize
+			session.MarkRecord(record) // nolint: errcheck
+		}
+
+		// nothing to mark just yet
+	}
+
+	if vs.configuration.AckWindowSize > 0 {
+		return commitRecordWithWindowAckSizeFuncHandler
+	}
+
+	return commitRecordDefaultFuncHandler
 }
