@@ -50,13 +50,13 @@ import (
 	"github.com/rs/xid"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-type OnAfterIngressCreated func(*extensionsv1beta1.Ingress)
+type OnAfterIngressCreated func(*networkingv1.Ingress)
 
 type KubeTestSuite struct {
 	processorsuite.TestSuite
@@ -318,16 +318,16 @@ func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.D
 	return deploymentInstance
 }
 
-func (suite *KubeTestSuite) GetAPIGatewayIngress(apiGatewayName string, canary bool) *extensionsv1beta1.Ingress {
-	ingressInstance := &extensionsv1beta1.Ingress{}
+func (suite *KubeTestSuite) GetAPIGatewayIngress(apiGatewayName string, canary bool) *networkingv1.Ingress {
+	ingressInstance := &networkingv1.Ingress{}
 	suite.GetResourceAndUnmarshal("ingress",
 		kube.IngressNameFromAPIGatewayName(apiGatewayName, canary),
 		ingressInstance)
 	return ingressInstance
 }
 
-func (suite *KubeTestSuite) GetFunctionIngress(functionName string) *extensionsv1beta1.Ingress {
-	ingressInstance := &extensionsv1beta1.Ingress{}
+func (suite *KubeTestSuite) GetFunctionIngress(functionName string) *networkingv1.Ingress {
+	ingressInstance := &networkingv1.Ingress{}
 	suite.GetResourceAndUnmarshal("ingress",
 		kube.IngressNameFromFunctionName(functionName),
 		ingressInstance)
@@ -520,10 +520,10 @@ func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.C
 	return nil
 }
 
-func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *platform.CreateAPIGatewayOptions, exist bool) *extensionsv1beta1.Ingress {
+func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *platform.CreateAPIGatewayOptions, exist bool) *networkingv1.Ingress {
 	deadline := time.Now().Add(10 * time.Second)
 
-	var ingressObject *extensionsv1beta1.Ingress
+	var ingressObject *networkingv1.Ingress
 	var err error
 
 	for {
@@ -534,7 +534,7 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 		}
 
 		ingressObject, err = suite.KubeClientSet.
-			ExtensionsV1beta1().
+			NetworkingV1().
 			Ingresses(suite.Namespace).
 			Get(suite.Ctx,
 

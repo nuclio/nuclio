@@ -644,7 +644,7 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 }
 
 // GetNamespaces returns all the namespaces in the platform
-func (p *Platform) GetNamespaces() ([]string, error) {
+func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	return []string{"nuclio"}, nil
 }
 
@@ -674,7 +674,7 @@ func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, nam
 }
 
 func (p *Platform) ValidateFunctionContainersHealthiness(ctx context.Context) {
-	namespaces, err := p.GetNamespaces()
+	namespaces, err := p.GetNamespaces(ctx)
 	if err != nil {
 		p.Logger.WarnWith("Cannot not get namespaces", "err", err)
 		return
