@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"golang.org/x/sync/errgroup"
 )
 
 type Factory struct{}
@@ -112,7 +112,7 @@ func (waf *Factory) createWorkers(logger logger.Logger,
 	for workerIndex := 0; workerIndex < numWorkers; workerIndex++ {
 		workerIndex := workerIndex
 
-		errGroup.Go(func() error {
+		errGroup.Go("Create worker", func() error {
 			worker, err := waf.createWorker(logger, workerIndex, runtimeConfiguration)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create worker")

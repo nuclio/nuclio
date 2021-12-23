@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -12,7 +13,6 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 )
 
 type importCommandeer struct {
@@ -101,7 +101,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing functions", "functions", functionConfigs)
 	for _, functionConfig := range functionConfigs {
 		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
-		errGroup.Go(func() error {
+		errGroup.Go("Import function", func() error {
 			return i.importFunction(ctx, functionConfig, project)
 		})
 	}
@@ -323,7 +323,7 @@ func (i *importProjectCommandeer) importFunctionEvents(ctx context.Context,
 		"functionEvents", functionEvents)
 	for _, functionEventConfig := range functionEvents {
 		functionEventConfig := functionEventConfig // https://golang.org/doc/faq#closures_and_goroutines
-		errGroup.Go(func() error {
+		errGroup.Go("Import function event", func() error {
 			return i.importFunctionEvent(ctx, functionEventConfig)
 		})
 	}
@@ -343,7 +343,7 @@ func (i *importProjectCommandeer) importAPIGateways(ctx context.Context,
 
 	for _, apiGatewayConfig := range apiGateways {
 		apiGatewayConfig := apiGatewayConfig // https://golang.org/doc/faq#closures_and_goroutines
-		errGroup.Go(func() error {
+		errGroup.Go("Import API Gateway", func() error {
 			return i.importAPIGateway(ctx, apiGatewayConfig)
 		})
 	}

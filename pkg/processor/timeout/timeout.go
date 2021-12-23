@@ -17,12 +17,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"golang.org/x/sync/errgroup"
 )
 
 // Processor is minimal processor interface
@@ -68,7 +68,7 @@ func (w EventTimeoutWatcher) watch() {
 		for triggerName, triggerInstance := range w.processor.GetTriggers() {
 			triggerName, triggerInstance := triggerName, triggerInstance
 
-			triggerErrGroup.Go(func() error {
+			triggerErrGroup.Go("Watch trigger event timeout", func() error {
 
 				// create error group
 				workerErrGroup := errgroup.Group{}
@@ -77,7 +77,7 @@ func (w EventTimeoutWatcher) watch() {
 				for _, workerInstance := range triggerInstance.GetWorkers() {
 					workerInstance := workerInstance
 
-					workerErrGroup.Go(func() error {
+					workerErrGroup.Go("Watch Event Timeout", func() error {
 						eventTime := workerInstance.GetEventTime()
 						if eventTime == nil {
 							return nil
@@ -143,7 +143,7 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 	for triggerIdx, triggerInstance := range w.processor.GetTriggers() {
 		triggerIdx, triggerInstance := triggerIdx, triggerInstance
 
-		triggerErrGroup.Go(func() error {
+		triggerErrGroup.Go("Stop trigger", func() error {
 
 			if checkpoint, err := triggerInstance.Stop(false); err != nil {
 				w.logger.ErrorWith("Can't stop trigger", "triggerIdx", triggerIdx, "error", err)
