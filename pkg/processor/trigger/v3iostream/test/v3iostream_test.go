@@ -206,8 +206,7 @@ func (suite *testSuite) TestAckWindowSize() {
 					suite.BrokerHost,
 					deployResult.Port)
 
-				// TODO: uncomment when figure when upon "earliest" it does not get location from the beginning but instead skipping
-				//return len(receivedEvents) == recordedEvents
+				// first message was committed and hence was not "re processed"
 				return len(receivedEvents) == recordedEvents-1
 
 			})
