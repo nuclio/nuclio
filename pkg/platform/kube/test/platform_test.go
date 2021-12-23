@@ -47,7 +47,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -782,8 +782,8 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		apiGatewayName := "func-apigw"
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
-			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName, functionName)
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
+			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, functionName)
 
 			// try to delete the function while it uses this api gateway
 			err := suite.Platform.DeleteFunction(suite.Ctx, &platform.DeleteFunctionOptions{
@@ -976,7 +976,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 
 		// create an api-gateway with that function as upstream
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*networkingv1.Ingress) {
 
 			// update the function to have ingresses
 			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -1019,7 +1019,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Require().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
 			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"],
@@ -1036,7 +1036,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 				RedirectUnauthorizedToSignIn: true,
 			},
 		}
-		err = suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		err = suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)

@@ -2,6 +2,7 @@ package containerimagebuilderpusher
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -78,7 +79,7 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 
 	// create job
 	k.logger.DebugWith("Creating job", "namespace", namespace, "jobSpec", jobSpec)
-	job, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(jobSpec)
+	job, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(context.Background(), jobSpec, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")
 	}
@@ -362,7 +363,7 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 		runningJob, err := k.kubeClientSet.
 			BatchV1().
 			Jobs(namespace).
-			Get(jobName, metav1.GetOptions{})
+			Get(context.Background(), jobName, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrap(err, "Failed to poll kaniko job status")
 		}
@@ -446,7 +447,7 @@ func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
 		Pods(jobPod.Namespace).
 		GetLogs(jobPod.Name, &v1.PodLogOptions{})
 
-	restReadCloser, err := restClientRequest.Stream()
+	restReadCloser, err := restClientRequest.Stream(context.Background())
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get log read/closer")
 	}
@@ -465,7 +466,7 @@ func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
 
 func (k *Kaniko) getJobPod(jobName, namespace string) (*v1.Pod, error) {
 	k.logger.DebugWith("Getting job pods", "jobName", jobName)
-	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(metav1.ListOptions{
+	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
 
@@ -509,7 +510,7 @@ func (k *Kaniko) deleteJob(namespace string, jobName string) error {
 	k.logger.DebugWith("Deleting job", "namespace", namespace, "job", jobName)
 
 	propagationPolicy := metav1.DeletePropagationBackground
-	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(jobName, &metav1.DeleteOptions{
+	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(context.Background(), jobName, metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to delete job")

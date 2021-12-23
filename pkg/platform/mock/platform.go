@@ -274,8 +274,8 @@ func (mp *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 }
 
 // GetNamespaces returns the namespaces
-func (mp *Platform) GetNamespaces() ([]string, error) {
-	args := mp.Called()
+func (mp *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
+	args := mp.Called(ctx)
 	return args.Get(0).([]string), args.Error(1)
 }
 

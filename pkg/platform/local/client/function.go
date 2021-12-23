@@ -48,7 +48,7 @@ func newFunction(parentLogger logger.Logger,
 }
 
 // Initialize does nothing, seeing how no fields require lazy loading
-func (f *function) Initialize([]string) error {
+func (f *function) Initialize(context.Context, []string) error {
 	var err error
 
 	return err

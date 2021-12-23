@@ -44,7 +44,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -306,18 +306,18 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 		{
 			name: "PathIsAvailable",
 			setUpFunction: func() error {
-				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+				suite.kubeClientSet = *fake.NewSimpleClientset(&networkingv1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "some-name",
 						Namespace: suite.Namespace,
 					},
-					Spec: extensionsv1beta1.IngressSpec{
-						Rules: []extensionsv1beta1.IngressRule{
+					Spec: networkingv1.IngressSpec{
+						Rules: []networkingv1.IngressRule{
 							{
 								Host: "host-and-path-already-in-use.com",
-								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-										Paths: []extensionsv1beta1.HTTPIngressPath{
+								IngressRuleValue: networkingv1.IngressRuleValue{
+									HTTP: &networkingv1.HTTPIngressRuleValue{
+										Paths: []networkingv1.HTTPIngressPath{
 											{
 												Path: "used-path/",
 											},
@@ -351,18 +351,18 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 		{
 			name: "FailPathInUse",
 			setUpFunction: func() error {
-				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+				suite.kubeClientSet = *fake.NewSimpleClientset(&networkingv1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "some-name",
 						Namespace: suite.Namespace,
 					},
-					Spec: extensionsv1beta1.IngressSpec{
-						Rules: []extensionsv1beta1.IngressRule{
+					Spec: networkingv1.IngressSpec{
+						Rules: []networkingv1.IngressRule{
 							{
 								Host: "host-and-path-already-in-use.com",
-								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-										Paths: []extensionsv1beta1.HTTPIngressPath{
+								IngressRuleValue: networkingv1.IngressRuleValue{
+									HTTP: &networkingv1.HTTPIngressRuleValue{
+										Paths: []networkingv1.HTTPIngressPath{
 											{
 												Path: "used-path/",
 											},
@@ -1539,18 +1539,18 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		{
 			name: "PathIsAvailable",
 			setUpFunction: func() error {
-				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+				suite.kubeClientSet = *fake.NewSimpleClientset(&networkingv1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "some-name",
 						Namespace: suite.Namespace,
 					},
-					Spec: extensionsv1beta1.IngressSpec{
-						Rules: []extensionsv1beta1.IngressRule{
+					Spec: networkingv1.IngressSpec{
+						Rules: []networkingv1.IngressRule{
 							{
 								Host: "this-host-and-path-are-used.com",
-								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-										Paths: []extensionsv1beta1.HTTPIngressPath{
+								IngressRuleValue: networkingv1.IngressRuleValue{
+									HTTP: &networkingv1.HTTPIngressRuleValue{
+										Paths: []networkingv1.HTTPIngressPath{
 											{
 												Path: "different-path/",
 											},
@@ -1577,18 +1577,18 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		{
 			name: "FailPathInUse",
 			setUpFunction: func() error {
-				suite.kubeClientSet = *fake.NewSimpleClientset(&extensionsv1beta1.Ingress{
+				suite.kubeClientSet = *fake.NewSimpleClientset(&networkingv1.Ingress{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "some-name",
 						Namespace: suite.Namespace,
 					},
-					Spec: extensionsv1beta1.IngressSpec{
-						Rules: []extensionsv1beta1.IngressRule{
+					Spec: networkingv1.IngressSpec{
+						Rules: []networkingv1.IngressRule{
 							{
 								Host: "this-host-and-path-are-used.com",
-								IngressRuleValue: extensionsv1beta1.IngressRuleValue{
-									HTTP: &extensionsv1beta1.HTTPIngressRuleValue{
-										Paths: []extensionsv1beta1.HTTPIngressPath{
+								IngressRuleValue: networkingv1.IngressRuleValue{
+									HTTP: &networkingv1.HTTPIngressRuleValue{
+										Paths: []networkingv1.HTTPIngressPath{
 											{
 												Path: "same-path/",
 											},
