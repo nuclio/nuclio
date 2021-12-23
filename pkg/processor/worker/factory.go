@@ -17,6 +17,7 @@ limitations under the License.
 package worker
 
 import (
+	ctx "context"
 	"fmt"
 	"strings"
 
@@ -107,7 +108,7 @@ func (waf *Factory) createWorkers(logger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) ([]*Worker, error) {
 	workers := make([]*Worker, numWorkers)
 
-	errGroup := errgroup.Group{}
+	errGroup, _ := errgroup.WithContext(ctx.Background(), logger)
 
 	for workerIndex := 0; workerIndex < numWorkers; workerIndex++ {
 		workerIndex := workerIndex

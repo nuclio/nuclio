@@ -14,6 +14,7 @@ limitations under the License.
 package timeout
 
 import (
+	ctx "context"
 	"fmt"
 	"time"
 
@@ -62,7 +63,7 @@ func (w EventTimeoutWatcher) watch() {
 		now := time.Now()
 
 		// create error group
-		triggerErrGroup := errgroup.Group{}
+		triggerErrGroup, _ := errgroup.WithContext(ctx.Background(), w.logger)
 
 		// TODO: Run in parallel
 		for triggerName, triggerInstance := range w.processor.GetTriggers() {
@@ -71,7 +72,7 @@ func (w EventTimeoutWatcher) watch() {
 			triggerErrGroup.Go("Watch trigger event timeout", func() error {
 
 				// create error group
-				workerErrGroup := errgroup.Group{}
+				workerErrGroup, _ := errgroup.WithContext(ctx.Background(), w.logger)
 
 				// iterate over worker
 				for _, workerInstance := range triggerInstance.GetWorkers() {
@@ -138,7 +139,7 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 	runningWorkers := make(map[string]*worker.Worker)
 
 	// create error group
-	triggerErrGroup := errgroup.Group{}
+	triggerErrGroup, _ := errgroup.WithContext(ctx.Background(), w.logger)
 
 	for triggerIdx, triggerInstance := range w.processor.GetTriggers() {
 		triggerIdx, triggerInstance := triggerIdx, triggerInstance

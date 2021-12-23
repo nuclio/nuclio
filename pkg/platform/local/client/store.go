@@ -112,11 +112,11 @@ func (s *Store) DeleteProject(ctx context.Context, projectMeta *platform.Project
 	}
 
 	// NOTE: functions delete their related function events
-	deleteFunctionsErrGroup, _ := errgroup.WithContext(ctx, s.logger)
+	deleteFunctionsErrGroup, deleteFunctionsErrGroupCtx := errgroup.WithContext(ctx, s.logger)
 	for _, function := range functions {
 		function := function
 		deleteFunctionsErrGroup.Go("Delete function", func() error {
-			return s.DeleteFunction(ctx, &function.GetConfig().Meta)
+			return s.DeleteFunction(deleteFunctionsErrGroupCtx, &function.GetConfig().Meta)
 		})
 	}
 	if err := deleteFunctionsErrGroup.Wait(); err != nil {
