@@ -29,13 +29,13 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -112,11 +112,11 @@ func (s *Store) DeleteProject(ctx context.Context, projectMeta *platform.Project
 	}
 
 	// NOTE: functions delete their related function events
-	deleteFunctionsErrGroup, _ := errgroup.WithContext(ctx)
+	deleteFunctionsErrGroup, deleteFunctionsErrGroupCtx := errgroup.WithContext(ctx, s.logger)
 	for _, function := range functions {
 		function := function
-		deleteFunctionsErrGroup.Go(func() error {
-			return s.DeleteFunction(ctx, &function.GetConfig().Meta)
+		deleteFunctionsErrGroup.Go("Delete function", func() error {
+			return s.DeleteFunction(deleteFunctionsErrGroupCtx, &function.GetConfig().Meta)
 		})
 	}
 	if err := deleteFunctionsErrGroup.Wait(); err != nil {
@@ -274,10 +274,10 @@ func (s *Store) DeleteFunction(ctx context.Context, functionMeta *functionconfig
 		return errors.Wrap(err, "Failed to get function events")
 	}
 
-	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(ctx)
+	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(ctx, s.logger)
 	for _, functionEvent := range functionEvents {
 		functionEvent := functionEvent
-		deleteFunctionEventsErrGroup.Go(func() error {
+		deleteFunctionEventsErrGroup.Go("Delete function event", func() error {
 			return s.DeleteFunctionEvent(&functionEvent.GetConfig().Meta)
 		})
 	}
