@@ -120,7 +120,7 @@ dashboard:
 
     image:
       repository: gcr.io/kaniko-project/executor
-      tag: v0.17.1
+      tag: v1.7.0
       pullPolicy: IfNotPresent
 
     # How long to wait before deleting the build job
