@@ -277,7 +277,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 	var triggers []trigger.Trigger
 
 	// create error group
-	errGroup, _ := errgroup.WithContext(context.Background(), p.logger, errgroup.DefaultErrgroupConcurrency)
+	errGroup, _ := errgroup.WithContext(context.Background(), p.logger)
 	lock := sync.Mutex{}
 
 	platformKind := processorConfiguration.PlatformConfig.Kind

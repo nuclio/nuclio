@@ -149,7 +149,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 	}()
 
 	// remove nuclio function leftovers
-	errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger, errgroup.DefaultErrgroupConcurrency)
+	errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
 	for _, resourceKind := range []string{
 		"nucliofunctions",
 		"nuclioprojects",
@@ -382,7 +382,7 @@ func (suite *KubeTestSuite) GetNodes() []v1.Node {
 
 func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
 	suite.Logger.InfoWith("Deleting function pods", "functionName", functionName)
-	errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger, errgroup.DefaultErrgroupConcurrency)
+	errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
 	for _, pod := range suite.GetFunctionPods(functionName) {
 		pod := pod
 		errGroup.Go("Delete function pods", func() error {

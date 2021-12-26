@@ -174,7 +174,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 		"projectsToUpdateNum", len(projectsToUpdate))
 
 	// create projects that exist on the leader but weren't created internally
-	createProjectErrGroup, _ := errgroup.WithContext(context.Background(), c.logger, errgroup.DefaultErrgroupConcurrency)
+	createProjectErrGroup, _ := errgroup.WithContextSemaphore(context.Background(), c.logger, errgroup.DefaultErrgroupConcurrency)
 	for _, projectInstance := range projectsToCreate {
 		projectInstance := projectInstance
 		createProjectErrGroup.Go("create projects", func() error {
@@ -205,7 +205,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 	}
 
 	// update projects that exist both internally and on the leader
-	updateProjectErrGroup, _ := errgroup.WithContext(context.Background(), c.logger, errgroup.DefaultErrgroupConcurrency)
+	updateProjectErrGroup, _ := errgroup.WithContextSemaphore(context.Background(), c.logger, errgroup.DefaultErrgroupConcurrency)
 	for _, projectInstance := range projectsToUpdate {
 		projectInstance := projectInstance
 		updateProjectErrGroup.Go("update projects", func() error {

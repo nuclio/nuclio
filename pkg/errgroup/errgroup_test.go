@@ -71,11 +71,14 @@ func (suite *ErrGroupTestSuite) TestSemaphoredErrGroup() {
 	} {
 		suite.Run(testCase.name, func() {
 			var concurrentCallCount, totalCallCount int
-			errGroup, errGroupCtx := WithContext(suite.ctx, suite.logger, testCase.concurrency)
+			errGroup, errGroupCtx := WithContextSemaphore(suite.ctx, suite.logger, testCase.concurrency)
 
 			for i := 0; i < testCase.goroutinesNum; i++ {
 				errGroup.Go(testCase.name, func() error {
-					suite.increaseDecreaseCallCount(&concurrentCallCount, &totalCallCount, true)
+					suite.lock.Lock()
+					concurrentCallCount++
+					totalCallCount++
+					suite.lock.Unlock()
 
 					suite.logger.DebugWithCtx(errGroupCtx, "In a goroutine", "callCount", concurrentCallCount)
 					if testCase.concurrency <= 0 {
@@ -84,7 +87,10 @@ func (suite *ErrGroupTestSuite) TestSemaphoredErrGroup() {
 						suite.Require().LessOrEqual(concurrentCallCount, testCase.concurrency)
 					}
 
-					suite.increaseDecreaseCallCount(&concurrentCallCount, &totalCallCount, false)
+					suite.lock.Lock()
+					concurrentCallCount--
+					suite.lock.Unlock()
+
 					return nil
 				})
 			}
@@ -94,17 +100,6 @@ func (suite *ErrGroupTestSuite) TestSemaphoredErrGroup() {
 			suite.Require().Equal(totalCallCount, testCase.goroutinesNum)
 		})
 	}
-}
-
-func (suite *ErrGroupTestSuite) increaseDecreaseCallCount(concurrentCallCount, totalCallCount *int, increase bool) {
-	suite.lock.Lock()
-	if increase {
-		*concurrentCallCount++
-		*totalCallCount++
-	} else {
-		*concurrentCallCount--
-	}
-	suite.lock.Unlock()
 }
 
 func TestErrGroupTestSuite(t *testing.T) {

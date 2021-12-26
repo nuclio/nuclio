@@ -1679,7 +1679,7 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 	var upstreamFunctions []platform.Function
 
 	// get upstream functions
-	errGroup, _ := errgroup.WithContext(ctx, p.Logger, errgroup.DefaultErrgroupConcurrency)
+	errGroup, _ := errgroup.WithContext(ctx, p.Logger)
 	for _, upstream := range apiGateway.Spec.Upstreams {
 		upstream := upstream
 		errGroup.Go("GetUpstreamFunction", func() error {

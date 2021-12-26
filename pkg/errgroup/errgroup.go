@@ -35,13 +35,17 @@ type Group struct {
 	ctx           context.Context
 }
 
-func WithContext(ctx context.Context, loggerInstance logger.Logger, concurrency int) (*Group, context.Context) {
+func WithContext(ctx context.Context, loggerInstance logger.Logger) (*Group, context.Context) {
+	return WithContextSemaphore(ctx, loggerInstance, 0)
+}
+
+func WithContextSemaphore(ctx context.Context, loggerInstance logger.Logger, concurrency int) (*Group, context.Context) {
 	newBaseErrgroup, errgroupCtx := errgroup.WithContext(ctx)
 
-	if concurrency <= 0 {
-		concurrency = DefaultErrgroupConcurrency
+	var semaphoreChan chan bool
+	if concurrency > 0 {
+		semaphoreChan = make(chan bool, concurrency)
 	}
-	semaphoreChan := make(chan bool, concurrency)
 
 	return &Group{
 		Group:         newBaseErrgroup,
@@ -61,9 +65,13 @@ func (g *Group) Go(actionName string, f func() error) {
 			}
 		}()
 		err = f()
-		<-g.semaphoreChan
+		if g.semaphoreChan != nil {
+			<-g.semaphoreChan
+		}
 		return
 	}
-	g.semaphoreChan <- true
+	if g.semaphoreChan != nil {
+		g.semaphoreChan <- true
+	}
 	g.Group.Go(wrapper)
 }

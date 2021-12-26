@@ -108,7 +108,7 @@ func (waf *Factory) createWorkers(logger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) ([]*Worker, error) {
 	workers := make([]*Worker, numWorkers)
 
-	errGroup, _ := errgroup.WithContext(context.Background(), logger, errgroup.DefaultErrgroupConcurrency)
+	errGroup, _ := errgroup.WithContext(context.Background(), logger)
 
 	for workerIndex := 0; workerIndex < numWorkers; workerIndex++ {
 		workerIndex := workerIndex
