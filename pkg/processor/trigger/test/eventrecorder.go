@@ -26,6 +26,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
+
+	"github.com/nuclio/logger"
+	"github.com/stretchr/testify/suite"
 )
 
 type Event struct {
@@ -85,23 +88,8 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 		time.Sleep(3 * time.Second)
 		suite.Logger.DebugWith("Done producing")
 
-		// Set the url for the http request
-		url := fmt.Sprintf("http://%s:%d", host, deployResult.Port)
-
-		// read the events from the function
-		httpResponse, err := http.Get(url)
-		suite.Require().NoError(err, "Failed to read events from function: %s", url)
-
-		marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
-		suite.Logger.DebugWith("Got messages", "marshalledResponseBody", string(marshalledResponseBody))
-		suite.Require().NoError(err, "Failed to read response body")
-
-		// unmarshall the body into a list
-		var receivedEvents []Event
+		receivedEvents := GetEventRecorderReceivedEvents(suite.Suite, suite.Logger, host, deployResult.Port)
 		var receivedBodies []string
-
-		err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
-		suite.Require().NoError(err, "Failed to unmarshal response")
 
 		// compare only bodies due to a deficiency in CompareNoOrder
 		for _, receivedEvent := range receivedEvents {
@@ -120,4 +108,31 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 
 		return true
 	})
+}
+
+func GetEventRecorderReceivedEvents(suite suite.Suite,
+	logger logger.Logger,
+	functionHost string,
+	functionPort int) []Event {
+
+	// Set the url for the http request
+	url := fmt.Sprintf("http://%s:%d", functionHost, functionPort)
+
+	// read the events from the function
+	httpResponse, err := http.Get(url)
+	suite.Require().NoError(err, "Failed to read events from function: %s", url)
+
+	marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+	logger.DebugWith("Got messages", "marshalledResponseBody", string(marshalledResponseBody))
+	suite.Require().NoError(err, "Failed to read response body")
+
+	// unmarshall the body into a list
+	// TODO: accept various of events
+	var receivedEvents []Event
+
+	err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
+	suite.Require().NoError(err, "Failed to unmarshal response")
+
+	return receivedEvents
+
 }

@@ -1024,28 +1024,7 @@ func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, err
 }
 
 func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) (int, error) {
-	functionHostPort := dockerclient.Port(fmt.Sprintf("%d/tcp", abstract.FunctionContainerHTTPPort))
-
-	portBindings := container.HostConfig.PortBindings[functionHostPort]
-	ports := container.NetworkSettings.Ports[functionHostPort]
-	if len(portBindings) == 0 && len(ports) == 0 {
-		return 0, nil
-	}
-
-	// by default take the port binding, as if the user requested
-	if len(portBindings) != 0 &&
-		portBindings[0].HostPort != "" && // docker version < 20.10
-		portBindings[0].HostPort != "0" { // on docker version >= 20.10, the host port would by 0 and not empty string.
-		return strconv.Atoi(portBindings[0].HostPort)
-	}
-
-	// port was not explicit by user, take port assigned by docker daemon
-	if len(ports) != 0 && ports[0].HostPort != "" {
-		return strconv.Atoi(ports[0].HostPort)
-	}
-
-	// function might failed during deploying and did not assign a port
-	return 0, nil
+	return p.dockerClient.GetContainerPort(container, abstract.FunctionContainerHTTPPort)
 }
 
 func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
