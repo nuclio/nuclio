@@ -41,6 +41,7 @@ type AnnotationConfigField struct {
 	ValueString     *string
 	ValueListString []string
 	ValueInt        *int
+	ValueUInt64     *uint64
 	ValueBool       *bool
 }
 
@@ -97,6 +98,11 @@ func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFie
 			}
 		case annotationConfigField.ValueListString != nil:
 			annotationConfigField.ValueListString = strings.Split(annotationValue, ",")
+		case annotationConfigField.ValueUInt64 != nil:
+			*annotationConfigField.ValueUInt64, err = strconv.ParseUint(annotationValue, 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "Annotation %s must be positive numeric (uint64)", annotationConfigField.Key)
+			}
 		}
 	}
 
