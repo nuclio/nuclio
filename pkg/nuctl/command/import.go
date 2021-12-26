@@ -96,7 +96,7 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 func (i *importCommandeer) importFunctions(ctx context.Context,
 	functionConfigs map[string]*functionconfig.Config,
 	project *platform.ProjectConfig) error {
-	errGroup, errGroupCtx := errgroup.WithContext(ctx, i.rootCommandeer.loggerInstance)
+	errGroup, errGroupCtx := errgroup.WithContext(ctx, i.rootCommandeer.loggerInstance, errgroup.DefaultErrgroupConcurrency)
 
 	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing functions", "functions", functionConfigs)
 	for _, functionConfig := range functionConfigs {
@@ -317,7 +317,7 @@ func (i *importProjectCommandeer) importAPIGateway(ctx context.Context, apiGatew
 
 func (i *importProjectCommandeer) importFunctionEvents(ctx context.Context,
 	functionEvents map[string]*platform.FunctionEventConfig) error {
-	errGroup, errGroupCtx := errgroup.WithContext(ctx, i.rootCommandeer.loggerInstance)
+	errGroup, errGroupCtx := errgroup.WithContext(ctx, i.rootCommandeer.loggerInstance, errgroup.DefaultErrgroupConcurrency)
 
 	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing function events",
 		"functionEvents", functionEvents)
@@ -333,7 +333,7 @@ func (i *importProjectCommandeer) importFunctionEvents(ctx context.Context,
 
 func (i *importProjectCommandeer) importAPIGateways(ctx context.Context,
 	apiGateways map[string]*platform.APIGatewayConfig) error {
-	errGroup, errGroupCtx := errgroup.WithContext(ctx, i.rootCommandeer.loggerInstance)
+	errGroup, errGroupCtx := errgroup.WithContext(ctx, i.rootCommandeer.loggerInstance, errgroup.DefaultErrgroupConcurrency)
 
 	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing api gateways", "apiGateways", apiGateways)
 

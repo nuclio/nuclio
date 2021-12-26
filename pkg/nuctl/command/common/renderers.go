@@ -29,7 +29,7 @@ func RenderFunctions(logger logger.Logger,
 	writer io.Writer,
 	renderCallback func(functions []platform.Function, renderer func(interface{}) error) error) error {
 
-	errGroup, _ := errgroup.WithContext(context.Background(), logger)
+	errGroup, _ := errgroup.WithContext(context.Background(), logger, errgroup.DefaultErrgroupConcurrency)
 	var renderNodePort bool
 
 	// iterate over each function and make sure it's initialized

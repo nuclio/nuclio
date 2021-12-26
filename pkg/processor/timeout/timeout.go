@@ -63,7 +63,7 @@ func (w EventTimeoutWatcher) watch() {
 		now := time.Now()
 
 		// create error group
-		triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx.Background(), w.logger)
+		triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx.Background(), w.logger, errgroup.DefaultErrgroupConcurrency)
 
 		// TODO: Run in parallel
 		for triggerName, triggerInstance := range w.processor.GetTriggers() {
@@ -72,7 +72,7 @@ func (w EventTimeoutWatcher) watch() {
 			triggerErrGroup.Go("Watch trigger event timeout", func() error {
 
 				// create error group
-				workerErrGroup, workerErrGroupCtx := errgroup.WithContext(triggerErrGroupCtx, w.logger)
+				workerErrGroup, workerErrGroupCtx := errgroup.WithContext(triggerErrGroupCtx, w.logger, errgroup.DefaultErrgroupConcurrency)
 
 				// iterate over worker
 				for _, workerInstance := range triggerInstance.GetWorkers() {
@@ -139,7 +139,7 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 	runningWorkers := make(map[string]*worker.Worker)
 
 	// create error group
-	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx.Background(), w.logger)
+	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx.Background(), w.logger, errgroup.DefaultErrgroupConcurrency)
 
 	for triggerIdx, triggerInstance := range w.processor.GetTriggers() {
 		triggerIdx, triggerInstance := triggerIdx, triggerInstance

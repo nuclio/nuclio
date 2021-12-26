@@ -515,7 +515,7 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(ctx context.Context,
 	lc.logger.DebugWithCtx(ctx, "Deleting removed cron trigger cron job",
 		"cronJobsToDelete", cronJobsToDelete)
 
-	errGroup, _ := errgroup.WithContext(ctx, lc.logger)
+	errGroup, _ := errgroup.WithContext(ctx, lc.logger, errgroup.DefaultErrgroupConcurrency)
 	for _, cronJobToDelete := range cronJobsToDelete.Items {
 		cronJobToDelete := cronJobToDelete
 		errGroup.Go("DeleteCronTrigger", func() error {
@@ -2078,7 +2078,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName string, namespace string) error {
 
 	// create error group
-	errGroup, _ := errgroup.WithContext(ctx, lc.logger)
+	errGroup, _ := errgroup.WithContext(ctx, lc.logger, errgroup.DefaultErrgroupConcurrency)
 
 	listOptions := metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
@@ -2219,7 +2219,7 @@ func (lc *lazyClient) resolveFailFast(ctx context.Context,
 	}
 
 	// check each pod's conditions to determine if there is at least one unschedulable pod
-	errGroup, errGroupCtx := errgroup.WithContext(ctx, lc.logger)
+	errGroup, errGroupCtx := errgroup.WithContext(ctx, lc.logger, errgroup.DefaultErrgroupConcurrency)
 	lock := sync.Mutex{}
 	scaleUpOccurred := false
 	for _, pod := range pods {
