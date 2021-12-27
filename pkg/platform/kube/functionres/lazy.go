@@ -55,7 +55,7 @@ import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
-	networkv1 "k8s.io/api/networking/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1122,7 +1122,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 			Labels:    functionLabels,
 		}
 
-		ingressSpec := networkv1.IngressSpec{}
+		ingressSpec := networkingv1.IngressSpec{}
 
 		if err := lc.populateIngressConfig(ctx, functionLabels, function, &ingressMeta, &ingressSpec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
@@ -1136,7 +1136,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 		resultIngress, err := lc.kubeClientSet.NetworkingV1().
 			Ingresses(function.Namespace).
 			Create(ctx,
-				&networkv1.Ingress{
+				&networkingv1.Ingress{
 					ObjectMeta: ingressMeta,
 					Spec:       ingressSpec,
 				},
@@ -1149,7 +1149,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 	}
 
 	updateIngress := func(resource interface{}) (interface{}, error) {
-		ingress := resource.(*networkv1.Ingress)
+		ingress := resource.(*networkingv1.Ingress)
 
 		// save to bool if there are current rules
 		ingressRulesExist := len(ingress.Spec.Rules) > 0
@@ -1342,7 +1342,7 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 }
 
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
-func (lc *lazyClient) waitForNginxIngressToStabilize(ctx context.Context, ingress *networkv1.Ingress) {
+func (lc *lazyClient) waitForNginxIngressToStabilize(ctx context.Context, ingress *networkingv1.Ingress) {
 	lc.logger.DebugWithCtx(ctx, "Waiting for nginx ingress to stabilize",
 		"nginxIngressUpdateGracePeriod", lc.nginxIngressUpdateGracePeriod,
 		"ingressNamespace", ingress.Namespace,
@@ -1712,7 +1712,7 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	meta *metav1.ObjectMeta,
-	spec *networkv1.IngressSpec) error {
+	spec *networkingv1.IngressSpec) error {
 	meta.Annotations = make(map[string]string)
 
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
@@ -1763,8 +1763,8 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 	}
 
 	// clear out existing so that we don't keep adding rules
-	spec.Rules = []networkv1.IngressRule{}
-	spec.TLS = []networkv1.IngressTLS{}
+	spec.Rules = []networkingv1.IngressRule{}
+	spec.TLS = []networkingv1.IngressTLS{}
 
 	ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
 	for _, ingress := range ingresses {
@@ -1811,7 +1811,7 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 	ingress *functionconfig.Ingress,
 	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	spec *networkv1.IngressSpec) error {
+	spec *networkingv1.IngressSpec) error {
 
 	lc.logger.DebugWithCtx(ctx,
 		"Adding ingress",
@@ -1822,11 +1822,11 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 		"paths", ingress.Paths,
 		"TLS", ingress.TLS)
 
-	ingressRule := networkv1.IngressRule{
+	ingressRule := networkingv1.IngressRule{
 		Host: ingress.Host,
 	}
 
-	ingressRule.IngressRuleValue.HTTP = &networkv1.HTTPIngressRuleValue{}
+	ingressRule.IngressRuleValue.HTTP = &networkingv1.HTTPIngressRuleValue{}
 
 	// populate the ingress rule value
 	for _, path := range ingress.Paths {
@@ -1835,12 +1835,12 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 			return errors.Wrap(err, "Failed to format ingress pattern")
 		}
 
-		httpIngressPath := networkv1.HTTPIngressPath{
+		httpIngressPath := networkingv1.HTTPIngressPath{
 			Path: formattedPath,
-			Backend: networkv1.IngressBackend{
-				Service: &networkv1.IngressServiceBackend{
+			Backend: networkingv1.IngressBackend{
+				Service: &networkingv1.IngressServiceBackend{
 					Name: kube.ServiceNameFromFunctionName(function.Name),
-					Port: networkv1.ServiceBackendPort{
+					Port: networkingv1.ServiceBackendPort{
 						Name: ContainerHTTPPortName,
 					},
 				},
@@ -1852,7 +1852,7 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 
 		// add TLS if such exists
 		if ingress.TLS.SecretName != "" {
-			ingressTLS := networkv1.IngressTLS{}
+			ingressTLS := networkingv1.IngressTLS{}
 			ingressTLS.SecretName = ingress.TLS.SecretName
 			ingressTLS.Hosts = ingress.TLS.Hosts
 
