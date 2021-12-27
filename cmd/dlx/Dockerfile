@@ -17,7 +17,7 @@
 #
 
 ARG NUCLIO_LABEL
-ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.11
+ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.15
 
 FROM nuclio-base:$NUCLIO_LABEL as build-dlx
 
