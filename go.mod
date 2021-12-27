@@ -5,10 +5,7 @@ go 1.14
 require (
 	cloud.google.com/go/pubsub v1.10.2
 	code.cloudfoundry.org/clock v1.0.0 // indirect
-	github.com/Azure/azure-sdk-for-go v43.3.0+incompatible // indirect
-	github.com/Azure/go-autorest/autorest v0.11.0 // indirect
-	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
-	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
+	github.com/Azure/go-amqp v0.17.0
 	github.com/Microsoft/ApplicationInsights-Go v0.4.2
 	github.com/Shopify/sarama v1.23.1
 	github.com/aws/aws-sdk-go v1.39.6
@@ -32,7 +29,7 @@ require (
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
-	github.com/mholt/archiver/v3 v3.3.0
+	github.com/mholt/archiver/v3 v3.5.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/nats-io/gnatsd v1.4.1 // indirect
@@ -75,7 +72,6 @@ require (
 	k8s.io/client-go v0.17.17
 	k8s.io/code-generator v0.17.17
 	k8s.io/metrics v0.17.17
-	pack.ag/amqp v0.12.5
 )
 
 replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014
