@@ -224,13 +224,7 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
-
-		// it is unsafe to use fasthttp.Request from concurrently running goroutines, copy it if we can
-		if common.ByteSliceToString(ctx.Request.Header.Peek("Content-Type")) != "multipart/form-data" {
-			ctxCopy := fasthttp.Request{}
-			ctx.Request.CopyTo(&ctxCopy)
-			ctx.Request = ctxCopy // nolint: govet
-		}
+		defer ctx.Request.Reset()
 
 		// ensure request is part of CORS pre-flight
 		if h.ensureRequestIsCORSPreflightRequest(ctx) {
