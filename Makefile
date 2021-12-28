@@ -470,14 +470,14 @@ lint: modules ensure-test-files-annotated
 
 .PHONY: ensure-test-files-annotated
 ensure-test-files-annotated:
-	$(eval test_files_missing_build_annotations=$(strip $(shell find . -type f -name '*_test.go' -exec bash -c "grep -m 1 -L '// +build' {} | grep go" \;)))
+	$(eval test_files_missing_build_annotations=$(strip $(shell find . -type f -name '*_test.go' -exec bash -c "grep -m 1 -L '//go:build ' {} | grep go" \;)))
 	@if [ -n "$(test_files_missing_build_annotations)" ]; then \
 		echo "Found go test files without build annotations: "; \
 		echo $(test_files_missing_build_annotations); \
-		echo "!!! Go test files must be annotated with '// +build test_<x>' !!!"; \
+		echo "!!! Go test files must be annotated with '//go:build test_<x>' !!!"; \
 		exit 1; \
 	fi
-	@echo "All go test files have +build annotation"
+	@echo "All go test files have //go:build test_X annotation"
 	@exit $(.SHELLSTATUS)
 
 #

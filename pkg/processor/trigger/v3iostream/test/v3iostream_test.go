@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_iguazio
+//go:build test_integration && test_iguazio
 
 /*
 Copyright 2018 The Nuclio Authors.
