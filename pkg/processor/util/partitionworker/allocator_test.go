@@ -272,7 +272,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 
 	select {
 	case <-doneChan:
-	case <-time.After(30 * time.Second):
+	case <-time.After(120 * time.Second):
 		suite.Fail("Expected to process all messages by now")
 	}
 }
