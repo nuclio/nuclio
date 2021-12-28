@@ -51,18 +51,20 @@ func (suite *ControllerTestSuite) TestStaleResourceVersion() {
 	functionCRDRecord, err := suite.FunctionClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(suite.Namespace).
-		Create(&nuclioio.NuclioFunction{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        function.Meta.Name,
-				Namespace:   function.Meta.Namespace,
-				Labels:      function.Meta.Labels,
-				Annotations: function.Meta.Annotations,
+		Create(suite.Ctx,
+			&nuclioio.NuclioFunction{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        function.Meta.Name,
+					Namespace:   function.Meta.Namespace,
+					Labels:      function.Meta.Labels,
+					Annotations: function.Meta.Annotations,
+				},
+				Spec: function.Spec,
+				Status: functionconfig.Status{
+					State: functionconfig.FunctionStateWaitingForResourceConfiguration,
+				},
 			},
-			Spec: function.Spec,
-			Status: functionconfig.Status{
-				State: functionconfig.FunctionStateWaitingForResourceConfiguration,
-			},
-		})
+			metav1.CreateOptions{})
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(functionCRDRecord.ResourceVersion)
 

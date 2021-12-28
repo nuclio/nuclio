@@ -59,7 +59,7 @@ func newAPIGatewayOperator(ctx context.Context,
 	newAPIGatewayOperator.operator, err = operator.NewMultiWorker(ctx,
 		loggerInstance,
 		numWorkers,
-		newAPIGatewayOperator.getListWatcher(controller.namespace),
+		newAPIGatewayOperator.getListWatcher(ctx, controller.namespace),
 		&nuclioio.NuclioAPIGateway{},
 		resyncInterval,
 		newAPIGatewayOperator)
@@ -140,13 +140,13 @@ func (ago *apiGatewayOperator) Delete(ctx context.Context, namespace string, nam
 	return nil
 }
 
-func (ago *apiGatewayOperator) getListWatcher(namespace string) cache.ListerWatcher {
+func (ago *apiGatewayOperator) getListWatcher(ctx context.Context, namespace string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return ago.controller.nuclioClientSet.NuclioV1beta1().NuclioAPIGateways(namespace).List(options)
+			return ago.controller.nuclioClientSet.NuclioV1beta1().NuclioAPIGateways(namespace).List(ctx, options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return ago.controller.nuclioClientSet.NuclioV1beta1().NuclioAPIGateways(namespace).Watch(options)
+			return ago.controller.nuclioClientSet.NuclioV1beta1().NuclioAPIGateways(namespace).Watch(ctx, options)
 		},
 	}
 }
@@ -174,7 +174,9 @@ func (ago *apiGatewayOperator) setAPIGatewayState(ctx context.Context,
 	}
 
 	// try to update the api gateway with the new state
-	_, err := ago.controller.nuclioClientSet.NuclioV1beta1().NuclioAPIGateways(apiGateway.Namespace).Update(apiGateway)
+	_, err := ago.controller.nuclioClientSet.NuclioV1beta1().NuclioAPIGateways(apiGateway.Namespace).Update(ctx,
+		apiGateway,
+		metav1.UpdateOptions{})
 	return err
 }
 

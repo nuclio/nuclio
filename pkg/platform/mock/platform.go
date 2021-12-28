@@ -166,8 +166,8 @@ func (mp *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOption
 }
 
 // GetAPIGateways will list existing api gateways
-func (mp *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
-	args := mp.Called(getAPIGatewaysOptions)
+func (mp *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+	args := mp.Called(ctx, getAPIGatewaysOptions)
 	return args.Get(0).([]platform.APIGateway), args.Error(1)
 }
 

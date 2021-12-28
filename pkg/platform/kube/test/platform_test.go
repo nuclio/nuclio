@@ -1361,7 +1361,7 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 	suite.Logger.InfoWith("Ensuring resources were removed (deletion is being executed in background")
 
 	// ensure api gateway deleted
-	apiGateways, err := suite.Platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
+	apiGateways, err := suite.Platform.GetAPIGateways(suite.Ctx, &platform.GetAPIGatewaysOptions{
 		Name:      createAPIGatewayOptions.APIGatewayConfig.Meta.Name,
 		Namespace: suite.Namespace,
 	})

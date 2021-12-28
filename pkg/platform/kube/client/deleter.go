@@ -66,7 +66,7 @@ func (d *Deleter) Delete(ctx context.Context, consumer *Consumer, deleteFunction
 	if err := nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(deleteFunctionOptions.FunctionConfig.Meta.Namespace).
-		Delete(resourceName, &metav1.DeleteOptions{
+		Delete(ctx, resourceName, metav1.DeleteOptions{
 			Preconditions: deletePreconditions,
 		}); err != nil && !apierrors.IsNotFound(err) {
 		return errors.Wrap(err, "Failed to delete function CR")

@@ -600,7 +600,7 @@ func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptio
 }
 
 // GetAPIGateways not supported on this platform
-func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
 	return nil, nil
 }
 

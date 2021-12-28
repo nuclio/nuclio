@@ -100,11 +100,11 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 	if !functionExists {
 		functionInstance, err = nuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(functionInstance.Namespace).
-			Create(functionInstance)
+			Create(ctx, functionInstance, metav1.CreateOptions{})
 	} else {
 		functionInstance, err = nuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(functionInstance.Namespace).
-			Update(functionInstance)
+			Update(ctx, functionInstance, metav1.UpdateOptions{})
 	}
 
 	if err != nil {
@@ -128,7 +128,8 @@ func (d *Deployer) Deploy(ctx context.Context, functionInstance *nuclioio.Nuclio
 	}
 
 	// wait for the function to be ready
-	updatedFunctionInstance, err := waitForFunctionReadiness(d.consumer,
+	updatedFunctionInstance, err := waitForFunctionReadiness(ctx,
+		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
@@ -281,7 +282,8 @@ func (d *Deployer) getLastCreatedPod(pods []v1.Pod) v1.Pod {
 	return latestPod
 }
 
-func waitForFunctionReadiness(consumer *Consumer,
+func waitForFunctionReadiness(ctx context.Context,
+	consumer *Consumer,
 	namespace string,
 	name string) (*nuclioio.NuclioFunction, error) {
 	var err error
@@ -293,7 +295,7 @@ func waitForFunctionReadiness(consumer *Consumer,
 		// get the appropriate function CR
 		function, err = consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(namespace).
-			Get(name, metav1.GetOptions{})
+			Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return true, err
 		}

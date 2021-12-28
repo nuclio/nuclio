@@ -72,16 +72,17 @@ func (suite *FunctionMonitoringTestSuite) TestBulkCheckFunctionStatuses() {
 	for i := 0; i < 100; i++ {
 		function, err := suite.nuclioioClientSet.NuclioV1beta1().
 			NuclioFunctions(suite.Namespace).
-			Create(&nuclioio.NuclioFunction{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("func-%d", i),
-					Namespace: suite.Namespace,
-				},
-				Spec: functionconfig.Spec{},
-				Status: functionconfig.Status{
-					State: functionconfig.FunctionStateWaitingForResourceConfiguration,
-				},
-			})
+			Create(suite.ctx,
+				&nuclioio.NuclioFunction{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("func-%d", i),
+						Namespace: suite.Namespace,
+					},
+					Spec: functionconfig.Spec{},
+					Status: functionconfig.Status{
+						State: functionconfig.FunctionStateWaitingForResourceConfiguration,
+					},
+				}, metav1.CreateOptions{})
 		suite.Require().NoError(err)
 		suite.Require().NotNil(function)
 	}

@@ -739,7 +739,7 @@ func (ap *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOption
 }
 
 // GetAPIGateways will list existing api gateways
-func (ap *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+func (ap *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
 	return nil, platform.ErrUnsupportedMethod
 }
 
@@ -1016,7 +1016,7 @@ func (ap *Platform) GetProjectResources(ctx context.Context, projectMeta *platfo
 
 	// get api gateways
 	errGroup.Go("GetAPIGateways", func() error {
-		apiGateways, err = ap.platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
+		apiGateways, err = ap.platform.GetAPIGateways(ctx, &platform.GetAPIGatewaysOptions{
 			Namespace: projectMeta.Namespace,
 			Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
 		})

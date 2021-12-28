@@ -299,7 +299,7 @@ func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(functionURL
 func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIGatewaysOptions) platform.APIGateway {
 
 	// get the function
-	apiGateways, err := suite.Platform.GetAPIGateways(getAPIGatewayOptions)
+	apiGateways, err := suite.Platform.GetAPIGateways(suite.Ctx, getAPIGatewayOptions)
 	suite.Require().NoError(err)
 	return apiGateways[0]
 }
