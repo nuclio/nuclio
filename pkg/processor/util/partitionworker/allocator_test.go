@@ -19,6 +19,9 @@ limitations under the License.
 package partitionworker
 
 import (
+	"context"
+	"math/rand"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -32,6 +35,7 @@ import (
 
 type partitionWorkerAllocatorTestSuite struct {
 	suite.Suite
+	ctx    context.Context
 	logger logger.Logger
 }
 
@@ -40,6 +44,7 @@ func (suite *partitionWorkerAllocatorTestSuite) SetupSuite() {
 
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
+	suite.ctx = context.Background()
 }
 
 func (suite *partitionWorkerAllocatorTestSuite) TestAllocationBlocking() {
@@ -165,9 +170,9 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 }
 
 func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
-	numPartitions := 16
+	numPartitions := runtime.NumCPU() * 4
 	numMessagesPerPartition := 10000
-	numWorkers := 4
+	numWorkers := runtime.NumCPU()
 	topic := "t1"
 
 	var messageChannels []chan struct{}
@@ -193,9 +198,11 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 	suite.Require().NoError(err)
 
 	// create a static worker allocator
-	partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger, workerAllocator, map[string][]int{
-		topic: partitionIDs,
-	})
+	partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger,
+		workerAllocator,
+		map[string][]int{
+			topic: partitionIDs,
+		})
 	suite.Require().NoError(err)
 
 	// there's one partition reader per partition, and we need to wait til all partition readers complete
@@ -226,7 +233,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 					prevWorkerIndex = workerInstance.GetIndex()
 
 					// wait a bit to simulate processing
-					time.Sleep(100 * time.Microsecond)
+					time.Sleep(time.Duration(50+rand.Intn(50)) * time.Microsecond)
 
 					// release the worker
 					err = partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
@@ -235,6 +242,9 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 				default:
 
 					// nothing more to read - we're done
+					suite.logger.DebugWithCtx(suite.ctx,
+						"Done reading from message channel",
+						"partitionReaderIdx", partitionReaderIdx)
 					waitGroup.Done()
 
 					// exit the loop
