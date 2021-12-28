@@ -97,6 +97,11 @@ func (mdc *MockDockerClient) GetContainers(options *GetContainerOptions) ([]Cont
 	return nil, nil
 }
 
+func (mdc *MockDockerClient) GetContainerPort(container *Container, boundPort int) (int, error) {
+	return boundPort, nil
+
+}
+
 // GetContainerEvents returns a list of container events which occurred within a time range
 func (mdc *MockDockerClient) GetContainerEvents(containerName string, since string, until string) ([]string, error) {
 	return nil, nil

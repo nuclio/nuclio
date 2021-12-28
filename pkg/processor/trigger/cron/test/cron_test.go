@@ -40,6 +40,8 @@ const triggerName = "test_cron"
 
 type TestSuite struct {
 	processorsuite.TestSuite
+
+	// TODO: use cron.Event instead
 	event        triggertest.Event
 	functionPath string
 }

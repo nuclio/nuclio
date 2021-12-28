@@ -19,7 +19,6 @@ package v3iostream
 import (
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -50,14 +49,12 @@ type Configuration struct {
 	SequenceNumberCommitInterval    string
 	SequenceNumberShardWaitInterval string
 	RecordBatchSizeChan             int
+	AckWindowSize                   uint64
 
 	seekTo v3io.SeekShardInputType
 
 	// backwards compatibility
 	PollingIntervalMs int
-
-	// resolved attributes
-	ackWindowSize int
 }
 
 func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
@@ -65,13 +62,11 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	logger logger.Logger) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
-	var err error
-
 	// create base
 	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 
 	if err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
-		{Key: "custom.nuclio.io/v3iostream-window-size", ValueInt: &newConfiguration.ackWindowSize},
+		{Key: "custom.nuclio.io/v3iostream-window-size", ValueUInt64: &newConfiguration.AckWindowSize},
 	}); err != nil {
 		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
 	}
@@ -79,36 +74,6 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
-	}
-
-	if ackWindowSizeInterface, ok := newConfiguration.Attributes["ackWindowSize"]; ok {
-		var ackWindowSize int
-		errMessage := "Failed loading ack window size from trigger attributes."
-		switch ackWindowSizeValue := ackWindowSizeInterface.(type) {
-		case string:
-			ackWindowSize, err = strconv.Atoi(ackWindowSizeValue)
-			if err != nil {
-				return nil, errors.Wrapf(err, errMessage+" Unsupported string: %s", ackWindowSizeValue)
-			}
-		case int:
-			ackWindowSize = ackWindowSizeValue
-		case float64:
-			ackWindowSize = int(ackWindowSizeValue)
-		default:
-			return nil, errors.Errorf(errMessage+" Unsupported type: %T", ackWindowSize)
-		}
-
-		if newConfiguration.ackWindowSize > 0 {
-			logger.DebugWith("Overriding ack window size from trigger attributes",
-				"ackWindowSize", ackWindowSize,
-				"currentAckWindowSize", newConfiguration.ackWindowSize)
-		}
-		newConfiguration.ackWindowSize = ackWindowSize
-	}
-
-	if newConfiguration.ackWindowSize < 0 {
-		return nil, errors.Errorf("Invalid ack window size '%d', window size must be a positive number",
-			newConfiguration.ackWindowSize)
 	}
 
 	if newConfiguration.NumTransportWorkers == 0 {
@@ -147,8 +112,7 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	}
 
 	// if the password is a uuid - assume it is an access key and clear out the username/pass
-	_, err = uuid.ParseUUID(newConfiguration.Password)
-	if err == nil {
+	if _, err := uuid.ParseUUID(newConfiguration.Password); err == nil {
 		newConfiguration.Secret = newConfiguration.Password
 		newConfiguration.Username = ""
 		newConfiguration.Password = ""

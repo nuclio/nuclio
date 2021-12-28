@@ -22,9 +22,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	eventhubclient "github.com/Azure/go-amqp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	eventhubclient "pack.ag/amqp"
 )
 
 type eventhub struct {

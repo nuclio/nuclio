@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -77,7 +78,7 @@ type TestSuite struct {
 	cleanupCreatedTempDirs bool
 }
 
-// BlastRequest holds information for BlastHTTP function
+// BlastConfiguration holds information for BlastHTTP function
 type BlastConfiguration struct {
 	Duration      time.Duration
 	TimeOut       time.Duration
@@ -162,7 +163,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().GreaterOrEqual(totalResults.Success, 0.95, "Success rate should be higher")
 }
 
-// BlastThroughput is a throughput test suite
+// BlastHTTPThroughput is a throughput test suite
 func (suite *TestSuite) BlastHTTPThroughput(firstCreateFunctionOptions *platform.CreateFunctionOptions,
 	secondCreateFunctionOptions *platform.CreateFunctionOptions,
 	allowedThroughputMarginPercentage float64,
@@ -371,6 +372,31 @@ func (suite *TestSuite) DeployFunctionAndRedeployExpectError(createFunctionOptio
 	suite.Require().Error(err)
 }
 
+func (suite *TestSuite) WithFunctionContainerRestart(deployResult *platform.CreateFunctionResult,
+	handler func()) {
+
+	// stop container
+	err := suite.DockerClient.StopContainer(deployResult.ContainerID)
+	suite.Require().NoError(err)
+
+	handler()
+
+	// start container back again
+	err = suite.DockerClient.StartContainer(deployResult.ContainerID)
+	suite.Require().NoError(err)
+
+	// port has changed, get it
+	functionContainer, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+		ID: deployResult.ContainerID,
+	})
+	suite.Require().NoError(err)
+
+	// update deploy results
+	deployResult.Port, err = suite.DockerClient.GetContainerPort(&functionContainer[0],
+		abstract.FunctionContainerHTTPPort)
+	suite.Require().NoError(err)
+}
+
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
 	return common.GetSourceDir()
@@ -424,7 +450,7 @@ func (suite *TestSuite) GetFunctionPath(functionRelativePath ...string) string {
 	return path.Join(functionPath...)
 }
 
-// adds some commonly-used fields to the given CreateFunctionOptions
+// PopulateDeployOptions adds some commonly-used fields to the given CreateFunctionOptions
 func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.CreateFunctionOptions) {
 
 	// give the name a unique prefix, except if name isn't set
