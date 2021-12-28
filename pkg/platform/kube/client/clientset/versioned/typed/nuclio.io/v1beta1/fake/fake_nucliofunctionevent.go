@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var nucliofunctioneventsResource = schema.GroupVersionResource{Group: "nuclio.io
 var nucliofunctioneventsKind = schema.GroupVersionKind{Group: "nuclio.io", Version: "v1beta1", Kind: "NuclioFunctionEvent"}
 
 // Get takes name of the nuclioFunctionEvent, and returns the corresponding nuclioFunctionEvent object, and an error if there is any.
-func (c *FakeNuclioFunctionEvents) Get(name string, options v1.GetOptions) (result *v1beta1.NuclioFunctionEvent, err error) {
+func (c *FakeNuclioFunctionEvents) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.NuclioFunctionEvent, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(nucliofunctioneventsResource, c.ns, name), &v1beta1.NuclioFunctionEvent{})
 
@@ -50,7 +52,7 @@ func (c *FakeNuclioFunctionEvents) Get(name string, options v1.GetOptions) (resu
 }
 
 // List takes label and field selectors, and returns the list of NuclioFunctionEvents that match those selectors.
-func (c *FakeNuclioFunctionEvents) List(opts v1.ListOptions) (result *v1beta1.NuclioFunctionEventList, err error) {
+func (c *FakeNuclioFunctionEvents) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.NuclioFunctionEventList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(nucliofunctioneventsResource, nucliofunctioneventsKind, c.ns, opts), &v1beta1.NuclioFunctionEventList{})
 
@@ -72,14 +74,14 @@ func (c *FakeNuclioFunctionEvents) List(opts v1.ListOptions) (result *v1beta1.Nu
 }
 
 // Watch returns a watch.Interface that watches the requested nuclioFunctionEvents.
-func (c *FakeNuclioFunctionEvents) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeNuclioFunctionEvents) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(nucliofunctioneventsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a nuclioFunctionEvent and creates it.  Returns the server's representation of the nuclioFunctionEvent, and an error, if there is any.
-func (c *FakeNuclioFunctionEvents) Create(nuclioFunctionEvent *v1beta1.NuclioFunctionEvent) (result *v1beta1.NuclioFunctionEvent, err error) {
+func (c *FakeNuclioFunctionEvents) Create(ctx context.Context, nuclioFunctionEvent *v1beta1.NuclioFunctionEvent, opts v1.CreateOptions) (result *v1beta1.NuclioFunctionEvent, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(nucliofunctioneventsResource, c.ns, nuclioFunctionEvent), &v1beta1.NuclioFunctionEvent{})
 
@@ -90,7 +92,7 @@ func (c *FakeNuclioFunctionEvents) Create(nuclioFunctionEvent *v1beta1.NuclioFun
 }
 
 // Update takes the representation of a nuclioFunctionEvent and updates it. Returns the server's representation of the nuclioFunctionEvent, and an error, if there is any.
-func (c *FakeNuclioFunctionEvents) Update(nuclioFunctionEvent *v1beta1.NuclioFunctionEvent) (result *v1beta1.NuclioFunctionEvent, err error) {
+func (c *FakeNuclioFunctionEvents) Update(ctx context.Context, nuclioFunctionEvent *v1beta1.NuclioFunctionEvent, opts v1.UpdateOptions) (result *v1beta1.NuclioFunctionEvent, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(nucliofunctioneventsResource, c.ns, nuclioFunctionEvent), &v1beta1.NuclioFunctionEvent{})
 
@@ -101,7 +103,7 @@ func (c *FakeNuclioFunctionEvents) Update(nuclioFunctionEvent *v1beta1.NuclioFun
 }
 
 // Delete takes name of the nuclioFunctionEvent and deletes it. Returns an error if one occurs.
-func (c *FakeNuclioFunctionEvents) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeNuclioFunctionEvents) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(nucliofunctioneventsResource, c.ns, name), &v1beta1.NuclioFunctionEvent{})
 
@@ -109,15 +111,15 @@ func (c *FakeNuclioFunctionEvents) Delete(name string, options *v1.DeleteOptions
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeNuclioFunctionEvents) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(nucliofunctioneventsResource, c.ns, listOptions)
+func (c *FakeNuclioFunctionEvents) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(nucliofunctioneventsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.NuclioFunctionEventList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched nuclioFunctionEvent.
-func (c *FakeNuclioFunctionEvents) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.NuclioFunctionEvent, err error) {
+func (c *FakeNuclioFunctionEvents) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.NuclioFunctionEvent, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(nucliofunctioneventsResource, c.ns, name, pt, data, subresources...), &v1beta1.NuclioFunctionEvent{})
 
