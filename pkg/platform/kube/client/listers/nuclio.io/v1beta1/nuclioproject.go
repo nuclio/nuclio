@@ -26,8 +26,10 @@ import (
 )
 
 // NuclioProjectLister helps list NuclioProjects.
+// All objects returned here must be treated as read-only.
 type NuclioProjectLister interface {
 	// List lists all NuclioProjects in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.NuclioProject, err error)
 	// NuclioProjects returns an object that can list and get NuclioProjects.
 	NuclioProjects(namespace string) NuclioProjectNamespaceLister
@@ -58,10 +60,13 @@ func (s *nuclioProjectLister) NuclioProjects(namespace string) NuclioProjectName
 }
 
 // NuclioProjectNamespaceLister helps list and get NuclioProjects.
+// All objects returned here must be treated as read-only.
 type NuclioProjectNamespaceLister interface {
 	// List lists all NuclioProjects in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.NuclioProject, err error)
 	// Get retrieves the NuclioProject from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1beta1.NuclioProject, error)
 	NuclioProjectNamespaceListerExpansion
 }

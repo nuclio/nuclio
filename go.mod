@@ -69,11 +69,11 @@ require (
 	google.golang.org/grpc v1.36.1
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.21.0
-	k8s.io/apimachinery v0.21.0
-	k8s.io/client-go v0.21.0
-	k8s.io/code-generator v0.21.0
-	k8s.io/metrics v0.21.0
+	k8s.io/api v0.21.8
+	k8s.io/apimachinery v0.21.8
+	k8s.io/client-go v0.21.8
+	k8s.io/code-generator v0.21.8
+	k8s.io/metrics v0.21.8
 	pack.ag/amqp v0.12.5
 )
 

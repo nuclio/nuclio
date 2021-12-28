@@ -26,8 +26,10 @@ import (
 )
 
 // NuclioAPIGatewayLister helps list NuclioAPIGateways.
+// All objects returned here must be treated as read-only.
 type NuclioAPIGatewayLister interface {
 	// List lists all NuclioAPIGateways in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.NuclioAPIGateway, err error)
 	// NuclioAPIGateways returns an object that can list and get NuclioAPIGateways.
 	NuclioAPIGateways(namespace string) NuclioAPIGatewayNamespaceLister
@@ -58,10 +60,13 @@ func (s *nuclioAPIGatewayLister) NuclioAPIGateways(namespace string) NuclioAPIGa
 }
 
 // NuclioAPIGatewayNamespaceLister helps list and get NuclioAPIGateways.
+// All objects returned here must be treated as read-only.
 type NuclioAPIGatewayNamespaceLister interface {
 	// List lists all NuclioAPIGateways in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.NuclioAPIGateway, err error)
 	// Get retrieves the NuclioAPIGateway from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1beta1.NuclioAPIGateway, error)
 	NuclioAPIGatewayNamespaceListerExpansion
 }
