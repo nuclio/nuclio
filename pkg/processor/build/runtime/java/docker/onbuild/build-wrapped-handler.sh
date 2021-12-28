@@ -21,8 +21,7 @@ GRADLE_FLAGS=""
 
 # if specified to build offline, set the offline flag
 if [ "${NUCLIO_BUILD_OFFLINE}" = "true" ]; then
-    GRADLE_FLAGS += "--offline "
+    GRADLE_FLAGS="--offline "
 fi
 
-cd /home/gradle/src/wrapper \
-    && gradle ${GRADLE_FLAGS} wrapperJar
+cd /home/gradle/src/wrapper && gradle "${GRADLE_FLAGS}" wrapperJar
