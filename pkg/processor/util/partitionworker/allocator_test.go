@@ -20,7 +20,6 @@ package partitionworker
 
 import (
 	"context"
-	"math/rand"
 	"runtime"
 	"sync"
 	"testing"
@@ -219,10 +218,6 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 			for {
 				select {
 				case <-messageChannels[partitionReaderIdx]:
-					suite.logger.DebugWithCtx(suite.ctx,
-						"Allocating worker",
-						"topic", topic,
-						"partitionReaderIdx", partitionReaderIdx)
 					workerInstance, cookie, err := partitionWorkerAllocator.AllocateWorker(topic,
 						partitionIDs[partitionReaderIdx],
 						nil)
@@ -237,13 +232,9 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 					prevWorkerIndex = workerInstance.GetIndex()
 
 					// wait a bit to simulate processing
-					time.Sleep(time.Duration(50+rand.Intn(50)) * time.Microsecond)
+					time.Sleep(100 * time.Microsecond)
 
 					// release the worker
-					suite.logger.DebugWithCtx(suite.ctx,
-						"Releasing worker",
-						"topic", topic,
-						"partitionReaderIdx", partitionReaderIdx)
 					err = partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
 					suite.Require().NoError(err)
 
@@ -272,7 +263,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 
 	select {
 	case <-doneChan:
-	case <-time.After(120 * time.Second):
+	case <-time.After(45 * time.Second):
 		suite.Fail("Expected to process all messages by now")
 	}
 }

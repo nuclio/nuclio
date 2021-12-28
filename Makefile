@@ -499,7 +499,7 @@ generate-crds: modules ensure-gopath
 
 .PHONY: test-unit
 test-unit: modules ensure-gopath
-	go test -tags=test_unit -v ./cmd/... ./pkg/... -short --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+	go test -tags=test_unit -v ./cmd/... ./pkg/... -short
 
 .PHONY: test-k8s-nuctl
 test-k8s-nuctl:
