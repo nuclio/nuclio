@@ -223,7 +223,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(projectConfig *platform.Proj
 	}
 
 	// get all api gateways in the project
-	apiGateways, err := e.rootCommandeer.platform.GetAPIGateways(getAPIGatewaysOptions)
+	apiGateways, err := e.rootCommandeer.platform.GetAPIGateways(context.Background(), getAPIGatewaysOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get API gateways")
 	}

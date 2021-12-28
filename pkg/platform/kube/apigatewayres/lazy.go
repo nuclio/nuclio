@@ -58,7 +58,7 @@ func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (R
 func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) (Resources, error) {
 	apiGateway.Status.Name = apiGateway.Spec.Name
 
-	if err := lc.validateSpec(apiGateway); err != nil {
+	if err := lc.validateSpec(ctx, apiGateway); err != nil {
 		return nil, errors.Wrap(err, "Api gateway spec validation failed")
 	}
 
@@ -163,7 +163,7 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 	}
 }
 
-func (lc *lazyClient) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error {
+func (lc *lazyClient) validateSpec(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) error {
 	upstreams := apiGateway.Spec.Upstreams
 
 	if err := kube.ValidateAPIGatewaySpec(&apiGateway.Spec); err != nil {
@@ -173,7 +173,7 @@ func (lc *lazyClient) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error 
 	// make sure each upstream is unique - meaning, there's no other api gateway with an upstream with the
 	// same service (currently only nuclio function) name
 	// (this is done because creating multiple ingresses with the same service name breaks nginx ingress controller)
-	existingUpstreamFunctionNames, err := lc.getAllExistingUpstreamFunctionNames(apiGateway.Namespace, apiGateway.Name)
+	existingUpstreamFunctionNames, err := lc.getAllExistingUpstreamFunctionNames(ctx, apiGateway.Namespace, apiGateway.Name)
 	if err != nil {
 		return errors.Wrap(err, "Failed while getting all existing upstreams")
 	}
@@ -187,12 +187,12 @@ func (lc *lazyClient) validateSpec(apiGateway *nuclioio.NuclioAPIGateway) error 
 	return nil
 }
 
-func (lc *lazyClient) getAllExistingUpstreamFunctionNames(namespace, apiGatewayNameToExclude string) ([]string, error) {
+func (lc *lazyClient) getAllExistingUpstreamFunctionNames(ctx context.Context, namespace, apiGatewayNameToExclude string) ([]string, error) {
 	var existingUpstreamNames []string
 
 	existingAPIGateways, err := lc.nuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(namespace).
-		List(metav1.ListOptions{})
+		List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list existing api gateways")
 	}

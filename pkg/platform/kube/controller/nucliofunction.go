@@ -70,7 +70,7 @@ func newFunctionOperator(ctx context.Context,
 	newFunctionOperator.operator, err = operator.NewMultiWorker(ctx,
 		loggerInstance,
 		numWorkers,
-		newFunctionOperator.getListWatcher(controller.namespace),
+		newFunctionOperator.getListWatcher(ctx, controller.namespace),
 		&nuclioio.NuclioFunction{},
 		resyncInterval,
 		newFunctionOperator)
@@ -302,17 +302,19 @@ func (fo *functionOperator) setFunctionStatus(ctx context.Context,
 	function.Status = *status
 
 	// try to update the function
-	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(function.Namespace).Update(function)
+	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(function.Namespace).Update(ctx,
+		function,
+		metav1.UpdateOptions{})
 	return err
 }
 
-func (fo *functionOperator) getListWatcher(namespace string) cache.ListerWatcher {
+func (fo *functionOperator) getListWatcher(ctx context.Context, namespace string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).List(options)
+			return fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).List(ctx, options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Watch(options)
+			return fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Watch(ctx, options)
 		},
 	}
 }

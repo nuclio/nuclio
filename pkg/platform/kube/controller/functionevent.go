@@ -55,7 +55,7 @@ func newFunctionEventOperator(ctx context.Context,
 	newFunctionEventOperator.operator, err = operator.NewMultiWorker(ctx,
 		loggerInstance,
 		numWorkers,
-		newFunctionEventOperator.getListWatcher(controller.namespace),
+		newFunctionEventOperator.getListWatcher(ctx, controller.namespace),
 		&nuclioio.NuclioFunctionEvent{},
 		resyncInterval,
 		newFunctionEventOperator)
@@ -89,13 +89,13 @@ func (feo *functionEventOperator) Delete(ctx context.Context, namespace string, 
 	return nil
 }
 
-func (feo *functionEventOperator) getListWatcher(namespace string) cache.ListerWatcher {
+func (feo *functionEventOperator) getListWatcher(ctx context.Context, namespace string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return feo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).List(options)
+			return feo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).List(ctx, options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return feo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).Watch(options)
+			return feo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).Watch(ctx, options)
 		},
 	}
 }

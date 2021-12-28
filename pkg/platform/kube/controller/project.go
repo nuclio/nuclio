@@ -57,7 +57,7 @@ func newProjectOperator(ctx context.Context,
 	newProjectOperator.operator, err = operator.NewMultiWorker(ctx,
 		loggerInstance,
 		numWorkers,
-		newProjectOperator.getListWatcher(controller.namespace),
+		newProjectOperator.getListWatcher(ctx, controller.namespace),
 		&nuclioio.NuclioProject{},
 		resyncInterval,
 		newProjectOperator)
@@ -94,7 +94,7 @@ func (po *projectOperator) Delete(ctx context.Context, namespace string, name st
 	if err := po.controller.nuclioClientSet.
 		NuclioV1beta1().
 		NuclioAPIGateways(namespace).
-		DeleteCollection(&metav1.DeleteOptions{},
+		DeleteCollection(ctx, metav1.DeleteOptions{},
 			metav1.ListOptions{
 				LabelSelector: projectNameLabelSelector,
 			}); err != nil {
@@ -110,7 +110,7 @@ func (po *projectOperator) Delete(ctx context.Context, namespace string, name st
 	if err := po.controller.nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(namespace).
-		DeleteCollection(&metav1.DeleteOptions{},
+		DeleteCollection(ctx, metav1.DeleteOptions{},
 			metav1.ListOptions{
 				LabelSelector: projectNameLabelSelector,
 			}); err != nil {
@@ -129,13 +129,13 @@ func (po *projectOperator) Delete(ctx context.Context, namespace string, name st
 	return nil
 }
 
-func (po *projectOperator) getListWatcher(namespace string) cache.ListerWatcher {
+func (po *projectOperator) getListWatcher(ctx context.Context, namespace string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return po.controller.nuclioClientSet.NuclioV1beta1().NuclioProjects(namespace).List(options)
+			return po.controller.nuclioClientSet.NuclioV1beta1().NuclioProjects(namespace).List(ctx, options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return po.controller.nuclioClientSet.NuclioV1beta1().NuclioProjects(namespace).Watch(options)
+			return po.controller.nuclioClientSet.NuclioV1beta1().NuclioProjects(namespace).Watch(ctx, options)
 		},
 	}
 }

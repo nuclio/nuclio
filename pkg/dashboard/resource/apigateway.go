@@ -78,7 +78,7 @@ func (agr *apiGatewayResource) GetAllByNamespace(ctx context.Context,
 	exportFunction bool) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}
 
-	apiGateways, err := agr.getPlatform().GetAPIGateways(getAPIGatewayOptions)
+	apiGateways, err := agr.getPlatform().GetAPIGateways(ctx, getAPIGatewayOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get api gateways")
 	}
@@ -106,7 +106,7 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	apiGateways, err := agr.getPlatform().GetAPIGateways(&platform.GetAPIGatewaysOptions{
+	apiGateways, err := agr.getPlatform().GetAPIGateways(ctx, &platform.GetAPIGatewaysOptions{
 		Name:        id,
 		Namespace:   namespace,
 		AuthSession: agr.getCtxSession(request),

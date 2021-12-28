@@ -142,7 +142,7 @@ type Platform interface {
 	DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
 
 	// GetAPIGateways will list existing api gateways
-	GetAPIGateways(getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
+	GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
 
 	//
 	// Misc

@@ -2090,7 +2090,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
 	}
 
-	result, err := lc.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).List(listOptions)
+	result, err := lc.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).List(ctx, listOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list function events")
 	}
@@ -2102,7 +2102,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 		errGroup.Go("DeleteEvents", func() error {
 			err = lc.nuclioClientSet.NuclioV1beta1().
 				NuclioFunctionEvents(namespace).
-				Delete(functionEvent.Name, &metav1.DeleteOptions{})
+				Delete(ctx, functionEvent.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return errors.Wrap(err, "Failed to delete function event")
 			}
