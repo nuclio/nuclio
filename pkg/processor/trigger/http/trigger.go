@@ -203,11 +203,6 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	event := &h.events[workerIndex]
 	event.ctx = ctx
 
-	// it is unsafe to use fasthttp.Request from concurrently running goroutines, copy it if we can
-	if common.ByteSliceToString(ctx.Request.Header.Peek("Content-Type")) != "multipart/form-data" {
-		ctx.Request.CopyTo(&event.ctx.Request)
-	}
-
 	// submit to worker
 	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, event)
 
