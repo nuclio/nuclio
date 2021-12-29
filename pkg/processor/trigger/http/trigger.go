@@ -220,17 +220,27 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 }
 
 func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
-
+	var times []time.Duration
 	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
-
+		start := time.Now()
 		// ensure request is part of CORS pre-flight
 		if h.ensureRequestIsCORSPreflightRequest(ctx) {
 			h.handlePreflightRequest(ctx)
 		} else {
 			h.handleRequest(ctx)
 		}
+		elapsed := time.Now().Sub(start)
+		times = append(times, elapsed)
+		h.Logger.DebugWith("Elapsed time", "elapsed", elapsed)
+
+		var sum int64 = 0
+		for i := 0; i < len(times); i++ {
+			sum += times[i].Milliseconds()
+		}
+		avg := (float64(sum)) / (float64(len(times)))
+		h.Logger.DebugWith("Average time", "avg", avg, "requests", len(times))
 	}
 }
 
