@@ -235,14 +235,14 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 		}
 		elapsed := time.Now().Sub(start)
 		h.times = append(h.times, elapsed.Microseconds())
-		h.Logger.DebugWith("Elapsed time", "elapsed", elapsed.String())
+		h.Logger.DebugWith("Elapsed time in micro", "elapsed", elapsed.Microseconds())
 
 		var sum int64 = 0
 		for i := 0; i < len(h.times); i++ {
 			sum += h.times[i]
 		}
 		avg := (float64(sum)) / (float64(len(h.times)))
-		h.Logger.DebugWith("Average time", "avg", avg, "requests", len(h.times), "sum", sum)
+		h.Logger.DebugWith("Average time in micro", "avg", avg, "requests", len(h.times), "sum", sum)
 	}
 }
 
