@@ -311,6 +311,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
 			})
 		if err != nil {
+			lc.logger.DebugWith("Failed to get deployment pods", "err", err.Error())
 			continue
 		}
 
@@ -319,7 +320,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			podsList,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 
-			return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
+			return errors.Wrapf(err, "NuclioFunction %s deployment failed", name), functionconfig.FunctionStateError
 		}
 	}
 }
