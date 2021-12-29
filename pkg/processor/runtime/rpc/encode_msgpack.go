@@ -3,7 +3,6 @@ package rpc
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/nuclio/nuclio/pkg/common"
 	"io"
 
 	"github.com/nuclio/errors"
@@ -35,7 +34,7 @@ func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
 	if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
 		eventToEncode["body"] = bodyObject
 	} else {
-		eventToEncode["body"] = common.ByteSliceToString(event.GetBody())
+		eventToEncode["body"] = event.GetBody()
 	}
 
 	e.buf.Reset()
