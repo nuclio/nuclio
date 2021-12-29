@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"io"
 
@@ -34,7 +35,7 @@ func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
 	if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
 		eventToEncode["body"] = bodyObject
 	} else {
-		eventToEncode["body"] = event.GetBody()
+		eventToEncode["body"] = base64.StdEncoding.EncodeToString(event.GetBody())
 	}
 
 	e.buf.Reset()
