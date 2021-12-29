@@ -272,7 +272,6 @@ class Wrapper(object):
         # resolve msgpack event message
         event_message = next(self._unpacker)
 
-        self._logger.debug_with("resolving event", _event_deserializer_kind=self._event_deserializer_kind)
         # instantiate event message
         return nuclio_sdk.Event.deserialize(event_message, kind=self._event_deserializer_kind)
 
