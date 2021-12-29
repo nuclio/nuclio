@@ -220,7 +220,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 }
 
 func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
-	var times []time.Duration
+	var times []int64
 	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
@@ -232,12 +232,12 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 			h.handleRequest(ctx)
 		}
 		elapsed := time.Now().Sub(start)
-		times = append(times, elapsed)
+		times = append(times, elapsed.Milliseconds())
 		h.Logger.DebugWith("Elapsed time", "elapsed", elapsed)
 
 		var sum int64 = 0
 		for i := 0; i < len(times); i++ {
-			sum += times[i].Milliseconds()
+			sum += times[i]
 		}
 		avg := (float64(sum)) / (float64(len(times)))
 		h.Logger.DebugWith("Average time", "avg", avg, "requests", len(times), "sum", sum)
