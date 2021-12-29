@@ -240,7 +240,7 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 			sum += times[i].Milliseconds()
 		}
 		avg := (float64(sum)) / (float64(len(times)))
-		h.Logger.DebugWith("Average time", "avg", avg, "requests", len(times))
+		h.Logger.DebugWith("Average time", "avg", avg, "requests", len(times), "sum", sum)
 	}
 }
 
