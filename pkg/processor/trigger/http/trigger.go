@@ -54,6 +54,7 @@ type http struct {
 	answering          []uint64 // flag the worker is answering
 	server             *fasthttp.Server
 	internalHealthPath []byte
+	times              []int64
 }
 
 func newTrigger(logger logger.Logger,
@@ -97,6 +98,7 @@ func newTrigger(logger logger.Logger,
 		internalHealthPath: []byte(InternalHealthPath),
 	}
 
+	newTrigger.times = []int64{}
 	newTrigger.allocateEvents(numWorkers)
 	return &newTrigger, nil
 }
@@ -220,7 +222,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 }
 
 func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
-	var times []int64
+
 	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
@@ -232,15 +234,15 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 			h.handleRequest(ctx)
 		}
 		elapsed := time.Now().Sub(start)
-		times = append(times, elapsed.Milliseconds())
+		h.times = append(h.times, elapsed.Milliseconds())
 		h.Logger.DebugWith("Elapsed time", "elapsed", elapsed)
 
 		var sum int64 = 0
-		for i := 0; i < len(times); i++ {
-			sum += times[i]
+		for i := 0; i < len(h.times); i++ {
+			sum += h.times[i]
 		}
-		avg := (float64(sum)) / (float64(len(times)))
-		h.Logger.DebugWith("Average time", "avg", avg, "requests", len(times), "sum", sum)
+		avg := (float64(sum)) / (float64(len(h.times)))
+		h.Logger.DebugWith("Average time", "avg", avg, "requests", len(h.times), "sum", sum)
 	}
 }
 
