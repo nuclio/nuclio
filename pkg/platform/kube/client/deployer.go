@@ -153,6 +153,7 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionInstance.Name = functionConfig.Meta.Name
 	functionInstance.Namespace = functionConfig.Meta.Namespace
 	functionInstance.Annotations = functionConfig.Meta.Annotations
+	functionInstance.ResourceVersion = functionConfig.Meta.ResourceVersion
 
 	// set labels only on function creation (never on update)
 	if !functionExisted {
