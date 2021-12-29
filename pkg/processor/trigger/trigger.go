@@ -265,6 +265,7 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	if err != nil {
 		return nil, err
 	}
+	at.Logger.DebugWith("processing event", "worker config", workerInstance.GetRuntime().GetConfiguration())
 
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)
 
