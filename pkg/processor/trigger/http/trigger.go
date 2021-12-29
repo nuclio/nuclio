@@ -54,7 +54,6 @@ type http struct {
 	answering          []uint64 // flag the worker is answering
 	server             *fasthttp.Server
 	internalHealthPath []byte
-	times              []int64
 }
 
 func newTrigger(logger logger.Logger,
@@ -98,7 +97,6 @@ func newTrigger(logger logger.Logger,
 		internalHealthPath: []byte(InternalHealthPath),
 	}
 
-	newTrigger.times = []int64{}
 	newTrigger.allocateEvents(numWorkers)
 	return &newTrigger, nil
 }
@@ -226,23 +224,13 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 	// when CORS is enabled, processor HTTP server is responding to "PreflightRequestMethod" (e.g.: OPTIONS)
 	// That means => function will not be able to answer on the method configured by PreflightRequestMethod
 	return func(ctx *fasthttp.RequestCtx) {
-		start := time.Now()
+
 		// ensure request is part of CORS pre-flight
 		if h.ensureRequestIsCORSPreflightRequest(ctx) {
 			h.handlePreflightRequest(ctx)
 		} else {
 			h.handleRequest(ctx)
 		}
-		elapsed := time.Now().Sub(start)
-		h.times = append(h.times, elapsed.Microseconds())
-		h.Logger.DebugWith("Elapsed time in micro", "elapsed", elapsed.Microseconds())
-
-		var sum int64 = 0
-		for i := 0; i < len(h.times); i++ {
-			sum += h.times[i]
-		}
-		avg := (float64(sum)) / (float64(len(h.times)))
-		h.Logger.DebugWith("Average time in micro", "avg", avg, "requests", len(h.times), "sum", sum)
 	}
 }
 

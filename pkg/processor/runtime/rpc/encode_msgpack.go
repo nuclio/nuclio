@@ -3,8 +3,9 @@ package rpc
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/nuclio/nuclio/pkg/common"
 	"io"
+
+	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
