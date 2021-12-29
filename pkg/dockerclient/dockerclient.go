@@ -55,6 +55,9 @@ type Client interface {
 	// StartContainer starts a container given a container ID
 	StartContainer(containerID string) error
 
+	// GetContainerPort returns container port
+	GetContainerPort(container *Container, boundPort int) (int, error)
+
 	// GetContainerLogs returns raw logs from a given container ID
 	GetContainerLogs(containerID string) (string, error)
 

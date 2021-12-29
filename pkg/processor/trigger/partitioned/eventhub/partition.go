@@ -22,9 +22,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
+	"github.com/Azure/go-amqp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"pack.ag/amqp"
 )
 
 type partition struct {
@@ -85,8 +85,7 @@ func (p *partition) Read() error {
 		}
 
 		// Accept message
-		err = msg.Accept()
-		if err != nil {
+		if err := receiver.AcceptMessage(ctx, msg); err != nil {
 			return errors.Wrap(err, "Error Accepting message from AMQP")
 		}
 
