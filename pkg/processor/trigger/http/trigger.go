@@ -234,8 +234,8 @@ func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
 			h.handleRequest(ctx)
 		}
 		elapsed := time.Now().Sub(start)
-		h.times = append(h.times, elapsed.Milliseconds())
-		h.Logger.DebugWith("Elapsed time", "elapsed", elapsed)
+		h.times = append(h.times, elapsed.Microseconds())
+		h.Logger.DebugWith("Elapsed time", "elapsed", elapsed.String())
 
 		var sum int64 = 0
 		for i := 0; i < len(h.times); i++ {
