@@ -303,6 +303,12 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(c
 		return errors.New("Failed to disable function: non-deployed functions cannot be disabled")
 	}
 
+	// do not allow updating functions that are being provisioned
+	if existingFunctionConfig != nil &&
+		functionconfig.FunctionStateProvisioning(existingFunctionConfig.Status.State) {
+		return errors.New("Function cannot be created when existing function is being provisioned")
+	}
+
 	// do not allow disabling a function being used by an api gateway
 	if existingFunctionConfig != nil &&
 		len(existingFunctionConfig.Status.APIGateways) > 0 &&
