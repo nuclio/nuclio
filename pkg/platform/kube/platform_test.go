@@ -818,7 +818,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 
 			if testCase.opaResponse {
 				suite.nuclioAPIGatewayInterfaceMock.
-					On("List", metav1.ListOptions{}).
+					On("List", mock.MatchedBy(suite.matchContext), metav1.ListOptions{}).
 					Return(&v1beta1.NuclioAPIGatewayList{}, nil).
 					Once()
 				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())

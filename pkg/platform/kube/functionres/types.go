@@ -12,7 +12,7 @@ import (
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
-	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 type PlatformConfigurationProvider interface {
@@ -61,7 +61,7 @@ type Resources interface {
 	HorizontalPodAutoscaler() (*autosv2.HorizontalPodAutoscaler, error)
 
 	// Ingress returns the ingress
-	Ingress() (*extv1beta1.Ingress, error)
+	Ingress() (*networkingv1.Ingress, error)
 
 	// CronJobs returns the cron job
 	CronJobs() ([]*batchv1beta1.CronJob, error)

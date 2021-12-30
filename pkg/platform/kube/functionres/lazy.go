@@ -54,7 +54,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
-	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
@@ -1103,7 +1102,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 
 func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 	functionLabels labels.Set,
-	function *nuclioio.NuclioFunction) (*extv1beta1.Ingress, error) {
+	function *nuclioio.NuclioFunction) (*networkingv1.Ingress, error) {
 
 	getIngress := func() (interface{}, error) {
 		return lc.kubeClientSet.NetworkingV1().
@@ -1112,7 +1111,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 	}
 
 	ingressIsDeleting := func(resource interface{}) bool {
-		return (resource).(*extv1beta1.Ingress).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*networkingv1.Ingress).ObjectMeta.DeletionTimestamp != nil
 	}
 
 	createIngress := func() (interface{}, error) {
@@ -1201,7 +1200,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 		return nil, nil
 	}
 
-	return resource.(*extv1beta1.Ingress), err
+	return resource.(*networkingv1.Ingress), err
 }
 
 func (lc *lazyClient) deleteCronJobs(ctx context.Context, functionName, functionNamespace string) error {
@@ -2323,7 +2322,7 @@ type lazyResources struct {
 	configMap               *v1.ConfigMap
 	service                 *v1.Service
 	horizontalPodAutoscaler *autosv2.HorizontalPodAutoscaler
-	ingress                 *extv1beta1.Ingress
+	ingress                 *networkingv1.Ingress
 	cronJobs                []*batchv1beta1.CronJob
 }
 
@@ -2348,7 +2347,7 @@ func (lr *lazyResources) HorizontalPodAutoscaler() (*autosv2.HorizontalPodAutosc
 }
 
 // Ingress returns the ingress
-func (lr *lazyResources) Ingress() (*extv1beta1.Ingress, error) {
+func (lr *lazyResources) Ingress() (*networkingv1.Ingress, error) {
 	return lr.ingress, nil
 }
 
