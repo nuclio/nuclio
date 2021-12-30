@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_kube
+//go:build test_integration && test_kube
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -30,8 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ghodss/yaml"
-	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -47,6 +44,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
+	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
