@@ -255,21 +255,22 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		functionInfo.Spec.Build.Offline = dashboardServer.Offline
 
 		// just deploy. the status is async through polling
-		if _, err := fr.getPlatform().CreateFunction(ctx, &platform.CreateFunctionOptions{
-			Logger: fr.Logger,
-			FunctionConfig: functionconfig.Config{
-				Meta: *functionInfo.Meta,
-				Spec: *functionInfo.Spec,
-			},
-			CreationStateUpdated:       creationStateUpdatedChan,
-			AuthConfig:                 authConfig,
-			DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
-			AuthSession:                fr.getCtxSession(request),
-			PermissionOptions: opa.PermissionOptions{
-				MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
-				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
-			},
-		}); err != nil {
+		if _, err := fr.getPlatform().CreateFunction(ctx,
+			&platform.CreateFunctionOptions{
+				Logger: fr.Logger,
+				FunctionConfig: functionconfig.Config{
+					Meta: *functionInfo.Meta,
+					Spec: *functionInfo.Spec,
+				},
+				CreationStateUpdated:       creationStateUpdatedChan,
+				AuthConfig:                 authConfig,
+				DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
+				AuthSession:                fr.getCtxSession(request),
+				PermissionOptions: opa.PermissionOptions{
+					MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
+					OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+				},
+			}); err != nil {
 			fr.Logger.WarnWithCtx(ctx, "Failed to deploy function", "err", err)
 			errDeployingChan <- err
 		}

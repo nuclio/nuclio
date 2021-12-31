@@ -17,15 +17,11 @@ limitations under the License.
 package restful
 
 import (
-	"bytes"
-	"io/ioutil"
 	"net/http"
-	"strings"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/registry"
+	nucliomiddleware "github.com/nuclio/nuclio/pkg/restful/middleware"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -68,9 +64,6 @@ func NewAbstractServer(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create router")
 	}
-
-	// first install request / response handler
-	newServer.Router.Use(newServer.requestResponseLogger())
 
 	// install the middleware
 	if err := server.InstallMiddleware(newServer.Router); err != nil {
@@ -117,9 +110,11 @@ func (s *AbstractServer) Start() error {
 }
 
 func (s *AbstractServer) InstallMiddleware(router chi.Router) error {
+	router.Use(nucliomiddleware.RequestResponseLogger(s.Logger))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.StripSlashes)
-
+	router.Use(nucliomiddleware.RequestID)
+	router.Use(nucliomiddleware.AlignRequestIDKeyToLogger)
 	return nil
 }
 
@@ -143,52 +138,4 @@ func (s *AbstractServer) readConfiguration(configuration *platformconfig.WebServ
 	s.ListenAddress = configuration.ListenAddress
 
 	return nil
-}
-
-func (s *AbstractServer) requestResponseLogger() func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, request *http.Request) {
-			responseBodyBuffer := bytes.Buffer{}
-
-			// create a response wrapper so we can access stuff
-			responseWrapper := middleware.NewWrapResponseWriter(w, request.ProtoMajor)
-			responseWrapper.Tee(&responseBodyBuffer)
-
-			// take start time
-			requestStartTime := time.Now()
-
-			// get request body
-			requestBody, _ := ioutil.ReadAll(request.Body)
-
-			// restore body for further processing
-			request.Body = ioutil.NopCloser(bytes.NewBuffer(requestBody))
-
-			// when request processing is done, log the request / response
-			defer func() {
-				logVars := []interface{}{
-					"requestMethod", request.Method,
-					"requestPath", request.URL,
-					"requestHeaders", request.Header,
-					"requestBody", string(requestBody),
-					"responseStatus", responseWrapper.Status(),
-					"responseTime", time.Since(requestStartTime),
-				}
-
-				// response body is too spammy
-				if !common.StringSliceContainsStringPrefix([]string{
-					"/api/functions",
-					"/api/function_templates",
-				}, strings.TrimSuffix(request.URL.Path, "/")) {
-					logVars = append(logVars, "responseBody", responseBodyBuffer.String())
-				}
-
-				s.Logger.DebugWith("Handled request", logVars...)
-			}()
-
-			// call next middleware
-			next.ServeHTTP(responseWrapper, request)
-		}
-
-		return http.HandlerFunc(fn)
-	}
 }
