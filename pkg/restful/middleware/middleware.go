@@ -12,10 +12,10 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nuclio/logger"
+	nucliozap "github.com/nuclio/zap"
 )
 
-// LoggerusRequestIDKey TODO: make configurable on nuclio
-const LoggerusRequestIDKey = "requestID"
+const ZapRequestIDKey = nucliozap.DefaultContextUniqueIDKey
 const IguazioContextHeaderName = "igz-ctx"
 
 // RequestID is a middleware that injects a request ID into the context of each
@@ -34,13 +34,13 @@ func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-// AlignRequestIDKeyToLogger transform server framework request ID to Nuclio's logger context value for
+// AlignRequestIDKeyToZapLogger transform server framework request ID to Nuclio Zap's logger context value for
 // a unique request ID
-func AlignRequestIDKeyToLogger(next http.Handler) http.Handler {
+func AlignRequestIDKeyToZapLogger(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		if requestID := ctx.Value(middleware.RequestIDKey); requestID != nil {
-			ctx = context.WithValue(ctx, LoggerusRequestIDKey, requestID)
+			ctx = context.WithValue(ctx, ZapRequestIDKey, requestID)
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return

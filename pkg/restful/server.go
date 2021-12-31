@@ -114,7 +114,7 @@ func (s *AbstractServer) InstallMiddleware(router chi.Router) error {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.StripSlashes)
 	router.Use(nucliomiddleware.RequestID)
-	router.Use(nucliomiddleware.AlignRequestIDKeyToLogger)
+	router.Use(nucliomiddleware.AlignRequestIDKeyToZapLogger)
 	return nil
 }
 
