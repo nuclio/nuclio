@@ -65,7 +65,8 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 	// the function will be created if it doesn't exit, otherwise will updated
 	functionExists := functionInstance != nil
 
-	createFunctionOptions.Logger.DebugWithCtx(ctx, "Creating/updating function",
+	createFunctionOptions.Logger.DebugWithCtx(ctx,
+		"Creating/updating function",
 		"functionExists", functionExists,
 		"functionInstance", functionInstance)
 
@@ -86,7 +87,8 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to populate function")
 	}
 
-	createFunctionOptions.Logger.DebugWithCtx(ctx, "Populated function with configuration and status",
+	createFunctionOptions.Logger.DebugWithCtx(ctx,
+		"Populated function with configuration and status",
 		"function", functionInstance,
 		"functionExists", functionExists)
 
@@ -114,12 +116,14 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 	return functionInstance, nil
 }
 
-func (d *Deployer) Deploy(ctx context.Context, functionInstance *nuclioio.NuclioFunction,
+func (d *Deployer) Deploy(ctx context.Context,
+	functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, *nuclioio.NuclioFunction, string, error) {
 
 	// do the create / update
 	// TODO: Infer timestamp from function config (consider create/update scenarios)
-	if _, err := d.CreateOrUpdateFunction(ctx, functionInstance,
+	if _, err := d.CreateOrUpdateFunction(ctx,
+		functionInstance,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
@@ -153,7 +157,6 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionInstance.Name = functionConfig.Meta.Name
 	functionInstance.Namespace = functionConfig.Meta.Namespace
 	functionInstance.Annotations = functionConfig.Meta.Annotations
-	functionInstance.ResourceVersion = functionConfig.Meta.ResourceVersion
 
 	// set labels only on function creation (never on update)
 	if !functionExisted {

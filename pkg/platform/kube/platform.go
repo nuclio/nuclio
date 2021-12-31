@@ -199,9 +199,13 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" &&
 		createFunctionOptions.FunctionConfig.Meta.Name != "" {
 		existingFunctionInstance, existingFunctionConfig, err =
-			p.getFunctionInstanceAndConfig(ctx, createFunctionOptions.FunctionConfig.Meta.Namespace,
-				createFunctionOptions.FunctionConfig.Meta.Name,
-				true)
+			p.getFunctionInstanceAndConfig(ctx,
+				&platform.GetFunctionsOptions{
+					Namespace:             createFunctionOptions.FunctionConfig.Meta.Namespace,
+					Name:                  createFunctionOptions.FunctionConfig.Meta.Name,
+					ResourceVersion:       createFunctionOptions.FunctionConfig.Meta.ResourceVersion,
+					EnrichWithAPIGateways: true,
+				})
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get an existing function configuration")
 		}
@@ -286,7 +290,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
 		// it is guaranteed to be created and updated with the reported error state
-		_, err := p.deployer.CreateOrUpdateFunction(ctx, existingFunctionInstance,
+		_, err := p.deployer.CreateOrUpdateFunction(ctx,
+			existingFunctionInstance,
 			createFunctionOptions,
 			functionStatus,
 		)
@@ -303,8 +308,12 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			return errors.Wrap(err, "Failed to enrich and validate an updated function configuration")
 		}
 
-		existingFunctionInstance, err = p.getFunction(ctx, createFunctionOptions.FunctionConfig.Meta.Namespace,
-			createFunctionOptions.FunctionConfig.Meta.Name)
+		existingFunctionInstance, err = p.getFunction(ctx,
+			&platform.GetFunctionsOptions{
+				Namespace:       createFunctionOptions.FunctionConfig.Meta.Namespace,
+				Name:            createFunctionOptions.FunctionConfig.Meta.Name,
+				ResourceVersion: createFunctionOptions.FunctionConfig.Meta.ResourceVersion,
+			})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get a function")
 		}
@@ -1203,15 +1212,18 @@ func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
 	return nil
 }
 
-func (p *Platform) getFunction(ctx context.Context, namespace, name string) (*nuclioio.NuclioFunction, error) {
+func (p *Platform) getFunction(ctx context.Context,
+	getFunctionOptions *platform.GetFunctionsOptions) (*nuclioio.NuclioFunction, error) {
 	p.Logger.DebugWithCtx(ctx, "Getting function",
-		"namespace", namespace,
-		"name", name)
+		"namespace", getFunctionOptions.Namespace,
+		"name", getFunctionOptions.Name)
 
 	// get specific function CR
 	function, err := p.consumer.NuclioClientSet.NuclioV1beta1().
-		NuclioFunctions(namespace).
-		Get(name, metav1.GetOptions{})
+		NuclioFunctions(getFunctionOptions.Namespace).
+		Get(getFunctionOptions.Name, metav1.GetOptions{
+			ResourceVersion: getFunctionOptions.ResourceVersion,
+		})
 	if err != nil {
 
 		// if we didn't find the function, return nothing
@@ -1223,18 +1235,16 @@ func (p *Platform) getFunction(ctx context.Context, namespace, name string) (*nu
 	}
 
 	p.Logger.DebugWithCtx(ctx, "Completed getting function",
-		"name", name,
-		"namespace", namespace,
+		"name", getFunctionOptions.Name,
+		"namespace", getFunctionOptions.Namespace,
 		"function", function)
 
 	return function, nil
 }
 
 func (p *Platform) getFunctionInstanceAndConfig(ctx context.Context,
-	namespace string,
-	name string,
-	enrichWithAPIGateway bool) (*nuclioio.NuclioFunction, *functionconfig.ConfigWithStatus, error) {
-	functionInstance, err := p.getFunction(ctx, namespace, name)
+	getFunctionOptions *platform.GetFunctionsOptions) (*nuclioio.NuclioFunction, *functionconfig.ConfigWithStatus, error) {
+	functionInstance, err := p.getFunction(ctx, getFunctionOptions)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get a function")
 	}
@@ -1245,9 +1255,9 @@ func (p *Platform) getFunctionInstanceAndConfig(ctx context.Context,
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to create a new function instance")
 		}
-		if enrichWithAPIGateway {
+		if getFunctionOptions.EnrichWithAPIGateways {
 			if err := p.enrichFunctionsWithAPIGateways([]platform.Function{initializedFunctionInstance},
-				namespace); err != nil {
+				getFunctionOptions.Namespace); err != nil {
 				return nil, nil, errors.Wrap(err, "Failed to enrich function with api gateway")
 			}
 			functionInstance.Status.APIGateways = initializedFunctionInstance.GetConfigWithStatus().Status.APIGateways
@@ -1683,7 +1693,10 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 	for _, upstream := range apiGateway.Spec.Upstreams {
 		upstream := upstream
 		errGroup.Go("GetUpstreamFunction", func() error {
-			function, err := p.getFunction(ctx, apiGateway.Meta.Namespace, upstream.NuclioFunction.Name)
+			function, err := p.getFunction(ctx, &platform.GetFunctionsOptions{
+				Namespace: apiGateway.Meta.Namespace,
+				Name:      upstream.NuclioFunction.Name,
+			})
 			if err != nil {
 				return errors.New("Failed to get upstream function")
 			}
