@@ -15,9 +15,12 @@ import (
 	nucliozap "github.com/nuclio/zap"
 )
 
+type ContextKey int
+
 const (
-	IguazioContextHeaderName = "igz-ctx"
-	IguazioContextKey        = "igzCtx"
+	iguazioContextHeaderName = "igz-ctx"
+
+	IguazioContextKey ContextKey = iota
 )
 
 // RequestID is a middleware that injects a request ID into the context of each
@@ -26,7 +29,7 @@ const (
 func RequestID(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if requestID := r.Header.Get(IguazioContextHeaderName); requestID != "" {
+		if requestID := r.Header.Get(iguazioContextHeaderName); requestID != "" {
 
 			// for logging purposes
 			ctx = context.WithValue(ctx, middleware.RequestIDKey, requestID)
@@ -58,7 +61,6 @@ func AlignRequestIDKeyToZapLogger(next http.Handler) http.Handler {
 			ctx = context.WithValue(ctx, nucliozap.DefaultContextIDKey, requestID)
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
-		return
 	}
 	return http.HandlerFunc(fn)
 }
