@@ -110,11 +110,11 @@ func (s *AbstractServer) Start() error {
 }
 
 func (s *AbstractServer) InstallMiddleware(router chi.Router) error {
-	router.Use(nucliomiddleware.RequestResponseLogger(s.Logger))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.StripSlashes)
 	router.Use(nucliomiddleware.RequestID)
 	router.Use(nucliomiddleware.AlignRequestIDKeyToZapLogger)
+	router.Use(nucliomiddleware.RequestResponseLogger(s.Logger))
 	return nil
 }
 

@@ -29,7 +29,11 @@ func RequestID(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		middleware.RequestID(next)
+
+		// use framework defaults
+		middleware.
+			RequestID(next).
+			ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
 }
@@ -86,7 +90,7 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 					logVars = append(logVars, "responseBody", responseBodyBuffer.String())
 				}
 
-				logger.DebugWith("Handled request", logVars...)
+				logger.DebugWithCtx(request.Context(), "Handled request", logVars...)
 			}()
 
 			// call next middleware

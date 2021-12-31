@@ -195,10 +195,6 @@ func (s *Server) GetPlatformConfiguration() *platformconfig.Config {
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {
-	if err := s.AbstractServer.InstallMiddleware(router); err != nil {
-		return err
-	}
-
 	corsOptions := cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},

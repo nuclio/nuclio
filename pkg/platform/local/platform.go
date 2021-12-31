@@ -344,7 +344,9 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+func (p *Platform) GetFunctions(ctx context.Context,
+	getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+
 	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
