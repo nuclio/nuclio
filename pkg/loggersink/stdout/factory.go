@@ -57,6 +57,7 @@ func (f *factory) Create(name string,
 	encoderConfig.JSON.VarGroupMode = configuration.VarGroupMode
 	encoderConfig.JSON.TimeFieldName = configuration.TimeFieldName
 	encoderConfig.JSON.TimeFieldEncoding = configuration.TimeFieldEncoding
+	encoderConfig.ContextIDKey = configuration.ContextIDKey
 
 	return nucliozap.NewNuclioZap(name,
 		configuration.Encoding,
