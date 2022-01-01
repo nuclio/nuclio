@@ -66,7 +66,7 @@ func NewAbstractServer(parentLogger logger.Logger,
 	}
 
 	// install the middleware
-	if err := server.InstallMiddleware(newServer.Router); err != nil {
+	if err := newServer.InstallMiddleware(newServer.Router); err != nil {
 		return nil, errors.Wrap(err, "Failed to install middleware")
 	}
 
@@ -119,13 +119,7 @@ func (s *AbstractServer) InstallMiddleware(router chi.Router) error {
 }
 
 func (s *AbstractServer) createRouter() (chi.Router, error) {
-	router := chi.NewRouter()
-
-	if err := s.InstallMiddleware(router); err != nil {
-		return nil, errors.Wrap(err, "Failed to install middleware")
-	}
-
-	return router, nil
+	return chi.NewRouter(), nil
 }
 
 func (s *AbstractServer) readConfiguration(configuration *platformconfig.WebServer) error {
