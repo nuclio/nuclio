@@ -32,7 +32,6 @@ type Configuration struct {
 	VarGroupMode      nucliozap.VarGroupMode
 	TimeFieldName     string
 	TimeFieldEncoding string
-	ContextIDKey      nucliozap.ContextIDKey
 }
 
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (*Configuration, error) {
@@ -65,10 +64,6 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 		default:
 			newConfiguration.VarGroupMode = nucliozap.VarGroupModeFlattened
 		}
-	}
-
-	if newConfiguration.ContextIDKey == "" {
-		newConfiguration.ContextIDKey = nucliozap.DefaultContextIDKey
 	}
 
 	return &newConfiguration, nil

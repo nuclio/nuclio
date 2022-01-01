@@ -172,7 +172,3 @@ require (
 )
 
 replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014
-
-
-// TODO: remove and bump once released
-replace github.com/nuclio/zap => github.com/liranbg/zap v0.0.5-0.20211231214142-1431662192d4

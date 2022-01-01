@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nuclio/logger"
-	nucliozap "github.com/nuclio/zap"
 )
 
 type ContextKey int
@@ -55,10 +54,8 @@ func AlignRequestIDKeyToZapLogger(next http.Handler) http.Handler {
 		ctx := r.Context()
 		if requestID := ctx.Value(middleware.RequestIDKey); requestID != nil {
 
-			// TODO: dynamically read key from logger encoding options
-
-			// make logger bind context and log it
-			ctx = context.WithValue(ctx, nucliozap.DefaultContextIDKey, requestID)
+			// TODO: make logger bind context and log it
+			ctx = context.WithValue(ctx, "RequestID", requestID)
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
