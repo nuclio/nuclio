@@ -31,6 +31,9 @@ import (
 
 type Server interface {
 
+	// Initialize initialized server
+	Initialize(configuration *platformconfig.WebServer) error
+
 	// InstallMiddleware installs middlewares on a router
 	InstallMiddleware(router chi.Router) error
 
@@ -49,8 +52,7 @@ type AbstractServer struct {
 
 func NewAbstractServer(parentLogger logger.Logger,
 	resourceRegistry *registry.Registry,
-	server Server,
-	configuration *platformconfig.WebServer) (*AbstractServer, error) {
+	server Server) (*AbstractServer, error) {
 
 	var err error
 
@@ -65,33 +67,38 @@ func NewAbstractServer(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create router")
 	}
 
+	return newServer, nil
+}
+
+func (s *AbstractServer) Initialize(configuration *platformconfig.WebServer) error {
+
 	// install the middleware
-	if err := newServer.InstallMiddleware(newServer.Router); err != nil {
-		return nil, errors.Wrap(err, "Failed to install middleware")
+	if err := s.server.InstallMiddleware(s.Router); err != nil {
+		return errors.Wrap(err, "Failed to install middleware")
 	}
 
-	if err := newServer.readConfiguration(configuration); err != nil {
-		return nil, errors.Wrap(err, "Failed to read configuration")
+	if err := s.readConfiguration(configuration); err != nil {
+		return errors.Wrap(err, "Failed to read configuration")
 	}
 
 	// create the resources registered
-	for _, resourceName := range newServer.resourceRegistry.GetKinds() {
-		resolvedResource, _ := newServer.resourceRegistry.Get(resourceName)
+	for _, resourceName := range s.resourceRegistry.GetKinds() {
+		resolvedResource, _ := s.resourceRegistry.Get(resourceName)
 		resourceInstance := resolvedResource.(Resource)
 
 		// create the resource router and add it
-		resourceRouter, err := resourceInstance.Initialize(newServer.Logger, newServer.server)
+		resourceRouter, err := resourceInstance.Initialize(s.Logger, s.server)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to create resource router for %s", resourceName)
+			return errors.Wrapf(err, "Failed to create resource router for %s", resourceName)
 		}
 
 		// register the router into the root router
-		newServer.Router.Mount("/"+resourceName, resourceRouter)
+		s.Router.Mount("/"+resourceName, resourceRouter)
 
-		newServer.Logger.DebugWith("Registered resource", "name", resourceName)
+		s.Logger.DebugWith("Registered resource", "name", resourceName)
 	}
 
-	return newServer, nil
+	return nil
 }
 
 func (s *AbstractServer) Start() error {

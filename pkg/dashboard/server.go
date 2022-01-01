@@ -122,11 +122,13 @@ func NewServer(parentLogger logger.Logger,
 	// create server
 	newServer.AbstractServer, err = restful.NewAbstractServer(parentLogger,
 		DashboardResourceRegistrySingleton,
-		newServer,
-		configuration)
-
+		newServer)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
+	}
+
+	if err := newServer.Initialize(configuration); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize new server")
 	}
 
 	// try to load docker keys, ignoring errors
@@ -195,6 +197,10 @@ func (s *Server) GetPlatformConfiguration() *platformconfig.Config {
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {
+	if err := s.AbstractServer.InstallMiddleware(router); err != nil {
+		return errors.Wrap(err, "Failed to install abstract server router middleware")
+	}
+
 	corsOptions := cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
