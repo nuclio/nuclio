@@ -55,7 +55,7 @@ func AlignRequestIDKeyToZapLogger(next http.Handler) http.Handler {
 		if requestID := ctx.Value(middleware.RequestIDKey); requestID != nil {
 
 			// TODO: make logger bind context and log it
-			ctx = context.WithValue(ctx, "RequestID", requestID)
+			ctx = context.WithValue(ctx, "RequestID", requestID) // nolint: staticcheck
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
