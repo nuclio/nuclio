@@ -290,12 +290,14 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
 		// it is guaranteed to be created and updated with the reported error state
-		_, err := p.deployer.CreateOrUpdateFunction(ctx,
+		if _, err := p.deployer.CreateOrUpdateFunction(ctx,
 			existingFunctionInstance,
 			createFunctionOptions,
 			functionStatus,
-		)
-		return err
+		); err != nil {
+			return errors.Wrap(err, "Failed to create or update function")
+		}
+		return nil
 	}
 
 	// the builder may update the configuration, so we have to create the function in the platform only after
@@ -1221,9 +1223,10 @@ func (p *Platform) getFunction(ctx context.Context,
 	// get specific function CR
 	function, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(getFunctionOptions.Namespace).
-		Get(getFunctionOptions.Name, metav1.GetOptions{
-			ResourceVersion: getFunctionOptions.ResourceVersion,
-		})
+		Get(getFunctionOptions.Name,
+			metav1.GetOptions{
+				ResourceVersion: getFunctionOptions.ResourceVersion,
+			})
 	if err != nil {
 
 		// if we didn't find the function, return nothing
@@ -1693,10 +1696,11 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 	for _, upstream := range apiGateway.Spec.Upstreams {
 		upstream := upstream
 		errGroup.Go("GetUpstreamFunction", func() error {
-			function, err := p.getFunction(ctx, &platform.GetFunctionsOptions{
-				Namespace: apiGateway.Meta.Namespace,
-				Name:      upstream.NuclioFunction.Name,
-			})
+			function, err := p.getFunction(ctx,
+				&platform.GetFunctionsOptions{
+					Namespace: apiGateway.Meta.Namespace,
+					Name:      upstream.NuclioFunction.Name,
+				})
 			if err != nil {
 				return errors.New("Failed to get upstream function")
 			}

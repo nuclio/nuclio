@@ -108,7 +108,6 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 			NuclioFunctions(functionInstance.Namespace).
 			Update(functionInstance)
 	}
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update function")
 	}
