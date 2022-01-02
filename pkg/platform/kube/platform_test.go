@@ -1763,9 +1763,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 			// mock kubernetes update
 			suite.nuclioAPIGatewayInterfaceMock.
 				On("Update",
-				suite.ctx,
-				mock.MatchedBy(verifyAPIGatewayToUpdate),
-				mock.Anything).
+					suite.ctx,
+					mock.MatchedBy(verifyAPIGatewayToUpdate),
+					mock.Anything).
 				Return(&v1beta1.NuclioAPIGateway{}, nil).
 				Once()
 
