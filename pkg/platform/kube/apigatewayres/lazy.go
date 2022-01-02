@@ -130,23 +130,27 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name 
 func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) {
 	lc.logger.DebugWithCtx(ctx, "Deleting api gateway base ingress", "name", name)
 
-	err := lc.ingressManager.DeleteByName(ctx, kube.IngressNameFromAPIGatewayName(name, false), namespace, true)
-	if err != nil {
+	if err := lc.ingressManager.DeleteByName(ctx,
+		kube.IngressNameFromAPIGatewayName(name, false),
+		namespace,
+		true); err != nil {
 		lc.logger.WarnWithCtx(ctx, "Failed to delete base ingress. Continuing with deletion",
-			"err", errors.Cause(err))
+			"err", errors.Cause(err).Error())
 	}
 
 	lc.logger.DebugWithCtx(ctx, "Deleting api gateway canary ingress", "name", name)
-
-	err = lc.ingressManager.DeleteByName(ctx, kube.IngressNameFromAPIGatewayName(name, true), namespace, true)
-	if err != nil {
+	if err := lc.ingressManager.DeleteByName(ctx,
+		kube.IngressNameFromAPIGatewayName(name, true),
+		namespace,
+		true); err != nil {
 		lc.logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
-			"err", errors.Cause(err))
+			"err", errors.Cause(err).Error())
 	}
 }
 
 func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) {
-	lc.logger.DebugWithCtx(ctx, "Trying to remove previous canary ingress",
+	lc.logger.DebugWithCtx(ctx,
+		"Trying to remove previous canary ingress",
 		"apiGatewayName", apiGateway.Name)
 
 	// remove old canary ingress if it exists
