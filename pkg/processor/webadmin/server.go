@@ -29,7 +29,10 @@ type Server struct {
 	Processor interface{}
 }
 
-func NewServer(parentLogger logger.Logger, processor interface{}, configuration *platformconfig.WebServer) (*Server, error) {
+func NewServer(parentLogger logger.Logger,
+	processor interface{},
+	configuration *platformconfig.WebServer) (*Server, error) {
+
 	var err error
 
 	newServer := &Server{Processor: processor}
@@ -40,11 +43,13 @@ func NewServer(parentLogger logger.Logger, processor interface{}, configuration 
 	// create server
 	newServer.AbstractServer, err = restful.NewAbstractServer(loggerInstance,
 		WebAdminResourceRegistrySingleton,
-		newServer,
-		configuration)
-
+		newServer)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
+	}
+
+	if err := newServer.Initialize(configuration); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize new server")
 	}
 
 	return newServer, nil
