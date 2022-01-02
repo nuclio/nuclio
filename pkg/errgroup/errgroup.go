@@ -39,7 +39,7 @@ func WithContext(ctx context.Context, loggerInstance logger.Logger) (*Group, con
 	return WithContextSemaphore(ctx, loggerInstance, 0)
 }
 
-func WithContextSemaphore(ctx context.Context, loggerInstance logger.Logger, concurrency int) (*Group, context.Context) {
+func WithContextSemaphore(ctx context.Context, loggerInstance logger.Logger, concurrency uint) (*Group, context.Context) {
 	newBaseErrgroup, errgroupCtx := errgroup.WithContext(ctx)
 
 	var semaphoreChan chan bool

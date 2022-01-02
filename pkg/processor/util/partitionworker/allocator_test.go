@@ -170,7 +170,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 
 func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 	numPartitions := runtime.NumCPU() * 4
-	numMessagesPerPartition := 10000
+	numMessagesPerPartition := numPartitions * 200
 	numWorkers := runtime.NumCPU()
 	topic := "t1"
 
@@ -232,7 +232,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 					prevWorkerIndex = workerInstance.GetIndex()
 
 					// wait a bit to simulate processing
-					time.Sleep(100 * time.Microsecond)
+					time.Sleep(50 * time.Microsecond)
 
 					// release the worker
 					err = partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)

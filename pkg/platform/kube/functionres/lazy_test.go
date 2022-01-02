@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/google/go-cmp/cmp"
@@ -56,17 +57,22 @@ func (c *mockedPlatformConfigurationProvider) GetPlatformConfiguration() *platfo
 type lazyTestSuite struct {
 	suite.Suite
 	logger logger.Logger
-	client lazyClient
+	client *lazyClient
 	ctx    context.Context
 }
 
 func (suite *lazyTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.client.logger = suite.logger
-	suite.ctx = context.Background()
+	var err error
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
 
-	// use a fake kube client
-	suite.client.kubeClientSet = fake.NewSimpleClientset()
+	// create client
+	lazyClientInstance, err := NewLazyClient(suite.logger,
+		fake.NewSimpleClientset(),
+		nuclioiofake.NewSimpleClientset())
+	suite.Require().NoError(err)
+	suite.client = lazyClientInstance.(*lazyClient)
+	suite.ctx = context.Background()
 
 	// use the default platform configuration
 	defaultPlatformConfiguration, err := platformconfig.NewPlatformConfig("")
@@ -74,6 +80,9 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: defaultPlatformConfiguration,
 	})
+
+	// dont wait for too long
+	suite.client.nodeScaleUpSleepTimeout = 100 * time.Millisecond
 }
 
 func (suite *lazyTestSuite) TestNodeConstrains() {
@@ -238,9 +247,9 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	functionLabels["nuclio.io/function-name"] = function.Name
 
 	// logs are spammy, let them
-	prevLevel := suite.client.logger.(*nucliozap.NuclioZap).GetLevel()
-	suite.client.logger.(*nucliozap.NuclioZap).SetLevel(nucliozap.InfoLevel)
-	defer suite.client.logger.(*nucliozap.NuclioZap).SetLevel(prevLevel)
+	prevLevel := suite.logger.(*nucliozap.NuclioZap).GetLevel()
+	suite.logger.(*nucliozap.NuclioZap).SetLevel(nucliozap.InfoLevel)
+	defer suite.logger.(*nucliozap.NuclioZap).SetLevel(prevLevel)
 
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: &platformconfig.Config{
@@ -521,7 +530,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "apply-me",
+							"nuclio.io/class": "function",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -530,7 +539,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "apply-me",
+							"nuclio.io/class": "function",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -545,7 +554,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "dont-apply-me",
+							"nuclio.io/class": "notfunction",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -583,17 +592,17 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 	functionInstance.Name = "func-name"
 	functionInstance.Namespace = "func-namespace"
 	functionInstance.Labels = map[string]string{
-		"nuclio.io/class": "apply-me",
+		"nuclio.io/class": "function",
 	}
 
 	deployment := appsv1.Deployment{}
 	err := suite.client.enrichDeploymentFromPlatformConfiguration(&functionInstance,
 		&deployment,
 		updateDeploymentResourceMethod)
-	suite.Equal(deployment.Spec.Strategy.Type, appsv1.RecreateDeploymentStrategyType)
-	suite.True(deployment.Spec.Paused)
-	suite.Equal(deployment.Spec.Template.Spec.ServiceAccountName, "")
 	suite.Require().NoError(err)
+	suite.Require().Equal(deployment.Spec.Strategy.Type, appsv1.RecreateDeploymentStrategyType)
+	suite.Require().Equal(deployment.Spec.Template.Spec.ServiceAccountName, "")
+	suite.Require().True(deployment.Spec.Paused)
 }
 
 func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
