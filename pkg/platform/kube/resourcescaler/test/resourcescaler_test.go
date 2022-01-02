@@ -90,6 +90,7 @@ func (suite *ResourceScalerTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 }
+
 func (suite *ResourceScalerTestSuite) SetupTest() {
 	suite.KubeTestSuite.SetupTest()
 
@@ -352,7 +353,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 	})
 }
 
-func TestControllerTestSuite(t *testing.T) {
+func TestResourceScalerTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}
