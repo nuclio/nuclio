@@ -148,10 +148,6 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 	suite.Platform.projectsClient, _ = NewProjectsClient(suite.Platform, suite.abstractPlatform.Config)
 }
 
-func (suite *KubePlatformTestSuite) matchContext(ctx context.Context) bool {
-	return true
-}
-
 type FunctionKubePlatformTestSuite struct {
 	KubePlatformTestSuite
 }
@@ -237,7 +233,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 	} {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.
-				On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
+				On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 					Meta: platform.ProjectMeta{
 						Name:      platform.DefaultProjectName,
 						Namespace: "default",
@@ -277,7 +273,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 
 	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
 	suite.nuclioAPIGatewayInterfaceMock.
-		On("List", metav1.ListOptions{}).
+		On("List", suite.ctx, metav1.ListOptions{}).
 		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
 
 	for idx, testCase := range []struct {
@@ -404,7 +400,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}
 
 			// mock get projects
-			suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
+			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
 					Name:      platform.DefaultProjectName,
 					Namespace: suite.Namespace,
@@ -519,14 +515,14 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
 			}
 
 			suite.nuclioFunctionInterfaceMock.
-				On("Get", testCase.functionName, metav1.GetOptions{}).
+				On("Get", suite.ctx, testCase.functionName, metav1.GetOptions{}).
 				Return(getFunctionResponse, getFunctionResponseErr).
 				Once()
 			defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
 
 			if testCase.functionExists {
 				suite.nuclioAPIGatewayInterfaceMock.
-					On("List", metav1.ListOptions{}).
+					On("List", suite.ctx, metav1.ListOptions{}).
 					Return(&listAPIGatewayResponse, nil).
 					Once()
 				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
@@ -617,7 +613,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 			}
 
 			suite.nuclioFunctionInterfaceMock.
-				On("Get", functionName, metav1.GetOptions{}).
+				On("Get", suite.ctx, functionName, metav1.GetOptions{}).
 				Return(getFunctionResponse, nil).
 				Once()
 			defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
@@ -699,7 +695,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 			}
 
 			suite.nuclioFunctionInterfaceMock.
-				On("Get", functionName, metav1.GetOptions{}).
+				On("Get", suite.ctx, functionName, metav1.GetOptions{}).
 				Return(getFunctionResponse, nil).
 				Once()
 			defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
@@ -728,12 +724,15 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 				}
 
 				suite.nuclioFunctionInterfaceMock.
-					On("Get", functionName, metav1.GetOptions{}).
+					On("Get", suite.ctx, functionName, metav1.GetOptions{}).
 					Return(getFunctionResponse, nil).
 					Once()
 
 				suite.nuclioFunctionInterfaceMock.
-					On("Update", mock.MatchedBy(verifyUpdateFunction)).
+					On("Update",
+						suite.ctx,
+						mock.MatchedBy(verifyUpdateFunction),
+						metav1.UpdateOptions{}).
 					Return(getFunctionResponse, nil).
 					Once()
 				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
@@ -791,7 +790,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 			}
 
 			suite.mockedPlatform.
-				On("GetFunctions", mock.MatchedBy(suite.matchContext), &platform.GetFunctionsOptions{
+				On("GetFunctions", suite.ctx, &platform.GetFunctionsOptions{
 					Name:      functionName,
 					Namespace: suite.Namespace,
 					PermissionOptions: opa.PermissionOptions{
@@ -818,13 +817,13 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 
 			if testCase.opaResponse {
 				suite.nuclioAPIGatewayInterfaceMock.
-					On("List", mock.MatchedBy(suite.matchContext), metav1.ListOptions{}).
+					On("List", suite.ctx, metav1.ListOptions{}).
 					Return(&v1beta1.NuclioAPIGatewayList{}, nil).
 					Once()
 				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
 
 				suite.nuclioFunctionInterfaceMock.
-					On("Delete", functionName, &metav1.DeleteOptions{}).
+					On("Delete", suite.ctx, functionName, metav1.DeleteOptions{}).
 					Return(nil).
 					Once()
 				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
@@ -1090,7 +1089,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 			}
 
 			suite.nuclioFunctionEventInterfaceMock.
-				On("Get", functionEventName, metav1.GetOptions{}).
+				On("Get", suite.ctx, functionEventName, metav1.GetOptions{}).
 				Return(getFunctionEventResponse, nil).
 				Once()
 			defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
@@ -1173,7 +1172,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 			}
 
 			suite.nuclioFunctionEventInterfaceMock.
-				On("Get", functionEventName, metav1.GetOptions{}).
+				On("Get", suite.ctx, functionEventName, metav1.GetOptions{}).
 				Return(getFunctionEventResponse, nil).
 				Once()
 			defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
@@ -1205,7 +1204,10 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 				}
 
 				suite.nuclioFunctionEventInterfaceMock.
-					On("Update", mock.MatchedBy(verifyUpdateFunctionEvent)).
+					On("Update",
+						suite.ctx,
+						mock.MatchedBy(verifyUpdateFunctionEvent),
+						metav1.UpdateOptions{}).
 					Return(getFunctionEventResponse, nil).
 					Once()
 
@@ -1271,7 +1273,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 			}
 
 			suite.nuclioFunctionEventInterfaceMock.
-				On("Get", functionEventName, metav1.GetOptions{}).
+				On("Get", suite.ctx, functionEventName, metav1.GetOptions{}).
 				Return(getFunctionEventResponse, nil).
 				Once()
 			defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
@@ -1295,7 +1297,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 			if testCase.opaResponse {
 
 				suite.nuclioFunctionEventInterfaceMock.
-					On("Delete", functionEventName, &metav1.DeleteOptions{}).
+					On("Delete", suite.ctx, functionEventName, metav1.DeleteOptions{}).
 					Return(nil).
 					Once()
 				defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
@@ -1329,7 +1331,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 	// return empty api gateways list on enrichFunctionsWithAPIGateways (not tested here)
 	suite.nuclioAPIGatewayInterfaceMock.
-		On("List", metav1.ListOptions{}).
+		On("List", suite.ctx, metav1.ListOptions{}).
 		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
 
 	for _, testCase := range []struct {
@@ -1675,7 +1677,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				}
 
 				suite.nuclioFunctionInterfaceMock.
-					On("Get", upstream.NuclioFunction.Name, metav1.GetOptions{}).
+					On("Get", suite.ctx, upstream.NuclioFunction.Name, metav1.GetOptions{}).
 					Return(upstreamFunction, getFunctionsError).
 					Once()
 			}
@@ -1734,7 +1736,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 
 			// get before update
 			suite.nuclioAPIGatewayInterfaceMock.
-				On("Get", apiGatewayConfig.Meta.Name, metav1.GetOptions{}).
+				On("Get", suite.ctx, apiGatewayConfig.Meta.Name, metav1.GetOptions{}).
 				Return(&v1beta1.NuclioAPIGateway{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      apiGatewayConfig.Meta.Name,
@@ -1758,17 +1760,19 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 
 			// mock kubernetes update
 			suite.nuclioAPIGatewayInterfaceMock.
-				On("Update", mock.MatchedBy(verifyAPIGatewayToUpdate)).
-				Return(func(apiGateway *v1beta1.NuclioAPIGateway) *v1beta1.NuclioAPIGateway {
-
-					// nothing really to do here, let Kubernetes do the actual upgrade
-					return apiGateway
-				}, nil).
+				On("Update",
+				suite.ctx,
+				mock.MatchedBy(verifyAPIGatewayToUpdate),
+				mock.Anything).
+				Return(&v1beta1.NuclioAPIGateway{}, nil).
 				Once()
 
 			// no function with matching upstreams
 			suite.nuclioFunctionInterfaceMock.
-				On("Get", apiGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name, metav1.GetOptions{}).
+				On("Get",
+					suite.ctx,
+					apiGatewayConfig.Spec.Upstreams[0].NuclioFunction.Name,
+					metav1.GetOptions{}).
 				Return(nil,
 					&apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}}).
 				Once()
