@@ -125,7 +125,7 @@ func (mw *MultiWorker) Start(ctx context.Context) error {
 
 			// create new context to avoid "main" ctx effect running workers
 			workerCtx, cancel := context.WithCancel(ctx)
-			workerCtx = context.WithValue(ctx, WorkerIDKey, workerID)
+			workerCtx = context.WithValue(workerCtx, WorkerIDKey, workerID)
 			defer cancel()
 
 			lock.Lock()
