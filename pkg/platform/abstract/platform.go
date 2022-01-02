@@ -306,7 +306,7 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(c
 	// do not allow updating functions that are being provisioned
 	if existingFunctionConfig != nil &&
 		functionconfig.FunctionStateProvisioning(existingFunctionConfig.Status.State) {
-		return errors.New("Function cannot be updated when existing function is being provisioned")
+		return nuclio.WrapErrPreconditionFailed(errors.New("Function cannot be updated when existing function is being provisioned"))
 	}
 
 	// do not allow disabling a function being used by an api gateway
