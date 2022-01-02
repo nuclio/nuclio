@@ -105,6 +105,7 @@ type GetFunctionsOptions struct {
 	Name              string
 	Namespace         string
 	Labels            string
+	ResourceVersion   string
 	AuthConfig        *AuthConfig
 	PermissionOptions opa.PermissionOptions
 	AuthSession       auth.Session

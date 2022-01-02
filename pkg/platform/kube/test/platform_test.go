@@ -336,10 +336,11 @@ def handler(context, event):
 			"Resource version should be changed between deployments")
 
 		// we expect a failure due to a stale resource version
-		suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
-			suite.Require().Nil(deployResult, "Deployment results is nil when creation failed")
-			return true
-		})
+		suite.DeployFunctionExpectError(createFunctionOptions, // nolint: errcheck
+			func(deployResult *platform.CreateFunctionResult) bool {
+				suite.Require().Nil(deployResult, "Deployment results is nil when creation failed")
+				return true
+			})
 
 		return true
 	}
@@ -716,7 +717,10 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 			suite.WaitForFunctionState(&platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.Namespace,
-			}, functionconfig.FunctionStateReady, time.Minute)
+			},
+				functionconfig.FunctionStateReady,
+				time.Minute,
+			)
 
 			functionIngress := suite.GetFunctionIngress(functionName)
 			suite.Require().Equal(ingressHost, functionIngress.Spec.Rules[0].Host)

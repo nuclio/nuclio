@@ -530,9 +530,11 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
 
 			functionInstance, functionConfigAndStatus, err := suite.Platform.
 				getFunctionInstanceAndConfig(suite.ctx,
-					suite.Namespace,
-					testCase.functionName,
-					true)
+					&platform.GetFunctionsOptions{
+						Name:                  testCase.functionName,
+						Namespace:             suite.Namespace,
+						EnrichWithAPIGateways: true,
+					})
 
 			if testCase.expectValidationFailure {
 				suite.Require().Error(err)
