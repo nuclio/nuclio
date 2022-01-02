@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2018 The Nuclio Authors.

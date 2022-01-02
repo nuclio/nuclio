@@ -57,7 +57,7 @@ jobs:
 
     - uses: actions/setup-go@v2
       with:
-        go-version: "1.14"
+        go-version: "1.17"
 
     # since github-actions gives us 14G only, and fills it up with some garbage
     # we will free up some space for us (~2GB)

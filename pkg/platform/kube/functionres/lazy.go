@@ -89,6 +89,7 @@ type lazyClient struct {
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
 	nginxIngressUpdateGracePeriod time.Duration
+	nodeScaleUpSleepTimeout       time.Duration
 }
 
 func NewLazyClient(parentLogger logger.Logger,
@@ -101,6 +102,9 @@ func NewLazyClient(parentLogger logger.Logger,
 		nuclioClientSet:               nuclioClientSet,
 		classLabels:                   make(labels.Set),
 		nginxIngressUpdateGracePeriod: nginxIngressUpdateGracePeriod,
+
+		//  autoscale cycle is at least 10s
+		nodeScaleUpSleepTimeout: 15 * time.Second,
 	}
 
 	newClient.initClassLabels()
@@ -962,7 +966,8 @@ func (lc *lazyClient) enrichDeploymentFromPlatformConfiguration(function *nuclio
 	return nil
 }
 
-func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFunction) ([]platformconfig.LabelSelectorAndConfig, error) {
+func (lc *lazyClient) getDeploymentAugmentedConfigs(function *nuclioio.NuclioFunction) (
+	[]platformconfig.LabelSelectorAndConfig, error) {
 	var configs []platformconfig.LabelSelectorAndConfig
 
 	// get the function labels
@@ -2232,11 +2237,11 @@ func (lc *lazyClient) resolveFailFast(ctx context.Context,
 
 				errGroup.Go("WaitAndCheckAutoScaleEvents", func() error {
 
-					// sleep for 15s because autoscale cycle is 10s minimum
 					lc.logger.DebugWithCtx(errGroupCtx,
-						"Waiting 15 seconds for autoscale evaluation",
+						"Waiting for autoscale evaluation",
+						"nodeScaleUpSleepTimeout", lc.nodeScaleUpSleepTimeout,
 						"podName", pod.Name)
-					time.Sleep(15 * time.Second)
+					time.Sleep(lc.nodeScaleUpSleepTimeout)
 
 					// check if the pod is unschedulable due to scaling up
 					triggeredScaleUp, err := lc.isPodAutoScaledUp(errGroupCtx, pod)
