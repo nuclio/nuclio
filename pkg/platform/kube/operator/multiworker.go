@@ -19,7 +19,6 @@ package operator
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -117,40 +116,24 @@ func (mw *MultiWorker) Start(ctx context.Context) error {
 		return errors.New("Failed to wait for cache sync")
 	}
 
-	var workerCtxCancelFuncs map[int]context.CancelFunc
-	var lock sync.Mutex
+	workersCtx, workersCtxCancel := context.WithCancel(ctx)
 	for workerID := 0; workerID < mw.numWorkers; workerID++ {
 		workerID := workerID
 		go func() {
-
-			// create new context to avoid "main" ctx effect running workers
-			workerCtx, cancel := context.WithCancel(ctx)
-			workerCtx = context.WithValue(workerCtx, WorkerIDKey, workerID)
-			defer cancel()
-
-			lock.Lock()
-			workerCtxCancelFuncs[workerID] = cancel
-			lock.Unlock()
-
 			defer common.CatchAndLogPanic(ctx, // nolint: errcheck
 				mw.logger,
 				"processing items")
 
+			workerCtx := context.WithValue(workersCtx, WorkerIDKey, workerID)
 			wait.UntilWithContext(workerCtx, mw.processItems, time.Second)
 		}()
 	}
 
 	// wait for stop signal
 	<-mw.stopChannel
-
-	// invoke cancel function for each worker context
-	for workerID := 0; workerID < mw.numWorkers; workerID++ {
-		mw.logger.DebugWithCtx(ctx, "Stopping worker context", "workerID", workerID)
-		go workerCtxCancelFuncs[workerID]()
-	}
+	workersCtxCancel()
 
 	mw.logger.InfoWithCtx(ctx, "Stopped")
-
 	return nil
 }
 
