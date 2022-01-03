@@ -692,6 +692,7 @@ func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v
 func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 	functionName := "func-with-ingress"
 	ingressHost := "something.com"
+	pathType := networkingv1.PathTypeImplementationSpecific
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"customTrigger": {
@@ -702,6 +703,7 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 				"ingresses": map[string]interface{}{
 					"someKey": map[string]interface{}{
 						"paths": []string{"/"},
+						"pathType": &pathType,
 						"host":  ingressHost,
 					},
 				},
