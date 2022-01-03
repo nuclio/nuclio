@@ -25,9 +25,9 @@ type Client interface {
 	Delete(context.Context, string, string)
 }
 
-// Resources holds the resources a apigatewayres holds
+// Resources holds the resources an apigatewayres holds
 type Resources interface {
 
-	// returns a mapping of [ string(ingress's name) -> *ingress.Resources ]
+	// IngressResourcesMap returns a mapping of [ string(ingress's name) -> *ingress.Resources ]
 	IngressResourcesMap() map[string]*ingress.Resources
 }

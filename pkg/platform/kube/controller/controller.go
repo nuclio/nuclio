@@ -171,7 +171,8 @@ func NewController(parentLogger logger.Logger,
 }
 
 func (c *Controller) Start(ctx context.Context) error {
-	c.logger.InfoWithCtx(ctx, "Starting controller",
+	c.logger.InfoWithCtx(ctx,
+		"Starting controller",
 		"namespace", c.namespace)
 
 	// start operators
