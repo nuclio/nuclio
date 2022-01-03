@@ -56,6 +56,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 	spec Spec) (*Resources, error) {
 
 	var err error
+	pathType := networkingv1.PathTypeImplementationSpecific
 
 	ingressAnnotations, basicAuthSecret, err := m.compileAnnotations(ctx, spec)
 	if err != nil {
@@ -78,6 +79,9 @@ func (m *Manager) GenerateResources(ctx context.Context,
 							Paths: []networkingv1.HTTPIngressPath{
 								{
 									Path: spec.Path,
+
+									// TODO: add PathType to spec
+									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
 											Name: spec.ServiceName,
