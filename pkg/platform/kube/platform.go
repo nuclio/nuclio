@@ -45,6 +45,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -1659,6 +1660,10 @@ func (p *Platform) enrichHTTPTriggerIngresses(ctx context.Context,
 					"functionName", functionConfig.Meta.Name)
 				encodedIngressMap["host"] = renderedIngressHost
 			}
+		}
+
+		if _, ingressPathTypeFound := encodedIngressMap["pathType"].(networkingv1.PathType); !ingressPathTypeFound {
+			encodedIngressMap["pathType"] = networkingv1.PathTypeImplementationSpecific
 		}
 	}
 	return nil

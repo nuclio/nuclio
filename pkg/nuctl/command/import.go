@@ -68,6 +68,10 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 	// populate namespace
 	functionConfig.Meta.Namespace = project.Meta.Namespace
 
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+		"TOMER - Importing function",
+		"functions", functionConfig.Meta.Name)
+
 	if project.Meta.Name != "" {
 		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = project.Meta.Name
 	}
@@ -89,6 +93,11 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 		Logger:         i.rootCommandeer.loggerInstance,
 		FunctionConfig: *functionConfig,
 	})
+
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+		"TOMER - After function creation",
+		"functions", functionConfig.Meta.Name,
+		"err", err)
 
 	return err
 }

@@ -25,6 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 const (
@@ -174,9 +175,10 @@ func GetDefaultHTTPTrigger() Trigger {
 // Ingress holds configuration for an ingress - an entity that can route HTTP requests
 // to the function
 type Ingress struct {
-	Host  string     `json:"host,omitempty"`
-	Paths []string   `json:"paths,omitempty"`
-	TLS   IngressTLS `json:"tls,omitempty"`
+	Host     string                `json:"host,omitempty"`
+	Paths    []string              `json:"paths,omitempty"`
+	PathType networkingv1.PathType `json:"pathType,omitempty"`
+	TLS      IngressTLS            `json:"tls,omitempty"`
 }
 
 // IngressTLS holds configuration for an ingress's TLS

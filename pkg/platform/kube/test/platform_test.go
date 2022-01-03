@@ -702,9 +702,9 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"someKey": map[string]interface{}{
-						"paths": []string{"/"},
+						"paths":    []string{"/"},
 						"pathType": &pathType,
-						"host":  ingressHost,
+						"host":     ingressHost,
 					},
 				},
 			},
