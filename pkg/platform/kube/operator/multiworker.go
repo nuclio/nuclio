@@ -125,12 +125,16 @@ func (mw *MultiWorker) Start(ctx context.Context) error {
 				"processing items")
 
 			workerCtx := context.WithValue(workersCtx, WorkerIDKey, workerID)
+
+			// assign each worker that process items with context
 			wait.UntilWithContext(workerCtx, mw.processItems, time.Second)
 		}()
 	}
 
 	// wait for stop signal
 	<-mw.stopChannel
+
+	// stop workers context
 	workersCtxCancel()
 
 	mw.logger.InfoWithCtx(ctx, "Stopped")
@@ -144,48 +148,67 @@ func (mw *MultiWorker) Stop() chan struct{} {
 }
 
 func (mw *MultiWorker) processItems(ctx context.Context) {
+	workerID := ctx.Value(WorkerIDKey)
 	for {
 
-		// get next item from the queue
-		item, shutdown := mw.queue.Get()
-		if shutdown {
-			mw.logger.DebugWithCtx(ctx, "Worker shutting down")
-			break
-		}
+		select {
+		case <-ctx.Done():
+			mw.logger.DebugWithCtx(ctx, "Context is terminated", "workerID", workerID)
+			return
+		default:
 
-		// get the key from the item
-		itemKey, keyIsString := item.(string)
-		if !keyIsString {
-			mw.logger.WarnWithCtx(ctx, "Got item which is not a string, ignoring")
-		}
+			// get next item from the queue
+			item, shutdown := mw.queue.Get()
+			if shutdown {
+				mw.logger.DebugWithCtx(ctx, "Worker shutting down", "workerID", workerID)
+				break
+			}
 
-		// try to process the item
-		if err := mw.processItem(ctx, itemKey); err != nil {
-			mw.logger.WarnWithCtx(ctx,
-				"Failed to process item",
-				"itemKey", itemKey,
-				"err", errors.Cause(err).Error())
+			// get the key from the item
+			itemKey, keyIsString := item.(string)
+			if !keyIsString {
+				mw.logger.WarnWithCtx(ctx,
+					"Got item which is not a string, ignoring",
+					"itemKey", itemKey,
+					"workerID", workerID)
+			}
 
-			// do we have any more retries?
-			if mw.queue.NumRequeues(itemKey) < mw.maxProcessingRetries {
-				mw.logger.DebugWithCtx(ctx, "Requeueing", "itemKey", itemKey)
+			// try to process the item
+			if err := mw.processItem(ctx, itemKey); err != nil {
+				mw.logger.WarnWithCtx(ctx,
+					"Failed to process item",
+					"workerID", workerID,
+					"itemKey", itemKey,
+					"err", errors.Cause(err).Error())
 
-				// add it back, rate limited
-				mw.queue.AddRateLimited(itemKey)
+				// do we have any more retries?
+				if mw.queue.NumRequeues(itemKey) < mw.maxProcessingRetries {
+					mw.logger.DebugWithCtx(ctx,
+						"Requeueing",
+						"itemKey", itemKey,
+						"workerID", workerID)
+
+					// add it back, rate limited
+					mw.queue.AddRateLimited(itemKey)
+				} else {
+					mw.logger.WarnWithCtx(ctx,
+						"No retries, left. Giving up",
+						"workerID", workerID,
+						"itemKey", itemKey)
+
+					mw.queue.Forget(itemKey)
+				}
+
 			} else {
-				mw.logger.WarnWithCtx(ctx, "No retries, left. Giving up", "itemKey", itemKey)
 
+				// we're done with this key
 				mw.queue.Forget(itemKey)
 			}
 
-		} else {
-
-			// we're done with this key
-			mw.queue.Forget(itemKey)
+			// indicate that we're done with the item
+			mw.queue.Done(item)
 		}
 
-		// indicate that we're done with the item
-		mw.queue.Done(item)
 	}
 }
 
