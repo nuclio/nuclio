@@ -1839,8 +1839,12 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 			return errors.Wrap(err, "Failed to format ingress pattern")
 		}
 
+		// TODO: make pathType configuribale - via ui or annotation
+		httpIngressPathType := networkingv1.PathTypeImplementationSpecific
+
 		httpIngressPath := networkingv1.HTTPIngressPath{
 			Path: formattedPath,
+			PathType: &httpIngressPathType,
 			Backend: networkingv1.IngressBackend{
 				Service: &networkingv1.IngressServiceBackend{
 					Name: kube.ServiceNameFromFunctionName(function.Name),
