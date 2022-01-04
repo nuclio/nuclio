@@ -136,7 +136,6 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 // Delete handles delete of an object
 func (ago *apiGatewayOperator) Delete(ctx context.Context, namespace string, name string) error {
 	ago.controller.apigatewayresClient.Delete(ctx, namespace, name)
-
 	return nil
 }
 
