@@ -888,14 +888,14 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 
 	p.Logger.DebugWithCtx(ctx, "Got function containers", "containersInfoLength", len(containersInfo))
 
-	// iterate over contains and delete them. It's possible that under some weird circumstances
-	// there are a few instances of this function in the namespace
-	//for _, containerInfo := range containersInfo {
-	//	p.Logger.DebugWithCtx(ctx, "Removing function container", "containerName", containerInfo.Name)
-	//	if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
-	//		return errors.Wrapf(err, "Failed to remove container %s", containerInfo.ID)
-	//	}
-	//}
+	//iterate over contains and delete them. It's possible that under some weird circumstances
+	//there are a few instances of this function in the namespace
+	for _, containerInfo := range containersInfo {
+		p.Logger.DebugWithCtx(ctx, "Removing function container", "containerName", containerInfo.Name)
+		if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
+			return errors.Wrapf(err, "Failed to remove container %s", containerInfo.ID)
+		}
+	}
 
 	// delete function volume mount after containers are deleted
 	functionVolumeMountName := p.GetFunctionVolumeMountName(&deleteFunctionOptions.FunctionConfig)
