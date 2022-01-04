@@ -14,9 +14,10 @@
 
 ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 
 # Supplies processor
-FROM quay.io/nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
+FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 
 FROM gcr.io/iguazio/openjdk:9-slim as user-handler-builder
 

@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_kube
+//go:build test_integration && test_kube
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -91,6 +90,7 @@ func (suite *ResourceScalerTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 }
+
 func (suite *ResourceScalerTestSuite) SetupTest() {
 	suite.KubeTestSuite.SetupTest()
 
@@ -353,7 +353,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 	})
 }
 
-func TestControllerTestSuite(t *testing.T) {
+func TestResourceScalerTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}

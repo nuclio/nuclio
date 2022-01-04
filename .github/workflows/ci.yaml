@@ -38,7 +38,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.14"
+          go-version: "1.17"
 
       - uses: actions/cache@v2
         with:
@@ -61,7 +61,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.14"
+          go-version: "1.17"
 
       - uses: actions/cache@v2
         with:
@@ -82,7 +82,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.14"
+          go-version: "1.17"
 
       - name: Build
         run: |
@@ -147,6 +147,10 @@ jobs:
       - uses: azure/setup-helm@v1
         with:
           version: "v3.6.3"
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
 
       - uses: actions/cache@v2
         with:
@@ -222,6 +226,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
+
       - uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
@@ -238,6 +246,8 @@ jobs:
         run: |
           make load-docker-images
           rm nuclio-docker-images*.tar.gz
+      
+      
 
       - name: Run nuctl docker tests
         run: |
@@ -254,6 +264,10 @@ jobs:
       - uses: azure/setup-helm@v1
         with:
           version: "v3.6.3"
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
 
       - uses: actions/cache@v2
         with:

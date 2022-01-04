@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -608,8 +608,12 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 			},
 		},
 		{
-			name:             "sanityUpdate",
-			existingFunction: &functionconfig.ConfigWithStatus{},
+			name: "sanityUpdate",
+			existingFunction: &functionconfig.ConfigWithStatus{
+				Status: functionconfig.Status{
+					State: functionconfig.FunctionStateReady,
+				},
+			},
 			createFunctionOptions: &platform.CreateFunctionOptions{
 				FunctionConfig: functionconfig.Config{},
 			},
@@ -638,6 +642,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 						ResourceVersion: "1",
 					},
 				},
+				Status: functionconfig.Status{
+					State: functionconfig.FunctionStateReady,
+				},
 			},
 			createFunctionOptions: &platform.CreateFunctionOptions{
 				FunctionConfig: functionconfig.Config{
@@ -653,6 +660,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 			existingFunction: &functionconfig.ConfigWithStatus{
 				Config: functionconfig.Config{},
 				Status: functionconfig.Status{
+					State:       functionconfig.FunctionStateReady,
 					APIGateways: []string{"x", "y", "z"},
 				},
 			},
@@ -663,6 +671,16 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 					},
 				},
 			},
+			expectValidationFailure: true,
+		},
+		{
+			name: "functionBeingProvisioned",
+			existingFunction: &functionconfig.ConfigWithStatus{
+				Status: functionconfig.Status{
+					State: functionconfig.FunctionStateBuilding,
+				},
+			},
+			createFunctionOptions:   &platform.CreateFunctionOptions{},
 			expectValidationFailure: true,
 		},
 	} {

@@ -22,6 +22,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// Key to use when setting the worker id.
+type ctxKeyWorkerID int
+
+// WorkerIDKey is the key that holds the worker id.
+const WorkerIDKey ctxKeyWorkerID = 0
+
 // ChangeHandler handles changes to object
 type ChangeHandler interface {
 

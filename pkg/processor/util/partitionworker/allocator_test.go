@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -19,6 +19,8 @@ limitations under the License.
 package partitionworker
 
 import (
+	"context"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -32,6 +34,7 @@ import (
 
 type partitionWorkerAllocatorTestSuite struct {
 	suite.Suite
+	ctx    context.Context
 	logger logger.Logger
 }
 
@@ -40,6 +43,7 @@ func (suite *partitionWorkerAllocatorTestSuite) SetupSuite() {
 
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
+	suite.ctx = context.Background()
 }
 
 func (suite *partitionWorkerAllocatorTestSuite) TestAllocationBlocking() {
@@ -165,9 +169,9 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 }
 
 func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
-	numPartitions := 16
-	numMessagesPerPartition := 10000
-	numWorkers := 4
+	numPartitions := runtime.NumCPU() * 4
+	numMessagesPerPartition := numPartitions * 200
+	numWorkers := runtime.NumCPU()
 	topic := "t1"
 
 	var messageChannels []chan struct{}
@@ -193,9 +197,11 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 	suite.Require().NoError(err)
 
 	// create a static worker allocator
-	partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger, workerAllocator, map[string][]int{
-		topic: partitionIDs,
-	})
+	partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger,
+		workerAllocator,
+		map[string][]int{
+			topic: partitionIDs,
+		})
 	suite.Require().NoError(err)
 
 	// there's one partition reader per partition, and we need to wait til all partition readers complete
@@ -226,7 +232,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 					prevWorkerIndex = workerInstance.GetIndex()
 
 					// wait a bit to simulate processing
-					time.Sleep(100 * time.Microsecond)
+					time.Sleep(50 * time.Microsecond)
 
 					// release the worker
 					err = partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
@@ -235,6 +241,9 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 				default:
 
 					// nothing more to read - we're done
+					suite.logger.DebugWithCtx(suite.ctx,
+						"Done reading from message channel",
+						"partitionReaderIdx", partitionReaderIdx)
 					waitGroup.Done()
 
 					// exit the loop
@@ -254,7 +263,7 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 
 	select {
 	case <-doneChan:
-	case <-time.After(30 * time.Second):
+	case <-time.After(45 * time.Second):
 		suite.Fail("Expected to process all messages by now")
 	}
 }
