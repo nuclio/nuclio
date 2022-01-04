@@ -106,6 +106,7 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 		"listenAddress", h.configuration.URL,
 		"readBufferSize", h.configuration.ReadBufferSize,
 		"maxRequestBodySize", h.configuration.MaxRequestBodySize,
+		"reduceMemoryUsage", h.configuration.ReduceMemoryUsage,
 		"cors", h.configuration.CORS)
 
 	h.server = &fasthttp.Server{
@@ -114,6 +115,7 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 		ReadBufferSize:     h.configuration.ReadBufferSize,
 		Logger:             NewFastHTTPLogger(h.Logger),
 		MaxRequestBodySize: h.configuration.MaxRequestBodySize,
+		ReduceMemoryUsage:  h.configuration.ReduceMemoryUsage,
 	}
 
 	// start listening

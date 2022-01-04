@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/nuclio/nuclio/pkg/common"
-
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -36,7 +34,7 @@ func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
 	if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
 		eventToEncode["body"] = bodyObject
 	} else {
-		eventToEncode["body"] = common.ByteSliceToString(event.GetBody())
+		eventToEncode["body"] = event.GetBody()
 	}
 
 	e.buf.Reset()
