@@ -48,7 +48,8 @@ type functionOperator struct {
 	functionresClient functionres.Client
 }
 
-func newFunctionOperator(parentLogger logger.Logger,
+func newFunctionOperator(ctx context.Context,
+	parentLogger logger.Logger,
 	controller *Controller,
 	resyncInterval *time.Duration,
 	imagePullSecrets string,
@@ -66,7 +67,8 @@ func newFunctionOperator(parentLogger logger.Logger,
 	}
 
 	// create a function operator
-	newFunctionOperator.operator, err = operator.NewMultiWorker(loggerInstance,
+	newFunctionOperator.operator, err = operator.NewMultiWorker(ctx,
+		loggerInstance,
 		numWorkers,
 		newFunctionOperator.getListWatcher(controller.namespace),
 		&nuclioio.NuclioFunction{},
@@ -77,7 +79,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create function operator")
 	}
 
-	parentLogger.DebugWith("Created function operator",
+	parentLogger.DebugWithCtx(ctx, "Created function operator",
 		"numWorkers", numWorkers,
 		"resyncInterval", resyncInterval)
 
@@ -88,9 +90,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
 	function, objectIsFunction := object.(*nuclioio.NuclioFunction)
 	if !objectIsFunction {
-		return fo.setFunctionError(nil,
-			functionconfig.FunctionStateError,
-			errors.New("Received unexpected object, expected function"))
+		return errors.New("Received unexpected object, expected function")
 	}
 
 	defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
@@ -101,7 +101,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 				"function", function,
 			},
 			CustomHandler: func(panicError error) {
-				fo.setFunctionError(function, // nolint: errcheck
+				fo.setFunctionError(ctx, // nolint: errcheck
+					function,
 					functionconfig.FunctionStateError,
 					errors.Wrap(panicError, "Failed to create/update function"))
 			},
@@ -130,7 +131,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		functionconfig.FunctionStateScaledToZero,
 	}
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
-		fo.logger.DebugWith("NuclioFunction is not waiting for resource creation or ready, skipping create/update",
+		fo.logger.DebugWithCtx(ctx, "NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
 			"namespace", function.Namespace)
@@ -140,13 +141,14 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	// imported functions have skip deploy annotation, set its state and bail
 	if functionconfig.ShouldSkipDeploy(function.Annotations) {
-		fo.logger.InfoWith("Skipping function deploy",
+		fo.logger.InfoWithCtx(ctx, "Skipping function deploy",
 			"name", function.Name,
 			"state", function.Status.State,
 			"namespace", function.Namespace)
-		return fo.setFunctionStatus(function, &functionconfig.Status{
-			State: functionconfig.FunctionStateImported,
-		})
+		return fo.setFunctionStatus(ctx,
+			function, &functionconfig.Status{
+				State: functionconfig.FunctionStateImported,
+			})
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
@@ -158,15 +160,18 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			GetDefaultFunctionReadinessTimeout().Seconds())
 	}
 
-	fo.logger.DebugWith("Ensuring function resources",
+	fo.logger.DebugWithCtx(ctx, "Ensuring function resources",
 		"functionNamespace", function.Namespace,
 		"readinessTimeout", readinessTimeout,
 		"functionName", function.Name)
 
+	functionResourcesCreateOrUpdateTimestamp := time.Now()
+
 	// ensure function resources (deployment, ingress, configmap, etc ...)
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
-		return fo.setFunctionError(function,
+		return fo.setFunctionError(ctx,
+			function,
 			functionconfig.FunctionStateError,
 			errors.Wrap(err, "Failed to create/update function"))
 	}
@@ -179,9 +184,13 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		defer cancel()
 
 		// wait until the function resources are ready
-		if err = fo.functionresClient.WaitAvailable(waitContext, function.Namespace, function.Name); err != nil {
-			return fo.setFunctionError(function,
-				functionconfig.FunctionStateUnhealthy,
+		if err, functionState := fo.functionresClient.WaitAvailable(waitContext,
+			function.Namespace,
+			function.Name,
+			functionResourcesCreateOrUpdateTimestamp); err != nil {
+			return fo.setFunctionError(ctx,
+				function,
+				functionState,
 				errors.Wrap(err, "Failed to wait for function resources to be available"))
 		}
 	}
@@ -223,7 +232,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			return errors.Wrap(err, "Failed setting function scale to zero status")
 		}
 
-		return fo.setFunctionStatus(function, functionStatus)
+		return fo.setFunctionStatus(ctx, function, functionStatus)
 	}
 
 	return nil
@@ -231,7 +240,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 // Delete handles delete of an object
 func (fo *functionOperator) Delete(ctx context.Context, namespace string, name string) error {
-	fo.logger.DebugWith("Deleting function",
+	fo.logger.DebugWithCtx(ctx, "Deleting function",
 		"name", name,
 		"namespace", namespace)
 
@@ -242,7 +251,7 @@ func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 	functionStatus *functionconfig.Status,
 	scaleToZeroEvent scalertypes.ScaleEvent) error {
 
-	fo.logger.DebugWith("Setting scale to zero status",
+	fo.logger.DebugWithCtx(ctx, "Setting scale to zero status",
 		"LastScaleEvent", scaleToZeroEvent)
 	now := time.Now()
 	functionStatus.ScaleToZero = &functionconfig.ScaleToZeroStatus{
@@ -252,38 +261,42 @@ func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 	return nil
 }
 
-func (fo *functionOperator) start() error {
-	go fo.operator.Start() // nolint: errcheck
+func (fo *functionOperator) start(ctx context.Context) error {
+	go fo.operator.Start(ctx) // nolint: errcheck
 
 	return nil
 }
 
-func (fo *functionOperator) setFunctionError(function *nuclioio.NuclioFunction,
+func (fo *functionOperator) setFunctionError(ctx context.Context,
+	function *nuclioio.NuclioFunction,
 	functionErrorState functionconfig.FunctionState,
 	err error) error {
 
 	// whatever the error, try to update the function CR
-	fo.logger.WarnWith("Setting function error",
+	fo.logger.WarnWithCtx(ctx, "Setting function error",
 		"functionErrorState", functionErrorState,
 		"functionName", function.Name,
 		"err", err)
 
-	if setStatusErr := fo.setFunctionStatus(function, &functionconfig.Status{
-		Logs:    function.Status.Logs,
-		State:   functionErrorState,
-		Message: errors.GetErrorStackString(err, 10),
+	if setStatusErr := fo.setFunctionStatus(ctx, function, &functionconfig.Status{
+		Logs:                   function.Status.Logs,
+		State:                  functionErrorState,
+		Message:                errors.GetErrorStackString(err, 10),
+		InternalInvocationURLs: []string{},
+		ExternalInvocationURLs: []string{},
 	}); setStatusErr != nil {
-		fo.logger.WarnWith("Failed to update function on error",
+		fo.logger.WarnWithCtx(ctx, "Failed to update function on error",
 			"setStatusErr", errors.Cause(setStatusErr))
 	}
 
 	return err
 }
 
-func (fo *functionOperator) setFunctionStatus(function *nuclioio.NuclioFunction,
+func (fo *functionOperator) setFunctionStatus(ctx context.Context,
+	function *nuclioio.NuclioFunction,
 	status *functionconfig.Status) error {
 
-	fo.logger.DebugWith("Setting function state", "name", function.Name, "status", status)
+	fo.logger.DebugWithCtx(ctx, "Setting function state", "name", function.Name, "status", status)
 
 	// indicate error state
 	function.Status = *status

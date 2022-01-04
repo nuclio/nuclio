@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -47,7 +47,7 @@ func (suite *DashboardTestSuite) SetupSuite() {
 }
 
 func (suite *DashboardTestSuite) SetupTest() {
-	suite.ctx = context.TODO()
+	suite.ctx = context.Background()
 	suite.dashboard = &Dashboard{
 		logger: suite.logger,
 		status: status.Initializing,

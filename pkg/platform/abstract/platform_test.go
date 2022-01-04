@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -21,6 +21,7 @@ package abstract
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -71,6 +72,7 @@ type AbstractPlatformTestSuite struct {
 	TempDir          string
 	CleanupTemp      bool
 	DefaultNamespace string
+	ctx              context.Context
 }
 
 func (suite *AbstractPlatformTestSuite) SetupSuite() {
@@ -79,6 +81,8 @@ func (suite *AbstractPlatformTestSuite) SetupSuite() {
 	common.SetVersionFromEnv()
 
 	suite.DefaultNamespace = "nuclio"
+
+	suite.ctx = context.Background()
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err, "Logger should create successfully")
@@ -242,11 +246,11 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 		functionConfig.Spec.Triggers = testCase.Triggers
 
 		// enrich
-		err := suite.Platform.EnrichFunctionConfig(functionConfig)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
 		suite.Require().NoError(err)
 
 		// validate
-		err = suite.Platform.ValidateFunctionConfig(functionConfig)
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, functionConfig)
 		if testCase.ExpectedError != "" {
 			suite.Assert().Error(err)
 			suite.Assert().Equal(testCase.ExpectedError, errors.RootCause(err).Error())
@@ -258,13 +262,13 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 
 func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 	for _, testCase := range []struct {
+		name                  string
 		existingFunctions     []platform.Function
 		deleteFunctionOptions *platform.DeleteFunctionOptions
 		shouldFailValidation  bool
 	}{
-
-		// happy flow
 		{
+			name: "sanity",
 			existingFunctions: []platform.Function{
 				&platform.AbstractFunction{
 					Logger:   suite.Logger,
@@ -287,9 +291,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 				},
 			},
 		},
-
-		// function may not be existing, validation should pass (delete is idempotent)
 		{
+			name: "idempotent-non-existing-function",
 			deleteFunctionOptions: &platform.DeleteFunctionOptions{
 				FunctionConfig: functionconfig.Config{
 					Meta: functionconfig.Meta{
@@ -301,8 +304,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			},
 		},
 
-		// matching resourceVersion
 		{
+			name: "matching-resource-validation",
 			existingFunctions: []platform.Function{
 				&platform.AbstractFunction{
 					Logger:   suite.Logger,
@@ -328,8 +331,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			},
 		},
 
-		// fail: function is being provisioned
 		{
+			name: "function-being-provisioned",
 			existingFunctions: []platform.Function{
 				&platform.AbstractFunction{
 					Logger:   suite.Logger,
@@ -353,8 +356,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			},
 			shouldFailValidation: true,
 		},
-		// fail: stale resourceVersion
+
 		{
+			name: "fail-stale-resource-version",
 			existingFunctions: []platform.Function{
 				&platform.AbstractFunction{
 					Logger:   suite.Logger,
@@ -378,18 +382,25 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 			shouldFailValidation: true,
 		},
 	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.
+				On("GetFunctions", mock.MatchedBy(suite.matchContext), &platform.GetFunctionsOptions{
+					Name:      testCase.deleteFunctionOptions.FunctionConfig.Meta.Name,
+					Namespace: testCase.deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+				}).
+				Return(testCase.existingFunctions, nil).
+				Once()
 
-		suite.mockedPlatform.On("GetFunctions", &platform.GetFunctionsOptions{
-			Name:      testCase.deleteFunctionOptions.FunctionConfig.Meta.Name,
-			Namespace: testCase.deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-		}).Return(testCase.existingFunctions, nil).Once()
+			_, err := suite.Platform.ValidateDeleteFunctionOptions(suite.ctx, testCase.deleteFunctionOptions)
 
-		err := suite.Platform.ValidateDeleteFunctionOptions(testCase.deleteFunctionOptions)
-		if testCase.shouldFailValidation {
-			suite.Require().Error(err)
-		} else {
-			suite.Require().NoError(err)
-		}
+			suite.mockedPlatform.AssertExpectations(suite.T())
+
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
 	}
 }
 
@@ -486,7 +497,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 			}()
 
 			suite.mockedPlatform.
-				On("GetProjects", mock.Anything).
+				On("GetProjects", mock.MatchedBy(suite.matchContext), mock.Anything).
 				Return(testCase.existingProjects, nil).
 				Once()
 
@@ -496,7 +507,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 
 			if len(testCase.existingProjects) > 0 {
 				suite.mockedPlatform.
-					On("GetFunctions", &platform.GetFunctionsOptions{
+					On("GetFunctions", mock.MatchedBy(suite.matchContext), &platform.GetFunctionsOptions{
 						Namespace: suite.DefaultNamespace,
 						Labels:    fmt.Sprintf("nuclio.io/project-name=%s", testCase.deleteProjectOptions.Meta.Name),
 					}).
@@ -517,7 +528,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 				suite.mockedPlatform.AssertNotCalled(suite.T(), "GetAPIGateways", mock.Anything)
 			}
 
-			err := suite.Platform.ValidateDeleteProjectOptions(testCase.deleteProjectOptions)
+			err := suite.Platform.ValidateDeleteProjectOptions(suite.ctx, testCase.deleteProjectOptions)
 			if testCase.expectedFailure {
 				suite.Require().Error(err)
 				return
@@ -563,13 +574,14 @@ func (suite *AbstractPlatformTestSuite) TestGetProjectResources() {
 				Return(testCase.apiGateways, nil).Once()
 
 			suite.mockedPlatform.
-				On("GetFunctions", mock.Anything).
+				On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.Anything).
 				Return(testCase.functions, testCase.getFunctionsError).Once()
 
-			projectFunctions, projectAPIGateways, err := suite.Platform.GetProjectResources(&platform.ProjectMeta{
-				Namespace: suite.DefaultNamespace,
-				Name:      xid.New().String(),
-			})
+			projectFunctions, projectAPIGateways, err := suite.Platform.GetProjectResources(suite.ctx,
+				&platform.ProjectMeta{
+					Namespace: suite.DefaultNamespace,
+					Name:      xid.New().String(),
+				})
 			if testCase.expectedFailure {
 				suite.Require().Error(err)
 				return
@@ -596,8 +608,12 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 			},
 		},
 		{
-			name:             "sanityUpdate",
-			existingFunction: &functionconfig.ConfigWithStatus{},
+			name: "sanityUpdate",
+			existingFunction: &functionconfig.ConfigWithStatus{
+				Status: functionconfig.Status{
+					State: functionconfig.FunctionStateReady,
+				},
+			},
 			createFunctionOptions: &platform.CreateFunctionOptions{
 				FunctionConfig: functionconfig.Config{},
 			},
@@ -626,6 +642,9 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 						ResourceVersion: "1",
 					},
 				},
+				Status: functionconfig.Status{
+					State: functionconfig.FunctionStateReady,
+				},
 			},
 			createFunctionOptions: &platform.CreateFunctionOptions{
 				FunctionConfig: functionconfig.Config{
@@ -641,6 +660,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 			existingFunction: &functionconfig.ConfigWithStatus{
 				Config: functionconfig.Config{},
 				Status: functionconfig.Status{
+					State:       functionconfig.FunctionStateReady,
 					APIGateways: []string{"x", "y", "z"},
 				},
 			},
@@ -653,9 +673,20 @@ func (suite *AbstractPlatformTestSuite) TestValidateCreateFunctionOptionsAgainst
 			},
 			expectValidationFailure: true,
 		},
+		{
+			name: "functionBeingProvisioned",
+			existingFunction: &functionconfig.ConfigWithStatus{
+				Status: functionconfig.Status{
+					State: functionconfig.FunctionStateBuilding,
+				},
+			},
+			createFunctionOptions:   &platform.CreateFunctionOptions{},
+			expectValidationFailure: true,
+		},
 	} {
 		suite.Run(testCase.name, func() {
-			err := suite.Platform.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(testCase.existingFunction,
+			err := suite.Platform.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(suite.ctx,
+				testCase.existingFunction,
 				testCase.createFunctionOptions)
 			if testCase.expectValidationFailure {
 				suite.Require().Error(err)
@@ -740,7 +771,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 		{MinReplicas: &two, MaxReplicas: &two, ExpectedMinReplicas: &two, ExpectedMaxReplicas: &two, shouldFailValidation: false},
 	} {
 
-		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+		suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
 				Name:      platform.DefaultProjectName,
 				Namespace: "default",
@@ -766,10 +797,10 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = MinMaxReplicas.MaxReplicas
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function config")
 
-		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		if MinMaxReplicas.shouldFailValidation {
 			suite.Error(err, "Validation should fail")
 			suite.Logger.DebugWith("Validation failed as expected ", "functionName", functionName)
@@ -863,7 +894,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		},
 	} {
 
-		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+		suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
 				Name:      platform.DefaultProjectName,
 				Namespace: "default",
@@ -887,10 +918,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function")
 
-		err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		if testCase.shouldFailValidation {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			continue
@@ -947,13 +978,13 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			"valid", testCase.valid)
 
 		suite.mockedPlatform.
-			On("GetProjects", &platform.GetProjectsOptions{
+			On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{Namespace: "default"},
 			}).
 			Return([]platform.Project{&platform.AbstractProject{}}, nil).
 			Once()
 
-		err := suite.Platform.ValidateFunctionConfig(&functionConfig)
+		err := suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
@@ -1067,20 +1098,21 @@ func (suite *AbstractPlatformTestSuite) TestGetProcessorLogsWithConsecutiveDupli
 func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
 	functionName := "some-function-name"
 	projectName := "some-project-name"
-	suite.mockedPlatform.On("GetFunctions", mock.Anything).Return([]platform.Function{
-		&platform.AbstractFunction{
-			Logger:   suite.Logger,
-			Platform: suite.Platform.platform,
-			Config: functionconfig.Config{
-				Meta: functionconfig.Meta{
-					Name: functionName,
-					Labels: map[string]string{
-						common.NuclioResourceLabelKeyProjectName: projectName,
+	suite.mockedPlatform.On("GetFunctions", mock.MatchedBy(suite.matchContext), mock.Anything).
+		Return([]platform.Function{
+			&platform.AbstractFunction{
+				Logger:   suite.Logger,
+				Platform: suite.Platform.platform,
+				Config: functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name: functionName,
+						Labels: map[string]string{
+							common.NuclioResourceLabelKeyProjectName: projectName,
+						},
 					},
 				},
 			},
-		},
-	}, nil).Once()
+		}, nil).Once()
 	defer suite.mockedPlatform.AssertExpectations(suite.T())
 
 	functionEvent := platform.FunctionEventConfig{
@@ -1095,7 +1127,7 @@ func (suite *AbstractPlatformTestSuite) TestCreateFunctionEvent() {
 
 	// key not exists / enriched
 	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], "")
-	err := suite.Platform.EnrichFunctionEvent(&functionEvent)
+	err := suite.Platform.EnrichFunctionEvent(suite.ctx, &functionEvent)
 
 	// enriched with project name
 	suite.Require().Equal(functionEvent.Meta.Labels[common.NuclioResourceLabelKeyProjectName], projectName)
@@ -1165,7 +1197,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
 					Name:      platform.DefaultProjectName,
 					Namespace: "default",
@@ -1189,10 +1221,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
-			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -1244,7 +1276,7 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+			suite.mockedPlatform.On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
 					Name:      platform.DefaultProjectName,
 					Namespace: "default",
@@ -1269,10 +1301,10 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 			suite.Platform.Config.Kube.ValidFunctionPriorityClassNames = testCase.validFunctionPriorityClassNames
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
-			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -1409,7 +1441,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 	} {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.
-				On("GetProjects", &platform.GetProjectsOptions{
+				On("GetProjects", mock.MatchedBy(suite.matchContext), &platform.GetProjectsOptions{
 					Meta: platform.ProjectMeta{
 						Name:      platform.DefaultProjectName,
 						Namespace: "default",
@@ -1435,10 +1467,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			}
 			suite.Logger.DebugWith("Checking function", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err)
 
-			err = suite.Platform.ValidateFunctionConfig(&createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -1468,6 +1500,10 @@ func (suite *AbstractPlatformTestSuite) testGetProcessorLogsTestFromFile(functio
 	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
 	suite.Require().NoError(err, "Failed to read brief errors message file")
 	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
+}
+
+func (suite *AbstractPlatformTestSuite) matchContext(ctx context.Context) bool {
+	return true
 }
 
 func TestAbstractPlatformTestSuite(t *testing.T) {

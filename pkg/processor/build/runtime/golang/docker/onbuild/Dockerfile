@@ -29,7 +29,7 @@ RUN GOOS=$GOOS GOARCH=$GOARCH go build \
     -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM gcr.io/iguazio/golang:1.14.3
+FROM gcr.io/iguazio/golang:1.17.5
 
 # Store processor binary
 COPY --from=build-processor /home/nuclio/bin/processor /home/nuclio/bin/processor

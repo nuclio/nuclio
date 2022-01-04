@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -65,7 +66,7 @@ func Run(kubeconfigPath string,
 	}
 
 	// start the controller
-	if err := newController.Start(); err != nil {
+	if err := newController.Start(context.Background()); err != nil {
 		return errors.Wrap(err, "Failed to start controller")
 	}
 

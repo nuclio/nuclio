@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_local
+//go:build test_integration && test_local
 
 /*
 Copyright 2018 The Nuclio Authors.
@@ -40,6 +39,8 @@ const triggerName = "test_cron"
 
 type TestSuite struct {
 	processorsuite.TestSuite
+
+	// TODO: use cron.Event instead
 	event        triggertest.Event
 	functionPath string
 }

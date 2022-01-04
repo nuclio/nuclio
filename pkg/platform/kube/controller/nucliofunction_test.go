@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -44,6 +44,7 @@ type NuclioFunctionTestSuite struct {
 	functionClientSet *fake.Clientset
 	k8sClientSet      *k8sfake.Clientset
 	controller        *Controller
+	ctx               context.Context
 }
 
 func (suite *NuclioFunctionTestSuite) SetupTest() {
@@ -56,6 +57,8 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
+	suite.ctx = context.Background()
+
 	platformConfig, err := platformconfig.NewPlatformConfig("")
 	suite.Require().NoError(err)
 
@@ -67,7 +70,8 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 		suite.functionClientSet)
 	suite.Require().NoError(err)
 
-	suite.controller, err = NewController(suite.logger, suite.namespace,
+	suite.controller, err = NewController(suite.logger,
+		suite.namespace,
 		"",
 		suite.k8sClientSet,
 		suite.functionClientSet,
@@ -103,7 +107,7 @@ func (suite *NuclioFunctionTestSuite) TestPreserveBuildLogs() {
 			panic("Oh nooo")
 		})
 
-	err := suite.controller.functionOperator.CreateOrUpdate(context.TODO(), functionInstance)
+	err := suite.controller.functionOperator.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().NoError(err)
 
 	// function state must be change to error after panicking during its create/update
@@ -123,7 +127,7 @@ func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {
 			panic("Oh nooo")
 		})
 
-	err := suite.controller.functionOperator.CreateOrUpdate(context.TODO(), functionInstance)
+	err := suite.controller.functionOperator.CreateOrUpdate(suite.ctx, functionInstance)
 	suite.Require().NoError(err)
 
 	// function state must be change to error after panicking during its create/update

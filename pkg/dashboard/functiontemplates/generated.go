@@ -93,8 +93,8 @@ import (
 	ctx "context"
 	"encoding/json"
 
+	"github.com/Azure/go-amqp"
 	"github.com/nuclio/nuclio-sdk-go"
-	"pack.ag/amqp"
 )
 
 type metric struct {

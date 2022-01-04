@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_kube
+//go:build test_integration && test_kube
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -91,6 +90,7 @@ func (suite *ResourceScalerTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 }
+
 func (suite *ResourceScalerTestSuite) SetupTest() {
 	suite.KubeTestSuite.SetupTest()
 
@@ -115,7 +115,7 @@ func (suite *ResourceScalerTestSuite) TearDownTest() {
 }
 
 func (suite *ResourceScalerTestSuite) TearDownSuite() {
-	err := suite.dlx.Stop(context.TODO())
+	err := suite.dlx.Stop(context.Background())
 	suite.Require().NoError(err, "Failed to stop DLX server")
 }
 
@@ -208,7 +208,7 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 		// reason dlx tries to reverse-proxy the request to the function by its service
 		// and since the dlx component is running as a process (and not as a POD)
 		// it fails to resolve the internal (kubernetes) function host
-		// TODO: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
+		// Background: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
 		//       see suite.KubectlInvokeFunctionViaCurl(functionName, "http://function-service-endpoint:8080")
 		responseBody, _, err := common.SendHTTPRequest(nil,
 			http.MethodGet,
@@ -318,7 +318,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 				// reason dlx tries to reverse-proxy the request to the function by its service
 				// and since the dlx component is running as a process (and not as a POD)
 				// it fails to resolve the internal (kubernetes) function host
-				// TODO: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
+				// Background: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
 				//       see suite.KubectlInvokeFunctionViaCurl(functionName, "http://function-service-endpoint:8080")
 				responseBody, _, err := common.SendHTTPRequest(nil,
 					http.MethodGet,
@@ -353,7 +353,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 	})
 }
 
-func TestControllerTestSuite(t *testing.T) {
+func TestResourceScalerTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}

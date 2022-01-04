@@ -1,4 +1,4 @@
-// +build hack_crd_generator
+//go:build hack_crd_generator
 
 /*
 Copyright 2019 The Kubernetes Authors.

@@ -26,19 +26,32 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const DefaultErrgroupConcurrency = 5
+
 type Group struct {
 	*errgroup.Group
-	logger logger.Logger
-	ctx    context.Context
+	logger        logger.Logger
+	semaphoreChan chan bool
+	ctx           context.Context
 }
 
 func WithContext(ctx context.Context, loggerInstance logger.Logger) (*Group, context.Context) {
+	return WithContextSemaphore(ctx, loggerInstance, 0)
+}
+
+func WithContextSemaphore(ctx context.Context, loggerInstance logger.Logger, concurrency uint) (*Group, context.Context) {
 	newBaseErrgroup, errgroupCtx := errgroup.WithContext(ctx)
 
+	var semaphoreChan chan bool
+	if concurrency > 0 {
+		semaphoreChan = make(chan bool, concurrency)
+	}
+
 	return &Group{
-		Group:  newBaseErrgroup,
-		logger: loggerInstance,
-		ctx:    errgroupCtx,
+		Group:         newBaseErrgroup,
+		logger:        loggerInstance,
+		semaphoreChan: semaphoreChan,
+		ctx:           errgroupCtx,
 	}, errgroupCtx
 }
 
@@ -52,7 +65,13 @@ func (g *Group) Go(actionName string, f func() error) {
 			}
 		}()
 		err = f()
+		if g.semaphoreChan != nil {
+			<-g.semaphoreChan
+		}
 		return
+	}
+	if g.semaphoreChan != nil {
+		g.semaphoreChan <- true
 	}
 	g.Group.Go(wrapper)
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/go-uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	v3io "github.com/v3io/v3io-go/pkg/dataplane"
 	"github.com/v3io/v3io-go/pkg/dataplane/streamconsumergroup"
 )
@@ -48,6 +49,7 @@ type Configuration struct {
 	SequenceNumberCommitInterval    string
 	SequenceNumberShardWaitInterval string
 	RecordBatchSizeChan             int
+	AckWindowSize                   uint64
 
 	seekTo v3io.SeekShardInputType
 
@@ -55,13 +57,19 @@ type Configuration struct {
 	PollingIntervalMs int
 }
 
-func NewConfiguration(id string,
-	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
+func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration,
+	logger logger.Logger) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
 	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
+
+	if err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
+		{Key: "custom.nuclio.io/v3iostream-window-size", ValueUInt64: &newConfiguration.AckWindowSize},
+	}); err != nil {
+		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
+	}
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
@@ -104,8 +112,7 @@ func NewConfiguration(id string,
 	}
 
 	// if the password is a uuid - assume it is an access key and clear out the username/pass
-	_, err := uuid.ParseUUID(newConfiguration.Password)
-	if err == nil {
+	if _, err := uuid.ParseUUID(newConfiguration.Password); err == nil {
 		newConfiguration.Secret = newConfiguration.Password
 		newConfiguration.Username = ""
 		newConfiguration.Password = ""

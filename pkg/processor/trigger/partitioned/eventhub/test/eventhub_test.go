@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_iguazio
+//go:build test_integration && test_iguazio
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -28,8 +27,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 
+	"github.com/Azure/go-amqp"
 	"github.com/stretchr/testify/suite"
-	"pack.ag/amqp"
 )
 
 type testSuite struct {

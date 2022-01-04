@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_kube
+//go:build test_integration && test_kube
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -21,14 +20,16 @@ package test
 
 import (
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/test"
+
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
-	"time"
 )
 
 type ControllerTestSuite struct {
@@ -68,7 +69,7 @@ func (suite *ControllerTestSuite) TestStaleResourceVersion() {
 	suite.Require().Equal(0, int(suite.Controller.GetResyncInterval()))
 
 	// start controller
-	err = suite.Controller.Start()
+	err = suite.Controller.Start(suite.KubeTestSuite.Ctx)
 	suite.Require().NoError(err)
 
 	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
@@ -83,7 +84,7 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	createFunctionOptions := suite.CompileCreateFunctionOptions(fmt.Sprintf("test-%s", suite.TestID))
 
 	// enrich with defaults
-	err := suite.Platform.EnrichFunctionConfig(&createFunctionOptions.FunctionConfig)
+	err := suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	// build function

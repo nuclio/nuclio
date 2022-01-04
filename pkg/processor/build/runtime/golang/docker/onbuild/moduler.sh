@@ -33,5 +33,5 @@ fi
 # download missing modules & remove unused modules
 go mod tidy
 
-# Removing breadcrums
+# removing breadcrumbs
 rm -rf /processor_go.mod /processor_go.sum

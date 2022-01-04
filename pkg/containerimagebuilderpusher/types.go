@@ -1,6 +1,7 @@
 package containerimagebuilderpusher
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -38,6 +39,7 @@ type ContainerBuilderConfiguration struct {
 	CacheRepo                            string
 	InsecurePushRegistry                 bool
 	InsecurePullRegistry                 bool
+	PushImagesRetries                    int
 }
 
 func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) {
@@ -55,7 +57,7 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
-			"gcr.io/kaniko-project/executor:v0.17.1")
+			"gcr.io/kaniko-project/executor:v1.7.0")
 	}
 	if containerBuilderConfiguration.KanikoImagePullPolicy == "" {
 		containerBuilderConfiguration.KanikoImagePullPolicy = common.GetEnvOrDefaultString(
@@ -86,6 +88,12 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 
 	containerBuilderConfiguration.CacheRepo =
 		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_KANIKO_CACHE_REPO", "")
+
+	containerBuilderConfiguration.PushImagesRetries, err =
+		strconv.Atoi(common.GetEnvOrDefaultString("NUCLIO_KANIKO_PUSH_IMAGES_RETRIES", "3"))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of push images retries")
+	}
 
 	jobDeletionTimeout := common.GetEnvOrDefaultString("NUCLIO_KANIKO_JOB_DELETION_TIMEOUT", "30m")
 	containerBuilderConfiguration.JobDeletionTimeout, err = time.ParseDuration(jobDeletionTimeout)

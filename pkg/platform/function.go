@@ -17,6 +17,7 @@ limitations under the License.
 package platform
 
 import (
+	"context"
 	"math/rand"
 	"strconv"
 
@@ -40,7 +41,7 @@ type Function interface {
 	GetStatus() *functionconfig.Status
 
 	// GetInvokeURL returns the URL on which the function can be invoked
-	GetInvokeURL(InvokeViaType) (string, error)
+	GetInvokeURL(context.Context, InvokeViaType) (string, error)
 
 	// GetReplicas returns the current # of replicas and the configured # of replicas
 	GetReplicas() (int, int)
@@ -97,7 +98,7 @@ func (af *AbstractFunction) GetVersion() string {
 }
 
 // GetInvokeURL returns the URL on which the function can be invoked
-func (af *AbstractFunction) GetInvokeURL(InvokeViaType) (string, error) {
+func (af *AbstractFunction) GetInvokeURL(context.Context, InvokeViaType) (string, error) {
 	return "", errors.New("Unsupported")
 }
 

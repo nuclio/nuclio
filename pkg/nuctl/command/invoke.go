@@ -18,6 +18,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -125,7 +126,8 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			}
 
 			commandeer.createFunctionInvocationOptions.Timeout = commandeer.timeout
-			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(&commandeer.createFunctionInvocationOptions)
+			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(context.Background(),
+				&commandeer.createFunctionInvocationOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to invoke function")
 			}

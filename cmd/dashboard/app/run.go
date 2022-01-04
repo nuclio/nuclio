@@ -80,7 +80,8 @@ func Run(listenAddress string,
 	}
 
 	// create a platform
-	platformInstance, err := factory.CreatePlatform(rootLogger,
+	platformInstance, err := factory.CreatePlatform(context.Background(),
+		rootLogger,
 		platformType,
 		platformConfiguration,
 		defaultNamespace)

@@ -1,4 +1,4 @@
-// +build test_unit test_integration test_kube test_local test_broken
+//go:build test_unit || test_integration || test_kube || test_local || test_broken
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -19,6 +19,7 @@ limitations under the License.
 package processorsuite
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -30,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -59,6 +61,7 @@ type TestSuite struct {
 	suite.Suite
 	Logger                logger.Logger
 	LoggerName            string
+	ctx                   context.Context
 	DockerClient          dockerclient.Client
 	Platform              platform.Platform
 	TestID                string
@@ -75,7 +78,7 @@ type TestSuite struct {
 	cleanupCreatedTempDirs bool
 }
 
-// BlastRequest holds information for BlastHTTP function
+// BlastConfiguration holds information for BlastHTTP function
 type BlastConfiguration struct {
 	Duration      time.Duration
 	TimeOut       time.Duration
@@ -114,6 +117,8 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Logger, err = nucliozap.NewNuclioZapTest(suite.LoggerName)
 	suite.Require().NoError(err)
 
+	suite.ctx = context.Background()
+
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
 
@@ -121,7 +126,7 @@ func (suite *TestSuite) SetupSuite() {
 		suite.PlatformConfiguration, err = platformconfig.NewPlatformConfig("")
 		suite.Require().NoError(err)
 	}
-	suite.Platform, err = factory.CreatePlatform(suite.Logger,
+	suite.Platform, err = factory.CreatePlatform(suite.ctx, suite.Logger,
 		suite.PlatformType,
 		suite.PlatformConfiguration,
 		suite.Namespace)
@@ -158,7 +163,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().GreaterOrEqual(totalResults.Success, 0.95, "Success rate should be higher")
 }
 
-// BlastThroughput is a throughput test suite
+// BlastHTTPThroughput is a throughput test suite
 func (suite *TestSuite) BlastHTTPThroughput(firstCreateFunctionOptions *platform.CreateFunctionOptions,
 	secondCreateFunctionOptions *platform.CreateFunctionOptions,
 	allowedThroughputMarginPercentage float64,
@@ -276,7 +281,7 @@ func (suite *TestSuite) TearDownTest() {
 
 // GetFunction will return the first function it finds
 func (suite *TestSuite) GetFunction(getFunctionOptions *platform.GetFunctionsOptions) platform.Function {
-	functions, err := suite.Platform.GetFunctions(getFunctionOptions)
+	functions, err := suite.Platform.GetFunctions(suite.ctx, getFunctionOptions)
 	suite.Require().NoError(err, "Failed to get functions")
 	suite.Len(functions, 1, "Expected to find one function")
 	return functions[0]
@@ -323,7 +328,7 @@ func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platfor
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
@@ -340,7 +345,7 @@ func (suite *TestSuite) DeployFunctionExpectErrorAndRedeploy(createFunctionOptio
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
@@ -357,7 +362,7 @@ func (suite *TestSuite) DeployFunctionAndRedeployExpectError(createFunctionOptio
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
@@ -365,6 +370,31 @@ func (suite *TestSuite) DeployFunctionAndRedeployExpectError(createFunctionOptio
 	suite.Require().NoError(err)
 	_, err = suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun)
 	suite.Require().Error(err)
+}
+
+func (suite *TestSuite) WithFunctionContainerRestart(deployResult *platform.CreateFunctionResult,
+	handler func()) {
+
+	// stop container
+	err := suite.DockerClient.StopContainer(deployResult.ContainerID)
+	suite.Require().NoError(err)
+
+	handler()
+
+	// start container back again
+	err = suite.DockerClient.StartContainer(deployResult.ContainerID)
+	suite.Require().NoError(err)
+
+	// port has changed, get it
+	functionContainer, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+		ID: deployResult.ContainerID,
+	})
+	suite.Require().NoError(err)
+
+	// update deploy results
+	deployResult.Port, err = suite.DockerClient.GetContainerPort(&functionContainer[0],
+		abstract.FunctionContainerHTTPPort)
+	suite.Require().NoError(err)
 }
 
 // GetNuclioSourceDir returns path to nuclio source directory
@@ -420,7 +450,7 @@ func (suite *TestSuite) GetFunctionPath(functionRelativePath ...string) string {
 	return path.Join(functionPath...)
 }
 
-// adds some commonly-used fields to the given CreateFunctionOptions
+// PopulateDeployOptions adds some commonly-used fields to the given CreateFunctionOptions
 func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.CreateFunctionOptions) {
 
 	// give the name a unique prefix, except if name isn't set
@@ -572,7 +602,7 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 
 		}
 
-		suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
 			FunctionConfig: functionConfig,
 		})
 	}()
@@ -584,7 +614,7 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 	onAfterContainerRun OnAfterContainerRun) (*platform.CreateFunctionResult, error) {
 
 	// deploy the function
-	deployResult, deployErr := suite.Platform.CreateFunction(createFunctionOptions)
+	deployResult, deployErr := suite.Platform.CreateFunction(suite.ctx, createFunctionOptions)
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)

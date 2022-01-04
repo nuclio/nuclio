@@ -18,6 +18,7 @@ package client
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -53,7 +54,8 @@ func NewDeployer(parentLogger logger.Logger, consumer *Consumer, platform platfo
 	return newDeployer, nil
 }
 
-func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunction,
+func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
+	functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	functionStatus *functionconfig.Status) (*nuclioio.NuclioFunction, error) {
 
@@ -63,7 +65,8 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	// the function will be created if it doesn't exit, otherwise will updated
 	functionExists := functionInstance != nil
 
-	createFunctionOptions.Logger.DebugWith("Creating/updating function",
+	createFunctionOptions.Logger.DebugWithCtx(ctx,
+		"Creating/updating function",
 		"functionExists", functionExists,
 		"functionInstance", functionInstance)
 
@@ -84,7 +87,8 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 		return nil, errors.Wrap(err, "Failed to populate function")
 	}
 
-	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
+	createFunctionOptions.Logger.DebugWithCtx(ctx,
+		"Populated function with configuration and status",
 		"function", functionInstance,
 		"functionExists", functionExists)
 
@@ -104,7 +108,6 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 			NuclioFunctions(functionInstance.Namespace).
 			Update(functionInstance)
 	}
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update function")
 	}
@@ -112,19 +115,14 @@ func (d *Deployer) CreateOrUpdateFunction(functionInstance *nuclioio.NuclioFunct
 	return functionInstance, nil
 }
 
-func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
+func (d *Deployer) Deploy(ctx context.Context,
+	functionInstance *nuclioio.NuclioFunction,
 	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, *nuclioio.NuclioFunction, string, error) {
-
-	// Get the logger with which we need to Deploy
-	deployLogger := createFunctionOptions.Logger
-	if deployLogger == nil {
-		deployLogger = d.logger
-	}
 
 	// do the create / update
 	// TODO: Infer timestamp from function config (consider create/update scenarios)
-	functionCreateOrUpdateTimestamp := time.Now()
-	if _, err := d.CreateOrUpdateFunction(functionInstance,
+	if _, err := d.CreateOrUpdateFunction(ctx,
+		functionInstance,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
@@ -133,11 +131,9 @@ func (d *Deployer) Deploy(functionInstance *nuclioio.NuclioFunction,
 	}
 
 	// wait for the function to be ready
-	updatedFunctionInstance, err := waitForFunctionReadiness(deployLogger,
-		d.consumer,
+	updatedFunctionInstance, err := waitForFunctionReadiness(d.consumer,
 		functionInstance.Namespace,
-		functionInstance.Name,
-		functionCreateOrUpdateTimestamp)
+		functionInstance.Name)
 	if err != nil {
 		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
 		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
@@ -288,63 +284,9 @@ func (d *Deployer) getLastCreatedPod(pods []v1.Pod) v1.Pod {
 	return latestPod
 }
 
-func isFunctionDeploymentFailed(consumer *Consumer,
+func waitForFunctionReadiness(consumer *Consumer,
 	namespace string,
-	name string,
-	functionCreateOrUpdateTimestamp time.Time) (bool, error) {
-
-	// list function pods
-	pods, err := consumer.KubeClientSet.CoreV1().
-		Pods(namespace).
-		List(metav1.ListOptions{
-			LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
-		})
-	if err != nil {
-		return false, errors.Wrap(err, "Failed to Get pods")
-	}
-
-	// infer from the pod statuses if the function deployment had failed
-	// failure of one pod is enough to tell that the deployment had failed
-	for _, pod := range pods.Items {
-
-		// skip irrelevant pods (leftovers of previous function deployments)
-		// (subtract 2 seconds from create/update timestamp because of ms accuracy loss of pod.creationTimestamp)
-		if !pod.GetCreationTimestamp().After(functionCreateOrUpdateTimestamp.Add(-2 * time.Second)) {
-			continue
-		}
-
-		for _, containerStatus := range pod.Status.ContainerStatuses {
-
-			if pod.Status.ContainerStatuses[0].State.Waiting != nil {
-
-				// check if the pod is on a crashLoopBackoff
-				if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
-
-					return true, errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
-				}
-			}
-		}
-
-		for _, condition := range pod.Status.Conditions {
-
-			// check if the pod is in pending state, and the reason is that it is unschedulable
-			// (meaning no k8s node can currently run it, because of insufficient resources etc..)
-			if pod.Status.Phase == v1.PodPending &&
-				condition.Reason == "Unschedulable" {
-
-				return true, errors.Errorf("NuclioFunction pod (%s) is unschedulable", pod.Name)
-			}
-		}
-	}
-
-	return false, nil
-}
-
-func waitForFunctionReadiness(loggerInstance logger.Logger,
-	consumer *Consumer,
-	namespace string,
-	name string,
-	functionCreateOrUpdateTimestamp time.Time) (*nuclioio.NuclioFunction, error) {
+	name string) (*nuclioio.NuclioFunction, error) {
 	var err error
 	var function *nuclioio.NuclioFunction
 
@@ -367,19 +309,8 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 				function.Status.State,
 				function.Status.Message)
 		default:
-			if !function.Spec.WaitReadinessTimeoutBeforeFailure {
 
-				// check if function deployment had failed
-				// (ignore the error if there's no concrete indication of failure, because it might still stabilize)
-				if functionDeploymentFailed, err := isFunctionDeploymentFailed(consumer,
-					namespace,
-					name,
-					functionCreateOrUpdateTimestamp); functionDeploymentFailed {
-
-					return false, errors.Wrapf(err, "NuclioFunction deployment failed")
-				}
-			}
-
+			// keep waiting
 			return false, nil
 		}
 	}

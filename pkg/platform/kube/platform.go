@@ -82,7 +82,8 @@ func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig
 }
 
 // NewPlatform instantiates a new kubernetes platform
-func NewPlatform(parentLogger logger.Logger,
+func NewPlatform(ctx context.Context,
+	parentLogger logger.Logger,
 	platformConfiguration *platformconfig.Config,
 	defaultNamespace string) (*Platform, error) {
 	newPlatform := &Platform{}
@@ -98,7 +99,7 @@ func NewPlatform(parentLogger logger.Logger,
 	newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
 
 	// create consumer
-	newPlatform.consumer, err = client.NewConsumer(newPlatform.Logger, newPlatform.kubeconfigPath)
+	newPlatform.consumer, err = client.NewConsumer(ctx, newPlatform.Logger, newPlatform.kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a consumer")
 	}
@@ -153,14 +154,14 @@ func NewPlatform(parentLogger logger.Logger,
 	return newPlatform, nil
 }
 
-func (p *Platform) Initialize() error {
+func (p *Platform) Initialize(ctx context.Context) error {
 	if err := p.projectsClient.Initialize(); err != nil {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
 
 	// ensure default project existence only when projects aren't managed by external leader
 	if p.Config.ProjectsLeader == nil {
-		if err := p.EnsureDefaultProjectExistence(); err != nil {
+		if err := p.EnsureDefaultProjectExistence(ctx); err != nil {
 			return errors.Wrap(err, "Failed to ensure default project existence")
 		}
 	}
@@ -169,14 +170,14 @@ func (p *Platform) Initialize() error {
 }
 
 // CreateFunction will deploy a processor image to the platform (optionally building it, if source is provided)
-func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (
+func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *platform.CreateFunctionOptions) (
 	*platform.CreateFunctionResult, error) {
 
 	var err error
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
-	if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
@@ -198,16 +199,21 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" &&
 		createFunctionOptions.FunctionConfig.Meta.Name != "" {
 		existingFunctionInstance, existingFunctionConfig, err =
-			p.getFunctionInstanceAndConfig(createFunctionOptions.FunctionConfig.Meta.Namespace,
-				createFunctionOptions.FunctionConfig.Meta.Name,
-				true)
+			p.getFunctionInstanceAndConfig(ctx,
+				&platform.GetFunctionsOptions{
+					Namespace:             createFunctionOptions.FunctionConfig.Meta.Namespace,
+					Name:                  createFunctionOptions.FunctionConfig.Meta.Name,
+					ResourceVersion:       createFunctionOptions.FunctionConfig.Meta.ResourceVersion,
+					EnrichWithAPIGateways: true,
+				})
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get an existing function configuration")
 		}
 	}
 
 	// if function exists, perform some validation with new function create options
-	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(existingFunctionConfig,
+	if err := p.ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(ctx,
+		existingFunctionConfig,
 		createFunctionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
@@ -253,10 +259,10 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		// low severity to not over log in the warning
-		createFunctionOptions.Logger.DebugWith("Function creation failed, brief error message extracted",
+		createFunctionOptions.Logger.DebugWithCtx(ctx, "Function creation failed, brief error message extracted",
 			"briefErrorsMessage", briefErrorsMessage)
 
-		createFunctionOptions.Logger.WarnWith("Function creation failed, updating function status",
+		createFunctionOptions.Logger.WarnWithCtx(ctx, "Function creation failed, updating function status",
 			"errorStack", errorStack.String())
 
 		functionStatus := &functionconfig.Status{
@@ -284,11 +290,14 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
 		// it is guaranteed to be created and updated with the reported error state
-		_, err := p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
+		if _, err := p.deployer.CreateOrUpdateFunction(ctx,
+			existingFunctionInstance,
 			createFunctionOptions,
 			functionStatus,
-		)
-		return err
+		); err != nil {
+			return errors.Wrap(err, "Failed to create or update function")
+		}
+		return nil
 	}
 
 	// the builder may update the configuration, so we have to create the function in the platform only after
@@ -297,12 +306,16 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		var err error
 
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
-		if err := p.enrichAndValidateFunctionConfig(&createFunctionOptions.FunctionConfig); err != nil {
+		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 			return errors.Wrap(err, "Failed to enrich and validate an updated function configuration")
 		}
 
-		existingFunctionInstance, err = p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
-			createFunctionOptions.FunctionConfig.Meta.Name)
+		existingFunctionInstance, err = p.getFunction(ctx,
+			&platform.GetFunctionsOptions{
+				Namespace:       createFunctionOptions.FunctionConfig.Meta.Namespace,
+				Name:            createFunctionOptions.FunctionConfig.Meta.Name,
+				ResourceVersion: createFunctionOptions.FunctionConfig.Meta.ResourceVersion,
+			})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get a function")
 		}
@@ -316,7 +329,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		// create or update the function if it exists. If functionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
-		existingFunctionInstance, err = p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
+		existingFunctionInstance, err = p.deployer.CreateOrUpdateFunction(ctx,
+			existingFunctionInstance,
 			createFunctionOptions,
 			&functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
@@ -349,7 +363,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			// try to report the error
 			reportingErr := reportCreationError(buildErr, "", false)
 			if reportingErr != nil {
-				p.Logger.ErrorWith("Failed to report a creation error",
+				p.Logger.ErrorWithCtx(ctx, "Failed to report a creation error",
 					"reportingErr", reportingErr,
 					"buildErr", buildErr)
 				return nil, reportingErr
@@ -362,11 +376,12 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		}
 
 		if skipDeploy {
-			p.Logger.Info("Skipping function deployment",
+			p.Logger.InfoWithCtx(ctx, "Skipping function deployment",
 				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
 				"functionNamespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
 
-			if _, err := p.deployer.CreateOrUpdateFunction(existingFunctionInstance,
+			if _, err := p.deployer.CreateOrUpdateFunction(ctx,
+				existingFunctionInstance,
 				createFunctionOptions,
 				&functionconfig.Status{
 					State: functionconfig.FunctionStateImported,
@@ -382,7 +397,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			}, nil
 		}
 
-		createFunctionResult, updatedFunctionInstance, briefErrorsMessage, deployErr := p.deployer.Deploy(existingFunctionInstance,
+		createFunctionResult, updatedFunctionInstance, briefErrorsMessage, deployErr := p.deployer.Deploy(ctx,
+			existingFunctionInstance,
 			createFunctionOptions)
 
 		// update the function instance (after the deployment)
@@ -395,7 +411,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			// try to report the error
 			reportingErr := reportCreationError(deployErr, briefErrorsMessage, true)
 			if reportingErr != nil {
-				p.Logger.ErrorWith("Failed to report a deployment error",
+				p.Logger.ErrorWithCtx(ctx, "Failed to report a deployment error",
 					"reportingErr", reportingErr,
 					"buildErr", buildErr)
 				return nil, reportingErr
@@ -408,21 +424,21 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// do the deploy in the abstract base class
-	return p.HandleDeployFunction(existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
+	return p.HandleDeployFunction(ctx, existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
-func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) error {
-	if err := p.Platform.EnrichFunctionConfig(functionConfig); err != nil {
+func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.Platform.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return err
 	}
 
-	if err := p.enrichHTTPTriggers(functionConfig); err != nil {
+	if err := p.enrichHTTPTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich http trigger")
 	}
 
 	// enrich function node selector
 	if functionConfig.Spec.NodeSelector == nil && p.Config.Kube.DefaultFunctionNodeSelector != nil {
-		p.Logger.DebugWith("Enriching function node selector",
+		p.Logger.DebugWithCtx(ctx, "Enriching function node selector",
 			"functionName", functionConfig.Meta.Name,
 			"nodeSelectors", p.Config.Kube.DefaultFunctionNodeSelector)
 		functionConfig.Spec.NodeSelector = map[string]string{}
@@ -434,7 +450,7 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 
 	// enrich function pod priority class name
 	if functionConfig.Spec.PriorityClassName == "" && p.Config.Kube.DefaultFunctionPriorityClassName != "" {
-		p.Logger.DebugWith("Enriching pod priority class name",
+		p.Logger.DebugWithCtx(ctx, "Enriching pod priority class name",
 			"functionName", functionConfig.Meta.Name,
 			"priorityClassName", p.Config.Kube.DefaultFunctionPriorityClassName)
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
@@ -444,7 +460,7 @@ func (p Platform) EnrichFunctionConfig(functionConfig *functionconfig.Config) er
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
@@ -459,7 +475,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	functions, err = p.Platform.FilterFunctionsByPermissions(&getFunctionsOptions.PermissionOptions, functions)
+	functions, err = p.Platform.FilterFunctionsByPermissions(ctx, &getFunctionsOptions.PermissionOptions, functions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
@@ -476,7 +492,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 				return nil, errors.Wrap(err, "Failed to enrich functions with API gateways")
 			}
 
-			p.Logger.DebugWith("Api-gateway crd isn't installed; skipping function api gateways enrichment",
+			p.Logger.DebugWithCtx(ctx, "Api-gateway crd isn't installed; skipping function api gateways enrichment",
 				"err", err)
 		}
 	}
@@ -485,21 +501,27 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 }
 
 // UpdateFunction will update a previously deployed function
-func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions) error {
 	p.Logger.DebugWith("Updating function",
 		"functionName", updateFunctionOptions.FunctionMeta.Name)
 
-	return p.updater.Update(updateFunctionOptions)
+	return p.updater.Update(ctx, updateFunctionOptions)
 }
 
 // DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
-	p.Logger.DebugWith("Deleting function",
+func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	p.Logger.DebugWithCtx(ctx, "Deleting function",
 		"functionConfig", deleteFunctionOptions.FunctionConfig)
 
 	// pre delete validation
-	if err := p.ValidateDeleteFunctionOptions(deleteFunctionOptions); err != nil {
+	functionToDelete, err := p.ValidateDeleteFunctionOptions(ctx, deleteFunctionOptions)
+	if err != nil {
 		return errors.Wrap(err, "Failed to validate function-deletion options")
+	}
+
+	// nothing to delete
+	if functionToDelete == nil {
+		return nil
 	}
 
 	// user must clean api gateway before deleting the function
@@ -507,7 +529,7 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		return errors.Wrap(err, "Failed to validate that the function has no API gateways")
 	}
 
-	return p.deleter.Delete(p.consumer, deleteFunctionOptions)
+	return p.deleter.Delete(ctx, p.consumer, deleteFunctionOptions)
 }
 
 func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
@@ -569,7 +591,7 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 }
 
 // CreateProject creates a new project
-func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 
 	// enrich
 	if err := p.EnrichCreateProjectConfig(createProjectOptions); err != nil {
@@ -582,9 +604,9 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 	}
 
 	// create
-	p.Logger.DebugWith("Creating project",
+	p.Logger.DebugWithCtx(ctx, "Creating project",
 		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
-	if _, err := p.projectsClient.Create(createProjectOptions); err != nil {
+	if _, err := p.projectsClient.Create(ctx, createProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to create project")
 	}
 
@@ -592,12 +614,12 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 }
 
 // UpdateProject updates an existing project
-func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
 		return nuclio.WrapErrBadRequest(err)
 	}
 
-	if _, err := p.projectsClient.Update(updateProjectOptions); err != nil {
+	if _, err := p.projectsClient.Update(ctx, updateProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to update project")
 	}
 
@@ -605,24 +627,25 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 }
 
 // DeleteProject will delete a previously existing project
-func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
-	if err := p.Platform.ValidateDeleteProjectOptions(deleteProjectOptions); err != nil {
+func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
+	if err := p.Platform.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
 	// check only, do not delete
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCheck {
-		p.Logger.DebugWith("Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
+		p.Logger.DebugWithCtx(ctx, "Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
 		return nil
 	}
 
-	p.Logger.DebugWith("Deleting project", "projectMeta", deleteProjectOptions.Meta)
-	if err := p.projectsClient.Delete(deleteProjectOptions); err != nil {
+	p.Logger.DebugWithCtx(ctx, "Deleting project", "projectMeta", deleteProjectOptions.Meta)
+	if err := p.projectsClient.Delete(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to delete project")
 	}
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
-		return p.Platform.WaitForProjectResourcesDeletion(&deleteProjectOptions.Meta,
+		return p.Platform.WaitForProjectResourcesDeletion(ctx,
+			&deleteProjectOptions.Meta,
 			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
 	}
 
@@ -630,8 +653,8 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 }
 
 // GetProjects will list existing projects
-func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	projects, err := p.projectsClient.Get(getProjectsOptions)
+func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	projects, err := p.projectsClient.Get(ctx, getProjectsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
@@ -640,14 +663,16 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
-func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
+func (p *Platform) CreateAPIGateway(ctx context.Context,
+	createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 
 	// enrich
-	p.enrichAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig, nil)
+	p.enrichAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig, nil)
 
 	// validate
-	if err := p.validateAPIGatewayConfig(createAPIGatewayOptions.APIGatewayConfig,
+	if err := p.validateAPIGatewayConfig(ctx,
+		createAPIGatewayOptions.APIGatewayConfig,
 		createAPIGatewayOptions.ValidateFunctionsExistence,
 		nil); err != nil {
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
@@ -669,7 +694,7 @@ func (p *Platform) CreateAPIGateway(createAPIGatewayOptions *platform.CreateAPIG
 }
 
 // UpdateAPIGateway will update a previously existing api gateway
-func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
 	apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Get(updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
@@ -678,10 +703,11 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 	}
 
 	// enrich
-	p.enrichAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
+	p.enrichAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
 
 	// validate
-	if err := p.validateAPIGatewayConfig(updateAPIGatewayOptions.APIGatewayConfig,
+	if err := p.validateAPIGatewayConfig(ctx,
+		updateAPIGatewayOptions.APIGatewayConfig,
 		updateAPIGatewayOptions.ValidateFunctionsExistence,
 		apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate api gateway")
@@ -705,14 +731,14 @@ func (p *Platform) UpdateAPIGateway(updateAPIGatewayOptions *platform.UpdateAPIG
 }
 
 // DeleteAPIGateway will delete a previously existing api gateway
-func (p *Platform) DeleteAPIGateway(deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
+func (p *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions *platform.DeleteAPIGatewayOptions) error {
 
 	// validate
 	if err := p.validateAPIGatewayMeta(&deleteAPIGatewayOptions.Meta); err != nil {
 		return errors.Wrap(err, "Failed to validate an API gateway's metadata")
 	}
 
-	p.Logger.DebugWith("Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
+	p.Logger.DebugWithCtx(ctx, "Deleting api gateway", "name", deleteAPIGatewayOptions.Meta.Name)
 
 	// delete
 	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
@@ -794,9 +820,9 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
-func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+func (p *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
 
-	if err := p.Platform.EnrichFunctionEvent(&createFunctionEventOptions.FunctionEventConfig); err != nil {
+	if err := p.Platform.EnrichFunctionEvent(ctx, &createFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -826,7 +852,7 @@ func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.Crea
 }
 
 // UpdateFunctionEvent will update a previously existing function event
-func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
 	updatedFunctionEvent := nuclioio.NuclioFunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig, &updatedFunctionEvent)
 
@@ -837,7 +863,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 		return errors.Wrap(err, "Failed to get a function event")
 	}
 
-	if err := p.Platform.EnrichFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig); err != nil {
+	if err := p.Platform.EnrichFunctionEvent(ctx, &updateFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -869,7 +895,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
-func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+func (p *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	functionEventToDelete, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
 		Get(deleteFunctionEventOptions.Meta.Name, metav1.GetOptions{})
@@ -904,7 +930,7 @@ func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.Dele
 }
 
 // GetFunctionEvents will list existing function events
-func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	var platformFunctionEvents []platform.FunctionEvent
 	var functionEvents []nuclioio.NuclioFunctionEvent
 
@@ -974,7 +1000,8 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		platformFunctionEvents = append(platformFunctionEvents, newFunctionEvent)
 	}
 
-	return p.Platform.FilterFunctionEventsByPermissions(&getFunctionEventsOptions.PermissionOptions,
+	return p.Platform.FilterFunctionEventsByPermissions(ctx,
+		&getFunctionEventsOptions.PermissionOptions,
 		platformFunctionEvents)
 }
 
@@ -1094,8 +1121,8 @@ func (p *Platform) GetAllowedAuthenticationModes() []string {
 	return allowedAuthenticationModes
 }
 
-func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error {
-	functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
+func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
+	functions, err := p.GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:      functionName,
 		Namespace: namespace,
 	})
@@ -1108,7 +1135,7 @@ func (p *Platform) SaveFunctionDeployLogs(functionName, namespace string) error 
 
 	function := functions[0]
 
-	return p.updater.Update(&platform.UpdateFunctionOptions{
+	return p.updater.Update(ctx, &platform.UpdateFunctionOptions{
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})
@@ -1187,15 +1214,19 @@ func (p *Platform) setScaleToZeroSpec(functionSpec *functionconfig.Spec) error {
 	return nil
 }
 
-func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction, error) {
-	p.Logger.DebugWith("Getting function",
-		"namespace", namespace,
-		"name", name)
+func (p *Platform) getFunction(ctx context.Context,
+	getFunctionOptions *platform.GetFunctionsOptions) (*nuclioio.NuclioFunction, error) {
+	p.Logger.DebugWithCtx(ctx, "Getting function",
+		"namespace", getFunctionOptions.Namespace,
+		"name", getFunctionOptions.Name)
 
 	// get specific function CR
 	function, err := p.consumer.NuclioClientSet.NuclioV1beta1().
-		NuclioFunctions(namespace).
-		Get(name, metav1.GetOptions{})
+		NuclioFunctions(getFunctionOptions.Namespace).
+		Get(getFunctionOptions.Name,
+			metav1.GetOptions{
+				ResourceVersion: getFunctionOptions.ResourceVersion,
+			})
 	if err != nil {
 
 		// if we didn't find the function, return nothing
@@ -1206,17 +1237,17 @@ func (p *Platform) getFunction(namespace, name string) (*nuclioio.NuclioFunction
 		return nil, errors.Wrap(err, "Failed to get a function")
 	}
 
-	p.Logger.DebugWith("Completed getting function",
-		"name", name,
-		"namespace", namespace,
+	p.Logger.DebugWithCtx(ctx, "Completed getting function",
+		"name", getFunctionOptions.Name,
+		"namespace", getFunctionOptions.Namespace,
 		"function", function)
 
 	return function, nil
 }
 
-func (p *Platform) getFunctionInstanceAndConfig(namespace string,
-	name string, enrichWithAPIGateway bool) (*nuclioio.NuclioFunction, *functionconfig.ConfigWithStatus, error) {
-	functionInstance, err := p.getFunction(namespace, name)
+func (p *Platform) getFunctionInstanceAndConfig(ctx context.Context,
+	getFunctionOptions *platform.GetFunctionsOptions) (*nuclioio.NuclioFunction, *functionconfig.ConfigWithStatus, error) {
+	functionInstance, err := p.getFunction(ctx, getFunctionOptions)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get a function")
 	}
@@ -1227,9 +1258,9 @@ func (p *Platform) getFunctionInstanceAndConfig(namespace string,
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to create a new function instance")
 		}
-		if enrichWithAPIGateway {
+		if getFunctionOptions.EnrichWithAPIGateways {
 			if err := p.enrichFunctionsWithAPIGateways([]platform.Function{initializedFunctionInstance},
-				namespace); err != nil {
+				getFunctionOptions.Namespace); err != nil {
 				return nil, nil, errors.Wrap(err, "Failed to enrich function with api gateway")
 			}
 			functionInstance.Status.APIGateways = initializedFunctionInstance.GetConfigWithStatus().Status.APIGateways
@@ -1264,7 +1295,8 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
 
-func (p *Platform) enrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayConfig,
+func (p *Platform) enrichAPIGatewayConfig(ctx context.Context,
+	apiGatewayConfig *platform.APIGatewayConfig,
 	existingApiGatewayConfig *nuclioio.NuclioAPIGateway) {
 
 	// meta
@@ -1289,7 +1321,7 @@ func (p *Platform) enrichAPIGatewayConfig(apiGatewayConfig *platform.APIGatewayC
 		}
 	}
 
-	p.EnrichLabelsWithProjectName(apiGatewayConfig.Meta.Labels)
+	p.EnrichLabelsWithProjectName(ctx, apiGatewayConfig.Meta.Labels)
 }
 
 func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
@@ -1304,7 +1336,8 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 	return nil
 }
 
-func (p *Platform) validateAPIGatewayConfig(apiGateway *platform.APIGatewayConfig,
+func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
+	apiGateway *platform.APIGatewayConfig,
 	validateFunctionsExistence bool,
 	existingAPIGateway *nuclioio.NuclioAPIGateway) error {
 
@@ -1336,7 +1369,7 @@ func (p *Platform) validateAPIGatewayConfig(apiGateway *platform.APIGatewayConfi
 		}
 	}
 
-	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(apiGateway, validateFunctionsExistence)
+	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateway upstream functions")
 	}
@@ -1359,8 +1392,8 @@ func (p *Platform) validateAPIGatewayConfig(apiGateway *platform.APIGatewayConfi
 	return nil
 }
 
-func (p *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config) error {
-	if err := p.Platform.ValidateFunctionConfig(functionConfig); err != nil {
+func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.Platform.ValidateFunctionConfig(ctx, functionConfig); err != nil {
 		return err
 	}
 
@@ -1371,12 +1404,12 @@ func (p *Platform) ValidateFunctionConfig(functionConfig *functionconfig.Config)
 	return p.validateFunctionIngresses(functionConfig)
 }
 
-func (p *Platform) enrichAndValidateFunctionConfig(functionConfig *functionconfig.Config) error {
-	if err := p.EnrichFunctionConfig(functionConfig); err != nil {
+func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 
-	if err := p.ValidateFunctionConfig(functionConfig); err != nil {
+	if err := p.ValidateFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate a function configuration")
 	}
 
@@ -1397,13 +1430,13 @@ func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) er
 	}
 }
 
-func (p *Platform) enrichHTTPTriggers(functionConfig *functionconfig.Config) error {
+func (p *Platform) enrichHTTPTriggers(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
 
 	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http") {
-		p.enrichTriggerWithServiceType(functionConfig, &trigger, serviceType)
-		if err := p.enrichHTTPTriggerIngresses(&trigger, functionConfig); err != nil {
+		p.enrichTriggerWithServiceType(ctx, functionConfig, &trigger, serviceType)
+		if err := p.enrichHTTPTriggerIngresses(ctx, &trigger, functionConfig); err != nil {
 			return errors.Wrap(err, "Failed to enrich HTTP trigger ingresses")
 		}
 		functionConfig.Spec.Triggers[triggerName] = trigger
@@ -1428,7 +1461,8 @@ func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platf
 	return nil
 }
 
-func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.Config,
+func (p *Platform) enrichTriggerWithServiceType(ctx context.Context,
+	functionConfig *functionconfig.Config,
 	trigger *functionconfig.Trigger,
 	serviceType v1.ServiceType) {
 
@@ -1438,7 +1472,7 @@ func (p *Platform) enrichTriggerWithServiceType(functionConfig *functionconfig.C
 
 	if triggerServiceType, serviceTypeExists := trigger.Attributes["serviceType"]; !serviceTypeExists || triggerServiceType == "" {
 
-		p.Logger.DebugWith("Enriching function HTTP trigger with service type",
+		p.Logger.DebugWithCtx(ctx, "Enriching function HTTP trigger with service type",
 			"functionName", functionConfig.Meta.Name,
 			"triggerName", trigger.Name,
 			"serviceType", serviceType)
@@ -1571,7 +1605,8 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functi
 	return nil
 }
 
-func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigger,
+func (p *Platform) enrichHTTPTriggerIngresses(ctx context.Context,
+	httpTrigger *functionconfig.Trigger,
 	functionConfig *functionconfig.Config) error {
 
 	ingresses, hasIngresses := httpTrigger.Attributes["ingresses"]
@@ -1597,7 +1632,7 @@ func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigge
 			if ingressHostTemplate == "@nuclio.fromDefault" {
 				ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
 			} else {
-				p.Logger.DebugWith("Received custom ingress host template to enrich host with",
+				p.Logger.DebugWithCtx(ctx, "Received custom ingress host template to enrich host with",
 					"ingressHostTemplate", ingressHostTemplate,
 					"functionName", functionConfig.Meta.Name)
 			}
@@ -1615,7 +1650,7 @@ func (p *Platform) enrichHTTPTriggerIngresses(httpTrigger *functionconfig.Trigge
 			}
 			renderedIngressHost = p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength)
 			if ingressHost, ingressHostFound := encodedIngressMap["host"].(string); !ingressHostFound || ingressHost == "" {
-				p.Logger.DebugWith("Enriching function ingress host from template",
+				p.Logger.DebugWithCtx(ctx, "Enriching function ingress host from template",
 					"renderedIngressHost", renderedIngressHost,
 					"functionName", functionConfig.Meta.Name)
 				encodedIngressMap["host"] = renderedIngressHost
@@ -1651,16 +1686,21 @@ func (p *Platform) alignIngressHostSubdomainLevel(host string, randomCharsLength
 	return strings.Join(reconstructedHost, ".")
 }
 
-func (p *Platform) getAPIGatewayUpstreamFunctions(apiGateway *platform.APIGatewayConfig,
+func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
+	apiGateway *platform.APIGatewayConfig,
 	validateFunctionExistence bool) ([]platform.Function, error) {
 	var upstreamFunctions []platform.Function
 
 	// get upstream functions
-	errGroup, _ := errgroup.WithContext(context.TODO(), p.Logger)
+	errGroup, _ := errgroup.WithContext(ctx, p.Logger)
 	for _, upstream := range apiGateway.Spec.Upstreams {
 		upstream := upstream
 		errGroup.Go("GetUpstreamFunction", func() error {
-			function, err := p.getFunction(apiGateway.Meta.Namespace, upstream.NuclioFunction.Name)
+			function, err := p.getFunction(ctx,
+				&platform.GetFunctionsOptions{
+					Namespace: apiGateway.Meta.Namespace,
+					Name:      upstream.NuclioFunction.Name,
+				})
 			if err != nil {
 				return errors.New("Failed to get upstream function")
 			}

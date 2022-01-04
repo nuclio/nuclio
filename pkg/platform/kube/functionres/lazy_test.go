@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -21,11 +21,13 @@ package functionres
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/google/go-cmp/cmp"
@@ -55,15 +57,22 @@ func (c *mockedPlatformConfigurationProvider) GetPlatformConfiguration() *platfo
 type lazyTestSuite struct {
 	suite.Suite
 	logger logger.Logger
-	client lazyClient
+	client *lazyClient
+	ctx    context.Context
 }
 
 func (suite *lazyTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.client.logger = suite.logger
+	var err error
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
 
-	// use a fake kube client
-	suite.client.kubeClientSet = fake.NewSimpleClientset()
+	// create client
+	lazyClientInstance, err := NewLazyClient(suite.logger,
+		fake.NewSimpleClientset(),
+		nuclioiofake.NewSimpleClientset())
+	suite.Require().NoError(err)
+	suite.client = lazyClientInstance.(*lazyClient)
+	suite.ctx = context.Background()
 
 	// use the default platform configuration
 	defaultPlatformConfiguration, err := platformconfig.NewPlatformConfig("")
@@ -71,6 +80,9 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: defaultPlatformConfiguration,
 	})
+
+	// dont wait for too long
+	suite.client.nodeScaleUpSleepTimeout = 100 * time.Millisecond
 }
 
 func (suite *lazyTestSuite) TestNodeConstrains() {
@@ -99,7 +111,7 @@ func (suite *lazyTestSuite) TestNodeConstrains() {
 			},
 		},
 	}
-	resources, err := suite.client.CreateOrUpdate(context.TODO(), functionInstance, "")
+	resources, err := suite.client.CreateOrUpdate(suite.ctx, functionInstance, "")
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(resources)
 	deployment, err := resources.Deployment()
@@ -189,7 +201,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			suite.client.nginxIngressUpdateGracePeriod = 0
 
 			// "create the ingress
-			ingressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+			ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 			suite.Require().NoError(err)
 			suite.Require().NotNil(ingressInstance)
 			suite.Require().NotEmpty(ingressInstance.Annotations)
@@ -235,9 +247,9 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	functionLabels["nuclio.io/function-name"] = function.Name
 
 	// logs are spammy, let them
-	prevLevel := suite.client.logger.(*nucliozap.NuclioZap).GetLevel()
-	suite.client.logger.(*nucliozap.NuclioZap).SetLevel(nucliozap.InfoLevel)
-	defer suite.client.logger.(*nucliozap.NuclioZap).SetLevel(prevLevel)
+	prevLevel := suite.logger.(*nucliozap.NuclioZap).GetLevel()
+	suite.logger.(*nucliozap.NuclioZap).SetLevel(nucliozap.InfoLevel)
+	defer suite.logger.(*nucliozap.NuclioZap).SetLevel(prevLevel)
 
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: &platformconfig.Config{
@@ -250,12 +262,13 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	suite.client.nginxIngressUpdateGracePeriod = 0
 
 	// "create the ingress
-	ingressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+	ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(ingressInstance)
 
 	// "create" the deployment
-	deploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
+	deploymentInstance, err := suite.client.createOrUpdateDeployment(suite.ctx,
+		functionLabels,
 		"image-pull-secret-str",
 		&function)
 	suite.Require().NoError(err)
@@ -265,7 +278,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	for i := 0; i < 1000; i++ {
 
 		// "update" the ingress
-		updatedIngressInstance, err := suite.client.createOrUpdateIngress(functionLabels, &function)
+		updatedIngressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 		suite.Require().NoError(err)
 		suite.Require().NotNil(updatedIngressInstance)
 
@@ -273,7 +286,8 @@ func (suite *lazyTestSuite) TestNoChanges() {
 		suite.Require().Empty(cmp.Diff(ingressInstance, updatedIngressInstance))
 
 		// "update" the deployment
-		updatedDeploymentInstance, err := suite.client.createOrUpdateDeployment(functionLabels,
+		updatedDeploymentInstance, err := suite.client.createOrUpdateDeployment(suite.ctx,
+			functionLabels,
 			"image-pull-secret-str",
 			&function)
 		suite.Require().NoError(err)
@@ -298,7 +312,8 @@ func (suite *lazyTestSuite) TestNoTriggers() {
 		"nuclio.io/function-version": "latest",
 	}
 
-	err := suite.client.populateIngressConfig(labels,
+	err := suite.client.populateIngressConfig(suite.ctx,
+		labels,
 		&functionInstance,
 		&ingressMeta,
 		&ingressSpec)
@@ -326,7 +341,8 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 	}
 
 	// ensure no ingress rules are populated
-	err := suite.client.populateIngressConfig(labels,
+	err := suite.client.populateIngressConfig(suite.ctx,
+		labels,
 		&functionInstance,
 		&ingressMeta,
 		&ingressSpec)
@@ -357,7 +373,8 @@ func (suite *lazyTestSuite) TestScaleToZeroSpecificAnnotations() {
 	}
 
 	functionLabels := suite.client.getFunctionLabels(functionInstance)
-	err := suite.client.populateIngressConfig(functionLabels,
+	err := suite.client.populateIngressConfig(suite.ctx,
+		functionLabels,
 		functionInstance,
 		&ingressMeta,
 		&extv1beta1.IngressSpec{})
@@ -420,7 +437,8 @@ func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 		"nuclio.io/function-version": "latest",
 	}
 
-	err := suite.client.populateIngressConfig(labels,
+	err := suite.client.populateIngressConfig(suite.ctx,
+		labels,
 		&functionInstance,
 		&ingressMeta,
 		&ingressSpec)
@@ -512,7 +530,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "apply-me",
+							"nuclio.io/class": "function",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -521,7 +539,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "apply-me",
+							"nuclio.io/class": "function",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -536,7 +554,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "dont-apply-me",
+							"nuclio.io/class": "notfunction",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -574,17 +592,97 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 	functionInstance.Name = "func-name"
 	functionInstance.Namespace = "func-namespace"
 	functionInstance.Labels = map[string]string{
-		"nuclio.io/class": "apply-me",
+		"nuclio.io/class": "function",
 	}
 
 	deployment := appsv1.Deployment{}
 	err := suite.client.enrichDeploymentFromPlatformConfiguration(&functionInstance,
 		&deployment,
 		updateDeploymentResourceMethod)
-	suite.Equal(deployment.Spec.Strategy.Type, appsv1.RecreateDeploymentStrategyType)
-	suite.True(deployment.Spec.Paused)
-	suite.Equal(deployment.Spec.Template.Spec.ServiceAccountName, "")
 	suite.Require().NoError(err)
+	suite.Require().Equal(deployment.Spec.Strategy.Type, appsv1.RecreateDeploymentStrategyType)
+	suite.Require().Equal(deployment.Spec.Template.Spec.ServiceAccountName, "")
+	suite.Require().True(deployment.Spec.Paused)
+}
+
+func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
+	namespace := "some-namespace"
+	podName := "my-pod"
+
+	for _, testCase := range []struct {
+		name          string
+		event         v1.Event
+		expectedError bool
+	}{
+		{
+			name: "PodScalingUp",
+			event: v1.Event{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "PodScalingUpEvent",
+				},
+				InvolvedObject: v1.ObjectReference{
+					Name: podName,
+				},
+				Source: v1.EventSource{
+					Component: "cluster-autoscaler",
+				},
+				Reason: "TriggeredScaleUp",
+			},
+			expectedError: false,
+		},
+		{
+			name: "PodScalingDown",
+			event: v1.Event{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "PodScalingDownEvent",
+				},
+				InvolvedObject: v1.ObjectReference{
+					Name: podName,
+				},
+				Source: v1.EventSource{
+					Component: "cluster-autoscaler",
+				},
+				Reason: "ScaleDown",
+			},
+			expectedError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+
+			pod := v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              podName,
+					Namespace:         namespace,
+					CreationTimestamp: metav1.Now(),
+				},
+				Status: v1.PodStatus{
+					Phase: v1.PodPending,
+					Conditions: []v1.PodCondition{
+						{
+							Reason: "Unschedulable",
+						},
+					},
+				},
+			}
+			podsList := v1.PodList{
+				Items: []v1.Pod{pod},
+			}
+
+			_, err := suite.client.kubeClientSet.CoreV1().Events(namespace).Create(&testCase.event)
+			suite.Require().NoError(err)
+
+			// call resolveFailFast
+			err = suite.client.resolveFailFast(suite.ctx, &podsList, time.Now())
+			if testCase.expectedError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+
+			err = suite.client.kubeClientSet.CoreV1().Events(namespace).Delete(testCase.event.Name, nil)
+			suite.Require().NoError(err)
+		})
+	}
 }
 
 func (suite *lazyTestSuite) getIngressRuleByHost(rules []extv1beta1.IngressRule, host string) *extv1beta1.IngressRule {

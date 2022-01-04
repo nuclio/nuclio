@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 package iguazio
 

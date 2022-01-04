@@ -1,5 +1,4 @@
-// +build test_unit
-// +build test_broken
+//go:build test_unit && test_broken
 
 // TODO: fix below unit testings that fail on CI due to time drifting (not idempotent)
 /*

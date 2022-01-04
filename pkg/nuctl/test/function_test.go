@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_kube test_local
+//go:build test_integration && (test_kube || test_local)
 
 /*
 Copyright 2017 The Nuclio Authors.

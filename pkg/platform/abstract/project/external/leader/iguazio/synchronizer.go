@@ -76,7 +76,8 @@ func (c *Synchronizer) startSynchronizationLoop(interval time.Duration, namespac
 			newMostRecentUpdatedProjectTime, err := c.synchronizeProjectsFromLeader(namespace,
 				namespaceToMostRecentUpdatedProjectTimeMap[namespace])
 			if err != nil {
-				c.logger.WarnWith("Failed to synchronize projects according to leader", "err", err)
+				c.logger.WarnWith("Failed to synchronize projects according to leader",
+					"err", errors.GetErrorStackString(err, 10))
 			}
 
 			// update most recent updated project time
@@ -150,7 +151,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 	}
 
 	// fetch all internal projects
-	internalProjects, err := c.internalProjectsClient.Get(&platform.GetProjectsOptions{
+	internalProjects, err := c.internalProjectsClient.Get(context.Background(), &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Namespace: namespace,
 		},
@@ -173,7 +174,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 		"projectsToUpdateNum", len(projectsToUpdate))
 
 	// create projects that exist on the leader but weren't created internally
-	createProjectErrGroup, _ := errgroup.WithContext(context.Background(), c.logger)
+	createProjectErrGroup, _ := errgroup.WithContextSemaphore(context.Background(), c.logger, errgroup.DefaultErrgroupConcurrency)
 	for _, projectInstance := range projectsToCreate {
 		projectInstance := projectInstance
 		createProjectErrGroup.Go("create projects", func() error {
@@ -185,7 +186,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 					Status: projectInstance.Status,
 				},
 			}
-			if _, err := c.internalProjectsClient.Create(createProjectConfig); err != nil {
+			if _, err := c.internalProjectsClient.Create(context.Background(), createProjectConfig); err != nil {
 				c.logger.WarnWith("Failed to create project from leader sync",
 					"name", createProjectConfig.ProjectConfig.Meta.Name,
 					"namespace", createProjectConfig.ProjectConfig.Meta.Namespace,
@@ -204,7 +205,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 	}
 
 	// update projects that exist both internally and on the leader
-	updateProjectErrGroup, _ := errgroup.WithContext(context.Background(), c.logger)
+	updateProjectErrGroup, _ := errgroup.WithContextSemaphore(context.Background(), c.logger, errgroup.DefaultErrgroupConcurrency)
 	for _, projectInstance := range projectsToUpdate {
 		projectInstance := projectInstance
 		updateProjectErrGroup.Go("update projects", func() error {
@@ -216,7 +217,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 					Status: projectInstance.Status,
 				},
 			}
-			if _, err := c.internalProjectsClient.Update(updateProjectOptions); err != nil {
+			if _, err := c.internalProjectsClient.Update(context.Background(), updateProjectOptions); err != nil {
 				c.logger.WarnWith("Failed to update project from leader sync",
 					"name", updateProjectOptions.ProjectConfig.Meta.Name,
 					"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace,

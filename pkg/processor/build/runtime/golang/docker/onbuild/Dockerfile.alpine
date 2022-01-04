@@ -16,7 +16,7 @@
 ARG NUCLIO_LABEL
 
 # Build the processor
-FROM nuclio-base-alpine:$NUCLIO_LABEL as build-processor
+FROM nuclio-base-alpine:${NUCLIO_LABEL} as build-processor
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 ARG GOOS=linux
@@ -30,7 +30,7 @@ RUN GOOS=$GOOS GOARCH=$GOARCH go build \
     -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM golang:1.14.3-alpine3.11
+FROM gcr.io/iguazio/golang:1.17.5-alpine3.15
 
 # Download required packages for plugin compilation
 RUN apk --update --no-cache add git gcc musl-dev file

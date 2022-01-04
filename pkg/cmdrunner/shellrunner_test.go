@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -89,26 +89,36 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 			suite.Require().NoError(err)
 
 			buffer := bytes.NewBuffer([]byte{})
+			bufferIsFilled := make(chan bool)
 			go func() {
 				for buffer.Len() == 0 {
+					suite.logger.DebugWithCtx(ctx, "Filling buffer with commands output")
+					io.Copy(buffer, fileReader) // nolint: errcheck
 					time.Sleep(250 * time.Millisecond)
 				}
+				bufferIsFilled <- true
 
 				// let it stream for a second and then stop it
-				suite.logger.DebugWithCtx(ctx, "Cancelling context")
+				suite.logger.DebugWithCtx(ctx, "Got some data, cancelling context")
 				cancel()
 			}()
 
-			// read all streamed data
-			suite.logger.DebugWithCtx(ctx, "Streaming file contents")
+			// In case stream channel is still open
+			time.AfterFunc(3*time.Second, func() {
+				suite.logger.DebugWithCtx(ctx, "Forcefully cancelling context")
+				cancel()
+			})
 
-			io.Copy(buffer, fileReader) // nolint: errcheck
-			suite.logger.DebugWithCtx(ctx, "Done streaming file contents")
+			// read all streamed data
+			suite.logger.DebugWithCtx(ctx, "Waiting for buffer to get filled")
+			<-bufferIsFilled
+
+			// sanity
 			suite.Require().NotEmpty(buffer.String())
 
 			// wait for context termination
 			<-ctx.Done()
-			suite.logger.DebugWithCtx(ctx, "Context is done")
+			suite.logger.DebugWithCtx(ctx, "Context is terminated")
 
 			// let the process wrap up and close its FDs
 			time.Sleep(1 * time.Second)

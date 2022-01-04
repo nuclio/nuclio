@@ -14,7 +14,7 @@
 
 {{- if .Values.rbac.create }}
 # All access to the custom resource definitions
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-clusterrole
@@ -37,7 +37,7 @@ rules:
 {{- else if eq .Values.rbac.crdAccessMode "namespaced" }}
 
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ template "nuclio.crdAdminName" . }}-role

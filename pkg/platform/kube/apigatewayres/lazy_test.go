@@ -1,4 +1,4 @@
-// +build test_unit
+//go:build test_unit
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -66,7 +66,7 @@ func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
 	primaryFunctionConfig.Meta.Name = "primary-function-name"
 	canaryFunctionConfig := *functionconfig.NewConfig()
 	canaryFunctionConfig.Meta.Name = "canary-function-name"
-	resources, err := suite.client.CreateOrUpdate(context.TODO(), &nuclioio.NuclioAPIGateway{
+	resources, err := suite.client.CreateOrUpdate(context.Background(), &nuclioio.NuclioAPIGateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
 			Namespace: "test-namespace",

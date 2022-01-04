@@ -29,13 +29,13 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -102,7 +102,7 @@ func (s *Store) GetProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	return projects, nil
 }
 
-func (s *Store) DeleteProject(projectMeta *platform.ProjectMeta) error {
+func (s *Store) DeleteProject(ctx context.Context, projectMeta *platform.ProjectMeta) error {
 	functions, err := s.GetProjectFunctions(&platform.GetFunctionsOptions{
 		Namespace: projectMeta.Namespace,
 		Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
@@ -112,11 +112,11 @@ func (s *Store) DeleteProject(projectMeta *platform.ProjectMeta) error {
 	}
 
 	// NOTE: functions delete their related function events
-	deleteFunctionsErrGroup, _ := errgroup.WithContext(context.TODO())
+	deleteFunctionsErrGroup, deleteFunctionsErrGroupCtx := errgroup.WithContext(ctx, s.logger)
 	for _, function := range functions {
 		function := function
-		deleteFunctionsErrGroup.Go(func() error {
-			return s.DeleteFunction(&function.GetConfig().Meta)
+		deleteFunctionsErrGroup.Go("Delete function", func() error {
+			return s.DeleteFunction(deleteFunctionsErrGroupCtx, &function.GetConfig().Meta)
 		})
 	}
 	if err := deleteFunctionsErrGroup.Wait(); err != nil {
@@ -261,7 +261,7 @@ func (s *Store) GetFunctions(functionMeta *functionconfig.Meta) ([]platform.Func
 	return functions, nil
 }
 
-func (s *Store) DeleteFunction(functionMeta *functionconfig.Meta) error {
+func (s *Store) DeleteFunction(ctx context.Context, functionMeta *functionconfig.Meta) error {
 	functionEvents, err := s.GetFunctionEvents(&platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Namespace: functionMeta.Namespace,
@@ -274,16 +274,16 @@ func (s *Store) DeleteFunction(functionMeta *functionconfig.Meta) error {
 		return errors.Wrap(err, "Failed to get function events")
 	}
 
-	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(context.TODO())
+	deleteFunctionEventsErrGroup, _ := errgroup.WithContext(ctx, s.logger)
 	for _, functionEvent := range functionEvents {
 		functionEvent := functionEvent
-		deleteFunctionEventsErrGroup.Go(func() error {
+		deleteFunctionEventsErrGroup.Go("Delete function event", func() error {
 			return s.DeleteFunctionEvent(&functionEvent.GetConfig().Meta)
 		})
 	}
 
 	if err := deleteFunctionEventsErrGroup.Wait(); err != nil {
-		s.logger.WarnWith("Failed to delete function events, deleting function anyway",
+		s.logger.WarnWithCtx(ctx, "Failed to delete function events, deleting function anyway",
 			"err", err)
 		return errors.Wrap(err, "Failed to delete function events")
 	}
@@ -415,7 +415,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 
 		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
 		// using alpine mirrored to gcr.io/iguazio for stability
-		_, err = s.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.11", &dockerclient.RunOptions{
+		_, err = s.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.15", &dockerclient.RunOptions{
 			Volumes:          map[string]string{volumeName: baseDir},
 			Remove:           true,
 			Command:          `/bin/sh -c "/bin/sleep 6h"`,

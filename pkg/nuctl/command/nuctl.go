@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"context"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -69,7 +70,7 @@ func NewRootCommandeer() *RootCommandeer {
 	// add children
 	cmd.AddCommand(
 		newBuildCommandeer(commandeer).cmd,
-		newDeployCommandeer(commandeer).cmd,
+		newDeployCommandeer(context.Background(), commandeer).cmd,
 		newInvokeCommandeer(commandeer).cmd,
 		newGetCommandeer(commandeer).cmd,
 		newDeleteCommandeer(commandeer).cmd,
@@ -123,7 +124,7 @@ func (rc *RootCommandeer) initialize() error {
 	// ask the factory to create the appropriate platform
 	// TODO: as more platforms are supported, i imagine the last argument will be to some
 	// sort of configuration provider interface
-	rc.platform, err = factory.CreatePlatform(rc.loggerInstance, rc.platformName, rc.platformConfiguration, rc.namespace)
+	rc.platform, err = factory.CreatePlatform(context.Background(), rc.loggerInstance, rc.platformName, rc.platformConfiguration, rc.namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
 	}

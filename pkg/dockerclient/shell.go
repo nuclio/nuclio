@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -429,6 +430,32 @@ func (c *ShellClient) StartContainer(containerID string) error {
 
 	_, err := c.runCommand(nil, "docker start %s", containerID)
 	return err
+}
+
+func (c *ShellClient) GetContainerPort(container *Container, boundPort int) (int, error) {
+	functionHostPort := Port(fmt.Sprintf("%d/tcp", boundPort))
+
+	portBindings := container.HostConfig.PortBindings[functionHostPort]
+	ports := container.NetworkSettings.Ports[functionHostPort]
+	if len(portBindings) == 0 && len(ports) == 0 {
+		return 0, nil
+	}
+
+	// by default take the port binding, as if the user requested
+	if len(portBindings) != 0 &&
+		portBindings[0].HostPort != "" && // docker version < 20.10
+		portBindings[0].HostPort != "0" { // on docker version >= 20.10, the host port would by 0 and not empty string.
+		return strconv.Atoi(portBindings[0].HostPort)
+	}
+
+	// port was not explicit by user, take port assigned by docker daemon
+	if len(ports) != 0 && ports[0].HostPort != "" {
+		return strconv.Atoi(ports[0].HostPort)
+	}
+
+	// function might failed during deploying and did not assign a port
+	return 0, nil
+
 }
 
 // GetContainerLogs returns raw logs from a given container ID

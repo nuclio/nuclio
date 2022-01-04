@@ -43,39 +43,39 @@ const (
 // to run over it
 type Platform interface {
 
-	// Initializes the platform
-	Initialize() error
+	// Initialize Initializes the platform
+	Initialize(ctx context.Context) error
 
 	//
 	// Function
 	//
 
-	// Build will locally build a processor image and return its name (or the error)
+	// CreateFunctionBuild Build will locally build a processor image and return its name (or the error)
 	CreateFunctionBuild(createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
 
-	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-	CreateFunction(createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
+	// CreateFunction Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+	CreateFunction(ctx context.Context, createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
 
-	// Enrich function config upon creating function
-	EnrichFunctionConfig(functionConfig *functionconfig.Config) error
+	// EnrichFunctionConfig Enrich function config upon creating function
+	EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error
 
-	// Validate function config upon creating function
-	ValidateFunctionConfig(functionConfig *functionconfig.Config) error
+	// ValidateFunctionConfig Validate function config upon creating function
+	ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error
 
 	// UpdateFunction will update a previously deployed function
-	UpdateFunction(updateFunctionOptions *UpdateFunctionOptions) error
+	UpdateFunction(ctx context.Context, updateFunctionOptions *UpdateFunctionOptions) error
 
 	// DeleteFunction will delete a previously deployed function
-	DeleteFunction(deleteFunctionOptions *DeleteFunctionOptions) error
+	DeleteFunction(ctx context.Context, deleteFunctionOptions *DeleteFunctionOptions) error
 
 	// CreateFunctionInvocation will invoke a previously deployed function
-	CreateFunctionInvocation(createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
+	CreateFunctionInvocation(ctx context.Context, createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
 
 	// GetFunctions will list existing functions
-	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
+	GetFunctions(ctx context.Context, getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
 	// FilterFunctionsByPermissions will filter out some functions
-	FilterFunctionsByPermissions(*opa.PermissionOptions, []Function) ([]Function, error)
+	FilterFunctionsByPermissions(context.Context, *opa.PermissionOptions, []Function) ([]Function, error)
 
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
@@ -91,22 +91,22 @@ type Platform interface {
 	//
 
 	// CreateProject will probably create a new project
-	CreateProject(createProjectOptions *CreateProjectOptions) error
+	CreateProject(ctx context.Context, createProjectOptions *CreateProjectOptions) error
 
 	// UpdateProject will update a previously existing project
-	UpdateProject(updateProjectOptions *UpdateProjectOptions) error
+	UpdateProject(ctx context.Context, updateProjectOptions *UpdateProjectOptions) error
 
 	// DeleteProject will delete a previously existing project
-	DeleteProject(deleteProjectOptions *DeleteProjectOptions) error
+	DeleteProject(ctx context.Context, deleteProjectOptions *DeleteProjectOptions) error
 
 	// GetProjects will list existing projects
-	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
+	GetProjects(ctx context.Context, getProjectsOptions *GetProjectsOptions) ([]Project, error)
 
 	// EnsureDefaultProjectExistence ensure default project exists, creates it otherwise
-	EnsureDefaultProjectExistence() error
+	EnsureDefaultProjectExistence(ctx context.Context) error
 
 	// WaitForProjectResourcesDeletion waits for all of the project's resources to be deleted
-	WaitForProjectResourcesDeletion(projectMeta *ProjectMeta, duration time.Duration) error
+	WaitForProjectResourcesDeletion(ctx context.Context, projectMeta *ProjectMeta, duration time.Duration) error
 
 	//
 	// Function event
@@ -114,32 +114,32 @@ type Platform interface {
 
 	// CreateFunctionEvent will create a new function event that can later be used as a template from
 	// which to invoke functions
-	CreateFunctionEvent(createFunctionEventOptions *CreateFunctionEventOptions) error
+	CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *CreateFunctionEventOptions) error
 
 	// UpdateFunctionEvent will update a previously existing function event
-	UpdateFunctionEvent(updateFunctionEventOptions *UpdateFunctionEventOptions) error
+	UpdateFunctionEvent(ctx context.Context, updateFunctionEventOptions *UpdateFunctionEventOptions) error
 
 	// DeleteFunctionEvent will delete a previously existing function event
-	DeleteFunctionEvent(deleteFunctionEventOptions *DeleteFunctionEventOptions) error
+	DeleteFunctionEvent(ctx context.Context, deleteFunctionEventOptions *DeleteFunctionEventOptions) error
 
 	// GetFunctionEvents will list existing function events
-	GetFunctionEvents(getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
+	GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
 
 	// FilterFunctionEventsByPermissions will filter out some function events
-	FilterFunctionEventsByPermissions(*opa.PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
+	FilterFunctionEventsByPermissions(context.Context, *opa.PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
 
 	//
 	// API Gateway
 	//
 
 	// CreateAPIGateway creates and deploy APIGateway
-	CreateAPIGateway(createAPIGatewayOptions *CreateAPIGatewayOptions) error
+	CreateAPIGateway(ctx context.Context, createAPIGatewayOptions *CreateAPIGatewayOptions) error
 
 	// UpdateAPIGateway will update a previously deployed api gateway
-	UpdateAPIGateway(updateAPIGatewayOptions *UpdateAPIGatewayOptions) error
+	UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *UpdateAPIGatewayOptions) error
 
 	// DeleteAPIGateway will delete a previously deployed api gateway
-	DeleteAPIGateway(deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
+	DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
 
 	// GetAPIGateways will list existing api gateways
 	GetAPIGateways(getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
@@ -186,10 +186,10 @@ type Platform interface {
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error
 
-	// Get Onbuild stage for multistage builds
+	// GetOnbuildStages Get Onbuild stage for multistage builds
 	GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error)
 
-	// Change Onbuild artifact paths depending on the type of the builder used
+	// TransformOnbuildArtifactPaths Change Onbuild artifact paths depending on the type of the builder used
 	TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error)
 
 	// GetOnbuildImageRegistry returns onbuild base registry
@@ -201,10 +201,10 @@ type Platform interface {
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string
 
-	// Save build logs from platform logger to function store or k8s
-	SaveFunctionDeployLogs(functionName, namespace string) error
+	// SaveFunctionDeployLogs Save build logs from platform logger to function store or k8s
+	SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error
 
-	// Parse and construct a function processor logs and brief error
+	// GetProcessorLogsAndBriefError Parse and construct a function processor logs and brief error
 	GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string)
 
 	// GetContainerBuilderKind returns the container-builder kind

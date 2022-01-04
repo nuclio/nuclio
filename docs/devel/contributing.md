@@ -16,9 +16,8 @@ Ensure that your setup includes the following prerequisite components:
 
 - Linux or OSX
 - Git
-- Docker version 17.05+ (because Nuclio
-  uses [multi-stage builds](https://docs.docker.com/engine/userguide/eng-image/multistage-build/))
-- The Go toolchain (CI tests with 1.14, best use that)
+- Docker version 19.03+
+- The Go toolchain (CI tests with 1.17, best use that)
 - Kubernetes version 1.20+ (mostly for testing) - `minikube` recommended; (you can follow
   the [Minikube getting-started guide](/docs/setup/minikube/getting-started-minikube.md))
 
@@ -129,7 +128,7 @@ Since there is an auto-fallback to "latest", if you want to use versioned binari
 part of the `Go tool arguments` in the Run/Debug configuration:
 
 ```
--i -ldflags="-X github.com/v3io/version-go.label=1.4.5"
+-ldflags="-X github.com/v3io/version-go.label=1.7.2"
 ``` 
 
 <a id="goland-run-go-processor"></a>

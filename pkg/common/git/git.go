@@ -13,6 +13,7 @@ import (
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Client interface {
@@ -203,7 +204,7 @@ func ResolveReference(repositoryURL string, attributes *Attributes) (string, err
 		return ref, nil
 	}
 
-	return "", errors.New("No git reference was specified. (must specify branch/tag/reference)")
+	return "", nuclio.NewErrBadRequest("No git reference was specified. (must specify branch/tag/reference)")
 }
 
 func isAzureDevopsRepositoryURL(repositoryURL string) bool {

@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_local
+//go:build test_integration && test_local
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -74,11 +73,11 @@ func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTim
 	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// deploy the function - it's OK for it to time out
-	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(suite.TestSuite.Ctx, createFunctionOptions)
 	suite.Require().Error(err)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+	defer suite.Platform.DeleteFunction(suite.TestSuite.Ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 }

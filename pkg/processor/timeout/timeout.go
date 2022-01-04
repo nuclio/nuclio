@@ -14,15 +14,16 @@ limitations under the License.
 package timeout
 
 import (
+	ctx "context"
 	"fmt"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"golang.org/x/sync/errgroup"
 )
 
 // Processor is minimal processor interface
@@ -62,22 +63,22 @@ func (w EventTimeoutWatcher) watch() {
 		now := time.Now()
 
 		// create error group
-		triggerErrGroup := errgroup.Group{}
+		triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx.Background(), w.logger)
 
 		// TODO: Run in parallel
 		for triggerName, triggerInstance := range w.processor.GetTriggers() {
 			triggerName, triggerInstance := triggerName, triggerInstance
 
-			triggerErrGroup.Go(func() error {
+			triggerErrGroup.Go("Watch trigger event timeout", func() error {
 
 				// create error group
-				workerErrGroup := errgroup.Group{}
+				workerErrGroup, workerErrGroupCtx := errgroup.WithContext(triggerErrGroupCtx, w.logger)
 
 				// iterate over worker
 				for _, workerInstance := range triggerInstance.GetWorkers() {
 					workerInstance := workerInstance
 
-					workerErrGroup.Go(func() error {
+					workerErrGroup.Go("Watch Event Timeout", func() error {
 						eventTime := workerInstance.GetEventTime()
 						if eventTime == nil {
 							return nil
@@ -96,14 +97,14 @@ func (w EventTimeoutWatcher) watch() {
 
 						// if the worker can be restarted, restart it. otherwise time it out
 						if workerInstance.SupportsRestart() {
-							w.logger.InfoWith("Restarting worker due to timeout", with...)
+							w.logger.InfoWithCtx(workerErrGroupCtx, "Restarting worker due to timeout", with...)
 							if err := workerInstance.Restart(); err != nil {
 								with = append(with, "error", err)
-								w.logger.ErrorWith("Can't restart worker", with...)
+								w.logger.ErrorWithCtx(workerErrGroupCtx, "Can't restart worker", with...)
 							}
 						} else {
 							if err := triggerInstance.TimeoutWorker(workerInstance); err != nil {
-								w.logger.WarnWith("Error timing out a worker", "worker", workerInstance.GetIndex(), "trigger", triggerName)
+								w.logger.WarnWithCtx(workerErrGroupCtx, "Error timing out a worker", "worker", workerInstance.GetIndex(), "trigger", triggerName)
 							}
 							w.gracefulShutdown(workerInstance)
 						}
@@ -119,7 +120,7 @@ func (w EventTimeoutWatcher) watch() {
 		}
 
 		if err := triggerErrGroup.Wait(); err != nil {
-			w.logger.WarnWith("Failed to wait for triggers", "err", errors.GetErrorStackString(err, 10))
+			w.logger.WarnWithCtx(triggerErrGroupCtx, "Failed to wait for triggers", "err", errors.GetErrorStackString(err, 10))
 		}
 	}
 }
@@ -138,21 +139,21 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 	runningWorkers := make(map[string]*worker.Worker)
 
 	// create error group
-	triggerErrGroup := errgroup.Group{}
+	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx.Background(), w.logger)
 
 	for triggerIdx, triggerInstance := range w.processor.GetTriggers() {
 		triggerIdx, triggerInstance := triggerIdx, triggerInstance
 
-		triggerErrGroup.Go(func() error {
+		triggerErrGroup.Go("Stop trigger", func() error {
 
 			if checkpoint, err := triggerInstance.Stop(false); err != nil {
-				w.logger.ErrorWith("Can't stop trigger", "triggerIdx", triggerIdx, "error", err)
+				w.logger.ErrorWithCtx(triggerErrGroupCtx, "Can't stop trigger", "triggerIdx", triggerIdx, "error", err)
 			} else {
 				checkpointValue := ""
 				if checkpoint != nil {
 					checkpointValue = *checkpoint
 				}
-				w.logger.InfoWith("Trigger stopped", "triggerIdx", triggerIdx, "checkpoint", checkpointValue)
+				w.logger.InfoWithCtx(triggerErrGroupCtx, "Trigger stopped", "triggerIdx", triggerIdx, "checkpoint", checkpointValue)
 			}
 
 			for _, workerInstance := range triggerInstance.GetWorkers() {
@@ -173,7 +174,7 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 	}
 
 	if err := triggerErrGroup.Wait(); err != nil {
-		w.logger.WarnWith("Failed to wait for triggers", "err", errors.GetErrorStackString(err, 10))
+		w.logger.WarnWithCtx(triggerErrGroupCtx, "Failed to wait for triggers", "err", errors.GetErrorStackString(err, 10))
 	}
 
 	return runningWorkers

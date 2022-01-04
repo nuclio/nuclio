@@ -1,6 +1,4 @@
-// +build test_integration
-// +build test_local
-// +build test_broken
+//go:build test_integration && test_local && test_broken
 
 // NOTE: Currently broken
 // It seems that the mqtt eclipse container refuses to take incoming requests when running

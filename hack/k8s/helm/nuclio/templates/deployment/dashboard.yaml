@@ -92,6 +92,8 @@ spec:
           {{ toYaml .Values.dashboard.resources | nindent 11 }}
         {{- end }}
         env:
+        - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
+          value: {{ .Values.dashboard.kaniko.pushImagesRestries | quote }}
         - name: NUCLIO_AUTH_KIND
           value: {{ .Values.dashboard.authConfig.kind }}
         - name: NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT

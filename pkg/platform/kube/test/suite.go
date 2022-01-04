@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_kube
+//go:build test_integration && test_kube
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -30,8 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ghodss/yaml"
-	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -47,6 +44,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
+	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -68,15 +67,19 @@ type KubeTestSuite struct {
 	FunctionClient    functionres.Client
 
 	DisableControllerStart bool
+	Ctx                    context.Context
 }
 
-// To run this test suite you should:
+// SetupSuite To run this test suite you should:
+// - Have Helm 3 Installed - click here for instructions https://helm.sh/docs/intro/install
 // - Kubernetes for Mac: Ingress controller installed (you can install it by running "test/k8s/ci_assets/install_nginx_ingress_controller.sh")
 // - have Nuclio CRDs installed (you can install them by running "test/k8s/ci_assets/install_nuclio_crds.sh")
 // - have docker registry running (you can run docker registry by running "docker run --rm -d -p 5000:5000 registry:2")
 // - use "(kube) - platform test" run configuration via GoLand to run your test
 func (suite *KubeTestSuite) SetupSuite() {
 	var err error
+
+	suite.Ctx = context.Background()
 
 	common.SetVersionFromEnv()
 	suite.Namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "default")
@@ -119,7 +122,7 @@ func (suite *KubeTestSuite) SetupSuite() {
 	if !suite.DisableControllerStart {
 
 		// start controller
-		if err := suite.Controller.Start(); err != nil {
+		if err := suite.Controller.Start(suite.Ctx); err != nil {
 			suite.Require().NoError(err, "Failed to start controller")
 		}
 	}
@@ -129,7 +132,7 @@ func (suite *KubeTestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
 	// default project gets deleted during testings, ensure it is being recreated
-	err := suite.Platform.EnsureDefaultProjectExistence()
+	err := suite.Platform.EnsureDefaultProjectExistence(suite.Ctx)
 	suite.Require().NoError(err, "Failed to ensure default project exists")
 }
 
@@ -146,7 +149,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 	}()
 
 	// remove nuclio function leftovers
-	errGroup, _ := errgroup.WithContext(context.TODO(), suite.Logger)
+	errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
 	for _, resourceKind := range []string{
 		"nucliofunctions",
 		"nuclioprojects",
@@ -302,7 +305,7 @@ func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIG
 }
 
 func (suite *KubeTestSuite) GetProject(getProjectFunctions *platform.GetProjectsOptions) platform.Project {
-	projects, err := suite.Platform.GetProjects(getProjectFunctions)
+	projects, err := suite.Platform.GetProjects(suite.Ctx, getProjectFunctions)
 	suite.Require().NoError(err, "Failed to get projects")
 	return projects[0]
 }
@@ -379,7 +382,7 @@ func (suite *KubeTestSuite) GetNodes() []v1.Node {
 
 func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
 	suite.Logger.InfoWith("Deleting function pods", "functionName", functionName)
-	errGroup, _ := errgroup.WithContext(context.TODO(), suite.Logger)
+	errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
 	for _, pod := range suite.GetFunctionPods(functionName) {
 		pod := pod
 		errGroup.Go("Delete function pods", func() error {
@@ -409,7 +412,7 @@ func (suite *KubeTestSuite) CreateImportedFunction(functionName, projectName str
 	}
 	createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 	suite.PopulateDeployOptions(createFunctionOptions)
-	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	_, err := suite.Platform.CreateFunction(suite.Ctx, createFunctionOptions)
 	suite.Require().NoError(err)
 	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
 		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
@@ -494,14 +497,14 @@ func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.C
 	onAfterIngressCreated OnAfterIngressCreated) error {
 
 	// deploy the api gateway
-	if err := suite.Platform.CreateAPIGateway(createAPIGatewayOptions); err != nil {
+	if err := suite.Platform.CreateAPIGateway(suite.Ctx, createAPIGatewayOptions); err != nil {
 		return err
 	}
 
 	// delete the api gateway when done
 	defer func() {
 		suite.Logger.Debug("Deleting deployed api gateway")
-		err := suite.Platform.DeleteAPIGateway(&platform.DeleteAPIGatewayOptions{
+		err := suite.Platform.DeleteAPIGateway(suite.Ctx, &platform.DeleteAPIGatewayOptions{
 			Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
 		})
 		suite.Require().NoError(err)

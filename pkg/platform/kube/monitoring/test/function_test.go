@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_kube
+//go:build test_integration && test_kube
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -20,6 +19,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"testing"
@@ -45,6 +45,7 @@ type FunctionMonitoringTestSuite struct {
 func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 	suite.KubeTestSuite.SetupSuite()
 
+	suite.KubeTestSuite.Ctx = context.Background()
 	// keep it for suite teardown
 	suite.oldPostDeploymentMonitoringBlockingInterval = monitoring.PostDeploymentMonitoringBlockingInterval
 
@@ -301,10 +302,11 @@ func (suite *FunctionMonitoringTestSuite) TestPausedFunctionShouldRemainInReadyS
 		deployResults.UpdatedFunctionConfig.Spec.Replicas = &zero
 		deployResults.UpdatedFunctionConfig.Spec.Disable = true
 		deployResults.UpdatedFunctionConfig.Spec.Image = deployResults.Image
-		err := suite.Platform.UpdateFunction(&platform.UpdateFunctionOptions{
-			FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
-			FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,
-		})
+		err := suite.Platform.UpdateFunction(context.Background(),
+			&platform.UpdateFunctionOptions{
+				FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
+				FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,
+			})
 		suite.Require().NoError(err, "Failed to update function")
 
 		// wait for function deployment replicas gets to zero
