@@ -106,14 +106,17 @@ jobs:
       - name: Dump github ref
         run: echo "$GITHUB_REF"
 
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+          path: go/src/github.com/nuclio/nuclio
+
       # since github-actions gives us 14G only, and fills it up with some garbage
       # we will free up some space for us (~2GB)
       - name: Freeing up disk space
         run: |
           chmod +x "${GITHUB_WORKSPACE}/go/src/github.com/nuclio/nuclio/hack/scripts/ci/free-space.sh"
           "${GITHUB_WORKSPACE}/go/src/github.com/nuclio/nuclio/hack/scripts/ci/free-space.sh"
-
-      - uses: actions/checkout@v2
 
       - uses: actions/setup-go@v2
         with:
@@ -126,6 +129,7 @@ jobs:
 
       - name: Build binaries
         run: |
+          cd $GOPATH/src/github.com/nuclio/nuclio
           NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
           NUCLIO_OS=darwin NUCLIO_ARCH=amd64 make tools
           NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
