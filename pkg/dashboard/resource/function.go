@@ -255,7 +255,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		functionInfo.Spec.Build.Offline = dashboardServer.Offline
 
 		// just deploy. the status is async through polling
-		if _, err := fr.getPlatform().CreateFunction(ctx,
+		if _, err := fr.getPlatform().CreateFunction(context.Background(), // TOMER - switched ctx
 			&platform.CreateFunctionOptions{
 				Logger: fr.Logger,
 				FunctionConfig: functionconfig.Config{
@@ -271,7 +271,9 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 					OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 				},
 			}); err != nil {
-			fr.Logger.WarnWithCtx(ctx, "Failed to deploy function", "err", err)
+			fr.Logger.WarnWithCtx(ctx,
+				"Failed to deploy function",
+				"err", errors.GetErrorStackString(err, 10))
 			errDeployingChan <- err
 		}
 

@@ -413,7 +413,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			reportingErr := reportCreationError(deployErr, briefErrorsMessage, true)
 			if reportingErr != nil {
 				p.Logger.ErrorWithCtx(ctx, "Failed to report a deployment error",
-					"reportingErr", reportingErr,
+					"reportingErr", reportingErr.Error(),
 					"buildErr", buildErr)
 				return nil, reportingErr
 			}
