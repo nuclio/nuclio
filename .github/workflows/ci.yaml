@@ -42,11 +42,15 @@ jobs:
         run: |
           go get github.com/v3io/v3io-go-http
           go get github.com/nuclio/logger
-          go get github.com/nuclio/nuclio-sdk-go \
+          go get -d github.com/nuclio/nuclio-sdk-go \
               && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go \
               && git checkout v0.0.1 \
               && cd $GOPATH/src/github.com/nuclio/nuclio
           go get github.com/nuclio/amqp
+          go get -d golang.org/x/net/... \
+              && cd $GOPATH/src/golang.org/x/net \
+              && git checkout -t origin/release-branch.go1.10 \
+              && cd $GOPATH/src/github.com/nuclio/nuclio
           go get github.com/v3io/scaler-types \
               && cd $GOPATH/src/github.com/v3io/scaler-types \
               && git checkout v1.0.0 \
@@ -70,12 +74,15 @@ jobs:
         run: |
           go get github.com/v3io/v3io-go-http
           go get github.com/nuclio/logger
-          go get github.com/nuclio/nuclio-sdk-go \
+          go get -d github.com/nuclio/nuclio-sdk-go \
               && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go \
               && git checkout v0.0.1 \
               && cd $GOPATH/src/github.com/nuclio/nuclio
           go get github.com/nuclio/amqp
-          go get -d golang.org/x/net/...
+          go get -d golang.org/x/net/... \
+              && cd $GOPATH/src/golang.org/x/net \
+              && git checkout -t origin/release-branch.go1.10 \
+              && cd $GOPATH/src/github.com/nuclio/nuclio
           go get github.com/v3io/scaler-types \
               && cd $GOPATH/src/github.com/v3io/scaler-types \
               && git checkout v1.0.0 \
@@ -99,43 +106,37 @@ jobs:
       - name: Dump github ref
         run: echo "$GITHUB_REF"
 
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
-          path: go/src/github.com/nuclio/nuclio
-
-      # since github-actions gives us 14G only, and fills it up with some garbage
+      # since github-actions gives us 14G only, and fill it up with some garbage
       # we will free up some space for us (~2GB)
-      - name: Freeing up disk space
+      - name: Freeing some disk space
         run: |
-          chmod +x "${GITHUB_WORKSPACE}/go/src/github.com/nuclio/nuclio/hack/scripts/ci/free-space.sh"
-          "${GITHUB_WORKSPACE}/go/src/github.com/nuclio/nuclio/hack/scripts/ci/free-space.sh"
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker system prune --all --force
+          df -h
+      - uses: actions/checkout@v2
 
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Build
-        run: |
-          go get github.com/v3io/v3io-go-http
-          go get github.com/nuclio/logger
-          go get github.com/nuclio/nuclio-sdk-go \
-              && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go \
-              && git checkout v0.0.1 \
-              && cd $GOPATH/src/github.com/nuclio/nuclio
-          go get github.com/nuclio/amqp
-          go get -d golang.org/x/net/...
-          go get github.com/v3io/scaler-types \
-              && cd $GOPATH/src/github.com/v3io/scaler-types \
-              && git checkout v1.0.0 \
-              && cd $GOPATH/src/github.com/nuclio/nuclio
-          make docker-images
+        run: make docker-images
         env:
           NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
 
+      # since github-actions gives us 14G only, and fill it up with some garbage
+      - name: Freeing some disk space
+        run: |
+          df -h
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker system prune --all --force
+          df -h
       - name: Build binaries
         run: |
-          cd $GOPATH/src/github.com/nuclio/nuclio
           NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
           NUCLIO_OS=darwin NUCLIO_ARCH=amd64 make tools
           NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
