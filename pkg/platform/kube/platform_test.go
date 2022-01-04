@@ -890,6 +890,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				"0": map[string]interface{}{
 					"hostTemplate": "{{ .ResourceName }}.custom.test.com",
 					"host":         "some-name.custom.test.com",
+					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
 			},
 		},
@@ -910,6 +911,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				"0": map[string]interface{}{
 					"hostTemplate": "@nuclio.fromDefault",
 					"host":         "some-name.some-namespace.test.com",
+					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
 			},
 		},
@@ -933,9 +935,11 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				"0": map[string]interface{}{
 					"hostTemplate": "@nuclio.fromDefault",
 					"host":         "some-name.some-namespace.test.com",
+					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
 				"1": map[string]interface{}{
-					"host": "leave-it-as.is.com",
+					"host":     "leave-it-as.is.com",
+					"pathType": networkingv1.PathTypeImplementationSpecific,
 				},
 			},
 		},
@@ -957,6 +961,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				"0": map[string]interface{}{
 					"hostTemplate": "@nuclio.fromDefault",
 					"host":         "some-name.some-namespace.test.com",
+					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
 			},
 		},
@@ -978,6 +983,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				"0": map[string]interface{}{
 					"hostTemplate": "@nuclio.fromDefault",
 					"host":         "dont-override-me.com",
+					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
 			},
 		},
