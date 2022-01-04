@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -52,6 +53,10 @@ webAdmin:
   enabled: true
   listenAddress: :8081
 kube:
+  defaultFunctionTolerations:
+  - key: somekey
+    value: somevalue
+    effect: NoSchedule
   defaultFunctionNodeSelector:
     defaultFunctionNodeSelectorKey: defaultFunctionNodeSelectorValue
 logger:
@@ -135,6 +140,14 @@ metrics:
 
 	expectedConfiguration.Kube.DefaultFunctionNodeSelector = map[string]string{
 		"defaultFunctionNodeSelectorKey": "defaultFunctionNodeSelectorValue",
+	}
+
+	expectedConfiguration.Kube.DefaultFunctionTolerations = []corev1.Toleration{
+		{
+			Key:    "somekey",
+			Value:  "somevalue",
+			Effect: corev1.TaintEffectNoSchedule,
+		},
 	}
 
 	// metric

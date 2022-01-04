@@ -285,6 +285,10 @@ type Spec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	NodeName     string            `json:"nodeName,omitempty"`
 
+	// Allow function to run on a node with matching taint
+	// https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+
 	// Priority and Preemption
 	PriorityClassName string               `json:"priorityClassName,omitempty"`
 	PreemptionPolicy  *v1.PreemptionPolicy `json:"preemptionPolicy,omitempty"`
