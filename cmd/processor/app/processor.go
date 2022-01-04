@@ -177,8 +177,8 @@ func (p *Processor) Start() error {
 	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
 	// iterate over all triggers and start them
-	for _, trigger := range p.triggers {
-		if err = trigger.Start(nil); err != nil {
+	for _, triggerInstance := range p.triggers {
+		if err = triggerInstance.Start(nil); err != nil {
 			return errors.Wrap(err, "Failed to start trigger")
 		}
 	}
@@ -220,8 +220,8 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 	var workers []*worker.Worker
 
 	// iterate over the processor's triggers
-	for _, trigger := range p.triggers {
-		workers = append(workers, trigger.GetWorkers()...)
+	for _, triggerInstance := range p.triggers {
+		workers = append(workers, triggerInstance.GetWorkers()...)
 	}
 
 	return workers
@@ -237,8 +237,8 @@ func (p *Processor) GetStatus() status.Status {
 	}
 
 	// if any worker isn't ready yet, return initializing
-	for _, worker := range workers {
-		if worker.GetStatus() != status.Ready {
+	for _, workerInstance := range workers {
+		if workerInstance.GetStatus() != status.Ready {
 			return status.Initializing
 		}
 	}
