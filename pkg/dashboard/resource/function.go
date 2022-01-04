@@ -255,7 +255,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		functionInfo.Spec.Build.Offline = dashboardServer.Offline
 
 		// just deploy. the status is async through polling
-		if _, err := fr.getPlatform().CreateFunction(context.Background(), // TOMER - switched ctx
+		if _, err := fr.getPlatform().CreateFunction(context.Background(),  // TOMER - switched ctx
 			&platform.CreateFunctionOptions{
 				Logger: fr.Logger,
 				FunctionConfig: functionconfig.Config{
@@ -276,7 +276,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				"err", errors.GetErrorStackString(err, 10))
 			errDeployingChan <- err
 		}
-
+		fr.Logger.DebugCtx(ctx, "TOMER - Setting done channel to true")
 		doneChan <- true
 	}()
 
@@ -285,10 +285,13 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	// want to return before the function's state is in "building"
 	select {
 	case <-creationStateUpdatedChan:
+		fr.Logger.DebugCtx(ctx, "TOMER - creationStateUpdatedChan")
 		break
 	case errDeploying := <-errDeployingChan:
+		fr.Logger.DebugCtx(ctx, "TOMER - errDeployingChan")
 		return errors.RootCause(errDeploying)
 	case <-time.After(creationStateUpdatedTimeout):
+		fr.Logger.DebugCtx(ctx, "TOMER - Timeout!")
 		return nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
 	}
 
