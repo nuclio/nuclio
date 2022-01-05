@@ -110,7 +110,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 
 // Create and deploy a function
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
-	ctx := request.Context()
+	ctx := fr.createRequestContext(request.Context())
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
@@ -146,7 +146,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
 	// validation finished successfully - store and deploy the given function
-	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
+	if responseErr = fr.storeAndDeployFunction(ctx, request, functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -161,6 +161,8 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
+	ctx := fr.createRequestContext(request.Context())
+
 	// get the authentication configuration for the request
 	authConfig, responseErr := fr.getRequestAuthConfig(request)
 	if responseErr != nil {
@@ -169,7 +171,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 
 	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
-	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
+	if responseErr = fr.storeAndDeployFunction(ctx, request, functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -217,7 +219,8 @@ func (fr *functionResource) export(ctx context.Context, function platform.Functi
 	return attributes
 }
 
-func (fr *functionResource) storeAndDeployFunction(request *http.Request,
+func (fr *functionResource) storeAndDeployFunction(ctx context.Context,
+	request *http.Request,
 	functionInfo *functionInfo,
 	authConfig *platform.AuthConfig,
 	waitForFunction bool) error {
@@ -226,8 +229,6 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
-
-	ctx := request.Context()
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
