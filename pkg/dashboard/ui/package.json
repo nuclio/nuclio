@@ -48,7 +48,7 @@
     "i18next-chained-backend": "^1.0.1",
     "i18next-localstorage-backend": "^2.1.2",
     "i18next-xhr-backend": "^2.0.1",
-    "iguazio.dashboard-controls": "^0.37.7",
+    "iguazio.dashboard-controls": "^0.37.13",
     "jquery": "*",
     "jquery-ui": "1.13.0",
     "js-base64": "^2.5.2",
@@ -65,10 +65,10 @@
     "restangular": ">=1.5.1",
     "run-sequence": "~1.1.0",
     "tc-angular-ellipsis": "0.1.6",
+    "trim-newlines": ">=3.0.1",
     "vinyl-paths": "^2.1.0",
     "yamljs": "^0.3.0",
-    "yargs": "^3.25.0",
-    "trim-newlines": ">=3.0.1"
+    "yargs": "^3.25.0"
   },
   "devDependencies": {
     "eslint": "^6.8.0",

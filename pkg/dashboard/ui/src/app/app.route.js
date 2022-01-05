@@ -220,7 +220,8 @@
                 url: '/code',
                 views: {
                     version: {
-                        template: '<ncl-version-code data-version="$ctrl.version"></ncl-version-code>'
+                        template: '<ncl-version-code data-version="$ctrl.version"' +
+                            'data-is-function-deploying="$ctrl.isFunctionDeploying()"></ncl-version-code>'
                     }
                 },
                 params: {
@@ -234,7 +235,8 @@
                 url: '/configuration',
                 views: {
                     version: {
-                        template: '<ncl-version-configuration data-version="$ctrl.version"></ncl-version-configuration>'
+                        template: '<ncl-version-configuration data-version="$ctrl.version"' +
+                            'data-is-function-deploying="$ctrl.isFunctionDeploying()"></ncl-version-configuration>'
                     }
                 },
                 params: {
@@ -248,7 +250,8 @@
                 url: '/triggers',
                 views: {
                     version: {
-                        template: '<ncl-version-triggers data-version="$ctrl.version"></ncl-version-triggers>'
+                        template: '<ncl-version-triggers data-version="$ctrl.version"' +
+                            'data-is-function-deploying="$ctrl.isFunctionDeploying()"></ncl-version-triggers>'
                     }
                 },
                 params: {
