@@ -19,6 +19,7 @@ package app
 import (
 	"encoding/json"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -73,7 +74,7 @@ type Processor struct {
 	webAdminServer        *webadmin.Server
 	healthCheckServer     *healthcheck.Server
 	metricSinks           []metricsink.MetricSink
-	namedWorkerAllocators map[string]worker.Allocator
+	namedWorkerAllocators *worker.AllocatorSyncMap
 	eventTimeoutWatcher   *timeout.EventTimeoutWatcher
 	startComplete         bool
 	stop                  chan bool
@@ -84,7 +85,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	var err error
 
 	newProcessor := &Processor{
-		namedWorkerAllocators: map[string]worker.Allocator{},
+		namedWorkerAllocators: worker.NewAllocatorSyncMap(),
 		stop:                  make(chan bool, 1),
 	}
 
@@ -139,6 +140,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
+	newProcessor.logger.InfoWith("Created triggers", "triggersLength", len(newProcessor.triggers))
+
 	if len(processorConfiguration.Spec.EventTimeout) > 0 {
 
 		// This is checked by the configuration reader, but just in case
@@ -174,8 +177,8 @@ func (p *Processor) Start() error {
 	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
 	// iterate over all triggers and start them
-	for _, trigger := range p.triggers {
-		if err = trigger.Start(nil); err != nil {
+	for _, triggerInstance := range p.triggers {
+		if err = triggerInstance.Start(nil); err != nil {
 			return errors.Wrap(err, "Failed to start trigger")
 		}
 	}
@@ -217,8 +220,8 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 	var workers []*worker.Worker
 
 	// iterate over the processor's triggers
-	for _, trigger := range p.triggers {
-		workers = append(workers, trigger.GetWorkers()...)
+	for _, triggerInstance := range p.triggers {
+		workers = append(workers, triggerInstance.GetWorkers()...)
 	}
 
 	return workers
@@ -234,8 +237,8 @@ func (p *Processor) GetStatus() status.Status {
 	}
 
 	// if any worker isn't ready yet, return initializing
-	for _, worker := range workers {
-		if worker.GetStatus() != status.Ready {
+	for _, workerInstance := range workers {
+		if workerInstance.GetStatus() != status.Ready {
 			return status.Initializing
 		}
 	}
@@ -283,6 +286,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 	// create error group
 	errGroup := errgroup.Group{}
+	lock := sync.Mutex{}
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
@@ -306,7 +310,13 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 			// append to triggers (can be nil - ignore unknown triggers)
 			if triggerInstance != nil {
+				lock.Lock()
 				triggers = append(triggers, triggerInstance)
+				lock.Unlock()
+			} else {
+				p.logger.WarnWith("Skipping unknown trigger",
+					"name", triggerName,
+					"kind", triggerConfiguration.Kind)
 			}
 
 			return nil
