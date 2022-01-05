@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -110,7 +111,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 
 // Create and deploy a function
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
-	ctx := fr.createRequestContext(request.Context())
+
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
@@ -118,7 +119,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	// TODO: Add a lock to prevent race conditions here (prevent 2 functions created with the same name)
 	// validate there are no 2 functions with the same name
-	functions, err := fr.getPlatform().GetFunctions(ctx, &platform.GetFunctionsOptions{
+	functions, err := fr.getPlatform().GetFunctions(request.Context(), &platform.GetFunctionsOptions{
 		Name:        functionInfo.Meta.Name,
 		Namespace:   fr.resolveNamespace(request, functionInfo),
 		AuthSession: fr.getCtxSession(request),
@@ -146,7 +147,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
 	// validation finished successfully - store and deploy the given function
-	if responseErr = fr.storeAndDeployFunction(ctx, request, functionInfo, authConfig, waitForFunction); responseErr != nil {
+	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -161,8 +162,6 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	ctx := fr.createRequestContext(request.Context())
-
 	// get the authentication configuration for the request
 	authConfig, responseErr := fr.getRequestAuthConfig(request)
 	if responseErr != nil {
@@ -171,7 +170,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 
 	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
-	if responseErr = fr.storeAndDeployFunction(ctx, request, functionInfo, authConfig, waitForFunction); responseErr != nil {
+	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
@@ -219,8 +218,7 @@ func (fr *functionResource) export(ctx context.Context, function platform.Functi
 	return attributes
 }
 
-func (fr *functionResource) storeAndDeployFunction(ctx context.Context,
-	request *http.Request,
+func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	functionInfo *functionInfo,
 	authConfig *platform.AuthConfig,
 	waitForFunction bool) error {
@@ -232,6 +230,10 @@ func (fr *functionResource) storeAndDeployFunction(ctx context.Context,
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
+
+		ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
+		defer cancelCtx()
+
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
