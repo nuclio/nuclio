@@ -28,7 +28,7 @@ func (suite *DetachedTestSuite) TestDetachedOnCancelledParent() {
 	parentCtx, cancelParentCtx := context.WithCancel(context.Background())
 	childCtx, cancelChildCtx := context.WithCancel(NewDetached(parentCtx))
 
-	go suite.testChildNotCancelled(childCtx, timerChannel)
+	go suite.measureTimeUntilCancellation(childCtx, timerChannel)
 
 	suite.logger.Debug("Cancelling parent context")
 	cancelParentCtx()
@@ -39,7 +39,7 @@ func (suite *DetachedTestSuite) TestDetachedOnCancelledParent() {
 	suite.Require().Equal(expectedWaitTime, <-timerChannel)
 }
 
-func (suite *DetachedTestSuite) testChildNotCancelled(ctx context.Context, ch chan int) {
+func (suite *DetachedTestSuite) measureTimeUntilCancellation(ctx context.Context, ch chan int) {
 	timer := 0
 	for {
 		select {
