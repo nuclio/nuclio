@@ -105,5 +105,5 @@ func (r *resource) getCtxSession(request *http.Request) auth.Session {
 }
 
 func (r *resource) createRequestContext(ctx context.Context) context.Context {
-	return context.WithValue(context.Background(), middleware.RequestIDKey, ctx.Value(middleware.RequestIDKey))
+	return context.WithValue(ctx, middleware.RequestIDKey, ctx.Value(middleware.RequestIDKey))
 }
