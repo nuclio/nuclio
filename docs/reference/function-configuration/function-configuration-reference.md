@@ -104,6 +104,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | nodeName | string | Constrain function pod to a node by node name |
 | priorityClassName | string | Indicates the importance of a function pod relatively to other function pods |
 | preemptionPolicy | string | Function pod preemption policy (one of `Never` or `PreemptLowerPriority`) |
+| tolerations | []v1.Toleration  | Function pod tolerations |
 
 <a id="spec-example"></a>
 ### Example

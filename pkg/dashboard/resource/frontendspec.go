@@ -110,6 +110,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 	defaultWorkerAvailabilityTimeoutMilliseconds := trigger.DefaultWorkerAvailabilityTimeoutMilliseconds
 
 	defaultFunctionNodeSelector := fsr.resolveDefaultFunctionNodeSelector()
+	defaultFunctionTolerations := fsr.resolveDefaultFunctionTolerations()
 	defaultFunctionPriorityClassName := fsr.resolveDefaultFunctionPriorityClassName()
 	defaultServiceType := fsr.resolveDefaultServiceType()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
@@ -124,6 +125,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 		ReadinessTimeoutSeconds: fsr.resolveFunctionReadinessTimeoutSeconds(),
 		NodeSelector:            defaultFunctionNodeSelector,
 		PriorityClassName:       defaultFunctionPriorityClassName,
+		Tolerations:             defaultFunctionTolerations,
 		TargetCPU:               abstract.DefaultTargetCPU,
 		Triggers: map[string]functionconfig.Trigger{
 
@@ -182,6 +184,14 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionNodeSelector() map[string
 		defaultNodeSelector = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector
 	}
 	return defaultNodeSelector
+}
+
+func (fsr *frontendSpecResource) resolveDefaultFunctionTolerations() []v1.Toleration {
+	var defaultFunctionTolerations []v1.Toleration
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		defaultFunctionTolerations = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionTolerations
+	}
+	return defaultFunctionTolerations
 }
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionPriorityClassName() string {
