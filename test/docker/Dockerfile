@@ -22,7 +22,7 @@ RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-17.09.1-c
 # Install dependencies
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
+    && go get -d github.com/nuclio/nuclio-sdk-go \
     && cd $GOPATH/src/github.com/nuclio/nuclio-sdk-go && git checkout v0.0.1 && cd - \
     && go get github.com/nuclio/amqp \
     && go get github.com/v3io/scaler-types
