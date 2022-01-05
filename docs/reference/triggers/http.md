@@ -24,6 +24,7 @@ available, a `503` error is returned.
 | ingresses.(name).paths | list of strings | The paths that the ingress handles. Variables of the form `{{.<NAME>}}` can be specified using `.Name`, `.Namespace`, and `.Version`. For example, `/{{.Namespace}}-{{.Name}}/{{.Version}}` will result in a default ingress of `/namespace-name/version`. |
 | readBufferSize | int | Per-connection buffer size for reading requests. |
 | maxRequestBodySize | int | Maximum request body size. |
+| reduceMemoryUsage | bool | Reduces memory usage at the cost of higher CPU usage if set to true. |
 | cors.enabled | bool | `true` to enable cross-origin resource sharing (CORS); (default: `false`). |
 | cors.allowOrigins | list of strings | Indicates that the CORS response can be shared with requesting code from the specified origin (`Access-Control-Allow-Origin` response header); (default: `['*']` to allow sharing with any origin, for requests without credentials). |
 | cors.allowMethods | list of strings | The allowed HTTP methods, which can be used when accessing the resource (`Access-Control-Allow-Methods` response header); (default: `"HEAD, GET, POST, PUT, DELETE, OPTIONS"`). |

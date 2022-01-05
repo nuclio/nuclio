@@ -792,6 +792,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 					ServiceAccountName: function.Spec.ServiceAccount,
 					SecurityContext:    function.Spec.SecurityContext,
 					Affinity:           function.Spec.Affinity,
+					Tolerations:        function.Spec.Tolerations,
 					NodeSelector:       function.Spec.NodeSelector,
 					NodeName:           function.Spec.NodeName,
 					PriorityClassName:  function.Spec.PriorityClassName,
@@ -868,6 +869,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
 		}
 
+		deployment.Spec.Template.Spec.Tolerations = function.Spec.Tolerations
 		deployment.Spec.Template.Spec.Affinity = function.Spec.Affinity
 		deployment.Spec.Template.Spec.NodeSelector = function.Spec.NodeSelector
 		deployment.Spec.Template.Spec.NodeName = function.Spec.NodeName

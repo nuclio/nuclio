@@ -38,6 +38,7 @@ type Configuration struct {
 	// as the entire request being read into the memory
 	// https://github.com/valyala/fasthttp/issues/667#issuecomment-540965683
 	MaxRequestBodySize int
+	ReduceMemoryUsage  bool
 	CORS               *cors.CORS
 }
 

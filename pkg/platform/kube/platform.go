@@ -439,19 +439,28 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 
 	// enrich function node selector
 	if functionConfig.Spec.NodeSelector == nil && p.Config.Kube.DefaultFunctionNodeSelector != nil {
-		p.Logger.DebugWithCtx(ctx, "Enriching function node selector",
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function node selector",
 			"functionName", functionConfig.Meta.Name,
 			"nodeSelectors", p.Config.Kube.DefaultFunctionNodeSelector)
 		functionConfig.Spec.NodeSelector = map[string]string{}
 		for key, value := range p.Config.Kube.DefaultFunctionNodeSelector {
 			functionConfig.Spec.NodeSelector[key] = value
-
 		}
+	}
+
+	if functionConfig.Spec.Tolerations == nil && p.Config.Kube.DefaultFunctionTolerations != nil {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function tolerations",
+			"functionName", functionConfig.Meta.Name,
+			"tolerations", p.Config.Kube.DefaultFunctionTolerations)
+		functionConfig.Spec.Tolerations = p.Config.Kube.DefaultFunctionTolerations
 	}
 
 	// enrich function pod priority class name
 	if functionConfig.Spec.PriorityClassName == "" && p.Config.Kube.DefaultFunctionPriorityClassName != "" {
-		p.Logger.DebugWithCtx(ctx, "Enriching pod priority class name",
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching pod priority class name",
 			"functionName", functionConfig.Meta.Name,
 			"priorityClassName", p.Config.Kube.DefaultFunctionPriorityClassName)
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
