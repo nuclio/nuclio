@@ -4,9 +4,7 @@ package context
 
 import (
 	"context"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -18,43 +16,40 @@ type DetachedTestSuite struct {
 	logger logger.Logger
 }
 
+// new type for context key usage
+type key int
+
+const ctxKey key = iota
+
 func (suite *DetachedTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
-func (suite *DetachedTestSuite) TestCancelParent() {
-	waitGroup := sync.WaitGroup{}
-	isChildDone := false
-	parentCtx, cancelParentCtx := context.WithCancel(context.Background())
-	childCtx, cancelChildCtx := context.WithCancel(NewDetached(parentCtx))
+func (suite *DetachedTestSuite) TestCancelParentWithValue() {
+	parentCtx, parentCancel := context.WithCancel(context.WithValue(context.TODO(), ctxKey, "someValue"))
+	childCtx, childCancel := context.WithCancel(NewDetached(parentCtx))
 
-	go suite.waitForContextCancellation(childCtx, &isChildDone, &waitGroup)
+	// cancel parent
+	parentCancel()
 
-	cancelParentCtx()
+	// parent is canceled
+	suite.Require().NotNil(parentCtx.Err())
 
-	time.After(2 * time.Second)
-	cancelChildCtx()
-	waitGroup.Wait()
+	// child is not canceled
+	suite.Require().Nil(childCtx.Err())
 
-	suite.Require().True(isChildDone)
-}
+	// child can still access his canceled-parent
+	suite.Require().Equal(childCtx.Value(ctxKey), "someValue")
 
-func (suite *DetachedTestSuite) waitForContextCancellation(ctx context.Context, isCtxDone *bool, waitGroup *sync.WaitGroup) {
-	waitGroup.Add(1)
-	for {
-		select {
-		case <-ctx.Done():
+	// cancel child
+	childCancel()
 
-			// child context is cancelled
-			*isCtxDone = true
-			waitGroup.Done()
-			return
-		case <-time.After(1 * time.Second):
+	// child is canceled
+	suite.Require().NotNil(childCtx.Err())
 
-			// child context is still alive
-			suite.Require().False(*isCtxDone)
-		}
-	}
+	// sanity all context are done and canceled
+	<-childCtx.Done()
+	<-parentCtx.Done()
 }
 
 func TestDetachedTestSuite(t *testing.T) {
