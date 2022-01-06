@@ -1,4 +1,4 @@
-# Running Nuclio with local changes
+# Running Nuclio on your computer with local changes
 
 This guide will guide you through the process of setting up Nuclio locally for testing your changes and provide faster development cycles.
 
@@ -77,5 +77,7 @@ docker run --rm -d -p 5000:5000 registry:2
    npm install
    gulp --dev
    ```
-   3. Open `localhost:8000` and use Nuclio! 
+   3. Open `localhost:8000` and use Nuclio as you please! 
    
+
+You can now perform operations on the Nuclio UI and see the dashboard and controller logs live on Goland's run console.
