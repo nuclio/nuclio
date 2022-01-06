@@ -20,6 +20,8 @@ const (
 	iguazioContextHeaderName = "igz-ctx"
 
 	IguazioContextKey ContextKey = iota
+
+	IguazioHeaderPrefix = "x-igz"
 )
 
 // RequestID is a middleware that injects a request ID into the context of each
@@ -109,4 +111,24 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 
 		return http.HandlerFunc(fn)
 	}
+}
+
+// ModifyIguazioRequestHeaderPrefix removes 'igz' from incoming request headers
+func ModifyIguazioRequestHeaderPrefix(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		newHeaderMap := http.Header{}
+		for headerName, headerValues := range r.Header {
+			newHeaderName := headerName
+			if strings.HasPrefix(strings.ToLower(headerName), IguazioHeaderPrefix) {
+				newHeaderName = "x" + strings.TrimPrefix(strings.ToLower(headerName), IguazioHeaderPrefix)
+			}
+			newHeaderMap[newHeaderName] = headerValues
+		}
+		r.Header = newHeaderMap
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+	return http.HandlerFunc(fn)
 }

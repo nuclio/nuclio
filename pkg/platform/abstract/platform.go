@@ -27,6 +27,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/logprocessing"
@@ -215,13 +217,13 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 }
 
 // EnrichFunctionConfig enriches function config
-func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, authSession auth.Session) error {
 
 	// if labels is nil assign an empty map to it
 	if functionConfig.Meta.Labels == nil {
 		functionConfig.Meta.Labels = map[string]string{}
 	}
-	ap.EnrichLabelsWithProjectName(ctx, functionConfig.Meta.Labels)
+	ap.EnrichLabelsWithProjectNameAndUserName(ctx, authSession, functionConfig.Meta.Labels)
 
 	if err := ap.enrichImageName(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching image name")
@@ -257,11 +259,16 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	return nil
 }
 
-// EnrichLabelsWithProjectName enriches labels with default project name
-func (ap *Platform) EnrichLabelsWithProjectName(ctx context.Context, labels map[string]string) {
+// EnrichLabelsWithProjectNameAndUserName enriches labels with default project name
+func (ap *Platform) EnrichLabelsWithProjectNameAndUserName(ctx context.Context, authSession auth.Session, labels map[string]string) {
 	if labels[common.NuclioResourceLabelKeyProjectName] == "" {
 		labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
 		ap.Logger.DebugCtx(ctx, "No project name specified. Setting to default")
+	}
+
+	// enrich labels with iguazio.com/username of the creating user
+	if authSession != nil && labels[iguazio.IguzioUsernameLabel] == "" {
+		labels[iguazio.IguzioUsernameLabel] = authSession.GetUsername()
 	}
 }
 
