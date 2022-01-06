@@ -4,6 +4,7 @@ package context
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,37 +22,37 @@ func (suite *DetachedTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
-func (suite *DetachedTestSuite) TestDetachedOnCancelledParent() {
-	timerChannel := make(chan int)
-	expectedWaitTime := 5
-
+func (suite *DetachedTestSuite) TestCancelParent() {
+	waitGroup := sync.WaitGroup{}
+	isChildDone := false
 	parentCtx, cancelParentCtx := context.WithCancel(context.Background())
 	childCtx, cancelChildCtx := context.WithCancel(NewDetached(parentCtx))
 
-	go suite.measureTimeUntilCancellation(childCtx, timerChannel)
+	go suite.waitForContextCancellation(childCtx, &isChildDone, &waitGroup)
 
-	suite.logger.Debug("Cancelling parent context")
 	cancelParentCtx()
-	time.Sleep(6 * time.Second)
-	suite.logger.Debug("Cancelling child context")
-	cancelChildCtx()
 
-	suite.Require().Equal(expectedWaitTime, <-timerChannel)
+	time.After(2 * time.Second)
+	cancelChildCtx()
+	waitGroup.Wait()
+
+	suite.Require().True(isChildDone)
 }
 
-func (suite *DetachedTestSuite) measureTimeUntilCancellation(ctx context.Context, ch chan int) {
-	timer := 0
+func (suite *DetachedTestSuite) waitForContextCancellation(ctx context.Context, isCtxDone *bool, waitGroup *sync.WaitGroup) {
+	waitGroup.Add(1)
 	for {
 		select {
 		case <-ctx.Done():
 
 			// child context is cancelled
-			ch <- timer
+			*isCtxDone = true
+			waitGroup.Done()
 			return
 		case <-time.After(1 * time.Second):
 
 			// child context is still alive
-			timer += 1
+			suite.Require().False(*isCtxDone)
 		}
 	}
 }

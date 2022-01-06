@@ -13,7 +13,7 @@ type Detached struct {
 	ctx context.Context
 }
 
-// NewDetached returns a context that is never canceled.
+// NewDetached returns a context that is not affected by its parent.
 func NewDetached(ctx context.Context) *Detached {
 	return &Detached{ctx: ctx}
 }
