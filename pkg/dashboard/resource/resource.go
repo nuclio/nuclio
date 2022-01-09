@@ -17,7 +17,6 @@ limitations under the License.
 package resource
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
@@ -26,7 +25,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -102,8 +100,4 @@ func (r *resource) addAuthMiddleware() {
 
 func (r *resource) getCtxSession(request *http.Request) auth.Session {
 	return request.Context().Value(auth.ContextKeyByKind(r.getDashboard().GetAuthenticator().Kind())).(auth.Session)
-}
-
-func (r *resource) createRequestContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, middleware.RequestIDKey, ctx.Value(middleware.RequestIDKey))
 }

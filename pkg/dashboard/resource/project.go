@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -266,7 +267,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 func (pr *projectResource) createProject(request *http.Request, projectInfoInstance *projectInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
-	ctx := pr.createRequestContext(request.Context())
+	ctx := nucliocontext.NewDetached(request.Context())
 
 	// create a project config
 	projectConfig := platform.ProjectConfig{
@@ -478,7 +479,7 @@ func (pr *projectResource) importProjectFunctions(request *http.Request, project
 }
 
 func (pr *projectResource) importFunction(request *http.Request, function *functionInfo, authConfig *platform.AuthConfig) error {
-	ctx := pr.createRequestContext(request.Context())
+	ctx := request.Context()
 
 	pr.Logger.InfoWithCtx(ctx,
 		"Importing project function",
@@ -502,7 +503,7 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 	}
 
 	// validation finished successfully - store and deploy the given function
-	return functionResourceInstance.storeAndDeployFunction(ctx, request, function, authConfig, false)
+	return functionResourceInstance.storeAndDeployFunction(request, function, authConfig, false)
 }
 
 func (pr *projectResource) importProjectAPIGateways(request *http.Request,
@@ -653,7 +654,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 }
 
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-	ctx := pr.createRequestContext(request.Context())
+	ctx := nucliocontext.NewDetached(request.Context())
 	statusCode := http.StatusNoContent
 
 	// get project config and status from body
