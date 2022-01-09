@@ -1,0 +1,17 @@
+logger:
+  sinks:
+    myStdoutLoggerSink:
+      kind: stdout
+  system:
+    - level: debug
+      sink: myStdoutLoggerSink
+  functions:
+    - level: debug
+      sink: myStdoutLoggerSink
+
+# Kubernetes only
+kube:
+  kubeConfigPath: <your-home-dir>/.kube/config
+
+containerBuilderConfiguration:
+  DefaultOnbuildRegistryURL: "localhost:5000"

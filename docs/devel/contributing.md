@@ -118,7 +118,7 @@ files at this time, but it's very easy to create run/debug targets and use the d
 4. Run configurations are (currently) available for tests only
 
 
-For testing your changes locally, see [Running Nuclio on your computer with local changes](/docs/devel/test-nuclio-locally.md).
+For developing in nuclio locally, see [Local development](/docs/devel/local-development.md).
 
 <a id="goland-versioning-note"></a>
 ### Versioning note
