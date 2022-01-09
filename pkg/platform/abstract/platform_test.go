@@ -246,7 +246,7 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 		functionConfig.Spec.Triggers = testCase.Triggers
 
 		// enrich
-		err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig, nil)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
 		suite.Require().NoError(err)
 
 		// validate
@@ -797,7 +797,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = MinMaxReplicas.MaxReplicas
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, nil)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function config")
 
 		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
@@ -918,7 +918,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, nil)
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function")
 
 		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
@@ -1221,7 +1221,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, nil)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
 			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
@@ -1301,7 +1301,7 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 			suite.Platform.Config.Kube.ValidFunctionPriorityClassNames = testCase.validFunctionPriorityClassNames
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, nil)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
 			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
@@ -1467,7 +1467,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			}
 			suite.Logger.DebugWith("Checking function", "functionName", functionName)
 
-			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, nil)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err)
 
 			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)

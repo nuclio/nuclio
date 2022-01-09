@@ -84,7 +84,7 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	createFunctionOptions := suite.CompileCreateFunctionOptions(fmt.Sprintf("test-%s", suite.TestID))
 
 	// enrich with defaults
-	err := suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig, nil)
+	err := suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	// build function

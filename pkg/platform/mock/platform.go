@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -58,8 +57,8 @@ func (mp *Platform) CreateFunction(ctx context.Context, createFunctionOptions *p
 	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
 }
 
-func (mp *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, authSession auth.Session) error {
-	args := mp.Called(ctx, functionConfig, authSession)
+func (mp *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	args := mp.Called(ctx, functionConfig)
 	return args.Error(0)
 }
 

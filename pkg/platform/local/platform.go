@@ -32,7 +32,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -164,7 +163,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	var err error
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
-	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig, createFunctionOptions.AuthSession); err != nil {
+	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
@@ -250,7 +249,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
-		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig, createFunctionOptions.AuthSession); err != nil {
+		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 			return errors.Wrap(err, "Failed to enrich and validate the updated function configuration")
 		}
 
@@ -1245,8 +1244,8 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 	return labels
 }
 
-func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, authSession auth.Session) error {
-	if err := p.EnrichFunctionConfig(ctx, functionConfig, authSession); err != nil {
+func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 

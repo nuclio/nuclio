@@ -27,7 +27,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -178,7 +177,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
-	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig, createFunctionOptions.AuthSession); err != nil {
+	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
@@ -307,7 +306,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		var err error
 
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
-		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig, createFunctionOptions.AuthSession); err != nil {
+		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 			return errors.Wrap(err, "Failed to enrich and validate an updated function configuration")
 		}
 
@@ -428,8 +427,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	return p.HandleDeployFunction(ctx, existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
-func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, authSession auth.Session) error {
-	if err := p.Platform.EnrichFunctionConfig(ctx, functionConfig, authSession); err != nil {
+func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.Platform.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return err
 	}
 
@@ -678,7 +677,7 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	newAPIGateway := nuclioio.NuclioAPIGateway{}
 
 	// enrich
-	p.enrichAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig, nil, createAPIGatewayOptions.AuthSession)
+	p.enrichAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig, nil)
 
 	// validate
 	if err := p.validateAPIGatewayConfig(ctx,
@@ -713,7 +712,7 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 	}
 
 	// enrich
-	p.enrichAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig, apiGateway, updateAPIGatewayOptions.AuthSession)
+	p.enrichAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
 
 	// validate
 	if err := p.validateAPIGatewayConfig(ctx,
@@ -1307,8 +1306,7 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 
 func (p *Platform) enrichAPIGatewayConfig(ctx context.Context,
 	apiGatewayConfig *platform.APIGatewayConfig,
-	existingApiGatewayConfig *nuclioio.NuclioAPIGateway,
-	authSession auth.Session) {
+	existingApiGatewayConfig *nuclioio.NuclioAPIGateway) {
 
 	// meta
 	if apiGatewayConfig.Meta.Name == "" {
@@ -1332,7 +1330,7 @@ func (p *Platform) enrichAPIGatewayConfig(ctx context.Context,
 		}
 	}
 
-	p.EnrichLabelsWithProjectNameAndUserName(ctx, authSession, apiGatewayConfig.Meta.Labels)
+	p.EnrichLabels(ctx, apiGatewayConfig.Meta.Labels)
 }
 
 func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
@@ -1415,8 +1413,8 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 	return p.validateFunctionIngresses(functionConfig)
 }
 
-func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, authSession auth.Session) error {
-	if err := p.EnrichFunctionConfig(ctx, functionConfig, authSession); err != nil {
+func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 

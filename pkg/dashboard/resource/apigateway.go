@@ -22,7 +22,9 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -143,7 +145,11 @@ func (agr *apiGatewayResource) Create(request *http.Request) (string, restful.At
 }
 
 func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-	ctx := request.Context()
+	ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
+	defer cancelCtx()
+
+	// inject auth session to new context
+	ctx = context.WithValue(ctx, auth.AuthSessionContextKey, agr.getCtxSession(request))
 
 	// get api gateway config and status from body
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
@@ -216,7 +222,12 @@ func (agr *apiGatewayResource) export(ctx context.Context, apiGateway platform.A
 // returns (id, attributes, error)
 func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 	apiGatewayInfoInstance *apiGatewayInfo) (string, restful.Attributes, error) {
-	ctx := request.Context()
+
+	ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
+	defer cancelCtx()
+
+	// inject auth session to new context
+	ctx = context.WithValue(ctx, auth.AuthSessionContextKey, agr.getCtxSession(request))
 
 	// create an api gateway config
 	apiGatewayConfig := platform.APIGatewayConfig{
@@ -237,7 +248,7 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 	// just deploy. the status is async through polling
 	agr.Logger.DebugWithCtx(ctx, "Creating api gateway", "newAPIGateway", newAPIGateway)
 	if err = agr.getPlatform().CreateAPIGateway(ctx, &platform.CreateAPIGatewayOptions{
-		AuthSession:                agr.getCtxSession(request),
+		AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 		APIGatewayConfig:           newAPIGateway.GetConfig(),
 		ValidateFunctionsExistence: agr.headerValueIsTrue(request, "x-nuclio-agw-validate-functions-existence"),
 	}); err != nil {

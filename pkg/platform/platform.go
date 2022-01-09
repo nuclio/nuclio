@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -58,7 +57,7 @@ type Platform interface {
 	CreateFunction(ctx context.Context, createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
 
 	// EnrichFunctionConfig Enrich function config upon creating function
-	EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, authSession auth.Session) error
+	EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error
 
 	// ValidateFunctionConfig Validate function config upon creating function
 	ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error

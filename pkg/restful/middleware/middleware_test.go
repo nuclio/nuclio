@@ -54,6 +54,10 @@ func (suite *middlewareTestSuite) TestModifyIguazioRequestHeaderPrefix() {
 
 	// create a handler to use as "next" which will verify the request headers
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		suite.Require().NotContains(r.Header, "x-igz-nuclio-header")
+		suite.Require().Contains(r.Header, "x-nuclio-header")
+
+		// verify no `igz` left in headers
 		for header := range r.Header {
 			suite.Require().NotContains(header, "igz")
 
@@ -69,8 +73,8 @@ func (suite *middlewareTestSuite) TestModifyIguazioRequestHeaderPrefix() {
 	req := httptest.NewRequest("GET", "http://some-url", nil)
 
 	// add headers to request
-	req.Header.Add("x-igz-some-header", "some-value")
-	req.Header.Add("regular-header", "regular-value")
+	req.Header.Add("x-igz-nuclio-header", "some-value")
+	req.Header.Add("regular-nuclio-header", "regular-value")
 
 	// call the handler using a mock response recorder (we'll not use that anyway)
 	handlerToTest.ServeHTTP(httptest.NewRecorder(), req)
