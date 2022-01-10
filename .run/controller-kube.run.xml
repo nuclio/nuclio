@@ -6,7 +6,7 @@
     <kind value="PACKAGE" />
     <package value="github.com/nuclio/nuclio/cmd/controller" />
     <directory value="$PROJECT_DIR$" />
-    <filePath value="$PROJECT_DIR$/cmd/dashboard/main.go" />
+    <filePath value="$PROJECT_DIR$/cmd/controller/main.go" />
     <method v="2" />
   </configuration>
 </component>
