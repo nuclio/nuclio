@@ -233,7 +233,7 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 		},
 	} {
 
-		suite.mockedPlatform.On("GetProjects", &platform.GetProjectsOptions{
+		suite.mockedPlatform.On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
 				Name:      platform.DefaultProjectName,
 				Namespace: "default",

@@ -15,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/cache"
 )
 
+const IguzioUsernameLabel string = "iguazio.com/username"
+
 type Auth struct {
 	logger     logger.Logger
 	config     *auth.Config

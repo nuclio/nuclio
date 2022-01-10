@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -234,6 +235,9 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
 		defer cancelCtx()
 
+		// inject auth session to new context
+		ctx = context.WithValue(ctx, auth.AuthSessionContextKey, fr.getCtxSession(request))
+
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
@@ -268,7 +272,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				CreationStateUpdated:       creationStateUpdatedChan,
 				AuthConfig:                 authConfig,
 				DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
-				AuthSession:                fr.getCtxSession(request),
+				AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 				PermissionOptions: opa.PermissionOptions{
 					MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
 					OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),

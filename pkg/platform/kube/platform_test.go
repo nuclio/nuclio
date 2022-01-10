@@ -26,6 +26,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -1042,6 +1044,35 @@ func (suite *FunctionKubePlatformTestSuite) TestAlignIngressHostSubdomain() {
 	}
 }
 
+func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel() {
+
+	functionName := "some-func"
+	functionConfig := *functionconfig.NewConfig()
+	authSession := auth.IguazioSession{
+		Username: "some-user",
+	}
+
+	// inject auth session to context
+	ctx := context.WithValue(suite.ctx, auth.AuthSessionContextKey, authSession)
+
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger:         suite.Logger,
+		FunctionConfig: functionConfig,
+		AuthSession:    &authSession,
+	}
+	createFunctionOptions.FunctionConfig.Meta.Name = functionName
+	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": platform.DefaultProjectName,
+	}
+
+	suite.Logger.DebugWith("Enriching function", "functionName", functionName)
+
+	err := suite.Platform.EnrichFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
+	suite.Require().NoError(err)
+
+	suite.Require().Equal("some-user", createFunctionOptions.FunctionConfig.Meta.Labels[iguazio.IguzioUsernameLabel])
+}
+
 type FunctionEventKubePlatformTestSuite struct {
 	KubePlatformTestSuite
 }
@@ -1359,6 +1390,9 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 
 		// keep empty when shouldn't fail
 		validationError string
+
+		// keep empty when not verifying session enrichment
+		authSession *auth.IguazioSession
 	}{
 		{
 			name: "SpecNameEnrichedFromMetaName",
@@ -1389,6 +1423,23 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				apiGatewayConfig.Meta.Name = "spec-name"
 				return &apiGatewayConfig
 			}(),
+		},
+		{
+			name: "UserNameEnrichedFromSession",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				return &apiGatewayConfig
+			}(),
+			expectedEnrichedAPIGateway: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Meta.Labels = map[string]string{
+					iguazio.IguzioUsernameLabel: "some-username",
+				}
+				return &apiGatewayConfig
+			}(),
+			authSession: &auth.IguazioSession{
+				Username: "some-username",
+			},
 		},
 		{
 			name: "ValidateNamespaceExistence",
@@ -1654,7 +1705,10 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				if testCase.expectedEnrichedAPIGateway.Meta.Labels == nil {
 					testCase.expectedEnrichedAPIGateway.Meta.Labels = map[string]string{}
 				}
-				suite.Platform.EnrichLabelsWithProjectName(suite.ctx, testCase.expectedEnrichedAPIGateway.Meta.Labels)
+				if testCase.authSession != nil {
+					suite.ctx = context.WithValue(suite.ctx, auth.AuthSessionContextKey, *testCase.authSession)
+				}
+				suite.Platform.EnrichLabels(suite.ctx, testCase.expectedEnrichedAPIGateway.Meta.Labels)
 			}
 
 			// run test case specific set up function if given

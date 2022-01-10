@@ -15,8 +15,9 @@ const (
 type SessionContextKey string
 
 const (
-	IguazioContextKey SessionContextKey = "IguazioSession"
-	NopContextKey     SessionContextKey = "NopSession"
+	IguazioContextKey     SessionContextKey = "IguazioSession"
+	NopContextKey         SessionContextKey = "NopSession"
+	AuthSessionContextKey SessionContextKey = "AuthSession"
 )
 
 func ContextKeyByKind(kind Kind) SessionContextKey {
