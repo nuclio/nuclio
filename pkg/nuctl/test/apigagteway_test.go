@@ -186,6 +186,8 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		request.Header.Set("Content-Type", "application/text")
 		return request
 	}
+	
+	time.Sleep(time.Second)
 
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
 	// we retry as it takes some time for apigw resource create function ingress
