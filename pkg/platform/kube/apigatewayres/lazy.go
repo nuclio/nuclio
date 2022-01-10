@@ -17,6 +17,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -274,6 +275,12 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	commonIngressSpec.Annotations = lc.resolveCommonAnnotations(canaryDeployment, upstream.Percentage)
 	for annotationKey, annotationValue := range upstream.ExtraAnnotations {
 		commonIngressSpec.Annotations[annotationKey] = annotationValue
+	}
+
+	// enrich ingress pathType
+	if commonIngressSpec.PathType == nil {
+		defaultPathType := networkingv1.PathTypeImplementationSpecific
+		commonIngressSpec.PathType = &defaultPathType
 	}
 
 	return lc.ingressManager.GenerateResources(ctx, commonIngressSpec)

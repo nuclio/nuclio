@@ -1841,7 +1841,7 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 			return errors.Wrap(err, "Failed to format ingress pattern")
 		}
 
-		// TODO: make pathType configurable - via ui or annotation
+		// TODO: make pathType configurable - via function (or trigger) annotation or platform configuration
 		if ingress.PathType == "" {
 			ingress.PathType = networkingv1.PathTypeImplementationSpecific
 		}

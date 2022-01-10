@@ -34,7 +34,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -258,9 +257,8 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		functionInfo.Spec.Build.NoBaseImagesPull = dashboardServer.NoPullBaseImages
 		functionInfo.Spec.Build.Offline = dashboardServer.Offline
 
-		createFunctionCtx := context.WithValue(ctx, middleware.RequestIDKey, ctx.Value(middleware.RequestIDKey))
 		// just deploy. the status is async through polling
-		if _, err := fr.getPlatform().CreateFunction(createFunctionCtx,
+		if _, err := fr.getPlatform().CreateFunction(ctx,
 			&platform.CreateFunctionOptions{
 				Logger: fr.Logger,
 				FunctionConfig: functionconfig.Config{

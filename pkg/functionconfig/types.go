@@ -157,6 +157,12 @@ func GetFunctionIngresses(config *Config) map[string]Ingress {
 				}
 				ingress.TLS = ingressTLS
 
+				// enrich ingress pathType if not present
+				ingress.PathType = networkingv1.PathTypeImplementationSpecific
+				if ingressPathType, ok := encodedIngressMap["pathType"].(networkingv1.PathType); ok {
+					ingress.PathType = ingressPathType
+				}
+
 				ingresses[encodedIngressName] = ingress
 			}
 		}
