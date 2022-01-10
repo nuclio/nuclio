@@ -27,6 +27,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/logprocessing"
@@ -221,7 +223,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	if functionConfig.Meta.Labels == nil {
 		functionConfig.Meta.Labels = map[string]string{}
 	}
-	ap.EnrichLabelsWithProjectName(ctx, functionConfig.Meta.Labels)
+	ap.EnrichLabels(ctx, functionConfig.Meta.Labels)
 
 	if err := ap.enrichImageName(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching image name")
@@ -257,11 +259,18 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	return nil
 }
 
-// EnrichLabelsWithProjectName enriches labels with default project name
-func (ap *Platform) EnrichLabelsWithProjectName(ctx context.Context, labels map[string]string) {
+// EnrichLabels enriches labels with default project name
+func (ap *Platform) EnrichLabels(ctx context.Context, labels map[string]string) {
 	if labels[common.NuclioResourceLabelKeyProjectName] == "" {
 		labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
 		ap.Logger.DebugCtx(ctx, "No project name specified. Setting to default")
+	}
+
+	// enrich labels with iguazio.com/username of the creating user
+	if authSession, ok := ctx.Value(auth.AuthSessionContextKey).(auth.IguazioSession); ok {
+		if labels[iguazio.IguzioUsernameLabel] == "" {
+			labels[iguazio.IguzioUsernameLabel] = authSession.GetUsername()
+		}
 	}
 }
 

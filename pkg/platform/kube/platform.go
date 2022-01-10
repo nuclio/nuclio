@@ -1330,7 +1330,7 @@ func (p *Platform) enrichAPIGatewayConfig(ctx context.Context,
 		}
 	}
 
-	p.EnrichLabelsWithProjectName(ctx, apiGatewayConfig.Meta.Labels)
+	p.EnrichLabels(ctx, apiGatewayConfig.Meta.Labels)
 }
 
 func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
