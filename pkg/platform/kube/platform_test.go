@@ -1065,8 +1065,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 	err := suite.Platform.EnrichFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
-	suite.Require().Empty(cmp.Diff(createFunctionOptions.FunctionConfig.Meta.Labels[iguazio.IguzioUsernameLabel],
-		"some-user"))
+	suite.Require().Equal("some-user", createFunctionOptions.FunctionConfig.Meta.Labels[iguazio.IguzioUsernameLabel])
 }
 
 type FunctionEventKubePlatformTestSuite struct {
