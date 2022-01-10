@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="dashboard-kube" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="nuclio" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="--platform kube --platform-config hack/env/platform_config.yaml --namespace default --registry localhost:5000 --run-registry localhost:5000" />
+    <kind value="PACKAGE" />
+    <package value="github.com/nuclio/nuclio/cmd/dashboard" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/dashboard/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
