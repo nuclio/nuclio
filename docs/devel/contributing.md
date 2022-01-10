@@ -117,6 +117,9 @@ files at this time, but it's very easy to create run/debug targets and use the d
 3. Enable go modules **GoLand > Preferences > Go > Go Modules (vgo)** and ensure `Enable Go Modules` box is checked
 4. Run configurations are (currently) available for tests only
 
+
+For developing in nuclio locally, see [Local development](/docs/devel/local-development.md).
+
 <a id="goland-versioning-note"></a>
 ### Versioning note
 

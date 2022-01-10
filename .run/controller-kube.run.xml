@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="controller-kube" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="nuclio" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="--platform-config hack/env/platform_config.yaml --namespace default --kubeconfig-path $USER_HOME$/.kube/config" />
+    <kind value="PACKAGE" />
+    <package value="github.com/nuclio/nuclio/cmd/controller" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/controller/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
