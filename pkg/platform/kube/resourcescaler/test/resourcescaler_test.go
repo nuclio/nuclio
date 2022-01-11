@@ -39,7 +39,7 @@ import (
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8stesting "k8s.io/client-go/testing"
@@ -309,7 +309,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 
 			apiGatewayName := "api-gateway-test"
 			createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName1, functionName2)
-			err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
+			err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*networkingv1.Ingress) {
 				scaleToZero(functionName1)
 				scaleToZero(functionName2)
 

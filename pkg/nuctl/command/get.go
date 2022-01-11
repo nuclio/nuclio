@@ -232,7 +232,7 @@ func newGetAPIGatewayCommandeer(getCommandeer *getCommandeer) *getAPIGatewayComm
 
 			commandeer.getAPIGatewaysOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
-			apiGateways, err := getCommandeer.rootCommandeer.platform.GetAPIGateways(&commandeer.getAPIGatewaysOptions)
+			apiGateways, err := getCommandeer.rootCommandeer.platform.GetAPIGateways(context.Background(), &commandeer.getAPIGatewaysOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get api gateways")
 			}

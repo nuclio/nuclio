@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var nuclioapigatewaysResource = schema.GroupVersionResource{Group: "nuclio.io", 
 var nuclioapigatewaysKind = schema.GroupVersionKind{Group: "nuclio.io", Version: "v1beta1", Kind: "NuclioAPIGateway"}
 
 // Get takes name of the nuclioAPIGateway, and returns the corresponding nuclioAPIGateway object, and an error if there is any.
-func (c *FakeNuclioAPIGateways) Get(name string, options v1.GetOptions) (result *v1beta1.NuclioAPIGateway, err error) {
+func (c *FakeNuclioAPIGateways) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.NuclioAPIGateway, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(nuclioapigatewaysResource, c.ns, name), &v1beta1.NuclioAPIGateway{})
 
@@ -50,7 +52,7 @@ func (c *FakeNuclioAPIGateways) Get(name string, options v1.GetOptions) (result 
 }
 
 // List takes label and field selectors, and returns the list of NuclioAPIGateways that match those selectors.
-func (c *FakeNuclioAPIGateways) List(opts v1.ListOptions) (result *v1beta1.NuclioAPIGatewayList, err error) {
+func (c *FakeNuclioAPIGateways) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.NuclioAPIGatewayList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(nuclioapigatewaysResource, nuclioapigatewaysKind, c.ns, opts), &v1beta1.NuclioAPIGatewayList{})
 
@@ -72,14 +74,14 @@ func (c *FakeNuclioAPIGateways) List(opts v1.ListOptions) (result *v1beta1.Nucli
 }
 
 // Watch returns a watch.Interface that watches the requested nuclioAPIGateways.
-func (c *FakeNuclioAPIGateways) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeNuclioAPIGateways) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(nuclioapigatewaysResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a nuclioAPIGateway and creates it.  Returns the server's representation of the nuclioAPIGateway, and an error, if there is any.
-func (c *FakeNuclioAPIGateways) Create(nuclioAPIGateway *v1beta1.NuclioAPIGateway) (result *v1beta1.NuclioAPIGateway, err error) {
+func (c *FakeNuclioAPIGateways) Create(ctx context.Context, nuclioAPIGateway *v1beta1.NuclioAPIGateway, opts v1.CreateOptions) (result *v1beta1.NuclioAPIGateway, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(nuclioapigatewaysResource, c.ns, nuclioAPIGateway), &v1beta1.NuclioAPIGateway{})
 
@@ -90,7 +92,7 @@ func (c *FakeNuclioAPIGateways) Create(nuclioAPIGateway *v1beta1.NuclioAPIGatewa
 }
 
 // Update takes the representation of a nuclioAPIGateway and updates it. Returns the server's representation of the nuclioAPIGateway, and an error, if there is any.
-func (c *FakeNuclioAPIGateways) Update(nuclioAPIGateway *v1beta1.NuclioAPIGateway) (result *v1beta1.NuclioAPIGateway, err error) {
+func (c *FakeNuclioAPIGateways) Update(ctx context.Context, nuclioAPIGateway *v1beta1.NuclioAPIGateway, opts v1.UpdateOptions) (result *v1beta1.NuclioAPIGateway, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(nuclioapigatewaysResource, c.ns, nuclioAPIGateway), &v1beta1.NuclioAPIGateway{})
 
@@ -101,7 +103,7 @@ func (c *FakeNuclioAPIGateways) Update(nuclioAPIGateway *v1beta1.NuclioAPIGatewa
 }
 
 // Delete takes name of the nuclioAPIGateway and deletes it. Returns an error if one occurs.
-func (c *FakeNuclioAPIGateways) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeNuclioAPIGateways) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(nuclioapigatewaysResource, c.ns, name), &v1beta1.NuclioAPIGateway{})
 
@@ -109,15 +111,15 @@ func (c *FakeNuclioAPIGateways) Delete(name string, options *v1.DeleteOptions) e
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeNuclioAPIGateways) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(nuclioapigatewaysResource, c.ns, listOptions)
+func (c *FakeNuclioAPIGateways) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(nuclioapigatewaysResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.NuclioAPIGatewayList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched nuclioAPIGateway.
-func (c *FakeNuclioAPIGateways) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.NuclioAPIGateway, err error) {
+func (c *FakeNuclioAPIGateways) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.NuclioAPIGateway, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(nuclioapigatewaysResource, c.ns, name, pt, data, subresources...), &v1beta1.NuclioAPIGateway{})
 

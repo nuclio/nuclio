@@ -315,7 +315,7 @@ func (d *deployCommandeer) getImportedFunction(ctx context.Context, functionName
 	}
 
 	function := functions[0]
-	if err := function.Initialize(nil); err != nil {
+	if err := function.Initialize(ctx, nil); err != nil {
 
 		// debug level, we don't want to spam user output when we just try to import an non-existent function
 		d.rootCommandeer.loggerInstance.DebugWith("Failed to initialize function", "err", err.Error())

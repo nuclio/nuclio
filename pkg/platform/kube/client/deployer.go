@@ -102,11 +102,11 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 	if !functionExists {
 		functionInstance, err = nuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(functionInstance.Namespace).
-			Create(functionInstance)
+			Create(ctx, functionInstance, metav1.CreateOptions{})
 	} else {
 		functionInstance, err = nuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(functionInstance.Namespace).
-			Update(functionInstance)
+			Update(ctx, functionInstance, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update function")
@@ -131,11 +131,12 @@ func (d *Deployer) Deploy(ctx context.Context,
 	}
 
 	// wait for the function to be ready
-	updatedFunctionInstance, err := waitForFunctionReadiness(d.consumer,
+	updatedFunctionInstance, err := waitForFunctionReadiness(ctx,
+		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name)
 	if err != nil {
-		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(functionInstance.Namespace, functionInstance.Name)
+		podLogs, briefErrorsMessage := d.getFunctionPodLogsAndEvents(ctx, functionInstance.Namespace, functionInstance.Name)
 		return nil, updatedFunctionInstance, briefErrorsMessage, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", podLogs)
 	}
 
@@ -190,14 +191,14 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 
 }
 
-func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (string, string) {
+func (d *Deployer) getFunctionPodLogsAndEvents(ctx context.Context, namespace string, name string) (string, string) {
 	var briefErrorsMessage string
 	podLogsMessage := "\nPod logs:\n"
 
 	// list pods
 	functionPods, listPodErr := d.consumer.KubeClientSet.CoreV1().
 		Pods(namespace).
-		List(metav1.ListOptions{
+		List(ctx, metav1.ListOptions{
 			LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
 		})
 
@@ -225,7 +226,7 @@ func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	if logsRequest, getLogsErr := d.consumer.KubeClientSet.CoreV1().
 		Pods(namespace).
 		GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
-		Stream(); getLogsErr != nil {
+		Stream(ctx); getLogsErr != nil {
 		podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 	} else {
 		scanner := bufio.NewScanner(logsRequest)
@@ -240,7 +241,7 @@ func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 		podLogsMessage += formattedProcessorLogs
 	}
 
-	podWarningEvents, err := d.getFunctionPodWarningEvents(namespace, pod.Name)
+	podWarningEvents, err := d.getFunctionPodWarningEvents(ctx, namespace, pod.Name)
 	if err != nil {
 		podLogsMessage += "Failed to get pod warning events: " + err.Error() + "\n"
 	} else if briefErrorsMessage == "" && podWarningEvents != "" {
@@ -253,8 +254,8 @@ func (d *Deployer) getFunctionPodLogsAndEvents(namespace string, name string) (s
 	return podLogsMessage, briefErrorsMessage
 }
 
-func (d *Deployer) getFunctionPodWarningEvents(namespace string, podName string) (string, error) {
-	eventList, err := d.consumer.KubeClientSet.CoreV1().Events(namespace).List(metav1.ListOptions{})
+func (d *Deployer) getFunctionPodWarningEvents(ctx context.Context, namespace string, podName string) (string, error) {
+	eventList, err := d.consumer.KubeClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -284,7 +285,8 @@ func (d *Deployer) getLastCreatedPod(pods []v1.Pod) v1.Pod {
 	return latestPod
 }
 
-func waitForFunctionReadiness(consumer *Consumer,
+func waitForFunctionReadiness(ctx context.Context,
+	consumer *Consumer,
 	namespace string,
 	name string) (*nuclioio.NuclioFunction, error) {
 	var err error
@@ -296,7 +298,7 @@ func waitForFunctionReadiness(consumer *Consumer,
 		// get the appropriate function CR
 		function, err = consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(namespace).
-			Get(name, metav1.GetOptions{})
+			Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return true, err
 		}

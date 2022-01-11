@@ -126,7 +126,7 @@ func (fm *FunctionMonitor) Stop(ctx context.Context) {
 }
 
 func (fm *FunctionMonitor) checkFunctionStatuses(ctx context.Context) error {
-	functions, err := fm.nuclioClientSet.NuclioV1beta1().NuclioFunctions(fm.namespace).List(metav1.ListOptions{})
+	functions, err := fm.nuclioClientSet.NuclioV1beta1().NuclioFunctions(fm.namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list functions")
 	}
@@ -155,7 +155,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 	functionDeployment, err := fm.kubeClientSet.
 		AppsV1().
 		Deployments(function.Namespace).
-		Get(kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 	if err != nil {
 		fm.logger.WarnWithCtx(ctx, "Failed to get function deployment",
 			"functionName", function.Name,
@@ -190,7 +190,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 	if _, err := fm.nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(fm.namespace).
-		Update(function); err != nil {
+		Update(ctx, function, metav1.UpdateOptions{}); err != nil {
 		fm.logger.WarnWithCtx(ctx, "Failed to update function",
 			"functionName", function.Name,
 			"functionStatus", function.Status,

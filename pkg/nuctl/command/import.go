@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -85,7 +86,8 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 	}
 
 	// create function
-	_, err = i.rootCommandeer.platform.CreateFunction(ctx, &platform.CreateFunctionOptions{
+	createFunctionCtx := nucliocontext.NewDetached(ctx)
+	_, err = i.rootCommandeer.platform.CreateFunction(createFunctionCtx, &platform.CreateFunctionOptions{
 		Logger:         i.rootCommandeer.loggerInstance,
 		FunctionConfig: *functionConfig,
 	})
@@ -282,6 +284,7 @@ func (i *importProjectCommandeer) importFunctionEvent(ctx context.Context, funct
 	if err != nil {
 		return errors.Wrap(err, "Failed to check existing functions")
 	}
+
 	if len(functions) == 0 {
 		return errors.New("The event function's parent function doesn't exist")
 	}

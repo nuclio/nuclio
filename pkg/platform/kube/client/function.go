@@ -29,7 +29,7 @@ import (
 	"github.com/nuclio/logger"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -85,13 +85,13 @@ func NuclioioToFunctionConfig(nuclioioFunction *nuclioio.NuclioFunction) *functi
 }
 
 // Initialize loads sub-resources so we can populate our configuration
-func (f *Function) Initialize([]string) error {
+func (f *Function) Initialize(ctx context.Context, str []string) error {
 	var deploymentList *appsv1.DeploymentList
-	var ingressList *extv1beta1.IngressList
+	var ingressList *networkingv1.IngressList
 	var serviceList *v1.ServiceList
 
 	var deployment *appsv1.Deployment
-	var ingress *extv1beta1.Ingress
+	var ingress *networkingv1.Ingress
 	var service *v1.Service
 	var deploymentErr, ingressErr, serviceErr error
 
@@ -109,7 +109,7 @@ func (f *Function) Initialize([]string) error {
 		if deploymentList == nil {
 			deploymentList, deploymentErr = f.consumer.KubeClientSet.AppsV1().
 				Deployments(f.Config.Meta.Namespace).
-				List(listOptions)
+				List(ctx, listOptions)
 
 			if deploymentErr != nil {
 				return
@@ -133,7 +133,7 @@ func (f *Function) Initialize([]string) error {
 		if serviceList == nil {
 			serviceList, serviceErr = f.consumer.KubeClientSet.CoreV1().
 				Services(f.Config.Meta.Namespace).
-				List(listOptions)
+				List(ctx, listOptions)
 
 			if serviceErr != nil {
 				return
@@ -155,9 +155,9 @@ func (f *Function) Initialize([]string) error {
 	// get ingress info
 	go func() {
 		if ingressList == nil {
-			ingressList, ingressErr = f.consumer.KubeClientSet.ExtensionsV1beta1().
+			ingressList, ingressErr = f.consumer.KubeClientSet.NetworkingV1().
 				Ingresses(f.Config.Meta.Namespace).
-				List(listOptions)
+				List(ctx, listOptions)
 
 			if ingressErr != nil {
 				return

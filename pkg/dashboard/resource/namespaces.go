@@ -34,7 +34,8 @@ func (nr *namespaceResource) ExtendMiddlewares() error {
 
 // GetAll returns all namespaces
 func (nr *namespaceResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
-	namespaces, err := nr.getPlatform().GetNamespaces()
+	ctx := request.Context()
+	namespaces, err := nr.getPlatform().GetNamespaces(ctx)
 	if err != nil {
 		return nil, err
 	}

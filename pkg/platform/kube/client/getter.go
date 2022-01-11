@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	"context"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
@@ -40,7 +41,9 @@ func NewGetter(parentLogger logger.Logger, platform platform.Platform) (*Getter,
 	return newGetter, nil
 }
 
-func (g *Getter) Get(consumer *Consumer, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+func (g *Getter) Get(ctx context.Context,
+	consumer *Consumer,
+	getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	var platformFunctions []platform.Function
 	var functions []nuclioio.NuclioFunction
 
@@ -51,7 +54,7 @@ func (g *Getter) Get(consumer *Consumer, getFunctionsOptions *platform.GetFuncti
 		function, err := consumer.NuclioClientSet.
 			NuclioV1beta1().
 			NuclioFunctions(getFunctionsOptions.Namespace).
-			Get(getFunctionsOptions.Name, metav1.GetOptions{})
+			Get(ctx, getFunctionsOptions.Name, metav1.GetOptions{})
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
@@ -69,7 +72,7 @@ func (g *Getter) Get(consumer *Consumer, getFunctionsOptions *platform.GetFuncti
 		functionInstanceList, err := consumer.NuclioClientSet.
 			NuclioV1beta1().
 			NuclioFunctions(getFunctionsOptions.Namespace).
-			List(metav1.ListOptions{LabelSelector: getFunctionsOptions.Labels})
+			List(ctx, metav1.ListOptions{LabelSelector: getFunctionsOptions.Labels})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list functions")

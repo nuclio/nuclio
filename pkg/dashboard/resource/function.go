@@ -278,10 +278,11 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 					OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 				},
 			}); err != nil {
-			fr.Logger.WarnWithCtx(ctx, "Failed to deploy function", "err", err)
+			fr.Logger.WarnWithCtx(ctx,
+				"Failed to deploy function",
+				"err", errors.GetErrorStackString(err, 10))
 			errDeployingChan <- err
 		}
-
 		doneChan <- true
 	}()
 

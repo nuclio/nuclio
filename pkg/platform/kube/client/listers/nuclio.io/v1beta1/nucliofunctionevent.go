@@ -26,8 +26,10 @@ import (
 )
 
 // NuclioFunctionEventLister helps list NuclioFunctionEvents.
+// All objects returned here must be treated as read-only.
 type NuclioFunctionEventLister interface {
 	// List lists all NuclioFunctionEvents in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.NuclioFunctionEvent, err error)
 	// NuclioFunctionEvents returns an object that can list and get NuclioFunctionEvents.
 	NuclioFunctionEvents(namespace string) NuclioFunctionEventNamespaceLister
@@ -58,10 +60,13 @@ func (s *nuclioFunctionEventLister) NuclioFunctionEvents(namespace string) Nucli
 }
 
 // NuclioFunctionEventNamespaceLister helps list and get NuclioFunctionEvents.
+// All objects returned here must be treated as read-only.
 type NuclioFunctionEventNamespaceLister interface {
 	// List lists all NuclioFunctionEvents in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.NuclioFunctionEvent, err error)
 	// Get retrieves the NuclioFunctionEvent from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1beta1.NuclioFunctionEvent, error)
 	NuclioFunctionEventNamespaceListerExpansion
 }

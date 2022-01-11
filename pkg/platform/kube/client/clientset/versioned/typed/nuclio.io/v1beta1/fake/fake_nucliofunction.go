@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var nucliofunctionsResource = schema.GroupVersionResource{Group: "nuclio.io", Ve
 var nucliofunctionsKind = schema.GroupVersionKind{Group: "nuclio.io", Version: "v1beta1", Kind: "NuclioFunction"}
 
 // Get takes name of the nuclioFunction, and returns the corresponding nuclioFunction object, and an error if there is any.
-func (c *FakeNuclioFunctions) Get(name string, options v1.GetOptions) (result *v1beta1.NuclioFunction, err error) {
+func (c *FakeNuclioFunctions) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.NuclioFunction, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(nucliofunctionsResource, c.ns, name), &v1beta1.NuclioFunction{})
 
@@ -50,7 +52,7 @@ func (c *FakeNuclioFunctions) Get(name string, options v1.GetOptions) (result *v
 }
 
 // List takes label and field selectors, and returns the list of NuclioFunctions that match those selectors.
-func (c *FakeNuclioFunctions) List(opts v1.ListOptions) (result *v1beta1.NuclioFunctionList, err error) {
+func (c *FakeNuclioFunctions) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.NuclioFunctionList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(nucliofunctionsResource, nucliofunctionsKind, c.ns, opts), &v1beta1.NuclioFunctionList{})
 
@@ -72,14 +74,14 @@ func (c *FakeNuclioFunctions) List(opts v1.ListOptions) (result *v1beta1.NuclioF
 }
 
 // Watch returns a watch.Interface that watches the requested nuclioFunctions.
-func (c *FakeNuclioFunctions) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeNuclioFunctions) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(nucliofunctionsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a nuclioFunction and creates it.  Returns the server's representation of the nuclioFunction, and an error, if there is any.
-func (c *FakeNuclioFunctions) Create(nuclioFunction *v1beta1.NuclioFunction) (result *v1beta1.NuclioFunction, err error) {
+func (c *FakeNuclioFunctions) Create(ctx context.Context, nuclioFunction *v1beta1.NuclioFunction, opts v1.CreateOptions) (result *v1beta1.NuclioFunction, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(nucliofunctionsResource, c.ns, nuclioFunction), &v1beta1.NuclioFunction{})
 
@@ -90,7 +92,7 @@ func (c *FakeNuclioFunctions) Create(nuclioFunction *v1beta1.NuclioFunction) (re
 }
 
 // Update takes the representation of a nuclioFunction and updates it. Returns the server's representation of the nuclioFunction, and an error, if there is any.
-func (c *FakeNuclioFunctions) Update(nuclioFunction *v1beta1.NuclioFunction) (result *v1beta1.NuclioFunction, err error) {
+func (c *FakeNuclioFunctions) Update(ctx context.Context, nuclioFunction *v1beta1.NuclioFunction, opts v1.UpdateOptions) (result *v1beta1.NuclioFunction, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(nucliofunctionsResource, c.ns, nuclioFunction), &v1beta1.NuclioFunction{})
 
@@ -102,7 +104,7 @@ func (c *FakeNuclioFunctions) Update(nuclioFunction *v1beta1.NuclioFunction) (re
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeNuclioFunctions) UpdateStatus(nuclioFunction *v1beta1.NuclioFunction) (*v1beta1.NuclioFunction, error) {
+func (c *FakeNuclioFunctions) UpdateStatus(ctx context.Context, nuclioFunction *v1beta1.NuclioFunction, opts v1.UpdateOptions) (*v1beta1.NuclioFunction, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(nucliofunctionsResource, "status", c.ns, nuclioFunction), &v1beta1.NuclioFunction{})
 
@@ -113,7 +115,7 @@ func (c *FakeNuclioFunctions) UpdateStatus(nuclioFunction *v1beta1.NuclioFunctio
 }
 
 // Delete takes name of the nuclioFunction and deletes it. Returns an error if one occurs.
-func (c *FakeNuclioFunctions) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeNuclioFunctions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(nucliofunctionsResource, c.ns, name), &v1beta1.NuclioFunction{})
 
@@ -121,15 +123,15 @@ func (c *FakeNuclioFunctions) Delete(name string, options *v1.DeleteOptions) err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeNuclioFunctions) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(nucliofunctionsResource, c.ns, listOptions)
+func (c *FakeNuclioFunctions) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(nucliofunctionsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.NuclioFunctionList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched nuclioFunction.
-func (c *FakeNuclioFunctions) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.NuclioFunction, err error) {
+func (c *FakeNuclioFunctions) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.NuclioFunction, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(nucliofunctionsResource, c.ns, name, pt, data, subresources...), &v1beta1.NuclioFunction{})
 

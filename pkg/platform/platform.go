@@ -142,7 +142,7 @@ type Platform interface {
 	DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions *DeleteAPIGatewayOptions) error
 
 	// GetAPIGateways will list existing api gateways
-	GetAPIGateways(getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
+	GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *GetAPIGatewaysOptions) ([]APIGateway, error)
 
 	//
 	// Misc
@@ -169,7 +169,7 @@ type Platform interface {
 	GetAllowedAuthenticationModes() []string
 
 	// GetNamespaces returns all the namespaces in the platform
-	GetNamespaces() ([]string, error)
+	GetNamespaces(context.Context) ([]string, error)
 
 	// GetHealthCheckMode returns the healthcheck mode the platform requires
 	GetHealthCheckMode() HealthCheckMode

@@ -1,5 +1,7 @@
 package ingress
 
+import networkingv1 "k8s.io/api/networking/v1"
+
 type Spec struct {
 	Name                 string
 	Namespace            string
@@ -7,6 +9,7 @@ type Spec struct {
 	APIGatewayName       string
 	Host                 string
 	Path                 string
+	PathType             *networkingv1.PathType
 	ServiceName          string
 	ServicePort          int
 	AuthenticationMode   AuthenticationMode

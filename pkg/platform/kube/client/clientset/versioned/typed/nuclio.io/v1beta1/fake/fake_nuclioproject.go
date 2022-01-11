@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var nuclioprojectsResource = schema.GroupVersionResource{Group: "nuclio.io", Ver
 var nuclioprojectsKind = schema.GroupVersionKind{Group: "nuclio.io", Version: "v1beta1", Kind: "NuclioProject"}
 
 // Get takes name of the nuclioProject, and returns the corresponding nuclioProject object, and an error if there is any.
-func (c *FakeNuclioProjects) Get(name string, options v1.GetOptions) (result *v1beta1.NuclioProject, err error) {
+func (c *FakeNuclioProjects) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.NuclioProject, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(nuclioprojectsResource, c.ns, name), &v1beta1.NuclioProject{})
 
@@ -50,7 +52,7 @@ func (c *FakeNuclioProjects) Get(name string, options v1.GetOptions) (result *v1
 }
 
 // List takes label and field selectors, and returns the list of NuclioProjects that match those selectors.
-func (c *FakeNuclioProjects) List(opts v1.ListOptions) (result *v1beta1.NuclioProjectList, err error) {
+func (c *FakeNuclioProjects) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.NuclioProjectList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(nuclioprojectsResource, nuclioprojectsKind, c.ns, opts), &v1beta1.NuclioProjectList{})
 
@@ -72,14 +74,14 @@ func (c *FakeNuclioProjects) List(opts v1.ListOptions) (result *v1beta1.NuclioPr
 }
 
 // Watch returns a watch.Interface that watches the requested nuclioProjects.
-func (c *FakeNuclioProjects) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeNuclioProjects) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(nuclioprojectsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a nuclioProject and creates it.  Returns the server's representation of the nuclioProject, and an error, if there is any.
-func (c *FakeNuclioProjects) Create(nuclioProject *v1beta1.NuclioProject) (result *v1beta1.NuclioProject, err error) {
+func (c *FakeNuclioProjects) Create(ctx context.Context, nuclioProject *v1beta1.NuclioProject, opts v1.CreateOptions) (result *v1beta1.NuclioProject, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(nuclioprojectsResource, c.ns, nuclioProject), &v1beta1.NuclioProject{})
 
@@ -90,7 +92,7 @@ func (c *FakeNuclioProjects) Create(nuclioProject *v1beta1.NuclioProject) (resul
 }
 
 // Update takes the representation of a nuclioProject and updates it. Returns the server's representation of the nuclioProject, and an error, if there is any.
-func (c *FakeNuclioProjects) Update(nuclioProject *v1beta1.NuclioProject) (result *v1beta1.NuclioProject, err error) {
+func (c *FakeNuclioProjects) Update(ctx context.Context, nuclioProject *v1beta1.NuclioProject, opts v1.UpdateOptions) (result *v1beta1.NuclioProject, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(nuclioprojectsResource, c.ns, nuclioProject), &v1beta1.NuclioProject{})
 
@@ -101,7 +103,7 @@ func (c *FakeNuclioProjects) Update(nuclioProject *v1beta1.NuclioProject) (resul
 }
 
 // Delete takes name of the nuclioProject and deletes it. Returns an error if one occurs.
-func (c *FakeNuclioProjects) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeNuclioProjects) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(nuclioprojectsResource, c.ns, name), &v1beta1.NuclioProject{})
 
@@ -109,15 +111,15 @@ func (c *FakeNuclioProjects) Delete(name string, options *v1.DeleteOptions) erro
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeNuclioProjects) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(nuclioprojectsResource, c.ns, listOptions)
+func (c *FakeNuclioProjects) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(nuclioprojectsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.NuclioProjectList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched nuclioProject.
-func (c *FakeNuclioProjects) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.NuclioProject, err error) {
+func (c *FakeNuclioProjects) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.NuclioProject, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(nuclioprojectsResource, c.ns, name, pt, data, subresources...), &v1beta1.NuclioProject{})
 

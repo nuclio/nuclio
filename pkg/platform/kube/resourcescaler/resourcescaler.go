@@ -1,6 +1,7 @@
 package resourcescaler
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -81,7 +82,7 @@ func (n *NuclioResourceScaler) GetResources() ([]scalertypes.Resource, error) {
 	functions, err := n.nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(n.namespace).
-		List(metav1.ListOptions{})
+		List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list functions")
 	}
@@ -252,7 +253,7 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 	functionName string,
 	functionState functionconfig.FunctionState,
 	functionScaleEvent scalertypes.ScaleEvent) error {
-	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(functionName, metav1.GetOptions{})
+	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(context.Background(), functionName, metav1.GetOptions{})
 	if err != nil {
 		n.logger.WarnWith("Failed getting nuclio function to update function status", "functionName", functionName, "err", err)
 		return errors.Wrap(err, "Failed getting nuclio function to update function status")
@@ -264,7 +265,9 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 		LastScaleEvent:     functionScaleEvent,
 		LastScaleEventTime: &now,
 	}
-	if _, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(function); err != nil {
+	if _, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(context.Background(),
+		function,
+		metav1.UpdateOptions{}); err != nil {
 		n.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
 		return errors.Wrap(err, "Failed to update nuclio function")
 	}
@@ -279,7 +282,7 @@ func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionN
 		function, err = n.nuclioClientSet.
 			NuclioV1beta1().
 			NuclioFunctions(namespace).
-			Get(functionName, metav1.GetOptions{})
+			Get(context.Background(), functionName, metav1.GetOptions{})
 		if err != nil {
 			n.logger.WarnWith("Failed getting nuclio function", "functionName", functionName, "err", err)
 			return errors.Wrap(err, "Failed getting nuclio function")

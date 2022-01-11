@@ -45,6 +45,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -412,7 +413,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			reportingErr := reportCreationError(deployErr, briefErrorsMessage, true)
 			if reportingErr != nil {
 				p.Logger.ErrorWithCtx(ctx, "Failed to report a deployment error",
-					"reportingErr", reportingErr,
+					"reportingErr", reportingErr.Error(),
 					"buildErr", buildErr)
 				return nil, reportingErr
 			}
@@ -479,7 +480,7 @@ func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platfo
 		return nil, errors.Wrap(err, "Failed to ensure project read permission")
 	}
 
-	functions, err := p.getter.Get(p.consumer, getFunctionsOptions)
+	functions, err := p.getter.Get(ctx, p.consumer, getFunctionsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -492,7 +493,7 @@ func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platfo
 	p.EnrichFunctionsWithDeployLogStream(functions)
 
 	if getFunctionsOptions.EnrichWithAPIGateways {
-		if err = p.enrichFunctionsWithAPIGateways(functions, getFunctionsOptions.Namespace); err != nil {
+		if err = p.enrichFunctionsWithAPIGateways(ctx, functions, getFunctionsOptions.Namespace); err != nil {
 
 			// relevant when upgrading nuclio from a version that didn't have api-gateways to one that has
 			if !strings.Contains(errors.RootCause(err).Error(),
@@ -534,7 +535,7 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 	}
 
 	// user must clean api gateway before deleting the function
-	if err := p.validateFunctionHasNoAPIGateways(deleteFunctionOptions); err != nil {
+	if err := p.validateFunctionHasNoAPIGateways(ctx, deleteFunctionOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate that the function has no API gateways")
 	}
 
@@ -552,8 +553,7 @@ func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
 			TailLines:    options.TailLines,
 			Follow:       options.Follow,
 		}).
-		Context(ctx).
-		Stream()
+		Stream(ctx)
 }
 
 func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
@@ -562,7 +562,7 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 	pods, err := p.consumer.KubeClientSet.
 		CoreV1().
 		Pods(functionConfig.Meta.Namespace).
-		List(metav1.ListOptions{
+		List(ctx, metav1.ListOptions{
 			LabelSelector: common.CompileListFunctionPodsLabelSelector(functionConfig.Meta.Name),
 		})
 	if err != nil {
@@ -584,7 +584,7 @@ func (p *Platform) GetName() string {
 func (p *Platform) GetNodes() ([]platform.Node, error) {
 	var platformNodes []platform.Node
 
-	kubeNodes, err := p.consumer.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
+	kubeNodes, err := p.consumer.KubeClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get nodes")
 	}
@@ -695,7 +695,7 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	// create
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(newAPIGateway.Namespace).
-		Create(&newAPIGateway); err != nil {
+		Create(ctx, &newAPIGateway, metav1.CreateOptions{}); err != nil {
 		return errors.Wrap(err, "Failed to create an API gateway")
 	}
 
@@ -706,7 +706,7 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
 	apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
-		Get(updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
+		Get(ctx, updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateway to update")
 	}
@@ -732,7 +732,7 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 	// update
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
-		Update(apiGateway); err != nil {
+		Update(ctx, apiGateway, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrap(err, "Failed to update an api gateway")
 	}
 
@@ -752,7 +752,7 @@ func (p *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions
 	// delete
 	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(deleteAPIGatewayOptions.Meta.Namespace).
-		Delete(deleteAPIGatewayOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
+		Delete(ctx, deleteAPIGatewayOptions.Meta.Name, metav1.DeleteOptions{}); err != nil {
 
 		return errors.Wrapf(err,
 			"Failed to delete API gateway %s from namespace %s",
@@ -764,7 +764,7 @@ func (p *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions
 }
 
 // GetAPIGateways will list existing api gateways
-func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
+func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
 	var platformAPIGateways []platform.APIGateway
 	var apiGateways []nuclioio.NuclioAPIGateway
 
@@ -774,7 +774,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 		// get specific NuclioAPIGateway CR
 		apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
-			Get(getAPIGatewaysOptions.Name, metav1.GetOptions{})
+			Get(ctx, getAPIGatewaysOptions.Name, metav1.GetOptions{})
 		if err != nil {
 
 			// if we didn't find the NuclioAPIGateway, return an empty slice
@@ -791,7 +791,7 @@ func (p *Platform) GetAPIGateways(getAPIGatewaysOptions *platform.GetAPIGateways
 
 		apiGatewayInstanceList, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
-			List(metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
+			List(ctx, metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list API gateways")
 		}
@@ -854,7 +854,7 @@ func (p *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventO
 
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(createFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Create(&newFunctionEvent); err != nil {
+		Create(ctx, &newFunctionEvent, metav1.CreateOptions{}); err != nil {
 		return errors.Wrap(err, "Failed to create a function event")
 	}
 	return nil
@@ -867,7 +867,7 @@ func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventO
 
 	functionEvent, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, metav1.GetOptions{})
+		Get(ctx, updateFunctionEventOptions.FunctionEventConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get a function event")
 	}
@@ -896,7 +896,7 @@ func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventO
 
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Update(functionEvent); err != nil {
+		Update(ctx, functionEvent, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrap(err, "Failed to update a function event")
 	}
 
@@ -907,7 +907,7 @@ func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventO
 func (p *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
 	functionEventToDelete, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
-		Get(deleteFunctionEventOptions.Meta.Name, metav1.GetOptions{})
+		Get(ctx, deleteFunctionEventOptions.Meta.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get a function event")
 	}
@@ -928,7 +928,7 @@ func (p *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventO
 
 	if err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctionEvents(deleteFunctionEventOptions.Meta.Namespace).
-		Delete(deleteFunctionEventOptions.Meta.Name, &metav1.DeleteOptions{}); err != nil {
+		Delete(ctx, deleteFunctionEventOptions.Meta.Name, metav1.DeleteOptions{}); err != nil {
 		return errors.Wrapf(err,
 			"Failed to delete function event %s from namespace %s",
 			deleteFunctionEventOptions.Meta.Name,
@@ -949,7 +949,7 @@ func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptio
 		// get specific function event CR
 		functionEvent, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
-			Get(getFunctionEventsOptions.Meta.Name, metav1.GetOptions{})
+			Get(ctx, getFunctionEventsOptions.Meta.Name, metav1.GetOptions{})
 
 		if err != nil {
 
@@ -979,7 +979,7 @@ func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptio
 
 		functionEventInstanceList, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctionEvents(getFunctionEventsOptions.Meta.Namespace).
-			List(metav1.ListOptions{LabelSelector: labelSelector})
+			List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list function events")
@@ -1092,12 +1092,12 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 }
 
 // GetNamespaces returns all the namespaces in the platform
-func (p *Platform) GetNamespaces() ([]string, error) {
+func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	if len(p.Config.ManagedNamespaces) > 0 {
 		return p.Config.ManagedNamespaces, nil
 	}
 
-	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(metav1.ListOptions{})
+	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 			return nil, nuclio.WrapErrForbidden(err)
@@ -1150,13 +1150,13 @@ func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, nam
 	})
 }
 
-func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[string][]string, error) {
+func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, namespace string) (map[string][]string, error) {
 	functionToAPIGateways := map[string][]string{}
 
 	// get all api gateways in the namespace
 	apiGateways, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(namespace).
-		List(metav1.ListOptions{})
+		List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list API gateways")
 	}
@@ -1176,7 +1176,7 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(namespace string) (map[s
 	return functionToAPIGateways, nil
 }
 
-func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function, namespace string) error {
+func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions []platform.Function, namespace string) error {
 	var err error
 	var functionToAPIGateways map[string][]string
 
@@ -1186,7 +1186,7 @@ func (p *Platform) enrichFunctionsWithAPIGateways(functions []platform.Function,
 	}
 
 	// generate function to api gateways mapping
-	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(namespace); err != nil {
+	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(ctx, namespace); err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 	}
 
@@ -1232,7 +1232,8 @@ func (p *Platform) getFunction(ctx context.Context,
 	// get specific function CR
 	function, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioFunctions(getFunctionOptions.Namespace).
-		Get(getFunctionOptions.Name,
+		Get(ctx,
+			getFunctionOptions.Name,
 			metav1.GetOptions{
 				ResourceVersion: getFunctionOptions.ResourceVersion,
 			})
@@ -1268,7 +1269,8 @@ func (p *Platform) getFunctionInstanceAndConfig(ctx context.Context,
 			return nil, nil, errors.Wrap(err, "Failed to create a new function instance")
 		}
 		if getFunctionOptions.EnrichWithAPIGateways {
-			if err := p.enrichFunctionsWithAPIGateways([]platform.Function{initializedFunctionInstance},
+			if err := p.enrichFunctionsWithAPIGateways(ctx,
+				[]platform.Function{initializedFunctionInstance},
 				getFunctionOptions.Namespace); err != nil {
 				return nil, nil, errors.Wrap(err, "Failed to enrich function with api gateway")
 			}
@@ -1394,7 +1396,7 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 	}
 
 	// ingresses
-	if err := p.validateAPIGatewayIngresses(apiGateway); err != nil {
+	if err := p.validateAPIGatewayIngresses(ctx, apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate ingresses")
 	}
 
@@ -1410,7 +1412,7 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Service type validation failed")
 	}
 
-	return p.validateFunctionIngresses(functionConfig)
+	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
 func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
@@ -1454,12 +1456,12 @@ func (p *Platform) enrichHTTPTriggers(ctx context.Context, functionConfig *funct
 	return nil
 }
 
-func (p *Platform) validateFunctionHasNoAPIGateways(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+func (p *Platform) validateFunctionHasNoAPIGateways(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	var functionToAPIGateways map[string][]string
 	var err error
 
 	// generate function to api gateways mapping
-	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(deleteFunctionOptions.FunctionConfig.Meta.Namespace); err != nil {
+	if functionToAPIGateways, err = p.generateFunctionToAPIGatewaysMapping(ctx, deleteFunctionOptions.FunctionConfig.Meta.Namespace); err != nil {
 		return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 	}
 
@@ -1489,7 +1491,7 @@ func (p *Platform) enrichTriggerWithServiceType(ctx context.Context,
 	}
 }
 
-func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGatewayConfig) error {
+func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayConfig *platform.APIGatewayConfig) error {
 
 	// create a map to be used for ingress host and path-availability validation
 	apiGatewayIngresses := map[string]functionconfig.Ingress{
@@ -1507,7 +1509,8 @@ func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGat
 		FieldSelector: fmt.Sprintf("metadata.name!=%s,metadata.name!=%s", ingressName, ingressNameWithCanary),
 	}
 
-	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
+	if err := p.validateIngressHostAndPathAvailability(ctx,
+		listIngressesOptions,
 		apiGatewayConfig.Meta.Namespace,
 		apiGatewayIngresses); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway host and path availability")
@@ -1516,8 +1519,8 @@ func (p *Platform) validateAPIGatewayIngresses(apiGatewayConfig *platform.APIGat
 	return nil
 }
 
-func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Config) error {
-	if err := p.validateFunctionNoIngressAndAPIGateway(functionConfig); err != nil {
+func (p *Platform) validateFunctionIngresses(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.validateFunctionNoIngressAndAPIGateway(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to validate: the function isn't exposed by an internal ingresses or an API gateway")
 	}
 
@@ -1528,7 +1531,8 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 	}
 
 	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
-	if err := p.validateIngressHostAndPathAvailability(listIngressesOptions,
+	if err := p.validateIngressHostAndPathAvailability(ctx,
+		listIngressesOptions,
 		functionConfig.Meta.Namespace,
 		ingresses); err != nil {
 		return errors.Wrapf(err, "Failed to validate the function-ingress host and path availability")
@@ -1537,15 +1541,16 @@ func (p *Platform) validateFunctionIngresses(functionConfig *functionconfig.Conf
 	return nil
 }
 
-func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions metav1.ListOptions,
+func (p *Platform) validateIngressHostAndPathAvailability(ctx context.Context,
+	listIngressesOptions metav1.ListOptions,
 	namespace string,
 	ingresses map[string]functionconfig.Ingress) error {
 
 	// get all ingresses on the namespace
 	existingIngresses, err := p.consumer.KubeClientSet.
-		ExtensionsV1beta1().
+		NetworkingV1().
 		Ingresses(namespace).
-		List(listIngressesOptions)
+		List(ctx, listIngressesOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list ingresses")
 	}
@@ -1597,12 +1602,12 @@ func (p *Platform) validateIngressHostAndPathAvailability(listIngressesOptions m
 // this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
 // (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
 // with canary ingress, when sending requests to host-1.com we may get directed to the canary ingress defined by the api gateway)
-func (p *Platform) validateFunctionNoIngressAndAPIGateway(functionConfig *functionconfig.Config) error {
+func (p *Platform) validateFunctionNoIngressAndAPIGateway(ctx context.Context, functionConfig *functionconfig.Config) error {
 	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
 	if len(ingresses) > 0 {
 
 		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
-		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(functionConfig.Meta.Namespace)
+		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(ctx, functionConfig.Meta.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 		}
@@ -1664,6 +1669,10 @@ func (p *Platform) enrichHTTPTriggerIngresses(ctx context.Context,
 					"functionName", functionConfig.Meta.Name)
 				encodedIngressMap["host"] = renderedIngressHost
 			}
+		}
+
+		if _, ingressPathTypeFound := encodedIngressMap["pathType"].(networkingv1.PathType); !ingressPathTypeFound {
+			encodedIngressMap["pathType"] = networkingv1.PathTypeImplementationSpecific
 		}
 	}
 	return nil

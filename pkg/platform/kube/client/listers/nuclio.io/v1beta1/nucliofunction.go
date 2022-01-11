@@ -26,8 +26,10 @@ import (
 )
 
 // NuclioFunctionLister helps list NuclioFunctions.
+// All objects returned here must be treated as read-only.
 type NuclioFunctionLister interface {
 	// List lists all NuclioFunctions in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.NuclioFunction, err error)
 	// NuclioFunctions returns an object that can list and get NuclioFunctions.
 	NuclioFunctions(namespace string) NuclioFunctionNamespaceLister
@@ -58,10 +60,13 @@ func (s *nuclioFunctionLister) NuclioFunctions(namespace string) NuclioFunctionN
 }
 
 // NuclioFunctionNamespaceLister helps list and get NuclioFunctions.
+// All objects returned here must be treated as read-only.
 type NuclioFunctionNamespaceLister interface {
 	// List lists all NuclioFunctions in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.NuclioFunction, err error)
 	// Get retrieves the NuclioFunction from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1beta1.NuclioFunction, error)
 	NuclioFunctionNamespaceListerExpansion
 }

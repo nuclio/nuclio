@@ -19,6 +19,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
 	time "time"
 
 	nuclioiov1beta1 "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -61,13 +62,13 @@ func NewFilteredNuclioAPIGatewayInformer(client versioned.Interface, namespace s
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NuclioV1beta1().NuclioAPIGateways(namespace).List(options)
+				return client.NuclioV1beta1().NuclioAPIGateways(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NuclioV1beta1().NuclioAPIGateways(namespace).Watch(options)
+				return client.NuclioV1beta1().NuclioAPIGateways(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&nuclioiov1beta1.NuclioAPIGateway{},

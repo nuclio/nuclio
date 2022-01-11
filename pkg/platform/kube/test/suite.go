@@ -49,13 +49,13 @@ import (
 	"github.com/rs/xid"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-type OnAfterIngressCreated func(*extensionsv1beta1.Ingress)
+type OnAfterIngressCreated func(*networkingv1.Ingress)
 
 type KubeTestSuite struct {
 	processorsuite.TestSuite
@@ -299,7 +299,7 @@ func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(functionURL
 func (suite *KubeTestSuite) GetAPIGateway(getAPIGatewayOptions *platform.GetAPIGatewaysOptions) platform.APIGateway {
 
 	// get the function
-	apiGateways, err := suite.Platform.GetAPIGateways(getAPIGatewayOptions)
+	apiGateways, err := suite.Platform.GetAPIGateways(suite.Ctx, getAPIGatewayOptions)
 	suite.Require().NoError(err)
 	return apiGateways[0]
 }
@@ -318,16 +318,16 @@ func (suite *KubeTestSuite) GetFunctionDeployment(functionName string) *appsv1.D
 	return deploymentInstance
 }
 
-func (suite *KubeTestSuite) GetAPIGatewayIngress(apiGatewayName string, canary bool) *extensionsv1beta1.Ingress {
-	ingressInstance := &extensionsv1beta1.Ingress{}
+func (suite *KubeTestSuite) GetAPIGatewayIngress(apiGatewayName string, canary bool) *networkingv1.Ingress {
+	ingressInstance := &networkingv1.Ingress{}
 	suite.GetResourceAndUnmarshal("ingress",
 		kube.IngressNameFromAPIGatewayName(apiGatewayName, canary),
 		ingressInstance)
 	return ingressInstance
 }
 
-func (suite *KubeTestSuite) GetFunctionIngress(functionName string) *extensionsv1beta1.Ingress {
-	ingressInstance := &extensionsv1beta1.Ingress{}
+func (suite *KubeTestSuite) GetFunctionIngress(functionName string) *networkingv1.Ingress {
+	ingressInstance := &networkingv1.Ingress{}
 	suite.GetResourceAndUnmarshal("ingress",
 		kube.IngressNameFromFunctionName(functionName),
 		ingressInstance)
@@ -339,20 +339,20 @@ func (suite *KubeTestSuite) WithResourceQuota(rq *v1.ResourceQuota, handler func
 	resourceQuota, err := suite.KubeClientSet.
 		CoreV1().
 		ResourceQuotas(suite.Namespace).
-		Create(rq)
+		Create(suite.Ctx, rq, metav1.CreateOptions{})
 	suite.Require().NoError(err)
 
 	// clean leftovers
 	defer suite.KubeClientSet.
 		CoreV1().
 		ResourceQuotas(suite.Namespace).
-		Delete(resourceQuota.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+		Delete(suite.Ctx, resourceQuota.Name, metav1.DeleteOptions{}) // nolint: errcheck
 
 	handler()
 }
 
 func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
-	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(metav1.ListOptions{
+	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
 	})
 
@@ -375,7 +375,7 @@ func (suite *KubeTestSuite) UnCordonNode(nodeName string) error {
 }
 
 func (suite *KubeTestSuite) GetNodes() []v1.Node {
-	nodesList, err := suite.KubeClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
+	nodesList, err := suite.KubeClientSet.CoreV1().Nodes().List(suite.Ctx, metav1.ListOptions{})
 	suite.Require().NoError(err)
 	return nodesList.Items
 }
@@ -392,7 +392,7 @@ func (suite *KubeTestSuite) DeleteFunctionPods(functionName string) {
 			return suite.KubeClientSet.
 				CoreV1().
 				Pods(suite.Namespace).
-				Delete(pod.Name, metav1.NewDeleteOptions(0))
+				Delete(suite.Ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		})
 	}
 	suite.Require().NoError(errGroup.Wait(), "Failed to delete function pods")
@@ -520,10 +520,10 @@ func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.C
 	return nil
 }
 
-func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *platform.CreateAPIGatewayOptions, exist bool) *extensionsv1beta1.Ingress {
+func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *platform.CreateAPIGatewayOptions, exist bool) *networkingv1.Ingress {
 	deadline := time.Now().Add(10 * time.Second)
 
-	var ingressObject *extensionsv1beta1.Ingress
+	var ingressObject *networkingv1.Ingress
 	var err error
 
 	for {
@@ -534,9 +534,10 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 		}
 
 		ingressObject, err = suite.KubeClientSet.
-			ExtensionsV1beta1().
+			NetworkingV1().
 			Ingresses(suite.Namespace).
-			Get(
+			Get(suite.Ctx,
+
 				// TODO: consider canary ingress as well
 				kube.IngressNameFromAPIGatewayName(createAPIGatewayOptions.APIGatewayConfig.Meta.Name, false),
 				metav1.GetOptions{})

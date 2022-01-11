@@ -47,7 +47,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -136,7 +136,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFailureBriefErrorMessage() {
 	defer suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Delete(platformConfigConfigmap.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+		Delete(suite.Ctx, platformConfigConfigmap.Name, metav1.DeleteOptions{}) // nolint: errcheck
 
 	for _, testCase := range []struct {
 		Name                       string
@@ -239,22 +239,24 @@ func (suite *DeployFunctionTestSuite) TestVolumeOnceMountTwice() {
 	configMap, err := suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Create(&v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      configMapName,
-				Namespace: suite.Namespace,
+		Create(suite.Ctx,
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      configMapName,
+					Namespace: suite.Namespace,
+				},
+				Data: map[string]string{
+					"key": configMapData,
+				},
 			},
-			Data: map[string]string{
-				"key": configMapData,
-			},
-		})
+			metav1.CreateOptions{})
 	suite.Require().NoError(err)
 
 	// delete leftovers
 	defer suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Delete(configMap.Name, &metav1.DeleteOptions{}) // nolint: errcheck
+		Delete(suite.Ctx, configMap.Name, metav1.DeleteOptions{}) // nolint: errcheck
 
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{}
@@ -398,14 +400,14 @@ func (suite *DeployFunctionTestSuite) TestAssigningFunctionPodToNodes() {
 	testLabelKey := "test-nuclio.io"
 
 	labelPatch := fmt.Sprintf(`[{"op":"add","path":"/metadata/labels/%s","value":"%s"}]`, testLabelKey, "true")
-	_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(testNodeName, types.JSONPatchType, []byte(labelPatch))
+	_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(suite.Ctx, testNodeName, types.JSONPatchType, []byte(labelPatch), metav1.PatchOptions{})
 	suite.Require().NoError(err, "Failed to patch node labels")
 
 	// undo changes
 	defer func() {
 		suite.Logger.DebugWith("Rolling back node labels change")
 		labelPatch = fmt.Sprintf(`[{"op":"remove","path":"/metadata/labels/%s"}]`, testLabelKey)
-		_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(testNodeName, types.JSONPatchType, []byte(labelPatch))
+		_, err := suite.KubeClientSet.CoreV1().Nodes().Patch(suite.Ctx, testNodeName, types.JSONPatchType, []byte(labelPatch), metav1.PatchOptions{})
 		suite.Require().NoError(err, "Failed to patch node labels")
 	}()
 
@@ -459,7 +461,7 @@ func (suite *DeployFunctionTestSuite) TestAssigningFunctionPodToNodes() {
 
 				if testCase.nodeSelector != nil {
 					pods := suite.GetFunctionPods(functionName)
-					podEvents, err := suite.KubeClientSet.CoreV1().Events(suite.Namespace).List(metav1.ListOptions{
+					podEvents, err := suite.KubeClientSet.CoreV1().Events(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
 						FieldSelector: fmt.Sprintf("involvedObject.name=%s", pods[0].GetName()),
 					})
 					suite.Require().NoError(err)
@@ -657,13 +659,14 @@ func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v
 	platformConfigConfigmap, err := suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).
-		Create(&v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "nuclio-platform-config",
-				Namespace: suite.Namespace,
-			},
-			Data: map[string]string{
-				"platform.yaml": `logger:
+		Create(suite.Ctx,
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nuclio-platform-config",
+					Namespace: suite.Namespace,
+				},
+				Data: map[string]string{
+					"platform.yaml": `logger:
   functions:
   - level: debug
     sink: myStdoutLoggerSink
@@ -678,8 +681,9 @@ func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v
   system:
   - level: debug
     sink: myStdoutLoggerSink`,
+				},
 			},
-		})
+			metav1.CreateOptions{})
 	suite.Require().NoError(err)
 
 	return platformConfigConfigmap
@@ -688,6 +692,7 @@ func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v
 func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 	functionName := "func-with-ingress"
 	ingressHost := "something.com"
+	pathType := networkingv1.PathTypeImplementationSpecific
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"customTrigger": {
@@ -697,8 +702,9 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"someKey": map[string]interface{}{
-						"paths": []string{"/"},
-						"host":  ingressHost,
+						"paths":    []string{"/"},
+						"pathType": &pathType,
+						"host":     ingressHost,
 					},
 				},
 			},
@@ -782,8 +788,8 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		apiGatewayName := "func-apigw"
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
-			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServiceName, functionName)
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
+			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, functionName)
 
 			// try to delete the function while it uses this api gateway
 			err := suite.Platform.DeleteFunction(suite.Ctx, &platform.DeleteFunctionOptions{
@@ -976,7 +982,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIG
 
 		// create an api-gateway with that function as upstream
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*extensionsv1beta1.Ingress) {
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*networkingv1.Ingress) {
 
 			// update the function to have ingresses
 			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -1019,7 +1025,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeOauth2
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Require().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
 			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"],
@@ -1036,7 +1042,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 				RedirectUnauthorizedToSignIn: true,
 			},
 		}
-		err = suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *extensionsv1beta1.Ingress) {
+		err = suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
@@ -1360,7 +1366,7 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 	suite.Logger.InfoWith("Ensuring resources were removed (deletion is being executed in background")
 
 	// ensure api gateway deleted
-	apiGateways, err := suite.Platform.GetAPIGateways(&platform.GetAPIGatewaysOptions{
+	apiGateways, err := suite.Platform.GetAPIGateways(suite.Ctx, &platform.GetAPIGatewaysOptions{
 		Name:      createAPIGatewayOptions.APIGatewayConfig.Meta.Name,
 		Namespace: suite.Namespace,
 	})
