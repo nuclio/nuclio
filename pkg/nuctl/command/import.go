@@ -102,7 +102,13 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 	for _, functionConfig := range functionConfigs {
 		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
 		errGroup.Go("Import function", func() error {
-			return i.importFunction(errGroupCtx, functionConfig, project)
+			//return i.importFunction(errGroupCtx, functionConfig, project) // TOMER - return this line
+			err := i.importFunction(errGroupCtx, functionConfig, project)
+			i.rootCommandeer.loggerInstance.DebugWithCtx(errGroupCtx,
+				"TOMER - After importing function",
+				"function", functionConfig.Meta.Name,
+				"error", err.Error())
+			return err
 		})
 	}
 
@@ -282,6 +288,13 @@ func (i *importProjectCommandeer) importFunctionEvent(ctx context.Context, funct
 	if err != nil {
 		return errors.Wrap(err, "Failed to check existing functions")
 	}
+
+	// TOMER - remove this log:
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+		"TOMER - Got functions for creating function event",
+		"functionEvent", functionEvent.Meta.Name,
+		"functions", functions)
+
 	if len(functions) == 0 {
 		return errors.New("The event function's parent function doesn't exist")
 	}
