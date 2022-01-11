@@ -104,10 +104,14 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 		errGroup.Go("Import function", func() error {
 			//return i.importFunction(errGroupCtx, functionConfig, project) // TOMER - return this line
 			err := i.importFunction(errGroupCtx, functionConfig, project)
+			errStr := ""
+			if err != nil {
+				errStr = err.Error()
+			}
 			i.rootCommandeer.loggerInstance.DebugWithCtx(errGroupCtx,
 				"TOMER - After importing function",
 				"function", functionConfig.Meta.Name,
-				"error", err.Error())
+				"error", errStr)
 			return err
 		})
 	}
