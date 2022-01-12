@@ -284,7 +284,7 @@ func (mp *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (mp *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
+func (mp *Platform) BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return nil
 }
 

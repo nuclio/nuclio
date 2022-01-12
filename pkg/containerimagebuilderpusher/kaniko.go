@@ -63,7 +63,7 @@ func (k *Kaniko) GetKind() string {
 	return "kaniko"
 }
 
-func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
+func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error {
 	bundleFilename, assetPath, err := k.createContainerBuildBundle(buildOptions.Image,
 		buildOptions.ContextDir,
 		buildOptions.TempDir)
@@ -79,7 +79,7 @@ func (k *Kaniko) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 
 	// create job
 	k.logger.DebugWith("Creating job", "namespace", namespace, "jobSpec", jobSpec)
-	job, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(context.Background(), jobSpec, metav1.CreateOptions{})
+	job, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(ctx, jobSpec, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")
 	}

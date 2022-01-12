@@ -59,6 +59,7 @@ func NewRootCommandeer() *RootCommandeer {
 
 	defaultPlatformType := common.GetEnvOrDefaultString("NUCTL_PLATFORM", "auto")
 	defaultNamespace := os.Getenv("NUCTL_NAMESPACE")
+	ctx := context.Background()
 
 	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")
 	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\"")
@@ -70,15 +71,15 @@ func NewRootCommandeer() *RootCommandeer {
 	// add children
 	cmd.AddCommand(
 		newBuildCommandeer(commandeer).cmd,
-		newDeployCommandeer(context.Background(), commandeer).cmd,
-		newInvokeCommandeer(commandeer).cmd,
-		newGetCommandeer(commandeer).cmd,
-		newDeleteCommandeer(commandeer).cmd,
-		newUpdateCommandeer(commandeer).cmd,
+		newDeployCommandeer(ctx, commandeer).cmd,
+		newInvokeCommandeer(ctx, commandeer).cmd,
+		newGetCommandeer(ctx, commandeer).cmd,
+		newDeleteCommandeer(ctx, commandeer).cmd,
+		newUpdateCommandeer(ctx, commandeer).cmd,
 		newVersionCommandeer(commandeer).cmd,
-		newCreateCommandeer(commandeer).cmd,
-		newExportCommandeer(commandeer).cmd,
-		newImportCommandeer(commandeer).cmd,
+		newCreateCommandeer(ctx, commandeer).cmd,
+		newExportCommandeer(ctx, commandeer).cmd,
+		newImportCommandeer(ctx, commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd

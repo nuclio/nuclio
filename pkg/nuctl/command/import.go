@@ -21,7 +21,7 @@ type importCommandeer struct {
 	rootCommandeer *RootCommandeer
 }
 
-func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
+func newImportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *importCommandeer {
 	commandeer := &importCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
@@ -33,8 +33,8 @@ func newImportCommandeer(rootCommandeer *RootCommandeer) *importCommandeer {
 from a configuration file or from the standard input (default)`,
 	}
 
-	importFunctionCommand := newImportFunctionCommandeer(commandeer).cmd
-	importProjectCommand := newImportProjectCommandeer(commandeer).cmd
+	importFunctionCommand := newImportFunctionCommandeer(ctx, commandeer).cmd
+	importProjectCommand := newImportProjectCommandeer(ctx, commandeer).cmd
 
 	cmd.AddCommand(
 		importFunctionCommand,
@@ -115,7 +115,7 @@ type importFunctionCommandeer struct {
 	*importCommandeer
 }
 
-func newImportFunctionCommandeer(importCommandeer *importCommandeer) *importFunctionCommandeer {
+func newImportFunctionCommandeer(ctx context.Context, importCommandeer *importCommandeer) *importFunctionCommandeer {
 	commandeer := &importFunctionCommandeer{
 		importCommandeer: importCommandeer,
 	}
@@ -168,7 +168,7 @@ Use --help for more information`)
 				},
 			}
 
-			return commandeer.importFunctions(context.Background(), functionConfigs, platformConfig)
+			return commandeer.importFunctions(ctx, functionConfigs, platformConfig)
 		},
 	}
 
@@ -213,7 +213,7 @@ type importProjectCommandeer struct {
 	skipTransformDisplayName bool
 }
 
-func newImportProjectCommandeer(importCommandeer *importCommandeer) *importProjectCommandeer {
+func newImportProjectCommandeer(ctx context.Context, importCommandeer *importCommandeer) *importProjectCommandeer {
 	commandeer := &importProjectCommandeer{
 		importCommandeer: importCommandeer,
 	}
@@ -260,7 +260,7 @@ Use --help for more information`)
 				return errors.Wrap(err, "Failed to resolve the imported project configuration")
 			}
 
-			return commandeer.importProjects(context.Background(), importProjectsOptions)
+			return commandeer.importProjects(ctx, importProjectsOptions)
 		},
 	}
 

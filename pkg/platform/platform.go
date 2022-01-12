@@ -184,7 +184,7 @@ type Platform interface {
 	ResolveDefaultNamespace(string) string
 
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
-	BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error
+	BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error
 
 	// GetOnbuildStages Get Onbuild stage for multistage builds
 	GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error)

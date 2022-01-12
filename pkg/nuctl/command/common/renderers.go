@@ -23,20 +23,21 @@ const (
 	OutputFormatYAML = "yaml"
 )
 
-func RenderFunctions(logger logger.Logger,
+func RenderFunctions(ctx context.Context,
+	logger logger.Logger,
 	functions []platform.Function,
 	format string,
 	writer io.Writer,
 	renderCallback func(functions []platform.Function, renderer func(interface{}) error) error) error {
 
-	errGroup, _ := errgroup.WithContext(context.Background(), logger)
+	errGroup, errGroupCtx := errgroup.WithContext(ctx, logger)
 	var renderNodePort bool
 
 	// iterate over each function and make sure it's initialized
 	for _, function := range functions {
 		function := function
 		errGroup.Go("initialize function", func() error {
-			if err := function.Initialize(context.Background(), nil); err != nil {
+			if err := function.Initialize(errGroupCtx, nil); err != nil {
 				logger.DebugWith("Failed to initialize function", "err", err.Error())
 			}
 			if function.GetStatus().HTTPPort > 0 {
@@ -161,10 +162,11 @@ func RenderFunctionEvents(functionEvents []platform.FunctionEvent,
 	return nil
 }
 
-func RenderProjects(projects []platform.Project,
+func RenderProjects(ctx context.Context,
+	projects []platform.Project,
 	format string,
 	writer io.Writer,
-	renderCallback func(functions []platform.Project, renderer func(interface{}) error) error) error {
+	renderCallback func(ctx context.Context, functions []platform.Project, renderer func(interface{}) error) error) error {
 
 	rendererInstance := renderer.NewRenderer(writer)
 
@@ -203,9 +205,9 @@ func RenderProjects(projects []platform.Project,
 
 		rendererInstance.RenderTable(header, projectRecords)
 	case OutputFormatYAML:
-		return renderCallback(projects, rendererInstance.RenderYAML)
+		return renderCallback(ctx, projects, rendererInstance.RenderYAML)
 	case OutputFormatJSON:
-		return renderCallback(projects, rendererInstance.RenderJSON)
+		return renderCallback(ctx, projects, rendererInstance.RenderJSON)
 	}
 
 	return nil

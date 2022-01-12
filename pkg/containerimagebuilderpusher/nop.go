@@ -1,6 +1,8 @@
 package containerimagebuilderpusher
 
 import (
+	"context"
+
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/logger"
@@ -21,7 +23,7 @@ func (n Nop) GetKind() string {
 	return "nop"
 }
 
-func (n Nop) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
+func (n Nop) BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error {
 	return nil
 }
 

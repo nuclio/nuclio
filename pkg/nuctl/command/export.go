@@ -19,7 +19,7 @@ type exportCommandeer struct {
 	rootCommandeer *RootCommandeer
 }
 
-func newExportCommandeer(rootCommandeer *RootCommandeer) *exportCommandeer {
+func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
 	commandeer := &exportCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
@@ -31,8 +31,8 @@ func newExportCommandeer(rootCommandeer *RootCommandeer) *exportCommandeer {
 to the standard output, in JSON or YAML format`,
 	}
 
-	exportFunctionCommand := newExportFunctionCommandeer(commandeer).cmd
-	exportProjectCommand := newExportProjectCommandeer(commandeer).cmd
+	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
+	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
 
 	cmd.AddCommand(
 		exportFunctionCommand,
@@ -51,7 +51,7 @@ type exportFunctionCommandeer struct {
 	noScrub             bool
 }
 
-func newExportFunctionCommandeer(exportCommandeer *exportCommandeer) *exportFunctionCommandeer {
+func newExportFunctionCommandeer(ctx context.Context, exportCommandeer *exportCommandeer) *exportFunctionCommandeer {
 	commandeer := &exportFunctionCommandeer{
 		exportCommandeer: exportCommandeer,
 	}
@@ -81,7 +81,7 @@ Arguments:
 
 			commandeer.getFunctionsOptions.Namespace = exportCommandeer.rootCommandeer.namespace
 
-			functions, err := exportCommandeer.rootCommandeer.platform.GetFunctions(context.Background(),
+			functions, err := exportCommandeer.rootCommandeer.platform.GetFunctions(ctx,
 				&commandeer.getFunctionsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
@@ -96,7 +96,8 @@ Arguments:
 			}
 
 			// render the functions
-			return nuctlcommon.RenderFunctions(commandeer.rootCommandeer.loggerInstance,
+			return nuctlcommon.RenderFunctions(ctx,
+				commandeer.rootCommandeer.loggerInstance,
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
@@ -139,7 +140,7 @@ type exportProjectCommandeer struct {
 	output             string
 }
 
-func newExportProjectCommandeer(exportCommandeer *exportCommandeer) *exportProjectCommandeer {
+func newExportProjectCommandeer(ctx context.Context, exportCommandeer *exportCommandeer) *exportProjectCommandeer {
 	commandeer := &exportProjectCommandeer{
 		exportCommandeer: exportCommandeer,
 	}
@@ -171,7 +172,7 @@ Arguments:
 			// get namespace
 			commandeer.getProjectsOptions.Meta.Namespace = exportCommandeer.rootCommandeer.namespace
 
-			projects, err := exportCommandeer.rootCommandeer.platform.GetProjects(context.Background(),
+			projects, err := exportCommandeer.rootCommandeer.platform.GetProjects(ctx,
 				&commandeer.getProjectsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get projects")
@@ -186,7 +187,7 @@ Arguments:
 			}
 
 			// render the projects
-			return nuctlcommon.RenderProjects(projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
+			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
 		},
 	}
 
@@ -196,7 +197,7 @@ Arguments:
 	return commandeer
 }
 
-func (e *exportProjectCommandeer) getFunctionEvents(functionConfig *functionconfig.Config) ([]platform.FunctionEvent, error) {
+func (e *exportProjectCommandeer) getFunctionEvents(ctx context.Context, functionConfig *functionconfig.Config) ([]platform.FunctionEvent, error) {
 	getFunctionEventOptions := platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Name:      "",
@@ -207,7 +208,7 @@ func (e *exportProjectCommandeer) getFunctionEvents(functionConfig *functionconf
 		},
 	}
 
-	functionEvents, err := e.rootCommandeer.platform.GetFunctionEvents(context.Background(), &getFunctionEventOptions)
+	functionEvents, err := e.rootCommandeer.platform.GetFunctionEvents(ctx, &getFunctionEventOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +216,7 @@ func (e *exportProjectCommandeer) getFunctionEvents(functionConfig *functionconf
 	return functionEvents, nil
 }
 
-func (e *exportProjectCommandeer) exportAPIGateways(projectConfig *platform.ProjectConfig) (map[string]*platform.APIGatewayConfig, error) {
+func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]*platform.APIGatewayConfig, error) {
 	getAPIGatewaysOptions := &platform.GetAPIGatewaysOptions{
 		Namespace: projectConfig.Meta.Namespace,
 		Labels: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName,
@@ -223,7 +224,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(projectConfig *platform.Proj
 	}
 
 	// get all api gateways in the project
-	apiGateways, err := e.rootCommandeer.platform.GetAPIGateways(context.Background(), getAPIGatewaysOptions)
+	apiGateways, err := e.rootCommandeer.platform.GetAPIGateways(ctx, getAPIGatewaysOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get API gateways")
 	}
@@ -240,13 +241,13 @@ func (e *exportProjectCommandeer) exportAPIGateways(projectConfig *platform.Proj
 	return apiGatewaysMap, nil
 }
 
-func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projectConfig *platform.ProjectConfig) (
+func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig) (
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Namespace: projectConfig.Meta.Namespace,
 		Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectConfig.Meta.Name),
 	}
-	functions, err := e.rootCommandeer.platform.GetFunctions(context.Background(), getFunctionOptions)
+	functions, err := e.rootCommandeer.platform.GetFunctions(ctx, getFunctionOptions)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -254,12 +255,12 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projec
 	functionEventMap := map[string]*platform.FunctionEventConfig{}
 
 	for _, function := range functions {
-		if err := function.Initialize(context.Background(), nil); err != nil {
+		if err := function.Initialize(ctx, nil); err != nil {
 			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize a function", "err", err.Error())
 		}
 		functionConfig := function.GetConfig()
 
-		functionEvents, err := e.getFunctionEvents(functionConfig)
+		functionEvents, err := e.getFunctionEvents(ctx, functionConfig)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to get function events")
 		}
@@ -276,8 +277,8 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(projec
 	return functionMap, functionEventMap, nil
 }
 
-func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
-	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(projectConfig)
+func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
+	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +293,7 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 
 	// api gateways are supported only on k8s platform
 	if e.rootCommandeer.platform.GetName() == "kube" {
-		apiGateways, err := e.exportAPIGateways(projectConfig)
+		apiGateways, err := e.exportAPIGateways(ctx, projectConfig)
 		if err != nil {
 
 			// in case an error occurred while exporting api gateways - skip this part
@@ -307,11 +308,11 @@ func (e *exportProjectCommandeer) exportProject(projectConfig *platform.ProjectC
 	return exportedProject, nil
 }
 
-func (e *exportProjectCommandeer) renderProjectConfig(projects []platform.Project, renderer func(interface{}) error) error {
+func (e *exportProjectCommandeer) renderProjectConfig(ctx context.Context, projects []platform.Project, renderer func(interface{}) error) error {
 	projectConfigs := map[string]interface{}{}
 	for _, project := range projects {
 		projectConfig := project.GetConfig()
-		projectExport, err := e.exportProject(projectConfig)
+		projectExport, err := e.exportProject(ctx, projectConfig)
 		if err != nil {
 			return errors.Wrap(err, "Failed to gather functions and function events")
 		}
