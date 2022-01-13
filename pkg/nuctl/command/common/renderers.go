@@ -13,6 +13,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/renderer"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -45,6 +46,10 @@ func RenderFunctions(ctx context.Context,
 			}
 			return nil
 		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "Failed to initialize functions")
 	}
 
 	rendererInstance := renderer.NewRenderer(writer)

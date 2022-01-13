@@ -78,7 +78,7 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context, buildOptions *B
 	jobSpec := k.compileJobSpec(namespace, buildOptions, bundleFilename)
 
 	// create job
-	k.logger.DebugWith("Creating job", "namespace", namespace, "jobSpec", jobSpec)
+	k.logger.DebugWithCtx(ctx, "Creating job", "namespace", namespace, "jobSpec", jobSpec)
 	job, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(ctx, jobSpec, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")

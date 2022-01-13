@@ -62,7 +62,8 @@ func (d *Docker) BuildAndPushContainerImage(ctx context.Context, buildOptions *B
 		return errors.Wrap(err, "Failed to save docker image")
 	}
 
-	d.logger.InfoWithCtx(ctx, "Docker image was successfully built and pushed into docker registry",
+	d.logger.InfoWithCtx(ctx,
+		"Docker image was successfully built and pushed into docker registry",
 		"image", buildOptions.Image)
 
 	return nil

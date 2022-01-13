@@ -159,9 +159,6 @@ func (suite *Suite) RetryExecuteNuctlUntilSuccessful(positionalArgs []string,
 
 			// execute
 			err := suite.ExecuteNuctl(positionalArgs, namedArgs)
-			if err != nil {
-				suite.logger.DebugWith("TOMER - nuctl execution failed", "err", err, "errCause", errors.Cause(err))
-			}
 			if expectFailure {
 				return err != nil
 			}
