@@ -51,7 +51,7 @@ type invokeCommandeer struct {
 	body                            string
 }
 
-func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
+func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *invokeCommandeer {
 	commandeer := &invokeCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
@@ -126,7 +126,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			}
 
 			commandeer.createFunctionInvocationOptions.Timeout = commandeer.timeout
-			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(context.Background(),
+			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(ctx,
 				&commandeer.createFunctionInvocationOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to invoke function")

@@ -1,6 +1,10 @@
 package containerimagebuilderpusher
 
-import "github.com/nuclio/nuclio/pkg/processor/build/runtime"
+import (
+	"context"
+
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+)
 
 // BuilderPusher is a builder of container images
 type BuilderPusher interface {
@@ -9,7 +13,7 @@ type BuilderPusher interface {
 	GetKind() string
 
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
-	BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error
+	BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error
 
 	// Get Onbuild stage for multistage builds
 	GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error)

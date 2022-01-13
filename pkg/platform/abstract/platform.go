@@ -893,8 +893,9 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 }
 
 // BuildAndPushContainerImage builds container image and pushes it into docker registry
-func (ap *Platform) BuildAndPushContainerImage(buildOptions *containerimagebuilderpusher.BuildOptions) error {
-	return ap.ContainerBuilder.BuildAndPushContainerImage(buildOptions,
+func (ap *Platform) BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error {
+	return ap.ContainerBuilder.BuildAndPushContainerImage(ctx,
+		buildOptions,
 		ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
 }
 

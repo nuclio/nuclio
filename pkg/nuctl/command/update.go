@@ -35,7 +35,7 @@ type updateCommandeer struct {
 	commands       stringSliceFlag
 }
 
-func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
+func newUpdateCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *updateCommandeer {
 	commandeer := &updateCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
@@ -47,7 +47,7 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 	}
 
 	cmd.AddCommand(
-		newUpdateFunctionCommandeer(commandeer).cmd,
+		newUpdateFunctionCommandeer(ctx, commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
@@ -64,7 +64,7 @@ type updateFunctionCommandeer struct {
 	encodedEnv          string
 }
 
-func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
+func newUpdateFunctionCommandeer(ctx context.Context, updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
 	commandeer := &updateFunctionCommandeer{
 		updateCommandeer: updateCommandeer,
 		functionConfig:   *functionconfig.NewConfig(),
@@ -113,7 +113,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			commandeer.functionConfig.Meta.Namespace = updateCommandeer.rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = updateCommandeer.commands
 
-			return updateCommandeer.rootCommandeer.platform.UpdateFunction(context.Background(), &platform.UpdateFunctionOptions{
+			return updateCommandeer.rootCommandeer.platform.UpdateFunction(ctx, &platform.UpdateFunctionOptions{
 				FunctionMeta: &commandeer.functionConfig.Meta,
 				FunctionSpec: &commandeer.functionConfig.Spec,
 			})

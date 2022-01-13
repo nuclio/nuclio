@@ -33,7 +33,7 @@ type createCommandeer struct {
 	rootCommandeer *RootCommandeer
 }
 
-func newCreateCommandeer(rootCommandeer *RootCommandeer) *createCommandeer {
+func newCreateCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *createCommandeer {
 	commandeer := &createCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
@@ -44,9 +44,9 @@ func newCreateCommandeer(rootCommandeer *RootCommandeer) *createCommandeer {
 		Short:   "Create resources",
 	}
 
-	createProjectCommand := newCreateProjectCommandeer(commandeer).cmd
-	createFunctionEventCommand := newCreateFunctionEventCommandeer(commandeer).cmd
-	createAPIGatewayCommand := newCreateAPIGatewayCommandeer(commandeer).cmd
+	createProjectCommand := newCreateProjectCommandeer(ctx, commandeer).cmd
+	createFunctionEventCommand := newCreateFunctionEventCommandeer(ctx, commandeer).cmd
+	createAPIGatewayCommand := newCreateAPIGatewayCommandeer(ctx, commandeer).cmd
 
 	cmd.AddCommand(
 		createProjectCommand,
@@ -64,7 +64,7 @@ type createProjectCommandeer struct {
 	projectConfig platform.ProjectConfig
 }
 
-func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProjectCommandeer {
+func newCreateProjectCommandeer(ctx context.Context, createCommandeer *createCommandeer) *createProjectCommandeer {
 	commandeer := &createProjectCommandeer{
 		createCommandeer: createCommandeer,
 	}
@@ -89,7 +89,7 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 			commandeer.projectConfig.Meta.Name = args[0]
 			commandeer.projectConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 
-			if err := createCommandeer.rootCommandeer.platform.CreateProject(context.Background(), &platform.CreateProjectOptions{
+			if err := createCommandeer.rootCommandeer.platform.CreateProject(ctx, &platform.CreateProjectOptions{
 				ProjectConfig: &commandeer.projectConfig,
 			}); err != nil {
 				return err
@@ -127,7 +127,7 @@ type createAPIGatewayCommandeer struct {
 	encodedAttributes  string
 }
 
-func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAPIGatewayCommandeer {
+func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *createCommandeer) *createAPIGatewayCommandeer {
 	commandeer := &createAPIGatewayCommandeer{
 		createCommandeer: createCommandeer,
 	}
@@ -221,7 +221,7 @@ func newCreateAPIGatewayCommandeer(createCommandeer *createCommandeer) *createAP
 
 			commandeer.apiGatewayConfig.Status.State = platform.APIGatewayStateWaitingForProvisioning
 
-			if err := createCommandeer.rootCommandeer.platform.CreateAPIGateway(context.Background(),
+			if err := createCommandeer.rootCommandeer.platform.CreateAPIGateway(ctx,
 				&platform.CreateAPIGatewayOptions{
 					APIGatewayConfig: &commandeer.apiGatewayConfig,
 				}); err != nil {
@@ -261,7 +261,7 @@ type createFunctionEventCommandeer struct {
 	functionName        string
 }
 
-func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *createFunctionEventCommandeer {
+func newCreateFunctionEventCommandeer(ctx context.Context, createCommandeer *createCommandeer) *createFunctionEventCommandeer {
 	commandeer := &createFunctionEventCommandeer{
 		createCommandeer: createCommandeer,
 	}
@@ -298,7 +298,7 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 				return errors.Wrap(err, "Failed to decode a function's event attributes")
 			}
 
-			if err := createCommandeer.rootCommandeer.platform.CreateFunctionEvent(context.Background(),
+			if err := createCommandeer.rootCommandeer.platform.CreateFunctionEvent(ctx,
 				&platform.CreateFunctionEventOptions{
 					FunctionEventConfig: commandeer.functionEventConfig,
 				}); err != nil {

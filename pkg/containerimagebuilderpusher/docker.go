@@ -1,6 +1,7 @@
 package containerimagebuilderpusher
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -44,7 +45,7 @@ func (d *Docker) GetKind() string {
 	return "docker"
 }
 
-func (d *Docker) BuildAndPushContainerImage(buildOptions *BuildOptions, namespace string) error {
+func (d *Docker) BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error {
 	if err := d.gatherArtifactsForSingleStageDockerfile(buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to build image artifacts")
 	}
@@ -61,7 +62,8 @@ func (d *Docker) BuildAndPushContainerImage(buildOptions *BuildOptions, namespac
 		return errors.Wrap(err, "Failed to save docker image")
 	}
 
-	d.logger.InfoWith("Docker image was successfully built and pushed into docker registry",
+	d.logger.InfoWithCtx(ctx,
+		"Docker image was successfully built and pushed into docker registry",
 		"image", buildOptions.Image)
 
 	return nil

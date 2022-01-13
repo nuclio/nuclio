@@ -18,6 +18,7 @@ package build
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -1055,23 +1056,24 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		"registryURL", registryURL,
 		"imageName", imageName)
 
-	err = b.platform.BuildAndPushContainerImage(&containerimagebuilderpusher.BuildOptions{
-		ContextDir:     b.stagingDir,
-		Image:          imageName,
-		TempDir:        b.tempDir,
-		DockerfileInfo: processorDockerfileInfo,
+	err = b.platform.BuildAndPushContainerImage(context.Background(),
+		&containerimagebuilderpusher.BuildOptions{
+			ContextDir:     b.stagingDir,
+			Image:          imageName,
+			TempDir:        b.tempDir,
+			DockerfileInfo: processorDockerfileInfo,
 
-		// Conjunct Pull with NoCache
-		// To ensure that when forcing a function build, the base images would be pulled as well.
-		Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
-		NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
-		NoBaseImagePull:     b.GetNoBaseImagePull(),
-		BuildArgs:           buildArgs,
-		RegistryURL:         registryURL,
-		SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
-		OutputImageFile:     b.options.OutputImageFile,
-		BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
-	})
+			// Conjunct Pull with NoCache
+			// To ensure that when forcing a function build, the base images would be pulled as well.
+			Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
+			NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
+			NoBaseImagePull:     b.GetNoBaseImagePull(),
+			BuildArgs:           buildArgs,
+			RegistryURL:         registryURL,
+			SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
+			OutputImageFile:     b.options.OutputImageFile,
+			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
+		})
 
 	return imageName, err
 }
