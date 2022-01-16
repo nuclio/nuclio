@@ -9,6 +9,7 @@ import (
 
 var defaultValueRedactions = []string{
 	"password",
+	"cookie",
 	"x-v3io-session-key",
 	"sessionKey",
 	"token",
