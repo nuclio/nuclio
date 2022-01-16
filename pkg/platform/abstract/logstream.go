@@ -17,8 +17,11 @@ limitations under the License.
 package abstract
 
 import (
+	"bytes"
 	"encoding/json"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -37,7 +40,11 @@ func NewLogStream(name string, level nucliozap.Level, loggers ...logger.Logger) 
 	newLogStream := LogStream{}
 
 	// create a buffer logger
-	newLogStream.bufferLogger, err = nucliozap.NewBufferLogger(name, "json", level)
+	redactor := common.GetRedactorInstance(&bytes.Buffer{})
+	newLogStream.bufferLogger, err = nucliozap.NewBufferLoggerWithRedactor(name,
+		"json",
+		level,
+		redactor)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create mux logger")
 	}
@@ -56,6 +63,10 @@ func NewLogStream(name string, level nucliozap.Level, loggers ...logger.Logger) 
 // GetLogger returns the underlying logger
 func (ls *LogStream) GetLogger() logger.Logger {
 	return ls.muxLogger
+}
+
+func (ls *LogStream) GetRedactor() *nucliozap.Redactor {
+	return ls.bufferLogger.Logger.GetRedactor()
 }
 
 func (ls *LogStream) ReadLogs(timeout *time.Duration, logs *[]map[string]interface{}) {
@@ -85,7 +96,7 @@ func (ls *LogStream) ReadLogs(timeout *time.Duration, logs *[]map[string]interfa
 			}
 		}
 
-		// if we we're passed the deadline, we're done
+		// if we're passed the deadline, we're done
 		if time.Now().After(deadline) {
 			return
 		}

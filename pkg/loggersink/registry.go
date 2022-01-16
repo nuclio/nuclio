@@ -40,11 +40,11 @@ var RegistrySingleton = Registry{
 }
 
 // NewLoggerSink creates a new logger sink
-func (r *Registry) NewLoggerSink(kind string,
+func (r *Registry) NewLoggerSink(kind platformconfig.LoggerSinkKind,
 	name string,
 	loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
 
-	registree, err := r.Get(kind)
+	registree, err := r.Get(string(kind))
 	if err != nil {
 		return nil, err
 	}

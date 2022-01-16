@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -112,7 +113,20 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 }
 
 func (c *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {
-	return c.getLoggerSinksWithLevel(c.Logger.System)
+
+	// return previously initialized loggers
+	if c.Logger.systemLoggersSinkWithLevel != nil {
+		return c.Logger.systemLoggersSinkWithLevel, nil
+	}
+
+	// initialize
+	var err error
+	c.Logger.systemLoggersSinkWithLevel, err = c.getLoggerSinksWithLevel(c.Logger.System)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get logger sinks with level")
+	}
+
+	return c.Logger.systemLoggersSinkWithLevel, nil
 }
 
 func (c *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) (map[string]LoggerSinkWithLevel, error) {
@@ -179,7 +193,7 @@ func (c *Config) getMetricSinks(metricSinkNames []string) (map[string]MetricSink
 }
 
 func (c *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding) (map[string]LoggerSinkWithLevel, error) {
-	result := map[string]LoggerSinkWithLevel{}
+	LoggerSinksWithLevel := map[string]LoggerSinkWithLevel{}
 
 	// iterate over system bindings, look for logger sink by name
 	for _, sinkBinding := range loggerSinkBindings {
@@ -190,13 +204,14 @@ func (c *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding)
 			return nil, errors.Errorf("Failed to find logger sink %s", sinkBinding.Sink)
 		}
 
-		result[sinkBinding.Sink] = LoggerSinkWithLevel{
-			Level: sinkBinding.Level,
-			Sink:  sink,
+		LoggerSinksWithLevel[sinkBinding.Sink] = LoggerSinkWithLevel{
+			Level:    sinkBinding.Level,
+			Sink:     sink,
+			redactor: common.GetRedactorInstance(nil),
 		}
 	}
 
-	return result, nil
+	return LoggerSinksWithLevel, nil
 }
 
 func (c *Config) enrichLocalPlatform() {
