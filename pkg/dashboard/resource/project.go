@@ -28,13 +28,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/v3iostream"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -177,11 +175,6 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			Pattern:   "/",
 			Method:    http.MethodDelete,
 			RouteFunc: pr.deleteProject,
-		},
-		{
-			Pattern:   "/{id}/streams",
-			Method:    http.MethodGet,
-			RouteFunc: pr.getProjectStreams,
 		},
 	}, nil
 }
@@ -701,86 +694,6 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		Single:       true,
 		StatusCode:   statusCode,
 	}, err
-}
-
-func (pr *projectResource) getProjectStreams(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-
-	// ensure namespace
-	namespace := pr.getNamespaceFromRequest(request)
-	if namespace == "" {
-		return nil, nuclio.NewErrBadRequest("Namespace must exist")
-	}
-
-	// ensure project name
-	projectName := pr.GetRouterURLParam(request, "id")
-	if projectName == "" {
-		return nil, errors.New("Project name must not be empty")
-	}
-
-	// get project
-	project, err := pr.getProjectByName(request, projectName, namespace)
-	if err != nil {
-		return nil, err
-	}
-
-	// get project functions
-	ctx := request.Context()
-	getFunctionsOptions := &platform.GetFunctionsOptions{
-		Name:      "",
-		Namespace: project.GetConfig().Meta.Namespace,
-		Labels: fmt.Sprintf("%s=%s",
-			common.NuclioResourceLabelKeyProjectName,
-			project.GetConfig().Meta.Name),
-		AuthSession: pr.getCtxSession(request),
-		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
-		},
-	}
-
-	//functionsMap, _ := pr.getFunctionsAndFunctionEventsMap(request, project)
-	functions, err := pr.getPlatform().GetFunctions(ctx, getFunctionsOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed getting project functions")
-	}
-
-	// iterate over functions and look for v3iostreams
-	streams, err := pr.getStreamsFromFunctions(functions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed getting streams from functions")
-	}
-
-	// return list of (ConsumerGroup, ContainerName, StreamPath) from the v3iostream configuration
-	return &restful.CustomRouteFuncResponse{
-		Resources:  streams,
-		Single:     false,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-		StatusCode: http.StatusOK,
-	}, nil
-}
-
-func (pr *projectResource) getStreamsFromFunctions(functions []platform.Function) (map[string]restful.Attributes, error) {
-
-	streamsMap := map[string]restful.Attributes{}
-
-	for _, function := range functions {
-		v3ioStreamsMap := functionconfig.GetTriggersByKind(function.GetConfig().Spec.Triggers, "v3ioStreams")
-		for streamName, stream := range v3ioStreamsMap {
-			consumerGroup, containerName, streamPath, err := v3iostream.ParseURLForV3ioStreamConfig(stream.URL)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse stream url")
-			}
-
-			// add stream params to list
-			streamsMap[streamName] = restful.Attributes{
-				"consumerGroup": consumerGroup,
-				"containerName": containerName,
-				"streamPath":    streamPath,
-			}
-		}
-	}
-
-	return streamsMap, nil
 }
 
 func (pr *projectResource) projectToAttributes(project platform.Project) restful.Attributes {

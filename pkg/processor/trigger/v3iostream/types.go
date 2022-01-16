@@ -17,6 +17,7 @@ limitations under the License.
 package v3iostream
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -105,13 +106,9 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	if newConfiguration.ContainerName == "" &&
 		newConfiguration.StreamPath == "" &&
 		newConfiguration.ConsumerGroup == "" {
-		consumerGroup, containerName, streamPath, err := ParseURLForV3ioStreamConfig(newConfiguration.URL)
-		if err != nil {
+		if err := newConfiguration.parseURLForBackwardsCompatibility(); err != nil {
 			return nil, errors.Wrap(err, "Could not parse URL")
 		}
-		newConfiguration.ConsumerGroup = consumerGroup
-		newConfiguration.ContainerName = containerName
-		newConfiguration.StreamPath = streamPath
 	}
 
 	// if the password is a uuid - assume it is an access key and clear out the username/pass
@@ -124,7 +121,6 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	return &newConfiguration, nil
 }
 
-/*
 // Parses: https://some.address.com:8080/mycontainername/some/stream/path@consumergroup
 // into url, container name, stream path, consumer group
 func (c *Configuration) parseURLForBackwardsCompatibility() error {
@@ -163,7 +159,6 @@ func (c *Configuration) parseURLForBackwardsCompatibility() error {
 
 	return nil
 }
-*/
 
 func (c *Configuration) getStreamConsumerGroupConfig() (*streamconsumergroup.Config, error) {
 	streamConsumerGroupConfig := streamconsumergroup.NewConfig()
@@ -203,43 +198,4 @@ func (c *Configuration) getStreamConsumerGroupConfig() (*streamconsumergroup.Con
 	}
 
 	return streamConsumerGroupConfig, nil
-}
-
-// ParseURLForV3ioStreamConfig  Parses: https://some.address.com:8080/mycontainername/some/stream/path@consumergroup
-// into url, container name, stream path, consumer group
-func ParseURLForV3ioStreamConfig(streamUrl string) (string, string, string, error) {
-	parsedURL, err := url.Parse(streamUrl)
-	if err != nil {
-		return "", "", "", errors.Wrap(err, "Failed to parse URL")
-	}
-
-	//c.URL = fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
-
-	// the path should contain the consumer group name
-	splitPathAndConsumerGroupName := strings.Split(parsedURL.Path, "@")
-	if len(splitPathAndConsumerGroupName) != 2 {
-		return "", "", "", errors.Errorf("Path must contain @ indicating consumer group name")
-	}
-
-	// set consumer group name
-	ConsumerGroup := splitPathAndConsumerGroupName[1]
-
-	conatinerNameAndStreamPath := splitPathAndConsumerGroupName[0]
-
-	// path starts with "/", remove it
-	conatinerNameAndStreamPath = strings.TrimPrefix(conatinerNameAndStreamPath, "/")
-
-	// split the path
-	splitPath := strings.SplitN(conatinerNameAndStreamPath, "/", 2)
-
-	// must contain at least two parts - the container name and stream path
-	if len(splitPath) != 2 {
-		return "", "", "", errors.Errorf("Path must contain the container name and stream path: %s", parsedURL.Path)
-	}
-
-	// first part is the container name
-	ContainerName := splitPath[0]
-	StreamPath := "/" + splitPath[1]
-
-	return ConsumerGroup, ContainerName, StreamPath, nil
 }
