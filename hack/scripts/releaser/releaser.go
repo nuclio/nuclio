@@ -818,7 +818,9 @@ func (r *Release) resolveSupportedChartDirs() []string {
 }
 
 func run() error {
-	loggerInstance, err := nucliozap.NewNuclioZapCmd("releaser", nucliozap.DebugLevel)
+	loggerInstance, err := nucliozap.NewNuclioZapCmd("releaser",
+		nucliozap.DebugLevel,
+		common.GetRedactorInstance(os.Stdout))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
@@ -844,6 +846,9 @@ func run() error {
 	flag.BoolVar(&release.bumpMinor, "bump-minor", false, "Resolve chart version and bump both Nuclio and Chart minor version")
 	flag.BoolVar(&release.bumpMajor, "bump-major", false, "Resolve chart version and bump both Nuclio and Chart major version")
 	flag.Parse()
+
+	// ensure github token value is redacted
+	loggerInstance.GetRedactor().AddRedactions([]string{release.githubToken})
 
 	release.logger.InfoWith("Running release",
 		"targetVersion", release.targetVersion,

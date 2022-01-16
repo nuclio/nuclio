@@ -148,7 +148,9 @@ func (rc *RootCommandeer) createLogger() (logger.Logger, error) {
 		loggerLevel = nucliozap.InfoLevel
 	}
 
-	loggerInstance, err := nucliozap.NewNuclioZapCmd("nuctl", loggerLevel)
+	loggerInstance, err := nucliozap.NewNuclioZapCmd("nuctl",
+		loggerLevel,
+		common.GetRedactorInstance(rc.GetCmd().OutOrStdout()))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
