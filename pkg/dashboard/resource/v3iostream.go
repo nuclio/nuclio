@@ -25,8 +25,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -113,44 +111,6 @@ func (vsr *v3ioStreamResource) getStreamsFromFunctions(functions []platform.Func
 
 func (vsr *v3ioStreamResource) getNamespaceFromRequest(request *http.Request) string {
 	return vsr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
-}
-
-func (vsr *v3ioStreamResource) getProjectByName(request *http.Request, projectName, projectNamespace string) (platform.Project, error) {
-	ctx := request.Context()
-
-	requestOrigin, sessionCookie := vsr.getRequestOriginAndSessionCookie(request)
-	projects, err := vsr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta{
-			Name:      projectName,
-			Namespace: projectNamespace,
-		},
-		AuthSession: vsr.getCtxSession(request),
-		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(request)),
-			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
-		},
-		RequestOrigin: requestOrigin,
-		SessionCookie: sessionCookie,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get projects")
-	}
-
-	if len(projects) == 0 {
-		return nil, nuclio.NewErrNotFound("Project not found")
-	}
-	return projects[0], nil
-}
-
-func (vsr *v3ioStreamResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
-	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get(iguazio.ProjectsRoleHeaderKey))
-
-	// ignore error here, and just return a nil cookie when no session was passed (relevant only on leader/follower mode)
-	sessionCookie, _ := request.Cookie("session")
-
-	return requestOrigin, sessionCookie
 }
 
 // register the resource

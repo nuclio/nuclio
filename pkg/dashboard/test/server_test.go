@@ -3067,23 +3067,6 @@ type v3ioStreamTestSuite struct {
 }
 
 func (suite *v3ioStreamTestSuite) TestGetStreamsSuccessful() {
-	returnedProject := platform.AbstractProject{}
-	returnedProject.ProjectConfig.Meta.Name = "p1"
-	returnedProject.ProjectConfig.Meta.Namespace = "some-namespace"
-	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
-
-	// verify
-	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
-		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
-		suite.Require().Equal("some-namespace", getProjectsOptions.Meta.Namespace)
-
-		return true
-	}
-
-	suite.mockPlatform.
-		On("GetProjects", mock.Anything, mock.MatchedBy(verifyGetProjects)).
-		Return([]platform.Project{&returnedProject}, nil).
-		Once()
 
 	returnedFunction1 := platform.AbstractFunction{}
 	returnedFunction1.Config.Meta.Name = "f1"
@@ -3155,7 +3138,7 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsSuccessful() {
 }`
 
 	suite.sendRequest("GET",
-		"/api/streams",
+		"/api/v3io_streams",
 		headers,
 		nil,
 		&expectedStatusCode,
@@ -3173,7 +3156,7 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsNoProjectName() {
 	expectedStatusCode := http.StatusBadRequest
 
 	suite.sendRequest("GET",
-		"/api/streams",
+		"/api/v3io_streams",
 		headers,
 		nil,
 		&expectedStatusCode,
@@ -3190,7 +3173,7 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsNoNamespace() {
 	expectedStatusCode := http.StatusBadRequest
 
 	suite.sendRequest("GET",
-		"/api/streams",
+		"/api/v3io_streams",
 		headers,
 		nil,
 		&expectedStatusCode,
