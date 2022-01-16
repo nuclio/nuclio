@@ -3062,11 +3062,11 @@ func (suite *apiGatewayTestSuite) sendRequestWithInvalidBody(method string, body
 // Stream
 //
 
-type streamTestSuite struct {
+type v3ioStreamTestSuite struct {
 	dashboardTestSuite
 }
 
-func (suite *streamTestSuite) TestGetStreamsSuccessful() {
+func (suite *v3ioStreamTestSuite) TestGetStreamsSuccessful() {
 	returnedProject := platform.AbstractProject{}
 	returnedProject.ProjectConfig.Meta.Name = "p1"
 	returnedProject.ProjectConfig.Meta.Namespace = "some-namespace"
@@ -3164,7 +3164,7 @@ func (suite *streamTestSuite) TestGetStreamsSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *streamTestSuite) TestGetStreamsNoProjectName() {
+func (suite *v3ioStreamTestSuite) TestGetStreamsNoProjectName() {
 
 	headers := map[string]string{
 		"x-nuclio-project-namespace": "some-namespace",
@@ -3181,7 +3181,7 @@ func (suite *streamTestSuite) TestGetStreamsNoProjectName() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *streamTestSuite) TestGetStreamsNoNamespace() {
+func (suite *v3ioStreamTestSuite) TestGetStreamsNoNamespace() {
 
 	headers := map[string]string{
 		"x-nuclio-project-names": "some-name",
@@ -3363,6 +3363,6 @@ func TestDashboardTestSuite(t *testing.T) {
 	suite.Run(t, new(projectTestSuite))
 	suite.Run(t, new(functionEventTestSuite))
 	suite.Run(t, new(apiGatewayTestSuite))
-	suite.Run(t, new(streamTestSuite))
+	suite.Run(t, new(v3ioStreamTestSuite))
 	suite.Run(t, new(miscTestSuite))
 }
