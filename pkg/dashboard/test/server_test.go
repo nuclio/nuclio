@@ -327,6 +327,94 @@ func (suite *functionTestSuite) TestGetListNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *projectTestSuite) TestGetStreamsSuccessful() {
+	returnedProject := platform.AbstractProject{}
+	returnedProject.ProjectConfig.Meta.Name = "p1"
+	returnedProject.ProjectConfig.Meta.Namespace = "some-namespace"
+	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("some-namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.Anything, mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject}, nil).
+		Once()
+
+	returnedFunction1 := platform.AbstractFunction{}
+	returnedFunction1.Config.Meta.Name = "f1"
+	returnedFunction1.Config.Meta.Namespace = "some-namespace"
+	returnedFunction1.Config.Spec.Runtime = "r1"
+	returnedFunction1.Config.Spec.Triggers = map[string]functionconfig.Trigger{
+		"stream-trig-1": {
+			Kind: "v3ioStreams",
+			URL:  "https://some.address.com:8080/container-1/some/stream/path@consumer-group-1",
+		},
+	}
+
+	returnedFunction2 := platform.AbstractFunction{}
+	returnedFunction2.Config.Meta.Name = "f2"
+	returnedFunction2.Config.Meta.Namespace = "some-namespace"
+	returnedFunction2.Config.Spec.Runtime = "r2"
+	returnedFunction2.Config.Spec.Triggers = map[string]functionconfig.Trigger{
+		"stream-trig-2": {
+			Kind: "v3ioStreams",
+			URL:  "https://some.address.com:8080/container-2/other/stream/path@consumer-group-2",
+		},
+		"http-trig-3": {
+			Kind: "http",
+			URL:  "https://some.address.com:8080",
+		},
+	}
+
+	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("", getFunctionsOptions.Name)
+		suite.Require().Equal("some-namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-namespace": "some-namespace",
+		"x-nuclio-project-namespace":  "some-namespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+"stream-trig-1": {
+            "consumerGroup":"consumer-group-1",
+            "containerName":"container-1",
+            "streamPath":"/some/stream/path"
+        },
+        "stream-trig-2": {
+            "consumerGroup":"consumer-group-2",
+            "containerName":"container-2",
+            "streamPath":"/other/stream/path"
+        }
+}
+`
+
+	suite.sendRequest("GET",
+		"/api/projects/p1/streams",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *functionTestSuite) TestCreateSuccessful() {
 
 	// verify
