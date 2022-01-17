@@ -3181,6 +3181,28 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *v3ioStreamTestSuite) TestGetShardLagsSuccessful() {
+
+	headers := map[string]string{
+		"x-nuclio-project-namespace":  "some-namespace",
+		"x-nuclio-project-name":       "p1",
+	}
+
+	expectedStatusCode := http.StatusOK
+	requestBody := `{
+	"consumerGroup": "cg0",
+	"containerName": "cont-1",
+	"streamPath": "/some/path"
+}`
+
+	suite.sendRequest("GET",
+		"/api/v3io_streams/stream-name",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+}
+
 //
 // Misc
 //

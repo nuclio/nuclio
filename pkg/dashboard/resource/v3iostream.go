@@ -17,8 +17,11 @@ limitations under the License.
 package resource
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -29,10 +32,24 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
+	v3io "github.com/v3io/v3io-go/pkg/dataplane"
+	v3iohttp "github.com/v3io/v3io-go/pkg/dataplane/http"
+)
+
+const (
+	ConsumerGroup = "consumerGroup"
+	ContainerName = "containerName"
+	StreamPath    = "streamPath"
 )
 
 type v3ioStreamResource struct {
 	*resource
+}
+
+type v3ioStreamInfo struct {
+	ConsumerGroup string `json:"consumerGroup,omitempty"`
+	ContainerName string `json:"containerName,omitempty"`
+	StreamPath    string `json:"streamPath,omitempty"`
 }
 
 func (vsr *v3ioStreamResource) ExtendMiddlewares() error {
@@ -54,6 +71,85 @@ func (vsr *v3ioStreamResource) GetAll(request *http.Request) (map[string]restful
 	}
 
 	return streams, nil
+}
+
+func (vsr *v3ioStreamResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
+
+	// get and validate namespace
+	namespace := vsr.getNamespaceFromRequest(request)
+	if namespace == "" {
+		return nil, nuclio.NewErrBadRequest("Namespace must exist")
+	}
+
+	//// get stream params from request
+	//consumerGroup, containerName, streamPath, err := vsr.getStreamParamsFromRequest(request)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "Failed getting stream params from request")
+	//}
+
+	// read body
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
+	}
+
+	v3ioStreamInfoInstance := v3ioStreamInfo{}
+	if err = json.Unmarshal(body, &v3ioStreamInfoInstance); err != nil {
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+
+	// -- create v3io go client --
+	// TOMER - see how to extract the correct url and access key
+	url := "https://webapi.default-tenant.app.dev62.lab.iguazeng.com" // "https://somewhere:8444"
+	accessKey := "fec5a247-c0a5-42b7-a7fb-6cd4d5bf36ff"               // "some-access-key"
+
+	// create v3io context
+	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed creating v3io context")
+	}
+
+	// create v3io session
+	v3ioSession, err := v3ioContext.NewSession(&v3io.NewSessionInput{
+		URL:       url,
+		AccessKey: accessKey,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed creating v3io session")
+	}
+
+	v3ioContainer, err := v3ioSession.NewContainer(&v3io.NewContainerInput{
+		ContainerName: v3ioStreamInfoInstance.ContainerName,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed creating v3io container")
+	}
+
+	// for every shard - get shard lag details
+	shardLags := map[int]restful.Attributes{}
+
+	shardCount := 3
+
+	for shardID := 0; shardID < shardCount; shardID++ {
+		current, committed, err := vsr.getShardLagDetails(v3ioContainer,
+			v3ioStreamInfoInstance.ConsumerGroup,
+			v3ioStreamInfoInstance.StreamPath,
+			shardID)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed getting shard lag details")
+		}
+		shardLags[shardID] = restful.Attributes{
+			"lag":       current - committed,
+			"current":   current,
+			"committed": committed,
+		}
+	}
+
+	attributes := restful.Attributes{
+		"shardLags": shardLags,
+	}
+
+	return attributes, nil
 }
 
 func (vsr *v3ioStreamResource) getFunctions(request *http.Request) ([]platform.Function, error) {
@@ -113,10 +209,59 @@ func (vsr *v3ioStreamResource) getNamespaceFromRequest(request *http.Request) st
 	return vsr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
 }
 
+func (vsr *v3ioStreamResource) getStreamParamsFromRequest(request *http.Request) (string, string, string, error) {
+	consumerGroup := vsr.GetURLParamStringOrDefault(request, ConsumerGroup, "")
+	if consumerGroup == "" {
+		return "", "", "", nuclio.NewErrBadRequest("Consumer group name must not be empty")
+	}
+	containerName := vsr.GetURLParamStringOrDefault(request, ContainerName, "")
+	if consumerGroup == "" {
+		return "", "", "", nuclio.NewErrBadRequest("Container name must not be empty")
+	}
+	streamPath := vsr.GetURLParamStringOrDefault(request, StreamPath, "")
+	if consumerGroup == "" {
+		return "", "", "", nuclio.NewErrBadRequest("Stream path must not be empty")
+	}
+
+	return consumerGroup, containerName, streamPath, nil
+}
+
+func (vsr *v3ioStreamResource) getShardLagDetails(v3ioContainer v3io.Container, consumerGroup, streamPath string, shardID int) (int, int, error) {
+	response, err := v3ioContainer.GetItemSync(&v3io.GetItemInput{
+		Path: fmt.Sprintf("%s/%d", streamPath, shardID),
+		AttributeNames: []string{
+			"__last_sequence_num",
+			fmt.Sprintf("__%s_committed_sequence_number", consumerGroup),
+		},
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	defer response.Release()
+	getItemOutput := response.Output.(*v3io.GetItemOutput)
+
+	current, err := getItemOutput.Item.GetFieldInt("__last_sequence_num")
+	if err != nil {
+		return 0, 0, err
+	}
+
+	committed, err := getItemOutput.Item.GetFieldInt(fmt.Sprintf("__%s_committed_sequence_number",
+		consumerGroup))
+	if err != nil {
+		if !strings.Contains(err.Error(), "Not found") {
+			return 0, 0, err
+		}
+		committed = 0
+	}
+
+	return current, committed, nil
+}
+
 // register the resource
 var v3ioStreamResourceInstance = &v3ioStreamResource{
 	resource: newResource("api/v3io_streams", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
+		restful.ResourceMethodGetDetail,
 	}),
 }
 
