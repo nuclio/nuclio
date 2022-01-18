@@ -45,6 +45,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type functionBuildTestSuite struct {
@@ -1308,15 +1309,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName2}, nil) // nolint: errcheck
 
-	// get the function
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
-		"output": nuctlcommon.OutputFormatYAML,
-	}, false)
-	suite.Require().NoError(err)
-
-	functionConfig := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &functionConfig)
-	suite.Require().NoError(err)
+	functionConfig, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
 
 	suite.Assert().Equal("ClusterIP", functionConfig.Spec.Triggers["default-http"].Attributes["serviceType"])
 
@@ -1330,7 +1323,8 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &function2Config)
 	suite.Require().NoError(err)
 
-	suite.Assert().Equal("NodePort", function2Config.Spec.Triggers["default-http"].Attributes["serviceType"])
+	suite.Assert().Equal(string(corev1.ServiceTypeClusterIP),
+		function2Config.Spec.Triggers["default-http"].Attributes["serviceType"])
 }
 
 type functionGetTestSuite struct {

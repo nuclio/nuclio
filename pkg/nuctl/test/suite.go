@@ -119,9 +119,11 @@ func (suite *Suite) TearDownSuite() {
 func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	namedArgs map[string]string) error {
 
+	// reset buffer to ensure it contains only last executed command
+	suite.outputBuffer.Reset()
 	rootCommandeer := command.NewRootCommandeer()
 
-	// set the output so we can capture it (but also output to stdout)
+	// set the output, so we can capture it (but also output to stdout)
 	rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
 
 	// set the input so we can write to stdin
