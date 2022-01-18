@@ -7,22 +7,11 @@ import (
 	nucliozap "github.com/nuclio/zap"
 )
 
-var defaultValueRedactions = []string{
-	"password",
-	"cookie",
-	"x-v3io-session-key",
-	"sessionKey",
-	"token",
-	"clientSecret",
-	"secret",
-	"accessKey",
-	"accessCertificate",
-	"caCert",
-}
-
 func GetRedactorInstance(output io.Writer) *nucliozap.Redactor {
 	redactorInstance := nucliozap.NewRedactor(output)
-	redactorInstance.AddValueRedactions(defaultValueRedactions)
+
+	// TODO: Add redaction values (e.g.: "password") once json formatter is fully supported
+	// Note: there's an issue with redact values when they are fully escaped
 	return redactorInstance
 }
 
