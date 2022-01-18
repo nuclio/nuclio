@@ -204,19 +204,19 @@ logger:
 		"prod-es": {
 			Level: "debug",
 			Sink: LoggerSink{
-				Kind: "elasticsearch",
+				Kind: LoggerSinkKindElasticsearch,
 				URL:  "http://20.0.1:9200",
 			},
 		},
 		"stdout": {
 			Level: "info",
 			Sink: LoggerSink{
-				Kind: "stdout",
+				Kind: LoggerSinkKindStdout,
 			},
 		},
 	}
 
-	suite.Require().Empty(cmp.Diff(&expectedSystemLoggerSinks, &systemLoggerSinks, cmpopts.IgnoreUnexported(Config{})))
+	suite.Require().Empty(cmp.Diff(&expectedSystemLoggerSinks, &systemLoggerSinks, cmpopts.IgnoreUnexported(LoggerSinkWithLevel{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetSystemLoggerSinksInvalidSink() {
@@ -330,19 +330,21 @@ logger:
 		"stdout": {
 			Level: "warn",
 			Sink: LoggerSink{
-				Kind: "stdout",
+				Kind: LoggerSinkKindStdout,
 			},
 		},
 		"staging-es": {
 			Level: "debug",
 			Sink: LoggerSink{
-				Kind: "elasticsearch",
+				Kind: LoggerSinkKindElasticsearch,
 				URL:  "http://10.0.0.1:9200",
 			},
 		},
 	}
 
-	suite.Require().Empty(cmp.Diff(&expectedFunctionLoggerSinks, &functionLoggerSinks, cmpopts.IgnoreUnexported(Config{})))
+	suite.Require().Empty(cmp.Diff(&expectedFunctionLoggerSinks,
+		&functionLoggerSinks,
+		cmpopts.IgnoreUnexported(LoggerSinkWithLevel{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksInvalidSink() {

@@ -35,6 +35,9 @@ type LoggerSinkKind string
 const (
 	LoggerSinkKindStdout      LoggerSinkKind = "stdout"
 	LoggerSinkKindAppInsights LoggerSinkKind = "appinsights"
+
+	// LoggerSinkKindElasticsearch is not supported
+	LoggerSinkKindElasticsearch LoggerSinkKind = "elasticsearch"
 )
 
 type LoggerSink struct {
