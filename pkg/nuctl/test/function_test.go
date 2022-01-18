@@ -1276,7 +1276,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"path":                      path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
-		"http-trigger-service-type": "ClusterIP",
+		"http-trigger-service-type": string(corev1.ServiceTypeClusterIP),
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1296,7 +1296,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"path":                      path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
-		"http-trigger-service-type": "NodePort",
+		"http-trigger-service-type": string(corev1.ServiceTypeNodePort),
 	}
 
 	err = suite.ExecuteNuctl([]string{"deploy", functionName2, "--verbose", "--no-pull"}, namedArgs)
@@ -1310,20 +1310,15 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName2}, nil) // nolint: errcheck
 
 	functionConfig, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
-
-	suite.Assert().Equal("ClusterIP", functionConfig.Spec.Triggers["default-http"].Attributes["serviceType"])
-
-	// get the function
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName2}, map[string]string{
-		"output": nuctlcommon.OutputFormatYAML,
-	}, false)
-	suite.Require().NoError(err)
-
-	function2Config := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &function2Config)
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(string(corev1.ServiceTypeClusterIP),
+		functionConfig.Spec.Triggers["default-http"].Attributes["serviceType"])
+
+	function2Config, err := suite.getFunctionInFormat(functionName2, nuctlcommon.OutputFormatYAML)
+	suite.Require().NoError(err)
+
+	suite.Assert().Equal(string(corev1.ServiceTypeNodePort),
 		function2Config.Spec.Triggers["default-http"].Attributes["serviceType"])
 }
 
