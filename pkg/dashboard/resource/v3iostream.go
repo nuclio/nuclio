@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -73,7 +74,23 @@ func (vsr *v3ioStreamResource) GetAll(request *http.Request) (map[string]restful
 	return streams, nil
 }
 
-func (vsr *v3ioStreamResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
+// GetCustomRoutes returns a list of custom routes for the resource
+func (vsr *v3ioStreamResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+
+	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
+	// we need to register custom routes
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/get-shard-lags",
+			Method:    http.MethodPost,
+			RouteFunc: vsr.getStreamShardLags,
+		},
+	}, nil
+}
+
+func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+
+	ctx := request.Context()
 
 	// get and validate namespace
 	namespace := vsr.getNamespaceFromRequest(request)
@@ -81,11 +98,20 @@ func (vsr *v3ioStreamResource) GetByID(request *http.Request, id string) (restfu
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	//// get stream params from request
-	//consumerGroup, containerName, streamPath, err := vsr.getStreamParamsFromRequest(request)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "Failed getting stream params from request")
-	//}
+	// getting projects for validating project read permissions
+	if _, err := vsr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      request.Header.Get("x-nuclio-project-name"),
+			Namespace: namespace,
+		},
+		AuthSession: vsr.getCtxSession(request),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(request)),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		},
+	}); err != nil {
+		return nil, nuclio.NewErrUnauthorized("Unauthorized to read project")
+	}
 
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
@@ -98,58 +124,23 @@ func (vsr *v3ioStreamResource) GetByID(request *http.Request, id string) (restfu
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	// -- create v3io go client --
-	// TOMER - see how to extract the correct url and access key
+	// TODO: add a struct field on platform config called Streams (fields url / accessKey).
+	// these would be served as default values to access webapi.
+	// On provazio-controller, enrich its fields with values.
 	url := "https://webapi.default-tenant.app.dev62.lab.iguazeng.com" // "https://somewhere:8444"
 	accessKey := "fec5a247-c0a5-42b7-a7fb-6cd4d5bf36ff"               // "some-access-key"
 
-	// create v3io context
-	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{})
+	shardLags, err := vsr.getShardLagsMap(v3ioStreamInfoInstance, url, accessKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating v3io context")
+		return nil, errors.Wrap(err, "Failed getting shard lags")
 	}
 
-	// create v3io session
-	v3ioSession, err := v3ioContext.NewSession(&v3io.NewSessionInput{
-		URL:       url,
-		AccessKey: accessKey,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating v3io session")
-	}
-
-	v3ioContainer, err := v3ioSession.NewContainer(&v3io.NewContainerInput{
-		ContainerName: v3ioStreamInfoInstance.ContainerName,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating v3io container")
-	}
-
-	// for every shard - get shard lag details
-	shardLags := map[int]restful.Attributes{}
-
-	shardCount := 3
-
-	for shardID := 0; shardID < shardCount; shardID++ {
-		current, committed, err := vsr.getShardLagDetails(v3ioContainer,
-			v3ioStreamInfoInstance.ConsumerGroup,
-			v3ioStreamInfoInstance.StreamPath,
-			shardID)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed getting shard lag details")
-		}
-		shardLags[shardID] = restful.Attributes{
-			"lag":       current - committed,
-			"current":   current,
-			"committed": committed,
-		}
-	}
-
-	attributes := restful.Attributes{
-		"shardLags": shardLags,
-	}
-
-	return attributes, nil
+	return &restful.CustomRouteFuncResponse{
+		Resources:  shardLags,
+		Single:     false,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		StatusCode: http.StatusOK,
+	}, nil
 }
 
 func (vsr *v3ioStreamResource) getFunctions(request *http.Request) ([]platform.Function, error) {
@@ -209,29 +200,13 @@ func (vsr *v3ioStreamResource) getNamespaceFromRequest(request *http.Request) st
 	return vsr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
 }
 
-func (vsr *v3ioStreamResource) getStreamParamsFromRequest(request *http.Request) (string, string, string, error) {
-	consumerGroup := vsr.GetURLParamStringOrDefault(request, ConsumerGroup, "")
-	if consumerGroup == "" {
-		return "", "", "", nuclio.NewErrBadRequest("Consumer group name must not be empty")
-	}
-	containerName := vsr.GetURLParamStringOrDefault(request, ContainerName, "")
-	if consumerGroup == "" {
-		return "", "", "", nuclio.NewErrBadRequest("Container name must not be empty")
-	}
-	streamPath := vsr.GetURLParamStringOrDefault(request, StreamPath, "")
-	if consumerGroup == "" {
-		return "", "", "", nuclio.NewErrBadRequest("Stream path must not be empty")
-	}
-
-	return consumerGroup, containerName, streamPath, nil
-}
-
-func (vsr *v3ioStreamResource) getShardLagDetails(v3ioContainer v3io.Container, consumerGroup, streamPath string, shardID int) (int, int, error) {
-	response, err := v3ioContainer.GetItemSync(&v3io.GetItemInput{
-		Path: fmt.Sprintf("%s/%d", streamPath, shardID),
+func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context, info v3ioStreamInfo, shardID int, dataPlaneInput v3io.DataPlaneInput) (int, int, error) {
+	response, err := v3ioContext.GetItemSync(&v3io.GetItemInput{
+		DataPlaneInput: dataPlaneInput,
+		Path:           fmt.Sprintf("%s/%d", info.StreamPath, shardID),
 		AttributeNames: []string{
 			"__last_sequence_num",
-			fmt.Sprintf("__%s_committed_sequence_number", consumerGroup),
+			fmt.Sprintf("__%s_committed_sequence_number", info.ConsumerGroup),
 		},
 	})
 	if err != nil {
@@ -246,7 +221,7 @@ func (vsr *v3ioStreamResource) getShardLagDetails(v3ioContainer v3io.Container, 
 	}
 
 	committed, err := getItemOutput.Item.GetFieldInt(fmt.Sprintf("__%s_committed_sequence_number",
-		consumerGroup))
+		info.ConsumerGroup))
 	if err != nil {
 		if !strings.Contains(err.Error(), "Not found") {
 			return 0, 0, err
@@ -255,6 +230,69 @@ func (vsr *v3ioStreamResource) getShardLagDetails(v3ioContainer v3io.Container, 
 	}
 
 	return current, committed, nil
+}
+
+func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo, url, accessKey string) (map[string]restful.Attributes, error) {
+
+	// create v3io context
+	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed creating v3io context")
+	}
+
+	dataPlaneInput := v3io.DataPlaneInput{
+		URL:           url,
+		AccessKey:     accessKey,
+		ContainerName: info.ContainerName,
+	}
+	getContainerContentsInput := &v3io.GetContainerContentsInput{
+		Path:             info.StreamPath,
+		GetAllAttributes: true,
+		DirectoriesOnly:  false,
+		DataPlaneInput:   dataPlaneInput,
+	}
+
+	shardLags := map[string]restful.Attributes{}
+
+	for {
+		response, err := v3ioContext.GetContainerContentsSync(getContainerContentsInput)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get container subdirectories")
+		}
+
+		getContainerContentsOutput := response.Output.(*v3io.GetContainerContentsOutput)
+		response.Release()
+
+		for _, content := range getContainerContentsOutput.Contents {
+			content := content
+
+			// each file name that is just a number is a shard
+			filePath := strings.Split(content.Key, "/")
+			if shardID, err := strconv.Atoi(filePath[len(filePath)-1]); err == nil {
+				current, committed, err := vsr.getSingleShardLagDetails(v3ioContext,
+					info,
+					shardID,
+					dataPlaneInput)
+				if err != nil {
+					return nil, errors.Wrap(err, "Failed getting shard lag details")
+				}
+				shardLags[strconv.Itoa(shardID)] = restful.Attributes{
+					"lag":       current - committed,
+					"current":   current,
+					"committed": committed,
+				}
+			}
+		}
+
+		// if nextMarker not empty or isTruncated="true" - there are more children (need another fetch to get them)
+		if !getContainerContentsOutput.IsTruncated || len(getContainerContentsOutput.NextMarker) == 0 {
+			break
+		}
+		getContainerContentsInput.Marker = getContainerContentsOutput.NextMarker
+
+	}
+
+	return shardLags, nil
 }
 
 // register the resource

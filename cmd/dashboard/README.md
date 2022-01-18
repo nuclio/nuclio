@@ -793,7 +793,7 @@ in its spec/status - this will form a valid invocation URL.
 
 #### Request
 
-* URL: `GET /api/streams`
+* URL: `GET /api/v3io_streams`
 * Headers:
   * `x-nuclio-project-name`: projectName (required)
 

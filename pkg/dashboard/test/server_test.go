@@ -3184,8 +3184,8 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsNoNamespace() {
 func (suite *v3ioStreamTestSuite) TestGetShardLagsSuccessful() {
 
 	headers := map[string]string{
-		"x-nuclio-project-namespace":  "some-namespace",
-		"x-nuclio-project-name":       "p1",
+		"x-nuclio-project-namespace": "some-namespace",
+		"x-nuclio-project-name":      "p1",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -3195,8 +3195,8 @@ func (suite *v3ioStreamTestSuite) TestGetShardLagsSuccessful() {
 	"streamPath": "/some/path"
 }`
 
-	suite.sendRequest("GET",
-		"/api/v3io_streams/stream-name",
+	suite.sendRequest("POST",
+		"/api/v3io_streams/get-shard-lags",
 		headers,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
