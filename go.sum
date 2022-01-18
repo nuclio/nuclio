@@ -201,8 +201,6 @@ github.com/go-openapi/swag v0.19.5/go.mod h1:POnQmlKehdgb5mhVOsnJFsivZCEZ/vjK9gh
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
 github.com/gobuffalo/flect v0.2.2 h1:PAVD7sp0KOdfswjAw9BpLCU9hXo7wFSzgpQ+zNeks/A=
 github.com/gobuffalo/flect v0.2.2/go.mod h1:vmkQwuZYhN5Pc4ljYQZzP+1sq+NEkK+lh20jmEmX3jc=
-github.com/goccy/go-json v0.9.3 h1:VYKeLtdIQXWaeTZy5JNGZbVui5ck7Vf5MlWEcflqz0s=
-github.com/goccy/go-json v0.9.3/go.mod h1:6MelG93GURQebXPDq3khkgXZkazVtN9CRI+MGFi0w8I=
 github.com/gogo/protobuf v0.0.0-20171007142547-342cbe0a0415/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/gogo/protobuf v1.1.1/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
@@ -442,8 +440,8 @@ github.com/nuclio/nuclio-sdk-go v0.3.0 h1:zY2R6t3Mnw8fFJCjYK3SR34gYvr+QG8KGmfkX3
 github.com/nuclio/nuclio-sdk-go v0.3.0/go.mod h1:OBDhOcCf2GLO1e16GdWNU4EBjFoa9DAUJgzR226FMBc=
 github.com/nuclio/zap v0.0.2/go.mod h1:SUxPsgePvlyjx6c5MtGdB50pf0IQThtlyLwISLboeuc=
 github.com/nuclio/zap v0.0.3/go.mod h1:SUxPsgePvlyjx6c5MtGdB50pf0IQThtlyLwISLboeuc=
-github.com/nuclio/zap v0.1.1 h1:Uqp+tn8mp2bYCffyyWfKozKNy5HdnXjHzdsD3cEPtYI=
-github.com/nuclio/zap v0.1.1/go.mod h1:kpoVmozXJQBrrMS7YYWmR6UvNJvMV+E4BoqBrfYxcsk=
+github.com/nuclio/zap v0.1.2 h1:0xD5+IHEhbMmxp3T6hN7nRcukuo9+QuB5/zd/XHTqrU=
+github.com/nuclio/zap v0.1.2/go.mod h1:n1BZF3JcFiQdap88qHX6IOPBKDjvV/bPcvVe6MFdxUg=
 github.com/nwaples/rardecode v1.1.0 h1:vSxaY8vQhOcVr4mm5e8XllHWTiM4JF507A0Katqw7MQ=
 github.com/nwaples/rardecode v1.1.0/go.mod h1:5DzqNKiOdpKKBH87u8VlvAnPZMXcGRhxWkRpHbbfGS0=
 github.com/olekukonko/tablewriter v0.0.1 h1:b3iUnf1v+ppJiOfNX4yxxqfWKMQPZR5yoh8urCTFX88=
