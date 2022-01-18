@@ -278,12 +278,14 @@ logger:
 		"stdout": {
 			Level: "info",
 			Sink: LoggerSink{
-				Kind: "stdout",
+				Kind: LoggerSinkKindStdout,
 			},
 		},
 	}
 
-	suite.Require().Empty(cmp.Diff(&expectedFunctionLoggerSinks, &functionLoggerSinks, cmpopts.IgnoreUnexported(Config{})))
+	suite.Require().Empty(cmp.Diff(&expectedFunctionLoggerSinks,
+		&functionLoggerSinks,
+		cmpopts.IgnoreUnexported(LoggerSinkWithLevel{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksWithFunctionConfig() {
