@@ -113,20 +113,7 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 }
 
 func (c *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {
-
-	// return previously initialized loggers
-	if c.Logger.systemLoggersSinkWithLevel != nil {
-		return c.Logger.systemLoggersSinkWithLevel, nil
-	}
-
-	// initialize
-	var err error
-	c.Logger.systemLoggersSinkWithLevel, err = c.getLoggerSinksWithLevel(c.Logger.System)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get logger sinks with level")
-	}
-
-	return c.Logger.systemLoggersSinkWithLevel, nil
+	return c.getLoggerSinksWithLevel(c.Logger.System)
 }
 
 func (c *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) (map[string]LoggerSinkWithLevel, error) {

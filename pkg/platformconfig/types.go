@@ -63,9 +63,6 @@ type Logger struct {
 	Sinks     map[string]LoggerSink `json:"sinks,omitempty"`
 	System    []LoggerSinkBinding   `json:"system,omitempty"`
 	Functions []LoggerSinkBinding   `json:"functions,omitempty"`
-
-	// populated once system loggers are created
-	systemLoggersSinkWithLevel map[string]LoggerSinkWithLevel
 }
 
 type WebServer struct {
