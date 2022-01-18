@@ -1523,15 +1523,13 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	// use nuctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
-	// reset output buffer for reading the next output cleanly
-	suite.outputBuffer.Reset()
-	suite.inputBuffer.Reset()
-
 	// export the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
-	exportedFunctionBody := suite.outputBuffer.Bytes()
+	// make a copy, use later
+	exportedFunctionBody := make([]byte, len(suite.outputBuffer.Bytes()))
+	copy(exportedFunctionBody, suite.outputBuffer.Bytes())
 
 	// delete original function in order to resolve conflict while importing the function
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
