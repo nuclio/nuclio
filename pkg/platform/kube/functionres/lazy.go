@@ -410,7 +410,6 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	lc.logger.DebugWithCtx(ctx, "Deleted deployed function", "namespace", namespace, "name", name)
-
 	return nil
 }
 
@@ -1221,10 +1220,17 @@ func (lc *lazyClient) deleteCronJobs(ctx context.Context, functionName, function
 
 	functionNameLabel := fmt.Sprintf("nuclio.io/function-name=%s", functionName)
 
+	zero := int64(0)
+	deleteInBackground := metav1.DeletePropagationBackground
 	return lc.kubeClientSet.BatchV1beta1().
 		CronJobs(functionNamespace).
-		DeleteCollection(ctx, metav1.DeleteOptions{},
-			metav1.ListOptions{LabelSelector: functionNameLabel})
+		DeleteCollection(ctx,
+			metav1.DeleteOptions{
+				GracePeriodSeconds: &zero,
+				PropagationPolicy:  &deleteInBackground,
+			},
+			metav1.ListOptions{LabelSelector: functionNameLabel},
+		)
 }
 
 func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
