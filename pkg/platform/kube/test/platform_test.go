@@ -114,11 +114,11 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	// deploy function
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
-		// try get function recorded events for 60 seconds
+		// try to get function recorded events for 60 seconds
 		// we expect the function to record and return all cron triggers events
 		functionInvocationURL := fmt.Sprintf("http://%s%s", functionIngressHost, functionIngressPath)
 		var events []cron.Event
-		suite.TryGetAndUnmarshalFunctionRecordedEvents(functionInvocationURL, 60*time.Second, &events)
+		suite.TryGetAndUnmarshalFunctionRecordedEvents(suite.Ctx, functionInvocationURL, 60*time.Second, &events)
 		firstEvent := events[0]
 
 		// ensure recorded event
