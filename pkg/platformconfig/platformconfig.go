@@ -50,6 +50,7 @@ type Config struct {
 	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
 	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
 	Opa                      opa.Config                   `json:"opa,omitempty"`
+	Stream                   StreamConfig                 `json:"stream,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 

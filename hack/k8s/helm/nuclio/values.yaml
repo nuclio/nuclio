@@ -426,6 +426,10 @@ platform: {}
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow
+#
+#   stream:
+#     webapiURL: ""
+#     accessKey: ""
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

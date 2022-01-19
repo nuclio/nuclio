@@ -37,12 +37,6 @@ import (
 	v3iohttp "github.com/v3io/v3io-go/pkg/dataplane/http"
 )
 
-const (
-	ConsumerGroup = "consumerGroup"
-	ContainerName = "containerName"
-	StreamPath    = "streamPath"
-)
-
 type v3ioStreamResource struct {
 	*resource
 }
@@ -124,13 +118,7 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	// TODO: add a struct field on platform config called Streams (fields url / accessKey).
-	// these would be served as default values to access webapi.
-	// On provazio-controller, enrich its fields with values.
-	url := "https://webapi.default-tenant.app.dev62.lab.iguazeng.com" // "https://somewhere:8444"
-	accessKey := "fec5a247-c0a5-42b7-a7fb-6cd4d5bf36ff"               // "some-access-key"
-
-	shardLags, err := vsr.getShardLagsMap(v3ioStreamInfoInstance, url, accessKey)
+	shardLags, err := vsr.getShardLagsMap(v3ioStreamInfoInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting shard lags")
 	}
@@ -232,7 +220,7 @@ func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context
 	return current, committed, nil
 }
 
-func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo, url, accessKey string) (map[string]restful.Attributes, error) {
+func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo) (map[string]restful.Attributes, error) {
 
 	// create v3io context
 	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{})
@@ -240,9 +228,16 @@ func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo, url, accessK
 		return nil, errors.Wrap(err, "Failed creating v3io context")
 	}
 
+	// TODO: add a struct field on platform config called Streams (fields url / accessKey).
+	// these would be served as default values to access webapi.
+	// On provazio-controller, enrich its fields with values.
+	// For testing purposes, use the webapi url from your machine
+	//url := "https://webapi.default-tenant.app.dev62.lab.iguazeng.com" // "https://somewhere:8444"
+	//accessKey := "fec5a247-c0a5-42b7-a7fb-6cd4d5bf36ff"               // "some-access-key"
+
 	dataPlaneInput := v3io.DataPlaneInput{
-		URL:           url,
-		AccessKey:     accessKey,
+		URL:           vsr.getPlatform().GetConfig().Stream.WebapiURL,
+		AccessKey:     vsr.getPlatform().GetConfig().Stream.AccessKey,
 		ContainerName: info.ContainerName,
 	}
 	getContainerContentsInput := &v3io.GetContainerContentsInput{

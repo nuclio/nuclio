@@ -169,3 +169,8 @@ const (
 
 	DefaultServiceType = corev1.ServiceTypeClusterIP
 )
+
+type StreamConfig struct {
+	WebapiURL string
+	AccessKey string
+}
