@@ -3059,6 +3059,129 @@ func (suite *apiGatewayTestSuite) sendRequestWithInvalidBody(method string, body
 }
 
 //
+// Stream
+//
+
+type v3ioStreamTestSuite struct {
+	dashboardTestSuite
+}
+
+func (suite *v3ioStreamTestSuite) TestGetStreamsSuccessful() {
+
+	returnedFunction1 := platform.AbstractFunction{}
+	returnedFunction1.Config.Meta.Name = "f1"
+	returnedFunction1.Config.Meta.Namespace = "some-namespace"
+	returnedFunction1.Config.Spec.Runtime = "r1"
+	returnedFunction1.Config.Spec.Triggers = map[string]functionconfig.Trigger{
+		"stream-trig-1": {
+			Kind: "v3ioStream",
+			URL:  "https://some.address.com:8080/container-1/some/stream/path@consumer-group-1",
+			Attributes: map[string]interface{}{
+				"consumerGroup": "consumer-group-1",
+				"containerName": "container-1",
+				"streamPath":    "/some/stream/path",
+			},
+		},
+	}
+
+	returnedFunction2 := platform.AbstractFunction{}
+	returnedFunction2.Config.Meta.Name = "f2"
+	returnedFunction2.Config.Meta.Namespace = "some-namespace"
+	returnedFunction2.Config.Spec.Runtime = "r2"
+	returnedFunction2.Config.Spec.Triggers = map[string]functionconfig.Trigger{
+		"stream-trig-2": {
+			Kind: "v3ioStream",
+			URL:  "https://some.address.com:8080/container-2/other/stream/path@consumer-group-2",
+			Attributes: map[string]interface{}{
+				"consumerGroup": "consumer-group-2",
+				"containerName": "container-2",
+				"streamPath":    "/other/stream/path",
+			},
+		},
+		"http-trig-3": {
+			Kind: "http",
+			URL:  "https://some.address.com:8080",
+		},
+	}
+
+	// verify
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("", getFunctionsOptions.Name)
+		suite.Require().Equal("some-namespace", getFunctionsOptions.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-namespace": "some-namespace",
+		"x-nuclio-project-namespace":  "some-namespace",
+		"x-nuclio-project-name":       "p1",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+"f1@stream-trig-1": {
+            "consumerGroup":"consumer-group-1",
+            "containerName":"container-1",
+            "streamPath":"/some/stream/path"
+        },
+        "f2@stream-trig-2": {
+            "consumerGroup":"consumer-group-2",
+            "containerName":"container-2",
+            "streamPath":"/other/stream/path"
+        }
+}`
+
+	suite.sendRequest("GET",
+		"/api/v3io_streams",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *v3ioStreamTestSuite) TestGetStreamsNoProjectName() {
+
+	headers := map[string]string{
+		"x-nuclio-project-namespace": "some-namespace",
+	}
+
+	expectedStatusCode := http.StatusBadRequest
+
+	suite.sendRequest("GET",
+		"/api/v3io_streams",
+		headers,
+		nil,
+		&expectedStatusCode,
+		nil)
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *v3ioStreamTestSuite) TestGetStreamsNoNamespace() {
+
+	headers := map[string]string{
+		"x-nuclio-project-names": "some-name",
+	}
+
+	expectedStatusCode := http.StatusBadRequest
+
+	suite.sendRequest("GET",
+		"/api/v3io_streams",
+		headers,
+		nil,
+		&expectedStatusCode,
+		nil)
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+//
 // Misc
 //
 
@@ -3223,5 +3346,6 @@ func TestDashboardTestSuite(t *testing.T) {
 	suite.Run(t, new(projectTestSuite))
 	suite.Run(t, new(functionEventTestSuite))
 	suite.Run(t, new(apiGatewayTestSuite))
+	suite.Run(t, new(v3ioStreamTestSuite))
 	suite.Run(t, new(miscTestSuite))
 }

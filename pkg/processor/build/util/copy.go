@@ -19,7 +19,6 @@ package util
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -122,7 +121,7 @@ func CopyDir(source string, dest string) (bool, error) {
 		return false, err
 	}
 
-	entries, err := ioutil.ReadDir(source)
+	entries, err := os.ReadDir(source)
 	if err != nil {
 		return false, err
 	}

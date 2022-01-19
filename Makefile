@@ -238,11 +238,11 @@ NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME    = $(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO
 NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  ?= $(NUCLIO_ARCH)
 
 ifeq ($(NUCLIO_ARCH), armhf)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.18.0-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.21.5-alpine
 else ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.18.0-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.21.5-alpine
 else
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.18.0-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.21.5-alpine
 endif
 
 dashboard: ensure-gopath build-base
