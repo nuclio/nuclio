@@ -55,9 +55,6 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
 		var sentBodies []string
 
-		// MOTE: a sleep is required here as the function may be still connecting to broker
-		time.Sleep(5 * time.Second)
-
 		suite.Logger.DebugWith("Producing",
 			"numExpectedMessagesPerTopic", numExpectedMessagesPerTopic,
 			"numNonExpectedMessagesPerTopic", numNonExpectedMessagesPerTopic)

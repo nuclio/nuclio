@@ -1,5 +1,4 @@
-// +build test_integration
-// +build test_local
+//go:build test_integration && test_local && test_broken
 
 /*
 Copyright 2018 The Nuclio Authors.
@@ -20,9 +19,9 @@ limitations under the License.
 package test
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/Shopify/sarama"
@@ -82,6 +81,7 @@ func (suite *testConfluentSuite) SetupSuite() {
 
 	// TODO: this does not seems to work, find a way to create a topic programmatically
 	// alternatively, create a topic here: https://confluent.cloud/environments/<env-id>/clusters/<cluster-id>/topics
+
 	//createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
 	//	Version: 2,
 	//	TopicDetails: map[string]*sarama.TopicDetail{
