@@ -21,6 +21,7 @@ package test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -57,10 +58,11 @@ type Suite struct {
 	dockerClient         dockerclient.Client
 	shellClient          *cmdrunner.ShellRunner
 	outputBuffer         bytes.Buffer
-	inputBuffer          bytes.Buffer
+	inputBuffer          io.Reader
 	defaultWaitDuration  time.Duration
 	defaultWaitInterval  time.Duration
 	namespace            string
+	ctx                  context.Context
 }
 
 func (suite *Suite) SetupSuite() {
@@ -101,11 +103,13 @@ func (suite *Suite) SetupSuite() {
 		err = os.Setenv(nuctlPlatformEnvVarName, "local")
 		suite.Require().NoError(err)
 	}
+
+	suite.ctx = context.Background()
 }
 
 func (suite *Suite) SetupTest() {
 	suite.outputBuffer.Reset()
-	suite.inputBuffer.Reset()
+	suite.inputBuffer = bytes.NewReader([]byte{})
 }
 
 func (suite *Suite) TearDownSuite() {
@@ -127,7 +131,7 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
 
 	// set the input so we can write to stdin
-	rootCommandeer.GetCmd().SetIn(&suite.inputBuffer)
+	rootCommandeer.GetCmd().SetIn(suite.inputBuffer)
 
 	// since args[0] is the executable name, just shove something there
 	argsStringSlice := []string{
@@ -164,7 +168,15 @@ func (suite *Suite) RetryExecuteNuctlUntilSuccessful(positionalArgs []string,
 			if expectFailure {
 				return err != nil
 			}
-			return err == nil
+
+			// retry
+			if err != nil {
+				suite.logger.WarnWithCtx(suite.ctx,
+					"Nuctl execution failed, retrying",
+					"err", err.Error())
+				return false
+			}
+			return true
 		})
 }
 
@@ -173,7 +185,7 @@ func (suite *Suite) GetNuclioSourceDir() string {
 	return common.GetSourceDir()
 }
 
-// GetNuclioSourceDir returns path to nuclio source directory
+// GetFunctionsDir returns path to nuclio source directory
 func (suite *Suite) GetFunctionsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
 }

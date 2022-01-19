@@ -257,7 +257,7 @@ func (suite *projectExportImportTestSuite) createImportedFunctions(projectName s
 		functionToImportEncoded := fmt.Sprintf(functionToImportTemplate, functionName, projectName)
 		functionsToImportEncoded += fmt.Sprintf("\n%s", functionToImportEncoded)
 	}
-	suite.inputBuffer = *bytes.NewBufferString(functionsToImportEncoded)
+	suite.inputBuffer = bytes.NewReader([]byte(functionsToImportEncoded))
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{
@@ -271,10 +271,6 @@ func (suite *projectExportImportTestSuite) createImportedFunctions(projectName s
 	for _, functionName := range functionNames {
 		suite.waitForFunctionState(functionName, functionconfig.FunctionStateImported)
 	}
-
-	// reset buffer
-	suite.inputBuffer.Reset()
-
 }
 
 type projectExportImportTestSuite struct {
@@ -433,7 +429,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 			suite.Require().NoError(err)
 
 			// import project from stdin
-			suite.inputBuffer = *bytes.NewBuffer(encodedProjectImportConfig)
+			suite.inputBuffer = bytes.NewReader(encodedProjectImportConfig)
 
 			// import
 			err = suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, map[string]string{

@@ -204,11 +204,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
-	// use nutctl to delete the function when we're done
+	// cleanup
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
-	suite.inputBuffer = bytes.Buffer{}
-	suite.inputBuffer.WriteString("-reverse this string+")
+	suite.inputBuffer = bytes.NewReader([]byte("-reverse this string+"))
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -1540,7 +1539,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// import the function from stdin
-	suite.inputBuffer.Write(exportedFunctionBody)
+	suite.inputBuffer = bytes.NewReader(exportedFunctionBody)
 	err = suite.ExecuteNuctl([]string{"import", "fu"}, nil)
 	suite.Require().NoError(err)
 
@@ -1592,9 +1591,6 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
-
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
 
 	// export the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
