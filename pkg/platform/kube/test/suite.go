@@ -175,12 +175,9 @@ func (suite *KubeTestSuite) TearDownTest() {
 					"selector": "nuclio.io/app",
 				})
 			if err != nil {
-
-				getControllerLogResults, _ := suite.executeKubectl(
-					[]string{"logs", "deployment/nuclio-controller"},
-					nil,
-				)
-				suite.Logger.DebugWithCtx(suite.Ctx, "Got controller logs", getControllerLogResults)
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Kubectl execution failed, retrying...",
+					"err", err.Error())
 				return false
 			}
 			return strings.Contains(results.Output, "No resources found in")
