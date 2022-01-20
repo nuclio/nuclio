@@ -294,7 +294,6 @@ func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo) (map[string]
 var v3ioStreamResourceInstance = &v3ioStreamResource{
 	resource: newResource("api/v3io_streams", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
-		restful.ResourceMethodGetDetail,
 	}),
 }
 
