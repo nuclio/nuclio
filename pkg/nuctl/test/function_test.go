@@ -19,7 +19,6 @@ limitations under the License.
 package test
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -28,6 +27,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -207,7 +207,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	// cleanup
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
-	suite.inputBuffer = bytes.NewReader([]byte("-reverse this string+"))
+	suite.stdinReader = strings.NewReader("-reverse this string+")
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -1539,7 +1539,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// import the function from stdin
-	suite.inputBuffer = bytes.NewReader(exportedFunctionBody)
+	suite.stdinReader = strings.NewReader(string(exportedFunctionBody))
 	err = suite.ExecuteNuctl([]string{"import", "fu"}, nil)
 	suite.Require().NoError(err)
 

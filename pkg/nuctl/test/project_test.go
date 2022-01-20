@@ -19,11 +19,11 @@ limitations under the License.
 package test
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -257,7 +257,7 @@ func (suite *projectExportImportTestSuite) createImportedFunctions(projectName s
 		functionToImportEncoded := fmt.Sprintf(functionToImportTemplate, functionName, projectName)
 		functionsToImportEncoded += fmt.Sprintf("\n%s", functionToImportEncoded)
 	}
-	suite.inputBuffer = bytes.NewReader([]byte(functionsToImportEncoded))
+	suite.stdinReader = strings.NewReader(functionsToImportEncoded)
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{
@@ -429,7 +429,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 			suite.Require().NoError(err)
 
 			// import project from stdin
-			suite.inputBuffer = bytes.NewReader(encodedProjectImportConfig)
+			suite.stdinReader = strings.NewReader(string(encodedProjectImportConfig))
 
 			// import
 			err = suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, map[string]string{
