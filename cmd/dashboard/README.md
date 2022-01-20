@@ -261,7 +261,7 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 
 #### Request
 
-* URL: `GET /api/functions/<function name>`/replicas
+* URL: `GET /api/functions/<function name>/replicas`
 * Headers:
     * `x-nuclio-function-namespace`: Namespace (required)
 
@@ -789,3 +789,25 @@ in its spec/status - this will form a valid invocation URL.
 }
 ```
 
+### Get project's v3io streams
+
+#### Request
+
+* URL: `GET /api/streams`
+* Headers:
+  * `x-nuclio-project-name`: projectName (required)
+
+#### Response
+
+* Status code: 200
+* Body: for each stream in the project:
+
+```json
+{
+  "function-name@stream-name": {
+    "consumerGroup": "<consumer-group>",
+    "containerName": "<container-name",
+    "streamPath": "/path/of/stream"
+  }
+}
+```
