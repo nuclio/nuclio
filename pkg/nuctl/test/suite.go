@@ -173,7 +173,7 @@ func (suite *Suite) RetryExecuteNuctlUntilSuccessful(positionalArgs []string,
 			if err != nil {
 				suite.logger.WarnWithCtx(suite.ctx,
 					"Nuctl execution failed, retrying",
-					"err", err.Error())
+					"errStack", errors.GetErrorStackString(err, 10))
 				return false
 			}
 			return true
