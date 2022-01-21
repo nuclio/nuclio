@@ -19,11 +19,11 @@ limitations under the License.
 package test
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -67,15 +67,14 @@ func (suite *projectGetTestSuite) TestGet() {
 			"--verbose",
 		}, namedArgs)
 		suite.Require().NoError(err)
-
-		// cleanup
-		defer func(projectName string) {
-
-			// use nutctl to delete the project when we're done
-			suite.ExecuteNuctl([]string{"delete", "project", projectName}, nil) // nolint: errcheck
-
-		}(projectName)
 	}
+
+	// cleanup
+	defer func() {
+		for _, projectName := range projectNames {
+			suite.ExecuteNuctl([]string{"delete", "project", projectName}, nil) // nolint: errcheck
+		}
+	}()
 
 	err = suite.ExecuteNuctl([]string{"get", "project"}, nil)
 	suite.Require().NoError(err)
@@ -93,7 +92,8 @@ func (suite *projectGetTestSuite) TestGet() {
 
 	// verify second project deleted
 	suite.findPatternsInOutput([]string{
-		projectNames[0], projectNames[2],
+		projectNames[0],
+		projectNames[2],
 	}, []string{
 		projectNames[1],
 	})
@@ -257,7 +257,7 @@ func (suite *projectExportImportTestSuite) createImportedFunctions(projectName s
 		functionToImportEncoded := fmt.Sprintf(functionToImportTemplate, functionName, projectName)
 		functionsToImportEncoded += fmt.Sprintf("\n%s", functionToImportEncoded)
 	}
-	suite.inputBuffer = *bytes.NewBufferString(functionsToImportEncoded)
+	suite.stdinReader = strings.NewReader(functionsToImportEncoded)
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{
@@ -271,10 +271,6 @@ func (suite *projectExportImportTestSuite) createImportedFunctions(projectName s
 	for _, functionName := range functionNames {
 		suite.waitForFunctionState(functionName, functionconfig.FunctionStateImported)
 	}
-
-	// reset buffer
-	suite.inputBuffer.Reset()
-
 }
 
 type projectExportImportTestSuite struct {
@@ -433,7 +429,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 			suite.Require().NoError(err)
 
 			// import project from stdin
-			suite.inputBuffer = *bytes.NewBuffer(encodedProjectImportConfig)
+			suite.stdinReader = strings.NewReader(string(encodedProjectImportConfig))
 
 			// import
 			err = suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, map[string]string{
@@ -796,11 +792,8 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 func (suite *projectExportImportTestSuite) exportProject(projectName string,
 	positionalArgs []string) *command.ProjectImportConfig {
 
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
-
 	// export the project
-	exportProjectPositionalArgs := []string{"export", "project", projectName, "--verbose"}
+	exportProjectPositionalArgs := []string{"export", "project", projectName}
 	exportProjectPositionalArgs = append(exportProjectPositionalArgs, positionalArgs...)
 	err := suite.RetryExecuteNuctlUntilSuccessful(exportProjectPositionalArgs,
 		nil,

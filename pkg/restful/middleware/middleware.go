@@ -83,12 +83,16 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 			// restore body for further processing
 			request.Body = ioutil.NopCloser(bytes.NewBuffer(requestBody))
 
+			requestHeaders := request.Header.Clone() // for logging purposes
+			requestHeaders.Set("cookie", "[redacted]")
+			requestHeaders.Set("x-v3io-session-key", "[redacted]")
+
 			// when request processing is done, log the request / response
 			defer func() {
 				logVars := []interface{}{
 					"requestMethod", request.Method,
 					"requestPath", request.URL,
-					"requestHeaders", request.Header,
+					"requestHeaders", requestHeaders,
 					"requestBody", string(requestBody),
 					"responseStatus", responseWrapper.Status(),
 					"responseTime", time.Since(requestStartTime),

@@ -223,7 +223,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	createFunctionOptions.Logger = logStream.GetLogger()
 
 	reportCreationError := func(creationError error) error {
-		createFunctionOptions.Logger.WarnWithCtx(ctx, "Failed to create a function; setting the function status",
+		createFunctionOptions.Logger.WarnWithCtx(ctx,
+			"Failed to create a function; setting the function status",
 			"err", creationError)
 
 		errorStack := bytes.Buffer{}
@@ -245,7 +246,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	}
 
 	onAfterConfigUpdated := func() error {
-		createFunctionOptions.Logger.DebugWithCtx(ctx, "Creating shadow function",
+		createFunctionOptions.Logger.DebugWithCtx(ctx,
+			"Creating shadow function",
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
@@ -331,7 +333,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 
 	// If needed, load any docker image from archive into docker
 	if createFunctionOptions.InputImageFile != "" {
-		p.Logger.InfoWithCtx(ctx, "Loading docker image from archive",
+		p.Logger.InfoWithCtx(ctx,
+			"Loading docker image from archive",
 			"input", createFunctionOptions.InputImageFile)
 		if err := p.dockerClient.Load(createFunctionOptions.InputImageFile); err != nil {
 			return nil, errors.Wrap(err, "Failed to load a Docker image from an archive")
