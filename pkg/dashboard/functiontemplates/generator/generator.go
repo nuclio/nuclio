@@ -185,7 +185,7 @@ func (g *Generator) detectFunctionDirs() ([]string, error) {
 			if info.IsDir() {
 
 				// list function dir files
-				files, err := ioutil.ReadDir(path)
+				files, err := os.ReadDir(path)
 				if err != nil {
 					return errors.Wrapf(err, "Failed to read function dir files", "path", path)
 				}
@@ -213,7 +213,7 @@ func (g *Generator) detectFunctionDirs() ([]string, error) {
 	return functionDirs, nil
 }
 
-func (g *Generator) isFunctionDir(runtime *Runtime, functionDirFiles []os.FileInfo) bool {
+func (g *Generator) isFunctionDir(runtime *Runtime, functionDirFiles []os.DirEntry) bool {
 	for _, file := range functionDirFiles {
 
 		// directory has at least one file related to function's runtime or a function.yaml
@@ -335,7 +335,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 
 	// look for the first non-function.yaml file - this is our source code
 	// (multiple-source function templates not yet supported)
-	files, err := ioutil.ReadDir(functionDir)
+	files, err := os.ReadDir(functionDir)
 	if err != nil {
 		return nil, "", errors.Wrapf(err, "Failed to list function directory at %s", functionDir)
 	}

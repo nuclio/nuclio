@@ -770,7 +770,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 }
 
 func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, error) {
-	directories, err := ioutil.ReadDir(decompressDir)
+	directories, err := os.ReadDir(decompressDir)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to list decompressed directory tree")
 	}

@@ -468,7 +468,7 @@ func (suite *TestSuite) createFunctionArchive(functionDir string,
 	// use the reverse function
 	archivePath := path.Join(archiveDir, "reverser"+archiveExtension)
 
-	functionFileInfos, err := ioutil.ReadDir(functionDir)
+	functionFileInfos, err := os.ReadDir(functionDir)
 	suite.Require().NoError(err)
 
 	var functionFileNames []string

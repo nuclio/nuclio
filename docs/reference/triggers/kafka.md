@@ -322,4 +322,13 @@ triggers:
         enable: true
         user: "nuclio"
         password: "s3rv3rl3ss"
+        handshake: true
+
+        # [optional] specify mechanism
+        mechanism: SCRAM-SHA-256
+
+      # [optional] set tls if broker requires a secured communication
+      tls:
+        enable: true
+        insecureSkipVerify: true
 ```

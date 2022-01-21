@@ -17,7 +17,7 @@ limitations under the License.
 package dockercreds
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"time"
@@ -56,7 +56,7 @@ func NewDockerCreds(parentLogger logger.Logger,
 }
 
 func (dc *DockerCreds) LoadFromDir(keyDir string) error {
-	dockerKeyFileInfos, err := ioutil.ReadDir(keyDir)
+	dockerKeyFileInfos, err := os.ReadDir(keyDir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read docker key directory")
 	}
