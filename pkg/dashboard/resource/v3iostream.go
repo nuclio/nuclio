@@ -71,8 +71,6 @@ func (vsr *v3ioStreamResource) GetAll(request *http.Request) (map[string]restful
 // GetCustomRoutes returns a list of custom routes for the resource
 func (vsr *v3ioStreamResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
-	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
-	// we need to register custom routes
 	return []restful.CustomRoute{
 		{
 			Pattern:   "/get-shard-lags",
@@ -92,10 +90,20 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
+	projectName := request.Header.Get("x-nuclio-project-name")
+	if projectName == "" {
+		return nil, errors.New("Project name must not be empty")
+	}
+
+	functionName := request.Header.Get("x-nuclio-function-name")
+	if functionName == "" {
+		return nil, errors.New("Function name must not be empty")
+	}
+
 	// getting projects for validating project read permissions
 	if _, err := vsr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
-			Name:      request.Header.Get("x-nuclio-project-name"),
+			Name:      projectName,
 			Namespace: namespace,
 		},
 		AuthSession: vsr.getCtxSession(request),
@@ -124,7 +132,15 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 	}
 
 	return &restful.CustomRouteFuncResponse{
-		Resources:  shardLags,
+		Resources: map[string]restful.Attributes{
+			"meta": {
+				"projectName":  projectName,
+				"functionName": functionName,
+			},
+			"streamShardLags": map[string]interface{}{
+				"shardLags": shardLags,
+			},
+		},
 		Single:     false,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 		StatusCode: http.StatusOK,
@@ -228,12 +244,9 @@ func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo) (map[string]
 		return nil, errors.Wrap(err, "Failed creating v3io context")
 	}
 
-	// TODO: add a struct field on platform config called Streams (fields url / accessKey).
-	// these would be served as default values to access webapi.
-	// On provazio-controller, enrich its fields with values.
 	// For testing purposes, use the webapi url from your machine
 	//url := "https://webapi.default-tenant.app.dev62.lab.iguazeng.com" // "https://somewhere:8444"
-	//accessKey := "fec5a247-c0a5-42b7-a7fb-6cd4d5bf36ff"               // "some-access-key"
+	//accessKey := "f68221c5-2320-4ba7-b52b-b8e7d876eb86"               // "some-access-key"
 
 	dataPlaneInput := v3io.DataPlaneInput{
 		URL:           vsr.getPlatform().GetConfig().Stream.WebapiURL,
