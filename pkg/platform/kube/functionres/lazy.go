@@ -390,21 +390,26 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			return errors.Wrap(err, "Failed to delete configMap")
 		}
 	} else {
-		lc.logger.DebugWithCtx(ctx, "Deleted configMap", "namespace", namespace, "configMapName", configMapName)
+		lc.logger.DebugWithCtx(ctx,
+			"Deleted configMap",
+			"namespace", namespace,
+			"configMapName", configMapName)
 	}
 
+	// Delete function events
 	if err = lc.deleteFunctionEvents(ctx, name, namespace); err != nil {
 		return errors.Wrap(err, "Failed to delete function events")
 	}
 
-	if lc.platformConfigurationProvider.GetPlatformConfiguration().CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
-		if err = lc.deleteCronJobs(ctx, name, namespace); err != nil {
+	// Delete function k8s cronJobs
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().
+		CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		if err := lc.deleteCronJobs(ctx, name, namespace); err != nil {
 			return errors.Wrap(err, "Failed to delete function cron jobs")
 		}
 	}
 
 	lc.logger.DebugWithCtx(ctx, "Deleted deployed function", "namespace", namespace, "name", name)
-
 	return nil
 }
 
@@ -1215,10 +1220,17 @@ func (lc *lazyClient) deleteCronJobs(ctx context.Context, functionName, function
 
 	functionNameLabel := fmt.Sprintf("nuclio.io/function-name=%s", functionName)
 
+	zero := int64(0)
+	deleteInBackground := metav1.DeletePropagationBackground
 	return lc.kubeClientSet.BatchV1beta1().
 		CronJobs(functionNamespace).
-		DeleteCollection(ctx, metav1.DeleteOptions{},
-			metav1.ListOptions{LabelSelector: functionNameLabel})
+		DeleteCollection(ctx,
+			metav1.DeleteOptions{
+				GracePeriodSeconds: &zero,
+				PropagationPolicy:  &deleteInBackground,
+			},
+			metav1.ListOptions{LabelSelector: functionNameLabel},
+		)
 }
 
 func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,

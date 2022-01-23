@@ -125,7 +125,11 @@ func (rc *RootCommandeer) initialize() error {
 	// ask the factory to create the appropriate platform
 	// TODO: as more platforms are supported, i imagine the last argument will be to some
 	// sort of configuration provider interface
-	rc.platform, err = factory.CreatePlatform(context.Background(), rc.loggerInstance, rc.platformName, rc.platformConfiguration, rc.namespace)
+	rc.platform, err = factory.CreatePlatform(context.Background(),
+		rc.loggerInstance,
+		rc.platformName,
+		rc.platformConfiguration,
+		rc.namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
 	}
@@ -148,7 +152,9 @@ func (rc *RootCommandeer) createLogger() (logger.Logger, error) {
 		loggerLevel = nucliozap.InfoLevel
 	}
 
-	loggerInstance, err := nucliozap.NewNuclioZapCmd("nuctl", loggerLevel)
+	loggerInstance, err := nucliozap.NewNuclioZapCmd("nuctl",
+		loggerLevel,
+		common.GetRedactorInstance(rc.GetCmd().OutOrStdout()))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}

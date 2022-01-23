@@ -19,7 +19,6 @@ limitations under the License.
 package test
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -28,6 +27,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +45,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type functionBuildTestSuite struct {
@@ -203,11 +204,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
-	// use nutctl to delete the function when we're done
+	// cleanup
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
-	suite.inputBuffer = bytes.Buffer{}
-	suite.inputBuffer.WriteString("-reverse this string+")
+	suite.stdinReader = strings.NewReader("-reverse this string+")
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -1275,7 +1275,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"path":                      path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
-		"http-trigger-service-type": "ClusterIP",
+		"http-trigger-service-type": string(corev1.ServiceTypeClusterIP),
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1295,7 +1295,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"path":                      path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
-		"http-trigger-service-type": "NodePort",
+		"http-trigger-service-type": string(corev1.ServiceTypeNodePort),
 	}
 
 	err = suite.ExecuteNuctl([]string{"deploy", functionName2, "--verbose", "--no-pull"}, namedArgs)
@@ -1308,29 +1308,17 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName2}, nil) // nolint: errcheck
 
-	// get the function
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
-		"output": nuctlcommon.OutputFormatYAML,
-	}, false)
+	functionConfig, err := suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
-	functionConfig := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &functionConfig)
+	suite.Assert().Equal(string(corev1.ServiceTypeClusterIP),
+		functionConfig.Spec.Triggers["default-http"].Attributes["serviceType"])
+
+	function2Config, err := suite.getFunctionInFormat(functionName2, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
 
-	suite.Assert().Equal("ClusterIP", functionConfig.Spec.Triggers["default-http"].Attributes["serviceType"])
-
-	// get the function
-	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName2}, map[string]string{
-		"output": nuctlcommon.OutputFormatYAML,
-	}, false)
-	suite.Require().NoError(err)
-
-	function2Config := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &function2Config)
-	suite.Require().NoError(err)
-
-	suite.Assert().Equal("NodePort", function2Config.Spec.Triggers["default-http"].Attributes["serviceType"])
+	suite.Assert().Equal(string(corev1.ServiceTypeNodePort),
+		function2Config.Spec.Triggers["default-http"].Attributes["serviceType"])
 }
 
 type functionGetTestSuite struct {
@@ -1534,15 +1522,13 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	// use nuctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
-	// reset output buffer for reading the next output cleanly
-	suite.outputBuffer.Reset()
-	suite.inputBuffer.Reset()
-
 	// export the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
-	exportedFunctionBody := suite.outputBuffer.Bytes()
+	// make a copy, use later
+	exportedFunctionBody := make([]byte, len(suite.outputBuffer.Bytes()))
+	copy(exportedFunctionBody, suite.outputBuffer.Bytes())
 
 	// delete original function in order to resolve conflict while importing the function
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
@@ -1553,7 +1539,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// import the function from stdin
-	suite.inputBuffer.Write(exportedFunctionBody)
+	suite.stdinReader = strings.NewReader(string(exportedFunctionBody))
 	err = suite.ExecuteNuctl([]string{"import", "fu"}, nil)
 	suite.Require().NoError(err)
 
@@ -1605,9 +1591,6 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
-
-	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
 
 	// export the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)

@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	nucliozap "github.com/nuclio/zap"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,8 +30,18 @@ import (
 
 const DefaultFunctionReadinessTimeoutSeconds = 60
 
+type LoggerSinkKind string
+
+const (
+	LoggerSinkKindStdout      LoggerSinkKind = "stdout"
+	LoggerSinkKindAppInsights LoggerSinkKind = "appinsights"
+
+	// LoggerSinkKindElasticsearch is not supported
+	LoggerSinkKindElasticsearch LoggerSinkKind = "elasticsearch"
+)
+
 type LoggerSink struct {
-	Kind       string                 `json:"kind,omitempty"`
+	Kind       LoggerSinkKind         `json:"kind,omitempty"`
 	URL        string                 `json:"url,omitempty"`
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
@@ -38,16 +49,17 @@ type LoggerSink struct {
 type LoggerSinkWithLevel struct {
 	Level string
 	Sink  LoggerSink
+
+	redactor *nucliozap.Redactor
+}
+
+func (l *LoggerSinkWithLevel) GetRedactingLogger() *nucliozap.Redactor {
+	return l.redactor
 }
 
 type LoggerSinkBinding struct {
 	Level string `json:"level,omitempty"`
 	Sink  string `json:"sink,omitempty"`
-}
-
-type FunctionsLogger struct {
-	DefaultLevel string `json:"defaultLevel,omitempty"`
-	DefaultSink  string `json:"defaultSink,omitempty"`
 }
 
 type Logger struct {

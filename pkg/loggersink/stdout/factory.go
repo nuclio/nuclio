@@ -17,6 +17,7 @@ limitations under the License.
 package stdout
 
 import (
+	"io"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/loggersink"
@@ -31,6 +32,17 @@ type factory struct{}
 
 func (f *factory) Create(name string,
 	loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
+
+	var writer io.Writer = os.Stdout
+	if redactingLogger := loggerSinkConfiguration.GetRedactingLogger(); redactingLogger != nil {
+
+		// default redacting logger output to stdout
+		if redactingLogger.GetOutput() == nil {
+			redactingLogger.SetOutput(writer)
+		}
+
+		writer = redactingLogger
+	}
 
 	configuration, err := NewConfiguration(name, loggerSinkConfiguration)
 	if err != nil {
@@ -61,8 +73,8 @@ func (f *factory) Create(name string,
 	return nucliozap.NewNuclioZap(name,
 		configuration.Encoding,
 		encoderConfig,
-		os.Stdout,
-		os.Stdout,
+		writer,
+		writer,
 		level)
 }
 

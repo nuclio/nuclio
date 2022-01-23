@@ -61,6 +61,7 @@ func (r *Reader) ReadFileOrDefault(configurationPath string) (*Config, error) {
 
 func (r *Reader) GetDefaultConfiguration() *Config {
 	trueValue := true
+	defaultSinkName := "stdout"
 
 	return &Config{
 		WebAdmin: WebServer{
@@ -73,17 +74,17 @@ func (r *Reader) GetDefaultConfiguration() *Config {
 		},
 		Logger: Logger{
 
-			// create an stdout sink and bind everything to it @ debug level
+			// create an STDOUT sink and bind everything to it @ debug level
 			Sinks: map[string]LoggerSink{
-				"stdout": {Kind: "stdout"},
+				defaultSinkName: {Kind: LoggerSinkKindStdout},
 			},
 
 			System: []LoggerSinkBinding{
-				{Level: "debug", Sink: "stdout"},
+				{Level: "debug", Sink: defaultSinkName},
 			},
 
 			Functions: []LoggerSinkBinding{
-				{Level: "debug", Sink: "stdout"},
+				{Level: "debug", Sink: defaultSinkName},
 			},
 		},
 	}

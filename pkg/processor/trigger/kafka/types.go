@@ -42,6 +42,7 @@ type Configuration struct {
 	BalanceStrategy string
 	SASL            struct {
 		Enable    bool
+		Handshake bool
 		User      string
 		Password  string
 		Mechanism string
@@ -53,6 +54,11 @@ type Configuration struct {
 			TokenURL     string
 			Scopes       []string
 		}
+	}
+
+	TLS struct {
+		Enable             bool
+		InsecureSkipVerify bool
 	}
 
 	SessionTimeout                string
@@ -74,6 +80,7 @@ type Configuration struct {
 	AccessCertificate             string
 	LogLevel                      int
 	AckWindowSize                 int
+	Version                       string
 
 	// resolved fields
 	brokers                       []string
@@ -121,12 +128,18 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-access-cert", ValueString: &newConfiguration.AccessCertificate},
 		{Key: "nuclio.io/kafka-ca-cert", ValueString: &newConfiguration.CACert},
 		{Key: "nuclio.io/kafka-log-level", ValueInt: &newConfiguration.LogLevel},
+		{Key: "nuclio.io/kafka-version", ValueString: &newConfiguration.Version},
+
+		// tls
+		{Key: "nuclio.io/kafka-tls-enabled", ValueBool: &newConfiguration.TLS.Enable},
+		{Key: "nuclio.io/kafka-tls-insecure-skip-verify", ValueBool: &newConfiguration.TLS.InsecureSkipVerify},
 
 		// sasl
 		{Key: "nuclio.io/kafka-sasl-enabled", ValueBool: &newConfiguration.SASL.Enable},
 		{Key: "nuclio.io/kafka-sasl-user", ValueString: &newConfiguration.SASL.User},
 		{Key: "nuclio.io/kafka-sasl-password", ValueString: &newConfiguration.SASL.Password},
 		{Key: "nuclio.io/kafka-sasl-mechanism", ValueString: &newConfiguration.SASL.Mechanism},
+		{Key: "nuclio.io/kafka-sasl-handshake", ValueBool: &newConfiguration.SASL.Handshake},
 
 		// sasl.oauth
 		{Key: "nuclio.io/kafka-sasl-oauth-client-id", ValueString: &newConfiguration.SASL.OAuth.ClientID},

@@ -21,6 +21,7 @@ package test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -57,10 +58,11 @@ type Suite struct {
 	dockerClient         dockerclient.Client
 	shellClient          *cmdrunner.ShellRunner
 	outputBuffer         bytes.Buffer
-	inputBuffer          bytes.Buffer
+	stdinReader          *strings.Reader
 	defaultWaitDuration  time.Duration
 	defaultWaitInterval  time.Duration
 	namespace            string
+	ctx                  context.Context
 }
 
 func (suite *Suite) SetupSuite() {
@@ -101,11 +103,15 @@ func (suite *Suite) SetupSuite() {
 		err = os.Setenv(nuctlPlatformEnvVarName, "local")
 		suite.Require().NoError(err)
 	}
+
+	suite.ctx = context.Background()
 }
 
 func (suite *Suite) SetupTest() {
 	suite.outputBuffer.Reset()
-	suite.inputBuffer.Reset()
+
+	// each test initializes it upon usage
+	suite.stdinReader = nil
 }
 
 func (suite *Suite) TearDownSuite() {
@@ -119,13 +125,17 @@ func (suite *Suite) TearDownSuite() {
 func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	namedArgs map[string]string) error {
 
+	// reset buffer to ensure it contains only last executed command
+	suite.outputBuffer.Reset()
 	rootCommandeer := command.NewRootCommandeer()
 
-	// set the output so we can capture it (but also output to stdout)
+	// set the output, so we can capture it (but also output to stdout)
 	rootCommandeer.GetCmd().SetOut(io.MultiWriter(os.Stdout, &suite.outputBuffer))
 
 	// set the input so we can write to stdin
-	rootCommandeer.GetCmd().SetIn(&suite.inputBuffer)
+	if suite.stdinReader != nil {
+		rootCommandeer.GetCmd().SetIn(suite.stdinReader)
+	}
 
 	// since args[0] is the executable name, just shove something there
 	argsStringSlice := []string{
@@ -157,12 +167,28 @@ func (suite *Suite) RetryExecuteNuctlUntilSuccessful(positionalArgs []string,
 		suite.defaultWaitInterval,
 		func() bool {
 
+			defer func() {
+
+				// upon retry, ensure stdin data is readable again
+				if suite.stdinReader != nil {
+					suite.stdinReader.Seek(0, io.SeekStart) // nolint: errcheck
+				}
+			}()
+
 			// execute
 			err := suite.ExecuteNuctl(positionalArgs, namedArgs)
 			if expectFailure {
 				return err != nil
 			}
-			return err == nil
+
+			// retry
+			if err != nil {
+				suite.logger.WarnWithCtx(suite.ctx,
+					"Nuctl execution failed, retrying",
+					"errStack", errors.GetErrorStackString(err, 10))
+				return false
+			}
+			return true
 		})
 }
 
@@ -171,7 +197,7 @@ func (suite *Suite) GetNuclioSourceDir() string {
 	return common.GetSourceDir()
 }
 
-// GetNuclioSourceDir returns path to nuclio source directory
+// GetFunctionsDir returns path to nuclio source directory
 func (suite *Suite) GetFunctionsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
 }

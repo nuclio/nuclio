@@ -169,11 +169,15 @@ func (suite *KubeTestSuite) TearDownTest() {
 	err := common.RetryUntilSuccessful(5*time.Minute,
 		5*time.Second,
 		func() bool {
-			results, err := suite.executeKubectl([]string{"get", "all"},
+			results, err := suite.executeKubectl(
+				[]string{"get", "all"},
 				map[string]string{
 					"selector": "nuclio.io/app",
 				})
 			if err != nil {
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Kubectl execution failed, retrying...",
+					"err", err.Error())
 				return false
 			}
 			return strings.Contains(results.Output, "No resources found in")
@@ -241,39 +245,48 @@ func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platfo
 	return function
 }
 
-func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(functionURL string,
+func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(ctx context.Context,
+	functionURL string,
 	retryDuration time.Duration,
 	events interface{}) {
 	err := common.RetryUntilSuccessful(retryDuration,
 		2*time.Second,
 		func() bool {
-			suite.Logger.DebugWith("Trying to get recorded events", "functionURL", functionURL)
+			suite.Logger.DebugWithCtx(ctx, "Trying to get recorded events", "functionURL", functionURL)
 
 			// invoke function
 			httpResponse, err := http.Get(functionURL)
 			if err != nil {
-				suite.Logger.WarnWith("Failed to get function recorded events",
+				suite.Logger.WarnWithCtx(ctx, "Failed to get function recorded events",
 					"functionURL", functionURL,
-					"err", err)
+					"err", err.Error())
+				return false
+			}
+
+			if httpResponse.StatusCode == http.StatusServiceUnavailable {
+				suite.Logger.WarnWithCtx(ctx, "Function is not yet available", "functionURL", functionURL)
 				return false
 			}
 
 			// read response body
 			responseBody, err := ioutil.ReadAll(httpResponse.Body)
 			if err != nil {
-				suite.Logger.WarnWith("Failed to read response body", "err", err)
+				suite.Logger.WarnWithCtx(ctx,
+					"Failed to read response body",
+					"err", err.Error())
 				return false
 			}
 
 			// unmarshal recorded events
-			if err = json.Unmarshal(responseBody, &events); err != nil {
-				suite.Logger.WarnWith("Failed to unmarshal response body",
-					"responseBody", responseBody,
-					"err", err)
+			if err := json.Unmarshal(responseBody, &events); err != nil {
+				suite.Logger.WarnWithCtx(ctx,
+					"Failed to unmarshal response body",
+					"responseBody", string(responseBody),
+					"err", err.Error())
 				return false
 			}
 
-			// events has not been unmarshalled yet, responseBody might be empty
+			// events were not been unmarshalled yet, responseBody might be empty
 			if events == nil {
 				return false
 			}
@@ -292,7 +305,8 @@ func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(functionURL
 		})
 
 	suite.Require().NoError(err)
-	suite.Logger.DebugWith("Got events from event recorder function",
+	suite.Logger.DebugWithCtx(ctx,
+		"Got events from event recorder function",
 		"events", events)
 }
 
