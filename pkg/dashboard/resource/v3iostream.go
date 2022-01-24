@@ -131,16 +131,14 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 		return nil, errors.Wrap(err, "Failed getting shard lags")
 	}
 
+	// enrich metadata for response
+	shardLags["metadata"] = restful.Attributes{
+		"projectName":  projectName,
+		"functionName": functionName,
+	}
+
 	return &restful.CustomRouteFuncResponse{
-		Resources: map[string]restful.Attributes{
-			"meta": {
-				"projectName":  projectName,
-				"functionName": functionName,
-			},
-			"streamShardLags": map[string]interface{}{
-				"shardLags": shardLags,
-			},
-		},
+		Resources:  shardLags,
 		Single:     false,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 		StatusCode: http.StatusOK,
@@ -244,9 +242,9 @@ func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo) (map[string]
 		return nil, errors.Wrap(err, "Failed creating v3io context")
 	}
 
-	// For testing purposes, use the webapi url from your machine
-	//url := "https://webapi.default-tenant.app.dev62.lab.iguazeng.com" // "https://somewhere:8444"
-	//accessKey := "f68221c5-2320-4ba7-b52b-b8e7d876eb86"               // "some-access-key"
+	// For testing purposes, use the webapi url and data access from your machine
+	// url := "https://v3io-webapi:8081"
+	// accessKey := "some-access-key"
 
 	dataPlaneInput := v3io.DataPlaneInput{
 		URL:           vsr.getPlatform().GetConfig().Stream.WebapiURL,
