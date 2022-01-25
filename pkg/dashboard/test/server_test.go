@@ -3183,9 +3183,38 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsNoNamespace() {
 
 func (suite *v3ioStreamTestSuite) TestGetShardLagsSuccessful() {
 
+	returnedProject := platform.AbstractProject{}
+	returnedProject.ProjectConfig.Meta.Name = "p1"
+	returnedProject.ProjectConfig.Meta.Namespace = "p1-namespace"
+	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("p1-namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.Anything, mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetConfig").
+		Return(&platformconfig.Config{
+			Stream: platformconfig.StreamConfig{
+				WebapiURL: "https://v3io-webapi:8081",
+				AccessKey: "f68221c5-2320-4ba7-b52b-b8e7d876eb86",
+			},
+		}, nil).
+		Twice()
+
 	headers := map[string]string{
-		"x-nuclio-project-namespace": "some-namespace",
+		"x-nuclio-project-namespace": "p1-namespace",
 		"x-nuclio-project-name":      "p1",
+		"x-nuclio-function-name":     "f1",
 	}
 
 	expectedStatusCode := http.StatusOK
