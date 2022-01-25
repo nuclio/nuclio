@@ -10,9 +10,9 @@ import (
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/google/uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/satori/go.uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -290,7 +290,7 @@ func (i *importProjectCommandeer) importFunctionEvent(ctx context.Context, funct
 	}
 
 	// generate new name for events to avoid collisions
-	functionEvent.Meta.Name = uuid.NewV4().String()
+	functionEvent.Meta.Name = uuid.New().String()
 
 	// populate namespace
 	functionEvent.Meta.Namespace = i.rootCommandeer.namespace
