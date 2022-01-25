@@ -785,19 +785,19 @@ More information can be found in [v3ioStream: Iguazio Data Science Platform Stre
 ```json
 {
   "shard-id-0": {
-    "committed": <committed-sequences-number>,
-    "current": <current-sequence-number>,
-    "lag": <shard-lag>
+    "committed": "<committed-sequences-number>",
+    "current": "<current-sequence-number>",
+    "lag": "<shard-lag>"
   },
   ...
   "shard-id-N": {
-    "committed": <committed-sequences-number>,
-    "current": <current-sequence-number>,
-    "lag": <shard-lag>
+    "committed": "<committed-sequences-number>",
+    "current": "<current-sequence-number>",
+    "lag": "<shard-lag>"
   },
   "metadata": {
-    "functionName": <function-name>,
-    "projectName": <project-name>
+    "functionName": "<function-name>",
+    "projectName": "<project-name>"
   }
 }
 ```
