@@ -426,6 +426,14 @@ platform: {}
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow
+#
+#   defaultUserFunctionPodResources
+#      requests:
+#        cpu: 25m
+#        memory: 1Mi
+#      limits:
+#        cpu: 2
+#        memory: 20Mi
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
