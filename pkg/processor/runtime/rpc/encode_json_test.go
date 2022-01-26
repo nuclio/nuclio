@@ -24,14 +24,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
 )
 
 var (
-	testID                  = nuclio.ID(uuid.NewV4().String())
+	testID                  = nuclio.ID(uuid.New().String())
 	testTriggerInfoProvider = &TestTriggerInfoProvider{}
 
 	testHeaders = map[string]interface{}{
@@ -155,7 +155,8 @@ func (te *TestEvent) GetFieldString(key string) string {
 func (te *TestEvent) GetFieldInt(key string) (int, error) {
 	return testFields[key].(int), nil
 }
-func (te *TestEvent) SetID(id nuclio.ID)                                    {}
+func (te *TestEvent) SetID(id nuclio.ID) {}
+
 func (te *TestEvent) SetTriggerInfoProvider(tip nuclio.TriggerInfoProvider) {}
 
 type EventJSONEncoderSuite struct {

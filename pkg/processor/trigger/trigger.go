@@ -25,10 +25,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/google/uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/satori/go.uuid"
 )
 
 const (
@@ -322,7 +322,7 @@ func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *work
 	}
 
 	// Not a cloud event
-	event.SetID(nuclio.ID(uuid.NewV4().String()))
+	event.SetID(nuclio.ID(uuid.New().String()))
 	event.SetTriggerInfoProvider(at)
 	return event, nil
 }

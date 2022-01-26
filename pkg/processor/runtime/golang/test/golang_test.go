@@ -34,7 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
-	"github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )
@@ -199,7 +199,7 @@ func (suite *TestSuite) TestCustomEvent() {
 		}
 
 		// ID must be a UUID
-		_, err = uuid.FromString(string(unmarshalledBody.ID))
+		_, err = uuid.Parse(string(unmarshalledBody.ID))
 		suite.Require().NoError(err)
 	}
 	suite.DeployFunctionAndRequest(createFunctionOptions, &httpsuite.Request{
