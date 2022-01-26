@@ -53,6 +53,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 	}())
 	authInstance := newAuth.(*Auth)
 	authInstance.httpClient = mockedHTTPClient
+	authOptions := auth.Options{}
 	incomingRequest := &http.Request{
 		Header: map[string][]string{
 			"Authorization": {"Basic YWJjOmVmZwo="},
@@ -60,14 +61,14 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 		}}
 
 	// step A. successfully authenticate, let it to be cached
-	_, err := authInstance.Authenticate(incomingRequest)
+	_, err := authInstance.Authenticate(incomingRequest, authOptions)
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(authInstance.cache.Keys())
 
 	// step B. re-authenticate, read from cache
 	// nil the http client in order to force it to panic if it was used to make an HTTP request
 	authInstance.httpClient = nil
-	session, err := authInstance.Authenticate(incomingRequest)
+	session, err := authInstance.Authenticate(incomingRequest, authOptions)
 	suite.Require().NoError(err)
 	suite.Require().Equal("some-user-id", session.GetUserID())
 	suite.Require().Equal([]string{"1", "2", "3"}, session.GetGroupIDs())
@@ -82,7 +83,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 			StatusCode: http.StatusUnauthorized,
 		}
 	})
-	_, err = authInstance.Authenticate(incomingRequest)
+	_, err = authInstance.Authenticate(incomingRequest, authOptions)
 	suite.Require().Error(err)
 	suite.Require().Empty(authInstance.cache.Keys())
 }
@@ -112,6 +113,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 	for _, testCase := range []struct {
 		name            string
 		auth            auth.Auth
+		authOptions     auth.Options
 		incomingRequest *http.Request
 		invalidRequest  bool
 	}{
@@ -122,6 +124,24 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
 				return authConfig
 			}()),
+			authOptions: auth.Options{},
+			incomingRequest: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Basic YWJjOmVmZwo="},
+					"Cookie":        {"session=some-session"},
+				},
+			},
+		},
+		{
+			name: "enrichmentSanity",
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
+			authOptions: auth.Options{
+				EnrichDataPlane: true,
+			},
 			incomingRequest: &http.Request{
 				Header: map[string][]string{
 					"Authorization": {"Basic YWJjOmVmZwo="},
@@ -136,6 +156,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
 				return authConfig
 			}()),
+			authOptions: auth.Options{},
 			incomingRequest: &http.Request{
 				Header: map[string][]string{
 					"Authorization": {"Basic YWJjOmVmZwo="},
@@ -150,6 +171,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
 				return authConfig
 			}()),
+			authOptions: auth.Options{},
 			incomingRequest: &http.Request{
 				Header: map[string][]string{
 					"Cookie": {"session=some-session"},
@@ -160,7 +182,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 	} {
 		suite.Run(testCase.name, func() {
 			testCase.auth.(*Auth).httpClient = mockedHTTPClient
-			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest)
+			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest, testCase.authOptions)
 			if testCase.invalidRequest {
 				suite.Require().Error(err)
 				return

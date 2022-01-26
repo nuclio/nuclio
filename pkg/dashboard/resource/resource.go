@@ -90,12 +90,12 @@ func (r *resource) getDashboard() *dashboard.Server {
 	return r.GetServer().(*dashboard.Server)
 }
 
-func (r *resource) addAuthMiddleware() {
+func (r *resource) addAuthMiddleware(options auth.Options) {
 	authenticator := r.getDashboard().GetAuthenticator()
 	r.Logger.DebugWith("Installing auth middleware on router",
 		"authenticatorKind", authenticator.Kind(),
 		"resourceName", r.GetName())
-	r.GetRouter().Use(authenticator.Middleware())
+	r.GetRouter().Use(authenticator.Middleware(options))
 }
 
 func (r *resource) getCtxSession(request *http.Request) auth.Session {

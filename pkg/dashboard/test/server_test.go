@@ -3201,16 +3201,6 @@ func (suite *v3ioStreamTestSuite) TestGetShardLagsSuccessful() {
 		Return([]platform.Project{&returnedProject}, nil).
 		Once()
 
-	suite.mockPlatform.
-		On("GetConfig").
-		Return(&platformconfig.Config{
-			Stream: platformconfig.StreamConfig{
-				WebapiURL: "https://v3io-webapi:8081",
-				AccessKey: "f68221c5-2320-4ba7-b52b-b8e7d876eb86",
-			},
-		}, nil).
-		Twice()
-
 	headers := map[string]string{
 		"x-nuclio-project-namespace": "p1-namespace",
 		"x-nuclio-project-name":      "p1",

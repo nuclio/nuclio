@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -48,7 +50,9 @@ type v3ioStreamInfo struct {
 }
 
 func (vsr *v3ioStreamResource) ExtendMiddlewares() error {
-	vsr.resource.addAuthMiddleware()
+	vsr.resource.addAuthMiddleware(auth.Options{
+		EnrichDataPlane: true,
+	})
 	return nil
 }
 
@@ -126,7 +130,7 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	shardLags, err := vsr.getShardLagsMap(v3ioStreamInfoInstance)
+	shardLags, err := vsr.getShardLagsMap(ctx, v3ioStreamInfoInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting shard lags")
 	}
@@ -234,7 +238,7 @@ func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context
 	return current, committed, nil
 }
 
-func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo) (map[string]restful.Attributes, error) {
+func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStreamInfo) (map[string]restful.Attributes, error) {
 
 	// create v3io context
 	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{})
@@ -245,10 +249,15 @@ func (vsr *v3ioStreamResource) getShardLagsMap(info v3ioStreamInfo) (map[string]
 	// For testing purposes, use the webapi url and data access from your machine
 	// url := "https://v3io-webapi:8081"
 	// accessKey := "some-access-key"
+	// a data plane access key is required for v3io operations
+	accessKey := ctx.Value(auth.IguazioContextKey).(auth.IguazioSession).SessionKey
+	if accessKey == "" {
+		return nil, errors.Wrap(err, "A data plane access key is required")
+	}
 
 	dataPlaneInput := v3io.DataPlaneInput{
-		URL:           vsr.getPlatform().GetConfig().Stream.WebapiURL,
-		AccessKey:     vsr.getPlatform().GetConfig().Stream.AccessKey,
+		URL:           "http://v3io-webapi:8081",
+		AccessKey:     accessKey,
 		ContainerName: info.ContainerName,
 	}
 	getContainerContentsInput := &v3io.GetContainerContentsInput{

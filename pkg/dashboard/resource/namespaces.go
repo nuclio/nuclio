@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/restful"
 )
 
@@ -28,7 +29,7 @@ type namespaceResource struct {
 }
 
 func (nr *namespaceResource) ExtendMiddlewares() error {
-	nr.resource.addAuthMiddleware()
+	nr.resource.addAuthMiddleware(auth.Options{})
 	return nil
 }
 

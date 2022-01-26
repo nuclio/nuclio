@@ -43,7 +43,7 @@ type apiGatewayInfo struct {
 }
 
 func (agr *apiGatewayResource) ExtendMiddlewares() error {
-	agr.resource.addAuthMiddleware()
+	agr.resource.addAuthMiddleware(auth.Options{})
 	return nil
 }
 

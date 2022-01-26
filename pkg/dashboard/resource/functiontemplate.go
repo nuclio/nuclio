@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -43,7 +44,7 @@ func (ftr *functionTemplateResource) OnAfterInitialize() error {
 }
 
 func (ftr *functionTemplateResource) ExtendMiddlewares() error {
-	ftr.resource.addAuthMiddleware()
+	ftr.resource.addAuthMiddleware(auth.Options{})
 	return nil
 }
 

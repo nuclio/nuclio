@@ -40,7 +40,7 @@ func NewAuth(logger logger.Logger, config *auth.Config) auth.Auth {
 
 // Authenticate will ask IguazioConfig session verification endpoint to verify the request session
 // and enrich with session metadata
-func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
+func (a *Auth) Authenticate(request *http.Request, options auth.Options) (auth.Session, error) {
 	authorization := request.Header.Get("authorization")
 	cookie := request.Header.Get("cookie")
 	cacheKey := authorization + cookie
@@ -59,8 +59,15 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 		"cookie":        cookie,
 	}
 
+	url := a.config.Iguazio.VerificationURL
+	if options.EnrichDataPlane {
+
+		// TODO: resolve full url in Provazio
+		url += "_enrich_data"
+	}
+
 	response, err := a.performHTTPRequest(http.MethodPost,
-		a.config.Iguazio.VerificationURL,
+		url,
 		nil,
 		map[string]string{
 			"authorization": authorization,
@@ -110,10 +117,10 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 }
 
 // Middleware will authenticate the incoming request and store the session within the request context
-func (a *Auth) Middleware() func(next http.Handler) http.Handler {
+func (a *Auth) Middleware(options auth.Options) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session, err := a.Authenticate(r)
+			session, err := a.Authenticate(r, options)
 			ctx := r.Context()
 			if err != nil {
 				a.logger.WarnWithCtx(ctx, "Authentication failed",

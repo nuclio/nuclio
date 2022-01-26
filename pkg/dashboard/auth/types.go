@@ -57,6 +57,10 @@ func NewConfig(kind Kind) *Config {
 	return config
 }
 
+type Options struct {
+	EnrichDataPlane bool
+}
+
 type Session interface {
 	GetUsername() string
 	GetPassword() string
@@ -66,7 +70,7 @@ type Session interface {
 }
 
 type Auth interface {
-	Authenticate(request *http.Request) (Session, error)
-	Middleware() func(http.Handler) http.Handler
+	Authenticate(request *http.Request, options Options) (Session, error)
+	Middleware(options Options) func(http.Handler) http.Handler
 	Kind() Kind
 }

@@ -51,7 +51,7 @@ type functionInfo struct {
 }
 
 func (fr *functionResource) ExtendMiddlewares() error {
-	fr.resource.addAuthMiddleware()
+	fr.resource.addAuthMiddleware(auth.Options{})
 	return nil
 }
 

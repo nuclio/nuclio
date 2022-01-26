@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -39,7 +40,7 @@ type invocationResource struct {
 }
 
 func (tr *invocationResource) ExtendMiddlewares() error {
-	tr.resource.addAuthMiddleware()
+	tr.resource.addAuthMiddleware(auth.Options{})
 	return nil
 }
 
