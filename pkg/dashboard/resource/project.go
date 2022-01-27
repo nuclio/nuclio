@@ -85,10 +85,10 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 			Namespace: namespace,
 		},
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
-		AuthSession:   pr.getCtxSession(request),
+		AuthSession:   pr.getCtxSession(ctx),
 		SessionCookie: sessionCookie,
 		RequestOrigin: requestOrigin,
 	})
@@ -236,9 +236,9 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 		Labels: fmt.Sprintf("%s=%s",
 			common.NuclioResourceLabelKeyProjectName,
 			project.GetConfig().Meta.Name),
-		AuthSession: pr.getCtxSession(request),
+		AuthSession: pr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -290,7 +290,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		ProjectConfig: newProject.GetConfig(),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		AuthSession:   pr.getCtxSession(request),
+		AuthSession:   pr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -378,7 +378,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 	projects, err := pr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta:        *projectImportOptions.projectInfo.Project.Meta,
-		AuthSession: pr.getCtxSession(request),
+		AuthSession: pr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
@@ -412,7 +412,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 
 		if err := newProject.CreateAndWait(ctx, &platform.CreateProjectOptions{
 			ProjectConfig: newProject.GetConfig(),
-			AuthSession:   pr.getCtxSession(request),
+			AuthSession:   pr.getCtxSession(ctx),
 			PermissionOptions: opa.PermissionOptions{
 				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 			},
@@ -489,9 +489,9 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 	functions, err := pr.getPlatform().GetFunctions(ctx, &platform.GetFunctionsOptions{
 		Name:        function.Meta.Name,
 		Namespace:   function.Meta.Namespace,
-		AuthSession: pr.getCtxSession(request),
+		AuthSession: pr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -594,9 +594,9 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 			Name:      projectName,
 			Namespace: projectNamespace,
 		},
-		AuthSession: pr.getCtxSession(request),
+		AuthSession: pr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -636,7 +636,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		Strategy:      platform.ResolveProjectDeletionStrategyOrDefault(projectDeletionStrategy),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
-		AuthSession:   pr.getCtxSession(request),
+		AuthSession:   pr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -675,7 +675,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 			Meta: *projectInfo.Meta,
 			Spec: *projectInfo.Spec,
 		},
-		AuthSession:   pr.getCtxSession(request),
+		AuthSession:   pr.getCtxSession(ctx),
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
 		PermissionOptions: opa.PermissionOptions{

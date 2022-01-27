@@ -3188,6 +3188,8 @@ func (suite *v3ioStreamTestSuite) TestGetShardLagsSuccessful() {
 	returnedProject.ProjectConfig.Meta.Namespace = "p1-namespace"
 	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
 
+	// TODO: mock fast http client and put it in the vsr v3ioHTTPClient
+
 	// verify
 	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
 		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)

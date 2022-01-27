@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -98,6 +99,6 @@ func (r *resource) addAuthMiddleware(options auth.Options) {
 	r.GetRouter().Use(authenticator.Middleware(options))
 }
 
-func (r *resource) getCtxSession(request *http.Request) auth.Session {
-	return request.Context().Value(auth.ContextKeyByKind(r.getDashboard().GetAuthenticator().Kind())).(auth.Session)
+func (r *resource) getCtxSession(ctx context.Context) auth.Session {
+	return ctx.Value(auth.ContextKeyByKind(r.getDashboard().GetAuthenticator().Kind())).(auth.Session)
 }

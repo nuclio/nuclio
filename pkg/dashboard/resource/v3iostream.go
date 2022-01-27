@@ -37,10 +37,12 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	v3io "github.com/v3io/v3io-go/pkg/dataplane"
 	v3iohttp "github.com/v3io/v3io-go/pkg/dataplane/http"
+	"github.com/valyala/fasthttp"
 )
 
 type v3ioStreamResource struct {
 	*resource
+	V3ioHTTPClient *fasthttp.Client
 }
 
 type v3ioStreamInfo struct {
@@ -110,9 +112,9 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 			Name:      projectName,
 			Namespace: namespace,
 		},
-		AuthSession: vsr.getCtxSession(request),
+		AuthSession: vsr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
@@ -171,9 +173,9 @@ func (vsr *v3ioStreamResource) getFunctions(request *http.Request) ([]platform.F
 		Labels: fmt.Sprintf("%s=%s",
 			common.NuclioResourceLabelKeyProjectName,
 			projectName),
-		AuthSession: vsr.getCtxSession(request),
+		AuthSession: vsr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -206,51 +208,20 @@ func (vsr *v3ioStreamResource) getNamespaceFromRequest(request *http.Request) st
 	return vsr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
 }
 
-func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context, info v3ioStreamInfo, shardID int, dataPlaneInput v3io.DataPlaneInput) (int, int, error) {
-	response, err := v3ioContext.GetItemSync(&v3io.GetItemInput{
-		DataPlaneInput: dataPlaneInput,
-		Path:           fmt.Sprintf("%s/%d", info.StreamPath, shardID),
-		AttributeNames: []string{
-			"__last_sequence_num",
-			fmt.Sprintf("__%s_committed_sequence_number", info.ConsumerGroup),
-		},
-	})
-	if err != nil {
-		return 0, 0, err
-	}
-	defer response.Release()
-	getItemOutput := response.Output.(*v3io.GetItemOutput)
-
-	current, err := getItemOutput.Item.GetFieldInt("__last_sequence_num")
-	if err != nil {
-		return 0, 0, err
-	}
-
-	committed, err := getItemOutput.Item.GetFieldInt(fmt.Sprintf("__%s_committed_sequence_number",
-		info.ConsumerGroup))
-	if err != nil {
-		if !strings.Contains(err.Error(), "Not found") {
-			return 0, 0, err
-		}
-		committed = 0
-	}
-
-	return current, committed, nil
-}
-
 func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStreamInfo) (map[string]restful.Attributes, error) {
 
 	// create v3io context
-	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{})
+	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{
+
+		// by default client id nil
+		HTTPClient: vsr.V3ioHTTPClient,
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating v3io context")
 	}
 
-	// For testing purposes, use the webapi url and data access from your machine
-	// url := "https://v3io-webapi:8081"
-	// accessKey := "some-access-key"
 	// a data plane access key is required for v3io operations
-	accessKey := ctx.Value(auth.IguazioContextKey).(auth.IguazioSession).SessionKey
+	accessKey := vsr.getCtxSession(ctx).GetPassword()
 	if accessKey == "" {
 		return nil, errors.Wrap(err, "A data plane access key is required")
 	}
@@ -308,6 +279,38 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 	}
 
 	return shardLags, nil
+}
+
+func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context, info v3ioStreamInfo, shardID int, dataPlaneInput v3io.DataPlaneInput) (int, int, error) {
+	response, err := v3ioContext.GetItemSync(&v3io.GetItemInput{
+		DataPlaneInput: dataPlaneInput,
+		Path:           fmt.Sprintf("%s/%d", info.StreamPath, shardID),
+		AttributeNames: []string{
+			"__last_sequence_num",
+			fmt.Sprintf("__%s_committed_sequence_number", info.ConsumerGroup),
+		},
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	defer response.Release()
+	getItemOutput := response.Output.(*v3io.GetItemOutput)
+
+	current, err := getItemOutput.Item.GetFieldInt("__last_sequence_num")
+	if err != nil {
+		return 0, 0, err
+	}
+
+	committed, err := getItemOutput.Item.GetFieldInt(fmt.Sprintf("__%s_committed_sequence_number",
+		info.ConsumerGroup))
+	if err != nil {
+		if !strings.Contains(err.Error(), "Not found") {
+			return 0, 0, err
+		}
+		committed = 0
+	}
+
+	return current, committed, nil
 }
 
 // register the resource

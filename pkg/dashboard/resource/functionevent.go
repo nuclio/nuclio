@@ -63,9 +63,9 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 			Name:      request.Header.Get("x-nuclio-function-event-name"),
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
-		AuthSession: fer.getCtxSession(request),
+		AuthSession: fer.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -107,9 +107,9 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 			Name:      id,
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
-		AuthSession: fer.getCtxSession(request),
+		AuthSession: fer.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -188,9 +188,9 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 	// just deploy. the status is async through polling
 	err = fer.getPlatform().CreateFunctionEvent(ctx, &platform.CreateFunctionEventOptions{
 		FunctionEventConfig: *newFunctionEvent.GetConfig(),
-		AuthSession:         fer.getCtxSession(request),
+		AuthSession:         fer.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	})
@@ -212,9 +212,9 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 				"nuclio.io/function-name": function.GetConfig().Meta.Name,
 			},
 		},
-		AuthSession: fer.getCtxSession(request),
+		AuthSession: fer.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -242,9 +242,9 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 	}
 
 	deleteFunctionEventOptions := platform.DeleteFunctionEventOptions{
-		AuthSession: fer.getCtxSession(request),
+		AuthSession: fer.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}
@@ -287,9 +287,9 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 
 	if err = fer.getPlatform().UpdateFunctionEvent(ctx, &platform.UpdateFunctionEventOptions{
 		FunctionEventConfig: functionEventConfig,
-		AuthSession:         fer.getCtxSession(request),
+		AuthSession:         fer.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
