@@ -29,30 +29,28 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/scalertypes"
-	"k8s.io/api/core/v1"
 )
 
 type Config struct {
-	Kind                            string                       `json:"kind,omitempty"`
-	WebAdmin                        WebServer                    `json:"webAdmin,omitempty"`
-	HealthCheck                     WebServer                    `json:"healthCheck,omitempty"`
-	Logger                          Logger                       `json:"logger,omitempty"`
-	Metrics                         Metrics                      `json:"metrics,omitempty"`
-	ScaleToZero                     ScaleToZero                  `json:"scaleToZero,omitempty"`
-	AutoScale                       AutoScale                    `json:"autoScale,omitempty"`
-	CronTriggerCreationMode         CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
-	FunctionAugmentedConfigs        []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
-	FunctionReadinessTimeout        *string                      `json:"functionReadinessTimeout,omitempty"`
-	IngressConfig                   IngressConfig                `json:"ingressConfig,omitempty"`
-	Kube                            PlatformKubeConfig           `json:"kube,omitempty"`
-	Local                           PlatformLocalConfig          `json:"local,omitempty"`
-	ImageRegistryOverrides          ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
-	Runtime                         *runtimeconfig.Config        `json:"runtime,omitempty"`
-	ProjectsLeader                  *ProjectsLeader              `json:"projectsLeader,omitempty"`
-	ManagedNamespaces               []string                     `json:"managedNamespaces,omitempty"`
-	IguazioSessionCookie            string                       `json:"iguazioSessionCookie,omitempty"`
-	Opa                             opa.Config                   `json:"opa,omitempty"`
-	DefaultUserFunctionPodResources v1.ResourceRequirements      `json:"resources,omitempty"`
+	Kind                     string                       `json:"kind,omitempty"`
+	WebAdmin                 WebServer                    `json:"webAdmin,omitempty"`
+	HealthCheck              WebServer                    `json:"healthCheck,omitempty"`
+	Logger                   Logger                       `json:"logger,omitempty"`
+	Metrics                  Metrics                      `json:"metrics,omitempty"`
+	ScaleToZero              ScaleToZero                  `json:"scaleToZero,omitempty"`
+	AutoScale                AutoScale                    `json:"autoScale,omitempty"`
+	CronTriggerCreationMode  CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
+	FunctionAugmentedConfigs []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
+	FunctionReadinessTimeout *string                      `json:"functionReadinessTimeout,omitempty"`
+	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
+	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
+	Local                    PlatformLocalConfig          `json:"local,omitempty"`
+	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
+	Runtime                  *runtimeconfig.Config        `json:"runtime,omitempty"`
+	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
+	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
+	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
+	Opa                      opa.Config                   `json:"opa,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 

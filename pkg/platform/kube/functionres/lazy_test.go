@@ -38,6 +38,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -683,6 +684,46 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 			suite.Require().NoError(err)
 		})
 	}
+}
+
+func (suite *lazyTestSuite) TestPopulateDefaultContainerResources() {
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			Kube: platformconfig.PlatformKubeConfig{
+				DefaultFunctionPodResources: platformconfig.PodResourceRequirements{
+					Requests: platformconfig.ResourceRequirements{
+						CPU:    "25m",
+						Memory: "1Mi",
+					},
+					Limits: platformconfig.ResourceRequirements{
+						CPU:    "2",
+						Memory: "20Gi",
+					},
+				},
+			},
+		},
+	})
+
+	// prepare expected resource quantities
+	var err error
+	expectedResources := map[string]apiresource.Quantity{}
+	expectedResources["requestsCPU"], err = apiresource.ParseQuantity("25m")
+	suite.Require().NoError(err)
+	expectedResources["requestsMemory"], err = apiresource.ParseQuantity("1Mi")
+	suite.Require().NoError(err)
+	expectedResources["limitsCPU"], err = apiresource.ParseQuantity("2")
+	suite.Require().NoError(err)
+	expectedResources["limitsMemory"], err = apiresource.ParseQuantity("20Gi")
+	suite.Require().NoError(err)
+
+	container := v1.Container{Name: "some-container"}
+
+	suite.client.populateDefaultContainerResources(&container)
+
+	suite.Require().Equal(container.Resources.Requests["cpu"], expectedResources["requestsCPU"])
+	suite.Require().Equal(container.Resources.Requests["memory"], expectedResources["requestsMemory"])
+	suite.Require().Equal(container.Resources.Limits["cpu"], expectedResources["limitsCPU"])
+	suite.Require().Equal(container.Resources.Limits["memory"], expectedResources["limitsMemory"])
 }
 
 func (suite *lazyTestSuite) getIngressRuleByHost(rules []networkingv1.IngressRule, host string) *networkingv1.IngressRule {

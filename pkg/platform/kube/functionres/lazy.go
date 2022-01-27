@@ -1695,6 +1695,8 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 		},
 	}
 
+	lc.populateDefaultContainerResources(&spec.JobTemplate.Spec.Template.Spec.Containers[0])
+
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1beta1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
@@ -1895,15 +1897,7 @@ func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
-	if container.Resources.Requests == nil {
-		container.Resources.Requests = make(v1.ResourceList)
-
-		// the default is 500 milli cpu
-		cpuQuantity, err := apiresource.ParseQuantity("25m") // nolint: errcheck
-		if err == nil {
-			container.Resources.Requests["cpu"] = cpuQuantity
-		}
-	}
+	lc.populateDefaultContainerResources(container)
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
 		{
@@ -2336,6 +2330,36 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 		}
 	}
 	return false, nil
+}
+
+func (lc *lazyClient) populateDefaultContainerResources(container *v1.Container) {
+
+	defaultFunctionPodResources := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodResources
+
+	if container.Resources.Requests == nil {
+		container.Resources.Requests = make(v1.ResourceList)
+
+		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Requests.CPU)
+		if err == nil {
+			container.Resources.Requests["cpu"] = cpuQuantity
+		}
+		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Requests.Memory)
+		if err == nil {
+			container.Resources.Requests["memory"] = memoryQuantity
+		}
+	}
+	if container.Resources.Limits == nil {
+		container.Resources.Limits = make(v1.ResourceList)
+
+		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
+		if err == nil {
+			container.Resources.Limits["cpu"] = cpuQuantity
+		}
+		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
+		if err == nil {
+			container.Resources.Limits["memory"] = memoryQuantity
+		}
+	}
 }
 
 //

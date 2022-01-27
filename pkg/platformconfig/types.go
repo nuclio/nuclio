@@ -141,13 +141,14 @@ type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
 	// TODO: Move IngressConfig here
-	DefaultServiceType               corev1.ServiceType  `json:"defaultServiceType,omitempty"`
-	DefaultFunctionNodeSelector      map[string]string   `json:"defaultFunctionNodeSelector,omitempty"`
-	DefaultFunctionTolerations       []corev1.Toleration `json:"defaultFunctionTolerations,omitempty"`
-	DefaultHTTPIngressHostTemplate   string              `json:"defaultHTTPIngressHostTemplate,omitempty"`
-	DefaultHTTPIngressAnnotations    map[string]string   `json:"defaultHTTPIngressAnnotations,omitempty"`
-	DefaultFunctionPriorityClassName string              `json:"defaultFunctionPriorityClassName,omitempty"`
-	ValidFunctionPriorityClassNames  []string            `json:"validFunctionPriorityClassNames,omitempty"`
+	DefaultServiceType               corev1.ServiceType      `json:"defaultServiceType,omitempty"`
+	DefaultFunctionNodeSelector      map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
+	DefaultHTTPIngressHostTemplate   string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
+	DefaultHTTPIngressAnnotations    map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
+	DefaultFunctionPriorityClassName string                  `json:"defaultFunctionPriorityClassName,omitempty"`
+	DefaultFunctionPodResources      PodResourceRequirements `json:"resources,omitempty"`
+	ValidFunctionPriorityClassNames  []string                `json:"validFunctionPriorityClassNames,omitempty"`
 }
 
 type PlatformLocalConfig struct {
@@ -181,3 +182,13 @@ const (
 
 	DefaultServiceType = corev1.ServiceTypeClusterIP
 )
+
+type PodResourceRequirements struct {
+	Requests ResourceRequirements
+	Limits   ResourceRequirements
+}
+
+type ResourceRequirements struct {
+	CPU    string
+	Memory string
+}
