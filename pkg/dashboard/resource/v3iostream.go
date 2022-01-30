@@ -24,10 +24,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -79,7 +81,7 @@ func (vsr *v3ioStreamResource) GetCustomRoutes() ([]restful.CustomRoute, error) 
 
 	return []restful.CustomRoute{
 		{
-			Pattern:   "/get-shard-lags",
+			Pattern:   "/get_shard_lags",
 			Method:    http.MethodPost,
 			RouteFunc: vsr.getStreamShardLags,
 		},
@@ -135,12 +137,6 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 	shardLags, err := vsr.getShardLagsMap(ctx, v3ioStreamInfoInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting shard lags")
-	}
-
-	// enrich metadata for response
-	shardLags["metadata"] = restful.Attributes{
-		"projectName":  projectName,
-		"functionName": functionName,
 	}
 
 	return &restful.CustomRouteFuncResponse{
@@ -227,7 +223,7 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 	}
 
 	dataPlaneInput := v3io.DataPlaneInput{
-		URL:           "http://v3io-webapi:8081",
+		URL:           vsr.getPlatform().GetConfig().StreamMonitoring.WebapiURL,
 		AccessKey:     accessKey,
 		ContainerName: info.ContainerName,
 	}
@@ -238,7 +234,8 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 		DataPlaneInput:   dataPlaneInput,
 	}
 
-	shardLags := map[string]restful.Attributes{}
+	shardLagsMap := map[string]restful.Attributes{}
+	lock := sync.Mutex{}
 
 	for {
 		response, err := v3ioContext.GetContainerContentsSync(getContainerContentsInput)
@@ -249,25 +246,39 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 		getContainerContentsOutput := response.Output.(*v3io.GetContainerContentsOutput)
 		response.Release()
 
+		errGroup, _ := errgroup.WithContextSemaphore(ctx, vsr.Logger, 10)
 		for _, content := range getContainerContentsOutput.Contents {
 			content := content
+			errGroup.Go("get-single-shard-lags", func() error {
 
-			// each file name that is just a number is a shard
-			filePath := strings.Split(content.Key, "/")
-			if shardID, err := strconv.Atoi(filePath[len(filePath)-1]); err == nil {
+				// each file name that is just a number is a shard
+				filePath := strings.Split(content.Key, "/")
+				shardID, err := strconv.Atoi(filePath[len(filePath)-1])
+				if err != nil {
+					return nil
+				}
+
 				current, committed, err := vsr.getSingleShardLagDetails(v3ioContext,
 					info,
 					shardID,
 					dataPlaneInput)
 				if err != nil {
-					return nil, errors.Wrap(err, "Failed getting shard lag details")
+					return errors.Wrapf(err, "Failed getting shard lag details, shardID: %v", shardID)
 				}
-				shardLags[strconv.Itoa(shardID)] = restful.Attributes{
+				lock.Lock()
+				shardLagsMap[strconv.Itoa(shardID)] = restful.Attributes{
 					"lag":       current - committed,
 					"current":   current,
 					"committed": committed,
 				}
-			}
+				lock.Unlock()
+
+				return nil
+			})
+		}
+
+		if err := errGroup.Wait(); err != nil {
+			return nil, errors.Wrap(err, "Failed getting shard lags")
 		}
 
 		// if nextMarker not empty or isTruncated="true" - there are more children (need another fetch to get them)
@@ -278,7 +289,7 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 
 	}
 
-	return shardLags, nil
+	return shardLagsMap, nil
 }
 
 func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context, info v3ioStreamInfo, shardID int, dataPlaneInput v3io.DataPlaneInput) (int, int, error) {

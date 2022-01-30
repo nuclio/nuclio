@@ -3217,7 +3217,7 @@ func (suite *v3ioStreamTestSuite) TestGetShardLagsSuccessful() {
 }`
 
 	suite.sendRequest("POST",
-		"/api/v3io_streams/get-shard-lags",
+		"/api/v3io_streams/get_shard_lags",
 		headers,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,

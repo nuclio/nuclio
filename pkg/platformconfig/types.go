@@ -182,7 +182,6 @@ const (
 	DefaultServiceType = corev1.ServiceTypeClusterIP
 )
 
-type StreamConfig struct {
-	WebapiURL string
-	AccessKey string
+type StreamMonitoringConfig struct {
+	WebapiURL string `json:"webapiURL,omitempty"`
 }
