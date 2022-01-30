@@ -457,7 +457,7 @@ func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(ctx context.Context,
 	}
 
 	for triggerName, cronTrigger := range cronTriggers {
-		cronJobSpec, err := lc.generateCronTriggerCronJobSpec(functionLabels, function, resources, cronTrigger)
+		cronJobSpec, err := lc.generateCronTriggerCronJobSpec(ctx, functionLabels, function, resources, cronTrigger)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to generate cron job spec from cron trigger. Trigger name: %s", triggerName)
 		}
@@ -774,7 +774,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	createDeployment := func() (interface{}, error) {
 		method := createDeploymentResourceMethod
 		container := v1.Container{Name: client.FunctionContainerName}
-		lc.populateDeploymentContainer(functionLabels, function, &container)
+		lc.populateDeploymentContainer(ctx, functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := appsv1.DeploymentSpec{
@@ -865,7 +865,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = replicas
 		deployment.Spec.Template.Annotations = podAnnotations
-		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
+		lc.populateDeploymentContainer(ctx, functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 		deployment.Spec.Template.Spec.SecurityContext = function.Spec.SecurityContext
@@ -1595,7 +1595,8 @@ func (lc *lazyClient) getCronTriggerInvocationURL(resources Resources, namespace
 	return fmt.Sprintf("%s:%d", host, port), nil
 }
 
-func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
+func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
+	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources,
 	cronTrigger functionconfig.Trigger) (*batchv1beta1.CronJobSpec, error) {
@@ -1695,7 +1696,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(functionLabels labels.Set,
 		},
 	}
 
-	lc.populateDefaultContainerResources(&spec.JobTemplate.Spec.Template.Spec.Containers[0])
+	lc.populateDefaultContainerResources(ctx, &spec.JobTemplate.Spec.Template.Spec.Containers[0])
 
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1beta1.ForbidConcurrent
@@ -1891,13 +1892,14 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 	return nil
 }
 
-func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
+func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
+	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	container *v1.Container) {
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
-	lc.populateDefaultContainerResources(container)
+	lc.populateDefaultContainerResources(ctx, container)
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
 		{
@@ -2332,9 +2334,12 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 	return false, nil
 }
 
-func (lc *lazyClient) populateDefaultContainerResources(container *v1.Container) {
+func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, container *v1.Container) {
 
 	defaultFunctionPodResources := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodResources
+
+	lc.logger.DebugWithCtx(ctx, "Populating container resources with default values",
+		"defaultFunctionPodResources", defaultFunctionPodResources)
 
 	if container.Resources.Requests == nil {
 		container.Resources.Requests = make(v1.ResourceList)
