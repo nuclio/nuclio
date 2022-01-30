@@ -61,9 +61,7 @@ func (a *Auth) Authenticate(request *http.Request, options auth.Options) (auth.S
 
 	url := a.config.Iguazio.VerificationURL
 	if options.EnrichDataPlane {
-
-		// TODO: resolve full url in Provazio
-		url += "_enrich_data"
+		url = a.config.Iguazio.VerificationDataEnrichmentURL
 	}
 
 	response, err := a.performHTTPRequest(http.MethodPost,

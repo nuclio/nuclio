@@ -52,6 +52,7 @@ func Run(listenAddress string,
 	authOptionsKind string,
 	authConfigIguazioTimeout string,
 	authConfigIguazioVerificationURL string,
+	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
 	authConfigIguazioCacheExpirationTimeout string) error {
 
@@ -93,6 +94,7 @@ func Run(listenAddress string,
 	if authConfig.Iguazio != nil {
 		if err := enrichAuthConfig(authConfig,
 			authConfigIguazioVerificationURL,
+			authConfigIguazioVerificationDataEnrichmentURL,
 			authConfigIguazioCacheSize,
 			authConfigIguazioCacheExpirationTimeout,
 			authConfigIguazioTimeout); err != nil {
@@ -171,6 +173,7 @@ func Run(listenAddress string,
 
 func enrichAuthConfig(authConfig *auth.Config,
 	authConfigIguazioVerificationURL string,
+	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
 	authConfigIguazioCacheExpirationTimeout string,
 	authConfigIguazioTimeout string) error {
@@ -178,6 +181,10 @@ func enrichAuthConfig(authConfig *auth.Config,
 
 	if authConfigIguazioVerificationURL != "" {
 		authConfig.Iguazio.VerificationURL = authConfigIguazioVerificationURL
+	}
+
+	if authConfigIguazioVerificationDataEnrichmentURL != "" {
+		authConfig.Iguazio.VerificationDataEnrichmentURL = authConfigIguazioVerificationDataEnrichmentURL
 	}
 
 	if authConfigIguazioTimeout != "" {
