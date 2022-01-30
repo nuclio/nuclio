@@ -36,9 +36,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
+	"github.com/google/uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/satori/go.uuid"
 )
 
 type projectResource struct {
@@ -571,7 +571,7 @@ func (pr *projectResource) importProjectFunctionEvents(request *http.Request,
 		default:
 
 			// generate new name for events to avoid collisions
-			functionEvent.Meta.Name = uuid.NewV4().String()
+			functionEvent.Meta.Name = uuid.New().String()
 
 			_, err := functionEventResourceInstance.storeAndDeployFunctionEvent(request, functionEvent)
 			if err != nil {

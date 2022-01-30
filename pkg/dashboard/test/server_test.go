@@ -47,10 +47,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
@@ -2415,7 +2415,7 @@ func (suite *functionEventTestSuite) TestCreateNoName() {
 		name := metadata["name"].(string)
 
 		// make sure that name was populated with a UUID
-		_, err := uuid.FromString(name)
+		_, err := uuid.Parse(name)
 
 		suite.Require().NoError(err, "Name must contain UUID: %s", name)
 

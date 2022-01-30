@@ -28,9 +28,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
+	"github.com/google/uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/satori/go.uuid"
 )
 
 type functionEventResource struct {
@@ -136,7 +136,7 @@ func (fer *functionEventResource) Create(request *http.Request) (id string, attr
 
 	// if the name wasn't specified, generate something
 	if functionEventInfo.Meta.Name == "" {
-		functionEventInfo.Meta.Name = uuid.NewV4().String()
+		functionEventInfo.Meta.Name = uuid.New().String()
 	}
 
 	newFunctionEvent, err := fer.storeAndDeployFunctionEvent(request, functionEventInfo)
