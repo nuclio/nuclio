@@ -772,10 +772,9 @@ More information can be found in [v3ioStream: Iguazio Data Science Platform Stre
 
 #### Request
 
-* URL: `GET /api/v3io_streams/get-shard-lags`
+* URL: `GET /api/v3io_streams/get_shard_lags`
 * Headers:
   * `x-nuclio-project-name`: projectName (required)
-  * `x-nuclio-function-name`: functionName (required)
 
 #### Response
 
@@ -794,10 +793,6 @@ More information can be found in [v3ioStream: Iguazio Data Science Platform Stre
     "committed": "<committed-sequences-number>",
     "current": "<current-sequence-number>",
     "lag": "<shard-lag>"
-  },
-  "metadata": {
-    "functionName": "<function-name>",
-    "projectName": "<project-name>"
   }
 }
 ```

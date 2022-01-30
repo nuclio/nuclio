@@ -103,11 +103,6 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 		return nil, errors.New("Project name must not be empty")
 	}
 
-	functionName := request.Header.Get("x-nuclio-function-name")
-	if functionName == "" {
-		return nil, errors.New("Function name must not be empty")
-	}
-
 	// getting projects for validating project read permissions
 	if _, err := vsr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
