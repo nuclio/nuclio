@@ -159,6 +159,9 @@ dashboard:
       # endpoint which verify incoming request session
       sessionVerificationURL: "http://somewhere.com"
 
+      # endpoint which verify and enrich incoming request sessions with data plane permissions
+      sessionVerificationDataEnrichmentURL: "http://somewhereelse.com"
+
       # session verification request timeout
       timeout: 30s
 
