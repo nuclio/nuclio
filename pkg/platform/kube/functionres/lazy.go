@@ -2338,7 +2338,8 @@ func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, con
 
 	defaultFunctionPodResources := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodResources
 
-	lc.logger.DebugWithCtx(ctx, "Populating container resources with default values",
+	lc.logger.DebugWithCtx(ctx,
+		"Populating container resources with default values",
 		"defaultFunctionPodResources", defaultFunctionPodResources)
 
 	if container.Resources.Requests == nil {
@@ -2347,10 +2348,14 @@ func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, con
 		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Requests.CPU)
 		if err == nil {
 			container.Resources.Requests["cpu"] = cpuQuantity
+		} else {
+			container.Resources.Requests["cpu"] = apiresource.MustParse("25m")
 		}
 		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Requests.Memory)
 		if err == nil {
 			container.Resources.Requests["memory"] = memoryQuantity
+		} else {
+			container.Resources.Requests["memory"] = apiresource.MustParse("1Mi")
 		}
 	}
 	if container.Resources.Limits == nil {
@@ -2365,6 +2370,10 @@ func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, con
 			container.Resources.Limits["memory"] = memoryQuantity
 		}
 	}
+
+	lc.logger.DebugWithCtx(ctx,
+		"Populated container resources with default values",
+		"containerResources", container.Resources)
 }
 
 //

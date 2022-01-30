@@ -726,6 +726,24 @@ func (suite *lazyTestSuite) TestPopulateDefaultContainerResources() {
 	suite.Require().Equal(container.Resources.Limits["memory"], expectedResources["limitsMemory"])
 }
 
+func (suite *lazyTestSuite) TestPopulateDefaultContainerResourcesWithoutDefaults() {
+
+	// prepare expected resource quantities
+	expectedRequestsCPU, err := apiresource.ParseQuantity("25m")
+	suite.Require().NoError(err)
+	expectedRequestsMemory, err := apiresource.ParseQuantity("1Mi")
+	suite.Require().NoError(err)
+
+	container := v1.Container{Name: "some-container"}
+
+	suite.client.populateDefaultContainerResources(suite.ctx, &container)
+
+	suite.Require().Equal(container.Resources.Requests["cpu"], expectedRequestsCPU)
+	suite.Require().Equal(container.Resources.Requests["memory"], expectedRequestsMemory)
+	suite.Require().Empty(container.Resources.Limits["cpu"])
+	suite.Require().Empty(container.Resources.Limits["memory"])
+}
+
 func (suite *lazyTestSuite) getIngressRuleByHost(rules []networkingv1.IngressRule, host string) *networkingv1.IngressRule {
 	for _, rule := range rules {
 		if rule.Host == host {
