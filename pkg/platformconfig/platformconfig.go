@@ -105,7 +105,7 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	}
 
 	if config.StreamMonitoring.WebapiURL == "" {
-		config.StreamMonitoring.WebapiURL = "http://v3io-webapi:8081"
+		config.StreamMonitoring.WebapiURL = DefaultStreamMonitoringWebapiURL
 	}
 
 	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)

@@ -278,10 +278,11 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 
 		// if nextMarker not empty or isTruncated="true" - there are more children (need another fetch to get them)
 		if !getContainerContentsOutput.IsTruncated || len(getContainerContentsOutput.NextMarker) == 0 {
+
+			// there is no more content in the container, we can exit the loop
 			break
 		}
 		getContainerContentsInput.Marker = getContainerContentsOutput.NextMarker
-
 	}
 
 	return shardLagsMap, nil

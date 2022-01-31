@@ -182,6 +182,8 @@ const (
 	DefaultServiceType = corev1.ServiceTypeClusterIP
 )
 
+const DefaultStreamMonitoringWebapiURL = "http://v3io-webapi:8081"
+
 type StreamMonitoringConfig struct {
 	WebapiURL string `json:"webapiURL,omitempty"`
 }

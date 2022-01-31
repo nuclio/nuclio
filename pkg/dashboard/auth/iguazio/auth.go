@@ -60,7 +60,7 @@ func (a *Auth) Authenticate(request *http.Request, options auth.Options) (auth.S
 	}
 
 	url := a.config.Iguazio.VerificationURL
-	if options.EnrichDataPlane && a.config.Iguazio.VerificationDataEnrichmentURL != "" {
+	if options.EnrichDataPlane {
 		url = a.config.Iguazio.VerificationDataEnrichmentURL
 	}
 
