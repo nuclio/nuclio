@@ -762,7 +762,7 @@ More information can be found in [v3ioStream: Iguazio Data Science Platform Stre
 {
   "function-name@stream-name": {
     "consumerGroup": "<consumer-group>",
-    "containerName": "<container-name",
+    "containerName": "<container-name>",
     "streamPath": "/path/of/stream"
   }
 }
@@ -772,14 +772,22 @@ More information can be found in [v3ioStream: Iguazio Data Science Platform Stre
 
 #### Request
 
-* URL: `GET /api/v3io_streams/get_shard_lags`
+* URL: `POST /api/v3io_streams/get_shard_lags`
 * Headers:
   * `x-nuclio-project-name`: projectName (required)
+* Body: include stream information
+```json
+{
+    "consumerGroup": "<consumer-group>",
+    "containerName": "<container-name>",
+    "streamPath": "/path/of/stream"
+}
+```
 
 #### Response
 
 * Status code: 200
-* Body: a map with the shard ID as the key, and shard lag details as values, for all shards in the stream, along with a metadata key with project and function names
+* Body: a map with the shard ID as the key, and shard lag details as values, for all shards in the stream
 
 ```json
 {
