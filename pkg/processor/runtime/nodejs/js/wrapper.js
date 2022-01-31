@@ -157,7 +157,7 @@ async function handleEvent(handlerFunction, incomingEvent) {
         // listening on response before executing, to avoid deadlock
         const responseWaiter = new Promise(resolve => context
             ._eventEmitter
-            .on('callback', resolve))
+            .once('callback', resolve))
 
         // call the handler
         handlerFunction(context, incomingEvent)
