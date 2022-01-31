@@ -38,6 +38,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -516,4 +517,15 @@ func ErrorFromRecoveredError(recoveredError interface{}) error {
 	default:
 		return errors.New(fmt.Sprintf("Unknown error type: %s", reflect.TypeOf(typedErr)))
 	}
+}
+
+func ParseQuantityOrDefault(value, defaultValue string, loggerInstance logger.Logger) apiresource.Quantity {
+	quantity, err := apiresource.ParseQuantity(value)
+	if err != nil {
+		loggerInstance.WarnWith("Failed parsing quantity, assigning default value",
+			"defaultValue", defaultValue,
+			"err", err)
+		quantity = apiresource.MustParse(defaultValue)
+	}
+	return quantity
 }

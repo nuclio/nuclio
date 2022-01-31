@@ -2345,18 +2345,12 @@ func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, con
 	if container.Resources.Requests == nil {
 		container.Resources.Requests = make(v1.ResourceList)
 
-		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Requests.CPU)
-		if err == nil {
-			container.Resources.Requests["cpu"] = cpuQuantity
-		} else {
-			container.Resources.Requests["cpu"] = apiresource.MustParse("25m")
-		}
-		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Requests.Memory)
-		if err == nil {
-			container.Resources.Requests["memory"] = memoryQuantity
-		} else {
-			container.Resources.Requests["memory"] = apiresource.MustParse("1Mi")
-		}
+		container.Resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
+			"25m",
+			lc.logger)
+		container.Resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
+			"1Mi",
+			lc.logger)
 	}
 	if container.Resources.Limits == nil {
 		container.Resources.Limits = make(v1.ResourceList)
