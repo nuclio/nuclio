@@ -48,6 +48,13 @@ func (suite *TestSuite) SetupTest() {
 	suite.trigger.Logger = suite.Logger.GetChild("cron")
 }
 
+func (suite *TestSuite) TestScheduleBackwardsCompatibility() {
+	schedule, err := suite.trigger.parseEncodedSchedule("* */5 * * * *")
+	suite.Require().NoError(err)
+	scheduler := schedule.(*cronlib.SpecSchedule)
+	suite.Require().Equal(uint64(1), scheduler.Second) // minimal value for non-set value is 1
+}
+
 func (suite *TestSuite) TestGetInterval() {
 	var err error
 
