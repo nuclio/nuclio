@@ -40,7 +40,7 @@ func NewAuth(logger logger.Logger, config *auth.Config) auth.Auth {
 
 // Authenticate will ask IguazioConfig session verification endpoint to verify the request session
 // and enrich with session metadata
-func (a *Auth) Authenticate(request *http.Request, options auth.Options) (auth.Session, error) {
+func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.Session, error) {
 	authorization := request.Header.Get("authorization")
 	cookie := request.Header.Get("cookie")
 	cacheKey := authorization + cookie
@@ -115,7 +115,7 @@ func (a *Auth) Authenticate(request *http.Request, options auth.Options) (auth.S
 }
 
 // Middleware will authenticate the incoming request and store the session within the request context
-func (a *Auth) Middleware(options auth.Options) func(next http.Handler) http.Handler {
+func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session, err := a.Authenticate(r, options)

@@ -61,14 +61,14 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 		}}
 
 	// step A. successfully authenticate, let it to be cached
-	_, err := authInstance.Authenticate(incomingRequest, authOptions)
+	_, err := authInstance.Authenticate(incomingRequest, &authOptions)
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(authInstance.cache.Keys())
 
 	// step B. re-authenticate, read from cache
 	// nil the http client in order to force it to panic if it was used to make an HTTP request
 	authInstance.httpClient = nil
-	session, err := authInstance.Authenticate(incomingRequest, authOptions)
+	session, err := authInstance.Authenticate(incomingRequest, &authOptions)
 	suite.Require().NoError(err)
 	suite.Require().Equal("some-user-id", session.GetUserID())
 	suite.Require().Equal([]string{"1", "2", "3"}, session.GetGroupIDs())
@@ -83,7 +83,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 			StatusCode: http.StatusUnauthorized,
 		}
 	})
-	_, err = authInstance.Authenticate(incomingRequest, authOptions)
+	_, err = authInstance.Authenticate(incomingRequest, &authOptions)
 	suite.Require().Error(err)
 	suite.Require().Empty(authInstance.cache.Keys())
 }
@@ -182,7 +182,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 	} {
 		suite.Run(testCase.name, func() {
 			testCase.auth.(*Auth).httpClient = mockedHTTPClient
-			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest, testCase.authOptions)
+			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest, &testCase.authOptions)
 			if testCase.invalidRequest {
 				suite.Require().Error(err)
 				return

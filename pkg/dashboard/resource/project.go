@@ -28,7 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
@@ -63,7 +62,7 @@ type ProjectImportOptions struct {
 }
 
 func (pr *projectResource) ExtendMiddlewares() error {
-	pr.resource.addAuthMiddleware(auth.Options{})
+	pr.resource.addAuthMiddleware(nil)
 	return nil
 }
 

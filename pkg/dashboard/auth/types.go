@@ -71,7 +71,7 @@ type Session interface {
 }
 
 type Auth interface {
-	Authenticate(request *http.Request, options Options) (Session, error)
-	Middleware(options Options) func(http.Handler) http.Handler
+	Authenticate(request *http.Request, options *Options) (Session, error)
+	Middleware(options *Options) func(http.Handler) http.Handler
 	Kind() Kind
 }

@@ -24,11 +24,11 @@ func NewAuth(logger logger.Logger, authConfig *auth.Config) auth.Auth {
 }
 
 // Authenticate will do nothing
-func (a *Auth) Authenticate(request *http.Request, options auth.Options) (auth.Session, error) {
+func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.Session, error) {
 	return a.nopSession, nil
 }
 
-func (a *Auth) Middleware(options auth.Options) func(next http.Handler) http.Handler {
+func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session, _ := a.Authenticate(r, options)

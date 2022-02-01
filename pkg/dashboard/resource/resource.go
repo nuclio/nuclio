@@ -91,7 +91,7 @@ func (r *resource) getDashboard() *dashboard.Server {
 	return r.GetServer().(*dashboard.Server)
 }
 
-func (r *resource) addAuthMiddleware(options auth.Options) {
+func (r *resource) addAuthMiddleware(options *auth.Options) {
 	authenticator := r.getDashboard().GetAuthenticator()
 	r.Logger.DebugWith("Installing auth middleware on router",
 		"authenticatorKind", authenticator.Kind(),

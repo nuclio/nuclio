@@ -20,7 +20,6 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -31,7 +30,7 @@ type externalIPAddressesResource struct {
 }
 
 func (eiar *externalIPAddressesResource) ExtendMiddlewares() error {
-	eiar.resource.addAuthMiddleware(auth.Options{})
+	eiar.resource.addAuthMiddleware(nil)
 	return nil
 }
 

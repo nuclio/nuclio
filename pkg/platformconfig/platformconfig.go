@@ -108,6 +108,10 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.StreamMonitoring.WebapiURL = DefaultStreamMonitoringWebapiURL
 	}
 
+	if config.StreamMonitoring.GetStreamShardsConcurrentRequests == 0 {
+		config.StreamMonitoring.GetStreamShardsConcurrentRequests = DefaultGetStreamShardsConcurrentRequests
+	}
+
 	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse function readiness timeout")

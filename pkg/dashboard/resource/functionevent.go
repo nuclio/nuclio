@@ -23,7 +23,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -43,7 +42,7 @@ type functionEventInfo struct {
 }
 
 func (fer *functionEventResource) ExtendMiddlewares() error {
-	fer.resource.addAuthMiddleware(auth.Options{})
+	fer.resource.addAuthMiddleware(nil)
 	return nil
 }
 

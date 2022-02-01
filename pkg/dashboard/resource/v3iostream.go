@@ -44,7 +44,7 @@ import (
 
 type v3ioStreamResource struct {
 	*resource
-	V3ioHTTPClient *fasthttp.Client
+	v3ioHTTPClient *fasthttp.Client
 }
 
 type v3ioStreamInfo struct {
@@ -54,7 +54,9 @@ type v3ioStreamInfo struct {
 }
 
 func (vsr *v3ioStreamResource) ExtendMiddlewares() error {
-	vsr.resource.addAuthMiddleware(auth.Options{
+	vsr.resource.addAuthMiddleware(&auth.Options{
+
+		// we need a data plane session for accessing the v3io stream container
 		EnrichDataPlane: true,
 	})
 	return nil
@@ -129,7 +131,7 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	shardLags, err := vsr.getShardLagsMap(ctx, v3ioStreamInfoInstance)
+	shardLags, err := vsr.getShardLagsMap(ctx, &v3ioStreamInfoInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting shard lags")
 	}
@@ -199,13 +201,13 @@ func (vsr *v3ioStreamResource) getNamespaceFromRequest(request *http.Request) st
 	return vsr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
 }
 
-func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStreamInfo) (map[string]restful.Attributes, error) {
+func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info *v3ioStreamInfo) (map[string]restful.Attributes, error) {
 
 	// create v3io context
 	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{
 
-		// by default client id nil
-		HTTPClient: vsr.V3ioHTTPClient,
+		// allow changing http client for testing purposes
+		HTTPClient: vsr.v3ioHTTPClient,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating v3io context")
@@ -232,6 +234,8 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 	shardLagsMap := map[string]restful.Attributes{}
 	lock := sync.Mutex{}
 
+	// we get the v3io container contents in batches until we go over everything
+	// when we find a shard content, get its lag details
 	for {
 		response, err := v3ioContext.GetContainerContentsSync(getContainerContentsInput)
 		if err != nil {
@@ -241,7 +245,11 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 		getContainerContentsOutput := response.Output.(*v3io.GetContainerContentsOutput)
 		response.Release()
 
-		errGroup, _ := errgroup.WithContextSemaphore(ctx, vsr.Logger, 10)
+		errGroup, _ := errgroup.WithContextSemaphore(ctx,
+			vsr.Logger,
+			vsr.getPlatform().GetConfig().StreamMonitoring.GetStreamShardsConcurrentRequests)
+
+		// Iterate over subdirectories listed in the response, and look for shards
 		for _, content := range getContainerContentsOutput.Contents {
 			content := content
 			errGroup.Go("get-single-shard-lags", func() error {
@@ -250,13 +258,15 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 				filePath := strings.Split(content.Key, "/")
 				shardID, err := strconv.Atoi(filePath[len(filePath)-1])
 				if err != nil {
+
+					// not a shard, we can skip it
 					return nil
 				}
 
 				current, committed, err := vsr.getSingleShardLagDetails(v3ioContext,
 					info,
 					shardID,
-					dataPlaneInput)
+					&dataPlaneInput)
 				if err != nil {
 					return errors.Wrapf(err, "Failed getting shard lag details, shardID: %v", shardID)
 				}
@@ -273,7 +283,7 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 		}
 
 		if err := errGroup.Wait(); err != nil {
-			return nil, errors.Wrap(err, "Failed getting shard lags")
+			return nil, errors.Wrap(err, "Failed getting at least one shard lags")
 		}
 
 		// if nextMarker not empty or isTruncated="true" - there are more children (need another fetch to get them)
@@ -288,9 +298,13 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context, info v3ioStr
 	return shardLagsMap, nil
 }
 
-func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context, info v3ioStreamInfo, shardID int, dataPlaneInput v3io.DataPlaneInput) (int, int, error) {
+func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context,
+	info *v3ioStreamInfo,
+	shardID int,
+	dataPlaneInput *v3io.DataPlaneInput) (int, int, error) {
+
 	response, err := v3ioContext.GetItemSync(&v3io.GetItemInput{
-		DataPlaneInput: dataPlaneInput,
+		DataPlaneInput: *dataPlaneInput,
 		Path:           fmt.Sprintf("%s/%d", info.StreamPath, shardID),
 		AttributeNames: []string{
 			"__last_sequence_num",
@@ -314,6 +328,8 @@ func (vsr *v3ioStreamResource) getSingleShardLagDetails(v3ioContext v3io.Context
 		if !strings.Contains(err.Error(), "Not found") {
 			return 0, 0, err
 		}
+
+		// the stream is lazily created - it exists but there is still no data in it so nothing is committed yet
 		committed = 0
 	}
 

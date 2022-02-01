@@ -21,7 +21,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -36,7 +35,7 @@ type frontendSpecResource struct {
 }
 
 func (fsr *frontendSpecResource) ExtendMiddlewares() error {
-	fsr.resource.addAuthMiddleware(auth.Options{})
+	fsr.resource.addAuthMiddleware(nil)
 	return nil
 }
 
