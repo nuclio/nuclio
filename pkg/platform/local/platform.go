@@ -289,7 +289,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		var deployErr error
 		var functionStatus functionconfig.Status
 
-		previousHTTPPort, err := p.deletePreviousContainers(createFunctionOptions)
+		// delete existing function containers
+		previousHTTPPort, err := p.deleteOrStopFunctionContainers(createFunctionOptions)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to delete previous containers")
 		}
@@ -1054,7 +1055,7 @@ func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
 	return marshalledAnnotations
 }
 
-func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
+func (p *Platform) deleteOrStopFunctionContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
 	var previousHTTPPort int
 
 	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment",
@@ -1082,6 +1083,13 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 			previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
 			if err != nil {
 				return 0, errors.Wrap(err, "Failed to get a container's HTTP-trigger port")
+			}
+
+			if createFunctionOptions.FunctionConfig.Spec.Disable {
+				if err := p.dockerClient.StopContainer(container.ID); err != nil {
+					return 0, errors.Wrap(err, "Failed to stop function container")
+				}
+				continue
 			}
 
 			if err := p.dockerClient.RemoveContainer(container.ID); err != nil {
