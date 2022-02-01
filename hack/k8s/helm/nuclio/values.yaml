@@ -335,7 +335,7 @@ registry:
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you log into `gcr.io` (or some other regional URL) yet have
-  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the URL here and it will be
+  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the URL here, and it will be
   # used instead of the URL in the secrets
   #
   # pushPullUrl: gcr.io/<project-name>

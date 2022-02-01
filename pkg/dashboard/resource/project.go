@@ -285,7 +285,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
 	// just deploy. the status is async through polling
-	pr.Logger.DebugWithCtx(ctx, "Creating project", "newProject", newProject)
+	pr.Logger.DebugWithCtx(ctx, "Creating project", "newProject", newProject.GetConfig())
 	if err := pr.getPlatform().CreateProject(ctx, &platform.CreateProjectOptions{
 		ProjectConfig: newProject.GetConfig(),
 		RequestOrigin: requestOrigin,
