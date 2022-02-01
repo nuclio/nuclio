@@ -524,7 +524,7 @@ func ParseQuantityOrDefault(value, defaultValue string, loggerInstance logger.Lo
 	if err != nil {
 		loggerInstance.WarnWith("Failed parsing quantity, assigning default value",
 			"defaultValue", defaultValue,
-			"err", err)
+			"err", err.Error())
 		quantity = apiresource.MustParse(defaultValue)
 	}
 	return quantity
