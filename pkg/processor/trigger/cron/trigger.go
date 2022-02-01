@@ -27,7 +27,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	cronlib "github.com/robfig/cron"
+	cronlib "github.com/robfig/cron/v3"
 )
 
 const (
@@ -191,9 +191,7 @@ func (c *cron) setInterval(encodedInterval string) error {
 		return errors.Wrapf(err, "Failed to parse interval from cron trigger configuration: %+v", encodedInterval)
 	}
 
-	c.schedule = cronlib.ConstantDelaySchedule{
-		Delay: intervalLength,
-	}
+	c.schedule = cronlib.Every(intervalLength)
 
 	c.Logger.InfoWith("Set cron trigger interval",
 		"name", c.configuration.Name,
@@ -205,19 +203,26 @@ func (c *cron) setSchedule(encodedSchedule string) error {
 	var err error
 	c.tickMethod = tickMethodSchedule
 
-	// prevent the user from using * as Seconds
-	splitSchedule := strings.Split(encodedSchedule, " ")
-	if splitSchedule[0] == "*" {
-		splitSchedule[0] = "0"
-	}
-	normalizedSchedule := strings.Join(splitSchedule, " ")
-
-	c.schedule, err = cronlib.Parse(normalizedSchedule)
+	c.schedule, err = c.parseEncodedSchedule(encodedSchedule)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration: %+v", encodedSchedule)
 	}
 
-	c.Logger.InfoWith("Set cron trigger schedule",
-		"schedule", c.schedule)
+	c.Logger.InfoWith("Set cron trigger schedule", "schedule", c.schedule)
 	return nil
+}
+
+func (c *cron) parseEncodedSchedule(encodedSchedule string) (cronlib.Schedule, error) {
+
+	// prevent the user from using * as Seconds
+	splitSchedule := strings.Split(encodedSchedule, " ")
+
+	// avoid cases where user specify seconds, it is not valid
+	if len(splitSchedule) > 5 {
+
+		// take only the last 5 parts
+		splitSchedule = splitSchedule[len(splitSchedule)-5:]
+	}
+	normalizedSchedule := strings.Join(splitSchedule, " ")
+	return cronlib.ParseStandard(normalizedSchedule)
 }
