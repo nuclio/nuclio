@@ -46,13 +46,15 @@ type v3iostream struct {
 	streamConsumerGroupMember streamconsumergroup.Member
 	shutdownSignal            chan struct{}
 	stopConsumptionChan       chan struct{}
+	restartChan               chan trigger.Trigger
 	partitionWorkerAllocator  partitionworker.Allocator
 	topic                     string
 }
 
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild(configuration.ID)
@@ -60,6 +62,7 @@ func newTrigger(parentLogger logger.Logger,
 	newTrigger := &v3iostream{
 		configuration:       configuration,
 		stopConsumptionChan: make(chan struct{}, 1),
+		restartChan:         restartTriggerChan,
 		topic:               "v3io", // v3io doesn't support topics, use constant (never goes to v3io)
 	}
 
@@ -220,6 +223,14 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	close(submittedEventChan)
 
 	return submitError
+}
+
+func (vs *v3iostream) Abort(session streamconsumergroup.Session) error {
+
+	// signal the processor to restart the trigger
+	vs.restartChan <- vs
+
+	return nil
 }
 
 func (vs *v3iostream) eventSubmitter(claim streamconsumergroup.Claim, submittedEventChan chan *submittedEvent) {

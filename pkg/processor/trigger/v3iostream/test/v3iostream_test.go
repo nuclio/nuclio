@@ -19,7 +19,10 @@ limitations under the License.
 package test
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path"
 	"testing"
 	"time"
 
@@ -29,10 +32,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
+	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"github.com/v3io/v3io-go/pkg/dataplane"
 	v3iohttp "github.com/v3io/v3io-go/pkg/dataplane/http"
+	v3ioscg "github.com/v3io/v3io-go/pkg/dataplane/streamconsumergroup"
+	v3ioerrors "github.com/v3io/v3io-go/pkg/errors"
+	"gopkg.in/yaml.v2"
 )
 
 type testSuite struct {
@@ -57,8 +64,8 @@ func (suite *testSuite) SetupSuite() {
 	var err error
 
 	// Change below
-	suite.url = "https://somewhere:8444"
-	suite.accessKey = "some-access-key"
+	suite.url = "https://default-tenant.app.dev62.lab.iguazeng.com:8444" // "https://somewhere:8444"
+	suite.accessKey = "f68221c5-2320-4ba7-b52b-b8e7d876eb86"             // "some-access-key"
 	// END OF change
 
 	suite.numWorkers = 8
@@ -249,6 +256,160 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.writingMessageToStream)
 }
 
+//func (suite *testSuite) TestShardAssignmentSanity() {
+//	var err error
+//
+//	// create a stream with 9 shards
+//	streamPath := fmt.Sprintf("test-nuclio-%s/", xid.New().String())
+//	shardCount := 9
+//
+//	err = suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
+//		Path:                 streamPath,
+//		ShardCount:           shardCount,
+//		RetentionPeriodHours: 1,
+//	})
+//	suite.Require().NoError(err, "Failed to create v3io sync stream")
+//
+//	// deploy a first function with maxReplicas=3
+//	maxReplicas := 3
+//	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+//	createFunctionOptions.FunctionConfig.Meta.Name = "event_recorder_test_1"
+//	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &maxReplicas
+//	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+//		"test-nuclio-v3io": {
+//			Kind:     "v3ioStream",
+//			URL:      suite.url,
+//			Password: suite.accessKey,
+//			Attributes: map[string]interface{}{
+//				"seekTo":        "earliest", // avoid race condition with `latest` missed by function
+//				"containerName": suite.containerName,
+//				"streamPath":    streamPath,
+//				"consumerGroup": suite.consumerGroup,
+//			},
+//		},
+//	}
+//
+//	suite.Logger.Debug("Creating first function")
+//	suite.DeployFunction(createFunctionOptions, func(deployResult1 *platform.CreateFunctionResult) bool {
+//		suite.Logger.Debug("After deploying function number 1")
+//
+//		// check which shards the first function's trigger got
+//		v3ioStreamsMap := functionconfig.GetTriggersByKind(deployResult1.UpdatedFunctionConfig.Spec.Triggers, "v3ioStream")
+//		suite.Logger.DebugWith("First function stream map", "v3ioStreamsMap", v3ioStreamsMap)
+//
+//		partitions1 := v3ioStreamsMap["test-nuclio-v3io"].Partitions
+//		suite.Logger.DebugWith("First function trigger partitions", "partitions", partitions1)
+//
+//		// deploy a second function with the same stream trigger
+//		suite.Logger.Debug("Creating second function")
+//		createFunctionOptions.FunctionConfig.Meta.Name = "event_recorder_test_2"
+//		suite.DeployFunction(createFunctionOptions, func(deployResult2 *platform.CreateFunctionResult) bool {
+//			suite.Logger.Debug("After deploying function number 2")
+//
+//			// stop and start the first function's container
+//			err = suite.DockerClient.StopContainer(deployResult1.ContainerID)
+//			suite.Require().NoError(err)
+//
+//			// stop and start the first function's container
+//			err = suite.DockerClient.StartContainer(deployResult1.ContainerID)
+//			suite.Require().NoError(err)
+//
+//			// check which shards the first and second function's trigger got
+//			partitions1 = deployResult1.UpdatedFunctionConfig.Spec.Triggers["test-nuclio-v3io"].Partitions
+//			suite.Logger.DebugWith("First function trigger partitions", "partitions", partitions1)
+//
+//			partitions2 := deployResult2.UpdatedFunctionConfig.Spec.Triggers["test-nuclio-v3io"].Partitions
+//			suite.Logger.DebugWith("Second function trigger partitions", "partitions", partitions2)
+//
+//			// deploy a third function with the same stream trigger
+//			suite.Logger.Debug("Creating third function")
+//			createFunctionOptions.FunctionConfig.Meta.Name = "event_recorder_test_3"
+//			suite.DeployFunction(createFunctionOptions, func(deployResult3 *platform.CreateFunctionResult) bool {
+//				suite.Logger.Debug("After deploying function number 3")
+//
+//				// Make sure every function got 3 shards (member's shard group)
+//				suite.Logger.Debug("Describing stream")
+//				response, err := suite.v3ioContainer.DescribeStreamSync(&v3io.DescribeStreamInput{
+//					Path: streamPath,
+//					DataPlaneInput: v3io.DataPlaneInput{
+//						Ctx:           context.Background(),
+//						URL:           suite.url,
+//						ContainerName: suite.containerName,
+//						AccessKey:     suite.accessKey,
+//					},
+//				})
+//				suite.Require().NoError(err)
+//				defer response.Release()
+//				describeStreamOutput := response.Output.(*v3io.DescribeStreamOutput)
+//				outputShardCount := describeStreamOutput.ShardCount
+//
+//				suite.Logger.DebugWith("Describe stream output and shard count",
+//					"describeStreamOutput", describeStreamOutput,
+//					"outputShardCount", outputShardCount)
+//				suite.Require().Equal(shardCount, outputShardCount)
+//
+//				partitions3 := deployResult3.UpdatedFunctionConfig.Spec.Triggers["test-nuclio-v3io"].Partitions
+//				suite.Logger.DebugWith("Third function trigger partitions", "partitions", partitions3)
+//
+//				return true
+//			})
+//			return true
+//		})
+//		return true
+//	})
+//
+//}
+
+func (suite *testSuite) TestShardRetention() {
+
+	var err error
+
+	// create a stream with 4 shards
+	streamPath := "dani/in-stream/"
+	shardCount := 4
+	consumerGroupName := "test-cg"
+
+	err = suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
+		Path:                 streamPath,
+		ShardCount:           shardCount,
+		RetentionPeriodHours: 1,
+	})
+	suite.Require().NoError(err, "Failed to create v3io sync stream")
+
+	// create a function with 2 replicas and a v3iostream - it should only take 2 shards
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+	}
+
+	// parse function options from yaml
+	yamlFilePath := path.Join(suite.GetNuclioSourceDir(), "hack", "env", "golang.yaml")
+	yamlFile, err := ioutil.ReadFile(yamlFilePath)
+	suite.Require().NoError(err)
+
+	err = yaml.Unmarshal(yamlFile, createFunctionOptions.FunctionConfig)
+	suite.Require().NoError(err)
+
+	suite.Logger.Debug("Creating first function")
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Logger.Debug("Function deployed successfully")
+
+		// read the state file and see the shard group taken by the function
+		state, err := suite.getStateFromPersistency(streamPath, consumerGroupName)
+		suite.Require().NoError(err)
+
+		suite.Logger.DebugWith("Read state file from persistency", "state", state)
+
+		// manually change the state file - another function is handling the same shard group
+
+		// the function should try to retain its shard group and abort
+
+		// read the state file and see that the function took the 2 other shards
+
+		return true
+	})
+
+}
+
 // GetContainerRunInfo returns nothing as Iguazio WebAPI has no Docker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "", nil
@@ -298,7 +459,50 @@ func (suite *testSuite) getShardLagDetails(shardID int) (int, int) {
 	}
 
 	return current, committed
+}
 
+func (suite *testSuite) getStateFromPersistency(streamPath, consumerGroupName string) (*v3ioscg.State, error) {
+	stateContentsAttributeKey := "state"
+	response, err := suite.v3ioContainer.GetItemSync(&v3io.GetItemInput{
+		Path: suite.getStateFilePath(streamPath, consumerGroupName),
+		AttributeNames: []string{
+			stateContentsAttributeKey,
+		},
+	})
+
+	if err != nil {
+		errWithStatusCode, errHasStatusCode := err.(v3ioerrors.ErrorWithStatusCode)
+		if !errHasStatusCode {
+			return nil, errors.Wrap(err, "Got error without status code")
+		}
+
+		if errWithStatusCode.StatusCode() != 404 {
+			return nil, errors.Wrap(err, "Failed getting state item")
+		}
+
+		return nil, v3ioerrors.ErrNotFound
+	}
+
+	defer response.Release()
+
+	getItemOutput := response.Output.(*v3io.GetItemOutput)
+
+	stateContents, err := getItemOutput.Item.GetFieldString(stateContentsAttributeKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed getting state attribute")
+	}
+
+	var state v3ioscg.State
+
+	if err := json.Unmarshal([]byte(stateContents), &state); err != nil {
+		return nil, errors.Wrapf(err, "Failed unmarshalling state contents: %s", stateContents)
+	}
+
+	return &state, nil
+}
+
+func (suite *testSuite) getStateFilePath(streamPath, consumerGroupName string) string {
+	return path.Join(streamPath, fmt.Sprintf("%s-state.json", consumerGroupName))
 }
 
 func TestIntegrationSuite(t *testing.T) {

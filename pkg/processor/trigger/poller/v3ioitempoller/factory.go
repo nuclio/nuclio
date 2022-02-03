@@ -32,7 +32,8 @@ func (f *factory) Create(parentLogger logger.Logger,
 	id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
-	namedWorkerAllocators *worker.AllocatorSyncMap) (trigger.Trigger, error) {
+	namedWorkerAllocators *worker.AllocatorSyncMap,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	// create logger parent
 	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller")

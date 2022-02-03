@@ -34,7 +34,8 @@ func (f *factory) Create(parentLogger logger.Logger,
 	id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
-	namedWorkerAllocators *worker.AllocatorSyncMap) (trigger.Trigger, error) {
+	namedWorkerAllocators *worker.AllocatorSyncMap,
+	restartTriggerChan trigger.Trigger) (trigger.Trigger, error) {
 
 	// create logger parent
 	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)

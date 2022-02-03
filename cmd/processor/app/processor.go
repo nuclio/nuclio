@@ -74,16 +74,18 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger                logger.Logger
-	functionLogger        logger.Logger
-	triggers              []trigger.Trigger
-	webAdminServer        *webadmin.Server
-	healthCheckServer     commonhealthcheck.Server
-	metricSinks           []metricsink.MetricSink
-	namedWorkerAllocators *worker.AllocatorSyncMap
-	eventTimeoutWatcher   *timeout.EventTimeoutWatcher
-	startComplete         bool
-	stop                  chan bool
+	logger                    logger.Logger
+	functionLogger            logger.Logger
+	triggers                  []trigger.Trigger
+	webAdminServer            *webadmin.Server
+	healthCheckServer         commonhealthcheck.Server
+	metricSinks               []metricsink.MetricSink
+	namedWorkerAllocators     *worker.AllocatorSyncMap
+	eventTimeoutWatcher       *timeout.EventTimeoutWatcher
+	startComplete             bool
+	stop                      chan bool
+	stopRestartTriggerRoutine chan bool
+	restartTriggerChan        chan trigger.Trigger
 }
 
 // NewProcessor returns a new Processor
@@ -91,8 +93,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	var err error
 
 	newProcessor := &Processor{
-		namedWorkerAllocators: worker.NewAllocatorSyncMap(),
-		stop:                  make(chan bool, 1),
+		namedWorkerAllocators:     worker.NewAllocatorSyncMap(),
+		stop:                      make(chan bool, 1),
+		stopRestartTriggerRoutine: make(chan bool, 1),
 	}
 
 	// get platform configuration
@@ -174,6 +177,28 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 // Start starts the processor
 func (p *Processor) Start() error {
+
+	// create a goroutine that restarts a trigger if needed
+	p.restartTriggerChan = make(chan trigger.Trigger, 1)
+	go func() {
+
+		for {
+			select {
+			case triggerInstance := <-p.restartTriggerChan:
+				if err := p.restartTrigger(triggerInstance); err != nil {
+
+					// handle error
+					p.logger.ErrorWith("Failed to restart trigger",
+						"err", err.Error())
+				}
+
+			// stop listening when the processor stops
+			case <-p.stopRestartTriggerRoutine:
+				return
+			}
+		}
+	}()
+
 	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
 	// iterate over all triggers and start them
@@ -250,6 +275,7 @@ func (p *Processor) GetStatus() status.Status {
 
 // Stop stops the processor
 func (p *Processor) Stop() {
+	p.stopRestartTriggerRoutine <- true
 	p.stop <- true
 }
 
@@ -308,7 +334,8 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 					Configuration:  processorConfiguration,
 					FunctionLogger: p.functionLogger,
 				},
-				p.namedWorkerAllocators)
+				p.namedWorkerAllocators,
+				p.restartTriggerChan)
 
 			if err != nil {
 				return errors.Wrapf(err, "Failed to create triggers")
@@ -365,7 +392,8 @@ func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.C
 			Configuration:  processorConfiguration,
 			FunctionLogger: p.functionLogger,
 		},
-		p.namedWorkerAllocators)
+		p.namedWorkerAllocators,
+		p.restartTriggerChan)
 }
 
 func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Config) (*webadmin.Server, error) {
@@ -456,6 +484,29 @@ func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) error {
 		errorMessage := "Can't start event timeout watcher"
 		p.logger.ErrorWith(errorMessage, "error", err)
 		return errors.Wrap(err, errorMessage)
+	}
+
+	return nil
+}
+
+func (p *Processor) restartTrigger(triggerInstance trigger.Trigger) error {
+
+	// force stop the trigger
+	_, err := triggerInstance.Stop(true)
+	if err != nil {
+		p.logger.ErrorWith("Failed to stop trigger",
+			"kind", triggerInstance.GetKind(),
+			"err", err.Error())
+		return errors.Wrap(err, "Failed to stop trigger")
+	}
+
+	// start the trigger again
+	err = triggerInstance.Start(nil)
+	if err != nil {
+		p.logger.ErrorWith("Failed to start trigger",
+			"kind", triggerInstance.GetKind(),
+			"err", err.Error())
+		return errors.Wrap(err, "Failed to start trigger")
 	}
 
 	return nil
