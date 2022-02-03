@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	nucliozap "github.com/nuclio/zap"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,8 +30,18 @@ import (
 
 const DefaultFunctionReadinessTimeoutSeconds = 60
 
+type LoggerSinkKind string
+
+const (
+	LoggerSinkKindStdout      LoggerSinkKind = "stdout"
+	LoggerSinkKindAppInsights LoggerSinkKind = "appinsights"
+
+	// LoggerSinkKindElasticsearch is not supported
+	LoggerSinkKindElasticsearch LoggerSinkKind = "elasticsearch"
+)
+
 type LoggerSink struct {
-	Kind       string                 `json:"kind,omitempty"`
+	Kind       LoggerSinkKind         `json:"kind,omitempty"`
 	URL        string                 `json:"url,omitempty"`
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
@@ -38,16 +49,17 @@ type LoggerSink struct {
 type LoggerSinkWithLevel struct {
 	Level string
 	Sink  LoggerSink
+
+	redactor *nucliozap.Redactor
+}
+
+func (l *LoggerSinkWithLevel) GetRedactingLogger() *nucliozap.Redactor {
+	return l.redactor
 }
 
 type LoggerSinkBinding struct {
 	Level string `json:"level,omitempty"`
 	Sink  string `json:"sink,omitempty"`
-}
-
-type FunctionsLogger struct {
-	DefaultLevel string `json:"defaultLevel,omitempty"`
-	DefaultSink  string `json:"defaultSink,omitempty"`
 }
 
 type Logger struct {
@@ -129,13 +141,14 @@ type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
 	// TODO: Move IngressConfig here
-	DefaultServiceType               corev1.ServiceType  `json:"defaultServiceType,omitempty"`
-	DefaultFunctionNodeSelector      map[string]string   `json:"defaultFunctionNodeSelector,omitempty"`
-	DefaultFunctionTolerations       []corev1.Toleration `json:"defaultFunctionTolerations,omitempty"`
-	DefaultHTTPIngressHostTemplate   string              `json:"defaultHTTPIngressHostTemplate,omitempty"`
-	DefaultHTTPIngressAnnotations    map[string]string   `json:"defaultHTTPIngressAnnotations,omitempty"`
-	DefaultFunctionPriorityClassName string              `json:"defaultFunctionPriorityClassName,omitempty"`
-	ValidFunctionPriorityClassNames  []string            `json:"validFunctionPriorityClassNames,omitempty"`
+	DefaultServiceType               corev1.ServiceType      `json:"defaultServiceType,omitempty"`
+	DefaultFunctionNodeSelector      map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
+	DefaultHTTPIngressHostTemplate   string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
+	DefaultHTTPIngressAnnotations    map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
+	DefaultFunctionPriorityClassName string                  `json:"defaultFunctionPriorityClassName,omitempty"`
+	DefaultFunctionPodResources      PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
+	ValidFunctionPriorityClassNames  []string                `json:"validFunctionPriorityClassNames,omitempty"`
 }
 
 type PlatformLocalConfig struct {
@@ -169,3 +182,13 @@ const (
 
 	DefaultServiceType = corev1.ServiceTypeClusterIP
 )
+
+type PodResourceRequirements struct {
+	Requests ResourceRequirements
+	Limits   ResourceRequirements
+}
+
+type ResourceRequirements struct {
+	CPU    string
+	Memory string
+}

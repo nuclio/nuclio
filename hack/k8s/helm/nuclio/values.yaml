@@ -10,7 +10,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.7.5-amd64
+    tag: 1.7.7-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -69,7 +69,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.7.5-amd64
+    tag: 1.7.7-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -245,7 +245,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.7.5-amd64
+    tag: 1.7.7-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -274,7 +274,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.7.5-amd64
+    tag: 1.7.7-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -332,7 +332,7 @@ registry:
 
   # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
   # you push and pull. For example, in GKE you log into `gcr.io` (or some other regional URL) yet have
-  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the URL here and it will be
+  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the URL here, and it will be
   # used instead of the URL in the secrets
   #
   # pushPullUrl: gcr.io/<project-name>
@@ -422,10 +422,18 @@ platform: {}
 #
 #     # set to 10 for extra verbosity on top of nuclio logger
 #     logLevel: 0
-#     address: http://1.7.5.0.1:8081
+#     address: http://1.7.7.0.1:8081
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow
+#
+#   defaultUserFunctionPodResources
+#      requests:
+#        cpu: 25m
+#        memory: 1Mi
+#      limits:
+#        cpu: 2
+#        memory: 20Mi
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

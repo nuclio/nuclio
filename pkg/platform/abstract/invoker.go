@@ -91,9 +91,11 @@ func (i *invoker) invoke(ctx context.Context,
 		req.Header.Set("x-nuclio-log-level", createFunctionInvocationOptions.LogLevelName)
 	}
 
-	i.logger.InfoWithCtx(ctx, "Executing function",
+	i.logger.InfoWithCtx(ctx,
+		"Executing function",
 		"method", createFunctionInvocationOptions.Method,
 		"url", fullpath,
+		"bodyLength", len(createFunctionInvocationOptions.Body),
 		"headers", req.Header)
 
 	response, err := client.Do(req)

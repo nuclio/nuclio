@@ -503,7 +503,7 @@ func main() {
 	flag.Parse()
 
 	if err := func() error {
-		loggerInstance, err := nucliozap.NewNuclioZapCmd("generator", nucliozap.DebugLevel)
+		loggerInstance, err := nucliozap.NewNuclioZapCmd("generator", nucliozap.DebugLevel, os.Stdout)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create logger")
 		}

@@ -35,9 +35,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
+	"github.com/google/uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/satori/go.uuid"
 )
 
 type projectResource struct {
@@ -284,7 +284,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
 	// just deploy. the status is async through polling
-	pr.Logger.DebugWithCtx(ctx, "Creating project", "newProject", newProject)
+	pr.Logger.DebugWithCtx(ctx, "Creating project", "newProject", newProject.GetConfig())
 	if err := pr.getPlatform().CreateProject(ctx, &platform.CreateProjectOptions{
 		ProjectConfig: newProject.GetConfig(),
 		RequestOrigin: requestOrigin,
@@ -570,7 +570,7 @@ func (pr *projectResource) importProjectFunctionEvents(request *http.Request,
 		default:
 
 			// generate new name for events to avoid collisions
-			functionEvent.Meta.Name = uuid.NewV4().String()
+			functionEvent.Meta.Name = uuid.New().String()
 
 			_, err := functionEventResourceInstance.storeAndDeployFunctionEvent(request, functionEvent)
 			if err != nil {

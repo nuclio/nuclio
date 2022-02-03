@@ -58,6 +58,26 @@ describe('Wrapper', () => {
         it('should response with output', async () => {
             const functionModulePath = `${testFunctionsDirPath}/common/reverser/nodejs/handler.js`
             const functionModule = require(functionModulePath)
+            const handlerFunction = await wrapper.__get__('findFunction')(
+                functionModule,
+                'handler'
+            )
+            const context = wrapper.__get__('context')
+            const handleEvent = wrapper.__get__('handleEvent')
+            const writtenData = []
+            context._socket = {
+                write: (message) => {
+                    writtenData.push(message)
+                }
+            }
+            const event = { body: Buffer.from('abc').toString('base64') }
+            await handleEvent(handlerFunction, event)
+            const responseData = JSON.parse(writtenData[1].substring(1))
+            assert.strictEqual(responseData.body, 'cba')
+        })
+        it('should remove callback listener from context event emitter', async () => {
+            const functionModulePath = `${testFunctionsDirPath}/common/reverser/nodejs/handler.js`
+            const functionModule = require(functionModulePath)
             const context = wrapper.__get__('context')
             const handleEvent = wrapper.__get__('handleEvent')
             const writtenData = []
@@ -70,10 +90,23 @@ describe('Wrapper', () => {
                 functionModule,
                 'handler'
             )
-            const event = { body: Buffer.from('abc').toString('base64') }
-            await handleEvent(handlerFunction, event)
-            const responseData = JSON.parse(writtenData[1].substring(1))
-            assert.strictEqual(responseData.body, 'cba')
+
+            // create some requests
+            const promises = []
+            for (let i = 0; i < 1000; i++) {
+                promises.push(handleEvent(handlerFunction, {
+                    body: Buffer.from('abc' + i).toString('base64'),
+                }))
+            }
+
+            // handle all requests
+            await Promise.all(promises)
+
+            // each handled event sends both "response" and "metric"
+            assert.strictEqual(promises.length, writtenData.length / 2)
+
+            // all callbacks listeners were closed
+            assert.strictEqual(context._eventEmitter.listenerCount('callback'), 0)
         })
     })
     describe('initContext()', () => {
