@@ -191,7 +191,12 @@ func (c *cron) setInterval(encodedInterval string) error {
 		return errors.Wrapf(err, "Failed to parse interval from cron trigger configuration: %+v", encodedInterval)
 	}
 
-	c.schedule = cronlib.Every(intervalLength)
+	// NOTE:
+	// use cronlib.ConstantDelaySchedule and not cronlib.Every to avoid
+	// rounding the interval to a minimum of 1 second
+	c.schedule = cronlib.ConstantDelaySchedule{
+		Delay: intervalLength,
+	}
 
 	c.Logger.InfoWith("Set cron trigger interval",
 		"name", c.configuration.Name,
