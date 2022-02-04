@@ -26,7 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/nuclio/errors"
-	cronlib "github.com/robfig/cron"
+	cronlib "github.com/robfig/cron/v3"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -46,6 +46,13 @@ func (suite *TestSuite) TearDownSuite() {
 func (suite *TestSuite) SetupTest() {
 	suite.trigger = cron{}
 	suite.trigger.Logger = suite.Logger.GetChild("cron")
+}
+
+func (suite *TestSuite) TestScheduleBackwardsCompatibility() {
+	schedule, err := suite.trigger.parseEncodedSchedule("* */5 * * * *")
+	suite.Require().NoError(err)
+	scheduler := schedule.(*cronlib.SpecSchedule)
+	suite.Require().Equal(uint64(1), scheduler.Second) // minimal value for non-set value is 1
 }
 
 func (suite *TestSuite) TestGetInterval() {
@@ -85,7 +92,7 @@ func (suite *TestSuite) TestGetInterval() {
 		lastRuntime := time.Now().Add(-test.lastTimeDifference)
 		nextEventDelay := suite.trigger.getNextEventSubmitDelay(suite.trigger.schedule, lastRuntime)
 
-		suite.Assert().Conditionf(func() (success bool) {
+		suite.Require().Conditionf(func() (success bool) {
 			return nextEventDelay <= delay
 		}, "Next event delay must be less or equal to interval's delay")
 
@@ -93,13 +100,13 @@ func (suite *TestSuite) TestGetInterval() {
 		lastRuntime = time.Now().Add(-test.lastTimeDifference)
 		missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
 		expectedMissedTicks := int(test.lastTimeDifference / delay)
-		suite.Assert().EqualValues(expectedMissedTicks, missedTicks)
+		suite.Require().EqualValues(expectedMissedTicks, missedTicks)
 	}
 }
 
 func (suite *TestSuite) TestGetMissedTicksScheduleHandlesNoMisses() {
 	var err error
-	suite.trigger.schedule, err = suite.getSchedule("*/5 * * * *")
+	suite.trigger.schedule, err = suite.trigger.parseEncodedSchedule("*/5 * * * *")
 	suite.Assert().NoError(err, "Invalid interval string")
 
 	lastRuntime := time.Now()
@@ -110,7 +117,7 @@ func (suite *TestSuite) TestGetMissedTicksScheduleHandlesNoMisses() {
 
 func (suite *TestSuite) TestGetMissedTicksScheduleCountsMisses() {
 	var err error
-	suite.trigger.schedule, err = suite.getSchedule("*/5 * * * *")
+	suite.trigger.schedule, err = suite.trigger.parseEncodedSchedule("*/5 * * * * *")
 	suite.Assert().NoError(err, "Invalid interval string")
 
 	lastTimeDifference, err := time.ParseDuration("10s")
@@ -125,13 +132,13 @@ func (suite *TestSuite) TestGetMissedTicksScheduleCountsMisses() {
 func (suite *TestSuite) TestGetNextEventSubmitDelayScheduleNoMisses() {
 	var err error
 
-	suite.trigger.schedule, err = suite.getSchedule("*/5 * * * *")
+	suite.trigger.schedule, err = suite.trigger.parseEncodedSchedule("*/5 * * * *")
 	suite.Assert().NoError(err, "Invalid interval string")
 
 	lastRuntime := time.Now()
 	nextEventDelay := suite.trigger.getNextEventSubmitDelay(suite.trigger.schedule, lastRuntime)
 
-	expectedEventDelay, err := time.ParseDuration("5s")
+	expectedEventDelay, err := time.ParseDuration("5m")
 	suite.Assert().NoError(err, "Invalid interval string")
 
 	suite.Assert().Condition(
@@ -145,10 +152,10 @@ func (suite *TestSuite) TestGetNextEventSubmitDelayScheduleNoMisses() {
 func (suite *TestSuite) TestGetNextEventSubmitDelayScheduleRunsImmediatelyOnMiss() {
 	var err error
 
-	suite.trigger.schedule, err = suite.getSchedule("*/5 * * * *")
+	suite.trigger.schedule, err = suite.trigger.parseEncodedSchedule("*/5 * * * *")
 	suite.Assert().NoError(err, "Invalid interval string")
 
-	lastTimeDifference, err := time.ParseDuration("10s")
+	lastTimeDifference, err := time.ParseDuration("10m")
 	suite.Require().NoError(err)
 
 	lastRuntime := time.Now().Add(-lastTimeDifference)
@@ -164,13 +171,13 @@ func (suite *TestSuite) TestNextScheduleDayDifference() {
 	location, _ := time.LoadLocation("UTC")
 	lastRuntime := time.Date(2019, 1, 1, 1, 1, 1, 1, location)
 
-	scheduleFormat := fmt.Sprintf("0 %d %d * *", lastRuntime.Minute(), lastRuntime.Hour())
+	scheduleFormat := fmt.Sprintf("%d %d * * *", lastRuntime.Minute(), lastRuntime.Hour())
 
-	suite.trigger.schedule, err = suite.getSchedule(scheduleFormat)
-	suite.Assert().NoError(err, "Invalid interval string")
+	suite.trigger.schedule, err = suite.trigger.parseEncodedSchedule(scheduleFormat)
+	suite.Require().NoError(err, "Invalid interval string")
 
 	nextEventSubmitTime := suite.trigger.schedule.Next(lastRuntime)
-	suite.Assert().Equal(nextEventSubmitTime.Day(), lastRuntime.Day()+1, "Event should be fired the next day")
+	suite.Require().Equal(nextEventSubmitTime.Day(), lastRuntime.Day()+1, "Event should be fired the next day")
 }
 
 func (suite *TestSuite) getInterval(delay string) (cronlib.Schedule, error) {
@@ -180,15 +187,6 @@ func (suite *TestSuite) getInterval(delay string) (cronlib.Schedule, error) {
 	}
 
 	return cronlib.ConstantDelaySchedule{Delay: delayDuration}, nil
-}
-
-func (suite *TestSuite) getSchedule(crontab string) (cronlib.Schedule, error) {
-	schedule, err := cronlib.Parse(crontab)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse cron string %s", crontab)
-	}
-
-	return schedule, nil
 }
 
 func TestCronSuite(t *testing.T) {

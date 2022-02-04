@@ -27,7 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
-	"github.com/hashicorp/go-uuid"
+	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -112,7 +112,7 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	}
 
 	// if the password is a uuid - assume it is an access key and clear out the username/pass
-	if _, err := uuid.ParseUUID(newConfiguration.Password); err == nil {
+	if _, err := uuid.Parse(newConfiguration.Password); err == nil {
 		newConfiguration.Secret = newConfiguration.Password
 		newConfiguration.Username = ""
 		newConfiguration.Password = ""

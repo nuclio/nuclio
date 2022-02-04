@@ -27,7 +27,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	cronlib "github.com/robfig/cron"
+	cronlib "github.com/robfig/cron/v3"
 )
 
 const (
@@ -191,6 +191,9 @@ func (c *cron) setInterval(encodedInterval string) error {
 		return errors.Wrapf(err, "Failed to parse interval from cron trigger configuration: %+v", encodedInterval)
 	}
 
+	// NOTE:
+	// use cronlib.ConstantDelaySchedule and not cronlib.Every to avoid
+	// rounding the interval to a minimum of 1 second
 	c.schedule = cronlib.ConstantDelaySchedule{
 		Delay: intervalLength,
 	}
@@ -205,19 +208,30 @@ func (c *cron) setSchedule(encodedSchedule string) error {
 	var err error
 	c.tickMethod = tickMethodSchedule
 
-	// prevent the user from using * as Seconds
-	splitSchedule := strings.Split(encodedSchedule, " ")
-	if splitSchedule[0] == "*" {
-		splitSchedule[0] = "0"
-	}
-	normalizedSchedule := strings.Join(splitSchedule, " ")
-
-	c.schedule, err = cronlib.Parse(normalizedSchedule)
+	c.schedule, err = c.parseEncodedSchedule(encodedSchedule)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration: %+v", encodedSchedule)
 	}
 
-	c.Logger.InfoWith("Set cron trigger schedule",
-		"schedule", c.schedule)
+	c.Logger.InfoWith("Set cron trigger schedule", "schedule", c.schedule)
 	return nil
+}
+
+func (c *cron) parseEncodedSchedule(encodedSchedule string) (cronlib.Schedule, error) {
+	splitSchedule := strings.Split(encodedSchedule, " ")
+
+	// prevent the user from using * as Seconds
+	if len(splitSchedule) > 5 && splitSchedule[0] == "*" {
+		splitSchedule[0] = "0"
+	}
+
+	// backwards compatibility
+	return cronlib.NewParser(cronlib.SecondOptional |
+		cronlib.Minute |
+		cronlib.Hour |
+		cronlib.Dom |
+		cronlib.Month |
+		cronlib.Dow |
+		cronlib.Descriptor).
+		Parse(strings.Join(splitSchedule, " "))
 }
