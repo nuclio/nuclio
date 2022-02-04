@@ -13,12 +13,11 @@
         <ENTRY IS_ENABLED="true" PARSER="runconfig" />
       </ENTRIES>
     </EXTENSION>
-    <framework value="gotest" />
     <kind value="PACKAGE" />
     <package value="github.com/nuclio/nuclio/pkg/platform/kube/test" />
     <directory value="$PROJECT_DIR$/pkg/nuctl/test" />
     <filePath value="$PROJECT_DIR$/pkg/nuctl/test/function_test.go" />
-    <pattern value="^\QTestPlatformTestSuite\E$" />
+    <framework value="gotest" />
     <method v="2" />
   </configuration>
 </component>

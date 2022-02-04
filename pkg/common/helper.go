@@ -519,7 +519,15 @@ func ErrorFromRecoveredError(recoveredError interface{}) error {
 	}
 }
 
-func ParseQuantityOrDefault(value, defaultValue string, loggerInstance logger.Logger) apiresource.Quantity {
+func ParseQuantityOrDefault(value string,
+	defaultValue string,
+	loggerInstance logger.Logger) apiresource.Quantity {
+
+	// no value was given, use default
+	if value == "" {
+		value = defaultValue
+	}
+
 	quantity, err := apiresource.ParseQuantity(value)
 	if err != nil {
 		loggerInstance.WarnWith("Failed parsing quantity, assigning default value",
