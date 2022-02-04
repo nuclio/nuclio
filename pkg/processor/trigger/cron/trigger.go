@@ -218,16 +218,20 @@ func (c *cron) setSchedule(encodedSchedule string) error {
 }
 
 func (c *cron) parseEncodedSchedule(encodedSchedule string) (cronlib.Schedule, error) {
-
-	// prevent the user from using * as Seconds
 	splitSchedule := strings.Split(encodedSchedule, " ")
 
-	// avoid cases where user specify seconds, it is not valid
-	if len(splitSchedule) > 5 {
-
-		// take only the last 5 parts
-		splitSchedule = splitSchedule[len(splitSchedule)-5:]
+	// prevent the user from using * as Seconds
+	if len(splitSchedule) > 5 && splitSchedule[0] == "*" {
+		splitSchedule[0] = "0"
 	}
-	normalizedSchedule := strings.Join(splitSchedule, " ")
-	return cronlib.ParseStandard(normalizedSchedule)
+
+	// backwards compatibility
+	return cronlib.NewParser(cronlib.SecondOptional |
+		cronlib.Minute |
+		cronlib.Hour |
+		cronlib.Dom |
+		cronlib.Month |
+		cronlib.Dow |
+		cronlib.Descriptor).
+		Parse(strings.Join(splitSchedule, " "))
 }

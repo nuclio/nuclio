@@ -117,10 +117,10 @@ func (suite *TestSuite) TestGetMissedTicksScheduleHandlesNoMisses() {
 
 func (suite *TestSuite) TestGetMissedTicksScheduleCountsMisses() {
 	var err error
-	suite.trigger.schedule, err = suite.trigger.parseEncodedSchedule("*/5 * * * *")
+	suite.trigger.schedule, err = suite.trigger.parseEncodedSchedule("*/5 * * * * *")
 	suite.Assert().NoError(err, "Invalid interval string")
 
-	lastTimeDifference, err := time.ParseDuration("10m")
+	lastTimeDifference, err := time.ParseDuration("10s")
 	suite.Require().NoError(err)
 
 	lastRuntime := time.Now().Add(-lastTimeDifference)
