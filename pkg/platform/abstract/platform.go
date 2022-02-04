@@ -170,9 +170,6 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 
 			// on successful build set the timestamp of build
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
-
-			// clear config path, it was used to build the function
-			createFunctionOptions.FunctionConfig.Spec.Build.FunctionConfigPath = ""
 		}
 	} else {
 		createFunctionOptions.Logger.InfoWithCtx(ctx, "Skipping build",
