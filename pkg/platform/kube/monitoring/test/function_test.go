@@ -220,6 +220,10 @@ func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterDeployError() {
 func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResourcesAvailable() {
 	functionName := "function-recovery"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// for some reasons, some time minikube misses resource quota limitation of 0 pods while there's a single replica
+	three := 3
+	createFunctionOptions.FunctionConfig.Spec.Replicas = &three
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
