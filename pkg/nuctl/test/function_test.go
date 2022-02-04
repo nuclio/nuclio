@@ -265,6 +265,64 @@ func (suite *functionDeployTestSuite) TestInvokeWithTimeout() {
 	suite.Require().Error(err)
 }
 
+func (suite *functionDeployTestSuite) TestDeployImageAndRedeploy() {
+	functionBody := `
+metadata:
+  name: test1
+  labels:
+    nuclio.io/project-name: default
+spec:
+  handler: "main:handler"
+  runtime: "python:3.6"
+  build:
+    image: test
+    baseImage: tensorflow/tensorflow:2.1.1
+
+  triggers:
+    myHttpTrigger:
+      maxWorkers: 2
+      kind: 'http'
+      workerAvailabilityTimeoutMilliseconds: 10000
+      attributes:
+        maxRequestBodySize: 33554432 # 32MB
+
+  loggerSinks:
+    - level: debug
+  platform: {}
+  securityContext: {}
+  eventTimeout: ""
+  version: 1`
+	d, err := ioutil.TempDir("", "funcy")
+	suite.Require().NoError(err)
+
+	f, err := ioutil.TempFile(d, "*function.yaml")
+	suite.Require().NoError(err)
+
+	err = ioutil.WriteFile(path.Join(d, "main.py"), []byte("def handler(context, event): return 200"), os.ModePerm)
+	suite.Require().NoError(err)
+
+	defer f.Close()
+	defer os.RemoveAll(d)
+
+	functionConfig := functionconfig.Config{}
+	err = yaml.Unmarshal([]byte(functionBody), &functionConfig)
+	suite.Require().NoError(err)
+
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionConfig.Meta.Name}, nil) // nolint: errcheck
+
+	// make a file from it
+	_, err = f.WriteString(functionBody)
+	suite.Require().NoError(err)
+
+	err = suite.ExecuteNuctl([]string{"deploy", "-v"}, map[string]string{
+		"path":     d,
+		"file":     f.Name(),
+		"platform": "local",
+	})
+	suite.Require().NoError(err)
+
+}
+
 func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "envprinter" + uniqueSuffix
