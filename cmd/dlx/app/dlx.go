@@ -27,6 +27,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/dlx"
+	"k8s.io/client-go/rest"
 )
 
 func Run(platformConfigurationPath string,
@@ -100,5 +101,7 @@ func newDLX(platformConfigurationPath string,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create dlx instance")
 	}
+
+	rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(rootLogger.GetChild("kube_warnings")))
 	return dlxInstance, nil
 }

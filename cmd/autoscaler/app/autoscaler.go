@@ -29,6 +29,7 @@ import (
 	"github.com/v3io/scaler/pkg/autoscaler"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/metrics/pkg/client/custom_metrics"
 )
@@ -100,6 +101,8 @@ func createAutoScaler(platformConfigurationPath string,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create autoscaler")
 	}
+
+	rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(rootLogger.GetChild("kube_warnings")))
 
 	return autoScaler, nil
 }

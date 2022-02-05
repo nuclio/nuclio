@@ -52,6 +52,7 @@ import (
 	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type OnAfterIngressCreated func(*networkingv1.Ingress)
@@ -95,6 +96,9 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	// only set up parent AFTER we set platform's type
 	suite.TestSuite.SetupSuite()
+
+	// log kubernetes deprecation warnings
+	rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(suite.Logger.GetChild("kube_warnings")))
 
 	// fill test external ip addresses
 	err = suite.Platform.SetExternalIPAddresses(strings.Split(suite.GetTestHost(), ","))
