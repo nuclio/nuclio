@@ -317,7 +317,6 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		}()
 		defer func() { showFunctionDeploymentStatusChan <- struct{}{} }()
 
-		time.Sleep(10 * time.Second)
 		// wait for function state to become ready again
 		suite.WaitForFunctionState(getFunctionOptions,
 			functionconfig.FunctionStateReady,
