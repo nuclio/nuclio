@@ -18,6 +18,7 @@ package monitoring
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -91,8 +92,9 @@ func (fm *FunctionMonitor) Start(ctx context.Context) error {
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				fm.logger.ErrorWithCtx(ctx, "Panic caught while monitoring functions",
-					"err", err,
+				fm.logger.ErrorWithCtx(ctx,
+					"Panic caught while monitoring functions",
+					"err", fmt.Sprintf("%v", err),
 					"stack", string(callStack))
 			}
 		}()
@@ -106,7 +108,8 @@ func (fm *FunctionMonitor) Start(ctx context.Context) error {
 				}
 
 			case <-fm.stopChan:
-				fm.logger.DebugWithCtx(ctx, "Stopped function monitoring",
+				fm.logger.DebugWithCtx(ctx,
+					"Stopped function monitoring",
 					"namespace", fm.namespace)
 				return
 			}
@@ -148,7 +151,8 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 		return nil
 	}
 
-	fm.logger.DebugWithCtx(ctx, "Getting function deployment function",
+	fm.logger.DebugWithCtx(ctx,
+		"Getting function deployment function",
 		"functionName", function.Name,
 		"functionNamespace", function.Namespace)
 
@@ -157,7 +161,8 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 		Deployments(function.Namespace).
 		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 	if err != nil {
-		fm.logger.WarnWithCtx(ctx, "Failed to get function deployment",
+		fm.logger.WarnWithCtx(ctx,
+			"Failed to get function deployment",
 			"functionName", function.Name,
 			"functionNamespace", function.Namespace)
 		return nil
@@ -181,7 +186,8 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 	}
 
 	// function state has changed, update CRD correspondingly
-	fm.logger.InfoWithCtx(ctx, "Function state has changed, updating",
+	fm.logger.InfoWithCtx(ctx,
+		"Function state has changed, updating",
 		"functionName", function.Name,
 		"functionStatus", function.Status,
 		"functionNamespace", function.Namespace,
@@ -191,7 +197,8 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 		NuclioV1beta1().
 		NuclioFunctions(fm.namespace).
 		Update(ctx, function, metav1.UpdateOptions{}); err != nil {
-		fm.logger.WarnWithCtx(ctx, "Failed to update function",
+		fm.logger.WarnWithCtx(ctx,
+			"Failed to update function",
 			"functionName", function.Name,
 			"functionStatus", function.Status,
 			"functionNamespace", function.Namespace)
@@ -209,7 +216,7 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 
 	// Since we considered function as ready when it reaches its minimum replicas available (see pkg/platform/kube/functionres/lazy.go:240
 	// WaitAvailable() for more information.), we might hit a situation where a "ready" function is still in progress,
-	// as it reaches its "minimum available replicas" condition from a previous deploy, while still deploying a new replica,
+	// as it reaches its "minimum available replicas" condition from an earlier deployment, while still deploying a new replica,
 	// and hence we cannot resolve this condition as a failure but rather let it run until the recently
 	// deployed replica-set hits a failure (as suggested by the failures below).
 	//
@@ -257,7 +264,8 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, fun
 	// ignore provisioning states
 	// ignore recently deployed function
 	if fm.resolveFunctionProvisionedOrRecentlyDeployed(ctx, function) {
-		fm.logger.DebugWithCtx(ctx, "Function is being provisioned or recently deployed, skipping",
+		fm.logger.DebugWithCtx(ctx,
+			"Function is being provisioned or recently deployed, skipping",
 			"functionName", function.Name,
 			"functionState", function.Status.State)
 		return true
@@ -268,7 +276,8 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, fun
 		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateUnhealthy,
 	}) {
-		fm.logger.DebugWithCtx(ctx, "Function state is not ready or unhealthy, skipping",
+		fm.logger.DebugWithCtx(ctx,
+			"Function state is not ready or unhealthy, skipping",
 			"functionName", function.Name,
 			"functionState", function.Status.State)
 		return true
@@ -276,7 +285,8 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, fun
 
 	// skip disabled functions / 0-ed replicas functions
 	if function.Spec.Disable || (function.Spec.Replicas != nil && *function.Spec.Replicas == 0) {
-		fm.logger.DebugWithCtx(ctx, "Function is disabled or has 0 desired replicas, skipping",
+		fm.logger.DebugWithCtx(ctx,
+			"Function is disabled or has 0 desired replicas, skipping",
 			"functionName", function.Name,
 			"functionReplicas", function.Spec.Replicas,
 			"functionDisabled", function.Spec.Disable)
@@ -291,13 +301,15 @@ func (fm *FunctionMonitor) resolveFunctionProvisionedOrRecentlyDeployed(ctx cont
 	function *nuclioio.NuclioFunction) bool {
 	if functionconfig.FunctionStateProvisioning(function.Status.State) {
 		fm.lastProvisioningTimestamps.Store(function.Name, time.Now())
-		fm.logger.DebugWithCtx(ctx, "Function is in provisioning state",
+		fm.logger.DebugWithCtx(ctx,
+			"Function is in provisioning state",
 			"functionState", function.Status.State,
 			"functionName", function.Name)
 		return true
 	} else if lastProvisioningTimestamp, ok := fm.lastProvisioningTimestamps.Load(function.Name); ok {
 		if lastProvisioningTimestamp.(time.Time).Add(PostDeploymentMonitoringBlockingInterval).After(time.Now()) {
-			fm.logger.DebugWithCtx(ctx, "Function was recently deployed",
+			fm.logger.DebugWithCtx(ctx,
+				"Function was recently deployed",
 				"functionName", function.Name,
 				"lastProvisioningTimestamp", lastProvisioningTimestamp)
 			return true

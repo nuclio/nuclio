@@ -27,6 +27,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
 	kubetest "github.com/nuclio/nuclio/pkg/platform/kube/test"
 
@@ -220,6 +221,10 @@ func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterDeployError() {
 func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResourcesAvailable() {
 	functionName := "function-recovery"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// for some reasons, some time minikube misses resource quota limitation of 0 pods while there's a single replica
+	two := 2
+	createFunctionOptions.FunctionConfig.Spec.Replicas = &two
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
@@ -269,17 +274,50 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 
 		// wait for function pods to run, meaning its deployment is available
 		suite.WaitForFunctionPods(functionName, time.Minute, func(pods []v1.Pod) bool {
-			suite.Logger.InfoWith("Waiting for function pods",
+			suite.Logger.InfoWithCtx(suite.Ctx,
+				"Waiting for function pods",
 				"pods", pods,
 				"expectedPodPhase", v1.PodRunning)
 			for _, pod := range pods {
 				if pod.Status.Phase != v1.PodRunning {
+					suite.Logger.DebugWithCtx(suite.Ctx,
+						"Function pod is not running",
+						"podName", pod.Name,
+						"podStatus", pod.Status)
 					return false
 				}
 			}
 			return true
 		})
 
+		// log function deployment statuses while waiting for function state
+		showFunctionDeploymentStatusChan := make(chan struct{})
+		go func() {
+			for {
+				select {
+				case <-time.After(5 * time.Second):
+					deployment, err := suite.KubeClientSet.
+						AppsV1().
+						Deployments(suite.Namespace).
+						Get(suite.Ctx, kube.DeploymentNameFromFunctionName(functionName), metav1.GetOptions{})
+					if err != nil {
+						suite.Logger.WarnWithCtx(suite.Ctx,
+							"Failed to get function deployment, retrying...",
+							"err", err.Error())
+						continue
+					}
+					suite.Logger.DebugWithCtx(suite.Ctx,
+						"Received function deployment",
+						"functionDeploymentStatus", deployment.Status)
+					break
+				case <-showFunctionDeploymentStatusChan:
+					return
+				}
+			}
+		}()
+		defer func() { showFunctionDeploymentStatusChan <- struct{}{} }()
+
+		time.Sleep(10 * time.Second)
 		// wait for function state to become ready again
 		suite.WaitForFunctionState(getFunctionOptions,
 			functionconfig.FunctionStateReady,
