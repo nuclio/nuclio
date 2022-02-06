@@ -471,7 +471,7 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 	if p.Config.Kube.PreemptibleNodes != nil {
 
 		// we do such stuff to allow exposing features before they are exposed on UI
-		if preemptionMode, exists := functionConfig.Meta.Annotations["nuclio.io/preemptible-mode"]; exists {
+		if preemptionMode, exists := functionConfig.Meta.Annotations["custom.nuclio.io/preemptible-mode"]; exists {
 			p.Logger.DebugWithCtx(ctx,
 				"Enriching function preemption mode from function annotations",
 				"preemptionMode", preemptionMode)
