@@ -478,8 +478,7 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 			functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
 		}
 
-		switch functionConfig.Spec.PreemptionMode {
-		case functionconfig.RunOnPreemptibleNodesAllow:
+		if functionConfig.Spec.PreemptionMode == functionconfig.RunOnPreemptibleNodesAllow {
 			p.Logger.DebugWithCtx(ctx,
 				"Allowing function to run on preemptible nodes",
 				"functionName", functionConfig.Meta.Name)
