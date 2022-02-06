@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	commonhealthcheck "github.com/nuclio/nuclio/pkg/common/healthcheck"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -23,6 +24,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
+	"k8s.io/client-go/rest"
 )
 
 func Run(listenAddress string,
@@ -159,6 +161,10 @@ func Run(listenAddress string,
 			monitorDockerDeamonMaxConsecutiveErrors,
 			dockerClient)
 		defer cancel()
+	}
+
+	if platformInstance.GetName() == "kube" {
+		rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(rootLogger.GetChild("kube_warnings")))
 	}
 
 	if err := dashboardInstance.server.Start(); err != nil {
