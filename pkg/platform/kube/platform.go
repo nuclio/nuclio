@@ -492,11 +492,32 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 
 			// union tolerations
 			if len(p.Config.Kube.PreemptibleNodes.Tolerations) > 0 {
+
+				// initialize list
 				if functionConfig.Spec.Tolerations == nil {
 					functionConfig.Spec.Tolerations = []v1.Toleration{}
 				}
-				functionConfig.Spec.Tolerations = append(functionConfig.Spec.Tolerations,
-					p.Config.Kube.PreemptibleNodes.Tolerations...)
+
+				// only add
+				var tolerationsToAdd []v1.Toleration
+				for _, preemptibleNodeTolerations := range p.Config.Kube.PreemptibleNodes.Tolerations {
+					for _, functionToleration := range functionConfig.Spec.Tolerations {
+
+						// only add non-matching toleratinos as we dont want to have duplicates
+						if !functionToleration.MatchToleration(&preemptibleNodeTolerations) {
+							tolerationsToAdd = append(tolerationsToAdd, preemptibleNodeTolerations)
+						}
+					}
+				}
+
+				if tolerationsToAdd != nil {
+					p.Logger.DebugWithCtx(ctx,
+						"Adding function tolerations",
+						"tolerationsToAdd", tolerationsToAdd)
+
+					// add with unmatched tolerations
+					functionConfig.Spec.Tolerations = append(functionConfig.Spec.Tolerations, tolerationsToAdd...)
+				}
 			}
 		}
 	}
