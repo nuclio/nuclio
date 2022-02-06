@@ -23,8 +23,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"reflect"
 	"strings"
 	"time"
@@ -34,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -53,6 +52,7 @@ import (
 	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type OnAfterIngressCreated func(*networkingv1.Ingress)
@@ -75,7 +75,7 @@ type KubeTestSuite struct {
 // - Kubernetes for Mac: Ingress controller installed (you can install it by running "test/k8s/ci_assets/install_nginx_ingress_controller.sh")
 // - have Nuclio CRDs installed (you can install them by running "test/k8s/ci_assets/install_nuclio_crds.sh")
 // - have docker registry running (you can run docker registry by running "docker run --rm -d -p 5000:5000 registry:2")
-// - use "(kube) - platform test" run configuration via GoLand to run your test
+// - use "(test:kube) - platform/kube" run configuration via GoLand to run your test
 func (suite *KubeTestSuite) SetupSuite() {
 	var err error
 
@@ -96,6 +96,9 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	// only set up parent AFTER we set platform's type
 	suite.TestSuite.SetupSuite()
+
+	// log kubernetes deprecation warnings
+	rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(suite.Logger.GetChild("kube_warnings")))
 
 	// fill test external ip addresses
 	err = suite.Platform.SetExternalIPAddresses(strings.Split(suite.GetTestHost(), ","))
@@ -148,6 +151,13 @@ func (suite *KubeTestSuite) TearDownTest() {
 			})
 	}()
 
+	// delete test artifacts
+	_, err := suite.executeKubectl([]string{"delete", "all", "--force"},
+		map[string]string{
+			"selector": "nuclio.io/test",
+		})
+	suite.Require().NoError(err, "Failed to delete test artifacts")
+
 	// remove nuclio function leftovers
 	errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
 	for _, resourceKind := range []string{
@@ -166,7 +176,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 	suite.Require().NoError(errGroup.Wait(), "Failed waiting for CRDs deletion")
 
 	// wait until controller delete all CRD resources (deployments, ingresses, etc)
-	err := common.RetryUntilSuccessful(5*time.Minute,
+	err = common.RetryUntilSuccessful(5*time.Minute,
 		5*time.Second,
 		func() bool {
 			results, err := suite.executeKubectl(
@@ -246,42 +256,35 @@ func (suite *KubeTestSuite) GetFunctionAndExpectState(getFunctionOptions *platfo
 }
 
 func (suite *KubeTestSuite) TryGetAndUnmarshalFunctionRecordedEvents(ctx context.Context,
-	functionURL string,
+	functionName string,
 	retryDuration time.Duration,
 	events interface{}) {
 	err := common.RetryUntilSuccessful(retryDuration,
 		2*time.Second,
 		func() bool {
-			suite.Logger.DebugWithCtx(ctx, "Trying to get recorded events", "functionURL", functionURL)
+			suite.Logger.DebugWithCtx(ctx, "Trying to get recorded events", "functionName", functionName)
 
-			// invoke function
-			httpResponse, err := http.Get(functionURL)
+			response, err := suite.KubectlInvokeFunctionViaCurl(functionName,
+				strings.Join([]string{
+					"--retry 5",
+					"--silent",
+					"--location",
+					fmt.Sprintf("http://%s:%d",
+						kube.ServiceNameFromFunctionName(functionName),
+						abstract.FunctionContainerHTTPPort),
+				}, " "))
 			if err != nil {
 				suite.Logger.WarnWithCtx(ctx, "Failed to get function recorded events",
-					"functionURL", functionURL,
-					"err", err.Error())
-				return false
-			}
-
-			if httpResponse.StatusCode == http.StatusServiceUnavailable {
-				suite.Logger.WarnWithCtx(ctx, "Function is not yet available", "functionURL", functionURL)
-				return false
-			}
-
-			// read response body
-			responseBody, err := ioutil.ReadAll(httpResponse.Body)
-			if err != nil {
-				suite.Logger.WarnWithCtx(ctx,
-					"Failed to read response body",
+					"functionName", functionName,
 					"err", err.Error())
 				return false
 			}
 
 			// unmarshal recorded events
-			if err := json.Unmarshal(responseBody, &events); err != nil {
+			if err := json.Unmarshal([]byte(response), &events); err != nil {
 				suite.Logger.WarnWithCtx(ctx,
 					"Failed to unmarshal response body",
-					"responseBody", string(responseBody),
+					"responseBody", response,
 					"err", err.Error())
 				return false
 			}
@@ -473,38 +476,44 @@ func (suite *KubeTestSuite) WaitForAPIGatewayState(getAPIGatewayOptions *platfor
 	suite.Require().NoError(err, "Api gateway did not reach its desired state")
 }
 
-func (suite *KubeTestSuite) KubectlInvokeFunctionViaCurl(functionName string, curlCommand string) string {
+func (suite *KubeTestSuite) KubectlInvokeFunctionViaCurl(functionName string, curlCommand string) (string, error) {
 	curlPodName := fmt.Sprintf("curl-%s", functionName)
+	curlPodLabel := fmt.Sprintf("nuclio.io/test=curl-%s", functionName)
+	_, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).Get(suite.Ctx, curlPodName, metav1.GetOptions{})
+	createPod := false
+	if err != nil && kubeapierrors.IsNotFound(err) {
+		createPod = true
 
-	// start curl pod, let it sleep
-	runCurlPodCommand := fmt.Sprintf(""+
-		"kubectl "+
-		"run "+
-		"%s "+
-		"--image=curlimages/curl:7.77.0 "+
-		"--restart=Never "+
-		"--command -- "+
-		"sleep 600",
-		curlPodName)
-	_, err := suite.CmdRunner.Run(nil, runCurlPodCommand)
+		// ignore error, we will create the pod
+		err = nil
+	}
 	suite.Require().NoError(err)
 
-	waitForCurlPodReadyCommand := fmt.Sprintf("kubectl wait --for=condition=ready pod/%s", curlPodName)
-	_, err = suite.CmdRunner.Run(nil, waitForCurlPodReadyCommand)
-	suite.Require().NoError(err)
+	if createPod {
 
-	execCurlCommand := fmt.Sprintf(
-		"kubectl "+
-			"exec "+
-			"%s -- "+
-			"curl %s",
-		curlPodName,
-		curlCommand)
+		// start curl pod, let it sleep
+		runCurlPodCommand := fmt.Sprintf(strings.Join([]string{"kubectl",
+			"run",
+			"%s",
+			fmt.Sprintf("--labels=%s", curlPodLabel),
+			"--image=gcr.io/iguazio/curlimages/curl:7.81.0",
+			"--restart=Never",
+			"--command",
+			"--",
+			"sleep 600",
+		}, " "),
+			curlPodName)
+		_, err := suite.CmdRunner.Run(nil, runCurlPodCommand)
+		suite.Require().NoError(err)
 
+		waitForCurlPodReadyCommand := fmt.Sprintf("kubectl wait --for=condition=ready pod/%s", curlPodName)
+		_, err = suite.CmdRunner.Run(nil, waitForCurlPodReadyCommand)
+		suite.Require().NoError(err)
+	}
+
+	execCurlCommand := fmt.Sprintf("kubectl exec %s -- curl %s", curlPodName, curlCommand)
 	curlResults, err := suite.CmdRunner.Run(nil, execCurlCommand)
-	suite.Require().NoError(err)
-
-	return curlResults.Output
+	return curlResults.Output, err
 }
 
 func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.CreateAPIGatewayOptions,

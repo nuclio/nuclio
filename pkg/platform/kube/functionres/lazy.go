@@ -52,7 +52,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	batchv1 "k8s.io/api/batch/v1"
-	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -421,8 +420,8 @@ func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProv
 func (lc *lazyClient) createOrUpdateCronJobs(ctx context.Context,
 	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
-	resources Resources) ([]*batchv1beta1.CronJob, error) {
-	var cronJobs []*batchv1beta1.CronJob
+	resources Resources) ([]*batchv1.CronJob, error) {
+	var cronJobs []*batchv1.CronJob
 	var suspendCronJobs bool
 
 	// if function was paused - suspend all cron jobs
@@ -446,8 +445,8 @@ func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(ctx context.Context,
 	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources,
-	suspendCronJobs bool) ([]*batchv1beta1.CronJob, error) {
-	var cronJobs []*batchv1beta1.CronJob
+	suspendCronJobs bool) ([]*batchv1.CronJob, error) {
+	var cronJobs []*batchv1.CronJob
 
 	cronTriggers := functionconfig.GetTriggersByKind(function.Spec.Triggers, "cron")
 
@@ -509,9 +508,12 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(ctx context.Context,
 	}
 
 	// retrieve all the cron jobs that aren't inside the new cron triggers, so they can be deleted
-	cronJobsToDelete, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: lc.compileCronTriggerLabelSelector(function.Name, cronTriggerInNewCronTriggers),
-	})
+	cronJobsToDelete, err := lc.kubeClientSet.
+		BatchV1().
+		CronJobs(function.Namespace).
+		List(ctx, metav1.ListOptions{
+			LabelSelector: lc.compileCronTriggerLabelSelector(function.Name, cronTriggerInNewCronTriggers),
+		})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list cron jobs")
 	}
@@ -530,7 +532,7 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(ctx context.Context,
 		errGroup.Go("DeleteCronTrigger", func() error {
 
 			// delete this removed cron trigger cron job
-			err := lc.kubeClientSet.BatchV1beta1().
+			err := lc.kubeClientSet.BatchV1().
 				CronJobs(function.Namespace).
 				Delete(ctx, cronJobToDelete.Name, metav1.DeleteOptions{})
 
@@ -1222,7 +1224,7 @@ func (lc *lazyClient) deleteCronJobs(ctx context.Context, functionName, function
 
 	zero := int64(0)
 	deleteInBackground := metav1.DeletePropagationBackground
-	return lc.kubeClientSet.BatchV1beta1().
+	return lc.kubeClientSet.BatchV1().
 		CronJobs(functionNamespace).
 		DeleteCollection(ctx,
 			metav1.DeleteOptions{
@@ -1238,8 +1240,8 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 	extraMetaLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	jobName string,
-	cronJobSpec *batchv1beta1.CronJobSpec,
-	suspendCronJob bool) (*batchv1beta1.CronJob, error) {
+	cronJobSpec *batchv1.CronJobSpec,
+	suspendCronJob bool) (*batchv1.CronJob, error) {
 
 	// should cron job be suspended or not (true when function is paused)
 	cronJobSpec.Suspend = &suspendCronJob
@@ -1248,7 +1250,7 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 	cronJobMetaLabels := labels.Merge(functionLabels, extraMetaLabels)
 
 	getCronJob := func() (interface{}, error) {
-		cronJobs, err := lc.kubeClientSet.BatchV1beta1().
+		cronJobs, err := lc.kubeClientSet.BatchV1().
 			CronJobs(function.Namespace).
 			List(ctx, metav1.ListOptions{
 				LabelSelector: cronJobMetaLabels.String(),
@@ -1265,7 +1267,7 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 	}
 
 	cronJobIsDeleting := func(resource interface{}) bool {
-		return (resource).(*batchv1beta1.CronJob).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*batchv1.CronJob).ObjectMeta.DeletionTimestamp != nil
 	}
 
 	// Prepare the new cron job object
@@ -1285,13 +1287,13 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 	cronJobSpec.JobTemplate.Spec.Template.Labels = podTemplateLabels
 
 	// this new object will be used both on creation/update
-	newCronJob := batchv1beta1.CronJob{
+	newCronJob := batchv1.CronJob{
 		ObjectMeta: cronJobMeta,
 		Spec:       *cronJobSpec,
 	}
 
 	createCronJob := func() (interface{}, error) {
-		resultCronJob, err := lc.kubeClientSet.BatchV1beta1().
+		resultCronJob, err := lc.kubeClientSet.BatchV1().
 			CronJobs(function.Namespace).
 			Create(ctx, &newCronJob, metav1.CreateOptions{})
 
@@ -1299,7 +1301,7 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 	}
 
 	updateCronJob := func(resource interface{}) (interface{}, error) {
-		cronJob := resource.(*batchv1beta1.CronJob)
+		cronJob := resource.(*batchv1.CronJob)
 
 		// Use the original name of the CronJob
 		newCronJob.Name = cronJob.Name
@@ -1307,7 +1309,9 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 		// set the contents of the cron job pointer to be the updated cron job
 		*cronJob = newCronJob
 
-		resultCronJob, err := lc.kubeClientSet.BatchV1beta1().CronJobs(function.Namespace).Update(ctx, cronJob, metav1.UpdateOptions{})
+		resultCronJob, err := lc.kubeClientSet.BatchV1().
+			CronJobs(function.Namespace).
+			Update(ctx, cronJob, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to update cron job")
 		}
@@ -1330,7 +1334,7 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 		return nil, nil
 	}
 
-	return resource.(*batchv1beta1.CronJob), err
+	return resource.(*batchv1.CronJob), err
 }
 
 func (lc *lazyClient) compileCronTriggerLabelSelector(functionName, additionalLabels string) string {
@@ -1599,10 +1603,10 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	functionLabels labels.Set,
 	function *nuclioio.NuclioFunction,
 	resources Resources,
-	cronTrigger functionconfig.Trigger) (*batchv1beta1.CronJobSpec, error) {
+	cronTrigger functionconfig.Trigger) (*batchv1.CronJobSpec, error) {
 	var err error
 	one := int32(1)
-	spec := batchv1beta1.CronJobSpec{}
+	spec := batchv1.CronJobSpec{}
 
 	type cronAttributes struct {
 		Schedule          string
@@ -1677,7 +1681,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		jobBackoffLimit = 2
 	}
 
-	spec.JobTemplate = batchv1beta1.JobTemplateSpec{
+	spec.JobTemplate = batchv1.JobTemplateSpec{
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &jobBackoffLimit,
 			Template: v1.PodTemplateSpec{
@@ -1699,9 +1703,9 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	lc.populateDefaultContainerResources(ctx, &spec.JobTemplate.Spec.Template.Spec.Containers[0])
 
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
-	concurrencyPolicy := batchv1beta1.ForbidConcurrent
+	concurrencyPolicy := batchv1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		concurrencyPolicy = batchv1beta1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy))
+		concurrencyPolicy = batchv1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy))
 	}
 	spec.ConcurrencyPolicy = concurrencyPolicy
 
@@ -2380,7 +2384,7 @@ type lazyResources struct {
 	service                 *v1.Service
 	horizontalPodAutoscaler *autosv2.HorizontalPodAutoscaler
 	ingress                 *networkingv1.Ingress
-	cronJobs                []*batchv1beta1.CronJob
+	cronJobs                []*batchv1.CronJob
 }
 
 // Deployment returns the deployment
@@ -2409,6 +2413,6 @@ func (lr *lazyResources) Ingress() (*networkingv1.Ingress, error) {
 }
 
 // CronJobs returns the cron job
-func (lr *lazyResources) CronJobs() ([]*batchv1beta1.CronJob, error) {
+func (lr *lazyResources) CronJobs() ([]*batchv1.CronJob, error) {
 	return lr.cronJobs, nil
 }

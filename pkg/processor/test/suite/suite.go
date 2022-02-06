@@ -296,12 +296,16 @@ func (suite *TestSuite) WaitForFunctionState(getFunctionOptions *platform.GetFun
 		1*time.Second,
 		func() bool {
 			function := suite.GetFunction(getFunctionOptions)
-			suite.Logger.InfoWith("Waiting for function state",
+			suite.Logger.DebugWithCtx(suite.ctx,
+				"Waiting for function state",
 				"currentFunctionState", function.GetStatus().State,
 				"desiredFunctionState", desiredFunctionState)
 			return function.GetStatus().State == desiredFunctionState
 		})
 	suite.Require().NoError(err, "Function did not reach its desired state")
+	suite.Logger.InfoWithCtx(suite.ctx,
+		"Function reached its desired state",
+		"desiredFunctionState", desiredFunctionState)
 }
 
 // DeployFunction builds a docker image, runs a container from it and then
