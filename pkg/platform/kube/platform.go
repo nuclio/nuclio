@@ -500,11 +500,11 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 				// only add
 				var tolerationsToAdd []v1.Toleration
 
-				// only add non-matching toleratinos as we dont want to have duplicates
+				// only add non-matching toleratinos to avoid duplications
 				for _, functionToleration := range functionConfig.Spec.Tolerations {
 					for _, preemptibleNodeTolerations := range p.Config.Kube.PreemptibleNodes.Tolerations {
 						if !functionToleration.MatchToleration(&preemptibleNodeTolerations) {
-							continue
+							tolerationsToAdd = append(tolerationsToAdd, preemptibleNodeTolerations)
 						}
 					}
 				}
