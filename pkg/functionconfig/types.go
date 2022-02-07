@@ -320,7 +320,18 @@ type Spec struct {
 	// We're letting users write "20s" and not the default marshalled time.Duration
 	// (Which is in nanoseconds)
 	EventTimeout string `json:"eventTimeout"`
+
+	// PreemptionMode is a mode to allow the user to allow running function pods on preemptible nodes
+	// When filled, tolerations, node labels, and affinity would be populated correspondingly to
+	// the platformconfig.PreemptibleNodes values.
+	PreemptionMode RunOnPreemptibleNodeMode `json:"preemptionMode,omitempty"`
 }
+
+type RunOnPreemptibleNodeMode string
+
+const (
+	RunOnPreemptibleNodesAllow RunOnPreemptibleNodeMode = "allow"
+)
 
 type ScaleToZeroSpec struct {
 	ScaleResources []ScaleResource `json:"scaleResources,omitempty"`
