@@ -154,8 +154,8 @@ type PlatformKubeConfig struct {
 
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)
 type PreemptibleNodes struct {
-	Tolerations   []corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelectors map[string]string   `json:"nodeSelectors,omitempty"`
+	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
+	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
 }
 
 type PlatformLocalConfig struct {

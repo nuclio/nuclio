@@ -330,7 +330,12 @@ type Spec struct {
 type RunOnPreemptibleNodeMode string
 
 const (
+
+	// RunOnPreemptibleNodesAllow makes function pods be able to run on preemptible nodes
 	RunOnPreemptibleNodesAllow RunOnPreemptibleNodeMode = "allow"
+
+	// RunOnPreemptibleNodesConstrain makes the function pods run on preemtible nodes only
+	RunOnPreemptibleNodesConstrain RunOnPreemptibleNodeMode = "constrain"
 )
 
 type ScaleToZeroSpec struct {
