@@ -65,3 +65,7 @@ issues:
     - path: _test\.go
       linters:
         - goconst
+
+      # false positive
+    - path: pkg/common/k8s.go
+      text: "deprecatedComment: the proper format is `Deprecated: <text>`"

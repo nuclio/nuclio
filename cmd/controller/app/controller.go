@@ -34,6 +34,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 func Run(kubeconfigPath string,
@@ -166,6 +167,8 @@ func createController(kubeconfigPath string,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create api gateway provisioner")
 	}
+
+	rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(rootLogger.GetChild("kube_warnings")))
 
 	newController, err := controller.NewController(rootLogger,
 		namespace,

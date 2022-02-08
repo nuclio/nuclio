@@ -65,25 +65,34 @@ func (suite *TestSuite) SetupSuite() {
 func (suite *TestSuite) TestPostEventPythonInterval() {
 	createFunctionOptions := suite.getCronDeployOptions()
 
-	tests := []struct {
+	for _, testCase := range []struct {
+		name     string
 		duration time.Duration
 		interval time.Duration
 	}{
-		{10 * time.Second, 3 * time.Second},
-		{2 * time.Second, 250 * time.Millisecond},
-	}
-
-	for _, test := range tests {
-		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["interval"] = test.interval.String()
-		expectedOccurredEvents := int(test.duration / test.interval)
-		suite.Logger.DebugWith("Invoking event recorder",
-			"test", test,
-			"expectedOccurredEvents", expectedOccurredEvents,
-			"interval", test.interval.String())
-		suite.invokeEventRecorder(createFunctionOptions,
-			test.duration,
-			expectedOccurredEvents-1,
-			expectedOccurredEvents+1)
+		{
+			name:     "every seconds",
+			duration: 10 * time.Second,
+			interval: 3 * time.Second,
+		},
+		{
+			name:     "every mseconds",
+			duration: 2 * time.Second,
+			interval: 250 * time.Millisecond,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["interval"] = testCase.interval.String()
+			expectedOccurredEvents := int(testCase.duration / testCase.interval)
+			suite.Logger.DebugWith("Invoking event recorder",
+				"test", testCase.name,
+				"expectedOccurredEvents", expectedOccurredEvents,
+				"interval", testCase.interval.String())
+			suite.invokeEventRecorder(createFunctionOptions,
+				testCase.duration,
+				expectedOccurredEvents-1,
+				expectedOccurredEvents+1)
+		})
 	}
 }
 

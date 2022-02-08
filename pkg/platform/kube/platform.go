@@ -48,6 +48,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 type Platform struct {
@@ -449,6 +450,7 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		}
 	}
 
+	// enrich function tolerations
 	if functionConfig.Spec.Tolerations == nil && p.Config.Kube.DefaultFunctionTolerations != nil {
 		p.Logger.DebugWithCtx(ctx,
 			"Enriching function tolerations",
@@ -464,6 +466,64 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 			"functionName", functionConfig.Meta.Name,
 			"priorityClassName", p.Config.Kube.DefaultFunctionPriorityClassName)
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
+	}
+
+	if p.Config.Kube.PreemptibleNodes != nil {
+
+		// we do such stuff to allow exposing features before they are exposed on UI
+		if preemptionMode, exists := functionConfig.Meta.Annotations["custom.nuclio.io/preemptible-mode"]; exists {
+			p.Logger.DebugWithCtx(ctx,
+				"Enriching function preemption mode from function annotations",
+				"preemptionMode", preemptionMode)
+			functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
+		}
+
+		if functionConfig.Spec.PreemptionMode == functionconfig.RunOnPreemptibleNodesAllow {
+			p.Logger.DebugWithCtx(ctx,
+				"Allowing function to run on preemptible nodes",
+				"functionName", functionConfig.Meta.Name)
+
+			// merge node selectors - precedence to pre-configured preemptible nodes node selectors
+			if p.Config.Kube.PreemptibleNodes.NodeSelectors != nil {
+				functionConfig.Spec.NodeSelector = labels.Merge(functionConfig.Spec.NodeSelector,
+					p.Config.Kube.PreemptibleNodes.NodeSelectors)
+			}
+
+			// union tolerations
+			if len(p.Config.Kube.PreemptibleNodes.Tolerations) > 0 {
+
+				// initialize list
+				if functionConfig.Spec.Tolerations == nil {
+					functionConfig.Spec.Tolerations = []v1.Toleration{}
+				}
+
+				// only add
+				var tolerationsToAdd []v1.Toleration
+
+				// only add non-matching toleratinos to avoid duplications
+				for _, functionToleration := range functionConfig.Spec.Tolerations {
+					for _, preemptibleNodeTolerations := range p.Config.Kube.PreemptibleNodes.Tolerations {
+						if !functionToleration.MatchToleration(&preemptibleNodeTolerations) {
+							tolerationsToAdd = append(tolerationsToAdd, preemptibleNodeTolerations)
+						}
+					}
+				}
+
+				// in case function has no toleration, use tolerations from platform config
+				if len(functionConfig.Spec.Tolerations) == 0 {
+					tolerationsToAdd = p.Config.Kube.PreemptibleNodes.Tolerations
+				}
+
+				if tolerationsToAdd != nil {
+					p.Logger.DebugWithCtx(ctx,
+						"Adding function tolerations",
+						"tolerationsToAdd", tolerationsToAdd)
+
+					// add with unmatched tolerations
+					functionConfig.Spec.Tolerations = append(functionConfig.Spec.Tolerations, tolerationsToAdd...)
+				}
+			}
+		}
 	}
 
 	return nil

@@ -5,8 +5,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/nuclio/logger"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -51,6 +53,32 @@ func ResolveDefaultNamespace(defaultNamespace string) string {
 
 func CompileListFunctionPodsLabelSelector(functionName string) string {
 	return fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/function-cron-job-pod!=true", functionName)
+}
+
+type KubernetesClientWarningHandler struct {
+	logger logger.Logger
+}
+
+func NewKubernetesClientWarningHandler(logger logger.Logger) *KubernetesClientWarningHandler {
+	return &KubernetesClientWarningHandler{
+		logger: logger,
+	}
+}
+
+// HandleWarningHeader handles miscellaneous warning messages yielded by Kubernetes api server
+// e.g.: "autoscaling/v2beta1 HorizontalPodAutoscaler is deprecated in v1.22+, unavailable in v1.25+; use autoscaling/v2beta2 HorizontalPodAutoscaler"
+// Note: code is determined by the Kubernetes server
+func (kcl *KubernetesClientWarningHandler) HandleWarningHeader(code int, agent string, message string) {
+	if code != 299 || len(message) == 0 {
+		return
+	}
+
+	// special handling for deprecation warnings
+	if strings.Contains(message, "is deprecated") {
+		kcl.logger.WarnWith("Kubernetes deprecation alert", "message", message, "agent", agent)
+		return
+	}
+	kcl.logger.WarnWith(message, "agent", agent)
 }
 
 func getKubeconfigFromHomeDir() string {
