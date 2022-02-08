@@ -96,6 +96,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		namedWorkerAllocators:     worker.NewAllocatorSyncMap(),
 		stop:                      make(chan bool, 1),
 		stopRestartTriggerRoutine: make(chan bool, 1),
+		restartTriggerChan:        make(chan trigger.Trigger, 1),
 	}
 
 	// get platform configuration
@@ -179,12 +180,13 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 func (p *Processor) Start() error {
 
 	// create a goroutine that restarts a trigger if needed
-	p.restartTriggerChan = make(chan trigger.Trigger, 1)
 	go func() {
-
+		p.logger.InfoWith("TOMER - started restart goroutine")
 		for {
 			select {
 			case triggerInstance := <-p.restartTriggerChan:
+
+				p.logger.DebugWith("Restarting trigger", "triggerInstance", triggerInstance)
 				if err := p.restartTrigger(triggerInstance); err != nil {
 
 					// handle error

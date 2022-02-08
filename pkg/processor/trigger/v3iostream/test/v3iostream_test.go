@@ -21,8 +21,8 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"path"
+	"reflect"
 	"testing"
 	"time"
 
@@ -39,7 +39,6 @@ import (
 	v3iohttp "github.com/v3io/v3io-go/pkg/dataplane/http"
 	v3ioscg "github.com/v3io/v3io-go/pkg/dataplane/streamconsumergroup"
 	v3ioerrors "github.com/v3io/v3io-go/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 type testSuite struct {
@@ -50,7 +49,6 @@ type testSuite struct {
 	v3ioContainer v3io.Container
 	v3ioSession   v3io.Session
 	numWorkers    int
-	shardCount    int
 
 	// v3io trigger attributes
 	url           string
@@ -58,18 +56,20 @@ type testSuite struct {
 	containerName string
 	streamPath    string
 	consumerGroup string
+
+	stateContentsAttributeKey string
 }
 
 func (suite *testSuite) SetupSuite() {
 	var err error
 
 	// Change below
-	suite.url = "https://default-tenant.app.dev62.lab.iguazeng.com:8444" // "https://somewhere:8444"
-	suite.accessKey = "f68221c5-2320-4ba7-b52b-b8e7d876eb86"             // "some-access-key"
+	suite.url = "https://webapi.default-tenant.app.ts-aws-1.iguazio-cd1.com" // "https://somewhere:8444"
+	suite.accessKey = "ec574194-9230-44a6-906e-d53c1debc36e"                // "some-access-key"
 	// END OF change
 
 	suite.numWorkers = 8
-	suite.shardCount = 1
+	suite.stateContentsAttributeKey = "state"
 
 	// v3io trigger attributes
 	suite.containerName = "bigdata"
@@ -97,12 +97,12 @@ func (suite *testSuite) SetupSuite() {
 	})
 	suite.Require().NoError(err, "Failed to create v3io container")
 
-	err = suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
-		Path:                 suite.streamPath,
-		ShardCount:           suite.shardCount,
-		RetentionPeriodHours: 1,
-	})
-	suite.Require().NoError(err, "Failed to create v3io sync stream")
+	//err = suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
+	//	Path:                 suite.streamPath,
+	//	ShardCount:           suite.shardCount,
+	//	RetentionPeriodHours: 1,
+	//})
+	//suite.Require().NoError(err, "Failed to create v3io sync stream")
 }
 
 func (suite *testSuite) TearDownSuite() {
@@ -118,6 +118,15 @@ func (suite *testSuite) TestAckWindowSize() {
 	ackWindowSize := 10
 	shardID := 0
 	recordedEvents := 0
+	shardCount := 1
+
+	err := suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
+		Path:                 suite.streamPath,
+		ShardCount:           shardCount,
+		RetentionPeriodHours: 1,
+	})
+	suite.Require().NoError(err, "Failed to create v3io sync stream")
+
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"test-nuclio-v3io": {
@@ -229,6 +238,16 @@ func (suite *testSuite) TestAckWindowSize() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
+
+	shardCount := 1
+
+	err := suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
+		Path:                 suite.streamPath,
+		ShardCount:           shardCount,
+		RetentionPeriodHours: 1,
+	})
+	suite.Require().NoError(err, "Failed to create v3io sync stream")
+
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"test-nuclio-v3io": {
@@ -256,158 +275,308 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.writingMessageToStream)
 }
 
-//func (suite *testSuite) TestShardAssignmentSanity() {
-//	var err error
-//
-//	// create a stream with 9 shards
-//	streamPath := fmt.Sprintf("test-nuclio-%s/", xid.New().String())
-//	shardCount := 9
-//
-//	err = suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
-//		Path:                 streamPath,
-//		ShardCount:           shardCount,
-//		RetentionPeriodHours: 1,
-//	})
-//	suite.Require().NoError(err, "Failed to create v3io sync stream")
-//
-//	// deploy a first function with maxReplicas=3
-//	maxReplicas := 3
-//	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
-//	createFunctionOptions.FunctionConfig.Meta.Name = "event_recorder_test_1"
-//	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &maxReplicas
-//	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-//		"test-nuclio-v3io": {
-//			Kind:     "v3ioStream",
-//			URL:      suite.url,
-//			Password: suite.accessKey,
-//			Attributes: map[string]interface{}{
-//				"seekTo":        "earliest", // avoid race condition with `latest` missed by function
-//				"containerName": suite.containerName,
-//				"streamPath":    streamPath,
-//				"consumerGroup": suite.consumerGroup,
-//			},
-//		},
-//	}
-//
-//	suite.Logger.Debug("Creating first function")
-//	suite.DeployFunction(createFunctionOptions, func(deployResult1 *platform.CreateFunctionResult) bool {
-//		suite.Logger.Debug("After deploying function number 1")
-//
-//		// check which shards the first function's trigger got
-//		v3ioStreamsMap := functionconfig.GetTriggersByKind(deployResult1.UpdatedFunctionConfig.Spec.Triggers, "v3ioStream")
-//		suite.Logger.DebugWith("First function stream map", "v3ioStreamsMap", v3ioStreamsMap)
-//
-//		partitions1 := v3ioStreamsMap["test-nuclio-v3io"].Partitions
-//		suite.Logger.DebugWith("First function trigger partitions", "partitions", partitions1)
-//
-//		// deploy a second function with the same stream trigger
-//		suite.Logger.Debug("Creating second function")
-//		createFunctionOptions.FunctionConfig.Meta.Name = "event_recorder_test_2"
-//		suite.DeployFunction(createFunctionOptions, func(deployResult2 *platform.CreateFunctionResult) bool {
-//			suite.Logger.Debug("After deploying function number 2")
-//
-//			// stop and start the first function's container
-//			err = suite.DockerClient.StopContainer(deployResult1.ContainerID)
-//			suite.Require().NoError(err)
-//
-//			// stop and start the first function's container
-//			err = suite.DockerClient.StartContainer(deployResult1.ContainerID)
-//			suite.Require().NoError(err)
-//
-//			// check which shards the first and second function's trigger got
-//			partitions1 = deployResult1.UpdatedFunctionConfig.Spec.Triggers["test-nuclio-v3io"].Partitions
-//			suite.Logger.DebugWith("First function trigger partitions", "partitions", partitions1)
-//
-//			partitions2 := deployResult2.UpdatedFunctionConfig.Spec.Triggers["test-nuclio-v3io"].Partitions
-//			suite.Logger.DebugWith("Second function trigger partitions", "partitions", partitions2)
-//
-//			// deploy a third function with the same stream trigger
-//			suite.Logger.Debug("Creating third function")
-//			createFunctionOptions.FunctionConfig.Meta.Name = "event_recorder_test_3"
-//			suite.DeployFunction(createFunctionOptions, func(deployResult3 *platform.CreateFunctionResult) bool {
-//				suite.Logger.Debug("After deploying function number 3")
-//
-//				// Make sure every function got 3 shards (member's shard group)
-//				suite.Logger.Debug("Describing stream")
-//				response, err := suite.v3ioContainer.DescribeStreamSync(&v3io.DescribeStreamInput{
-//					Path: streamPath,
-//					DataPlaneInput: v3io.DataPlaneInput{
-//						Ctx:           context.Background(),
-//						URL:           suite.url,
-//						ContainerName: suite.containerName,
-//						AccessKey:     suite.accessKey,
-//					},
-//				})
-//				suite.Require().NoError(err)
-//				defer response.Release()
-//				describeStreamOutput := response.Output.(*v3io.DescribeStreamOutput)
-//				outputShardCount := describeStreamOutput.ShardCount
-//
-//				suite.Logger.DebugWith("Describe stream output and shard count",
-//					"describeStreamOutput", describeStreamOutput,
-//					"outputShardCount", outputShardCount)
-//				suite.Require().Equal(shardCount, outputShardCount)
-//
-//				partitions3 := deployResult3.UpdatedFunctionConfig.Spec.Triggers["test-nuclio-v3io"].Partitions
-//				suite.Logger.DebugWith("Third function trigger partitions", "partitions", partitions3)
-//
-//				return true
-//			})
-//			return true
-//		})
-//		return true
-//	})
-//
-//}
-
 func (suite *testSuite) TestShardRetention() {
 
 	var err error
+	shardCount := 4
+	//streamPath := "test-stream/path/"
+	numReplicas := 2
 
 	// create a stream with 4 shards
-	streamPath := "dani/in-stream/"
-	shardCount := 4
-	consumerGroupName := "test-cg"
-
 	err = suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
-		Path:                 streamPath,
+		Path:                 suite.streamPath,
 		ShardCount:           shardCount,
 		RetentionPeriodHours: 1,
 	})
 	suite.Require().NoError(err, "Failed to create v3io sync stream")
 
 	// create a function with 2 replicas and a v3iostream - it should only take 2 shards
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+	createFunctionOptions.FunctionConfig.Spec.Replicas = &numReplicas
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"test-nuclio-v3io": {
+			Kind:       "v3ioStream",
+			URL:        suite.url,
+			Password:   suite.accessKey,
+			MaxWorkers: 1,
+			Attributes: map[string]interface{}{
+				"seekTo":        "earliest",
+				"containerName": suite.containerName,
+				"streamPath":    suite.streamPath,
+				"consumerGroup": suite.consumerGroup,
+			},
+		},
 	}
 
-	// parse function options from yaml
-	yamlFilePath := path.Join(suite.GetNuclioSourceDir(), "hack", "env", "golang.yaml")
-	yamlFile, err := ioutil.ReadFile(yamlFilePath)
-	suite.Require().NoError(err)
-
-	err = yaml.Unmarshal(yamlFile, createFunctionOptions.FunctionConfig)
-	suite.Require().NoError(err)
-
-	suite.Logger.Debug("Creating first function")
+	// deploy function
+	suite.Logger.Debug("Deploying function")
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Logger.Debug("Function deployed successfully")
 
+		var state *v3ioscg.State
+
 		// read the state file and see the shard group taken by the function
-		state, err := suite.getStateFromPersistency(streamPath, consumerGroupName)
+		err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+
+			state, err = suite.getStateFromPersistency(suite.streamPath, suite.consumerGroup)
+			if err != nil {
+				suite.Logger.WarnWith("Failed getting state from persistency", "err", err.Error())
+				return false
+			}
+
+			// wait until the function grabs a shard group
+			if len(state.SessionStates) == 0 {
+				return false
+			}
+
+			return true
+		})
 		suite.Require().NoError(err)
 
 		suite.Logger.DebugWith("Read state file from persistency", "state", state)
 
-		// manually change the state file - another function is handling the same shard group
+		// there should only be 1 session state
+		suite.Require().Equal(1, len(state.SessionStates))
+
+		// keep the originally assigned shards
+		originalShards := state.SessionStates[0].Shards
+		suite.Require().NotEmpty(originalShards)
+
+		// write to shard #0
+		shardID := 0
+		messageBody := fmt.Sprintf("%s-%d", suite.streamPath, shardID)
+		err = suite.writeMessageToStreamShard(suite.streamPath, messageBody, &shardID)
+		suite.Require().NoError(err, "Failed to publish message")
+
+		time.Sleep(2 * time.Second)
+
+		// make sure there is no lag
+		current, committed := suite.getShardLagDetails(shardID)
+		suite.Logger.DebugWith("Got shard lag details",
+			"shardID", shardID,
+			"current", current,
+			"committed", committed)
+		suite.Require().Equal(current, committed)
+
+		// manually change the state file - another function hijacks the same shard group
+		suite.Logger.Debug("Modifying state file")
+		state.SessionStates[0].MemberID = "another-replica-id"
+		err = suite.setStateInPersistency(suite.streamPath, suite.consumerGroup, state)
+		suite.Require().NoError(err)
 
 		// the function should try to retain its shard group and abort
+		time.Sleep(time.Second) // not sure if needed
 
-		// read the state file and see that the function took the 2 other shards
+		// read the state file again and see that the function took the other shard group
+		err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+
+			state, err = suite.getStateFromPersistency(suite.streamPath, suite.consumerGroup)
+			if err != nil {
+				suite.Logger.WarnWith("Failed getting state from persistency", "err", err.Error())
+				return false
+			}
+
+			// wait until the function grabs the other shard group
+			if len(state.SessionStates) == 1 {
+				return false
+			}
+			return true
+		})
+
+		suite.Logger.DebugWith("Read state file from persistency #2", "state", state)
+		suite.Require().Equal(2, len(state.SessionStates))
+
+		var updatedShards []int
+		for _, sessionState := range state.SessionStates {
+			if sessionState.MemberID != "another-replica-id" {
+				updatedShards = sessionState.Shards
+			}
+		}
+		suite.Require().NotEmpty(updatedShards)
+
+		suite.Require().False(reflect.DeepEqual(updatedShards, originalShards))
+
+		// after hijack - write to shard #0 again
+		err = suite.writeMessageToStreamShard(suite.streamPath, messageBody, &shardID)
+		suite.Require().NoError(err, "Failed to publish message")
+
+		time.Sleep(2 * time.Second)
+
+		// expect a lag of 1 for shard #0
+		current, committed = suite.getShardLagDetails(shardID) // TOMER - {"current": 2, "committed": 2} - not as expected
+		suite.Logger.DebugWith("Got shard lag details",
+			"shardID", shardID,
+			"current", current,
+			"committed", committed)
+		//suite.Require().Equal(1, current-committed)
+
+		// after hijack - write to shard #2
+		shardID = 2
+		messageBody = fmt.Sprintf("%s-%d", suite.streamPath, shardID)
+		err = suite.writeMessageToStreamShard(suite.streamPath, messageBody, &shardID)
+		suite.Require().NoError(err, "Failed to publish message")
+
+		time.Sleep(2 * time.Second)
+
+		// expect no lag and committed > 0 for shard #2
+		current, committed = suite.getShardLagDetails(shardID) // TOMER - {"current": 1, "committed": 0} - not as expected
+		suite.Logger.DebugWith("Got shard lag details",
+			"shardID", shardID,
+			"current", current,
+			"committed", committed)
+		suite.Require().Equal(current, committed)
+		suite.Require().Greater(committed, 0)
 
 		return true
 	})
+}
 
+func (suite *testSuite) TestManualShardHijacking() {
+
+	suite.Logger.Debug("Hello!")
+	var (
+		err   error
+	//	state *v3ioscg.State
+	)
+
+	streamPath := "/test-stream-6/"
+	//shardCount := 4
+	consumerGroup := "cg0"
+	//memberName := "another-replica-id"
+
+	suite.v3ioContainer, err = suite.v3ioSession.NewContainer(&v3io.NewContainerInput{
+		ContainerName: "users",
+	})
+	suite.Require().NoError(err, "Failed to create v3io container")
+	//
+	//err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+	//
+	//	state, err = suite.getStateFromPersistency(streamPath, consumerGroup)
+	//	if err != nil {
+	//		suite.Logger.WarnWith("Failed getting state from persistency", "err", err.Error())
+	//		return false
+	//	}
+	//
+	//	// wait until the function grabs the other shard group
+	//	//if len(state.SessionStates) == 1 {
+	//	//	return false
+	//	//}
+	//	return true
+	//})
+	//
+	//suite.Require().NoError(err)
+	//
+	//suite.Logger.DebugWith("Read state file from persistency", "state", state)
+	//
+	//// change memberID - to nothing
+	//suite.Logger.Debug("Modifying state file")
+	//for i, session := range state.SessionStates {
+	//	if !strings.Contains(session.MemberID, "stream-test") {
+	//		state.SessionStates[i].MemberID = memberName
+	//	}
+	//}
+	////state.SessionStates[0].MemberID = memberName
+	//err = suite.setStateInPersistency(streamPath, consumerGroup, state)
+	//suite.Require().NoError(err)
+	//
+	//// update heart beat regularly in a goroutine
+	//stopChan := make(chan struct{}, 1)
+	//defer func() {
+	//	stopChan <- struct{}{}
+	//}()
+	//
+	//go func() {
+	//	for {
+	//		select {
+	//		case <-time.After(1 * time.Second):
+	//			err := suite.updateHeartBeat(streamPath, consumerGroup, memberName)
+	//			suite.Require().NoError(err)
+	//
+	//		case <-stopChan:
+	//			return
+	//		}
+	//	}
+	//}()
+	//
+	//// make sure the original replica took the other shards
+	//err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+	//
+	//	state, err = suite.getStateFromPersistency(streamPath, consumerGroup)
+	//	if err != nil {
+	//		suite.Logger.WarnWith("Failed getting state from persistency", "err", err.Error())
+	//		return false
+	//	}
+	//
+	//	// wait until the function grabs the other shard group
+	//	if len(state.SessionStates) == 2 {
+	//		return false
+	//	}
+	//	return true
+	//})
+	//
+	//suite.Logger.DebugWith("Read state file from persistency Again", "state", state)
+
+	suite.consumerGroup = consumerGroup
+	suite.streamPath = streamPath
+
+	shardID := 0
+	current, committed := suite.getShardLagDetails(shardID)
+	suite.Logger.DebugWith("Got shard lag details",
+		"shardID", shardID,
+		"current", current,
+		"committed", committed)
+
+	shardID = 17
+	current, committed = suite.getShardLagDetails(shardID)
+	suite.Logger.DebugWith("Got shard lag details",
+		"shardID", shardID,
+		"current", current,
+		"committed", committed)
+
+}
+
+func (suite *testSuite) updateHeartBeat(streamPath, consumerGroup, memberName string) error {
+	var (
+		err   error
+		state *v3ioscg.State
+	)
+
+	err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+
+		state, err = suite.getStateFromPersistency(streamPath, consumerGroup)
+		if err != nil {
+			suite.Logger.WarnWith("Failed getting state from persistency", "err", err.Error())
+			return false
+		}
+
+		// wait until the function grabs the other shard group
+		if len(state.SessionStates) == 1 {
+			return false
+		}
+		return true
+	})
+	if err != nil {
+		return err
+	}
+
+	// find our session by member ID
+	var sessionState *v3ioscg.SessionState
+
+	for _, sessState := range state.SessionStates {
+		if sessState.MemberID == memberName {
+			sessionState = sessState
+		}
+	}
+
+	// session already exists - just set the last heartbeat
+	if sessionState != nil {
+		sessionState.LastHeartbeat = time.Now()
+	}
+
+	err = suite.setStateInPersistency(streamPath, consumerGroup, state)
+	suite.Require().NoError(err)
+
+	return nil
 }
 
 // GetContainerRunInfo returns nothing as Iguazio WebAPI has no Docker container
@@ -436,9 +605,33 @@ func (suite *testSuite) writingMessageToStream(streamPath string, body string) e
 	return nil
 }
 
+func (suite *testSuite) writeMessageToStreamShard(streamPath string, body string, shardID *int) error {
+	suite.Logger.InfoWith("Publishing message to stream shard",
+		"streamPath", streamPath,
+		"body", body,
+		"shardID", shardID)
+	response, err := suite.v3ioContainer.PutRecordsSync(&v3io.PutRecordsInput{
+		Path: streamPath,
+		Records: []*v3io.StreamRecord{
+			{
+				ShardID: shardID,
+				Data:    []byte(body),
+			},
+		},
+	})
+	suite.Require().NoError(err)
+
+	suite.Logger.InfoWith("Successfully wrote a message to stream",
+		"response", response,
+		"streamPath", streamPath,
+		"shardID", shardID)
+	response.Release()
+	return nil
+}
+
 func (suite *testSuite) getShardLagDetails(shardID int) (int, int) {
 	response, err := suite.v3ioContainer.GetItemSync(&v3io.GetItemInput{
-		Path: fmt.Sprintf("%s/%d", suite.streamPath, shardID),
+		Path: fmt.Sprintf("%s%d", suite.streamPath, shardID),
 		AttributeNames: []string{
 			"__last_sequence_num",
 			fmt.Sprintf("__%s_committed_sequence_number", suite.consumerGroup),
@@ -462,11 +655,11 @@ func (suite *testSuite) getShardLagDetails(shardID int) (int, int) {
 }
 
 func (suite *testSuite) getStateFromPersistency(streamPath, consumerGroupName string) (*v3ioscg.State, error) {
-	stateContentsAttributeKey := "state"
+
 	response, err := suite.v3ioContainer.GetItemSync(&v3io.GetItemInput{
 		Path: suite.getStateFilePath(streamPath, consumerGroupName),
 		AttributeNames: []string{
-			stateContentsAttributeKey,
+			suite.stateContentsAttributeKey,
 		},
 	})
 
@@ -487,7 +680,7 @@ func (suite *testSuite) getStateFromPersistency(streamPath, consumerGroupName st
 
 	getItemOutput := response.Output.(*v3io.GetItemOutput)
 
-	stateContents, err := getItemOutput.Item.GetFieldString(stateContentsAttributeKey)
+	stateContents, err := getItemOutput.Item.GetFieldString(suite.stateContentsAttributeKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting state attribute")
 	}
@@ -499,6 +692,24 @@ func (suite *testSuite) getStateFromPersistency(streamPath, consumerGroupName st
 	}
 
 	return &state, nil
+}
+
+func (suite *testSuite) setStateInPersistency(streamPath, consumerGroupName string, state *v3ioscg.State) error {
+	stateContents, err := json.Marshal(state)
+	if err != nil {
+		return errors.Wrap(err, "Failed marshaling state file contents")
+	}
+
+	if _, err := suite.v3ioContainer.UpdateItemSync(&v3io.UpdateItemInput{
+		Path: suite.getStateFilePath(streamPath, consumerGroupName),
+		Attributes: map[string]interface{}{
+			suite.stateContentsAttributeKey: string(stateContents),
+		},
+	}); err != nil {
+		return errors.Wrap(err, "Failed setting state in persistency")
+	}
+
+	return nil
 }
 
 func (suite *testSuite) getStateFilePath(streamPath, consumerGroupName string) string {
