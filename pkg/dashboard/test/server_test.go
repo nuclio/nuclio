@@ -3181,49 +3181,6 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *v3ioStreamTestSuite) TestGetShardLagsSuccessful() {
-
-	returnedProject := platform.AbstractProject{}
-	returnedProject.ProjectConfig.Meta.Name = "p1"
-	returnedProject.ProjectConfig.Meta.Namespace = "p1-namespace"
-	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
-
-	// TODO: mock fast http client and put it in the vsr v3ioHTTPClient
-
-	// verify
-	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
-		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
-		suite.Require().Equal("p1-namespace", getProjectsOptions.Meta.Namespace)
-
-		return true
-	}
-
-	suite.mockPlatform.
-		On("GetProjects", mock.Anything, mock.MatchedBy(verifyGetProjects)).
-		Return([]platform.Project{&returnedProject}, nil).
-		Once()
-
-	headers := map[string]string{
-		"x-nuclio-project-namespace": "p1-namespace",
-		"x-nuclio-project-name":      "p1",
-		"x-nuclio-function-name":     "f1",
-	}
-
-	expectedStatusCode := http.StatusOK
-	requestBody := `{
-	"consumerGroup": "cg0",
-	"containerName": "cont-1",
-	"streamPath": "/some/path"
-}`
-
-	suite.sendRequest("POST",
-		"/api/v3io_streams/get_shard_lags",
-		headers,
-		bytes.NewBufferString(requestBody),
-		&expectedStatusCode,
-		nil)
-}
-
 //
 // Misc
 //
