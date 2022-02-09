@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	IguzioUsernameLabel                    string = "iguazio.com/username"
-	IguzioVerificationAndDataEnrichmentURL string = "/api/sessions/verifications/app_service_enrich_data"
+	IguzioUsernameLabel                          string = "iguazio.com/username"
+	IguzioVerificationAndDataEnrichmentURLSuffix string = "_enrich_data"
 )
 
 type Auth struct {
