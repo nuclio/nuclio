@@ -126,8 +126,9 @@ func GetShardLagsMap(ctx context.Context,
 			}
 
 			for _, consumerGroup := range consumerGroups {
+				consumerGroup := consumerGroup
 				if shardLagsMap[consumerGroup] == nil {
-					shardLagsMap[consumerGroup] = map[string]restful.Attributes{} // make(map[string]interface{})
+					shardLagsMap[consumerGroup] = map[string]restful.Attributes{}
 				}
 
 				errGroup.Go("get-single-shard-lags", func() error {

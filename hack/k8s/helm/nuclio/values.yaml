@@ -440,7 +440,7 @@ platform: {}
 #
 #   streamMonitoring:
 #     webapiURL: ""
-#     getStreamShardsConcurrentRequests: 10
+#     getStreamShardsConcurrentRequests: 64
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

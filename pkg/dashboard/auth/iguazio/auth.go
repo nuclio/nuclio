@@ -48,6 +48,10 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 	cookie := request.Header.Get("cookie")
 	cacheKey := authorization + cookie
 
+	if options == nil {
+		options = &auth.Options{}
+	}
+
 	if cacheKey == "" {
 		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
 	}
@@ -124,7 +128,8 @@ func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Ha
 			session, err := a.Authenticate(r, options)
 			ctx := r.Context()
 			if err != nil {
-				a.logger.WarnWithCtx(ctx, "Authentication failed",
+				a.logger.WarnWithCtx(ctx,
+					"Authentication failed",
 					"headers", r.Header)
 				a.iguazioAuthenticationFailed(w)
 				return

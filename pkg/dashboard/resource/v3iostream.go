@@ -112,8 +112,7 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 
 	ctx := request.Context()
 
-	err := vsr.validateRequest(request)
-	if err != nil {
+	if err := vsr.validateRequest(request); err != nil {
 		return nil, errors.Wrap(err, "Request validation failed")
 	}
 
@@ -124,16 +123,15 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 	}
 
 	v3ioStreamInfoInstance := v3io.StreamInfo{}
-	if err = json.Unmarshal(body, &v3ioStreamInfoInstance); err != nil {
+	if err := json.Unmarshal(body, &v3ioStreamInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	err = vsr.validateRequestBody(&v3ioStreamInfoInstance)
-	if err != nil {
+	if err := vsr.validateRequestBody(&v3ioStreamInfoInstance); err != nil {
 		return nil, errors.Wrap(err, "Request body validation failed")
 	}
 
-	// this is a set-up for supporting multiple consumer groups
+	// TODO: this is a set-up for supporting multiple consumer groups
 	var consumerGroups []string
 	consumerGroups = append(consumerGroups, v3ioStreamInfoInstance.ConsumerGroup)
 
