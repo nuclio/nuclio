@@ -15,7 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/cache"
 )
 
-const IguzioUsernameLabel string = "iguazio.com/username"
+const (
+	IguzioUsernameLabel                    string = "iguazio.com/username"
+	IguzioVerificationAndDataEnrichmentURL string = "/api/sessions/verifications/app_service_enrich_data"
+)
 
 type Auth struct {
 	logger     logger.Logger
@@ -73,7 +76,7 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 		})
 	if err != nil {
 		a.logger.WarnWith("Failed to perform http authentication request",
-			"err", err,
+			"err", err.Error(),
 		)
 		return nil, errors.Wrap(err, "Failed to perform http POST request")
 	}

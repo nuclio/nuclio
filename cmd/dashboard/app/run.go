@@ -11,6 +11,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dashboard/healthcheck"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -191,6 +192,8 @@ func enrichAuthConfig(authConfig *auth.Config,
 
 	if authConfigIguazioVerificationDataEnrichmentURL != "" {
 		authConfig.Iguazio.VerificationDataEnrichmentURL = authConfigIguazioVerificationDataEnrichmentURL
+	} else {
+		authConfig.Iguazio.VerificationDataEnrichmentURL = iguazio.IguzioVerificationAndDataEnrichmentURL
 	}
 
 	if authConfigIguazioTimeout != "" {
