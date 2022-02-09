@@ -90,55 +90,6 @@ func (vsr *v3ioStreamResource) GetCustomRoutes() ([]restful.CustomRoute, error) 
 	}, nil
 }
 
-func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-
-	ctx := request.Context()
-
-	err := vsr.validateRequest(request)
-	if err != nil {
-		return nil, errors.Wrap(err, "Request validation failed")
-	}
-
-	// read body
-	body, err := ioutil.ReadAll(request.Body)
-	if err != nil {
-		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
-	}
-
-	v3ioStreamInfoInstance := v3ioStreamInfo{}
-	if err = json.Unmarshal(body, &v3ioStreamInfoInstance); err != nil {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
-	}
-
-	var consumerGroups []string
-	if v3ioStreamInfoInstance.ConsumerGroup == "" {
-
-		// Not supported
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Request must have a consumerGroup"))
-
-		// TODO: get all consumer groups listening on the stream
-		//err = vsr.enrichStreamConsumerGroups(&consumerGroups, &v3ioStreamInfoInstance)
-		//if err != nil {
-		//	return nil, errors.Wrap(err, "Failed getting stream's consumer groups")
-		//}
-
-	} else {
-		consumerGroups = append(consumerGroups, v3ioStreamInfoInstance.ConsumerGroup)
-	}
-
-	shardLags, err := vsr.getShardLagsMap(ctx, &v3ioStreamInfoInstance, consumerGroups)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed getting shard lags")
-	}
-
-	return &restful.CustomRouteFuncResponse{
-		Resources:  shardLags,
-		Single:     false,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-		StatusCode: http.StatusOK,
-	}, nil
-}
-
 func (vsr *v3ioStreamResource) getFunctions(request *http.Request) ([]platform.Function, error) {
 
 	// ensure namespace
@@ -192,6 +143,53 @@ func (vsr *v3ioStreamResource) getStreamsFromFunctions(functions []platform.Func
 	return streamsMap, nil
 }
 
+func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+
+	ctx := request.Context()
+
+	err := vsr.validateRequest(request)
+	if err != nil {
+		return nil, errors.Wrap(err, "Request validation failed")
+	}
+
+	// read body
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
+	}
+
+	v3ioStreamInfoInstance := v3ioStreamInfo{}
+	if err = json.Unmarshal(body, &v3ioStreamInfoInstance); err != nil {
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+
+	err = vsr.validateRequestBody(&v3ioStreamInfoInstance)
+	if err != nil {
+		return nil, errors.Wrap(err, "Request body validation failed")
+	}
+
+	// this is a set-up for supporting multiple consumer groups
+	var consumerGroups []string
+	consumerGroups = append(consumerGroups, v3ioStreamInfoInstance.ConsumerGroup)
+
+	shardLags, err := vsr.getShardLagsMap(ctx, &v3ioStreamInfoInstance, consumerGroups)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed getting shard lags")
+	}
+
+	streamKey := v3ioStreamInfoInstance.ContainerName + v3ioStreamInfoInstance.StreamPath
+	return &restful.CustomRouteFuncResponse{
+		Resources: map[string]restful.Attributes{
+			"streamLags": map[string]interface{}{
+				streamKey: shardLags,
+			},
+		},
+		Single:     false,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		StatusCode: http.StatusOK,
+	}, nil
+}
+
 func (vsr *v3ioStreamResource) getNamespaceFromRequest(request *http.Request) string {
 	return vsr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
 }
@@ -229,16 +227,30 @@ func (vsr *v3ioStreamResource) validateRequest(request *http.Request) error {
 	return nil
 }
 
-func (vsr *v3ioStreamResource) enrichStreamConsumerGroups(consumerGroups *[]string, streamInfo *v3ioStreamInfo) error {
+func (vsr *v3ioStreamResource) validateRequestBody(v3ioStreamInfo *v3ioStreamInfo) error {
 
-	// TODO: get all consumer groups that consume from this stream and container
+	if v3ioStreamInfo.StreamPath == "" {
+		return nuclio.NewErrBadRequest("Stream path must be provided in request body")
+	}
+	if v3ioStreamInfo.ContainerName == "" {
+		return nuclio.NewErrBadRequest("Container name must be provided in request body")
+	}
+	if v3ioStreamInfo.ConsumerGroup == "" {
 
+		// TODO: get all consumer groups listening on the stream
+		return nuclio.NewErrBadRequest("Stream lags for multiple consumer groups is not supported. Please specify consumer group in request body")
+	}
+
+	// enrich stream path syntax
+	if !strings.HasPrefix(v3ioStreamInfo.StreamPath, "/") {
+		v3ioStreamInfo.StreamPath = "/" + v3ioStreamInfo.StreamPath
+	}
 	return nil
 }
 
 func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context,
 	info *v3ioStreamInfo,
-	consumerGroups []string) (map[string]restful.Attributes, error) {
+	consumerGroups []string) (map[string]map[string]restful.Attributes, error) {
 
 	// create v3io context
 	v3ioContext, err := v3iohttp.NewContext(vsr.Logger, &v3iohttp.NewContextInput{
@@ -268,7 +280,7 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context,
 		DataPlaneInput:   dataPlaneInput,
 	}
 
-	shardLagsMap := map[string]restful.Attributes{}
+	shardLagsMap := map[string]map[string]restful.Attributes{}
 	lock := sync.Mutex{}
 
 	// we get the v3io container contents in batches until we go over everything
@@ -286,13 +298,13 @@ func (vsr *v3ioStreamResource) getShardLagsMap(ctx context.Context,
 			vsr.Logger,
 			vsr.getPlatform().GetConfig().StreamMonitoring.GetStreamShardsConcurrentRequests)
 
-		// Iterate over subdirectories listed in the response, and look for shards
+		// iterate over subdirectories listed in the response, and look for shards
 		for _, content := range getContainerContentsOutput.Contents {
 			content := content
 			for _, consumerGroup := range consumerGroups {
+				shardLagsMap[consumerGroup] = map[string]restful.Attributes{}
 
 				errGroup.Go("get-single-shard-lags", func() error {
-
 					// each file name that is just a number is a shard
 					filePath := strings.Split(content.Key, "/")
 					shardID, err := strconv.Atoi(filePath[len(filePath)-1])
