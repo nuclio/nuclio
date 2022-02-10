@@ -28,7 +28,7 @@ type namespaceResource struct {
 }
 
 func (nr *namespaceResource) ExtendMiddlewares() error {
-	nr.resource.addAuthMiddleware()
+	nr.resource.addAuthMiddleware(nil)
 	return nil
 }
 

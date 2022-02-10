@@ -35,7 +35,7 @@ type frontendSpecResource struct {
 }
 
 func (fsr *frontendSpecResource) ExtendMiddlewares() error {
-	fsr.resource.addAuthMiddleware()
+	fsr.resource.addAuthMiddleware(nil)
 	return nil
 }
 

@@ -159,6 +159,9 @@ dashboard:
       # endpoint which verify incoming request session
       sessionVerificationURL: "http://somewhere.com"
 
+      # endpoint with which to verify and enrich incoming request sessions with data plane permissions
+      sessionVerificationDataEnrichmentURL: "http://somewhereelse.com"
+
       # session verification request timeout
       timeout: 30s
 
@@ -434,6 +437,10 @@ platform: {}
 #      limits:
 #        cpu: 2
 #        memory: 20Mi
+#
+#   streamMonitoring:
+#     webapiURL: ""
+#     getStreamShardsConcurrentRequests: 64
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
