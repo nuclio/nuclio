@@ -26,6 +26,7 @@ import (
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -530,6 +531,41 @@ func (c *Config) scrubFunctionData() {
 		newTriggers[triggerName] = trigger
 	}
 	c.Spec.Triggers = newTriggers
+}
+
+func (c *Config) EnrichWithNodeSelectors(nodeSelector map[string]string) {
+	if nodeSelector == nil {
+		return
+	}
+
+	// merge node selectors - precedence to existing node selector
+	c.Spec.NodeSelector = labels.Merge(c.Spec.NodeSelector, nodeSelector)
+}
+
+func (c *Config) EnrichWithTolerations(tolerations []v1.Toleration) {
+	if len(tolerations) == 0 {
+		return
+	}
+
+	var tolerationsToAdd []v1.Toleration
+
+	// only add non-matching toleratinos to avoid duplications
+	for _, functionToleration := range c.Spec.Tolerations {
+		for _, preemptibleNodeTolerations := range tolerations {
+			if !functionToleration.MatchToleration(&preemptibleNodeTolerations) {
+				tolerationsToAdd = append(tolerationsToAdd, preemptibleNodeTolerations)
+			}
+		}
+	}
+
+	// in case function has no toleration, take all from input
+	if len(c.Spec.Tolerations) == 0 {
+		tolerationsToAdd = tolerations
+	}
+
+	if len(tolerationsToAdd) > 0 {
+		c.Spec.Tolerations = append(c.Spec.Tolerations, tolerationsToAdd...)
+	}
 }
 
 // FunctionState is state of function

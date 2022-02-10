@@ -48,7 +48,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 type Platform struct {
@@ -468,7 +467,7 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
 	}
 
-	if p.Config.Kube.PreemptibleNodes != nil {
+	if p.Config.Kube.PreemptibleNodes != nil && functionConfig.Spec.PreemptionMode != "" {
 
 		// we do such stuff to allow exposing features before they are exposed on UI
 		if preemptionMode, exists := functionConfig.Meta.Annotations["custom.nuclio.io/preemptible-mode"]; exists {
@@ -478,61 +477,24 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 			functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
 		}
 
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function spec for given preemption mode",
+			"functionName", functionConfig.Meta.Name,
+			"preemptionMode", functionConfig.Spec.PreemptionMode)
+
 		switch functionConfig.Spec.PreemptionMode {
 		case functionconfig.RunOnPreemptibleNodesConstrain:
-			if p.Config.Kube.PreemptibleNodes.NodeSelector == nil {
-				p.Logger.WarnWithCtx(ctx,
-					"No node selector were configured, skipping",
-					"functionName", functionConfig.Meta.Name)
-				break
-			}
 
-			p.Logger.DebugWithCtx(ctx,
-				"Constraining function pods to preemptible nodes",
-				"functionName", functionConfig.Meta.Name)
+			// constrain to node using node selector
+			functionConfig.EnrichWithNodeSelectors(p.Config.Kube.PreemptibleNodes.NodeSelector)
 
-			// merge node selectors - precedence to pre-configured preemptible nodes node selectors
-			functionConfig.Spec.NodeSelector = labels.Merge(functionConfig.Spec.NodeSelector,
-				p.Config.Kube.PreemptibleNodes.NodeSelector)
+			// add tolerations in case node is tainted
+			functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
 
 		case functionconfig.RunOnPreemptibleNodesAllow:
-			if len(p.Config.Kube.PreemptibleNodes.Tolerations) == 0 {
-				p.Logger.WarnWithCtx(ctx,
-					"No tolerations were configured, skipping",
-					"functionName", functionConfig.Meta.Name)
-				break
-			}
-			p.Logger.DebugWithCtx(ctx,
-				"Allowing function to run on preemptible nodes",
-				"functionName", functionConfig.Meta.Name)
 
-			// only add
-			var tolerationsToAdd []v1.Toleration
-
-			// only add non-matching toleratinos to avoid duplications
-			for _, functionToleration := range functionConfig.Spec.Tolerations {
-				for _, preemptibleNodeTolerations := range p.Config.Kube.PreemptibleNodes.Tolerations {
-					if !functionToleration.MatchToleration(&preemptibleNodeTolerations) {
-						tolerationsToAdd = append(tolerationsToAdd, preemptibleNodeTolerations)
-					}
-				}
-			}
-
-			// in case function has no toleration, use tolerations from platform config
-			if len(functionConfig.Spec.Tolerations) == 0 {
-				tolerationsToAdd = p.Config.Kube.PreemptibleNodes.Tolerations
-			}
-
-			// have tolerations
-			if len(tolerationsToAdd) > 0 {
-				p.Logger.DebugWithCtx(ctx,
-					"Adding function tolerations",
-					"tolerationsToAdd", tolerationsToAdd)
-
-				// add with unmatched tolerations
-				functionConfig.Spec.Tolerations = append(functionConfig.Spec.Tolerations, tolerationsToAdd...)
-			}
-
+			// add tolerations in case node is tainted
+			functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
 		default:
 
 			// nothing to do here
