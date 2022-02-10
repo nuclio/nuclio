@@ -110,7 +110,7 @@ func GetShardLagsMap(ctx context.Context,
 
 		errGroup, _ := errgroup.WithContextSemaphore(ctx,
 			logger,
-			platformConfig.StreamMonitoring.GetStreamShardsConcurrentRequests)
+			platformConfig.StreamMonitoring.V3ioRequestConcurrency)
 
 		// iterate over subdirectories listed in the response, and look for shards
 		for _, content := range getContainerContentsOutput.Contents {

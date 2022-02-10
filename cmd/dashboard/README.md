@@ -5,6 +5,7 @@ Table of contents:
 - [Project](#project)
 - [Function event](#function-event)
 - [Function template](#function-template)
+- [V3IO Streams](#v3io-streams)
 - [Misc](#misc)
 
 ## Notes
@@ -787,7 +788,7 @@ More information can be found in [v3ioStream: Iguazio Data Science Platform Stre
 #### Response
 
 * Status code: 200
-* Body: a map with the shard ID as the key, and shard lag details as values, for all shards in the stream
+* Body: for every consumer group, a map with the shard ID as the key, and shard lag details as values, for all shards.
 
 ```json
 {
