@@ -201,11 +201,11 @@ type ResourceRequirements struct {
 }
 
 const (
-	DefaultStreamMonitoringWebapiURL         = "http://v3io-webapi:8081"
-	DefaultGetStreamShardsConcurrentRequests = 64
+	DefaultStreamMonitoringWebapiURL = "http://v3io-webapi:8081"
+	DefaultV3ioRequestConcurrency    = 64
 )
 
 type StreamMonitoringConfig struct {
-	WebapiURL                         string `json:"webapiURL,omitempty"`
-	GetStreamShardsConcurrentRequests uint   `json:"getStreamShardsConcurrentRequests,omitempty"`
+	WebapiURL              string `json:"webapiURL,omitempty"`
+	V3ioRequestConcurrency uint   `json:"v3ioRequestConcurrency,omitempty"`
 }

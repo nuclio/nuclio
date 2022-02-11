@@ -108,8 +108,8 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.StreamMonitoring.WebapiURL = DefaultStreamMonitoringWebapiURL
 	}
 
-	if config.StreamMonitoring.GetStreamShardsConcurrentRequests == 0 {
-		config.StreamMonitoring.GetStreamShardsConcurrentRequests = DefaultGetStreamShardsConcurrentRequests
+	if config.StreamMonitoring.V3ioRequestConcurrency == 0 {
+		config.StreamMonitoring.V3ioRequestConcurrency = DefaultV3ioRequestConcurrency
 	}
 
 	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)
