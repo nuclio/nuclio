@@ -78,7 +78,7 @@
     "jasmine-core": "~2.1.3",
     "jasmine-reporters": "^2.5.0",
     "jstoxml": "~0.2.3",
-    "karma": "^6.3.1",
+    "karma": "^6.3.14",
     "karma-chrome-launcher": "^3.1.0",
     "karma-jasmine": "^3.1.1",
     "protractor": "github:angular/protractor#release-5.4",
