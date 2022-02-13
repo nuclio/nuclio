@@ -26,6 +26,7 @@ import (
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -320,7 +321,23 @@ type Spec struct {
 	// We're letting users write "20s" and not the default marshalled time.Duration
 	// (Which is in nanoseconds)
 	EventTimeout string `json:"eventTimeout"`
+
+	// PreemptionMode is a mode to allow the user to allow running function pods on preemptible nodes
+	// When filled, tolerations, node labels, and affinity would be populated correspondingly to
+	// the platformconfig.PreemptibleNodes values.
+	PreemptionMode RunOnPreemptibleNodeMode `json:"preemptionMode,omitempty"`
 }
+
+type RunOnPreemptibleNodeMode string
+
+const (
+
+	// RunOnPreemptibleNodesAllow makes function pods be able to run on preemptible nodes
+	RunOnPreemptibleNodesAllow RunOnPreemptibleNodeMode = "allow"
+
+	// RunOnPreemptibleNodesConstrain makes the function pods run on preemtible nodes only
+	RunOnPreemptibleNodesConstrain RunOnPreemptibleNodeMode = "constrain"
+)
 
 type ScaleToZeroSpec struct {
 	ScaleResources []ScaleResource `json:"scaleResources,omitempty"`
@@ -514,6 +531,41 @@ func (c *Config) scrubFunctionData() {
 		newTriggers[triggerName] = trigger
 	}
 	c.Spec.Triggers = newTriggers
+}
+
+func (c *Config) EnrichWithNodeSelectors(nodeSelector map[string]string) {
+	if nodeSelector == nil {
+		return
+	}
+
+	// merge node selectors - precedence to existing node selector
+	c.Spec.NodeSelector = labels.Merge(c.Spec.NodeSelector, nodeSelector)
+}
+
+func (c *Config) EnrichWithTolerations(tolerations []v1.Toleration) {
+	if len(tolerations) == 0 {
+		return
+	}
+
+	var tolerationsToAdd []v1.Toleration
+
+	// only add non-matching toleratinos to avoid duplications
+	for _, functionToleration := range c.Spec.Tolerations {
+		for _, preemptibleNodeTolerations := range tolerations {
+			if !functionToleration.MatchToleration(&preemptibleNodeTolerations) {
+				tolerationsToAdd = append(tolerationsToAdd, preemptibleNodeTolerations)
+			}
+		}
+	}
+
+	// in case function has no toleration, take all from input
+	if len(c.Spec.Tolerations) == 0 {
+		tolerationsToAdd = tolerations
+	}
+
+	if len(tolerationsToAdd) > 0 {
+		c.Spec.Tolerations = append(c.Spec.Tolerations, tolerationsToAdd...)
+	}
 }
 
 // FunctionState is state of function

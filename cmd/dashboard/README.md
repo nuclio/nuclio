@@ -5,6 +5,7 @@ Table of contents:
 - [Project](#project)
 - [Function event](#function-event)
 - [Function template](#function-template)
+- [V3IO Streams](#v3io-streams)
 - [Misc](#misc)
 
 ## Notes
@@ -740,6 +741,75 @@ in `metadata.labels`.
 }
 ```
 
+## V3IO Streams
+
+A V3IO stream can be configured as a function trigger. 
+More information can be found in [v3ioStream: Iguazio Data Science Platform Stream Trigger](/docs/reference/triggers/v3iostream.md).
+
+### Listing all v3io streams in a project
+
+#### Request
+
+* URL: `GET /api/v3io_streams`
+* Headers:
+  * `x-nuclio-project-name`: projectName (required)
+
+#### Response
+
+* Status code: 200
+* Body: for each stream in the project:
+
+```json
+{
+  "function-name@stream-name": {
+    "consumerGroup": "<consumer-group>",
+    "containerName": "<container-name>",
+    "streamPath": "/path/of/stream"
+  }
+}
+```
+
+### Get v3io stream shard lags
+
+#### Request
+
+* URL: `POST /api/v3io_streams/get_shard_lags`
+* Headers:
+  * `x-nuclio-project-name`: projectName (required)
+* Body: include stream information
+```json
+{
+    "consumerGroup": "<consumer-group>",
+    "containerName": "<container-name>",
+    "streamPath": "/path/to/stream"
+}
+```
+
+#### Response
+
+* Status code: 200
+* Body: for every consumer group, a map with the shard ID as the key, and shard lag details as values, for all shards.
+
+```json
+{
+  "<container-name>/<stream-path>": {
+    "<consumer-group>": {
+      "shard-id-0": {
+        "committed": "<committed-sequences-number>",
+        "current": "<current-sequence-number>",
+        "lag": "<shard-lag>"
+      },
+      ...
+      "shard-id-N": {
+        "committed": "<committed-sequences-number>",
+        "current": "<current-sequence-number>",
+        "lag": "<shard-lag>"
+      }
+    }
+  }
+}
+```
+
 ## Misc
 
 ### Getting version
@@ -785,29 +855,6 @@ in its spec/status - this will form a valid invocation URL.
     "addresses": [
       ""
     ]
-  }
-}
-```
-
-### Get project's v3io streams
-
-#### Request
-
-* URL: `GET /api/streams`
-* Headers:
-  * `x-nuclio-project-name`: projectName (required)
-
-#### Response
-
-* Status code: 200
-* Body: for each stream in the project:
-
-```json
-{
-  "function-name@stream-name": {
-    "consumerGroup": "<consumer-group>",
-    "containerName": "<container-name",
-    "streamPath": "/path/of/stream"
   }
 }
 ```

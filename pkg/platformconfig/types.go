@@ -143,12 +143,19 @@ type PlatformKubeConfig struct {
 	// TODO: Move IngressConfig here
 	DefaultServiceType               corev1.ServiceType      `json:"defaultServiceType,omitempty"`
 	DefaultFunctionNodeSelector      map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
-	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
 	DefaultHTTPIngressHostTemplate   string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
 	DefaultHTTPIngressAnnotations    map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
 	DefaultFunctionPriorityClassName string                  `json:"defaultFunctionPriorityClassName,omitempty"`
-	DefaultFunctionPodResources      PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
 	ValidFunctionPriorityClassNames  []string                `json:"validFunctionPriorityClassNames,omitempty"`
+	DefaultFunctionPodResources      PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
+	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
+	PreemptibleNodes                 *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
+}
+
+// PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)
+type PreemptibleNodes struct {
+	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
+	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
 }
 
 type PlatformLocalConfig struct {
@@ -191,4 +198,14 @@ type PodResourceRequirements struct {
 type ResourceRequirements struct {
 	CPU    string
 	Memory string
+}
+
+const (
+	DefaultStreamMonitoringWebapiURL = "http://v3io-webapi:8081"
+	DefaultV3ioRequestConcurrency    = 64
+)
+
+type StreamMonitoringConfig struct {
+	WebapiURL              string `json:"webapiURL,omitempty"`
+	V3ioRequestConcurrency uint   `json:"v3ioRequestConcurrency,omitempty"`
 }

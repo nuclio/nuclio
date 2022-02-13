@@ -11,6 +11,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dashboard/healthcheck"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -54,6 +55,7 @@ func Run(listenAddress string,
 	authOptionsKind string,
 	authConfigIguazioTimeout string,
 	authConfigIguazioVerificationURL string,
+	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
 	authConfigIguazioCacheExpirationTimeout string) error {
 
@@ -95,6 +97,7 @@ func Run(listenAddress string,
 	if authConfig.Iguazio != nil {
 		if err := enrichAuthConfig(authConfig,
 			authConfigIguazioVerificationURL,
+			authConfigIguazioVerificationDataEnrichmentURL,
 			authConfigIguazioCacheSize,
 			authConfigIguazioCacheExpirationTimeout,
 			authConfigIguazioTimeout); err != nil {
@@ -177,6 +180,7 @@ func Run(listenAddress string,
 
 func enrichAuthConfig(authConfig *auth.Config,
 	authConfigIguazioVerificationURL string,
+	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
 	authConfigIguazioCacheExpirationTimeout string,
 	authConfigIguazioTimeout string) error {
@@ -184,6 +188,13 @@ func enrichAuthConfig(authConfig *auth.Config,
 
 	if authConfigIguazioVerificationURL != "" {
 		authConfig.Iguazio.VerificationURL = authConfigIguazioVerificationURL
+	}
+
+	if authConfigIguazioVerificationDataEnrichmentURL != "" {
+		authConfig.Iguazio.VerificationDataEnrichmentURL = authConfigIguazioVerificationDataEnrichmentURL
+	} else {
+		authConfig.Iguazio.VerificationDataEnrichmentURL =
+			authConfigIguazioVerificationURL + iguazio.IguzioVerificationAndDataEnrichmentURLSuffix
 	}
 
 	if authConfigIguazioTimeout != "" {

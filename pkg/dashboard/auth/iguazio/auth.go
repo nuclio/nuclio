@@ -15,7 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/cache"
 )
 
-const IguzioUsernameLabel string = "iguazio.com/username"
+const (
+	IguzioUsernameLabel                          string = "iguazio.com/username"
+	IguzioVerificationAndDataEnrichmentURLSuffix string = "_enrich_data"
+)
 
 type Auth struct {
 	logger     logger.Logger
@@ -40,10 +43,14 @@ func NewAuth(logger logger.Logger, config *auth.Config) auth.Auth {
 
 // Authenticate will ask IguazioConfig session verification endpoint to verify the request session
 // and enrich with session metadata
-func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
+func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.Session, error) {
 	authorization := request.Header.Get("authorization")
 	cookie := request.Header.Get("cookie")
 	cacheKey := authorization + cookie
+
+	if options == nil {
+		options = &auth.Options{}
+	}
 
 	if cacheKey == "" {
 		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
@@ -59,8 +66,13 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 		"cookie":        cookie,
 	}
 
+	url := a.config.Iguazio.VerificationURL
+	if options.EnrichDataPlane {
+		url = a.config.Iguazio.VerificationDataEnrichmentURL
+	}
+
 	response, err := a.performHTTPRequest(http.MethodPost,
-		a.config.Iguazio.VerificationURL,
+		url,
 		nil,
 		map[string]string{
 			"authorization": authorization,
@@ -68,7 +80,7 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 		})
 	if err != nil {
 		a.logger.WarnWith("Failed to perform http authentication request",
-			"err", err,
+			"err", err.Error(),
 		)
 		return nil, errors.Wrap(err, "Failed to perform http POST request")
 	}
@@ -110,13 +122,14 @@ func (a *Auth) Authenticate(request *http.Request) (auth.Session, error) {
 }
 
 // Middleware will authenticate the incoming request and store the session within the request context
-func (a *Auth) Middleware() func(next http.Handler) http.Handler {
+func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session, err := a.Authenticate(r)
+			session, err := a.Authenticate(r, options)
 			ctx := r.Context()
 			if err != nil {
-				a.logger.WarnWithCtx(ctx, "Authentication failed",
+				a.logger.WarnWithCtx(ctx,
+					"Authentication failed",
 					"headers", r.Header)
 				a.iguazioAuthenticationFailed(w)
 				return

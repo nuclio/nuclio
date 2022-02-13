@@ -51,6 +51,7 @@ type Config struct {
 	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
 	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
 	Opa                      opa.Config                   `json:"opa,omitempty"`
+	StreamMonitoring         StreamMonitoringConfig       `json:"streamMonitoring,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -101,6 +102,14 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 
 	if config.ScaleToZero.MultiTargetStrategy == "" {
 		config.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
+	}
+
+	if config.StreamMonitoring.WebapiURL == "" {
+		config.StreamMonitoring.WebapiURL = DefaultStreamMonitoringWebapiURL
+	}
+
+	if config.StreamMonitoring.V3ioRequestConcurrency == 0 {
+		config.StreamMonitoring.V3ioRequestConcurrency = DefaultV3ioRequestConcurrency
 	}
 
 	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)

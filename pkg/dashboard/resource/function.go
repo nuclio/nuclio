@@ -51,7 +51,7 @@ type functionInfo struct {
 }
 
 func (fr *functionResource) ExtendMiddlewares() error {
-	fr.resource.addAuthMiddleware()
+	fr.resource.addAuthMiddleware(nil)
 	return nil
 }
 
@@ -123,9 +123,9 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	functions, err := fr.getPlatform().GetFunctions(request.Context(), &platform.GetFunctionsOptions{
 		Name:        functionInfo.Meta.Name,
 		Namespace:   fr.resolveNamespace(request, functionInfo),
-		AuthSession: fr.getCtxSession(request),
+		AuthSession: fr.getCtxSession(request.Context()),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request.Context())),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -236,7 +236,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		defer cancelCtx()
 
 		// inject auth session to new context
-		ctx = context.WithValue(ctx, auth.AuthSessionContextKey, fr.getCtxSession(request))
+		ctx = context.WithValue(ctx, auth.AuthSessionContextKey, fr.getCtxSession(ctx))
 
 		defer func() {
 			if err := recover(); err != nil {
@@ -274,7 +274,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
 				AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 				PermissionOptions: opa.PermissionOptions{
-					MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
+					MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
 					OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 				},
 			}); err != nil {
@@ -431,9 +431,9 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 
 	deleteFunctionOptions := platform.DeleteFunctionOptions{
 		AuthConfig:  authConfig,
-		AuthSession: fr.getCtxSession(request),
+		AuthSession: fr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 		IgnoreFunctionStateValidation: fr.headerValueIsTrue(request,
@@ -519,13 +519,15 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 	functionName string,
 	raiseForbidden bool) *platform.GetFunctionsOptions {
 
+	ctx := request.Context()
+
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  functionName,
 		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
-		AuthSession:           fr.getCtxSession(request),
+		AuthSession:           fr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
 			RaiseForbidden:      raiseForbidden,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
