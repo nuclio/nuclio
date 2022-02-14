@@ -286,7 +286,13 @@ func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Cre
 			"/v1",
 			"/v1/",
 		})
-		registryURL = fmt.Sprintf("%s/%s", registryURL, credentials.Username)
+		// if no slash after the URL default to the provided username
+		if !common.MatchStringPatterns([]string{
+			`\.docker\.com\/`,
+			`\.docker\.io\/`,
+		}, registryURL) {
+			registryURL = fmt.Sprintf("%s/%s", registryURL, credentials.Username)
+		}
 	}
 
 	// trim prefixes
