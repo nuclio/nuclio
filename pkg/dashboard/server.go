@@ -286,6 +286,7 @@ func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Cre
 			"/v1",
 			"/v1/",
 		})
+
 		// if no slash after the URL default to the provided username
 		if !common.MatchStringPatterns([]string{
 			`\.docker\.com\/`,
