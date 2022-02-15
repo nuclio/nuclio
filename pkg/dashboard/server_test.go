@@ -62,7 +62,7 @@ func (suite *DashboardServerTestSuite) TestResolveRegistryURLFromDockerCredentia
 		},
 		{
 			credentials:         dockercreds.Credentials{URL: "index.docker.io", Username: dummyUsername},
-			expectedRegistryURL: fmt.Sprintf("index.docker.io/%s", dummyUsername)",
+			expectedRegistryURL: fmt.Sprintf("index.docker.io/%s", dummyUsername),
 		},
 		{
 			credentials:         dockercreds.Credentials{URL: fmt.Sprintf("index.docker.io/%s", dummyUsername), Username: dummyUsername},
