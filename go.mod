@@ -178,3 +178,6 @@ require (
 )
 
 replace github.com/Shopify/sarama => github.com/iguazio/sarama v1.25.1-0.20201117150928-15517d41c014
+
+//replace github.com/v3io/v3io-go => /Users/tomers/Iguazio/misc_workspace/v3io/v3io-go
+replace github.com/v3io/v3io-go => github.com/tomershor/v3io-go v0.2.22-0.20220215151138-f6eb2b2fcfe9
