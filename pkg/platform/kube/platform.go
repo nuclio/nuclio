@@ -467,16 +467,15 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
 	}
 
+	// we do such stuff to allow exposing features before they are exposed on UI
+	if preemptionMode, exists := functionConfig.Meta.Annotations["custom.nuclio.io/preemptible-mode"]; exists {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function preemption mode from function annotations",
+			"preemptionMode", preemptionMode)
+		functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
+	}
+
 	if p.Config.Kube.PreemptibleNodes != nil && functionConfig.Spec.PreemptionMode != "" {
-
-		// we do such stuff to allow exposing features before they are exposed on UI
-		if preemptionMode, exists := functionConfig.Meta.Annotations["custom.nuclio.io/preemptible-mode"]; exists {
-			p.Logger.DebugWithCtx(ctx,
-				"Enriching function preemption mode from function annotations",
-				"preemptionMode", preemptionMode)
-			functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
-		}
-
 		p.Logger.DebugWithCtx(ctx,
 			"Enriching function spec for given preemption mode",
 			"functionName", functionConfig.Meta.Name,
