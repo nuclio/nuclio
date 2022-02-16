@@ -166,8 +166,6 @@ func (vs *v3iostream) Cleanup(session streamconsumergroup.Session) error {
 func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim streamconsumergroup.Claim) error {
 	var submitError error
 
-	vs.Logger.DebugWith("TOMER - Consuming claim", "shardID", claim.GetShardID(), "memberID", session.GetMemberID())
-
 	submittedEventInstance := submittedEvent{
 		done: make(chan error),
 	}
@@ -205,8 +203,6 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 
 			// wait for handling done or indication to stop
 			err = <-submittedEventInstance.done
-
-			vs.Logger.DebugWith("TOMER - submitted the message to the handler. Marking it", "shardID", record.ShardID)
 
 			// we successfully submitted the message to the handler. mark it
 			if err == nil {

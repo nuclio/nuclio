@@ -181,7 +181,6 @@ func (p *Processor) Start() error {
 
 	// create a goroutine that restarts a trigger if needed
 	go func() {
-		p.logger.InfoWith("TOMER - started restart goroutine")
 		for {
 			select {
 			case triggerInstance := <-p.restartTriggerChan:
