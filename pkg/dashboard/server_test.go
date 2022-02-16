@@ -19,6 +19,7 @@ limitations under the License.
 package dashboard
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dockercreds"
@@ -43,29 +44,36 @@ func (suite *DashboardServerTestSuite) SetupTest() {
 func (suite *DashboardServerTestSuite) TestResolveRegistryURLFromDockerCredentials() {
 	dummyUsername := "dummy-user"
 	for _, testCase := range []struct {
-		credentials             dockercreds.Credentials
-		expectedRegistryURLHost string
-		Match                   bool
+		credentials         dockercreds.Credentials
+		expectedRegistryURL string
+		Match               bool
 	}{
 		{
-			credentials:             dockercreds.Credentials{URL: "https://index.docker.io/v1/", Username: dummyUsername},
-			expectedRegistryURLHost: "index.docker.io",
+			credentials:         dockercreds.Credentials{URL: "https://index.docker.io/v1/", Username: dummyUsername},
+			expectedRegistryURL: fmt.Sprintf("index.docker.io/%s", dummyUsername),
 		},
 		{
-			credentials:             dockercreds.Credentials{URL: "index.docker.io/v1/", Username: dummyUsername},
-			expectedRegistryURLHost: "index.docker.io",
+			credentials:         dockercreds.Credentials{URL: "index.docker.io/v1/", Username: dummyUsername},
+			expectedRegistryURL: fmt.Sprintf("index.docker.io/%s", dummyUsername),
 		},
 		{
-			credentials:             dockercreds.Credentials{URL: "https://index.docker.io", Username: dummyUsername},
-			expectedRegistryURLHost: "index.docker.io",
+			credentials:         dockercreds.Credentials{URL: "https://index.docker.io", Username: dummyUsername},
+			expectedRegistryURL: fmt.Sprintf("index.docker.io/%s", dummyUsername),
 		},
 		{
-			credentials:             dockercreds.Credentials{URL: "index.docker.io", Username: dummyUsername},
-			expectedRegistryURLHost: "index.docker.io",
+			credentials:         dockercreds.Credentials{URL: "index.docker.io", Username: dummyUsername},
+			expectedRegistryURL: fmt.Sprintf("index.docker.io/%s", dummyUsername),
+		},
+		{
+			credentials:         dockercreds.Credentials{URL: fmt.Sprintf("index.docker.io/%s", dummyUsername), Username: dummyUsername},
+			expectedRegistryURL: fmt.Sprintf("index.docker.io/%s", dummyUsername),
+		},
+		{
+			credentials:         dockercreds.Credentials{URL: "index.docker.io/another-username", Username: dummyUsername},
+			expectedRegistryURL: "index.docker.io/another-username",
 		},
 	} {
-		expectedRegistryURL := testCase.expectedRegistryURLHost + "/" + dummyUsername
-		suite.Require().Equal(expectedRegistryURL, suite.resolveDockerCredentialsRegistryURL(testCase.credentials))
+		suite.Require().Equal(testCase.expectedRegistryURL, suite.resolveDockerCredentialsRegistryURL(testCase.credentials))
 	}
 }
 

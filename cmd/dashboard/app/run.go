@@ -6,10 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	commonhealthcheck "github.com/nuclio/nuclio/pkg/common/healthcheck"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dashboard/healthcheck"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -23,6 +25,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
+	"k8s.io/client-go/rest"
 )
 
 func Run(listenAddress string,
@@ -52,6 +55,7 @@ func Run(listenAddress string,
 	authOptionsKind string,
 	authConfigIguazioTimeout string,
 	authConfigIguazioVerificationURL string,
+	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
 	authConfigIguazioCacheExpirationTimeout string) error {
 
@@ -93,6 +97,7 @@ func Run(listenAddress string,
 	if authConfig.Iguazio != nil {
 		if err := enrichAuthConfig(authConfig,
 			authConfigIguazioVerificationURL,
+			authConfigIguazioVerificationDataEnrichmentURL,
 			authConfigIguazioCacheSize,
 			authConfigIguazioCacheExpirationTimeout,
 			authConfigIguazioTimeout); err != nil {
@@ -161,6 +166,10 @@ func Run(listenAddress string,
 		defer cancel()
 	}
 
+	if platformInstance.GetName() == "kube" {
+		rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(rootLogger.GetChild("kube_warnings")))
+	}
+
 	if err := dashboardInstance.server.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start server")
 	}
@@ -171,6 +180,7 @@ func Run(listenAddress string,
 
 func enrichAuthConfig(authConfig *auth.Config,
 	authConfigIguazioVerificationURL string,
+	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
 	authConfigIguazioCacheExpirationTimeout string,
 	authConfigIguazioTimeout string) error {
@@ -178,6 +188,13 @@ func enrichAuthConfig(authConfig *auth.Config,
 
 	if authConfigIguazioVerificationURL != "" {
 		authConfig.Iguazio.VerificationURL = authConfigIguazioVerificationURL
+	}
+
+	if authConfigIguazioVerificationDataEnrichmentURL != "" {
+		authConfig.Iguazio.VerificationDataEnrichmentURL = authConfigIguazioVerificationDataEnrichmentURL
+	} else {
+		authConfig.Iguazio.VerificationDataEnrichmentURL =
+			authConfigIguazioVerificationURL + iguazio.IguzioVerificationAndDataEnrichmentURLSuffix
 	}
 
 	if authConfigIguazioTimeout != "" {

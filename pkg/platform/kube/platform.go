@@ -449,6 +449,7 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		}
 	}
 
+	// enrich function tolerations
 	if functionConfig.Spec.Tolerations == nil && p.Config.Kube.DefaultFunctionTolerations != nil {
 		p.Logger.DebugWithCtx(ctx,
 			"Enriching function tolerations",
@@ -464,6 +465,40 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 			"functionName", functionConfig.Meta.Name,
 			"priorityClassName", p.Config.Kube.DefaultFunctionPriorityClassName)
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
+	}
+
+	// we do such stuff to allow exposing features before they are exposed on UI
+	if preemptionMode, exists := functionConfig.Meta.Annotations["custom.nuclio.io/preemptible-mode"]; exists {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function preemption mode from function annotations",
+			"preemptionMode", preemptionMode)
+		functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
+	}
+
+	if p.Config.Kube.PreemptibleNodes != nil && functionConfig.Spec.PreemptionMode != "" {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function spec for given preemption mode",
+			"functionName", functionConfig.Meta.Name,
+			"preemptionMode", functionConfig.Spec.PreemptionMode)
+
+		switch functionConfig.Spec.PreemptionMode {
+		case functionconfig.RunOnPreemptibleNodesConstrain:
+
+			// constrain to node using node selector
+			functionConfig.EnrichWithNodeSelectors(p.Config.Kube.PreemptibleNodes.NodeSelector)
+
+			// add tolerations in case node is tainted
+			functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
+
+		case functionconfig.RunOnPreemptibleNodesAllow:
+
+			// add tolerations in case node is tainted
+			functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
+		default:
+
+			// nothing to do here
+			break
+		}
 	}
 
 	return nil

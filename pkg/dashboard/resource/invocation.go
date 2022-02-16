@@ -39,7 +39,7 @@ type invocationResource struct {
 }
 
 func (tr *invocationResource) ExtendMiddlewares() error {
-	tr.resource.addAuthMiddleware()
+	tr.resource.addAuthMiddleware(nil)
 	return nil
 }
 
@@ -106,9 +106,9 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Timeout:   invokeTimeout,
 
 		// auth & permissions
-		AuthSession: tr.getCtxSession(request),
+		AuthSession: tr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
-			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(tr.getCtxSession(request)),
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(tr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},

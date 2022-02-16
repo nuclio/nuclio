@@ -43,7 +43,7 @@ type apiGatewayInfo struct {
 }
 
 func (agr *apiGatewayResource) ExtendMiddlewares() error {
-	agr.resource.addAuthMiddleware()
+	agr.resource.addAuthMiddleware(nil)
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 
 	// filter by project name (when it's specified)
 	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{
-		AuthSession: agr.getCtxSession(request),
+		AuthSession: agr.getCtxSession(ctx),
 		Namespace:   namespace,
 	}
 	if projectName != "" {
@@ -111,7 +111,7 @@ func (agr *apiGatewayResource) GetByID(request *http.Request, id string) (restfu
 	apiGateways, err := agr.getPlatform().GetAPIGateways(ctx, &platform.GetAPIGatewaysOptions{
 		Name:        id,
 		Namespace:   namespace,
-		AuthSession: agr.getCtxSession(request),
+		AuthSession: agr.getCtxSession(ctx),
 	})
 
 	if err != nil {
@@ -149,7 +149,7 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 	defer cancelCtx()
 
 	// inject auth session to new context
-	ctx = context.WithValue(ctx, auth.AuthSessionContextKey, agr.getCtxSession(request))
+	ctx = context.WithValue(ctx, auth.AuthSessionContextKey, agr.getCtxSession(ctx))
 
 	// get api gateway config and status from body
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
@@ -170,7 +170,7 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 
 	if err = agr.getPlatform().UpdateAPIGateway(ctx, &platform.UpdateAPIGatewayOptions{
 		APIGatewayConfig:           apiGatewayConfig,
-		AuthSession:                agr.getCtxSession(request),
+		AuthSession:                agr.getCtxSession(ctx),
 		ValidateFunctionsExistence: agr.headerValueIsTrue(request, "x-nuclio-agw-validate-functions-existence"),
 	}); err != nil {
 		agr.Logger.WarnWithCtx(ctx, "Failed to update api gateway", "err", err)
@@ -227,7 +227,7 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 	defer cancelCtx()
 
 	// inject auth session to new context
-	ctx = context.WithValue(ctx, auth.AuthSessionContextKey, agr.getCtxSession(request))
+	ctx = context.WithValue(ctx, auth.AuthSessionContextKey, agr.getCtxSession(ctx))
 
 	// create an api gateway config
 	apiGatewayConfig := platform.APIGatewayConfig{
@@ -281,7 +281,7 @@ func (agr *apiGatewayResource) deleteAPIGateway(request *http.Request) (*restful
 	}
 
 	deleteAPIGatewayOptions := platform.DeleteAPIGatewayOptions{
-		AuthSession: agr.getCtxSession(request),
+		AuthSession: agr.getCtxSession(ctx),
 	}
 	deleteAPIGatewayOptions.Meta = *apiGatewayInfo.Meta
 

@@ -43,7 +43,7 @@ func (ftr *functionTemplateResource) OnAfterInitialize() error {
 }
 
 func (ftr *functionTemplateResource) ExtendMiddlewares() error {
-	ftr.resource.addAuthMiddleware()
+	ftr.resource.addAuthMiddleware(nil)
 	return nil
 }
 

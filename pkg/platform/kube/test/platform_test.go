@@ -35,7 +35,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
-	testk8s "github.com/nuclio/nuclio/test/common/k8s"
 
 	"github.com/gobuffalo/flect"
 	"github.com/google/go-cmp/cmp"
@@ -72,26 +71,9 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	createFunctionOptions.FunctionConfig.Spec.Handler = "event_recorder:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionSourceCode)
 
-	functionIngressHost := testk8s.GetDefaultIngressHost()
-	functionIngressPath := "/" + functionName
-
-	// compile http trigger with an ingress, so we can invoke the function using it later (for testing on minikube)
-	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
-	defaultHTTPTrigger.Attributes = map[string]interface{}{
-		"ingresses": map[string]interface{}{
-			"0": map[string]interface{}{
-				"host":  functionIngressHost,
-				"paths": []string{functionIngressPath},
-			},
-		},
-	}
-
 	// compile cron trigger
 	cronTriggerEvent := cron.Event{
-		Body: `{
-			"key_a": true,
-			"key_b": ["value_1", "value_2"]
-		}`,
+		Body: `{"key_a":true,"key_b":["value_1","value_2"]}`,
 		Headers: map[string]interface{}{
 			"Extra-Header-1": "value1",
 			"Extra-Header-2": "value2",
@@ -107,8 +89,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	}
 	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		cronTrigger.Name:        cronTrigger,
-		defaultHTTPTrigger.Name: defaultHTTPTrigger,
+		cronTrigger.Name: cronTrigger,
 	}
 
 	// deploy function
@@ -116,14 +97,15 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 
 		// try to get function recorded events for 60 seconds
 		// we expect the function to record and return all cron triggers events
-		functionInvocationURL := fmt.Sprintf("http://%s%s", functionIngressHost, functionIngressPath)
 		var events []cron.Event
-		suite.TryGetAndUnmarshalFunctionRecordedEvents(suite.Ctx, functionInvocationURL, 60*time.Second, &events)
+		suite.TryGetAndUnmarshalFunctionRecordedEvents(suite.Ctx, functionName, 60*time.Second, &events)
 		firstEvent := events[0]
 
 		// ensure recorded event
 		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Body, firstEvent.Body))
-		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Headers, firstEvent.Headers))
+		for headerName := range cronTriggerEvent.Headers {
+			suite.Require().Empty(cmp.Diff(cronTriggerEvent.Headers[headerName], firstEvent.Headers[headerName]))
+		}
 		return true
 	})
 }
@@ -132,7 +114,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 func (suite *DeployFunctionTestSuite) TestDeployFailureBriefErrorMessage() {
 	platformConfigConfigmap := suite.createPlatformConfigmapWithJSONLogger()
 
-	// delete the platform config config map when this test is over
+	// delete the platform config map when this test is over
 	defer suite.KubeClientSet.
 		CoreV1().
 		ConfigMaps(suite.Namespace).

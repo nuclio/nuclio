@@ -30,7 +30,7 @@ type externalIPAddressesResource struct {
 }
 
 func (eiar *externalIPAddressesResource) ExtendMiddlewares() error {
-	eiar.resource.addAuthMiddleware()
+	eiar.resource.addAuthMiddleware(nil)
 	return nil
 }
 

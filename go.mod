@@ -8,24 +8,23 @@ require (
 	github.com/Microsoft/ApplicationInsights-Go v0.4.2
 	github.com/Shopify/sarama v1.23.1
 	github.com/aws/aws-sdk-go v1.39.6
-	github.com/coreos/go-semver v0.2.0
+	github.com/coreos/go-semver v0.3.0
 	github.com/disintegration/imaging v1.6.0
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/fatih/structs v1.1.0
 	github.com/gbrlsnchs/jwt/v3 v3.0.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-chi/chi/v5 v5.0.2
-	github.com/go-chi/cors v1.0.0
+	github.com/go-chi/cors v1.2.0
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/gobuffalo/flect v0.2.2
-	github.com/google/go-cmp v0.5.5
+	github.com/gobuffalo/flect v0.2.4
+	github.com/google/go-cmp v0.5.7
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/go-uuid v1.0.1
 	github.com/heptiolabs/healthcheck v0.0.0-20180807145615-6ff867650f40
 	github.com/icza/dyno v0.0.0-20180601094105-0c96289f9585
 	github.com/imdario/mergo v0.3.12
-	github.com/jarcoal/httpmock v1.0.4
+	github.com/jarcoal/httpmock v1.1.0
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/mitchellh/go-homedir v1.1.0
@@ -39,8 +38,8 @@ require (
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/prometheus/client_golang v1.1.0
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
-	github.com/robfig/cron v1.2.0
-	github.com/rs/xid v1.2.1
+	github.com/robfig/cron/v3 v3.0.1
+	github.com/rs/xid v1.3.0
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
 	github.com/spf13/cobra v0.0.5
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
@@ -50,10 +49,10 @@ require (
 	github.com/v3io/v3io-go v0.2.21
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
-	github.com/valyala/fasthttp v1.30.0
+	github.com/valyala/fasthttp v1.33.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.0.2
-	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97 // indirect
+	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce // indirect
 	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/api v0.43.0
@@ -75,7 +74,7 @@ require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
-	github.com/andybalholm/brotli v1.0.2 // indirect
+	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cpuguy83/go-md2man v1.0.10 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -100,6 +99,7 @@ require (
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/googleapis/gnostic v0.4.1 // indirect
+	github.com/hashicorp/go-uuid v1.0.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/influxdata/tdigest v0.0.0-20180711151920-a7d76c6f093a // indirect
@@ -109,7 +109,7 @@ require (
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
-	github.com/klauspost/compress v1.13.4 // indirect
+	github.com/klauspost/compress v1.14.1 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/liranbg/uberzap v1.20.0-nuclio.1 // indirect
 	github.com/logrusorgru/aurora/v3 v3.0.0 // indirect
@@ -134,7 +134,7 @@ require (
 	github.com/prometheus/common v0.6.0 // indirect
 	github.com/prometheus/procfs v0.0.3 // indirect
 	github.com/russross/blackfriday v1.5.2 // indirect
-	github.com/satori/go.uuid v1.2.0 // indirect
+	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
@@ -151,8 +151,8 @@ require (
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/mod v0.4.2 // indirect
-	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
-	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
+	golang.org/x/net v0.0.0-20220111093109-d55c255bac03 // indirect
+	golang.org/x/sys v0.0.0-20220111092808-5a964db01320 // indirect
 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba // indirect
