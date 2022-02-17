@@ -71,7 +71,8 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 		url = a.config.Iguazio.VerificationDataEnrichmentURL
 	}
 
-	response, err := a.performHTTPRequest(http.MethodPost,
+	response, err := a.performHTTPRequest(request.Context(),
+		http.MethodPost,
 		url,
 		nil,
 		map[string]string{
@@ -125,12 +126,12 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session, err := a.Authenticate(r, options)
 			ctx := r.Context()
+			session, err := a.Authenticate(r, options)
 			if err != nil {
 				a.logger.WarnWithCtx(ctx,
 					"Authentication failed",
-					"headers", r.Header)
+					"err", errors.GetErrorStackString(err, 10))
 				a.iguazioAuthenticationFailed(w)
 				return
 			}
@@ -150,13 +151,14 @@ func (a *Auth) iguazioAuthenticationFailed(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusUnauthorized)
 }
 
-func (a *Auth) performHTTPRequest(method string,
+func (a *Auth) performHTTPRequest(ctx context.Context,
+	method string,
 	url string,
 	body []byte,
 	headers map[string]string) (*http.Response, error) {
 
 	// create request
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create http request")
 	}
