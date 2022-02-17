@@ -44,6 +44,7 @@ func NewAuth(logger logger.Logger, config *auth.Config) auth.Auth {
 // Authenticate will ask IguazioConfig session verification endpoint to verify the request session
 // and enrich with session metadata
 func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.Session, error) {
+	ctx := request.Context()
 	authorization := request.Header.Get("authorization")
 	cookie := request.Header.Get("cookie")
 	cacheKey := authorization + cookie
@@ -80,7 +81,8 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 			"cookie":        cookie,
 		})
 	if err != nil {
-		a.logger.WarnWith("Failed to perform http authentication request",
+		a.logger.WarnWithCtx(ctx,
+			"Failed to perform http authentication request",
 			"err", err.Error(),
 		)
 		return nil, errors.Wrap(err, "Failed to perform http POST request")
@@ -88,7 +90,8 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 
 	// auth failed
 	if response.StatusCode == http.StatusUnauthorized {
-		a.logger.WarnWith("Authentication failed",
+		a.logger.WarnWithCtx(ctx,
+			"Authentication failed",
 			"authorizationHeaderLength", len(authHeaders["authorization"]),
 			"cookieHeaderLength", len(authHeaders["cookie"]),
 		)
@@ -97,7 +100,8 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 
 	// not within range of 200
 	if !(response.StatusCode >= http.StatusOK && response.StatusCode < 300) {
-		a.logger.WarnWith("Unexpected authentication status code",
+		a.logger.WarnWithCtx(ctx,
+			"Unexpected authentication status code",
 			"authorizationHeaderLength", len(authHeaders["authorization"]),
 			"cookieHeaderLength", len(authHeaders["cookie"]),
 			"statusCode", response.StatusCode,
@@ -118,7 +122,9 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 	}
 
 	a.cache.Add(authorization+cookie, authInfo, a.config.Iguazio.CacheExpirationTimeout)
-	a.logger.InfoWith("Authentication succeeded", "username", authInfo.GetUsername())
+	a.logger.InfoWithCtx(ctx,
+		"Authentication succeeded",
+		"username", authInfo.GetUsername())
 	return authInfo, nil
 }
 
@@ -132,7 +138,7 @@ func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Ha
 				a.logger.WarnWithCtx(ctx,
 					"Authentication failed",
 					"err", errors.GetErrorStackString(err, 10))
-				a.iguazioAuthenticationFailed(w)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			a.logger.DebugWithCtx(ctx, "Successfully authenticated incoming request",
@@ -145,10 +151,6 @@ func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Ha
 
 func (a *Auth) Kind() auth.Kind {
 	return a.config.Kind
-}
-
-func (a *Auth) iguazioAuthenticationFailed(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusUnauthorized)
 }
 
 func (a *Auth) performHTTPRequest(ctx context.Context,
