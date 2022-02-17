@@ -141,7 +141,8 @@ func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Ha
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			a.logger.DebugWithCtx(ctx, "Successfully authenticated incoming request",
+			a.logger.DebugWithCtx(ctx,
+				"Successfully authenticated incoming request",
 				"sessionUsername", session.GetUsername())
 			enrichedCtx := context.WithValue(ctx, auth.IguazioContextKey, session)
 			next.ServeHTTP(w, r.WithContext(enrichedCtx))
