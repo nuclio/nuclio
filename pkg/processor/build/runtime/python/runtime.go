@@ -90,6 +90,9 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 
 		// true for python & python:3.6
 		baseImage = "python:3.6"
+
+		p.Logger.Warn("Python 3.6 runtime is deprecated and will soon not be supported. " +
+			"Please migrate your code 3.7 or higher")
 		installSDKDependenciesCommand = fmt.Sprintf("pip install %s %s",
 			strings.Join(pythonCommonModules, " "),
 			strings.Join(pipInstallArgs, " "),
