@@ -64,7 +64,7 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	_, runtimeVersion := common.GetRuntimeNameAndVersion(py.configuration.Spec.Runtime)
 	if runtimeVersion == "" || runtimeVersion == "3.6" {
 		py.Logger.Warn("Python 3.6 runtime is deprecated and will soon not be supported. " +
-			"Please migrate your code 3.7 or higher")
+			"Please migrate your code and use Python 3.7 runtime (`python:3.7`) or higher")
 	}
 
 	wrapperScriptPath := py.getWrapperScriptPath()
