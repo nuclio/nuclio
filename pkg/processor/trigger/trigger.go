@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -42,28 +43,28 @@ type Trigger interface {
 	// Initialize performs post creation initializations
 	Initialize() error
 
-	// start creating events from a given checkpoint (nil - no checkpoint)
+	// Start creating events from a given checkpoint (nil - no checkpoint)
 	Start(checkpoint functionconfig.Checkpoint) error
 
-	// stop creating events. returns the current checkpoint
+	// Stop creating events. returns the current checkpoint
 	Stop(force bool) (functionconfig.Checkpoint, error)
 
-	// get the user given ID for this trigger
+	// GetID returns the user given ID for this trigger
 	GetID() string
 
-	// get the class of source (sync, async, etc)
+	// GetClass returns the class of source (sync, async, etc)
 	GetClass() string
 
-	// get specific kind of source (http, rabbit mq, etc)
+	// GetKind returns the specific kind of source (http, rabbit mq, etc)
 	GetKind() string
 
-	// get the configuration
+	// GetConfig returns trigger configuration
 	GetConfig() map[string]interface{}
 
-	// get statistics
+	// GetStatistics returns the trigger statistics
 	GetStatistics() *Statistics
 
-	// get direct access to workers for things like housekeeping / management
+	// GetWorkers gets direct access to workers for things like housekeeping / management
 	// TODO: locks and such when relevant
 	GetWorkers() []*worker.Worker
 
@@ -72,6 +73,9 @@ type Trigger interface {
 
 	// GetFunctionName returns function name
 	GetFunctionName() string
+
+	// GetProjectName returns project name
+	GetProjectName() string
 
 	// TimeoutWorker times out a worker
 	TimeoutWorker(worker *worker.Worker) error
@@ -91,6 +95,7 @@ type AbstractTrigger struct {
 	Name            string
 	Namespace       string
 	FunctionName    string
+	ProjectName     string
 }
 
 func NewAbstractTrigger(logger logger.Logger,
@@ -110,6 +115,14 @@ func NewAbstractTrigger(logger logger.Logger,
 		configuration.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
 	}
 
+	if configuration.RuntimeConfiguration.Meta.Labels == nil {
+
+		// backwards compatibility
+		configuration.RuntimeConfiguration.Meta.Labels = map[string]string{
+			common.NuclioResourceLabelKeyProjectName: "",
+		}
+	}
+
 	return AbstractTrigger{
 		Logger:          logger,
 		ID:              configuration.ID,
@@ -119,6 +132,7 @@ func NewAbstractTrigger(logger logger.Logger,
 		Name:            name,
 		Namespace:       configuration.RuntimeConfiguration.Meta.Namespace,
 		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
+		ProjectName:     configuration.RuntimeConfiguration.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 	}, nil
 }
 
@@ -227,8 +241,13 @@ func (at *AbstractTrigger) GetNamespace() string {
 	return at.Namespace
 }
 
-// GetFunctionName returns namespace of function
+// GetFunctionName returns function name
 func (at *AbstractTrigger) GetFunctionName() string {
+	return at.FunctionName
+}
+
+// GetProjectName returns project name
+func (at *AbstractTrigger) GetProjectName() string {
 	return at.FunctionName
 }
 
