@@ -201,11 +201,10 @@ func (ms *MetricSink) getInstanceName(processorConfiguration *processor.Configur
 	}
 
 	var instanceNameTemplateBuffer bytes.Buffer
-	err = instanceNameTemplate.Execute(&instanceNameTemplateBuffer, &map[string]interface{}{
+	if err := instanceNameTemplate.Execute(&instanceNameTemplateBuffer, &map[string]interface{}{
 		"Namespace": processorConfiguration.Config.Meta.Namespace,
 		"Name":      processorConfiguration.Config.Meta.Name,
-	})
-	if err != nil {
+	}); err != nil {
 		return "", errors.Wrap(err, "Failed to execute instanceName template")
 	}
 
