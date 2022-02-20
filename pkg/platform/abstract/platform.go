@@ -439,7 +439,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(ctx context.Context,
 
 		}
 
-		// project does not exists, stop here
+		// project does not exist, stop here
 		if len(projects) == 0 {
 			return nil
 		}
