@@ -158,13 +158,16 @@ Error - plugin: symbol ExpectedHandler not found in plugin github.com/nuclio/nuc
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 				return createFunctionOptions
 			}(),
-			ExpectedBriefErrorsMessage: `Handler not found [handler="main:expected_handler" || worker_id="0"]
+
+			// TODO: remove deprecation notice once python 3.6 is made obsolete
+			ExpectedBriefErrorsMessage: `Python 3.6 runtime is deprecated and will soon not be supported. Please migrate your code and use Python 3.7 runtime or higher
+Handler not found [handler="main:expected_handler" || worker_id="0"]
 Caught unhandled exception while initializing [err="module 'main' has no attribute 'expected_handler'" || traceback="Traceback (most recent call last):
-  File "/opt/nuclio/_nuclio_wrapper.py", line 325, in run_wrapper
+  File "/opt/nuclio/_nuclio_wrapper.py", line 409, in run_wrapper
     args.trigger_name)
-  File "/opt/nuclio/_nuclio_wrapper.py", line 56, in __init__
+  File "/opt/nuclio/_nuclio_wrapper.py", line 71, in __init__
     self._entrypoint = self._load_entrypoint_from_handler(handler)
-  File "/opt/nuclio/_nuclio_wrapper.py", line 148, in _load_entrypoint_from_handler
+  File "/opt/nuclio/_nuclio_wrapper.py", line 200, in _load_entrypoint_from_handler
     entrypoint_address = getattr(module, entrypoint)
 AttributeError: module 'main' has no attribute 'expected_handler'
 " || worker_id="0"]`,
