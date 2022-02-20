@@ -153,7 +153,11 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 	suite.platform.projectsClient, _ = NewProjectsClient(suite.platform, suite.abstractPlatform.Config)
 }
 
-func (suite *FunctionKubePlatformTestSuite) TestGetProjectsCache() {
+type ProjectKubePlatformTestSuite struct {
+	KubePlatformTestSuite
+}
+
+func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 	suite.nuclioProjectInterfaceMock.On("Create",
 		suite.ctx,
 		mock.Anything,
@@ -1970,6 +1974,7 @@ func (suite *APIGatewayKubePlatformTestSuite) compileAPIGatewayConfig() platform
 }
 
 func TestKubePlatformTestSuite(t *testing.T) {
+	suite.Run(t, new(ProjectKubePlatformTestSuite))
 	suite.Run(t, new(FunctionKubePlatformTestSuite))
 	suite.Run(t, new(FunctionEventKubePlatformTestSuite))
 	suite.Run(t, new(APIGatewayKubePlatformTestSuite))
