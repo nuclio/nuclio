@@ -25,10 +25,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/logprocessing"
@@ -439,7 +439,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(ctx context.Context,
 
 		}
 
-		// project does not exists, stop here
+		// project does not exist, stop here
 		if len(projects) == 0 {
 			return nil
 		}

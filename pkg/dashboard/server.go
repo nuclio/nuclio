@@ -21,9 +21,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
+	authfactory "github.com/nuclio/nuclio/pkg/auth/factory"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
-	authfactory "github.com/nuclio/nuclio/pkg/dashboard/auth/factory"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"

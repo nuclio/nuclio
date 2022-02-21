@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
