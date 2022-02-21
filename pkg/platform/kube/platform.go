@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -688,6 +689,12 @@ func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *plat
 
 // DeleteProject will delete a previously existing project
 func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
+
+	// enrich to protect test flows where auth session is nil
+	if deleteProjectOptions.AuthSession == nil {
+		deleteProjectOptions.AuthSession = &auth.NopSession{}
+	}
+
 	if err := p.Platform.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
@@ -720,6 +727,12 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 // GetProjects will list existing projects
 func (p *Platform) GetProjects(ctx context.Context,
 	getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+
+	// enrich to protect test flows where auth session is nil
+	if getProjectsOptions.AuthSession == nil {
+		getProjectsOptions.AuthSession = &auth.NopSession{}
+	}
+
 	projects, err := p.projectsClient.Get(ctx, getProjectsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting projects")
