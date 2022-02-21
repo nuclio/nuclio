@@ -58,7 +58,8 @@ type http struct {
 
 func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	bufferLoggerPool, err := nucliozap.NewBufferLoggerPool(8,
 		configuration.ID,
@@ -81,7 +82,8 @@ func newTrigger(logger logger.Logger,
 		&configuration.Configuration,
 		"sync",
 		"http",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -97,6 +99,7 @@ func newTrigger(logger logger.Logger,
 		internalHealthPath: []byte(InternalHealthPath),
 	}
 
+	newTrigger.AbstractTrigger.Trigger = &newTrigger
 	newTrigger.allocateEvents(numWorkers)
 	return &newTrigger, nil
 }

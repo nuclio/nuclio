@@ -55,7 +55,8 @@ func (f *factory) Create(parentLogger logger.Logger,
 	// finally, create the trigger
 	v3ioItemPollerTrigger, err := newTrigger(v3ioItemPollerLogger,
 		workerAllocator,
-		configuration)
+		configuration,
+		restartTriggerChan)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP trigger")

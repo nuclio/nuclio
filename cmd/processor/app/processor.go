@@ -180,25 +180,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 func (p *Processor) Start() error {
 
 	// create a goroutine that restarts a trigger if needed
-	go func() {
-		for {
-			select {
-			case triggerInstance := <-p.restartTriggerChan:
-
-				p.logger.DebugWith("Restarting trigger", "triggerInstance", triggerInstance)
-				if err := p.restartTrigger(triggerInstance); err != nil {
-
-					// handle error
-					p.logger.ErrorWith("Failed to restart trigger",
-						"err", err.Error())
-				}
-
-			// stop listening when the processor stops
-			case <-p.stopRestartTriggerRoutine:
-				return
-			}
-		}
-	}()
+	go p.listenOnRestartTriggerChannel()
 
 	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
@@ -265,7 +247,12 @@ func (p *Processor) GetStatus() status.Status {
 
 	// if any worker isn't ready yet, return initializing
 	for _, workerInstance := range workers {
-		if workerInstance.GetStatus() != status.Ready {
+		switch workerInstance.GetStatus() {
+		case status.Error:
+			return status.Error
+		case status.Ready:
+			continue
+		default:
 			return status.Initializing
 		}
 	}
@@ -490,24 +477,95 @@ func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) error {
 	return nil
 }
 
+func (p *Processor) listenOnRestartTriggerChannel() {
+	for {
+		select {
+		case triggerInstance := <-p.restartTriggerChan:
+
+			p.logger.WarnWith("Restarting trigger",
+				"triggerKind", triggerInstance.GetKind(),
+				"triggerID", triggerInstance.GetID())
+			if err := p.restartTrigger(triggerInstance); err != nil {
+
+				p.logger.ErrorWith("Failed to restart trigger",
+					"err", err.Error())
+
+				if err := p.hardRestartTriggerWorkers(triggerInstance); err != nil {
+
+					p.logger.ErrorWith("Failed to restart at least one of the trigger's workers",
+						"err", err.Error())
+
+					// set the workers runtime status to Error
+					p.setWorkersStatus(triggerInstance, status.Error) // nolint: errcheck
+				}
+			}
+
+		// stop listening when the processor stops
+		case <-p.stopRestartTriggerRoutine:
+			return
+		}
+	}
+}
+
 func (p *Processor) restartTrigger(triggerInstance trigger.Trigger) error {
 
 	// force stop the trigger
-	_, err := triggerInstance.Stop(true)
-	if err != nil {
+	p.logger.InfoWith("Stopping trigger",
+		"kind", triggerInstance.GetKind(),
+		"name", triggerInstance.GetName())
+
+	if _, err := triggerInstance.Stop(true); err != nil {
 		p.logger.ErrorWith("Failed to stop trigger",
 			"kind", triggerInstance.GetKind(),
+			"name", triggerInstance.GetName(),
 			"err", err.Error())
 		return errors.Wrap(err, "Failed to stop trigger")
 	}
 
 	// start the trigger again
-	err = triggerInstance.Start(nil)
-	if err != nil {
+	p.logger.InfoWith("Starting trigger",
+		"kind", triggerInstance.GetKind(),
+		"name", triggerInstance.GetName())
+
+	if err := triggerInstance.Start(nil); err != nil {
 		p.logger.ErrorWith("Failed to start trigger",
 			"kind", triggerInstance.GetKind(),
+			"name", triggerInstance.GetName(),
 			"err", err.Error())
 		return errors.Wrap(err, "Failed to start trigger")
+	}
+
+	return nil
+}
+
+func (p *Processor) hardRestartTriggerWorkers(triggerInstance trigger.Trigger) error {
+
+	p.logger.DebugWith("Restarting trigger workers",
+		"triggerKind", triggerInstance.GetKind(),
+		"triggerName", triggerInstance.GetName())
+
+	// iterate over the trigger's workers and force restart each of them
+	for _, workerInstance := range triggerInstance.GetWorkers() {
+
+		if err := workerInstance.Restart(); err != nil {
+			return errors.Wrap(err, "Failed to restart worker")
+		}
+	}
+
+	return nil
+}
+
+func (p *Processor) setWorkersStatus(triggerInstance trigger.Trigger, status status.Status) error {
+
+	p.logger.DebugWith("Setting trigger workers status",
+		"triggerKind", triggerInstance.GetKind(),
+		"triggerName", triggerInstance.GetName(),
+		"status", status)
+
+	// iterate over the trigger's workers and set their status
+	for _, workerInstance := range triggerInstance.GetWorkers() {
+
+		workerInstance.GetRuntime().SetStatus(status)
 	}
 
 	return nil

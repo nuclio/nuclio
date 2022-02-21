@@ -63,7 +63,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	triggerInstance, err := newTrigger(triggerLogger,
 		workerAllocator,
 		configuration,
-	)
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create trigger")
 	}

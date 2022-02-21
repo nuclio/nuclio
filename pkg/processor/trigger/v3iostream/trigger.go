@@ -46,7 +46,6 @@ type v3iostream struct {
 	streamConsumerGroupMember streamconsumergroup.Member
 	shutdownSignal            chan struct{}
 	stopConsumptionChan       chan struct{}
-	restartChan               chan trigger.Trigger
 	partitionWorkerAllocator  partitionworker.Allocator
 	topic                     string
 }
@@ -62,7 +61,6 @@ func newTrigger(parentLogger logger.Logger,
 	newTrigger := &v3iostream{
 		configuration:       configuration,
 		stopConsumptionChan: make(chan struct{}, 1),
-		restartChan:         restartTriggerChan,
 		topic:               "v3io", // v3io doesn't support topics, use constant (never goes to v3io)
 	}
 
@@ -71,7 +69,8 @@ func newTrigger(parentLogger logger.Logger,
 		&configuration.Configuration,
 		"async",
 		"v3io-stream",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -80,6 +79,7 @@ func newTrigger(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get v3io stream config")
 	}
+	newTrigger.AbstractTrigger.Trigger = newTrigger
 
 	return newTrigger, nil
 }
@@ -226,11 +226,17 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 }
 
 func (vs *v3iostream) Abort(session streamconsumergroup.Session) error {
-	vs.Logger.Debug("Abort called in v3iostream trigger")
+	vs.Logger.Warn("Abort called in trigger", "triggerKind", vs.GetKind(), "triggerName", vs.GetName())
 
-	// signal the processor to restart the trigger
-	vs.restartChan <- vs
+	return vs.abort()
+}
 
+func (vs *v3iostream) abort() error {
+
+	if err := vs.Restart(); err != nil {
+		vs.Logger.Error("Failed to abort v3iostream trigger", "triggerName", vs.GetName())
+		return errors.Wrap(err, "Failed to restart trigger")
+	}
 	return nil
 }
 

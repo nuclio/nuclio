@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	v3ioutil "github.com/nuclio/nuclio/pkg/common/v3io"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -59,14 +60,14 @@ type testSuite struct {
 
 	stateContentsAttributeKey string
 
-	deleteTestStream bool
+	skipDeleteTestStream bool
 }
 
 func (suite *testSuite) SetupSuite() {
 
 	// Change below
-	suite.url = "https://somewhere:8444"
-	suite.accessKey = "some-access-key"
+	suite.url = "https://webapi.default-tenant.app.dev62.lab.iguazeng.com" // "https://somewhere:8444"
+	suite.accessKey = "01faa187-79b3-4d40-8237-1ff41a5973fd"               // "some-access-key"
 	// END OF change
 
 	// we use an Iguazio system, not a containerzed broker
@@ -104,8 +105,8 @@ func (suite *testSuite) SetupSuite() {
 }
 
 func (suite *testSuite) TearDownSuite() {
-	suite.Logger.DebugWith("Deleting stream sync", "streamPath", suite.streamPath)
-	if suite.deleteTestStream {
+	if !suite.skipDeleteTestStream {
+		suite.Logger.DebugWith("Deleting stream sync", "streamPath", suite.streamPath)
 		err := suite.v3ioContainer.DeleteStreamSync(&v3io.DeleteStreamInput{
 			Path: suite.streamPath,
 		})
@@ -126,9 +127,6 @@ func (suite *testSuite) TestAckWindowSize() {
 		RetentionPeriodHours: 1,
 	})
 	suite.Require().NoError(err, "Failed to create v3io sync stream")
-
-	// delete stream on Teardown
-	suite.deleteTestStream = true
 
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -176,7 +174,12 @@ func (suite *testSuite) TestAckWindowSize() {
 			deployResult.Port)
 		suite.Require().Len(receivedEvents, ackWindowSize)
 
-		current, committed := suite.getShardLagDetails(shardID)
+		current, committed, err := v3ioutil.GetSingleShardLagDetails(suite.v3ioContext,
+			suite.streamPath,
+			suite.consumerGroup,
+			shardID,
+			nil)
+		suite.Require().NoError(err)
 
 		// ensure nothing was committed
 		suite.Require().Equal(current, ackWindowSize)
@@ -191,7 +194,17 @@ func (suite *testSuite) TestAckWindowSize() {
 		err = common.RetryUntilSuccessful(10*time.Second,
 			time.Second,
 			func() bool {
-				current, committed = suite.getShardLagDetails(shardID)
+				current, committed, err := v3ioutil.GetSingleShardLagDetails(suite.v3ioContext,
+					suite.streamPath,
+					suite.consumerGroup,
+					shardID,
+					nil)
+				if err != nil {
+					suite.Logger.WarnWith("Failed to get shard lag details",
+						"shardID", shardID,
+						"error", err.Error())
+					return false
+				}
 				return current-committed == ackWindowSize && committed == 1
 			})
 		suite.Require().NoError(err, "Message did not trigger shard commit")
@@ -231,7 +244,12 @@ func (suite *testSuite) TestAckWindowSize() {
 		suite.Require().NoError(err, "Not all messages were committed as expected")
 
 		// yet there is a lag because those messages were still not committed
-		current, committed = suite.getShardLagDetails(shardID)
+		current, committed, err = v3ioutil.GetSingleShardLagDetails(suite.v3ioContext,
+			suite.streamPath,
+			suite.consumerGroup,
+			shardID,
+			nil)
+		suite.Require().NoError(err)
 		suite.Require().Equal(current-committed, ackWindowSize)
 
 		// "commit first message" + several messages sent after
@@ -250,9 +268,6 @@ func (suite *testSuite) TestReceiveRecords() {
 		RetentionPeriodHours: 1,
 	})
 	suite.Require().NoError(err, "Failed to create v3io sync stream")
-
-	// delete stream on Teardown
-	suite.deleteTestStream = true
 
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -281,6 +296,8 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.writingMessageToStream)
 }
 
+// before running this test - create a function on your system with numOfReplicas and a v3iostream trigger,
+// create a stream with v3ctl and publish messages on it
 func (suite *testSuite) TestManualShardRetention() {
 
 	var (
@@ -295,6 +312,9 @@ func (suite *testSuite) TestManualShardRetention() {
 	numOfReplicas := 10
 	numOfShards := 64
 	// end of change
+
+	// don't delete stream on Teardown
+	suite.skipDeleteTestStream = true
 
 	suite.v3ioContainer, err = suite.v3ioSession.NewContainer(&v3io.NewContainerInput{
 		ContainerName: "users",
@@ -375,6 +395,8 @@ func (suite *testSuite) TestManualShardRetention() {
 	}
 }
 
+// before running this test - create a function on your system with numOfReplicas and a v3iostream trigger,
+// create a stream with v3ctl and publish messages on it
 func (suite *testSuite) TestManualAbort() {
 
 	var (
@@ -389,6 +411,9 @@ func (suite *testSuite) TestManualAbort() {
 	consumerGroup := "cg0"
 	numOfReplicas := 10
 	// end of change
+
+	// don't delete stream on Teardown
+	suite.skipDeleteTestStream = true
 
 	suite.v3ioContainer, err = suite.v3ioSession.NewContainer(&v3io.NewContainerInput{
 		ContainerName: "users",

@@ -43,14 +43,16 @@ type rabbitMq struct {
 
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"rabbitMq",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -59,6 +61,7 @@ func newTrigger(parentLogger logger.Logger,
 		AbstractTrigger: abstractTrigger,
 		configuration:   configuration,
 	}
+	newTrigger.AbstractTrigger.Trigger = &newTrigger
 
 	return &newTrigger, nil
 }

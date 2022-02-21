@@ -35,14 +35,16 @@ type kickstart struct {
 
 func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"kickstart",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -51,6 +53,8 @@ func newTrigger(logger logger.Logger,
 		AbstractTrigger: abstractTrigger,
 		configuration:   configuration,
 	}
+	newTrigger.AbstractTrigger.Trigger = &newTrigger
+
 	return &newTrigger, nil
 }
 

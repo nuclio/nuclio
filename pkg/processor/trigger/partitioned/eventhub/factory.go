@@ -53,7 +53,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	triggerInstance, err = newTrigger(eventhubLogger, workerAllocator, configuration)
+	triggerInstance, err = newTrigger(eventhubLogger, workerAllocator, configuration, restartTriggerChan)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create eventhub trigger")
 	}

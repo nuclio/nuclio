@@ -45,14 +45,16 @@ type cron struct {
 
 func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"cron",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -62,6 +64,8 @@ func newTrigger(logger logger.Logger,
 		configuration:   configuration,
 		stop:            make(chan int),
 	}
+
+	newTrigger.AbstractTrigger.Trigger = &newTrigger
 
 	switch {
 	case configuration.Interval != "":
