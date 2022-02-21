@@ -24,7 +24,9 @@ import (
 	"io/ioutil"
 	"net/url"
 	"strings"
+	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -48,6 +50,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/cache"
 )
 
 type Platform struct {
@@ -59,6 +62,7 @@ type Platform struct {
 	kubeconfigPath string
 	consumer       *client.Consumer
 	projectsClient project.Client
+	projectsCache  *cache.Expiring
 }
 
 const Mib = 1048576
@@ -151,6 +155,8 @@ func NewPlatform(ctx context.Context,
 			return nil, errors.Wrap(err, "Failed to create a Docker builder")
 		}
 	}
+
+	newPlatform.projectsCache = cache.NewExpiring()
 
 	return newPlatform, nil
 }
@@ -648,11 +654,22 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 	}
 
 	// create
-	p.Logger.DebugWithCtx(ctx, "Creating project",
+	p.Logger.DebugWithCtx(ctx,
+		"Creating project",
 		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
-	if _, err := p.projectsClient.Create(ctx, createProjectOptions); err != nil {
+	createdProject, err := p.projectsClient.Create(ctx, createProjectOptions)
+	if err != nil {
 		return errors.Wrap(err, "Failed to create project")
 	}
+
+	// adding to cache for 30 seconds, allowing
+	p.projectsCache.Set(
+		p.getProjectCacheKey(
+			createProjectOptions.ProjectConfig.Meta,
+			createProjectOptions.ProjectConfig.Spec.Owner,
+		),
+		createdProject,
+		time.Second*30)
 
 	return nil
 }
@@ -672,6 +689,12 @@ func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *plat
 
 // DeleteProject will delete a previously existing project
 func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
+
+	// enrich to protect test flows where auth session is nil
+	if deleteProjectOptions.AuthSession == nil {
+		deleteProjectOptions.AuthSession = &auth.NopSession{}
+	}
+
 	if err := p.Platform.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
@@ -688,22 +711,72 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 	}
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
-		return p.Platform.WaitForProjectResourcesDeletion(ctx,
+		if err := p.Platform.WaitForProjectResourcesDeletion(ctx,
 			&deleteProjectOptions.Meta,
-			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration)
+			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration); err != nil {
+			return errors.Wrap(err, "Failed waiting for project resources deletion")
+		}
 	}
 
+	// cache revocation
+	p.projectsCache.Delete(p.getProjectCacheKey(deleteProjectOptions.Meta,
+		deleteProjectOptions.AuthSession.GetUsername()))
 	return nil
 }
 
 // GetProjects will list existing projects
-func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (p *Platform) GetProjects(ctx context.Context,
+	getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+
+	// enrich to protect test flows where auth session is nil
+	if getProjectsOptions.AuthSession == nil {
+		getProjectsOptions.AuthSession = &auth.NopSession{}
+	}
+
 	projects, err := p.projectsClient.Get(ctx, getProjectsOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
+	filteredProjectList, err := p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to filter projects by permission")
+	}
+
+	// tl;dr simply bypass opa manifest authorization
+	// iterate over the original retrieved project list
+	// if has been recently cached, re-add to filtered project list
+	// this is done to avoid cases where
+	// 1. project is being created by leader
+	// 2. opa manifest distribution did not occur yet
+	// 3. user GET on his recently added project
+	for _, projectInstance := range projects {
+		if _, exist := p.projectsCache.Get(
+			p.getProjectCacheKey(
+				projectInstance.GetConfig().Meta,
+				getProjectsOptions.AuthSession.GetUsername(),
+			),
+		); exist {
+			var found bool
+			for _, filteredProject := range filteredProjectList {
+				if filteredProject.GetConfig().Meta.IsEqual(projectInstance.GetConfig().Meta) {
+					found = true
+					break
+				}
+			}
+
+			// re-add project instance to filtered out as it has been cached
+			if !found {
+
+				p.Logger.DebugWithCtx(ctx,
+					"Project is readded from cache",
+					"projectName", projectInstance.GetConfig().Meta.Name)
+				filteredProjectList = append(filteredProjectList, projectInstance)
+			}
+		}
+	}
+
+	return filteredProjectList, nil
 }
 
 // CreateAPIGateway creates and deploys a new api gateway
@@ -1779,4 +1852,8 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to get upstream functions")
 	}
 	return upstreamFunctions, nil
+}
+
+func (p *Platform) getProjectCacheKey(projectMeta platform.ProjectMeta, owner string) string {
+	return fmt.Sprintf("%s/%s", projectMeta.Name, owner)
 }

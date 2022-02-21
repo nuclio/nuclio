@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
