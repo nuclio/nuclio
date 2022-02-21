@@ -23,7 +23,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -64,22 +63,21 @@ func GetStreamsFromFunctions(functions []platform.Function) (map[string]restful.
 }
 
 func GetShardLagsMap(ctx context.Context,
-	session auth.Session,
+	accessKey string,
 	logger logger.Logger,
 	platformConfig *platformconfig.Config,
 	info *StreamInfo,
 	consumerGroups []string) (map[string]interface{}, error) {
 
+	// a data plane access key is required for v3io operations
+	if accessKey == "" {
+		return nil, errors.New("A data plane access key is required")
+	}
+
 	// create v3io context
 	v3ioContext, err := v3iohttp.NewContext(logger, &v3iohttp.NewContextInput{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating v3io context")
-	}
-
-	// a data plane access key is required for v3io operations
-	accessKey := session.GetPassword()
-	if accessKey == "" {
-		return nil, errors.Wrap(err, "A data plane access key is required")
 	}
 
 	dataPlaneInput := v3iodataplane.DataPlaneInput{

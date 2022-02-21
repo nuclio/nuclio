@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	"github.com/nuclio/nuclio/pkg/auth"
 )
 
 type Client interface {

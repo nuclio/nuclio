@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
+	authpkg "github.com/nuclio/nuclio/pkg/auth"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -22,12 +22,12 @@ const (
 
 type Auth struct {
 	logger     logger.Logger
-	config     *auth.Config
+	config     *authpkg.Config
 	httpClient *http.Client
 	cache      *cache.LRUExpireCache
 }
 
-func NewAuth(logger logger.Logger, config *auth.Config) auth.Auth {
+func NewAuth(logger logger.Logger, config *authpkg.Config) authpkg.Auth {
 	return &Auth{
 		logger: logger.GetChild("iguazio-auth"),
 		config: config,
@@ -43,14 +43,14 @@ func NewAuth(logger logger.Logger, config *auth.Config) auth.Auth {
 
 // Authenticate will ask IguazioConfig session verification endpoint to verify the request session
 // and enrich with session metadata
-func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.Session, error) {
+func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (authpkg.Session, error) {
 	ctx := request.Context()
 	authorization := request.Header.Get("authorization")
 	cookie := request.Header.Get("cookie")
 	cacheKey := authorization + cookie
 
 	if options == nil {
-		options = &auth.Options{}
+		options = &authpkg.Options{}
 	}
 
 	if cacheKey == "" {
@@ -59,7 +59,7 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 
 	// try resolve from cache
 	if cacheData, found := a.cache.Get(cacheKey); found {
-		return cacheData.(*auth.IguazioSession), nil
+		return cacheData.(*authpkg.IguazioSession), nil
 	}
 
 	authHeaders := map[string]string{
@@ -109,7 +109,7 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 		return nil, nuclio.NewErrUnauthorized("Authentication failed")
 	}
 
-	authInfo := &auth.IguazioSession{
+	authInfo := &authpkg.IguazioSession{
 		Username:   response.Header.Get("x-remote-user"),
 		SessionKey: response.Header.Get("x-v3io-session-key"),
 		UserID:     response.Header.Get("x-user-id"),
@@ -129,7 +129,7 @@ func (a *Auth) Authenticate(request *http.Request, options *auth.Options) (auth.
 }
 
 // Middleware will authenticate the incoming request and store the session within the request context
-func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Handler {
+func (a *Auth) Middleware(options *authpkg.Options) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -144,13 +144,13 @@ func (a *Auth) Middleware(options *auth.Options) func(next http.Handler) http.Ha
 			a.logger.DebugWithCtx(ctx,
 				"Successfully authenticated incoming request",
 				"sessionUsername", session.GetUsername())
-			enrichedCtx := context.WithValue(ctx, auth.IguazioContextKey, session)
+			enrichedCtx := context.WithValue(ctx, authpkg.IguazioContextKey, session)
 			next.ServeHTTP(w, r.WithContext(enrichedCtx))
 		})
 	}
 }
 
-func (a *Auth) Kind() auth.Kind {
+func (a *Auth) Kind() authpkg.Kind {
 	return a.config.Kind
 }
 

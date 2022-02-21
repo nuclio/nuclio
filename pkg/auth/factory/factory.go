@@ -1,9 +1,9 @@
 package factory
 
 import (
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth/nop"
+	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio"
+	"github.com/nuclio/nuclio/pkg/auth/nop"
 
 	"github.com/nuclio/logger"
 )

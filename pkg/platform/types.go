@@ -22,8 +22,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -290,7 +290,7 @@ type GetProjectsOptions struct {
 	AuthSession       auth.Session
 }
 
-// to appease k8s
+// DeepCopyInto to appease k8s
 func (ps *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
 
 	// TODO: proper deep copy
