@@ -23,10 +23,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	v3io "github.com/nuclio/nuclio/pkg/common/v3io"
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -136,7 +136,7 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 	consumerGroups = append(consumerGroups, v3ioStreamInfoInstance.ConsumerGroup)
 
 	shardLags, err := v3io.GetShardLagsMap(ctx,
-		vsr.getCtxSession(ctx),
+		vsr.getCtxSession(ctx).GetPassword(),
 		vsr.Logger,
 		vsr.getPlatform().GetConfig(),
 		&v3ioStreamInfoInstance,

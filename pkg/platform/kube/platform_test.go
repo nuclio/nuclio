@@ -24,15 +24,16 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth"
-	"github.com/nuclio/nuclio/pkg/dashboard/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -50,12 +51,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 type KubePlatformTestSuite struct {
 	suite.Suite
-	mockedPlatform                   *mockplatform.Platform
 	nuclioioV1beta1InterfaceMock     *mocks.NuclioV1beta1Interface
 	nuclioFunctionInterfaceMock      *mocks.NuclioFunctionInterface
 	nuclioProjectInterfaceMock       *mocks.NuclioProjectInterface
@@ -66,8 +67,9 @@ type KubePlatformTestSuite struct {
 	abstractPlatform                 *abstract.Platform
 	Namespace                        string
 	Logger                           logger.Logger
-	Platform                         *Platform
-	PlatformKubeConfig               *platformconfig.PlatformKubeConfig
+	mockedPlatform                   *mockplatform.Platform
+	platform                         *Platform
+	platformKubeConfig               *platformconfig.PlatformKubeConfig
 	mockedOpaClient                  *opa.MockClient
 	opaOverrideHeaderValue           string
 	ctx                              context.Context
@@ -84,12 +86,12 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 
 	suite.ctx = context.Background()
 
-	suite.PlatformKubeConfig = &platformconfig.PlatformKubeConfig{
+	suite.platformKubeConfig = &platformconfig.PlatformKubeConfig{
 		DefaultServiceType: v1.ServiceTypeClusterIP,
 	}
 	suite.mockedPlatform = &mockplatform.Platform{}
 	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{
-		Kube: *suite.PlatformKubeConfig,
+		Kube: *suite.platformKubeConfig,
 	}, "")
 	suite.Require().NoError(err, "Could not create platform")
 
@@ -133,21 +135,121 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 		On("NuclioAPIGateways", suite.Namespace).
 		Return(suite.nuclioAPIGatewayInterfaceMock)
 
-	getter, err := client.NewGetter(suite.Logger, suite.Platform)
+	getter, err := client.NewGetter(suite.Logger, suite.platform)
 	suite.Require().NoError(err)
 
-	suite.Platform = &Platform{
+	suite.platform = &Platform{
 		Platform: suite.abstractPlatform,
 		getter:   getter,
 		consumer: &client.Consumer{
 			NuclioClientSet: suite.nuclioioInterfaceMock,
 			KubeClientSet:   &suite.kubeClientSet,
 		},
+		projectsCache: cache.NewExpiring(),
 	}
-	suite.Platform.updater, _ = client.NewUpdater(suite.Logger, suite.Platform.consumer, suite.Platform)
-	suite.Platform.deleter, _ = client.NewDeleter(suite.Logger, suite.Platform)
-	suite.Platform.deployer, _ = client.NewDeployer(suite.Logger, suite.Platform.consumer, suite.Platform)
-	suite.Platform.projectsClient, _ = NewProjectsClient(suite.Platform, suite.abstractPlatform.Config)
+	suite.platform.updater, _ = client.NewUpdater(suite.Logger, suite.platform.consumer, suite.platform)
+	suite.platform.deleter, _ = client.NewDeleter(suite.Logger, suite.platform)
+	suite.platform.deployer, _ = client.NewDeployer(suite.Logger, suite.platform.consumer, suite.platform)
+	suite.platform.projectsClient, _ = NewProjectsClient(suite.platform, suite.abstractPlatform.Config)
+}
+
+type ProjectKubePlatformTestSuite struct {
+	KubePlatformTestSuite
+}
+
+func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
+	suite.nuclioProjectInterfaceMock.On("Create",
+		suite.ctx,
+		mock.Anything,
+		mock.Anything).
+		Return(&nuclioio.NuclioProject{}, nil).
+		Once()
+	defer suite.nuclioProjectInterfaceMock.AssertExpectations(suite.T())
+
+	// create project
+	err := suite.platform.CreateProject(suite.ctx, &platform.CreateProjectOptions{
+		AuthSession: &auth.NopSession{},
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{
+				Name:      "some-name",
+				Namespace: suite.Namespace,
+			},
+		},
+	})
+	suite.Require().NoError(err)
+
+	// project has been cached
+	suite.Require().NotZero(suite.platform.projectsCache.Len())
+
+	// make sure "recently created" is being filtered (returns false) and other project
+	// that have been created long time ago is returned
+	suite.mockedOpaClient.
+		On("QueryPermissionsMultiResources",
+			[]string{
+				fmt.Sprintf("/projects/%s", "some-name"),
+				fmt.Sprintf("/projects/%s", "other-name"),
+			},
+			opa.ActionRead,
+			mock.Anything).
+		Return([]bool{false, true}, nil).
+		Once()
+	defer suite.mockedOpaClient.AssertExpectations(suite.T())
+
+	// return both projects from k8s
+	suite.nuclioProjectInterfaceMock.On("List",
+		suite.ctx,
+		mock.Anything,
+		mock.Anything).
+		Return(&v1beta1.NuclioProjectList{
+			Items: []nuclioio.NuclioProject{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: suite.Namespace,
+						Name:      "some-name",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: suite.Namespace,
+						Name:      "other-name",
+					},
+				},
+			},
+		}, nil).
+		Once()
+
+	projects, err := suite.platform.GetProjects(suite.ctx, &platform.GetProjectsOptions{
+		AuthSession: &auth.NopSession{},
+		Meta: platform.ProjectMeta{
+			Namespace: suite.Namespace,
+		},
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           []string{"id1"},
+			RaiseForbidden:      false,
+			OverrideHeaderValue: suite.opaOverrideHeaderValue,
+		},
+	})
+	suite.Require().NoError(err)
+	suite.Require().Len(projects, 2, "Expected both projects to returned")
+
+	// delete project, make sure cache revocation works
+	suite.nuclioProjectInterfaceMock.On("Delete",
+		suite.ctx,
+		mock.Anything,
+		mock.Anything).
+		Return(nil).
+		Once()
+	err = suite.platform.DeleteProject(suite.ctx, &platform.DeleteProjectOptions{
+		AuthSession: &auth.NopSession{},
+		Meta: platform.ProjectMeta{
+			Name:      "some-name",
+			Namespace: suite.Namespace,
+		},
+	})
+	suite.Require().NoError(err)
+	suite.Require().Equal(suite.platform.projectsCache.Len(),
+		0,
+		"project was not removed from cache")
 }
 
 type FunctionKubePlatformTestSuite struct {
@@ -158,7 +260,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionNodeSelectorEnrichment()
 	defaultNodeSelector := map[string]string{
 		"a": "b",
 	}
-	suite.Platform.Config.Kube.DefaultFunctionNodeSelector = defaultNodeSelector
+	suite.platform.Config.Kube.DefaultFunctionNodeSelector = defaultNodeSelector
 	for _, testCase := range []struct {
 		name                 string
 		nodeSelector         map[string]string
@@ -187,7 +289,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionNodeSelectorEnrichment()
 		suite.Run(testCase.name, func() {
 			functionConfig := functionconfig.NewConfig()
 			functionConfig.Spec.NodeSelector = testCase.nodeSelector
-			err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
+			err := suite.platform.EnrichFunctionConfig(suite.ctx, functionConfig)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedNodeSelector, functionConfig.Spec.NodeSelector)
 
@@ -261,7 +363,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -294,7 +396,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
 				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 				defaultHTTPTrigger.Attributes = map[string]interface{}{
-					"serviceType": suite.PlatformKubeConfig.DefaultServiceType,
+					"serviceType": suite.platformKubeConfig.DefaultServiceType,
 				}
 				return map[string]functionconfig.Trigger{
 					defaultHTTPTrigger.Name: defaultHTTPTrigger,
@@ -428,7 +530,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
 
 			// run enrichment
-			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err := suite.platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
 			if testCase.expectedEnrichedTriggers != nil {
@@ -437,7 +539,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}
 
 			// run validation
-			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err = suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.validationError != "" {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 				suite.Require().Equal(testCase.validationError, errors.RootCause(err).Error())
@@ -530,7 +632,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
 				defer suite.nuclioAPIGatewayInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			functionInstance, functionConfigAndStatus, err := suite.Platform.
+			functionInstance, functionConfigAndStatus, err := suite.platform.
 				getFunctionInstanceAndConfig(suite.ctx,
 					&platform.GetFunctionsOptions{
 						Name:                  testCase.functionName,
@@ -638,7 +740,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
-			functions, err := suite.Platform.GetFunctions(suite.ctx, &platform.GetFunctionsOptions{
+			functions, err := suite.platform.GetFunctions(suite.ctx, &platform.GetFunctionsOptions{
 				Name:      functionName,
 				Namespace: suite.Namespace,
 				PermissionOptions: opa.PermissionOptions{
@@ -742,7 +844,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.UpdateFunction(suite.ctx, &platform.UpdateFunctionOptions{
+			err := suite.platform.UpdateFunction(suite.ctx, &platform.UpdateFunctionOptions{
 				FunctionMeta: &functionconfig.Meta{
 					Name:      functionName,
 					Namespace: suite.Namespace,
@@ -833,7 +935,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 				defer suite.nuclioFunctionInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{
+			err := suite.platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{
 				FunctionConfig: functionconfig.Config{
 					Meta: functionconfig.Meta{
 						Name:      functionName,
@@ -857,7 +959,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 }
 
 func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
-	suite.Platform.Config.Kube.DefaultHTTPIngressHostTemplate = "{{ .ResourceName }}.{{ .Namespace }}.test.com"
+	suite.platform.Config.Kube.DefaultHTTPIngressHostTemplate = "{{ .ResourceName }}.{{ .Namespace }}.test.com"
 
 	for _, testCase := range []struct {
 		name        string
@@ -1002,7 +1104,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 					},
 				},
 			}
-			err := suite.Platform.enrichHTTPTriggers(suite.ctx, functionConfig)
+			err := suite.platform.enrichHTTPTriggers(suite.ctx, functionConfig)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.want,
 				functionConfig.Spec.Triggers[testCase.httpTrigger.Name].Attributes["ingresses"])
@@ -1038,7 +1140,7 @@ func (suite *FunctionKubePlatformTestSuite) TestAlignIngressHostSubdomain() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			alignedIngressHostSubdomain := suite.Platform.alignIngressHostSubdomainLevel(testCase.args.host, testCase.args.randomCharsLength)
+			alignedIngressHostSubdomain := suite.platform.alignIngressHostSubdomainLevel(testCase.args.host, testCase.args.randomCharsLength)
 			suite.Require().Regexp(testCase.want, alignedIngressHostSubdomain)
 		})
 	}
@@ -1067,7 +1169,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 
 	suite.Logger.DebugWith("Enriching function", "functionName", functionName)
 
-	err := suite.Platform.EnrichFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
+	err := suite.platform.EnrichFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	suite.Require().Equal("some-user", createFunctionOptions.FunctionConfig.Meta.Labels[iguazio.IguzioUsernameLabel])
@@ -1151,7 +1253,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 					Once()
 				defer suite.mockedOpaClient.AssertExpectations(suite.T())
 			}
-			functionEvents, err := suite.Platform.GetFunctionEvents(suite.ctx, &platform.GetFunctionEventsOptions{
+			functionEvents, err := suite.platform.GetFunctionEvents(suite.ctx, &platform.GetFunctionEventsOptions{
 				Meta: platform.FunctionEventMeta{
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
@@ -1253,7 +1355,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 				defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.UpdateFunctionEvent(suite.ctx, &platform.UpdateFunctionEventOptions{
+			err := suite.platform.UpdateFunctionEvent(suite.ctx, &platform.UpdateFunctionEventOptions{
 				FunctionEventConfig: platform.FunctionEventConfig{
 					Meta: platform.FunctionEventMeta{
 						Name:      functionEventName,
@@ -1342,7 +1444,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 				defer suite.nuclioFunctionEventInterfaceMock.AssertExpectations(suite.T())
 			}
 
-			err := suite.Platform.DeleteFunctionEvent(suite.ctx, &platform.DeleteFunctionEventOptions{
+			err := suite.platform.DeleteFunctionEvent(suite.ctx, &platform.DeleteFunctionEventOptions{
 				Meta: platform.FunctionEventMeta{
 					Name:      functionEventName,
 					Namespace: suite.Namespace,
@@ -1708,7 +1810,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				if testCase.authSession != nil {
 					suite.ctx = context.WithValue(suite.ctx, auth.AuthSessionContextKey, *testCase.authSession)
 				}
-				suite.Platform.EnrichLabels(suite.ctx, testCase.expectedEnrichedAPIGateway.Meta.Labels)
+				suite.platform.EnrichLabels(suite.ctx, testCase.expectedEnrichedAPIGateway.Meta.Labels)
 			}
 
 			// run test case specific set up function if given
@@ -1718,7 +1820,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run enrichment
-			suite.Platform.enrichAPIGatewayConfig(suite.ctx, testCase.apiGatewayConfig, nil)
+			suite.platform.enrichAPIGatewayConfig(suite.ctx, testCase.apiGatewayConfig, nil)
 			if testCase.expectedEnrichedAPIGateway != nil {
 				suite.Require().Empty(cmp.Diff(testCase.expectedEnrichedAPIGateway, testCase.apiGatewayConfig))
 			}
@@ -1745,7 +1847,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}
 
 			// run validation
-			err := suite.Platform.validateAPIGatewayConfig(suite.ctx, testCase.apiGatewayConfig,
+			err := suite.platform.validateAPIGatewayConfig(suite.ctx, testCase.apiGatewayConfig,
 				testCase.validateFunctionsExistence,
 				nil)
 			if testCase.validationError != "" {
@@ -1840,7 +1942,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayUpdate() {
 				Once()
 
 			// update
-			err := suite.Platform.UpdateAPIGateway(suite.ctx, updateAPIGatewayOptions)
+			err := suite.platform.UpdateAPIGateway(suite.ctx, updateAPIGatewayOptions)
 			suite.Require().NoError(err)
 		})
 	}
@@ -1872,6 +1974,7 @@ func (suite *APIGatewayKubePlatformTestSuite) compileAPIGatewayConfig() platform
 }
 
 func TestKubePlatformTestSuite(t *testing.T) {
+	suite.Run(t, new(ProjectKubePlatformTestSuite))
 	suite.Run(t, new(FunctionKubePlatformTestSuite))
 	suite.Run(t, new(FunctionEventKubePlatformTestSuite))
 	suite.Run(t, new(APIGatewayKubePlatformTestSuite))
