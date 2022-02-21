@@ -245,15 +245,10 @@ func (p *Processor) GetStatus() status.Status {
 		return status.Initializing
 	}
 
-	// if any worker isn't ready yet, return initializing
+	// if any worker isn't ready yet, return its status
 	for _, workerInstance := range workers {
-		switch workerInstance.GetStatus() {
-		case status.Error:
-			return status.Error
-		case status.Ready:
-			continue
-		default:
-			return status.Initializing
+		if workerStatus := workerInstance.GetStatus(); workerStatus != status.Ready {
+			return workerStatus
 		}
 	}
 
