@@ -55,6 +55,7 @@ func newTrigger(logger logger.Logger,
 		configuration:  configuration,
 		firstPoll:      true,
 	}
+	newTrigger.AbstractTrigger.Trigger = &newTrigger
 
 	// register self as the poller (to allow parent to call child functions)
 	newTrigger.SetPoller(&newTrigger)

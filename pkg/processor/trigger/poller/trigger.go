@@ -53,7 +53,6 @@ func NewAbstractPoller(logger logger.Logger,
 		AbstractTrigger: abstractTrigger,
 		configuration:   configuration,
 	}
-	newTrigger.AbstractTrigger.Trigger = newTrigger
 	return newTrigger, nil
 }
 
