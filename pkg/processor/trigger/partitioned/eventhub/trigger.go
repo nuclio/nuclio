@@ -35,7 +35,8 @@ type eventhub struct {
 
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	var err error
 
 	newTrigger := &eventhub{
@@ -46,7 +47,8 @@ func newTrigger(parentLogger logger.Logger,
 		workerAllocator,
 		&configuration.Configuration,
 		newTrigger,
-		"eventhub")
+		"eventhub",
+		restartTriggerChan)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract stream")

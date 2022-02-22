@@ -32,7 +32,8 @@ func (f *factory) Create(parentLogger logger.Logger,
 	id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
-	namedWorkerAllocators *worker.AllocatorSyncMap) (trigger.Trigger, error) {
+	namedWorkerAllocators *worker.AllocatorSyncMap,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	// create logger parent
 	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller")
@@ -54,7 +55,8 @@ func (f *factory) Create(parentLogger logger.Logger,
 	// finally, create the trigger
 	v3ioItemPollerTrigger, err := newTrigger(v3ioItemPollerLogger,
 		workerAllocator,
-		configuration)
+		configuration,
+		restartTriggerChan)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP trigger")

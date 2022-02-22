@@ -43,7 +43,8 @@ type AbstractTrigger struct {
 
 func NewAbstractTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (*AbstractTrigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (*AbstractTrigger, error) {
 	instanceLogger := parentLogger.GetChild(configuration.ID)
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(instanceLogger,
@@ -51,7 +52,8 @@ func NewAbstractTrigger(parentLogger logger.Logger,
 		&configuration.Configuration,
 		"async",
 		"mqtt",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}

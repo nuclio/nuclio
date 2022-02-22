@@ -31,14 +31,21 @@ type basicmqtt struct {
 
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *mqtt.Configuration) (trigger.Trigger, error) {
+	configuration *mqtt.Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
-	newAbstractTrigger, err := mqtt.NewAbstractTrigger(parentLogger.GetChild("mqtt"), workerAllocator, configuration)
+	newAbstractTrigger, err := mqtt.NewAbstractTrigger(parentLogger.GetChild("mqtt"),
+		workerAllocator,
+		configuration,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract trigger")
 	}
 
-	return basicmqtt{
+	newTrigger := basicmqtt{
 		AbstractTrigger: newAbstractTrigger,
-	}, nil
+	}
+	newTrigger.AbstractTrigger.Trigger = &newTrigger
+
+	return newTrigger, nil
 }

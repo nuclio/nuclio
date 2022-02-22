@@ -39,9 +39,13 @@ type iotcoremqtt struct {
 
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
-	newAbstractTrigger, err := mqtt.NewAbstractTrigger(parentLogger.GetChild("mqtt"), workerAllocator, &configuration.Configuration)
+	newAbstractTrigger, err := mqtt.NewAbstractTrigger(parentLogger.GetChild("mqtt"),
+		workerAllocator,
+		&configuration.Configuration,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract trigger")
 	}
@@ -50,6 +54,8 @@ func newTrigger(parentLogger logger.Logger,
 		AbstractTrigger: newAbstractTrigger,
 		configuration:   configuration,
 	}
+
+	newIOTCoreMQTT.AbstractTrigger.Trigger = &newIOTCoreMQTT
 
 	// set username to something so that client will send it
 	newIOTCoreMQTT.configuration.Username = "ignored"

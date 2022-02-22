@@ -43,13 +43,15 @@ type pubsub struct {
 
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"pubsub",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -59,6 +61,7 @@ func newTrigger(parentLogger logger.Logger,
 		configuration:   configuration,
 		stop:            make(chan bool),
 	}
+	newTrigger.AbstractTrigger.Trigger = newTrigger
 
 	return newTrigger, nil
 }

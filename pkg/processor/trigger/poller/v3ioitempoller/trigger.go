@@ -43,9 +43,10 @@ type v3ioItemPoller struct {
 
 func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
-	abstractPoller, err := poller.NewAbstractPoller(logger, workerAllocator, &configuration.Configuration)
+	abstractPoller, err := poller.NewAbstractPoller(logger, workerAllocator, &configuration.Configuration, restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract poller")
 	}
@@ -54,6 +55,7 @@ func newTrigger(logger logger.Logger,
 		configuration:  configuration,
 		firstPoll:      true,
 	}
+	newTrigger.AbstractTrigger.Trigger = &newTrigger
 
 	// register self as the poller (to allow parent to call child functions)
 	newTrigger.SetPoller(&newTrigger)
