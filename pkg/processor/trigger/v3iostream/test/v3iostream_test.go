@@ -66,8 +66,8 @@ type testSuite struct {
 func (suite *testSuite) SetupSuite() {
 
 	// Change below
-	suite.url = "https://webapi.default-tenant.app.dev62.lab.iguazeng.com" // "https://somewhere:8444"
-	suite.accessKey = "01faa187-79b3-4d40-8237-1ff41a5973fd"               // "some-access-key"
+	suite.url = "https://somewhere:8444"
+	suite.accessKey = "some-access-key"
 	// END OF change
 
 	// we use an Iguazio system, not a containerzed broker

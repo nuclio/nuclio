@@ -86,7 +86,7 @@ type Trigger interface {
 
 // AbstractTrigger implements common trigger operations
 type AbstractTrigger struct {
-	Trigger
+	Trigger Trigger
 
 	// accessed atomically, keep as first field for alignment
 	Statistics Statistics
@@ -318,7 +318,7 @@ func (at *AbstractTrigger) Restart() error {
 	at.Logger.Warn("Restart called in trigger", "triggerKind", at.GetKind(), "triggerName", at.GetName())
 
 	// signal the processor to restart the trigger
-	at.restartChan <- at
+	at.restartChan <- at.Trigger
 
 	return nil
 }
