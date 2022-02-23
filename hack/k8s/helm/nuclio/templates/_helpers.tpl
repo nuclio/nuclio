@@ -110,10 +110,10 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 
 
 {{- define "nuclio.externalIPAddresses" -}}
-{{- if len .Values.dashboard.externalIPAddresses -}}
-{{- .Values.dashboard.externalIPAddresses | join "," | quote -}}
-{{- else if .Values.global.externalHostAddress -}}
+{{- if .Values.global.externalHostAddress -}}
 {{- .Values.global.externalHostAddress  -}}
+{{- else if len .Values.dashboard.externalIPAddresses -}}
+{{- .Values.dashboard.externalIPAddresses | join "," | quote -}}
 {{- else -}}
 # leave empty if no input were given.
 # we resolve external ip address via `kubectl get nodes` or via the kubeconfig host
