@@ -52,14 +52,16 @@ func NewAbstractStream(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration,
 	stream Stream,
-	kind string) (*AbstractStream, error) {
+	kind string,
+	restartTriggerChan chan trigger.Trigger) (*AbstractStream, error) {
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		kind,
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -70,6 +72,7 @@ func NewAbstractStream(parentLogger logger.Logger,
 		configuration:   configuration,
 		stream:          stream,
 	}
+	newAbstractStream.AbstractTrigger.Trigger = newAbstractStream
 
 	return newAbstractStream, nil
 }

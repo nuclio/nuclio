@@ -54,7 +54,8 @@ type kafka struct {
 
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	var err error
 
 	// first - disable sarama metrics, as they leak memory
@@ -74,10 +75,13 @@ func newTrigger(parentLogger logger.Logger,
 		&configuration.Configuration,
 		"async",
 		"kafka-cluster",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
+
+	newTrigger.AbstractTrigger.Trigger = newTrigger
 
 	newTrigger.Logger.DebugWith("Creating consumer",
 		"brokers", configuration.brokers,

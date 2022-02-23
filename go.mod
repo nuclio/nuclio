@@ -46,7 +46,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/tsenart/vegeta/v12 v12.8.4
 	github.com/v3io/scaler v0.5.1
-	github.com/v3io/v3io-go v0.2.21
+	github.com/v3io/v3io-go v0.2.23
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
 	github.com/valyala/fasthttp v1.33.0

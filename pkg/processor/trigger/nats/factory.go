@@ -34,7 +34,8 @@ func (f *factory) Create(parentLogger logger.Logger,
 	id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
-	namedWorkerAllocators *worker.AllocatorSyncMap) (trigger.Trigger, error) {
+	namedWorkerAllocators *worker.AllocatorSyncMap,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	// create logger parent
 	triggerLogger := parentLogger.GetChild(triggerConfiguration.Kind)
@@ -61,7 +62,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	triggerInstance, err := newTrigger(triggerLogger,
 		workerAllocator,
 		configuration,
-	)
+		restartTriggerChan)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create trigger")

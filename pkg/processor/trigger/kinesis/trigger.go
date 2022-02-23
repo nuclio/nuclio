@@ -37,7 +37,8 @@ type kinesis struct {
 
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	instanceLogger := parentLogger.GetChild(configuration.ID)
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(instanceLogger,
@@ -45,7 +46,8 @@ func newTrigger(parentLogger logger.Logger,
 		&configuration.Configuration,
 		"async",
 		"kinesis",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
@@ -54,6 +56,7 @@ func newTrigger(parentLogger logger.Logger,
 		AbstractTrigger: abstractTrigger,
 		configuration:   configuration,
 	}
+	newTrigger.AbstractTrigger.Trigger = newTrigger
 	newTrigger.kinesisAuth = kinesisclient.NewAuth(configuration.AccessKeyID,
 		configuration.SecretAccessKey,
 		"")

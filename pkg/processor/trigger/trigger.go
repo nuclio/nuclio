@@ -58,6 +58,9 @@ type Trigger interface {
 	// GetKind returns the specific kind of source (http, rabbit mq, etc)
 	GetKind() string
 
+	// GetName returns the trigger name
+	GetName() string
+
 	// GetConfig returns trigger configuration
 	GetConfig() map[string]interface{}
 
@@ -83,6 +86,7 @@ type Trigger interface {
 
 // AbstractTrigger implements common trigger operations
 type AbstractTrigger struct {
+	Trigger Trigger
 
 	// accessed atomically, keep as first field for alignment
 	Statistics Statistics
@@ -96,6 +100,7 @@ type AbstractTrigger struct {
 	Namespace       string
 	FunctionName    string
 	ProjectName     string
+	restartChan     chan Trigger
 }
 
 func NewAbstractTrigger(logger logger.Logger,
@@ -103,7 +108,8 @@ func NewAbstractTrigger(logger logger.Logger,
 	configuration *Configuration,
 	class string,
 	kind string,
-	name string) (AbstractTrigger, error) {
+	name string,
+	restartTriggerChan chan Trigger) (AbstractTrigger, error) {
 
 	// enrich default trigger configuration
 	if configuration.WorkerAvailabilityTimeoutMilliseconds == nil || *configuration.WorkerAvailabilityTimeoutMilliseconds < 0 {
@@ -133,6 +139,7 @@ func NewAbstractTrigger(logger logger.Logger,
 		Namespace:       configuration.RuntimeConfiguration.Meta.Namespace,
 		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
 		ProjectName:     configuration.RuntimeConfiguration.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+		restartChan:     restartTriggerChan,
 	}, nil
 }
 
@@ -304,6 +311,16 @@ func (at *AbstractTrigger) UpdateStatistics(success bool) {
 	} else {
 		atomic.AddUint64(&at.Statistics.EventsHandledFailureTotal, 1)
 	}
+}
+
+// Restart signals the processor to start the trigger restart procedure
+func (at *AbstractTrigger) Restart() error {
+	at.Logger.Warn("Restart called in trigger", "triggerKind", at.GetKind(), "triggerName", at.GetName())
+
+	// signal the processor to restart the trigger
+	at.restartChan <- at.Trigger
+
+	return nil
 }
 
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {

@@ -36,13 +36,15 @@ type AbstractPoller struct {
 
 func NewAbstractPoller(logger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (*AbstractPoller, error) {
+	configuration *Configuration,
+	restartTriggerChan chan trigger.Trigger) (*AbstractPoller, error) {
 	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"batch",
 		"poller",
-		configuration.Name)
+		configuration.Name,
+		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
 	}
