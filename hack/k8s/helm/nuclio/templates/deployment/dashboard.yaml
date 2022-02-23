@@ -173,7 +173,7 @@ spec:
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
-          value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
+          value: {{ template "nuclio.externalIPAddresses" . }}
         - name: NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE
           value: {{ .Values.dashboard.imageNamePrefixTemplate | quote }}
       {{- if .Values.dashboard.opa.enabled }}

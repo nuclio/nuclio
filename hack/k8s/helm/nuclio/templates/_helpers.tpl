@@ -107,3 +107,16 @@ NOTE: make sure to not quote here, because an empty string is false, but a quote
 {{- printf "%s-%s" (include "nuclio.dashboardName" .) .Values.dashboard.opa.name | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}
+
+
+{{- define "nuclio.externalIPAddresses" -}}
+{{- if len .Values.dashboard.externalIPAddresses -}}
+{{- .Values.dashboard.externalIPAddresses | join "," | quote -}}
+{{- else if .Values.global.externalHostAddress -}}
+{{- .Values.global.externalHostAddress  -}}
+{{- else -}}
+# leave empty if no input were given.
+# we resolve external ip address via `kubectl get nodes` or via the kubeconfig host
+{{- "" -}}
+{{- end -}}
+{{- end -}}
