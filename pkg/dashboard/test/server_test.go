@@ -3001,7 +3001,7 @@ func (suite *apiGatewayTestSuite) TestUpdateSuccessful() {
   }`
 
 	suite.sendRequest("PUT",
-		"/api/api_gateways",
+		"/api/api_gateways/agw2",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
