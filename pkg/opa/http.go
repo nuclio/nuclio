@@ -111,7 +111,7 @@ func (c *HTTPClient) QueryPermissionsMultiResources(resources []string,
 	}
 	var responseBody []byte
 	err = common.RetryUntilSuccessful(6*time.Second,
-		2*time.Second,
+		1*time.Second,
 		func() bool {
 			responseBody, _, err = common.SendHTTPRequest(c.httpClient,
 				http.MethodPost,
@@ -190,7 +190,7 @@ func (c *HTTPClient) QueryPermissions(resource string,
 	}
 	var responseBody []byte
 	err = common.RetryUntilSuccessful(6*time.Second,
-		2*time.Second,
+		1*time.Second,
 		func() bool {
 			responseBody, _, err = common.SendHTTPRequest(c.httpClient,
 				http.MethodPost,
