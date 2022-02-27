@@ -156,7 +156,7 @@ func (agr *apiGatewayResource) Update(request *http.Request, id string) (restful
 	// get api gateway config and status from body
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
 	if err != nil {
-		agr.Logger.WarnWithCtx(ctx,"Failed to get api gateway from request", "err", err.Error())
+		agr.Logger.WarnWithCtx(ctx, "Failed to get api gateway from request", "err", err.Error())
 		return nil, errors.Wrap(err, "Failed to get api gateway from request")
 	}
 
