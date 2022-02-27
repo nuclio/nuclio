@@ -156,8 +156,13 @@ func (agr *apiGatewayResource) Update(request *http.Request, id string) (restful
 	// get api gateway config and status from body
 	apiGatewayInfo, err := agr.getAPIGatewayInfoFromRequest(request)
 	if err != nil {
-		agr.Logger.WarnWithCtx(ctx, "Failed to get api gateway config and status from body", "err", err)
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+		agr.Logger.WarnWithCtx(ctx,"Failed to get api gateway from request", "err", err.Error())
+		return nil, errors.Wrap(err, "Failed to get api gateway from request")
+	}
+
+	// enrich name with id if empty
+	if apiGatewayInfo.Meta.Name == "" {
+		apiGatewayInfo.Meta.Name = id
 	}
 
 	if id != apiGatewayInfo.Meta.Name {
@@ -176,7 +181,7 @@ func (agr *apiGatewayResource) Update(request *http.Request, id string) (restful
 		ValidateFunctionsExistence: agr.headerValueIsTrue(request, "x-nuclio-agw-validate-functions-existence"),
 	}); err != nil {
 		agr.Logger.WarnWithCtx(ctx, "Failed to update api gateway", "err", err)
-		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to update api gateway"))
+		return nil, errors.Wrap(err, "Failed to update api gateway")
 	}
 
 	return nil, nil
