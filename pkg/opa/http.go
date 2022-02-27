@@ -122,7 +122,7 @@ func (c *HTTPClient) QueryPermissionsMultiResources(resources []string,
 				http.StatusOK)
 			if err != nil {
 				c.logger.WarnWith("Failed to send HTTP request to OPA, retrying",
-					"err", err)
+					"err", err.Error())
 				return false
 			}
 			return true
@@ -201,7 +201,7 @@ func (c *HTTPClient) QueryPermissions(resource string,
 				http.StatusOK)
 			if err != nil {
 				c.logger.WarnWith("Failed to send HTTP request to OPA, retrying",
-					"err", err)
+					"err", err.Error())
 				return false
 			}
 			return true
