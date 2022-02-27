@@ -267,8 +267,8 @@ func (ap *Platform) EnrichLabels(ctx context.Context, labels map[string]string) 
 	}
 
 	// enrich labels with iguazio.com/username of the creating user
-	if authSession, ok := ctx.Value(auth.AuthSessionContextKey).(auth.IguazioSession); ok {
-		if labels[iguazio.IguzioUsernameLabel] == "" {
+	if authSession, ok := ctx.Value(auth.AuthSessionContextKey).(*auth.IguazioSession); ok && authSession != nil {
+		if value, exist := labels[iguazio.IguzioUsernameLabel]; !exist || value == "" {
 			labels[iguazio.IguzioUsernameLabel] = authSession.GetUsername()
 		}
 	}
