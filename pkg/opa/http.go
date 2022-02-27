@@ -109,13 +109,24 @@ func (c *HTTPClient) QueryPermissionsMultiResources(resources []string,
 			"requestBody", string(requestBody),
 			"requestURL", requestURL)
 	}
-	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
-		http.MethodPost,
-		requestURL,
-		requestBody,
-		headers,
-		[]*http.Cookie{},
-		http.StatusOK)
+	var responseBody []byte
+	err = common.RetryUntilSuccessful(6*time.Second,
+		1*time.Second,
+		func() bool {
+			responseBody, _, err = common.SendHTTPRequest(c.httpClient,
+				http.MethodPost,
+				requestURL,
+				requestBody,
+				headers,
+				[]*http.Cookie{},
+				http.StatusOK)
+			if err != nil {
+				c.logger.WarnWith("Failed to send HTTP request to OPA, retrying",
+					"err", err.Error())
+				return false
+			}
+			return true
+		})
 	if err != nil {
 		if c.logLevel > 5 {
 			c.logger.ErrorWith("Failed to send HTTP request to OPA",
@@ -177,13 +188,24 @@ func (c *HTTPClient) QueryPermissions(resource string,
 			"requestBody", string(requestBody),
 			"requestURL", requestURL)
 	}
-	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
-		http.MethodPost,
-		requestURL,
-		requestBody,
-		headers,
-		[]*http.Cookie{},
-		http.StatusOK)
+	var responseBody []byte
+	err = common.RetryUntilSuccessful(6*time.Second,
+		1*time.Second,
+		func() bool {
+			responseBody, _, err = common.SendHTTPRequest(c.httpClient,
+				http.MethodPost,
+				requestURL,
+				requestBody,
+				headers,
+				[]*http.Cookie{},
+				http.StatusOK)
+			if err != nil {
+				c.logger.WarnWith("Failed to send HTTP request to OPA, retrying",
+					"err", err.Error())
+				return false
+			}
+			return true
+		})
 	if err != nil {
 		if c.logLevel > 5 {
 			c.logger.ErrorWith("Failed to send HTTP request to OPA",
