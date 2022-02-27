@@ -786,6 +786,33 @@ in `metadata.labels`.
       "name": "agw",
       "state": "ready"
     }
+  },
+  "another-gateway": {
+    "metadata": {
+      "name": "another-gateway",
+      "namespace": "nuclio",
+      "labels": {
+        "nuclio.io/project-name": "my-project-1"
+      }
+    },
+    "spec": {
+      "host": "<api-gateway-endpoint>",
+      "name": "another-gateway",
+      "path": "/",
+      "authenticationMode": "accessKey",
+      "upstreams": [
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "my-func-2"
+          }
+        }
+      ]
+    },
+    "status": {
+      "name": "another-gateway",
+      "state": "ready"
+    }
   }
 }
 ```
@@ -821,7 +848,7 @@ in `metadata.labels`.
       {
         "kind": "nucliofunction",
         "nucliofunction": {
-          "name": "mu-func-1"
+          "name": "my-func-1"
         }
       }
     ]
@@ -931,9 +958,6 @@ Updating an API gateway is similar to creating an API gateway. The only differen
 #### Request
 
 Invoking an API gateway is done by calling endpoint that is given in the api geteway's `spec.host`  field.
-
-The HTTP method you apply to this endpoint is the one with which dashboard will invoke the function. For example, if
-you `DELETE /api/function_invocations`, the HTTP method in the event as received by the function will be `DELETE`.
 
 * URL: `<Method> <api-gateway-endpoint>`
 * Headers:
