@@ -34,7 +34,7 @@ controller:
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
   priorityClassName: ""
 
-  # Uncomment to have the controller to listen only the namespace's events, 
+  # Uncomment to have the controller to listen only the namespace's events,
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
@@ -122,6 +122,10 @@ dashboard:
       repository: gcr.io/kaniko-project/executor
       tag: v1.7.0
       pullPolicy: IfNotPresent
+
+    initContainerImage:
+      repository: busybox
+      tag: 1.31
 
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m
