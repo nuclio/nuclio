@@ -58,11 +58,26 @@ Steps:
 
 1. Create a PR against development with your changes, wait for it to pass CI
 2. Merge to development
-3. Run the following snippet
+3. Run the following
 
 ```shell script
 go run releaser.go \
   --skip-create-release \
+  --helm-charts-release-version x.y.z
+```
+
+- Publish Nuclio Helm charts from specific branch
+
+Steps:
+
+1. Merge helm changes to the specific branch
+2. Run the following
+
+```shell script
+go run releaser.go \
+  --skip-create-release \
+  --development-branch 1.6.x \
+  --release-branch 1.6.x \
   --helm-charts-release-version x.y.z
 ```
 
