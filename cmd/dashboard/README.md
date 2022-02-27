@@ -5,6 +5,7 @@ Table of contents:
 - [Project](#project)
 - [Function event](#function-event)
 - [Function template](#function-template)
+- [API Gateways](#api-gateways)
 - [V3IO Streams](#v3io-streams)
 - [Misc](#misc)
 
@@ -740,6 +741,256 @@ in `metadata.labels`.
   }
 }
 ```
+
+## API Gateways
+
+### Listing all API gateways
+
+#### Request
+
+* URL: `GET /api/api_gateways`
+* Headers:
+  * `x-nuclio-api-gateway-namespace`: Namespace (required)
+  * `x-nuclio-project-name`: Filter by project name (optional)
+
+#### Response
+
+* Status code: 200
+* Body:
+
+```json
+{
+  "agw": {
+    "metadata": {
+      "name": "agw",
+      "namespace": "nuclio",
+      "labels": {
+        "nuclio.io/project-name": "my-project-1"
+      }
+    },
+    "spec": {
+      "host": "<api-gateway-endpoint>",
+      "name": "agw",
+      "path": "/",
+      "authenticationMode": "none",
+      "upstreams": [
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "mu-func-1"
+          }
+        }
+      ]
+    },
+    "status": {
+      "name": "agw",
+      "state": "ready"
+    }
+  },
+  "another-gateway": {
+    "metadata": {
+      "name": "another-gateway",
+      "namespace": "nuclio",
+      "labels": {
+        "nuclio.io/project-name": "my-project-1"
+      }
+    },
+    "spec": {
+      "host": "<api-gateway-endpoint>",
+      "name": "another-gateway",
+      "path": "/",
+      "authenticationMode": "accessKey",
+      "upstreams": [
+        {
+          "kind": "nucliofunction",
+          "nucliofunction": {
+            "name": "my-func-2"
+          }
+        }
+      ]
+    },
+    "status": {
+      "name": "another-gateway",
+      "state": "ready"
+    }
+  }
+}
+```
+
+### Getting an API gateway by name
+
+#### Request
+
+* URL: `GET /api/api_gateways/<api-gateway-name>`
+* Headers:
+  * `x-nuclio-api-gateway-namespace`: Namespace (required)
+
+#### Response
+
+* Status code: 200
+* Body:
+
+```json
+{
+  "metadata": {
+    "name": "agw",
+    "namespace": "nuclio",
+    "labels": {
+      "nuclio.io/project-name": "my-project-1"
+    }
+  },
+  "spec": {
+    "name": "agw",
+    "host": "<api-gateway-endpoint>",
+    "path": "/",
+    "authenticationMode": "none",
+    "upstreams": [
+      {
+        "kind": "nucliofunction",
+        "nucliofunction": {
+          "name": "my-func-1"
+        }
+      }
+    ]
+  },
+  "status": {
+    "name": "agw",
+    "state": "ready"
+  }
+}
+```
+
+### Creating an API gateway
+
+To create an API gateway, provide the following request and then periodically GET the api gateway until `status.state` is set
+to `ready` or `error`. It is guaranteed that by the time the response is returned, getting the api gateway will yield a
+body and not `404`.
+
+#### Request
+
+* URL: `POST /api/api_gateways`
+* Headers:
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+
+```json
+ {
+  "metadata":{
+    "name":"agw",
+    "labels":{
+      "nuclio.io/project-name":"my-project-1"
+    }
+  },
+  "spec":{
+    "name":"agw",
+    "host": "<api-gateway-endpoint>",
+    "description":"",
+    "path":"",
+    "authenticationMode":"none",
+    "upstreams":[
+      {
+        "kind":"nucliofunction",
+        "nucliofunction":{
+          "name":"my-func-1"
+        },
+        "percentage":0
+      }
+    ]
+  }
+}
+```
+
+#### Response
+
+* Status code: 202
+
+### Updating an API gateway
+
+Updating an API gateway is similar to creating an API gateway. The only differences are:
+
+* The method is `PUT` rather than `POST`
+* You must provide certain fields to change, such as `spec.description`, `spec.path` and `spec.authenticationMode`.
+
+#### Request
+
+* URL: `PUT /api/api_gateways/<api-gateway-name>`
+* Headers:
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+
+```json
+{
+  "metadata": {
+    "name": "agw",
+    "namespace": "nuclio",
+    "labels": {
+      "nuclio.io/project-name": "my-project-1"
+    }
+  },
+  "spec": {
+    "name": "agw",
+    "host": "<api-gateway-endpoint>",
+    "path": "new-agw-path",
+    "authenticationMode": "basic",
+    "upstreams": [
+      {
+        "kind": "nucliofunction",
+        "nucliofunction": {
+          "name": "my-func-1"
+        }
+      }
+    ],
+    "description": "new description"
+  },
+  "status": {
+    "name": "agw",
+    "state": "ready"
+  }
+}
+```
+
+#### Response
+
+* Status code: 204
+
+### Invoking an API gateway
+
+#### Request
+
+Invoking an API gateway is done by calling endpoint that is given in the api geteway's `spec.host`  field.
+
+* URL: `<Method> <api-gateway-endpoint>`
+* Headers:
+  * Any header is passed transparently to the function
+* Body: Raw body passed as is to the function
+
+#### Response
+
+* Status code: As returned by the function
+* Headers:As returned by the function
+* Body: As returned by the function
+
+### Deleting an API gateway
+
+#### Request
+
+* URL: `DELETE /api/api_gateways`
+* Headers:
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+
+```json
+{
+  "metadata":{
+    "name":"<api-gateway-name>"
+  }
+}
+```
+
+#### Response
+
+* Status code: 204
+
 
 ## V3IO Streams
 
