@@ -649,12 +649,22 @@ func (r *Release) bumpHelmChartVersion() error {
 
 	// commit & push changes
 	commitMessage := fmt.Sprintf("Bump to %s", r.targetVersion)
-	if _, err := r.cmdRunner.Run(runOptions, `git commit -am "%s"`, commitMessage); err != nil {
-		return errors.Wrap(err, "Failed to checkout to release branch")
-	}
 
-	if _, err := r.cmdRunner.Run(runOptions, `git push`); err != nil {
-		return errors.Wrap(err, "Failed to checkout to release branch")
+	gitStatusResponse, err := r.cmdRunner.Run(runOptions, `git status --short`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to determine whether working dir is dirty")
+	}
+	if gitStatusResponse.Output != "" {
+		r.logger.InfoWith("Working dir is dirty, committing changes",
+			"changes", gitStatusResponse.Output)
+		if _, err := r.cmdRunner.Run(runOptions, `git commit -am "%s"`, commitMessage); err != nil {
+			return errors.Wrap(err, "Failed to commit changes")
+		}
+		if _, err := r.cmdRunner.Run(runOptions, `git push`); err != nil {
+			return errors.Wrap(err, "Failed to checkout to release branch")
+		}
+	} else {
+		r.logger.WarnWith("No changes were made")
 	}
 
 	if r.releaseBranch != r.developmentBranch {
