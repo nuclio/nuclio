@@ -10,7 +10,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.7.9-amd64
+    tag: 1.7.11-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -34,7 +34,7 @@ controller:
   ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority
   priorityClassName: ""
 
-  # Uncomment to have the controller to listen only the namespace's events, 
+  # Uncomment to have the controller to listen only the namespace's events,
   # change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
@@ -69,7 +69,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.7.9-amd64
+    tag: 1.7.11-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -122,6 +122,10 @@ dashboard:
       repository: gcr.io/kaniko-project/executor
       tag: v1.7.0
       pullPolicy: IfNotPresent
+
+    initContainerImage:
+      repository: busybox
+      tag: 1.31
 
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m
@@ -248,7 +252,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.7.9-amd64
+    tag: 1.7.11-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -277,7 +281,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.7.9-amd64
+    tag: 1.7.11-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -425,7 +429,7 @@ platform: {}
 #
 #     # set to 10 for extra verbosity on top of nuclio logger
 #     logLevel: 0
-#     address: http://1.7.9.0.1:8081
+#     address: http://1.7.11.0.1:8081
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow

@@ -191,7 +191,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	// Check OPA permissions
 	permissionOptions := createFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionPermissions(createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+	if _, err := p.QueryOPAFunctionPermissions(
+		createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		createFunctionOptions.FunctionConfig.Meta.Name,
 		opa.ActionCreate,
 		&permissionOptions); err != nil {
@@ -1146,7 +1147,8 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	// try to get an internal IP
 	for _, addressType := range []platform.AddressType{
 		platform.AddressTypeExternalIP,
-		platform.AddressTypeInternalIP} {
+		platform.AddressTypeInternalIP,
+	} {
 
 		for _, node := range nodes {
 			for _, address := range node.GetAddresses() {

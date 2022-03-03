@@ -1150,7 +1150,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 
 	functionName := "some-func"
 	functionConfig := *functionconfig.NewConfig()
-	authSession := auth.IguazioSession{
+	authSession := &auth.IguazioSession{
 		Username: "some-user",
 	}
 
@@ -1160,7 +1160,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:         suite.Logger,
 		FunctionConfig: functionConfig,
-		AuthSession:    &authSession,
+		AuthSession:    authSession,
 	}
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
 	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
@@ -1808,7 +1808,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 					testCase.expectedEnrichedAPIGateway.Meta.Labels = map[string]string{}
 				}
 				if testCase.authSession != nil {
-					suite.ctx = context.WithValue(suite.ctx, auth.AuthSessionContextKey, *testCase.authSession)
+					suite.ctx = context.WithValue(suite.ctx, auth.AuthSessionContextKey, testCase.authSession)
 				}
 				suite.platform.EnrichLabels(suite.ctx, testCase.expectedEnrichedAPIGateway.Meta.Labels)
 			}
