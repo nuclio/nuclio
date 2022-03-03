@@ -488,23 +488,8 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 			"functionName", functionConfig.Meta.Name,
 			"preemptionMode", functionConfig.Spec.PreemptionMode)
 
-		switch functionConfig.Spec.PreemptionMode {
-		case functionconfig.RunOnPreemptibleNodesConstrain:
-
-			// constrain to node using node selector
-			functionConfig.EnrichWithNodeSelectors(p.Config.Kube.PreemptibleNodes.NodeSelector)
-
-			// add tolerations in case node is tainted
-			functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
-
-		case functionconfig.RunOnPreemptibleNodesAllow:
-
-			// add tolerations in case node is tainted
-			functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
-		default:
-
-			// nothing to do here
-			break
+		if err := p.enrichFunctionPreemptionSpec(ctx, functionConfig); err != nil {
+			return errors.Wrap(err, "Failed to enrich function preemption spec")
 		}
 	}
 
@@ -1308,6 +1293,64 @@ func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions
 	return nil
 }
 
+func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
+	functionConfig *functionconfig.Config) error {
+
+	switch functionConfig.Spec.PreemptionMode {
+	case functionconfig.RunOnPreemptibleNodesPrevent:
+		antiAffinity := p.Config.Kube.PreemptibleNodes.CompileAntiAffinity()
+		if antiAffinity == nil {
+			p.Logger.WarnWithCtx(ctx,
+				"Cannot enrich with anti-affinity, "+
+					"check your preemption mode node selector configuration",
+				"preemptibleNodesConfiguration", p.Config.Kube.PreemptibleNodes)
+			return nil
+		}
+		if functionConfig.Spec.Affinity == nil {
+			functionConfig.Spec.Affinity = &v1.Affinity{}
+		}
+
+		// merge by deep copy
+		antiAffinity.DeepCopyInto(functionConfig.Spec.Affinity)
+
+		// remove preemptible node constrain / tolerations
+		functionConfig.PruneNodeSelector(p.Config.Kube.PreemptibleNodes.NodeSelector)
+		functionConfig.PruneTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
+
+	case functionconfig.RunOnPreemptibleNodesConstrain:
+
+		// constrain to node using node selector
+		functionConfig.EnrichWithNodeSelectors(p.Config.Kube.PreemptibleNodes.NodeSelector)
+
+		// add tolerations in case node is tainted
+		functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
+
+		antiAffinityMatchExpressions := p.Config.Kube.PreemptibleNodes.CompileAntiAffinityByLabelSelector()
+		if len(antiAffinityMatchExpressions) > 0 {
+			functionConfig.PruneAffinityNodeSelectorRequirement(antiAffinityMatchExpressions)
+		}
+
+	case functionconfig.RunOnPreemptibleNodesAllow:
+
+		// add tolerations in case node is tainted
+		functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
+
+		// remove preemptible nodes constrain
+		functionConfig.PruneNodeSelector(p.Config.Kube.PreemptibleNodes.NodeSelector)
+
+		antiAffinityMatchExpressions := p.Config.Kube.PreemptibleNodes.CompileAntiAffinityByLabelSelector()
+		if len(antiAffinityMatchExpressions) > 0 {
+			functionConfig.PruneAffinityNodeSelectorRequirement(antiAffinityMatchExpressions)
+		}
+
+	default:
+
+		// nothing to do here
+		break
+	}
+
+	return nil
+}
 func (p *Platform) clearCallStack(message string) string {
 	if message == "" {
 		return ""

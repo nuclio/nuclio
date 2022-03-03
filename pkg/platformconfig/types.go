@@ -158,6 +158,41 @@ type PreemptibleNodes struct {
 	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
 }
 
+// CompileAntiAffinityByLabelSelector compiles anti affinity spec based on pre-configured node selector
+func (p *PreemptibleNodes) CompileAntiAffinityByLabelSelector() []corev1.NodeSelectorRequirement {
+	var matchExpressions []corev1.NodeSelectorRequirement
+
+	for nodeSelectorKey, nodeSelectorValue := range p.NodeSelector {
+		matchExpressions = append(matchExpressions, corev1.NodeSelectorRequirement{
+			Key:      nodeSelectorKey,
+			Operator: corev1.NodeSelectorOpDoesNotExist,
+			Values:   []string{nodeSelectorValue},
+		})
+	}
+
+	return matchExpressions
+}
+
+// CompileAntiAffinity compiles anti affinity spec against preemptible nodes
+func (p *PreemptibleNodes) CompileAntiAffinity() *corev1.Affinity {
+	matchExpressions := p.CompileAntiAffinityByLabelSelector()
+	if len(matchExpressions) == 0 {
+		return nil
+	}
+
+	return &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: matchExpressions,
+					},
+				},
+			},
+		},
+	}
+}
+
 type PlatformLocalConfig struct {
 	FunctionContainersHealthinessEnabled  bool
 	FunctionContainersHealthinessTimeout  time.Duration
