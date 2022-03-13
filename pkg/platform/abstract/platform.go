@@ -292,14 +292,16 @@ func (ap *Platform) ValidateCreateFunctionOptionsAgainstExistingFunctionConfig(c
 	existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions) error {
 
-	// special case when we are asked to build the function and it wasn't been created yet
+	// special case when we are asked to build the function, and it wasn't created yet
 	if existingFunctionConfig == nil &&
 		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
 		return errors.New("Non existing function cannot be created with neverBuild mode")
 	}
 
 	// validate resource version
-	if err := ap.ValidateResourceVersion(ctx, existingFunctionConfig, &createFunctionOptions.FunctionConfig); err != nil {
+	if err := ap.ValidateResourceVersion(ctx,
+		existingFunctionConfig,
+		&createFunctionOptions.FunctionConfig); err != nil {
 		return nuclio.WrapErrConflict(err)
 	}
 

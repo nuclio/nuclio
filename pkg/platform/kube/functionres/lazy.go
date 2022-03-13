@@ -749,7 +749,10 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 
 	replicas := function.GetComputedReplicas()
 	if replicas != nil {
-		lc.logger.DebugWithCtx(ctx, "Got replicas", "replicas", *replicas, "functionName", function.Name)
+		lc.logger.DebugWithCtx(ctx,
+			"Got replicas",
+			"replicas", *replicas,
+			"functionName", function.Name)
 	}
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
@@ -1632,7 +1635,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		}
 	}
 
-	// generate a string containing all of the headers with --header flag as prefix, to be used by curl later
+	// generate a string containing all the headers with --header flag as prefix, to be used by curl later
 	headersAsCurlArg := ""
 	for headerKey := range attributes.Event.Headers {
 		headerValue := attributes.Event.GetHeaderString(headerKey)
@@ -1688,8 +1691,10 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:            "function-invocator",
-							Image:           common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME", "appropriate/curl:latest"),
+							Name: "function-invocator",
+							Image: common.GetEnvOrDefaultString(
+								"NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_NAME",
+								"gcr.io/iguazio/curlimages/curl:7.81.0"),
 							Args:            []string{"/bin/sh", "-c", curlCommand},
 							ImagePullPolicy: v1.PullPolicy(common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_TRIGGER_CRON_JOB_IMAGE_PULL_POLICY", "IfNotPresent")),
 						},
@@ -1909,7 +1914,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		{
 			Name:          ContainerHTTPPortName,
 			ContainerPort: abstract.FunctionContainerHTTPPort,
-			Protocol:      "TCP",
+			Protocol:      v1.ProtocolTCP,
 		},
 	}
 
@@ -1918,7 +1923,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		container.Ports = append(container.Ports, v1.ContainerPort{
 			Name:          containerMetricPortName,
 			ContainerPort: containerMetricPort,
-			Protocol:      "TCP",
+			Protocol:      v1.ProtocolTCP,
 		})
 	}
 
