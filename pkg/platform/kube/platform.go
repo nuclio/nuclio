@@ -1319,6 +1319,7 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 		// ensure no preemptible node tolerations
 		functionConfig.PruneTolerations(preemptibleNodes.Tolerations)
+		functionConfig.PruneTolerations(preemptibleNodes.GPUTolerations)
 
 		if preemptibleNodes.Tolerations != nil {
 			functionConfig.
@@ -1353,6 +1354,9 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 		// add tolerations in case node is tainted
 		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)
+		if functionConfig.Spec.PositiveGPUResourceLimit() {
+			functionConfig.EnrichWithTolerations(preemptibleNodes.GPUTolerations)
+		}
 
 		if functionConfig.Spec.Affinity == nil {
 			functionConfig.Spec.Affinity = &v1.Affinity{}
@@ -1388,6 +1392,9 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 		// add tolerations in case node is tainted
 		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)
+		if functionConfig.Spec.PositiveGPUResourceLimit() {
+			functionConfig.EnrichWithTolerations(preemptibleNodes.GPUTolerations)
+		}
 
 		// remove preemptible nodes constrain
 		functionConfig.PruneNodeSelector(preemptibleNodes.NodeSelector)

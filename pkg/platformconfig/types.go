@@ -154,8 +154,9 @@ type PlatformKubeConfig struct {
 
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)
 type PreemptibleNodes struct {
-	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
+	Tolerations    []corev1.Toleration `json:"tolerations,omitempty"`
+	GPUTolerations []corev1.Toleration `json:"gpuTolerations,omitempty"`
+	NodeSelector   map[string]string   `json:"nodeSelector,omitempty"`
 }
 
 // CompileAffinityByLabelSelector compiles affinity spec based on pre-configured node selector
