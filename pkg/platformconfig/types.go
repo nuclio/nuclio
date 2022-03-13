@@ -158,37 +158,41 @@ type PreemptibleNodes struct {
 	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
 }
 
-// CompileAntiAffinityByLabelSelector compiles anti affinity spec based on pre-configured node selector
-func (p *PreemptibleNodes) CompileAntiAffinityByLabelSelector() []corev1.NodeSelectorRequirement {
+// CompileAffinityByLabelSelector compiles affinity spec based on pre-configured node selector
+func (p *PreemptibleNodes) CompileAffinityByLabelSelector(
+	operation corev1.NodeSelectorOperator) []corev1.NodeSelectorRequirement {
 	var matchExpressions []corev1.NodeSelectorRequirement
-
 	for nodeSelectorKey, nodeSelectorValue := range p.NodeSelector {
 		matchExpressions = append(matchExpressions, corev1.NodeSelectorRequirement{
 			Key:      nodeSelectorKey,
-			Operator: corev1.NodeSelectorOpDoesNotExist,
+			Operator: operation,
 			Values:   []string{nodeSelectorValue},
 		})
 	}
-
 	return matchExpressions
 }
 
-// CompileAntiAffinity compiles anti affinity spec against preemptible nodes
-func (p *PreemptibleNodes) CompileAntiAffinity() *corev1.Affinity {
-	matchExpressions := p.CompileAntiAffinityByLabelSelector()
-	if len(matchExpressions) == 0 {
-		return nil
+// CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes schedule on a node having at least one of the node selectors (ORed)
+func (p *PreemptibleNodes) CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes() []corev1.NodeSelectorTerm {
+	affinity := p.CompileAffinityByLabelSelector(corev1.NodeSelectorOpIn)
+	var nodeSelectorTerms []corev1.NodeSelectorTerm
+	for _, expression := range affinity {
+		nodeSelectorTerms = append(nodeSelectorTerms, corev1.NodeSelectorTerm{
+			MatchExpressions: []corev1.NodeSelectorRequirement{expression},
+		})
 	}
+	return nodeSelectorTerms
+}
 
-	return &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: matchExpressions,
-					},
-				},
-			},
+func (p *PreemptibleNodes) CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes() []corev1.NodeSelectorTerm {
+	antiAffinity := p.CompileAffinityByLabelSelector(corev1.NodeSelectorOpIn)
+
+	// using a single term with potentially multiple expressions to ensure anti affinity.
+	// when having multiple terms, pod scheduling is succeeded if at least one
+	// term is satisfied.
+	return []corev1.NodeSelectorTerm{
+		{
+			MatchExpressions: antiAffinity,
 		},
 	}
 }

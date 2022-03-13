@@ -226,6 +226,16 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
 
+	var previousPreemptionMode functionconfig.RunOnPreemptibleNodeMode
+	if existingFunctionConfig != nil {
+		previousPreemptionMode = existingFunctionConfig.Spec.PreemptionMode
+	}
+
+	p.enrichFunctionPreemptionSpec(ctx,
+		p.Config.Kube.PreemptibleNodes,
+		&createFunctionOptions.FunctionConfig,
+		previousPreemptionMode)
+
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
 	if err != nil {
@@ -472,25 +482,6 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 			"functionName", functionConfig.Meta.Name,
 			"priorityClassName", p.Config.Kube.DefaultFunctionPriorityClassName)
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
-	}
-
-	// we do such stuff to allow exposing features before they are exposed on UI
-	if preemptionMode, exists := functionConfig.Meta.Annotations["custom.nuclio.io/preemptible-mode"]; exists {
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching function preemption mode from function annotations",
-			"preemptionMode", preemptionMode)
-		functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
-	}
-
-	if p.Config.Kube.PreemptibleNodes != nil && functionConfig.Spec.PreemptionMode != "" {
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching function spec for given preemption mode",
-			"functionName", functionConfig.Meta.Name,
-			"preemptionMode", functionConfig.Spec.PreemptionMode)
-
-		if err := p.enrichFunctionPreemptionSpec(ctx, functionConfig); err != nil {
-			return errors.Wrap(err, "Failed to enrich function preemption spec")
-		}
 	}
 
 	return nil
@@ -1294,63 +1285,120 @@ func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions
 }
 
 func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
-	functionConfig *functionconfig.Config) error {
+	preemptibleNodes *platformconfig.PreemptibleNodes,
+	functionConfig *functionconfig.Config,
+	previousPreemptionMode functionconfig.RunOnPreemptibleNodeMode) {
+
+	// nothing to do here, configuration is not populated
+	if p.Config.Kube.PreemptibleNodes == nil {
+		return
+	}
+
+	// we do such stuff to allow exposing features before they are exposed on UI
+	if preemptionMode, exists := functionConfig.Meta.Annotations["nuclio.io/preemptible-mode"]; exists {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function preemption mode from function annotations",
+			"preemptionMode", preemptionMode)
+		functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
+	}
+
+	// no preemption mode was selected, default to prevent
+	if functionConfig.Spec.PreemptionMode == "" {
+		p.Logger.DebugWithCtx(ctx, "No preemption mode was given, defaulting to prevent")
+		functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesPrevent
+	}
+
+	p.Logger.DebugWithCtx(ctx,
+		"Enriching function spec for given preemption mode",
+		"previousPreemptionMode", previousPreemptionMode,
+		"functionName", functionConfig.Meta.Name,
+		"preemptionMode", functionConfig.Spec.PreemptionMode)
 
 	switch functionConfig.Spec.PreemptionMode {
 	case functionconfig.RunOnPreemptibleNodesPrevent:
-		antiAffinity := p.Config.Kube.PreemptibleNodes.CompileAntiAffinity()
-		if antiAffinity == nil {
-			p.Logger.WarnWithCtx(ctx,
-				"Cannot enrich with anti-affinity, "+
-					"check your preemption mode node selector configuration",
-				"preemptibleNodesConfiguration", p.Config.Kube.PreemptibleNodes)
-			return nil
+
+		// ensure no preemptible node tolerations
+		functionConfig.PruneTolerations(preemptibleNodes.Tolerations)
+
+		if preemptibleNodes.Tolerations != nil {
+			functionConfig.
+				PruneAffinityNodeSelectorRequirement(
+					preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn))
+
+			// prevention is done by tolerations (as spec was explicitly given)
+			// and thus, stop here
+			break
 		}
+
 		if functionConfig.Spec.Affinity == nil {
 			functionConfig.Spec.Affinity = &v1.Affinity{}
 		}
 
-		// merge by deep copy
-		antiAffinity.DeepCopyInto(functionConfig.Spec.Affinity)
+		if functionConfig.Spec.Affinity.NodeAffinity == nil {
+			functionConfig.Spec.Affinity.NodeAffinity = &v1.NodeAffinity{}
+		}
 
-		// remove preemptible node constrain / tolerations
-		functionConfig.PruneNodeSelector(p.Config.Kube.PreemptibleNodes.NodeSelector)
-		functionConfig.PruneTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
+		// using a single term with potentially multiple expressions to ensure affinity.
+		// when having multiple terms, pod scheduling is succeeded if at least one
+		// term is satisfied.
+		functionConfig.
+			Spec.
+			Affinity.
+			NodeAffinity.
+			RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{
+			NodeSelectorTerms: preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes(),
+		}
 
 	case functionconfig.RunOnPreemptibleNodesConstrain:
 
-		// constrain to node using node selector
-		functionConfig.EnrichWithNodeSelectors(p.Config.Kube.PreemptibleNodes.NodeSelector)
-
 		// add tolerations in case node is tainted
-		functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
+		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)
 
-		antiAffinityMatchExpressions := p.Config.Kube.PreemptibleNodes.CompileAntiAffinityByLabelSelector()
-		if len(antiAffinityMatchExpressions) > 0 {
-			functionConfig.PruneAffinityNodeSelectorRequirement(antiAffinityMatchExpressions)
+		if functionConfig.Spec.Affinity == nil {
+			functionConfig.Spec.Affinity = &v1.Affinity{}
+		}
+
+		if functionConfig.Spec.Affinity.NodeAffinity == nil {
+			functionConfig.Spec.Affinity.NodeAffinity = &v1.NodeAffinity{}
+		}
+
+		// using a single term with potentially multiple expressions to ensure affinity.
+		// when having multiple terms, pod scheduling is succeeded if at least one
+		// term is satisfied.
+		functionConfig.
+			Spec.
+			Affinity.
+			NodeAffinity.
+			RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{
+			NodeSelectorTerms: preemptibleNodes.CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes(),
 		}
 
 	case functionconfig.RunOnPreemptibleNodesAllow:
 
+		switch previousPreemptionMode {
+		case functionconfig.RunOnPreemptibleNodesConstrain:
+			functionConfig.
+				PruneAffinityNodeSelectorRequirement(
+					preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn))
+		case functionconfig.RunOnPreemptibleNodesPrevent:
+			functionConfig.
+				PruneAffinityNodeSelectorRequirement(
+					preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpNotIn))
+		}
+
 		// add tolerations in case node is tainted
-		functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
+		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)
 
 		// remove preemptible nodes constrain
-		functionConfig.PruneNodeSelector(p.Config.Kube.PreemptibleNodes.NodeSelector)
-
-		antiAffinityMatchExpressions := p.Config.Kube.PreemptibleNodes.CompileAntiAffinityByLabelSelector()
-		if len(antiAffinityMatchExpressions) > 0 {
-			functionConfig.PruneAffinityNodeSelectorRequirement(antiAffinityMatchExpressions)
-		}
+		functionConfig.PruneNodeSelector(preemptibleNodes.NodeSelector)
 
 	default:
 
 		// nothing to do here
 		break
 	}
-
-	return nil
 }
+
 func (p *Platform) clearCallStack(message string) string {
 	if message == "" {
 		return ""

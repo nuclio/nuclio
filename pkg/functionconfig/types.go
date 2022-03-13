@@ -576,7 +576,7 @@ func (c *Config) EnrichWithTolerations(tolerations []v1.Toleration) {
 func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements []v1.NodeSelectorRequirement) {
 
 	// nothing to do here
-	if c.Spec.Affinity == nil {
+	if c.Spec.Affinity == nil || nodeSelectorRequirements == nil {
 		return
 	}
 
@@ -584,9 +584,8 @@ func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements [
 		if nodeSelector := nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution; nodeSelector != nil {
 
 			// for all term expressions on function spec
-			for _, term := range nodeSelector.NodeSelectorTerms {
+			for termIdx, term := range nodeSelector.DeepCopy().NodeSelectorTerms {
 				for expressionIndex, expression := range term.MatchExpressions {
-					var foundExpression bool
 
 					// check if its key matches the anti affinity
 					// if it does, we want to remove this expression so it wont block us
@@ -594,20 +593,34 @@ func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements [
 						if nodeSelectorRequirement.Key == expression.Key &&
 							nodeSelectorRequirement.Operator == expression.Operator &&
 							reflect.DeepEqual(nodeSelectorRequirement.Values, expression.Values) {
-							foundExpression = true
+
+							// slice expression
+							nodeSelector.NodeSelectorTerms[termIdx].MatchExpressions = append(
+								term.MatchExpressions[:expressionIndex],
+								term.MatchExpressions[expressionIndex+1:]...,
+							)
 							break
 						}
 					}
-					if foundExpression {
-						term.MatchExpressions = append(
-							term.MatchExpressions[:expressionIndex],
-							term.MatchExpressions[expressionIndex+1:]...,
-						)
-						break
-					}
 				}
 
+				if len(nodeSelector.NodeSelectorTerms[termIdx].MatchExpressions) == 0 &&
+					len(nodeSelector.NodeSelectorTerms[termIdx].MatchFields) == 0 {
+
+					// slice term
+					nodeSelector.NodeSelectorTerms = append(
+						nodeSelector.NodeSelectorTerms[:termIdx],
+						nodeSelector.NodeSelectorTerms[termIdx+1:]...)
+				}
 			}
+			if len(nodeSelector.NodeSelectorTerms) == 0 {
+				nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
+			}
+		}
+
+		if nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil &&
+			nodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution == nil {
+			c.Spec.Affinity.NodeAffinity = nil
 		}
 	}
 }
