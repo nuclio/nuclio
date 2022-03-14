@@ -50,6 +50,24 @@
 
         $httpProvider.defaults.withCredentials = true;
 
+        // intercept SUCCESS responses
+        $httpProvider.interceptors.push(function ($rootScope, $injector) {
+            return {
+                response: function (res) {
+                    return $injector.get('ServerStatusService').resolveInterceptor(res);
+                }
+            };
+        });
+
+        // intercept CONNECTION_REFUSED responses
+        $httpProvider.interceptors.push(function ($rootScope, $injector) {
+            return {
+                responseError: function (rejection) {
+                    return $injector.get('ServerStatusService').rejectInterceptor(rejection);
+                }
+            };
+        });
+
         // prevents 'Possibly unhandled rejection' error
         $qProvider.errorOnUnhandledRejections(false);
     }
