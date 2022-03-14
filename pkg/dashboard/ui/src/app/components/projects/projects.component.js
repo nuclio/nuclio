@@ -11,7 +11,7 @@
 
     function ProjectsController($element, $q, $rootScope, $scope, $state, $timeout, $transitions, $i18next, i18next,
                                 lodash, ngDialog, ActionCheckboxAllService, CommonTableService, ConfigService,
-                                DialogsService, ExportService, ImportService, NuclioFunctionsDataService,
+                                DialogsService, ExportService, GeneralDataService, ImportService, NuclioFunctionsDataService,
                                 NuclioProjectsDataService, ProjectsService) {
         var ctrl = this;
         var lng = i18next.language;
@@ -391,9 +391,11 @@
                     sortTable();
                 })
                 .catch(function (error) {
-                    var defaultMsg = $i18next.t('functions:ERROR_MSG.GET_PROJECTS', { lng: lng });
+                    if (!GeneralDataService.isDisconnectionError(error.status)) {
+                        var defaultMsg = $i18next.t('functions:ERROR_MSG.GET_PROJECTS', { lng: lng });
 
-                    DialogsService.alert(lodash.get(error, 'data.error', defaultMsg));
+                        DialogsService.alert(lodash.get(error, 'data.error', defaultMsg));
+                    }
                 });
         }
 
