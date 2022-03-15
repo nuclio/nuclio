@@ -45,12 +45,12 @@ import (
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
-	nucliozap "github.com/nuclio/zap"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
