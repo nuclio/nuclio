@@ -27,7 +27,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	nucliozap "github.com/nuclio/zap"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -47,6 +46,7 @@ import (
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
+	nucliozap "github.com/nuclio/zap"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"

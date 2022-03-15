@@ -714,7 +714,11 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 	if err = json.Unmarshal(body, &projectInfoInstance); err != nil {
 		return nil, errors.Wrap(err, "Failed to parse JSON body")
 	}
-	projectId := projectInfoInstance.Meta.Name
+
+	projectId := request.Header.Get("x-nuclio-project-name")
+	if projectInfoInstance.Meta != nil && projectInfoInstance.Meta.Name != "" {
+		projectId = projectInfoInstance.Meta.Name
+	}
 
 	// retrieve request body so next handler can read it
 	request.Body.Close() // nolint: errcheck
