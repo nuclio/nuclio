@@ -27,6 +27,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio-sdk-go"
+	nucliozap "github.com/nuclio/zap"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -49,8 +51,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
@@ -105,7 +105,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		panic("Failed to create server")
 	}
 
-	// create an http server from the dashboard server
+	// create a http server from the dashboard server
 	suite.httpServer = httptest.NewServer(suite.dashboardServer.Router)
 }
 
@@ -152,7 +152,8 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 		err := json.Unmarshal(encodedResponseBody, &decodedResponseBody)
 		suite.Require().NoError(err)
 
-		suite.logger.DebugWith("Comparing expected", "expected", encodedExpectedResponse)
+		suite.logger.DebugWith("Comparing expected",
+			"expected", fmt.Sprintf("%T", encodedExpectedResponse))
 
 		switch typedEncodedExpectedResponse := encodedExpectedResponse.(type) {
 		case string:
@@ -1564,7 +1565,7 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 	suite.mockPlatform.
 		On("UpdateProject", mock.Anything, mock.MatchedBy(verifyUpdateProject)).
 		Return(nil).
-		Once()
+		Twice()
 
 	expectedStatusCode := http.StatusNoContent
 	requestBody := `{
@@ -1579,6 +1580,13 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 
 	suite.sendRequest("PUT",
 		"/api/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.sendRequest("PUT",
+		"/api/projects/p1",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
