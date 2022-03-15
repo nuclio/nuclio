@@ -16,6 +16,7 @@ ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 
+# Deprecated
 # Supplies python 3.6 & common wheels
 FROM gcr.io/iguazio/python:3.6 as python36-builder
 
