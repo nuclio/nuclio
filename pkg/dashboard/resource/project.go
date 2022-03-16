@@ -702,7 +702,12 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 	}, nil
 }
 
+// TODO: deprecate this custom route
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+
+	ctx := request.Context()
+	pr.Logger.WarnWithCtx(ctx, "Updating api gateways via /api/projects has been deprecated. "+
+		"Please use /api/projects/<project-name>")
 
 	// get project id from body
 	body, err := ioutil.ReadAll(request.Body)
