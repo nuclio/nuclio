@@ -110,9 +110,17 @@ Key differences and changes:
 
 - Python 3.8+ is 5%-8% faster than Python 3.6 for small sized event messages.
 - Python 3.7, 3.8 and 3.9 base images are `python:3.7`, `python:3.8` and `python:3.9`, respectively.
-- Events metadata, such as headers, path, method, etc are now byte-strings. This may incur changes in your code to refer
-  to the various (now) byte-string event properties correctly in the new runtimes. e.g.: Simple code snipped which
-  worked on python 2.7 and 3.6, using some event metadata, such as `event.path` -
+
+In Python 3.7+ runtimes, events metadata, such as headers, path, method, etc can be decoded as byte-strings. 
+This may incur changes in your code to refer to the various (now) byte-string event properties correctly in the new runtimes. 
+e.g.: Simple code snipped which worked on python 2.7 and 3.6, using some event metadata, such as `event.path`
+
+To disable the utf8 decoding, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS` to `disabled`.
+
+Once disabled, your function behavior would change as the event metadata fields are not decoded and served as byte-string.
+E.g.:
+
+Instead of -
 
   ```python
   def handler(context, event):
@@ -120,8 +128,7 @@ Key differences and changes:
       return "I'm doing something..."
   ```
 
-  In Python 3.7+ runtimes, the matching `event.path` property is now a `byte-string` instead of an old `string`,
-  The new snippet will look like this:
+The new snippet would be looking like this:
 
   ```python
   def handler(context, event):
@@ -129,12 +136,8 @@ Key differences and changes:
       return "I'm doing something..."
   ```
 
-  > Note: To decode all incoming event byte-strings automatically by the nuclio python wrapper, set the function
-  > environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`. Enabling event strings decoding the Nuclio python
-  > wrapper might fail to handle events with non-utf8 metadata contents. Part of the motivation for the change was
-  > to gain robustness against such cases and transfer the encoding task to user-code.
-
-> Note: Python 3.6 runtimes is left unchanged.
+  > Note: To disable decoding to all incoming events to byte-strings, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=false`.
+  > Not disabling event strings decoding means that the Nuclio python wrapper might fail to handle events with non-utf8 metadata contents.
 
 <a id="function-configuration"></a>
 ## Function configuration
