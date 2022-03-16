@@ -716,7 +716,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 	}
 
 	projectInfoInstance := projectInfo{}
-	if err = json.Unmarshal(body, &projectInfoInstance); err != nil {
+	if err := json.Unmarshal(body, &projectInfoInstance); err != nil {
 		return nil, errors.Wrap(err, "Failed to parse JSON body")
 	}
 
