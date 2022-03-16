@@ -8,6 +8,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
 
 // BuildOptions are options for building a container image
@@ -24,6 +25,10 @@ type BuildOptions struct {
 	SecretName          string
 	OutputImageFile     string
 	BuildTimeoutSeconds int64
+	Affinity            *v1.Affinity
+	NodeSelector        map[string]string
+	NodeName            string
+	PriorityClassName   string
 }
 
 type ContainerBuilderConfiguration struct {
