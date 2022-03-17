@@ -1073,6 +1073,12 @@ func (b *Builder) buildProcessorImage() (string, error) {
 			SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 			OutputImageFile:     b.options.OutputImageFile,
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
+
+			// kaniko pod attributes
+			NodeSelector:      b.options.FunctionConfig.Spec.NodeSelector,
+			NodeName:          b.options.FunctionConfig.Spec.NodeName,
+			Affinity:          b.options.FunctionConfig.Spec.Affinity,
+			PriorityClassName: b.options.FunctionConfig.Spec.PriorityClassName,
 		})
 
 	return imageName, err
