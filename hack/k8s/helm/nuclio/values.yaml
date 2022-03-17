@@ -210,14 +210,6 @@ dashboard:
       pullPolicy: IfNotPresent
       pullSecrets: []
 
-    resources:
-      requests:
-        cpu: 100m
-        memory: 10Mi
-      limits:
-        cpu: 3
-        memory: 200Mi
-
     securityContext: {}
     # capabilities:
     #   drop:
@@ -233,6 +225,7 @@ dashboard:
       initialDelaySeconds: 10
       timeoutSeconds: 10
       periodSeconds: 15
+      successThreshold: 3
       failureThreshold: 4
 
     livenessProbe:
