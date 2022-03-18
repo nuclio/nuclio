@@ -48,6 +48,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
@@ -71,7 +72,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
-	suite.mockPlatform = &mockplatform.Platform{}
+	suite.mockPlatform = &mockplatform.Platform{CreateFunctionCreationStateUpdated: true}
 
 	templateRepository, err := functiontemplates.NewRepository(suite.logger, []functiontemplates.FunctionTemplateFetcher{})
 	suite.Require().NoError(err)
@@ -179,6 +180,132 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 
 type functionTestSuite struct {
 	dashboardTestSuite
+}
+
+func (suite *functionTestSuite) TestCreateDeploymentError() {
+
+	// mock a failure before the function is updated (e.g. during project fetching)
+	suite.mockPlatform.CreateFunctionCreationStateUpdated = false
+	errMessage := "Just some error"
+
+	// verify
+	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Require().Equal("f1-namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
+		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+
+		return true
+	}
+
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1-namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+
+	suite.mockPlatform.
+		On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunction)).
+		Return(&platform.CreateFunctionResult{}, errors.New(errMessage)).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-project-name":         "proj",
+		"x-nuclio-function-namespace":   "f1-namespace",
+	}
+
+	requestBody := `{
+	"metadata": {
+		"name": "f1",
+		"namespace": "f1-namespace"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+
+	expectedStatusCode := http.StatusInternalServerError
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{errMessage})
+
+	suite.sendRequest("POST",
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionTestSuite) TestCreateDeploymentErrorWithStatus() {
+
+	// mock a failure before the function is updated (e.g. during project fetching)
+	suite.mockPlatform.CreateFunctionCreationStateUpdated = false
+	errMessage := "Something was not found"
+
+	// verify
+	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Require().Equal("f1-namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
+		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+
+		return true
+	}
+
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1-namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+
+	suite.mockPlatform.
+		On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunction)).
+		Return(&platform.CreateFunctionResult{}, nuclio.NewErrNotFound(errMessage)).
+		Once()
+
+	suite.mockPlatform.
+		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-project-name":         "proj",
+		"x-nuclio-function-namespace":   "f1-namespace",
+	}
+
+	requestBody := `{
+	"metadata": {
+		"name": "f1",
+		"namespace": "f1-namespace"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"platform": {},
+		"runtime": "r1"
+	}
+}`
+
+	expectedStatusCode := nuclio.ErrNotFound.StatusCode()
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{errMessage})
+
+	suite.sendRequest("POST",
+		"/api/functions",
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *functionTestSuite) TestGetDetailSuccessful() {
