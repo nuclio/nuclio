@@ -44,7 +44,7 @@ func (suite *testSuite) TestFunctionTemplateRender() {
 			Handler:     "myhandler",
 			MinReplicas: &minReplicas,
 			MaxReplicas: &maxReplicas,
-			Runtime:     "python:3.6",
+			Runtime:     "python",
 		},
 	}
 

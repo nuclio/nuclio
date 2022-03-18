@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -108,7 +107,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	createFunctionOptions.FunctionConfig.Meta.Name = "funcsource-test"
 	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = tempFile.Name()
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
 
@@ -142,7 +141,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-test"
 	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
 
 	// expect failure
@@ -183,7 +182,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-redeploy-func"
 	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
 
 	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
@@ -273,24 +272,6 @@ func (suite *testSuite) TestBuildInvalidFunctionPath() {
 	suite.Require().Contains(errors.Cause(err).Error(), "invalidpath")
 }
 
-func (suite *testSuite) TestBuildJessiePassesNonInteractiveFlag() {
-	createFunctionOptions := suite.GetDeployOptions("jessie-non-interactive",
-		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "common", "empty", "python"))
-
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
-	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
-	createFunctionOptions.FunctionConfig.Spec.Build.BaseImage = "python:3.6-jessie"
-
-	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
-	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")
-
-	statusOk := http.StatusOK
-	suite.DeployFunctionAndRequest(createFunctionOptions,
-		&httpsuite.Request{
-			ExpectedResponseStatusCode: &statusOk,
-		})
-}
-
 func (suite *testSuite) TestDockerCacheUtilized() {
 	ipAddress := os.Getenv("NUCLIO_TEST_IP_ADDRESS")
 	if ipAddress == "" {
@@ -329,7 +310,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	}
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "cache-test"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "cachetest:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.CreateTempDir()
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
