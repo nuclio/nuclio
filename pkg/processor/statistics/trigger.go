@@ -50,6 +50,7 @@ func newTriggerGatherer(instanceName string,
 		"trigger_kind":  trigger.GetKind(),
 		"trigger_id":    trigger.GetID(),
 		"function":      trigger.GetFunctionName(),
+		"project":       trigger.GetProjectName(),
 		"namespace":     trigger.GetNamespace(),
 	}
 

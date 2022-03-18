@@ -255,7 +255,7 @@ func (at *AbstractTrigger) GetFunctionName() string {
 
 // GetProjectName returns project name
 func (at *AbstractTrigger) GetProjectName() string {
-	return at.FunctionName
+	return at.ProjectName
 }
 
 // HandleSubmitPanic handles a panic when submitting to worker
