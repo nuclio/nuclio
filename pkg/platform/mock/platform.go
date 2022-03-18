@@ -24,6 +24,10 @@ import (
 // to run over it
 type Platform struct {
 	mock.Mock
+
+	// a mock only field signifying whether, during the CreateFunction call, the CreationStateUpdated channel
+	// should be populated. This is used to mock failures before/after the update on the production types
+	CreateFunctionCreationStateUpdated bool
 }
 
 //
@@ -39,18 +43,21 @@ func (mp *Platform) GetContainerBuilderKind() string {
 	return "docker"
 }
 
-// Build will locally build a processor image and return its name (or the error)
+// CreateFunctionBuild will locally build a processor image and return its name (or the error)
 func (mp *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	args := mp.Called(createFunctionBuildOptions)
 	return args.Get(0).(*platform.CreateFunctionBuildResult), args.Error(1)
 }
 
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+// CreateFunction will deploy a processor image to the platform (optionally building it, if source is provided)
 func (mp *Platform) CreateFunction(ctx context.Context, createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 
-	// release requester
-	if createFunctionOptions.CreationStateUpdated != nil {
-		createFunctionOptions.CreationStateUpdated <- true
+	if mp.CreateFunctionCreationStateUpdated {
+
+		// release requester
+		if createFunctionOptions.CreationStateUpdated != nil {
+			createFunctionOptions.CreationStateUpdated <- true
+		}
 	}
 
 	args := mp.Called(ctx, createFunctionOptions)
