@@ -42,7 +42,7 @@ type TestSuite struct {
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.ctx = context.Background()
-	suite.Runtime = "python:3.6"
+	suite.Runtime = "python"
 
 	namespaces, err := suite.Platform.GetNamespaces(suite.ctx)
 	suite.Require().NoError(err, "Failed to get namespaces")

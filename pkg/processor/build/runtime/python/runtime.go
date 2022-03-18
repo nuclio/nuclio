@@ -62,7 +62,17 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	_, runtimeVersion := common.GetRuntimeNameAndVersion(p.FunctionConfig.Spec.Runtime)
 
 	switch runtimeVersion {
-	case "3.9", "3.8", "3.7":
+	case "3.6":
+		baseImage = "python:3.6"
+
+		p.Logger.Warn("Python 3.6 runtime is deprecated and will soon not be supported. " +
+			"Please migrate your code and use Python 3.7 runtime (`python:3.7`) or higher")
+		installSDKDependenciesCommand = fmt.Sprintf("pip install %s %s",
+			strings.Join(pythonCommonModules, " "),
+			strings.Join(pipInstallArgs, " "),
+		)
+
+	default:
 		baseImage = fmt.Sprintf("python:%s", runtimeVersion)
 
 		// use specific wheel files path
@@ -86,17 +96,6 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 			strings.Join(pythonCommonModules, " "),
 			strings.Join(pipInstallArgs, " "))
 
-	default:
-
-		// true for python & python:3.6
-		baseImage = "python:3.6"
-
-		p.Logger.Warn("Python 3.6 runtime is deprecated and will soon not be supported. " +
-			"Please migrate your code and use Python 3.7 runtime (`python:3.7`) or higher")
-		installSDKDependenciesCommand = fmt.Sprintf("pip install %s %s",
-			strings.Join(pythonCommonModules, " "),
-			strings.Join(pipInstallArgs, " "),
-		)
 	}
 
 	// fill onbuild artifact

@@ -32,7 +32,7 @@ curl -LO https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/go
 
 Now, create a Dockerfile by following the guidelines in the [Go reference](/docs/reference/runtimes/golang/golang-reference.md#dockerfile).
 
-> **Note:** Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python:3.6`, which will create a Dockerfile, a **function.yaml** file, and an empty Python handler.
+> **Note:** Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python`, which will create a Dockerfile, a **function.yaml** file, and an empty Python handler.
 
 The Dockerfile will look something like this:
 

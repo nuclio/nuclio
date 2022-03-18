@@ -491,9 +491,9 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	// python is just a reference to python:3.6
+	// python is just a reference to python:3.7
 	if b.options.FunctionConfig.Spec.Runtime == "python" {
-		b.options.FunctionConfig.Spec.Runtime = "python:3.6"
+		b.options.FunctionConfig.Spec.Runtime = "python:3.7"
 	}
 
 	// if the function handler isn't set, ask runtime

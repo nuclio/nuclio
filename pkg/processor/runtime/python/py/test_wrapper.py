@@ -95,6 +95,7 @@ class TestSubmitEvents(unittest.TestCase):
 
             await asyncio.sleep(0)
 
+            # Deprecated. To be removed on nuclio > 1.18
             # using `ensure_future` to BC with python:3.6 (on >= 3.7, you will see "create_task")
             # https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
             asyncio.ensure_future(append_event(event), loop=self._loop)

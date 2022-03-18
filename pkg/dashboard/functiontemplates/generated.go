@@ -696,7 +696,7 @@ public class nuclio
 `,
 	},
 	{
-		Name: "encrypt:python-36",
+		Name: "encrypt:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -710,7 +710,7 @@ spec:
   minReplicas: 1
   platform: {}
   resources: {}
-  runtime: python:3.6
+  runtime: python
 `),
 		SourceCode: `# Copyright 2017 The Nuclio Authors.
 #
@@ -756,7 +756,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:python-36",
+		Name: "facerecognizer:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -770,7 +770,7 @@ spec:
   minReplicas: 1
   platform: {}
   resources: {}
-  runtime: python:3.6
+  runtime: python
 `),
 		SourceCode: `# Copyright 2017 The Nuclio Authors.
 #
@@ -899,7 +899,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:python-36",
+		Name: "helloworld:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -910,7 +910,7 @@ spec:
   minReplicas: 1
   platform: {}
   resources: {}
-  runtime: python:3.6
+  runtime: python
 `),
 		SourceCode: `# Copyright 2017 The Nuclio Authors.
 #
@@ -937,121 +937,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "helloworld:python-37",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build: {}
-  description: Showcases unstructured logging and a structured response.
-  eventTimeout: ""
-  handler: helloworld:handler
-  maxReplicas: 1
-  minReplicas: 1
-  platform: {}
-  resources: {}
-  runtime: python:3.7
-`),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-def handler(context, event):
-    context.logger.info('This is an unstructured log')
-
-    return context.Response(body='Hello, from nuclio :]',
-                            headers={},
-                            content_type='text/plain',
-                            status_code=200)
-`,
-	},
-	{
-		Name: "helloworld:python-38",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build: {}
-  description: Showcases unstructured logging and a structured response.
-  eventTimeout: ""
-  handler: helloworld:handler
-  maxReplicas: 1
-  minReplicas: 1
-  platform: {}
-  resources: {}
-  runtime: python:3.8
-`),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-def handler(context, event):
-    context.logger.info('This is an unstructured log')
-
-    return context.Response(body='Hello, from nuclio :]',
-                            headers={},
-                            content_type='text/plain',
-                            status_code=200)
-`,
-	},
-	{
-		Name: "helloworld:python-39",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build: {}
-  description: Showcases unstructured logging and a structured response.
-  eventTimeout: ""
-  handler: helloworld:handler
-  maxReplicas: 1
-  minReplicas: 1
-  platform: {}
-  resources: {}
-  runtime: python:3.9
-`),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-def handler(context, event):
-    context.logger.info('This is an unstructured log')
-
-    return context.Response(body='Hello, from nuclio :]',
-                            headers={},
-                            content_type='text/plain',
-                            status_code=200)
-`,
-	},
-	{
-		Name: "sentiments:python-36",
+		Name: "sentiments:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1064,7 +950,7 @@ spec:
   minReplicas: 1
   platform: {}
   resources: {}
-  runtime: python:3.6
+  runtime: python
 `),
 		SourceCode: `# Copyright 2017 The Nuclio Authors.
 #
@@ -1096,11 +982,11 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:python-36",
+		Name: "tensorflow:python",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
-    baseImage: python:3.6-jessie
+    baseImage: python:3.7-buster
     commands:
     - apt-get update && apt-get install -y wget
     - wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz
@@ -1116,7 +1002,7 @@ spec:
   minReplicas: 1
   platform: {}
   resources: {}
-  runtime: python:3.6
+  runtime: python
 `),
 		SourceCode: `# Copyright 2017 The Nuclio Authors.
 #

@@ -5,12 +5,12 @@ spec:
     Uses the inception model of the TensorFlow open-source machine-learning library to classify images.
     The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages,
     pre-loading data into function memory (the AI Model), structured logging, and exception handling.
-  runtime: "python:3.6"
+  runtime: python
   handler: tensor:classify
   minReplicas: 1
   maxReplicas: 1
   build:
-    baseImage: python:3.6-jessie
+    baseImage: python:3.7-buster
     commands:
     - "apt-get update && apt-get install -y wget"
     - "wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz"

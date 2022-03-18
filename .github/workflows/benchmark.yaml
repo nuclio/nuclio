@@ -46,7 +46,7 @@ jobs:
         run: |
 
           # map runtimes to desired onbuild-targets
-          # golang,python:3.6 -> golang python
+          # golang,python:3.7 -> golang python
           if [ "${{ github.event.inputs.runtimes }}" == "all" ]; then\
             RUNTIMES=(golang java python dotnetcore nodejs);\
           else\
