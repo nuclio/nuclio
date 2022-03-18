@@ -48,7 +48,7 @@ func (suite *testSuite) TestFunctionTemplateRender() {
 		},
 	}
 
-	functionTemplate := `apiVersion: \"nuclio.io/v1beta1\"\nkind: \"Function\"\nspec:\n  runtime: \"python:3.6\"\n` +
+	functionTemplate := `apiVersion: \"nuclio.io/v1beta1\"\nkind: \"Function\"\nspec:\n  runtime: \"python:3.7\"\n` +
 		`  handler: {{ .handler }}\n  minReplicas: {{ .minReplicas }}\n  maxReplicas: {{ .maxReplicas }}`
 
 	functionTemplateConfig := []byte(fmt.Sprintf(`{
