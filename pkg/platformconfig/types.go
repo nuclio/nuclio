@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"sort"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -154,9 +155,10 @@ type PlatformKubeConfig struct {
 
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)
 type PreemptibleNodes struct {
-	Tolerations    []corev1.Toleration `json:"tolerations,omitempty"`
-	GPUTolerations []corev1.Toleration `json:"gpuTolerations,omitempty"`
-	NodeSelector   map[string]string   `json:"nodeSelector,omitempty"`
+	DefaultMode    functionconfig.RunOnPreemptibleNodeMode `json:"defaultMode,omitempty"`
+	Tolerations    []corev1.Toleration                     `json:"tolerations,omitempty"`
+	GPUTolerations []corev1.Toleration                     `json:"gpuTolerations,omitempty"`
+	NodeSelector   map[string]string                       `json:"nodeSelector,omitempty"`
 }
 
 // CompileAffinityByLabelSelector compiles affinity spec based on pre-configured node selector
@@ -170,6 +172,11 @@ func (p *PreemptibleNodes) CompileAffinityByLabelSelector(
 			Values:   []string{nodeSelectorValue},
 		})
 	}
+
+	//make compilation deterministic
+	sort.Slice(matchExpressions, func(i, j int) bool {
+		return matchExpressions[i].String() < matchExpressions[j].String()
+	})
 	return matchExpressions
 }
 

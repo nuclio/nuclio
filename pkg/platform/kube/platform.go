@@ -1305,8 +1305,10 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 	// no preemption mode was selected, default to prevent
 	if functionConfig.Spec.PreemptionMode == "" {
-		p.Logger.DebugWithCtx(ctx, "No preemption mode was given, defaulting to prevent")
-		functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesPrevent
+		functionConfig.Spec.PreemptionMode = p.Config.Kube.PreemptibleNodes.DefaultMode
+		p.Logger.DebugWithCtx(ctx,
+			"No preemption mode was given, using the default",
+			"newPreemptionMode", functionConfig.Spec.PreemptionMode)
 	}
 
 	p.Logger.DebugWithCtx(ctx,

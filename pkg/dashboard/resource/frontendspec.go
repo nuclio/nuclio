@@ -176,7 +176,7 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionPreemptionMode() function
 	var defaultPreemptionMode functionconfig.RunOnPreemptibleNodeMode
 	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		if dashboardServer.GetPlatformConfiguration().Kube.PreemptibleNodes != nil {
-			defaultPreemptionMode = functionconfig.RunOnPreemptibleNodesPrevent
+			defaultPreemptionMode = dashboardServer.GetPlatformConfiguration().Kube.PreemptibleNodes.DefaultMode
 		}
 	}
 	return defaultPreemptionMode

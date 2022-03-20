@@ -1283,6 +1283,28 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	suite.Require().Empty(cmp.Diff(
 		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
 		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes()))
+
+	// Prevent -> Constrain - pruned anti affinity + add affinity
+	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesConstrain
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
+	suite.Require().Empty(cmp.Diff(
+		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+		preemptibleNodes.CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes()))
+
+	// Constrain -> Prevent - read anti affinity
+	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesPrevent
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
+	suite.Require().Empty(functionConfig.Spec.NodeSelector)
+	suite.Require().Empty(functionConfig.Spec.Tolerations)
+	suite.Require().Empty(cmp.Diff(
+		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes()))
+
+	// Prevent -> Allow
+	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
+	suite.Require().Empty(functionConfig.Spec.Tolerations) // no toleration were given on config, that's intentional
+	suite.Require().Nil(functionConfig.Spec.Affinity.NodeAffinity)
 }
 
 func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel() {
