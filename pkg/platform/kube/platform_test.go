@@ -1178,14 +1178,14 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 	suite.Require().Equal(
 		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes())
+		preemptibleNodes.CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes())
 
 	// Constrain -> Constrain - make sure spec was added once
 	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesConstrain)
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 	suite.Require().Equal(
 		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes())
+		preemptibleNodes.CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes())
 
 	// Constrain -> Allow - make sure node selectors were removed
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
@@ -1214,7 +1214,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	suite.Require().Equal(customFunctionLabels, functionConfig.Spec.NodeSelector)
 	suite.Require().Equal(
 		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes())
+		preemptibleNodes.CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes())
 
 	// Constrain -> Allow - make sure allow does not prune custom labels + constrain label selectors
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
