@@ -186,7 +186,7 @@ func (p *PreemptibleNodes) CompileAffinityByLabelSelectorScheduleOnOneOfMatching
 }
 
 func (p *PreemptibleNodes) CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes() []corev1.NodeSelectorTerm {
-	antiAffinity := p.CompileAffinityByLabelSelector(corev1.NodeSelectorOpIn)
+	antiAffinity := p.CompileAffinityByLabelSelector(corev1.NodeSelectorOpNotIn)
 
 	// using a single term with potentially multiple expressions to ensure anti affinity.
 	// when having multiple terms, pod scheduling is succeeded if at least one
