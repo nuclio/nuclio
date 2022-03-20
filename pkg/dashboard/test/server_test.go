@@ -50,7 +50,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	nucliozap "github.com/nuclio/zap"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
@@ -105,7 +105,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		panic("Failed to create server")
 	}
 
-	// create a http server from the dashboard server
+	// create an HTTP server from the dashboard server
 	suite.httpServer = httptest.NewServer(suite.dashboardServer.Router)
 }
 

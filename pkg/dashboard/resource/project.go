@@ -26,7 +26,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -164,11 +163,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 
 // Update a project
 func (pr *projectResource) Update(request *http.Request, id string) (restful.Attributes, error) {
-	ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
-	defer cancelCtx()
-
-	// inject auth session to new context
-	ctx = context.WithValue(ctx, auth.AuthSessionContextKey, pr.getCtxSession(ctx))
+	ctx := nucliocontext.NewDetached(request.Context())
 
 	// get project config and status from body
 	projectInfo, err := pr.getProjectInfoFromRequest(request)
