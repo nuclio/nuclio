@@ -1165,23 +1165,23 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
 
 	// "" -> Allow - add tolerations
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, "")
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Equal(preemptibleNodes.Tolerations, functionConfig.Spec.Tolerations)
 
 	// Allow -> Allow - make sure tolertions were added once
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesAllow)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 
 	// Allow -> Constrain - make sure it preserves tolerations and add node selectors
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesConstrain
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesAllow)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 	suite.Require().Equal(
 		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
 		preemptibleNodes.CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes())
 
 	// Constrain -> Constrain - make sure spec was added once
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesConstrain)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 	suite.Require().Equal(
 		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
@@ -1189,7 +1189,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 
 	// Constrain -> Allow - make sure node selectors were removed
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesConstrain)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 	for key := range preemptibleNodes.NodeSelector {
 		_, ok := functionConfig.Spec.NodeSelector[key]
@@ -1203,13 +1203,13 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	}
 	functionConfig.Spec.NodeSelector = customFunctionLabels
 
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesAllow)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 	suite.Require().Equal(customFunctionLabels, functionConfig.Spec.NodeSelector)
 
 	// Allow -> Constrain - merge custom labels with preemption labels
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesConstrain
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesAllow)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 	suite.Require().Equal(customFunctionLabels, functionConfig.Spec.NodeSelector)
 	suite.Require().Equal(
@@ -1218,7 +1218,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 
 	// Constrain -> Allow - make sure allow does not prune custom labels + constrain label selectors
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesConstrain)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Equal(functionConfig.Spec.Tolerations, preemptibleNodes.Tolerations)
 	suite.Require().Equal(customFunctionLabels, functionConfig.Spec.NodeSelector)
 
@@ -1232,7 +1232,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	}
 	functionConfig.Spec.Tolerations = []v1.Toleration{customTolerations}
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, "")
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().NotEmpty(cmp.Diff([]v1.Toleration{
 		{
 			Key:   preemptibleNodes.Tolerations[0].Key,
@@ -1243,7 +1243,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 
 	// Allow -> Constrain - preserve custom tolerations
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesConstrain
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesAllow)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().NotEmpty(cmp.Diff([]v1.Toleration{
 		{
 			Key:   preemptibleNodes.Tolerations[0].Key,
@@ -1262,14 +1262,27 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 
 	// add constrain spec
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesConstrain
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, "")
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesPrevent
-	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig, functionconfig.RunOnPreemptibleNodesConstrain)
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Empty(functionConfig.Spec.NodeSelector)
 	suite.Require().Empty(functionConfig.Spec.Tolerations)
 
 	// affinity is pruned (prevention is done using taints)
 	suite.Require().Nil(functionConfig.Spec.Affinity.NodeAffinity)
+
+	// prevention is done using node label selectors
+	preemptibleNodes = &platformconfig.PreemptibleNodes{
+		NodeSelector: map[string]string{
+			"node-label-key":   "node-label-value",
+			"node-label-key-2": "node-label-value-2",
+		},
+	}
+	suite.platform.Config.Kube.PreemptibleNodes = preemptibleNodes
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
+	suite.Require().Equal(
+		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes())
 }
 
 func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel() {

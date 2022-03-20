@@ -226,16 +226,6 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		return nil, errors.Wrap(err, "Failed to validate a function configuration against an existing configuration")
 	}
 
-	var previousPreemptionMode functionconfig.RunOnPreemptibleNodeMode
-	if existingFunctionConfig != nil {
-		previousPreemptionMode = existingFunctionConfig.Spec.PreemptionMode
-	}
-
-	p.enrichFunctionPreemptionSpec(ctx,
-		p.Config.Kube.PreemptibleNodes,
-		&createFunctionOptions.FunctionConfig,
-		previousPreemptionMode)
-
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
 	if err != nil {
@@ -484,6 +474,7 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
 	}
 
+	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	return nil
 }
 
@@ -1297,8 +1288,7 @@ func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions
 //                > Adds anti-affinity IF no tolerations were given
 func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 	preemptibleNodes *platformconfig.PreemptibleNodes,
-	functionConfig *functionconfig.Config,
-	previousPreemptionMode functionconfig.RunOnPreemptibleNodeMode) {
+	functionConfig *functionconfig.Config) {
 
 	// nothing to do here, configuration is not populated
 	if p.Config.Kube.PreemptibleNodes == nil {
@@ -1321,7 +1311,6 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 	p.Logger.DebugWithCtx(ctx,
 		"Enriching function spec for given preemption mode",
-		"previousPreemptionMode", previousPreemptionMode,
 		"functionName", functionConfig.Meta.Name,
 		"preemptionMode", functionConfig.Spec.PreemptionMode)
 
