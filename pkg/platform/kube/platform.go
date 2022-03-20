@@ -1327,7 +1327,7 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 		if preemptibleNodes.Tolerations != nil {
 			functionConfig.
 				PruneAffinityNodeSelectorRequirement(
-					preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn))
+					preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn), "oneOf")
 
 			// prevention is done by tolerations (as spec was explicitly given)
 			// and thus, stop here
@@ -1356,6 +1356,13 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 		}
 
 	case functionconfig.RunOnPreemptibleNodesConstrain:
+
+		// remove anti affinity even thought we assign affinity below
+		// which will override the same fields.
+		// doing it here for future proofing
+		functionConfig.
+			PruneAffinityNodeSelectorRequirement(
+				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpNotIn), "matchAll")
 
 		// enrich with tolerations
 		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)
@@ -1392,12 +1399,12 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 		// remove anti-affinity
 		functionConfig.
 			PruneAffinityNodeSelectorRequirement(
-				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpNotIn))
+				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpNotIn), "matchAll")
 
 		// remove affinity
 		functionConfig.
 			PruneAffinityNodeSelectorRequirement(
-				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn))
+				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn), "oneOf")
 
 		// remove preemptible nodes constrain
 		functionConfig.PruneNodeSelector(preemptibleNodes.NodeSelector)

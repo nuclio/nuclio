@@ -573,7 +573,7 @@ func (c *Config) EnrichWithTolerations(tolerations []v1.Toleration) {
 }
 
 // PruneAffinityNodeSelectorRequirement prunes given affinity node selector requirement from function spec
-func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements []v1.NodeSelectorRequirement) {
+func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements []v1.NodeSelectorRequirement, mode string) {
 
 	// nothing to do here
 	if c.Spec.Affinity == nil || nodeSelectorRequirements == nil {
@@ -584,35 +584,51 @@ func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements [
 		if nodeSelector := nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution; nodeSelector != nil {
 
 			// for all term expressions on function spec
-			for termIdx, term := range nodeSelector.DeepCopy().NodeSelectorTerms {
-				for expressionIndex, expression := range term.MatchExpressions {
+			var newNodeSelectorTerms []v1.NodeSelectorTerm
+			for _, term := range nodeSelector.NodeSelectorTerms {
+
+				var newNodeSelectorRequirements []v1.NodeSelectorRequirement
+				for _, expression := range term.MatchExpressions {
 
 					// check if its key matches the anti affinity
 					// if it does, we want to remove this expression so it wont block us
+					// by default, prunes "one of"
+					forcePruneAll := true
 					for _, nodeSelectorRequirement := range nodeSelectorRequirements {
 						if nodeSelectorRequirement.Key == expression.Key &&
 							nodeSelectorRequirement.Operator == expression.Operator &&
 							reflect.DeepEqual(nodeSelectorRequirement.Values, expression.Values) {
+							if mode == "matchAll" {
+								forcePruneAll = true
+							}
 
-							// slice expressions
-							nodeSelector.NodeSelectorTerms[termIdx].MatchExpressions = append( // nolint: gocritic
-								term.MatchExpressions[:expressionIndex],
-								term.MatchExpressions[expressionIndex+1:]...,
-							)
-							break
+							// skip it (the-pruning)
+							continue
 						}
+
+						// prunes it
+						if forcePruneAll {
+							newNodeSelectorRequirements = newNodeSelectorRequirements[:0]
+							continue
+						}
+
+						// preserve it
+						newNodeSelectorRequirements = append(newNodeSelectorRequirements, expression)
 					}
 				}
 
-				if len(nodeSelector.NodeSelectorTerms[termIdx].MatchExpressions) == 0 &&
-					len(nodeSelector.NodeSelectorTerms[termIdx].MatchFields) == 0 {
+				// assign list
+				term.MatchExpressions = newNodeSelectorRequirements
 
-					// slice term
-					nodeSelector.NodeSelectorTerms = append(
-						nodeSelector.NodeSelectorTerms[:termIdx],
-						nodeSelector.NodeSelectorTerms[termIdx+1:]...)
+				// if terms at termIdx has no matching expressions / matching fields - slice it (object has
+				//   meaning)
+				if len(term.MatchExpressions) > 0 || len(term.MatchFields) > 0 {
+					newNodeSelectorTerms = append(newNodeSelectorTerms, term)
 				}
 			}
+			nodeSelector.NodeSelectorTerms = newNodeSelectorTerms
+
+			// clean if empty
 			if len(nodeSelector.NodeSelectorTerms) == 0 {
 				nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
 			}
