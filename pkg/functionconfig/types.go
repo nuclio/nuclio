@@ -594,8 +594,8 @@ func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements [
 							nodeSelectorRequirement.Operator == expression.Operator &&
 							reflect.DeepEqual(nodeSelectorRequirement.Values, expression.Values) {
 
-							// slice expression
-							nodeSelector.NodeSelectorTerms[termIdx].MatchExpressions = append(
+							// slice expressions
+							nodeSelector.NodeSelectorTerms[termIdx].MatchExpressions = append( // nolint: gocritic
 								term.MatchExpressions[:expressionIndex],
 								term.MatchExpressions[expressionIndex+1:]...,
 							)
