@@ -1280,9 +1280,9 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	}
 	suite.platform.Config.Kube.PreemptibleNodes = preemptibleNodes
 	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
-	suite.Require().Equal(
+	suite.Require().Empty(cmp.Diff(
 		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes())
+		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes()))
 }
 
 func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel() {
