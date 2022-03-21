@@ -95,6 +95,12 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kube.DefaultServiceType = DefaultServiceType
 	}
 
+	if config.Kube.PreemptibleNodes != nil {
+		if config.Kube.PreemptibleNodes.DefaultMode == "" {
+			config.Kube.PreemptibleNodes.DefaultMode = functionconfig.RunOnPreemptibleNodesPrevent
+		}
+	}
+
 	if config.FunctionReadinessTimeout == nil {
 		encodedReadinessTimeoutDuration := (DefaultFunctionReadinessTimeoutSeconds * time.Second).String()
 		config.FunctionReadinessTimeout = &encodedReadinessTimeoutDuration

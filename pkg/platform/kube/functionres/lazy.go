@@ -886,6 +886,13 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.PriorityClassName = function.Spec.PriorityClassName
 		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
 
+		// apply when provided
+		if imagePullSecrets != "" {
+			deployment.Spec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
+				{Name: imagePullSecrets},
+			}
+		}
+
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
 		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {

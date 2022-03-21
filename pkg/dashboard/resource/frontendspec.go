@@ -113,6 +113,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 	defaultFunctionTolerations := fsr.resolveDefaultFunctionTolerations()
 	defaultFunctionPriorityClassName := fsr.resolveDefaultFunctionPriorityClassName()
 	defaultServiceType := fsr.resolveDefaultServiceType()
+	defaultPreemptionMode := fsr.resolveDefaultFunctionPreemptionMode()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 	defaultHTTPTrigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
 	defaultHTTPTrigger.Attributes = map[string]interface{}{
@@ -127,6 +128,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 		PriorityClassName:       defaultFunctionPriorityClassName,
 		Tolerations:             defaultFunctionTolerations,
 		TargetCPU:               abstract.DefaultTargetCPU,
+		PreemptionMode:          defaultPreemptionMode,
 		Triggers: map[string]functionconfig.Trigger{
 
 			// this trigger name starts with the prefix "default" and should be used as a default http trigger
@@ -168,6 +170,16 @@ func (fsr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
 		defaultServiceType = dashboardServer.GetPlatformConfiguration().Kube.DefaultServiceType
 	}
 	return defaultServiceType
+}
+
+func (fsr *frontendSpecResource) resolveDefaultFunctionPreemptionMode() functionconfig.RunOnPreemptibleNodeMode {
+	var defaultPreemptionMode functionconfig.RunOnPreemptibleNodeMode
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		if dashboardServer.GetPlatformConfiguration().Kube.PreemptibleNodes != nil {
+			defaultPreemptionMode = dashboardServer.GetPlatformConfiguration().Kube.PreemptibleNodes.DefaultMode
+		}
+	}
+	return defaultPreemptionMode
 }
 
 func (fsr *frontendSpecResource) resolveFunctionReadinessTimeoutSeconds() int {

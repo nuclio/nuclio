@@ -474,40 +474,7 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
 	}
 
-	// we do such stuff to allow exposing features before they are exposed on UI
-	if preemptionMode, exists := functionConfig.Meta.Annotations["custom.nuclio.io/preemptible-mode"]; exists {
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching function preemption mode from function annotations",
-			"preemptionMode", preemptionMode)
-		functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
-	}
-
-	if p.Config.Kube.PreemptibleNodes != nil && functionConfig.Spec.PreemptionMode != "" {
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching function spec for given preemption mode",
-			"functionName", functionConfig.Meta.Name,
-			"preemptionMode", functionConfig.Spec.PreemptionMode)
-
-		switch functionConfig.Spec.PreemptionMode {
-		case functionconfig.RunOnPreemptibleNodesConstrain:
-
-			// constrain to node using node selector
-			functionConfig.EnrichWithNodeSelectors(p.Config.Kube.PreemptibleNodes.NodeSelector)
-
-			// add tolerations in case node is tainted
-			functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
-
-		case functionconfig.RunOnPreemptibleNodesAllow:
-
-			// add tolerations in case node is tainted
-			functionConfig.EnrichWithTolerations(p.Config.Kube.PreemptibleNodes.Tolerations)
-		default:
-
-			// nothing to do here
-			break
-		}
-	}
-
+	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	return nil
 }
 
@@ -1306,6 +1273,155 @@ func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions
 	}
 
 	return nil
+}
+
+// enrichFunctionPreemptionSpec - Enriches function pod with the below described spec. if no platformConfiguration related
+// configuration is given, do nothing.
+// 	`Allow` 	- Adds Tolerations / GPU Tolerations if taints were given. otherwise, assume pods can be scheduled on preemptible nodes.
+//                > Purges any `affinity` / `anti-affinity` preemption related configuration
+// 	`Constrain` - Uses node-affinity to make sure pods are assigned using OR on the given node label selectors.
+//                > Uses `Allow` configuration as well.
+//                > Purges any `anti-affinity` preemption related configuration
+// 	`Prevent`	- Prevention is done either using taints (if Tolerations were given) or anti-affinity.
+//                > Purges any `tolerations` / `gpuTolerations` preemption related configuration
+//                > Purges any `affinity` preemption related configuration
+//                > Adds anti-affinity IF no tolerations were given
+func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
+	preemptibleNodes *platformconfig.PreemptibleNodes,
+	functionConfig *functionconfig.Config) {
+
+	// nothing to do here, configuration is not populated
+	if p.Config.Kube.PreemptibleNodes == nil {
+		return
+	}
+
+	// we do such stuff to allow exposing features before they are exposed on UI
+	if preemptionMode, exists := functionConfig.Meta.Annotations["nuclio.io/preemptible-mode"]; exists {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function preemption mode from function annotations",
+			"preemptionMode", preemptionMode)
+		functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodeMode(preemptionMode)
+	}
+
+	// no preemption mode was selected, default to prevent
+	if functionConfig.Spec.PreemptionMode == "" {
+		functionConfig.Spec.PreemptionMode = p.Config.Kube.PreemptibleNodes.DefaultMode
+		p.Logger.DebugWithCtx(ctx,
+			"No preemption mode was given, using the default",
+			"newPreemptionMode", functionConfig.Spec.PreemptionMode)
+	}
+
+	p.Logger.DebugWithCtx(ctx,
+		"Enriching function spec for given preemption mode",
+		"functionName", functionConfig.Meta.Name,
+		"preemptionMode", functionConfig.Spec.PreemptionMode)
+
+	switch functionConfig.Spec.PreemptionMode {
+	case functionconfig.RunOnPreemptibleNodesPrevent:
+
+		// ensure no preemptible node tolerations
+		functionConfig.PruneTolerations(preemptibleNodes.Tolerations)
+		functionConfig.PruneTolerations(preemptibleNodes.GPUTolerations)
+
+		// if tolerations were given, purge `affinity` preemption related configuration
+		if preemptibleNodes.Tolerations != nil {
+			functionConfig.
+				PruneAffinityNodeSelectorRequirement(
+					preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn), "oneOf")
+
+			// prevention is done by tolerations (as spec was explicitly given)
+			// and thus, stop here
+			break
+		}
+
+		// initial affinity
+		if functionConfig.Spec.Affinity == nil {
+			functionConfig.Spec.Affinity = &v1.Affinity{}
+		}
+
+		// initial node affinity
+		if functionConfig.Spec.Affinity.NodeAffinity == nil {
+			functionConfig.Spec.Affinity.NodeAffinity = &v1.NodeAffinity{}
+		}
+
+		// using a single term with potentially multiple expressions to ensure affinity.
+		// when having multiple terms, pod scheduling is succeeded if at least one
+		// term is satisfied.
+		functionConfig.
+			Spec.
+			Affinity.
+			NodeAffinity.
+			RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{
+			NodeSelectorTerms: preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes(),
+		}
+
+	case functionconfig.RunOnPreemptibleNodesConstrain:
+
+		// remove anti affinity even thought we assign affinity below
+		// which will override the same fields.
+		// doing it here for future proofing
+		functionConfig.
+			PruneAffinityNodeSelectorRequirement(
+				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpNotIn), "matchAll")
+
+		// enrich with tolerations
+		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)
+
+		// in case function pod requires gpu resource(s), enrich with gpu tolerations
+		if functionConfig.Spec.PositiveGPUResourceLimit() {
+			functionConfig.EnrichWithTolerations(preemptibleNodes.GPUTolerations)
+		}
+
+		// initial affinity
+		if functionConfig.Spec.Affinity == nil {
+			functionConfig.Spec.Affinity = &v1.Affinity{}
+		}
+
+		// initial node affinity
+		if functionConfig.Spec.Affinity.NodeAffinity == nil {
+			functionConfig.Spec.Affinity.NodeAffinity = &v1.NodeAffinity{}
+		}
+
+		// using a single term with potentially multiple expressions to ensure affinity.
+		// when having multiple terms, pod scheduling is succeeded if at least one
+		// term is satisfied.
+		functionConfig.
+			Spec.
+			Affinity.
+			NodeAffinity.
+			RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{
+			NodeSelectorTerms: preemptibleNodes.CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes(),
+		}
+
+	case functionconfig.RunOnPreemptibleNodesAllow:
+
+		// purges any `affinity` / `anti-affinity` preemption related configuration
+		// remove anti-affinity
+		functionConfig.
+			PruneAffinityNodeSelectorRequirement(
+				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpNotIn), "matchAll")
+
+		// remove affinity
+		functionConfig.
+			PruneAffinityNodeSelectorRequirement(
+				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn), "oneOf")
+
+		// remove preemptible nodes constrain
+		functionConfig.PruneNodeSelector(preemptibleNodes.NodeSelector)
+
+		// enrich with tolerations
+		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)
+
+		// in case function pod requires gpu resource(s), enrich with gpu tolerations
+		if functionConfig.Spec.PositiveGPUResourceLimit() {
+			functionConfig.EnrichWithTolerations(preemptibleNodes.GPUTolerations)
+		}
+
+	default:
+
+		// nothing to do here
+		break
+	}
 }
 
 func (p *Platform) clearCallStack(message string) string {
