@@ -392,11 +392,11 @@ UUID is generated.
 
 * Status code: 201
 
-### Updating a project
+### Updating a project by name
 
 #### Request
 
-* URL: `PUT /api/projects`
+* URL: `PUT /api/projects/<project-name>`
 * Headers:
     * `Content-Type`: Must be set to `application/json`
 * Body:
