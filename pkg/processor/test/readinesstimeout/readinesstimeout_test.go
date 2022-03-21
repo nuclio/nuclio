@@ -61,7 +61,7 @@ func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTim
 	// configure the function to connect to some invalid kafka - it will fail after coming up and never
 	// reach healthy
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = readinessTimeoutSeconds
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"badkafka": {
 			Kind: "kafka",

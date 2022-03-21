@@ -491,9 +491,9 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	// python is just a reference to python:3.6
+	// python is just a reference to python:3.7
 	if b.options.FunctionConfig.Spec.Runtime == "python" {
-		b.options.FunctionConfig.Spec.Runtime = "python:3.6"
+		b.options.FunctionConfig.Spec.Runtime = "python:3.7"
 	}
 
 	// if the function handler isn't set, ask runtime
@@ -1073,6 +1073,12 @@ func (b *Builder) buildProcessorImage() (string, error) {
 			SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 			OutputImageFile:     b.options.OutputImageFile,
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
+
+			// kaniko pod attributes
+			NodeSelector:      b.options.FunctionConfig.Spec.NodeSelector,
+			NodeName:          b.options.FunctionConfig.Spec.NodeName,
+			Affinity:          b.options.FunctionConfig.Spec.Affinity,
+			PriorityClassName: b.options.FunctionConfig.Spec.PriorityClassName,
 		})
 
 	return imageName, err

@@ -44,7 +44,7 @@ type timeoutResponse struct {
 func (suite *timeoutSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
-	suite.Runtime = "python:3.6"
+	suite.Runtime = "python"
 	suite.RuntimeDir = "python"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
 }

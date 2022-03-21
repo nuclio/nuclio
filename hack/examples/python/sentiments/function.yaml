@@ -16,7 +16,7 @@
 
 spec:
   description: Identifies sentiments in the body strings
-  runtime: "python:3.6"
+  runtime: "python"
   handler: "sentiments:handler"
   minReplicas: 1
   maxReplicas: 1

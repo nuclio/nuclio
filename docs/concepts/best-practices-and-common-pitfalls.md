@@ -65,7 +65,7 @@ To prevent such 503 errors, tweak the values of your function's number of worker
 <a id="ca-certificates-for-alpine-w-https"></a>
 ## Install CA certificates for alpine with HTTPS
 
-Nuclio tries to default to the smallest image possible (except for Python, which currently defaults to a hefty python:3.6 base image). Therefore, where possible, the base image for your functions will be the [alpine](https://hub.docker.com/_/alpine) Docker image. To use HTTPS in alpine, you must include the following code in the build commands to install root CA certificates:
+Nuclio tries to default to the smallest image possible (except for Python, which currently defaults to a hefty python:3.7 base image). Therefore, where possible, the base image for your functions will be the [alpine](https://hub.docker.com/_/alpine) Docker image. To use HTTPS in alpine, you must include the following code in the build commands to install root CA certificates:
 ```sh
 apk --update --nocache add ca-certificates
 ```

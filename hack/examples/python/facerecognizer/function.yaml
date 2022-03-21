@@ -1,7 +1,7 @@
 apiVersion: "nuclio.io/v1beta1"
 kind: "NuclioFunction"
 spec:
-  runtime: "python:3.6"
+  runtime: "python"
   handler: "face:handler"
   minReplicas: 1
   maxReplicas: 1

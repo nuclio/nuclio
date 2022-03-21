@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -158,6 +159,49 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 	}
 
 	return pr.createProject(request, projectInfo)
+}
+
+// Update a project
+func (pr *projectResource) Update(request *http.Request, id string) (restful.Attributes, error) {
+	ctx := nucliocontext.NewDetached(request.Context())
+
+	// get project config and status from body
+	projectInfo, err := pr.getProjectInfoFromRequest(request)
+	if err != nil {
+		pr.Logger.WarnWithCtx(ctx, "Failed to get project config and status from body", "err", err)
+		return nil, errors.Wrap(err, "Failed to get project from request")
+	}
+
+	// enrich name with id if empty
+	if projectInfo.Meta.Name == "" {
+		projectInfo.Meta.Name = id
+	}
+
+	if id != projectInfo.Meta.Name {
+		return nil, nuclio.NewErrBadRequest("Project name is different from request id")
+	}
+
+	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
+
+	if err := pr.getPlatform().UpdateProject(ctx, &platform.UpdateProjectOptions{
+		ProjectConfig: platform.ProjectConfig{
+			Meta: *projectInfo.Meta,
+			Spec: *projectInfo.Spec,
+		},
+		AuthSession:   pr.getCtxSession(ctx),
+		RequestOrigin: requestOrigin,
+		SessionCookie: sessionCookie,
+		PermissionOptions: opa.PermissionOptions{
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		},
+	}); err != nil {
+		if statusCode := common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError); statusCode > 300 {
+			pr.Logger.WarnWithCtx(ctx, "Failed to update project",
+				"err", errors.GetErrorStackString(err, 10))
+		}
+	}
+
+	return nil, nil
 }
 
 // GetCustomRoutes returns a list of custom routes for the resource
@@ -653,46 +697,44 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 	}, nil
 }
 
+// TODO: deprecate this custom route
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-	ctx := nucliocontext.NewDetached(request.Context())
-	statusCode := http.StatusNoContent
 
-	// get project config and status from body
-	projectInfo, err := pr.getProjectInfoFromRequest(request)
+	ctx := request.Context()
+	pr.Logger.WarnWithCtx(ctx, "Updating api gateways via /api/projects has been deprecated. "+
+		"Please use /api/projects/<project-name>")
+
+	// get project id from body
+	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		pr.Logger.WarnWithCtx(ctx, "Failed to get project config and status from body", "err", err)
-		return &restful.CustomRouteFuncResponse{
-			Single:     true,
-			StatusCode: http.StatusBadRequest,
-		}, err
+		return nil, errors.Wrap(err, "Failed to read body")
 	}
 
-	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
-
-	if err := pr.getPlatform().UpdateProject(ctx, &platform.UpdateProjectOptions{
-		ProjectConfig: platform.ProjectConfig{
-			Meta: *projectInfo.Meta,
-			Spec: *projectInfo.Spec,
-		},
-		AuthSession:   pr.getCtxSession(ctx),
-		RequestOrigin: requestOrigin,
-		SessionCookie: sessionCookie,
-		PermissionOptions: opa.PermissionOptions{
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
-		},
-	}); err != nil {
-		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
-		if statusCode > 300 {
-			pr.Logger.WarnWithCtx(ctx, "Failed to update project",
-				"err", errors.GetErrorStackString(err, 10))
-		}
+	projectInfoInstance := projectInfo{}
+	if err := json.Unmarshal(body, &projectInfoInstance); err != nil {
+		return nil, errors.Wrap(err, "Failed to parse JSON body")
 	}
 
-	// return the stuff
+	projectId := request.Header.Get("x-nuclio-project-name")
+	if projectInfoInstance.Meta != nil && projectInfoInstance.Meta.Name != "" {
+		projectId = projectInfoInstance.Meta.Name
+	}
+
+	// retrieve request body so next handler can read it
+	request.Body.Close() // nolint: errcheck
+	request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
+	// update project
+	_, err = pr.Update(request, projectId)
+
 	return &restful.CustomRouteFuncResponse{
 		ResourceType: "project",
 		Single:       true,
-		StatusCode:   statusCode,
+		StatusCode:   common.ResolveErrorStatusCodeOrDefault(err, http.StatusNoContent),
+		Headers: map[string]string{
+			"Deprecation": "true",
+			"Link":        fmt.Sprintf("</api/projects/%s>; rel=\"alternate\"", projectId),
+		},
 	}, err
 }
 
@@ -715,7 +757,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request) (*pr
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
+		return nil, errors.Wrap(err, "Failed to read body")
 	}
 
 	projectInfoInstance := projectInfo{}
@@ -724,7 +766,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request) (*pr
 	}
 
 	if err := pr.processProjectInfo(&projectInfoInstance); err != nil {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to process project info"))
+		return nil, errors.Wrap(err, "Failed to process project info")
 	}
 
 	return &projectInfoInstance, nil
@@ -815,6 +857,7 @@ var projectResourceInstance = &projectResource{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,
+		restful.ResourceMethodUpdate,
 	}),
 }
 

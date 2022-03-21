@@ -159,7 +159,6 @@ func (p *Platform) Initialize(ctx context.Context) error {
 // CreateFunction will simply run a docker image
 func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *platform.CreateFunctionOptions) (
 	*platform.CreateFunctionResult, error) {
-	var previousHTTPPort int
 	var err error
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
@@ -265,11 +264,6 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			return errors.Wrap(err, "Failed to create a function")
 		}
 
-		previousHTTPPort, err = p.deletePreviousContainers(createFunctionOptions)
-		if err != nil {
-			return errors.Wrap(err, "Failed to delete previous containers")
-		}
-
 		// indicate that the creation state has been updated. local platform has no "building" state yet
 		if createFunctionOptions.CreationStateUpdated != nil {
 			createFunctionOptions.CreationStateUpdated <- true
@@ -294,6 +288,11 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		var createFunctionResult *platform.CreateFunctionResult
 		var deployErr error
 		var functionStatus functionconfig.Status
+
+		previousHTTPPort, err := p.deletePreviousContainers(createFunctionOptions)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to delete previous containers")
+		}
 
 		if !skipFunctionDeploy {
 			createFunctionResult, deployErr = p.deployFunction(createFunctionOptions, previousHTTPPort)
