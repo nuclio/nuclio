@@ -1305,6 +1305,28 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Empty(functionConfig.Spec.Tolerations) // no toleration were given on config, that's intentional
 	suite.Require().Nil(functionConfig.Spec.Affinity.NodeAffinity)
+
+	// preserve custom affinity
+	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesPrevent
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
+	functionConfig.Spec.Affinity.PodAffinity = &v1.PodAffinity{}
+	functionConfig.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []v1.PreferredSchedulingTerm{}
+	functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
+		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+		v1.NodeSelectorTerm{
+			MatchFields: []v1.NodeSelectorRequirement{
+				{
+					Key: "dummy",
+				},
+			},
+		},
+	)
+	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
+	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
+	suite.Require().NotNil(functionConfig.Spec.Affinity.PodAffinity)
+	suite.Require().NotNil(functionConfig.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
+	suite.Require().Equal("dummy",
+		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields[0].Key)
 }
 
 func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel() {
