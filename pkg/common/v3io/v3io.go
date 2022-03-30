@@ -83,10 +83,9 @@ func GetShardLagsMap(ctx context.Context,
 	}
 
 	dataPlaneInput := v3iodataplane.DataPlaneInput{
-		URL:                    platformConfig.StreamMonitoring.WebapiURL,
-		AccessKey:              accessKey,
-		ContainerName:          info.ContainerName,
-		IncludeResponseInError: true,
+		URL:           platformConfig.StreamMonitoring.WebapiURL,
+		AccessKey:     accessKey,
+		ContainerName: info.ContainerName,
 	}
 	getContainerContentsInput := &v3iodataplane.GetContainerContentsInput{
 		Path:             info.StreamPath,
