@@ -136,7 +136,7 @@ The new snippet would be looking like this:
       return "I'm doing something..."
   ```
 
-  > Note: To disable decoding to all incoming events to byte-strings, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=false`.
+  > Note: To *disable* decoding to all incoming events to byte-strings, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`.
   > Not disabling event strings decoding means that the Nuclio python wrapper might fail to handle events with non-utf8 metadata contents.
 
 <a id="function-configuration"></a>

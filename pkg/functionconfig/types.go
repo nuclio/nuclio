@@ -587,13 +587,13 @@ func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements [
 			var newNodeSelectorTerms []v1.NodeSelectorTerm
 			for _, term := range nodeSelector.NodeSelectorTerms {
 
+				// check if its key matches the anti affinity
+				// if it does, we want to remove this expression, so it won't block us
+				// by default, prunes "one of"
+				forcePruneAll := false
 				var newNodeSelectorRequirements []v1.NodeSelectorRequirement
 				for _, expression := range term.MatchExpressions {
 
-					// check if its key matches the anti affinity
-					// if it does, we want to remove this expression so it wont block us
-					// by default, prunes "one of"
-					forcePruneAll := true
 					for _, nodeSelectorRequirement := range nodeSelectorRequirements {
 						if nodeSelectorRequirement.Key == expression.Key &&
 							nodeSelectorRequirement.Operator == expression.Operator &&
