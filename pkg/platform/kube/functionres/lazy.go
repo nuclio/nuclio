@@ -198,15 +198,14 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 				return nil, errors.Wrap(err, "Failed to marshal augmented function config")
 			}
 
-			err = yaml.Unmarshal(encodedFunctionConfig, function)
-			if err != nil {
+			if err := yaml.Unmarshal(encodedFunctionConfig, function); err != nil {
 				return nil, errors.Wrap(err, "Failed to join augmented function config into target function")
 			}
 		}
 	}
 
 	// create or update the applicable configMap
-	if resources.configMap, err = lc.createOrUpdateConfigMap(ctx, function); err != nil {
+	if resources.configMap, err = lc.createOrUpdateConfigMap(ctx, functionLabels, function); err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update configMap")
 	}
 
@@ -636,7 +635,9 @@ func (lc *lazyClient) createOrUpdateResource(ctx context.Context,
 	}
 }
 
-func (lc *lazyClient) createOrUpdateConfigMap(ctx context.Context, function *nuclioio.NuclioFunction) (*v1.ConfigMap, error) {
+func (lc *lazyClient) createOrUpdateConfigMap(ctx context.Context,
+	functionLabels labels.Set,
+	function *nuclioio.NuclioFunction) (*v1.ConfigMap, error) {
 
 	getConfigMap := func() (interface{}, error) {
 		return lc.kubeClientSet.CoreV1().
@@ -650,7 +651,7 @@ func (lc *lazyClient) createOrUpdateConfigMap(ctx context.Context, function *nuc
 
 	createConfigMap := func() (interface{}, error) {
 		configMap := v1.ConfigMap{}
-		if err := lc.populateConfigMap(nil, function, &configMap); err != nil {
+		if err := lc.populateConfigMap(functionLabels, function, &configMap); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate configMap")
 		}
 
@@ -661,7 +662,7 @@ func (lc *lazyClient) createOrUpdateConfigMap(ctx context.Context, function *nuc
 		configMap := resource.(*v1.ConfigMap)
 
 		// update existing
-		if err := lc.populateConfigMap(nil, function, configMap); err != nil {
+		if err := lc.populateConfigMap(functionLabels, function, configMap); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate configMap")
 		}
 
@@ -885,6 +886,13 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.NodeName = function.Spec.NodeName
 		deployment.Spec.Template.Spec.PriorityClassName = function.Spec.PriorityClassName
 		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
+
+		// apply when provided
+		if imagePullSecrets != "" {
+			deployment.Spec.Template.Spec.ImagePullSecrets = []v1.LocalObjectReference{
+				{Name: imagePullSecrets},
+			}
+		}
 
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
@@ -1997,6 +2005,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      kube.ConfigMapNameFromFunctionName(function.Name),
 			Namespace: function.Namespace,
+			Labels:    functionLabels,
 		},
 		Data: map[string]string{
 			"processor.yaml": configMapContents.String(),

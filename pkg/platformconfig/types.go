@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"sort"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -154,8 +155,54 @@ type PlatformKubeConfig struct {
 
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)
 type PreemptibleNodes struct {
-	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
-	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
+	DefaultMode    functionconfig.RunOnPreemptibleNodeMode `json:"defaultMode,omitempty"`
+	Tolerations    []corev1.Toleration                     `json:"tolerations,omitempty"`
+	GPUTolerations []corev1.Toleration                     `json:"gpuTolerations,omitempty"`
+	NodeSelector   map[string]string                       `json:"nodeSelector,omitempty"`
+}
+
+// CompileAffinityByLabelSelector compiles affinity spec based on pre-configured node selector
+func (p *PreemptibleNodes) CompileAffinityByLabelSelector(
+	operation corev1.NodeSelectorOperator) []corev1.NodeSelectorRequirement {
+	var matchExpressions []corev1.NodeSelectorRequirement
+	for nodeSelectorKey, nodeSelectorValue := range p.NodeSelector {
+		matchExpressions = append(matchExpressions, corev1.NodeSelectorRequirement{
+			Key:      nodeSelectorKey,
+			Operator: operation,
+			Values:   []string{nodeSelectorValue},
+		})
+	}
+
+	//make compilation deterministic
+	sort.Slice(matchExpressions, func(i, j int) bool {
+		return matchExpressions[i].String() < matchExpressions[j].String()
+	})
+	return matchExpressions
+}
+
+// CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes schedule on a node having at least one of the node selectors (ORed)
+func (p *PreemptibleNodes) CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes() []corev1.NodeSelectorTerm {
+	affinity := p.CompileAffinityByLabelSelector(corev1.NodeSelectorOpIn)
+	var nodeSelectorTerms []corev1.NodeSelectorTerm
+	for _, expression := range affinity {
+		nodeSelectorTerms = append(nodeSelectorTerms, corev1.NodeSelectorTerm{
+			MatchExpressions: []corev1.NodeSelectorRequirement{expression},
+		})
+	}
+	return nodeSelectorTerms
+}
+
+func (p *PreemptibleNodes) CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes() []corev1.NodeSelectorTerm {
+	antiAffinity := p.CompileAffinityByLabelSelector(corev1.NodeSelectorOpNotIn)
+
+	// using a single term with potentially multiple expressions to ensure anti affinity.
+	// when having multiple terms, pod scheduling is succeeded if at least one
+	// term is satisfied.
+	return []corev1.NodeSelectorTerm{
+		{
+			MatchExpressions: antiAffinity,
+		},
+	}
 }
 
 type PlatformLocalConfig struct {

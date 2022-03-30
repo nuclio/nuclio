@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -337,6 +338,9 @@ const (
 
 	// RunOnPreemptibleNodesConstrain makes the function pods run on preemtible nodes only
 	RunOnPreemptibleNodesConstrain RunOnPreemptibleNodeMode = "constrain"
+
+	// RunOnPreemptibleNodesPrevent prevents the function pods from running on preemptible nodes
+	RunOnPreemptibleNodesPrevent RunOnPreemptibleNodeMode = "prevent"
 )
 
 type ScaleToZeroSpec struct {
@@ -565,6 +569,105 @@ func (c *Config) EnrichWithTolerations(tolerations []v1.Toleration) {
 
 	if len(tolerationsToAdd) > 0 {
 		c.Spec.Tolerations = append(c.Spec.Tolerations, tolerationsToAdd...)
+	}
+}
+
+// PruneAffinityNodeSelectorRequirement prunes given affinity node selector requirement from function spec
+func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements []v1.NodeSelectorRequirement, mode string) {
+
+	// nothing to do here
+	if c.Spec.Affinity == nil || nodeSelectorRequirements == nil {
+		return
+	}
+
+	if nodeAffinity := c.Spec.Affinity.NodeAffinity; nodeAffinity != nil {
+		if nodeSelector := nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution; nodeSelector != nil {
+
+			// for all term expressions on function spec
+			var newNodeSelectorTerms []v1.NodeSelectorTerm
+			for _, term := range nodeSelector.NodeSelectorTerms {
+
+				// check if its key matches the anti affinity
+				// if it does, we want to remove this expression, so it won't block us
+				// by default, prunes "one of"
+				forcePruneAll := false
+				var newNodeSelectorRequirements []v1.NodeSelectorRequirement
+				for _, expression := range term.MatchExpressions {
+
+					for _, nodeSelectorRequirement := range nodeSelectorRequirements {
+						if nodeSelectorRequirement.Key == expression.Key &&
+							nodeSelectorRequirement.Operator == expression.Operator &&
+							reflect.DeepEqual(nodeSelectorRequirement.Values, expression.Values) {
+							if mode == "matchAll" {
+								forcePruneAll = true
+							}
+
+							// skip it (the-pruning)
+							continue
+						}
+
+						// prunes it
+						if forcePruneAll {
+							newNodeSelectorRequirements = newNodeSelectorRequirements[:0]
+							continue
+						}
+
+						// preserve it
+						newNodeSelectorRequirements = append(newNodeSelectorRequirements, expression)
+					}
+				}
+
+				// assign list
+				term.MatchExpressions = newNodeSelectorRequirements
+
+				// if terms at termIdx has no matching expressions / matching fields - slice it (object has
+				//   meaning)
+				if len(term.MatchExpressions) > 0 || len(term.MatchFields) > 0 {
+					newNodeSelectorTerms = append(newNodeSelectorTerms, term)
+				}
+			}
+			nodeSelector.NodeSelectorTerms = newNodeSelectorTerms
+
+			// clean if empty
+			if len(nodeSelector.NodeSelectorTerms) == 0 {
+				nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
+			}
+		}
+
+		if nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil &&
+			nodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution == nil {
+			c.Spec.Affinity.NodeAffinity = nil
+		}
+	}
+}
+
+// PruneTolerations prunes given tolerations from function spec
+func (c *Config) PruneTolerations(tolerations []v1.Toleration) {
+	if len(tolerations) == 0 {
+		return
+	}
+
+	// prune matching tolerations
+	for _, preemptibleNodeTolerations := range tolerations {
+		for index, functionToleration := range c.Spec.Tolerations {
+			if functionToleration.MatchToleration(&preemptibleNodeTolerations) {
+				c.Spec.Tolerations = append(c.Spec.Tolerations[:index], c.Spec.Tolerations[index+1:]...)
+				break
+			}
+		}
+	}
+}
+
+// PruneNodeSelector prunes given node selector key from function spec if their key, value are matching
+func (c *Config) PruneNodeSelector(nodeSelector map[string]string) {
+	if nodeSelector == nil {
+		return
+	}
+
+	for key, value := range nodeSelector {
+		if specValue, exists := c.Spec.NodeSelector[key]; exists && value == specValue {
+			delete(c.Spec.NodeSelector, key)
+		}
 	}
 }
 
