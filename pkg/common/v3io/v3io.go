@@ -31,8 +31,10 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	v3iodataplane "github.com/v3io/v3io-go/pkg/dataplane"
 	v3iohttp "github.com/v3io/v3io-go/pkg/dataplane/http"
+	v3ioerrors "github.com/v3io/v3io-go/pkg/errors"
 )
 
 type StreamInfo struct {
@@ -81,9 +83,10 @@ func GetShardLagsMap(ctx context.Context,
 	}
 
 	dataPlaneInput := v3iodataplane.DataPlaneInput{
-		URL:           platformConfig.StreamMonitoring.WebapiURL,
-		AccessKey:     accessKey,
-		ContainerName: info.ContainerName,
+		URL:                    platformConfig.StreamMonitoring.WebapiURL,
+		AccessKey:              accessKey,
+		ContainerName:          info.ContainerName,
+		IncludeResponseInError: true,
 	}
 	getContainerContentsInput := &v3iodataplane.GetContainerContentsInput{
 		Path:             info.StreamPath,
@@ -100,7 +103,13 @@ func GetShardLagsMap(ctx context.Context,
 	for {
 		response, err := v3ioContext.GetContainerContentsSync(getContainerContentsInput)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get container subdirectories")
+			errMessage := "Failed to get container subdirectories"
+			if v3ioErr, ok := err.(v3ioerrors.ErrorWithStatusCode); ok {
+
+				// Convert to nuclio error
+				return nil, errors.Wrap(nuclio.GetByStatusCode(v3ioErr.StatusCode())(v3ioErr.Error()), errMessage)
+			}
+			return nil, errors.Wrap(err, errMessage)
 		}
 
 		getContainerContentsOutput := response.Output.(*v3iodataplane.GetContainerContentsOutput)

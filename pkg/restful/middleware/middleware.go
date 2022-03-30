@@ -102,6 +102,7 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 				if !common.StringSliceContainsStringPrefix([]string{
 					"/api/functions",
 					"/api/function_templates",
+					"/api/v3io_streams",
 				}, strings.TrimSuffix(request.URL.Path, "/")) {
 					logVars = append(logVars, "responseBody", responseBodyBuffer.String())
 				}
