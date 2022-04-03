@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-FROM gcr.io/iguazio/golang:1.17.5
+FROM gcr.io/iguazio/golang:1.17
 
 ARG GOOS=linux
 ARG GOARCH=amd64
