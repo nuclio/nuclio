@@ -57,10 +57,14 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
 	}
 
-	// try resolve from cache
-	if cacheData, found := a.cache.Get(cacheKey); found {
-		return cacheData.(*authpkg.IguazioSession), nil
-	}
+	//// try resolve from cache
+	//// TODO: cache needs to be digested with url
+	//if cacheData, found := a.cache.Get(cacheKey); found {
+	//	cachedSession := cacheData.(*authpkg.IguazioSession)
+	//	a.logger.DebugWithCtx(ctx, "Authentication found in cache",
+	//		"username", cachedSession.GetUsername())
+	//	return cachedSession, nil
+	//}
 
 	authHeaders := map[string]string{
 		"authorization": authorization,
@@ -124,6 +128,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 	a.cache.Add(authorization+cookie, authInfo, a.config.Iguazio.CacheExpirationTimeout)
 	a.logger.InfoWithCtx(ctx,
 		"Authentication succeeded",
+		"url", url,
 		"username", authInfo.GetUsername())
 	return authInfo, nil
 }
