@@ -67,16 +67,11 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		url = a.config.Iguazio.VerificationDataEnrichmentURL
 	}
 
-	// TODO: cache needs to be digested with url
-	cacheKey := sha256.Sum256([]byte(cookie + authorization))
+	cacheKey := sha256.Sum256([]byte(cookie + authorization + url))
 
 	// try resolve from cache
 	if cacheData, found := a.cache.Get(cacheKey); found {
-		cachedSession := cacheData.(*authpkg.IguazioSession)
-		a.logger.DebugWithCtx(ctx,
-			"Authentication found in cache",
-			"username", cachedSession.GetUsername())
-		return cachedSession, nil
+		return cacheData.(*authpkg.IguazioSession), nil
 	}
 
 	response, err := a.performHTTPRequest(request.Context(),
