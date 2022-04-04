@@ -82,6 +82,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	defaultFunctionConfig := fsr.getDefaultFunctionConfig()
 	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
 	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
+	defaultFunctionPriortyClassName := fsr.getPlatform().GetConfig().Kube.DefaultFunctionPriorityClassName
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
@@ -94,6 +95,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"platformKind":                    platformKind,
 			"allowedAuthenticationModes":      allowedAuthenticationModes,
 			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
+			"defaultFunctionPriortyClassName": defaultFunctionPriortyClassName,
 		},
 	}
 
