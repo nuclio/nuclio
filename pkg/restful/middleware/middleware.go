@@ -101,7 +101,7 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 					"requestHeaders", requestHeaders,
 					"requestBody", string(requestBody),
 					"responseStatus", responseWrapper.Status(),
-					"responseTime", time.Since(requestStartTime),
+					"responseTime", time.Since(requestStartTime).String(),
 				}
 
 				// response body is too spammy
