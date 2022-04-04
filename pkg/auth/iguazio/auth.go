@@ -128,7 +128,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		}
 	}
 
-	a.cache.Add(authorization+cookie, authInfo, a.config.Iguazio.CacheExpirationTimeout)
+	a.cache.Add(cacheKey, authInfo, a.config.Iguazio.CacheExpirationTimeout)
 	a.logger.InfoWithCtx(ctx,
 		"Authentication succeeded",
 		"url", url,
