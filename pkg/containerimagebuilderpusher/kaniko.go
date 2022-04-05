@@ -371,26 +371,27 @@ func (k *Kaniko) compileJobName(image string) string {
 func (k *Kaniko) waitForJobCompletion(namespace string,
 	jobName string,
 	buildTimeoutSeconds int64,
-	readinessTimoutSeconds int) error {
-	k.logger.DebugWith("Waiting for job completion", "buildTimeoutSeconds", buildTimeoutSeconds)
+	readinessTimoutSeconds *string) error {
+	k.logger.DebugWith("Waiting for job completion",
+		"buildTimeoutSeconds", buildTimeoutSeconds,
+		"readinessTimeoutSeconds", readinessTimoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
+	failFastTimeout, err := time.ParseDuration(*readinessTimoutSeconds)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse function readiness timeout")
+	}
+	if failFastTimeout < 5*time.Minute {
+		failFastTimeout = 5 * time.Minute
+	}
 
 	// fail fast if job pod stuck in Pending or Unknown state
 failFastLoop:
 	for {
 		select {
-		case <-time.After(time.Duration(readinessTimoutSeconds) * time.Second):
-			k.logger.WarnWith("Job was not completed in time, deleting pod",
+		case <-time.After(failFastTimeout):
+			k.logger.WarnWith("Job was not completed in time",
 				"jobName", jobName,
-				"readinessTimoutSeconds", readinessTimoutSeconds)
-
-			// delete pod
-			if err := k.kubeClientSet.
-				BatchV1().
-				Jobs(namespace).
-				Delete(context.Background(), jobName, metav1.DeleteOptions{}); err != nil {
-				return errors.Wrapf(err, "Failed to delete kaniko job pod, job name:\n%s", jobName)
-			}
+				"failFastTimeout", failFastTimeout)
 
 			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
 		default:
@@ -400,8 +401,14 @@ failFastLoop:
 				return errors.Wrapf(err, "Failed to get kaniko job pod, job name:\n%s", jobName)
 			}
 			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
+				k.logger.DebugWith("TOMER - kaniko pod is in a transient state, keep waiting",
+					"jobName", jobName,
+					"jobPodStatus", jobPod.Status.Phase)
 				continue
 			}
+			k.logger.DebugWith("TOMER - kaniko pod is in a WOW state, stop waiting",
+				"jobName", jobName,
+				"jobPodStatus", jobPod.Status.Phase)
 			break failFastLoop
 		}
 	}
