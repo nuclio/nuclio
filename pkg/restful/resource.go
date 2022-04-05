@@ -19,6 +19,7 @@ package restful
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -558,7 +559,7 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	if err != nil {
 		ar.Logger.WarnWith("Custom routed handler failed",
 			"err", err,
-			"routeFunc", routeFunc,
+			"routeFunc", fmt.Sprintf("%T", routeFunc),
 			"request", request)
 	}
 
@@ -570,7 +571,7 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}
 		ar.Logger.WarnWith("Response object not filled by handler, using placeholder",
-			"routeFunc", routeFunc,
+			"routeFunc", fmt.Sprintf("%T", routeFunc),
 			"request", request,
 			"response", response)
 	}

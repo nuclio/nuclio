@@ -78,8 +78,16 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context, buildOptions *B
 	jobSpec := k.compileJobSpec(namespace, buildOptions, bundleFilename)
 
 	// create job
-	k.logger.DebugWithCtx(ctx, "Creating job", "namespace", namespace, "jobSpec", jobSpec)
-	job, err := k.kubeClientSet.BatchV1().Jobs(namespace).Create(ctx, jobSpec, metav1.CreateOptions{})
+	k.logger.DebugWithCtx(ctx,
+		"Creating job",
+		"namespace", namespace,
+		"jobSpec", jobSpec,
+		"timeoutSeconds", buildOptions.BuildTimeoutSeconds,
+	)
+	job, err := k.kubeClientSet.
+		BatchV1().
+		Jobs(namespace).
+		Create(ctx, jobSpec, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")
 	}
@@ -406,7 +414,7 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 		}
 
 		k.logger.DebugWith("Waiting for job completion",
-			"ttl", time.Until(timeout),
+			"ttl", time.Until(timeout).String(),
 			"jobName", jobName)
 		time.Sleep(10 * time.Second)
 	}
