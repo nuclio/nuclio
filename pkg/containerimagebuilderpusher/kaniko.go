@@ -92,7 +92,7 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context, buildOptions *B
 	})
 
 	// Wait for kaniko to finish
-	return k.waitForJobCompletion(namespace, job.Name, buildOptions.BuildTimeoutSeconds)
+	return k.waitForJobCompletion(namespace, job.Name, buildOptions.BuildTimeoutSeconds, buildOptions.ReadinessTimeoutSeconds)
 }
 
 func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
@@ -360,9 +360,34 @@ func (k *Kaniko) compileJobName(image string) string {
 	return jobName
 }
 
-func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTimeoutSeconds int64) error {
+func (k *Kaniko) waitForJobCompletion(namespace string,
+	jobName string,
+	buildTimeoutSeconds int64,
+	readinessTimoutSeconds int) error {
 	k.logger.DebugWith("Waiting for job completion", "buildTimeoutSeconds", buildTimeoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
+
+	// fail fast if job pod stuck in Pending or Unknown state
+failFastLoop:
+	for {
+		select {
+		case <-time.After(time.Duration(readinessTimoutSeconds) * time.Second):
+			k.logger.WarnWith("Job was not completed in time",
+				"readinessTimoutSeconds", readinessTimoutSeconds)
+			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
+		default:
+			jobPod, err := k.getJobPod(jobName, namespace)
+			if err != nil {
+				k.logger.WarnWith("Failed to get kaniko job pod")
+				return errors.Wrapf(err, "Failed to get kaniko job pod, job name:\n%s", jobName)
+			}
+			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
+				continue
+			}
+			break failFastLoop
+		}
+	}
+
 	for time.Now().Before(timeout) {
 		runningJob, err := k.kubeClientSet.
 			BatchV1().

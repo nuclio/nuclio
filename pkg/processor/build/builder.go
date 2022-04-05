@@ -1075,10 +1075,11 @@ func (b *Builder) buildProcessorImage() (string, error) {
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 
 			// kaniko pod attributes
-			NodeSelector:      b.options.FunctionConfig.Spec.NodeSelector,
-			NodeName:          b.options.FunctionConfig.Spec.NodeName,
-			Affinity:          b.options.FunctionConfig.Spec.Affinity,
-			PriorityClassName: b.options.FunctionConfig.Spec.PriorityClassName,
+			NodeSelector:            b.options.FunctionConfig.Spec.NodeSelector,
+			NodeName:                b.options.FunctionConfig.Spec.NodeName,
+			Affinity:                b.options.FunctionConfig.Spec.Affinity,
+			PriorityClassName:       b.options.FunctionConfig.Spec.PriorityClassName,
+			ReadinessTimeoutSeconds: b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds,
 		})
 
 	return imageName, err

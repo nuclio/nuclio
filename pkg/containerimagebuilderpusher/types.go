@@ -13,22 +13,23 @@ import (
 
 // BuildOptions are options for building a container image
 type BuildOptions struct {
-	Image               string
-	ContextDir          string
-	TempDir             string
-	DockerfileInfo      *runtime.ProcessorDockerfileInfo
-	NoCache             bool
-	Pull                bool
-	NoBaseImagePull     bool
-	BuildArgs           map[string]string
-	RegistryURL         string
-	SecretName          string
-	OutputImageFile     string
-	BuildTimeoutSeconds int64
-	Affinity            *v1.Affinity
-	NodeSelector        map[string]string
-	NodeName            string
-	PriorityClassName   string
+	Image                   string
+	ContextDir              string
+	TempDir                 string
+	DockerfileInfo          *runtime.ProcessorDockerfileInfo
+	NoCache                 bool
+	Pull                    bool
+	NoBaseImagePull         bool
+	BuildArgs               map[string]string
+	RegistryURL             string
+	SecretName              string
+	OutputImageFile         string
+	BuildTimeoutSeconds     int64
+	Affinity                *v1.Affinity
+	NodeSelector            map[string]string
+	NodeName                string
+	PriorityClassName       string
+	ReadinessTimeoutSeconds int
 }
 
 type ContainerBuilderConfiguration struct {
