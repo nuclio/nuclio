@@ -3,6 +3,7 @@ package iguazio
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"net/http"
 	"strings"
@@ -47,19 +48,13 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 	ctx := request.Context()
 	authorization := request.Header.Get("authorization")
 	cookie := request.Header.Get("cookie")
-	cacheKey := authorization + cookie
 
 	if options == nil {
 		options = &authpkg.Options{}
 	}
 
-	if cacheKey == "" {
+	if cookie == "" && authorization == "" {
 		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
-	}
-
-	// try resolve from cache
-	if cacheData, found := a.cache.Get(cacheKey); found {
-		return cacheData.(*authpkg.IguazioSession), nil
 	}
 
 	authHeaders := map[string]string{
@@ -70,6 +65,13 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 	url := a.config.Iguazio.VerificationURL
 	if options.EnrichDataPlane {
 		url = a.config.Iguazio.VerificationDataEnrichmentURL
+	}
+
+	cacheKey := sha256.Sum256([]byte(cookie + authorization + url))
+
+	// try resolve from cache
+	if cacheData, found := a.cache.Get(cacheKey); found {
+		return cacheData.(*authpkg.IguazioSession), nil
 	}
 
 	response, err := a.performHTTPRequest(request.Context(),
@@ -121,9 +123,10 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		}
 	}
 
-	a.cache.Add(authorization+cookie, authInfo, a.config.Iguazio.CacheExpirationTimeout)
+	a.cache.Add(cacheKey, authInfo, a.config.Iguazio.CacheExpirationTimeout)
 	a.logger.InfoWithCtx(ctx,
 		"Authentication succeeded",
+		"url", url,
 		"username", authInfo.GetUsername())
 	return authInfo, nil
 }

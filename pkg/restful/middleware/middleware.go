@@ -84,8 +84,14 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 			request.Body = ioutil.NopCloser(bytes.NewBuffer(requestBody))
 
 			requestHeaders := request.Header.Clone() // for logging purposes
-			requestHeaders.Set("cookie", "[redacted]")
-			requestHeaders.Set("x-v3io-session-key", "[redacted]")
+			for _, headerToRedact := range []string{
+				"cookie",
+				"x-v3io-session-key",
+			} {
+				if requestHeaders.Get(headerToRedact) != "" {
+					requestHeaders.Set(headerToRedact, "[redacted]")
+				}
+			}
 
 			// when request processing is done, log the request / response
 			defer func() {
@@ -95,7 +101,7 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 					"requestHeaders", requestHeaders,
 					"requestBody", string(requestBody),
 					"responseStatus", responseWrapper.Status(),
-					"responseTime", time.Since(requestStartTime),
+					"responseTime", time.Since(requestStartTime).String(),
 				}
 
 				// response body is too spammy
