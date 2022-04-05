@@ -376,41 +376,9 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 		"buildTimeoutSeconds", buildTimeoutSeconds,
 		"readinessTimeoutSeconds", readinessTimoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
-	failFastTimeout, err := time.ParseDuration(*readinessTimoutSeconds)
-	if err != nil {
-		return errors.Wrap(err, "Failed to parse function readiness timeout")
-	}
-	if failFastTimeout < 5*time.Minute {
-		failFastTimeout = 5 * time.Minute
-	}
 
-	// fail fast if job pod stuck in Pending or Unknown state
-failFastLoop:
-	for {
-		select {
-		case <-time.After(failFastTimeout):
-			k.logger.WarnWith("Job was not completed in time",
-				"jobName", jobName,
-				"failFastTimeout", failFastTimeout)
-
-			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
-		default:
-			jobPod, err := k.getJobPod(jobName, namespace)
-			if err != nil {
-				k.logger.WarnWith("Failed to get kaniko job pod")
-				return errors.Wrapf(err, "Failed to get kaniko job pod, job name:\n%s", jobName)
-			}
-			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
-				k.logger.DebugWith("TOMER - kaniko pod is in a transient state, keep waiting",
-					"jobName", jobName,
-					"jobPodStatus", jobPod.Status.Phase)
-				continue
-			}
-			k.logger.DebugWith("TOMER - kaniko pod is in a WOW state, stop waiting",
-				"jobName", jobName,
-				"jobPodStatus", jobPod.Status.Phase)
-			break failFastLoop
-		}
+	if err := k.resolveFailFast(namespace, jobName, readinessTimoutSeconds); err != nil {
+		return errors.Wrap(err, "Kaniko job failed to run")
 	}
 
 	for time.Now().Before(timeout) {
@@ -480,6 +448,43 @@ failFastLoop:
 		return errors.Wrap(err, "Job failed and was unable to retrieve job logs")
 	}
 	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
+}
+
+func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSeconds *string) error {
+
+	// fail fast timeout is max(readinessTimeout, 5 minutes)
+	failFastTimeoutDuration, err := time.ParseDuration(*readinessTimoutSeconds)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse function readiness timeout")
+	}
+	if failFastTimeoutDuration < 5*time.Minute {
+		failFastTimeoutDuration = 5 * time.Minute
+	}
+	failFastTimeout := time.After(failFastTimeoutDuration)
+
+	// fail fast if job pod stuck in Pending or Unknown state
+	for {
+		select {
+		case <-failFastTimeout:
+			k.logger.WarnWith("Kaniko job was not completed in time",
+				"jobName", jobName,
+				"failFastTimeoutDuration", failFastTimeoutDuration)
+
+			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
+		default:
+			jobPod, err := k.getJobPod(jobName, namespace)
+			if err != nil {
+				k.logger.WarnWith("Failed to get kaniko job pod")
+
+				// skip in case job hasn't started yet. it will fail on timeout if getJobPod keeps failing.
+				continue
+			}
+			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
+				continue
+			}
+			return nil
+		}
+	}
 }
 
 func (k *Kaniko) getJobPodLogs(jobName string, namespace string) (string, error) {
