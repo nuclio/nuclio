@@ -380,8 +380,18 @@ failFastLoop:
 	for {
 		select {
 		case <-time.After(time.Duration(readinessTimoutSeconds) * time.Second):
-			k.logger.WarnWith("Job was not completed in time",
+			k.logger.WarnWith("Job was not completed in time, deleting pod",
+				"jobName", jobName,
 				"readinessTimoutSeconds", readinessTimoutSeconds)
+
+			// delete pod
+			if err := k.kubeClientSet.
+				BatchV1().
+				Jobs(namespace).
+				Delete(context.Background(), jobName, metav1.DeleteOptions{}); err != nil {
+				return errors.Wrapf(err, "Failed to delete kaniko job pod, job name:\n%s", jobName)
+			}
+
 			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
 		default:
 			jobPod, err := k.getJobPod(jobName, namespace)
