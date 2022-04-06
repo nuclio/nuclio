@@ -152,13 +152,10 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
-	readinessTimeout := function.Spec.ReadinessTimeoutSeconds
-	if readinessTimeout == 0 {
-		readinessTimeout = int(fo.
-			controller.
-			GetPlatformConfiguration().
-			GetDefaultFunctionReadinessTimeout().Seconds())
-	}
+	readinessTimeout := fo.
+		controller.
+		GetPlatformConfiguration().
+		GetFunctionReadinessTimeoutOrDefault(function.Spec.ReadinessTimeoutSeconds)
 
 	fo.logger.DebugWithCtx(ctx, "Ensuring function resources",
 		"functionNamespace", function.Namespace,

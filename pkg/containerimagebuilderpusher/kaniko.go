@@ -371,7 +371,7 @@ func (k *Kaniko) compileJobName(image string) string {
 func (k *Kaniko) waitForJobCompletion(namespace string,
 	jobName string,
 	buildTimeoutSeconds int64,
-	readinessTimoutSeconds *string) error {
+	readinessTimoutSeconds int) error {
 	k.logger.DebugWith("Waiting for job completion",
 		"buildTimeoutSeconds", buildTimeoutSeconds,
 		"readinessTimeoutSeconds", readinessTimoutSeconds)
@@ -450,17 +450,13 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
 }
 
-func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSeconds *string) error {
+func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSeconds int) error {
 
 	// fail fast timeout is max(readinessTimeout, 5 minutes)
-	failFastTimeoutDuration, err := time.ParseDuration(*readinessTimoutSeconds)
-	if err != nil {
-		return errors.Wrap(err, "Failed to parse function readiness timeout")
+	if readinessTimoutSeconds < 5 {
+		readinessTimoutSeconds = 5
 	}
-	if failFastTimeoutDuration < 5*time.Minute {
-		failFastTimeoutDuration = 5 * time.Minute
-	}
-	failFastTimeout := time.After(failFastTimeoutDuration)
+	failFastTimeout := time.After(time.Duration(readinessTimoutSeconds) * time.Second)
 
 	// fail fast if job pod stuck in Pending or Unknown state
 	for {
@@ -468,13 +464,14 @@ func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSecon
 		case <-failFastTimeout:
 			k.logger.WarnWith("Kaniko job was not completed in time",
 				"jobName", jobName,
-				"failFastTimeoutDuration", failFastTimeoutDuration)
+				"failFastTimeoutDuration", readinessTimoutSeconds)
 
 			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
 		default:
 			jobPod, err := k.getJobPod(jobName, namespace)
 			if err != nil {
 				k.logger.WarnWith("Failed to get kaniko job pod")
+				time.Sleep(5 * time.Second)
 
 				// skip in case job hasn't started yet. it will fail on timeout if getJobPod keeps failing.
 				continue

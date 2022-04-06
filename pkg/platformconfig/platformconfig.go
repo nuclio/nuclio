@@ -171,6 +171,13 @@ func (c *Config) GetDefaultFunctionReadinessTimeout() time.Duration {
 	return DefaultFunctionReadinessTimeoutSeconds * time.Second
 }
 
+func (c *Config) GetFunctionReadinessTimeoutOrDefault(functionReadinessTimeoutSeconds int) int {
+	if functionReadinessTimeoutSeconds == 0 {
+		return int(c.GetDefaultFunctionReadinessTimeout().Seconds())
+	}
+	return functionReadinessTimeoutSeconds
+}
+
 func (c *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {
 	return c.getMetricSinks(c.Metrics.System)
 }

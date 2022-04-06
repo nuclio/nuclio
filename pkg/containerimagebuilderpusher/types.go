@@ -29,7 +29,7 @@ type BuildOptions struct {
 	NodeSelector            map[string]string
 	NodeName                string
 	PriorityClassName       string
-	ReadinessTimeoutSeconds *string
+	ReadinessTimeoutSeconds int
 }
 
 type ContainerBuilderConfiguration struct {
