@@ -1323,6 +1323,9 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 		functionConfig.PruneTolerations(preemptibleNodes.Tolerations)
 		functionConfig.PruneTolerations(preemptibleNodes.GPUTolerations)
 
+		// ensure no preemptible node selector
+		functionConfig.PruneNodeSelector(preemptibleNodes.NodeSelector)
+
 		// if tolerations were given, purge `affinity` preemption related configuration
 		if preemptibleNodes.Tolerations != nil {
 			functionConfig.
