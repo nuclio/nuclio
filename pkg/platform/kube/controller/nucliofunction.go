@@ -153,12 +153,17 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			})
 	}
 
-	// after scale from zero, function final state is ready. when that happens, we would want
-	// to create or update all function services, to ensure they are all aligned and synced.
-	// for this specific path, we respond to "ready" state. Other than that, skip it.
+	//we respond to ready to complete the scale from zero flow. we want to skip flows where once the function
+	// has created or updated and marked as ready, it wont re run the create or update flow needlessly.
 	if function.Status.State == functionconfig.FunctionStateReady {
 		if function.Status.ScaleToZero != nil {
-			if function.Status.ScaleToZero.LastScaleEvent == scalertypes.ResourceUpdatedScaleEvent {
+
+			// in case function was "just-recently" updated, skip
+			// in other case, where controller pod has restarted after a long run, we would probably want to
+			// perform the create or update flow.
+			if function.Status.ScaleToZero.LastScaleEvent == scalertypes.ResourceUpdatedScaleEvent &&
+				function.Status.ScaleToZero.LastScaleEventTime != nil &&
+				time.Now().Sub(*function.Status.ScaleToZero.LastScaleEventTime) < 30*time.Second {
 				fo.logger.DebugWithCtx(ctx, "Function was recently deployed and marked as ready, Skipping",
 					"name", function.Name,
 					"status", function.Status,
