@@ -29,6 +29,7 @@ type BuildOptions struct {
 	NodeSelector            map[string]string
 	NodeName                string
 	PriorityClassName       string
+	Tolerations             []v1.Toleration
 	ReadinessTimeoutSeconds int
 }
 
