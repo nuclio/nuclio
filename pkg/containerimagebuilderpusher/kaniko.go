@@ -100,7 +100,7 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context, buildOptions *B
 	})
 
 	// Wait for kaniko to finish
-	return k.waitForJobCompletion(namespace, job.Name, buildOptions.BuildTimeoutSeconds)
+	return k.waitForJobCompletion(namespace, job.Name, buildOptions.BuildTimeoutSeconds, buildOptions.ReadinessTimeoutSeconds)
 }
 
 func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
@@ -369,9 +369,19 @@ func (k *Kaniko) compileJobName(image string) string {
 	return jobName
 }
 
-func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTimeoutSeconds int64) error {
-	k.logger.DebugWith("Waiting for job completion", "buildTimeoutSeconds", buildTimeoutSeconds)
+func (k *Kaniko) waitForJobCompletion(namespace string,
+	jobName string,
+	buildTimeoutSeconds int64,
+	readinessTimoutSeconds int) error {
+	k.logger.DebugWith("Waiting for job completion",
+		"buildTimeoutSeconds", buildTimeoutSeconds,
+		"readinessTimeoutSeconds", readinessTimoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
+
+	if err := k.resolveFailFast(namespace, jobName, time.Duration(readinessTimoutSeconds)*time.Second); err != nil {
+		return errors.Wrap(err, "Kaniko job failed to run")
+	}
+
 	for time.Now().Before(timeout) {
 		runningJob, err := k.kubeClientSet.
 			BatchV1().
@@ -393,7 +403,7 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {
-			jobPod, err := k.getJobPod(jobName, namespace)
+			jobPod, err := k.getJobPod(jobName, namespace, false)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get job pod")
 			}
@@ -420,7 +430,7 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 		time.Sleep(10 * time.Second)
 	}
 
-	jobPod, err := k.getJobPod(jobName, namespace)
+	jobPod, err := k.getJobPod(jobName, namespace, false)
 	if err != nil {
 		return errors.Wrap(err, "Job failed and was unable to get job pod")
 	}
@@ -441,8 +451,43 @@ func (k *Kaniko) waitForJobCompletion(namespace string, jobName string, buildTim
 	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
 }
 
+func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimout time.Duration) error {
+
+	// fail fast timeout is max(readinessTimeout, 5 minutes)
+	if readinessTimout < 5*time.Minute {
+		readinessTimout = 5 * time.Minute
+	}
+	failFastTimeout := time.After(readinessTimout)
+
+	// fail fast if job pod stuck in Pending or Unknown state
+	for {
+		select {
+		case <-failFastTimeout:
+			k.logger.WarnWith("Kaniko job was not completed in time",
+				"jobName", jobName,
+				"failFastTimeoutDuration", readinessTimout.String())
+
+			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
+		default:
+			jobPod, err := k.getJobPod(jobName, namespace, true)
+			if err != nil {
+				k.logger.WarnWith("Failed to get kaniko job pod", "jobName", jobName)
+				time.Sleep(5 * time.Second)
+
+				// skip in case job hasn't started yet. it will fail on timeout if getJobPod keeps failing.
+				continue
+			}
+			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			return nil
+		}
+	}
+}
+
 func (k *Kaniko) getJobPodLogs(jobName string, namespace string) (string, error) {
-	jobPod, err := k.getJobPod(jobName, namespace)
+	jobPod, err := k.getJobPod(jobName, namespace, false)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get job pod")
 	}
@@ -477,8 +522,10 @@ func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
 	return formattedLogContents, nil
 }
 
-func (k *Kaniko) getJobPod(jobName, namespace string) (*v1.Pod, error) {
-	k.logger.DebugWith("Getting job pods", "jobName", jobName)
+func (k *Kaniko) getJobPod(jobName, namespace string, quiet bool) (*v1.Pod, error) {
+	if !quiet {
+		k.logger.DebugWith("Getting job pods", "jobName", jobName)
+	}
 	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
