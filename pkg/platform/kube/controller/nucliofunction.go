@@ -163,6 +163,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 					"name", function.Name,
 					"status", function.Status,
 					"namespace", function.Namespace)
+				return nil
 			}
 		}
 	}
