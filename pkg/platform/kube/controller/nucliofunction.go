@@ -165,7 +165,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// that happen as a side effect for updating the function status
 		if function.Status.ScaleToZero != nil &&
 			function.Status.ScaleToZero.LastScaleEventTime != nil &&
-			time.Now().Sub(*function.Status.ScaleToZero.LastScaleEventTime) < 60*time.Second {
+			time.Since(*function.Status.ScaleToZero.LastScaleEventTime) < 60*time.Second {
 
 			if function.Status.State == functionconfig.FunctionStateReady &&
 				(function.Status.ScaleToZero.LastScaleEvent == scalertypes.ResourceUpdatedScaleEvent ||
