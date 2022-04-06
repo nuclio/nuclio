@@ -170,17 +170,20 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			if function.Status.State == functionconfig.FunctionStateReady &&
 				(function.Status.ScaleToZero.LastScaleEvent == scalertypes.ResourceUpdatedScaleEvent ||
 					function.Status.ScaleToZero.LastScaleEvent == scalertypes.ScaleFromZeroCompletedScaleEvent) {
-				fo.logger.DebugWithCtx(ctx, "Function was recently deployed, Skipping",
+				fo.logger.DebugWithCtx(ctx,
+					"Function was recently deployed, Skipping",
 					"name", function.Name,
 					"status", function.Status,
 					"namespace", function.Namespace)
 				return nil
 			} else if function.Status.State == functionconfig.FunctionStateScaledToZero &&
 				function.Status.ScaleToZero.LastScaleEvent == scalertypes.ScaleToZeroCompletedScaleEvent {
-				fo.logger.DebugWithCtx(ctx, "Function was recently scaled to zero, Skipping",
+				fo.logger.DebugWithCtx(ctx,
+					"Function was recently scaled to zero, Skipping",
 					"name", function.Name,
 					"status", function.Status,
 					"namespace", function.Namespace)
+				return nil
 			}
 
 		}
