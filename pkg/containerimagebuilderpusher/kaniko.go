@@ -477,6 +477,7 @@ func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimout time
 				continue
 			}
 			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
+				time.Sleep(5 * time.Second)
 				continue
 			}
 			return nil
