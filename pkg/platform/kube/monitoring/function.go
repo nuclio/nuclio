@@ -257,6 +257,7 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 // We monitor functions that meet the following conditions:
 // - not in provisioning state
 // - not recently deployed
+// - not scaled to zero
 // - not in transitional states
 // - not disabled / replicas set to 0
 func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, function *nuclioio.NuclioFunction) bool {
@@ -268,6 +269,16 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, fun
 			"Function is being provisioned or recently deployed, skipping",
 			"functionName", function.Name,
 			"functionState", function.Status.State)
+		return true
+	}
+
+	// ignore scaled to zero functions
+	if functionconfig.FunctionStateInSlice(function.Status.State, []functionconfig.FunctionState{
+		functionconfig.FunctionStateScaledToZero,
+	}) {
+		fm.logger.DebugWithCtx(ctx,
+			"Function is scaled to zero, skipping",
+			"functionName", function.Name)
 		return true
 	}
 

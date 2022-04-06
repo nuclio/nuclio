@@ -20,6 +20,7 @@ package controller
 
 import (
 	"context"
+
 	"testing"
 	"time"
 
@@ -32,6 +33,8 @@ import (
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
@@ -112,6 +115,33 @@ func (suite *NuclioFunctionTestSuite) TestPreserveBuildLogs() {
 
 	// function state must be change to error after panicking during its create/update
 	suite.Assert().Equal("B", functionInstance.Status.Logs[0]["A"])
+}
+
+func (suite *NuclioFunctionTestSuite) TestDoNotActOnSecondReady() {
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = "func-name"
+	functionInstance.Status.State = functionconfig.FunctionStateReady
+
+	suite.k8sClientSet.PrependReactor("get", "deployments",
+		func(action k8stesting.Action) (bool, runtime.Object, error) {
+
+			// simulating a panic being thrown during function creation
+			return true, &appsv1.Deployment{
+				Spec: appsv1.DeploymentSpec{
+					Template: v1.PodTemplateSpec{
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{
+								{},
+							},
+						},
+					},
+				},
+			}, nil
+		})
+
+	err := suite.controller.functionOperator.CreateOrUpdate(suite.ctx, functionInstance)
+	suite.Require().NoError(err)
+
 }
 
 func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {

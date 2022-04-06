@@ -154,23 +154,37 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	}
 
 	//we respond to ready to complete the scale from zero flow. we want to skip flows where once the function
-	// has created or updated and marked as ready, it wont re run the create or update flow needlessly.
-	if function.Status.State == functionconfig.FunctionStateReady {
-		if function.Status.ScaleToZero != nil {
+	// has created or updated and marked as ready, so it will not needlessly run the create or update flow.
+	if functionconfig.FunctionStateInSlice(function.Status.State,
+		[]functionconfig.FunctionState{
+			functionconfig.FunctionStateReady,
+			functionconfig.FunctionStateScaledToZero,
+		}) {
 
-			// in case function was "just-recently" updated, skip
-			// in other case, where controller pod has restarted after a long run, we would probably want to
-			// perform the create or update flow.
-			if function.Status.ScaleToZero.LastScaleEvent == scalertypes.ResourceUpdatedScaleEvent &&
-				function.Status.ScaleToZero.LastScaleEventTime != nil &&
-				time.Now().Sub(*function.Status.ScaleToZero.LastScaleEventTime) < 30*time.Second {
-				fo.logger.DebugWithCtx(ctx, "Function was recently deployed and marked as ready, Skipping",
+		// make sure this cycle isnt happening after a long run. we want to avoid another "create or update"
+		// that happen as a side effect for updating the function status
+		if function.Status.ScaleToZero != nil &&
+			function.Status.ScaleToZero.LastScaleEventTime != nil &&
+			time.Now().Sub(*function.Status.ScaleToZero.LastScaleEventTime) < 60*time.Second {
+
+			if function.Status.State == functionconfig.FunctionStateReady &&
+				(function.Status.ScaleToZero.LastScaleEvent == scalertypes.ResourceUpdatedScaleEvent ||
+					function.Status.ScaleToZero.LastScaleEvent == scalertypes.ScaleFromZeroCompletedScaleEvent) {
+				fo.logger.DebugWithCtx(ctx, "Function was recently deployed, Skipping",
 					"name", function.Name,
 					"status", function.Status,
 					"namespace", function.Namespace)
 				return nil
+			} else if function.Status.State == functionconfig.FunctionStateScaledToZero &&
+				function.Status.ScaleToZero.LastScaleEvent == scalertypes.ScaleToZeroCompletedScaleEvent {
+				fo.logger.DebugWithCtx(ctx, "Function was recently scaled to zero, Skipping",
+					"name", function.Name,
+					"status", function.Status,
+					"namespace", function.Namespace)
 			}
+
 		}
+
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
