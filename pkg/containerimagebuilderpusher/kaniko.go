@@ -377,7 +377,7 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 		"readinessTimeoutSeconds", readinessTimoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
 
-	if err := k.resolveFailFast(namespace, jobName, readinessTimoutSeconds); err != nil {
+	if err := k.resolveFailFast(namespace, jobName, time.Duration(readinessTimoutSeconds)*time.Second); err != nil {
 		return errors.Wrap(err, "Kaniko job failed to run")
 	}
 
@@ -450,13 +450,13 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
 }
 
-func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSeconds int) error {
+func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimout time.Duration) error {
 
 	// fail fast timeout is max(readinessTimeout, 5 minutes)
-	if readinessTimoutSeconds < 5*60 {
-		readinessTimoutSeconds = 5 * 60
+	if readinessTimout < 5*time.Minute {
+		readinessTimout = 5 * time.Minute
 	}
-	failFastTimeout := time.After(time.Duration(readinessTimoutSeconds) * time.Second)
+	failFastTimeout := time.After(readinessTimout)
 
 	// fail fast if job pod stuck in Pending or Unknown state
 	for {
@@ -464,7 +464,7 @@ func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSecon
 		case <-failFastTimeout:
 			k.logger.WarnWith("Kaniko job was not completed in time",
 				"jobName", jobName,
-				"failFastTimeoutDuration", readinessTimoutSeconds)
+				"failFastTimeoutDuration", readinessTimout.String())
 
 			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
 		default:
