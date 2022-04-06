@@ -453,8 +453,8 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSeconds int) error {
 
 	// fail fast timeout is max(readinessTimeout, 5 minutes)
-	if readinessTimoutSeconds < 5 {
-		readinessTimoutSeconds = 5
+	if readinessTimoutSeconds < 5*60 {
+		readinessTimoutSeconds = 5 * 60
 	}
 	failFastTimeout := time.After(time.Duration(readinessTimoutSeconds) * time.Second)
 
