@@ -130,8 +130,10 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// to know when to scale a function from zero
 		functionconfig.FunctionStateScaledToZero,
 	}
+
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
-		fo.logger.DebugWithCtx(ctx, "NuclioFunction is not waiting for resource creation or ready, skipping create/update",
+		fo.logger.DebugWithCtx(ctx,
+			"NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
 			"namespace", function.Namespace)
@@ -149,6 +151,20 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			function, &functionconfig.Status{
 				State: functionconfig.FunctionStateImported,
 			})
+	}
+
+	// after scale from zero, function final state is ready. when that happens, we would want
+	// to create or update all function services, to ensure they are all aligned and synced.
+	// for this specific path, we respond to "ready" state. Other than that, skip it.
+	if function.Status.State == functionconfig.FunctionStateReady {
+		if function.Status.ScaleToZero != nil {
+			if function.Status.ScaleToZero.LastScaleEvent == scalertypes.ResourceUpdatedScaleEvent {
+				fo.logger.DebugWithCtx(ctx, "Function was recently deployed and marked as ready, Skipping",
+					"name", function.Name,
+					"status", function.Status,
+					"namespace", function.Namespace)
+			}
+		}
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
@@ -248,7 +264,8 @@ func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 	functionStatus *functionconfig.Status,
 	scaleToZeroEvent scalertypes.ScaleEvent) error {
 
-	fo.logger.DebugWithCtx(ctx, "Setting scale to zero status",
+	fo.logger.DebugWithCtx(ctx,
+		"Setting scale to zero status",
 		"LastScaleEvent", scaleToZeroEvent)
 	now := time.Now()
 	functionStatus.ScaleToZero = &functionconfig.ScaleToZeroStatus{
@@ -282,7 +299,8 @@ func (fo *functionOperator) setFunctionError(ctx context.Context,
 		InternalInvocationURLs: []string{},
 		ExternalInvocationURLs: []string{},
 	}); setStatusErr != nil {
-		fo.logger.WarnWithCtx(ctx, "Failed to update function on error",
+		fo.logger.WarnWithCtx(ctx,
+			"Failed to update function on error",
 			"setStatusErr", errors.Cause(setStatusErr))
 	}
 
@@ -299,9 +317,10 @@ func (fo *functionOperator) setFunctionStatus(ctx context.Context,
 	function.Status = *status
 
 	// try to update the function
-	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(function.Namespace).Update(ctx,
-		function,
-		metav1.UpdateOptions{})
+	_, err := fo.controller.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(function.Namespace).
+		Update(ctx, function, metav1.UpdateOptions{})
 	return err
 }
 

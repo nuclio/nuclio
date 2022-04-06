@@ -292,13 +292,15 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				available := deploymentCondition.Status == v1.ConditionTrue
 
 				if available && result.Status.UnavailableReplicas == 0 {
-					lc.logger.DebugWithCtx(ctx, "Deployment is available",
+					lc.logger.DebugWithCtx(ctx,
+						"Deployment is available",
 						"reason", deploymentCondition.Reason,
 						"deploymentName", deploymentName)
 					return nil, functionconfig.FunctionStateReady
 				}
 
-				lc.logger.DebugWithCtx(ctx, "Deployment not available yet",
+				lc.logger.DebugWithCtx(ctx,
+					"Deployment not available yet",
 					"reason", deploymentCondition.Reason,
 					"unavailableReplicas", result.Status.UnavailableReplicas,
 					"deploymentName", deploymentName)
@@ -311,9 +313,10 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		// get the deployment pods. if it doesn't exist yet, retry a bit later
 		podsList, err := lc.kubeClientSet.CoreV1().
 			Pods(namespace).
-			List(ctx, metav1.ListOptions{
-				LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
-			})
+			List(ctx,
+				metav1.ListOptions{
+					LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
+				})
 		if err != nil {
 			continue
 		}
@@ -1377,7 +1380,7 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 // nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
 func (lc *lazyClient) waitForNginxIngressToStabilize(ctx context.Context, ingress *networkingv1.Ingress) {
 	lc.logger.DebugWithCtx(ctx, "Waiting for nginx ingress to stabilize",
-		"nginxIngressUpdateGracePeriod", lc.nginxIngressUpdateGracePeriod,
+		"nginxIngressUpdateGracePeriod", lc.nginxIngressUpdateGracePeriod.String(),
 		"ingressNamespace", ingress.Namespace,
 		"ingressName", ingress.Name)
 
