@@ -402,7 +402,7 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {
-			jobPod, err := k.getJobPod(jobName, namespace)
+			jobPod, err := k.getJobPod(jobName, namespace, false)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get job pod")
 			}
@@ -429,7 +429,7 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 		time.Sleep(10 * time.Second)
 	}
 
-	jobPod, err := k.getJobPod(jobName, namespace)
+	jobPod, err := k.getJobPod(jobName, namespace, false)
 	if err != nil {
 		return errors.Wrap(err, "Job failed and was unable to get job pod")
 	}
@@ -468,9 +468,9 @@ func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSecon
 
 			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
 		default:
-			jobPod, err := k.getJobPod(jobName, namespace)
+			jobPod, err := k.getJobPod(jobName, namespace, true)
 			if err != nil {
-				k.logger.WarnWith("Failed to get kaniko job pod")
+				k.logger.WarnWith("Failed to get kaniko job pod", "jobName", jobName)
 				time.Sleep(5 * time.Second)
 
 				// skip in case job hasn't started yet. it will fail on timeout if getJobPod keeps failing.
@@ -485,7 +485,7 @@ func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimoutSecon
 }
 
 func (k *Kaniko) getJobPodLogs(jobName string, namespace string) (string, error) {
-	jobPod, err := k.getJobPod(jobName, namespace)
+	jobPod, err := k.getJobPod(jobName, namespace, false)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get job pod")
 	}
@@ -520,8 +520,10 @@ func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
 	return formattedLogContents, nil
 }
 
-func (k *Kaniko) getJobPod(jobName, namespace string) (*v1.Pod, error) {
-	k.logger.DebugWith("Getting job pods", "jobName", jobName)
+func (k *Kaniko) getJobPod(jobName, namespace string, quiet bool) (*v1.Pod, error) {
+	if !quiet {
+		k.logger.DebugWith("Getting job pods", "jobName", jobName)
+	}
 	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
