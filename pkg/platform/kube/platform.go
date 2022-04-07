@@ -1314,6 +1314,11 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 		"preemptionMode", functionConfig.Spec.PreemptionMode)
 
 	switch functionConfig.Spec.PreemptionMode {
+	case functionconfig.RunOnPreemptibleNodesNone:
+
+		// do nothing
+		break
+
 	case functionconfig.RunOnPreemptibleNodesPrevent:
 
 		// ensure no preemptible node tolerations

@@ -341,6 +341,9 @@ const (
 
 	// RunOnPreemptibleNodesPrevent prevents the function pods from running on preemptible nodes
 	RunOnPreemptibleNodesPrevent RunOnPreemptibleNodeMode = "prevent"
+
+	// RunOnPreemptibleNodesNone do nothing
+	RunOnPreemptibleNodesNone RunOnPreemptibleNodeMode = "none"
 )
 
 type ScaleToZeroSpec struct {
