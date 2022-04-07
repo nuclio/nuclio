@@ -521,9 +521,6 @@ func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platfo
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions) error {
-	p.Logger.DebugWith("Updating function",
-		"functionName", updateFunctionOptions.FunctionMeta.Name)
-
 	return p.updater.Update(ctx, updateFunctionOptions)
 }
 

@@ -130,8 +130,10 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// to know when to scale a function from zero
 		functionconfig.FunctionStateScaledToZero,
 	}
+
 	if !functionconfig.FunctionStateInSlice(function.Status.State, statesToRespond) {
-		fo.logger.DebugWithCtx(ctx, "NuclioFunction is not waiting for resource creation or ready, skipping create/update",
+		fo.logger.DebugWithCtx(ctx,
+			"NuclioFunction is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
 			"namespace", function.Namespace)
@@ -149,6 +151,43 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			function, &functionconfig.Status{
 				State: functionconfig.FunctionStateImported,
 			})
+	}
+
+	//we respond to ready to complete the scale from zero flow. we want to skip flows where once the function
+	// has created or updated and marked as ready, so it will not needlessly run the create or update flow.
+	if functionconfig.FunctionStateInSlice(function.Status.State,
+		[]functionconfig.FunctionState{
+			functionconfig.FunctionStateReady,
+			functionconfig.FunctionStateScaledToZero,
+		}) {
+
+		// make sure this cycle isnt happening after a long run. we want to avoid another "create or update"
+		// that happen as a side effect for updating the function status
+		if function.Status.ScaleToZero != nil &&
+			function.Status.ScaleToZero.LastScaleEventTime != nil &&
+			time.Since(*function.Status.ScaleToZero.LastScaleEventTime) < 60*time.Second {
+
+			if function.Status.State == functionconfig.FunctionStateReady &&
+				(function.Status.ScaleToZero.LastScaleEvent == scalertypes.ResourceUpdatedScaleEvent ||
+					function.Status.ScaleToZero.LastScaleEvent == scalertypes.ScaleFromZeroCompletedScaleEvent) {
+				fo.logger.DebugWithCtx(ctx,
+					"Function was recently deployed, Skipping",
+					"name", function.Name,
+					"status", function.Status,
+					"namespace", function.Namespace)
+				return nil
+			} else if function.Status.State == functionconfig.FunctionStateScaledToZero &&
+				function.Status.ScaleToZero.LastScaleEvent == scalertypes.ScaleToZeroCompletedScaleEvent {
+				fo.logger.DebugWithCtx(ctx,
+					"Function was recently scaled to zero, Skipping",
+					"name", function.Name,
+					"status", function.Status,
+					"namespace", function.Namespace)
+				return nil
+			}
+
+		}
+
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
@@ -248,7 +287,8 @@ func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 	functionStatus *functionconfig.Status,
 	scaleToZeroEvent scalertypes.ScaleEvent) error {
 
-	fo.logger.DebugWithCtx(ctx, "Setting scale to zero status",
+	fo.logger.DebugWithCtx(ctx,
+		"Setting scale to zero status",
 		"LastScaleEvent", scaleToZeroEvent)
 	now := time.Now()
 	functionStatus.ScaleToZero = &functionconfig.ScaleToZeroStatus{
@@ -282,7 +322,8 @@ func (fo *functionOperator) setFunctionError(ctx context.Context,
 		InternalInvocationURLs: []string{},
 		ExternalInvocationURLs: []string{},
 	}); setStatusErr != nil {
-		fo.logger.WarnWithCtx(ctx, "Failed to update function on error",
+		fo.logger.WarnWithCtx(ctx,
+			"Failed to update function on error",
 			"setStatusErr", errors.Cause(setStatusErr))
 	}
 
@@ -299,9 +340,10 @@ func (fo *functionOperator) setFunctionStatus(ctx context.Context,
 	function.Status = *status
 
 	// try to update the function
-	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().NuclioFunctions(function.Namespace).Update(ctx,
-		function,
-		metav1.UpdateOptions{})
+	_, err := fo.controller.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(function.Namespace).
+		Update(ctx, function, metav1.UpdateOptions{})
 	return err
 }
 
