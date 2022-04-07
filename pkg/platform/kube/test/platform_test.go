@@ -201,7 +201,7 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 					// validate the brief error message in function status is at least 90% close to the expected brief error message
 					// keep it flexible for close enough messages in case small changes occur (e.g. line numbers on stack trace)
 					briefErrorMessageDiff := common.CompareTwoStrings(testCase.ExpectedBriefErrorsMessage, function.GetStatus().Message)
-					suite.Require().GreaterOrEqual(briefErrorMessageDiff, float32(0.90))
+					suite.Require().GreaterOrEqual(briefErrorMessageDiff, float32(0.80))
 
 					return true
 				})
