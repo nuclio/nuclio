@@ -588,32 +588,35 @@ func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements [
 
 			// for all term expressions on function spec
 			var newNodeSelectorTerms []v1.NodeSelectorTerm
-			for _, term := range nodeSelector.NodeSelectorTerms {
+			for termIdx, term := range nodeSelector.NodeSelectorTerms {
 
 				// check if its key matches the anti affinity
 				// if it does, we want to remove this expression, so it won't block us
 				// by default, prunes "one of"
-				forcePruneAll := false
+				var forcePruneAll bool
+				var matchingExpressionFound bool
 				var newNodeSelectorRequirements []v1.NodeSelectorRequirement
 				for _, expression := range term.MatchExpressions {
-
 					for _, nodeSelectorRequirement := range nodeSelectorRequirements {
 						if nodeSelectorRequirement.Key == expression.Key &&
 							nodeSelectorRequirement.Operator == expression.Operator &&
 							reflect.DeepEqual(nodeSelectorRequirement.Values, expression.Values) {
+							matchingExpressionFound = true
 							if mode == "matchAll" {
 								forcePruneAll = true
 							}
-
-							// skip it (the-pruning)
-							continue
+							break
 						}
+					}
 
-						// prunes it
-						if forcePruneAll {
-							newNodeSelectorRequirements = newNodeSelectorRequirements[:0]
-							continue
-						}
+					// prunes all requirements
+					if forcePruneAll {
+						newNodeSelectorRequirements = newNodeSelectorRequirements[:0]
+						break
+					}
+
+					// no matching expression found against the node selector requirements to prune
+					if !matchingExpressionFound {
 
 						// preserve it
 						newNodeSelectorRequirements = append(newNodeSelectorRequirements, expression)
@@ -628,6 +631,9 @@ func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements [
 				if len(term.MatchExpressions) > 0 || len(term.MatchFields) > 0 {
 					newNodeSelectorTerms = append(newNodeSelectorTerms, term)
 				}
+
+				// update term
+				nodeSelector.NodeSelectorTerms[termIdx] = term
 			}
 			nodeSelector.NodeSelectorTerms = newNodeSelectorTerms
 
@@ -640,6 +646,12 @@ func (c *Config) PruneAffinityNodeSelectorRequirement(nodeSelectorRequirements [
 		if nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil &&
 			nodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution == nil {
 			c.Spec.Affinity.NodeAffinity = nil
+		}
+
+		if c.Spec.Affinity.NodeAffinity == nil &&
+			c.Spec.Affinity.PodAffinity == nil &&
+			c.Spec.Affinity.PodAntiAffinity == nil {
+			c.Spec.Affinity = nil
 		}
 	}
 }
