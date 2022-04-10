@@ -2340,8 +2340,7 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 		return false, errors.Wrap(err, "Failed to list pod events")
 	}
 	lc.logger.DebugWithCtx(ctx, "Received pod events",
-		"podEventsLength", len(podEvents.Items),
-		"podEvents", podEvents.Items)
+		"podEventsLength", len(podEvents.Items))
 
 	for _, event := range podEvents.Items {
 
