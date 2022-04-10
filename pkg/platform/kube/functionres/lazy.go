@@ -324,7 +324,9 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 						LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
 					})
 			if err != nil {
-				lc.logger.WarnWithCtx(ctx, "Failed to get deployment pods", "namespace", namespace)
+				lc.logger.WarnWithCtx(ctx, "Failed to get deployment pods",
+					"err", errors.GetErrorStackString(err, 10),
+					"namespace", namespace)
 				continue
 			}
 
