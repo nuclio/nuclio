@@ -103,7 +103,8 @@ func NewLazyClient(parentLogger logger.Logger,
 		nginxIngressUpdateGracePeriod: nginxIngressUpdateGracePeriod,
 
 		// TODO: make this value configurable
-		// from k8s docs, autoscale cycle is at least 10s
+		// from k8s docs (https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-does-scale-up-work):
+		// autoscale cycle is at least 10s.
 		// We saw that this value was not enough in GKE and AKS, so to mitigate the wait was increased to 60 sec
 		nodeScaleUpSleepTimeout: 60 * time.Second,
 	}
@@ -323,6 +324,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 						LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
 					})
 			if err != nil {
+				lc.logger.WarnWithCtx(ctx, "Failed to get deployment pods", "namespace", namespace)
 				continue
 			}
 
@@ -2335,7 +2337,9 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to list pod events")
 	}
-	lc.logger.DebugWithCtx(ctx, "Received pod events", "podEventsLength", len(podEvents.Items))
+	lc.logger.DebugWithCtx(ctx, "Received pod events",
+		"podEventsLength", len(podEvents.Items),
+		"podEvents", podEvents.Items)
 
 	for _, event := range podEvents.Items {
 
