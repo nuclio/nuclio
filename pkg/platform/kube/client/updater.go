@@ -50,7 +50,9 @@ func (u *Updater) Update(ctx context.Context, updateFunctionOptions *platform.Up
 	u.logger.InfoWithCtx(ctx, "Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	function, err := u.consumer.NuclioClientSet.NuclioV1beta1().
+	function, err := u.consumer.
+		NuclioClientSet.
+		NuclioV1beta1().
 		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
 		Get(ctx, updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
 	if err != nil {
@@ -80,6 +82,9 @@ func (u *Updater) Update(ctx context.Context, updateFunctionOptions *platform.Up
 	if updateFunctionOptions.FunctionStatus != nil {
 		function.Status = *updateFunctionOptions.FunctionStatus
 	}
+
+	// reset scale to zero so that update function won't be ignored by controller
+	function.Status.ScaleToZero = nil
 
 	// update annotations
 	function.Annotations = updateFunctionOptions.FunctionMeta.Annotations

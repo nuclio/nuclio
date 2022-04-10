@@ -521,9 +521,6 @@ func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platfo
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions) error {
-	p.Logger.DebugWith("Updating function",
-		"functionName", updateFunctionOptions.FunctionMeta.Name)
-
 	return p.updater.Update(ctx, updateFunctionOptions)
 }
 
@@ -1317,11 +1314,19 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 		"preemptionMode", functionConfig.Spec.PreemptionMode)
 
 	switch functionConfig.Spec.PreemptionMode {
+	case functionconfig.RunOnPreemptibleNodesNone:
+
+		// do nothing
+		break
+
 	case functionconfig.RunOnPreemptibleNodesPrevent:
 
 		// ensure no preemptible node tolerations
 		functionConfig.PruneTolerations(preemptibleNodes.Tolerations)
 		functionConfig.PruneTolerations(preemptibleNodes.GPUTolerations)
+
+		// ensure no preemptible node selector
+		functionConfig.PruneNodeSelector(preemptibleNodes.NodeSelector)
 
 		// if tolerations were given, purge `affinity` preemption related configuration
 		if preemptibleNodes.Tolerations != nil {

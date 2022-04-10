@@ -1079,6 +1079,9 @@ func (b *Builder) buildProcessorImage() (string, error) {
 			NodeName:          b.options.FunctionConfig.Spec.NodeName,
 			Affinity:          b.options.FunctionConfig.Spec.Affinity,
 			PriorityClassName: b.options.FunctionConfig.Spec.PriorityClassName,
+			Tolerations:       b.options.FunctionConfig.Spec.Tolerations,
+			ReadinessTimeoutSeconds: b.platform.GetConfig().GetFunctionReadinessTimeoutOrDefault(
+				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
 		})
 
 	return imageName, err
