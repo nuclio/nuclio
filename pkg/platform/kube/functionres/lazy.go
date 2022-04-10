@@ -102,8 +102,11 @@ func NewLazyClient(parentLogger logger.Logger,
 		classLabels:                   make(labels.Set),
 		nginxIngressUpdateGracePeriod: nginxIngressUpdateGracePeriod,
 
-		//  autoscale cycle is at least 10s
-		nodeScaleUpSleepTimeout: 15 * time.Second,
+		// TODO: make this value configurable
+		// from k8s docs (https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-does-scale-up-work):
+		// autoscale cycle is at least 10s.
+		// We saw that this value was not enough in GKE and AKS, so to mitigate the wait was increased to 60 sec
+		nodeScaleUpSleepTimeout: 60 * time.Second,
 	}
 
 	newClient.initClassLabels()
@@ -250,7 +253,8 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	namespace string,
 	name string,
-	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
+	functionResourcesCreateOrUpdateTimestamp time.Time,
+	waitReadinessTimeoutBeforeFailure bool) (error, functionconfig.FunctionState) {
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	lc.logger.DebugWithCtx(ctx, "Waiting for deployment to be available",
 		"namespace", namespace,
@@ -310,23 +314,29 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			}
 		}
 
-		// get the deployment pods. if it doesn't exist yet, retry a bit later
-		podsList, err := lc.kubeClientSet.CoreV1().
-			Pods(namespace).
-			List(ctx,
-				metav1.ListOptions{
-					LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
-				})
-		if err != nil {
-			continue
-		}
+		if !waitReadinessTimeoutBeforeFailure {
 
-		// fail-fast mechanism
-		if err := lc.resolveFailFast(ctx,
-			podsList,
-			functionResourcesCreateOrUpdateTimestamp); err != nil {
+			// get the deployment pods. if it doesn't exist yet, retry a bit later
+			podsList, err := lc.kubeClientSet.CoreV1().
+				Pods(namespace).
+				List(ctx,
+					metav1.ListOptions{
+						LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
+					})
+			if err != nil {
+				lc.logger.WarnWithCtx(ctx, "Failed to get deployment pods",
+					"err", errors.GetErrorStackString(err, 10),
+					"namespace", namespace)
+				continue
+			}
 
-			return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
+			// fail-fast mechanism
+			if err := lc.resolveFailFast(ctx,
+				podsList,
+				functionResourcesCreateOrUpdateTimestamp); err != nil {
+
+				return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
+			}
 		}
 	}
 }
@@ -2329,7 +2339,8 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to list pod events")
 	}
-	lc.logger.DebugWithCtx(ctx, "Received pod events", "podEventsLength", len(podEvents.Items))
+	lc.logger.DebugWithCtx(ctx, "Received pod events",
+		"podEventsLength", len(podEvents.Items))
 
 	for _, event := range podEvents.Items {
 
