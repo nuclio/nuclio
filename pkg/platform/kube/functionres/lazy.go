@@ -283,9 +283,16 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			return nil, functionconfig.FunctionStateReady
 		}
 
-		// deployment is ready, ingress is not yet (being too slow I guess, marking as unhealthy)
-		if deploymentReady && !ingressReady && time.Since(timeDeploymentReady) >= time.Minute {
-			lc.logger.WarnWithCtx(ctx, "Function deployment is ready while ingress is not yet, stop waiting",
+		// deployment is ready
+		// ingress is not yet (being too slow I guess, marking as unhealthy)
+		// give ingress a minute to be ready
+		// apply fail-fast when user did not ask to wait the full timeout
+		if deploymentReady &&
+			!ingressReady &&
+			time.Since(timeDeploymentReady) >= time.Minute &&
+			!function.Spec.WaitReadinessTimeoutBeforeFailure {
+			lc.logger.WarnWithCtx(ctx,
+				"Function deployment is ready while ingress is not yet, stop waiting",
 				"namespace", function.Namespace,
 				"name", function.Name)
 			return errors.New("Function deployment is ready while ingress is not"), functionconfig.FunctionStateUnhealthy
