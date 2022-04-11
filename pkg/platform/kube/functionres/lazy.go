@@ -263,7 +263,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 	waitMs := 250
 
-	for {
+	for counter := 0; ; counter++ {
 
 		// wait a bit
 		time.Sleep(time.Duration(waitMs) * time.Millisecond)
@@ -308,11 +308,16 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 			// HACK - we return with empty function state to indicate a possibly transient error
 			if functionState == "" {
-				lc.logger.WarnWithCtx(ctx,
-					"Failed to wait for function deployment readiness (probably a transient error)",
-					"err", errors.GetErrorStackString(err, 10),
-					"namespace", function.Namespace,
-					"name", function.Name)
+
+				// to avoid spamming the output
+				if counter == 0 || counter%5 == 0 {
+					lc.logger.WarnWithCtx(ctx,
+						"Failed to wait for function deployment readiness (probably a transient error)",
+						"err", err.Error(),
+						"namespace", function.Namespace,
+						"name", function.Name)
+				}
+
 				continue
 			}
 
@@ -321,11 +326,15 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 		if !ingressReady {
 			if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
-				lc.logger.WarnWithCtx(ctx,
-					"Function ingress is not ready yet, continuing",
-					"err", errors.GetErrorStackString(err, 10),
-					"namespace", function.Namespace,
-					"name", function.Name)
+
+				// to avoid spamming the output
+				if counter == 0 || counter%5 == 0 {
+					lc.logger.WarnWithCtx(ctx,
+						"Function ingress is not ready yet, continuing",
+						"err", err.Error(),
+						"namespace", function.Namespace,
+						"name", function.Name)
+				}
 				continue
 			}
 			lc.logger.DebugWithCtx(ctx,
