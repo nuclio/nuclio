@@ -326,6 +326,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					"name", function.Name)
 				continue
 			}
+			ingressReady = true
 		}
 	}
 }
