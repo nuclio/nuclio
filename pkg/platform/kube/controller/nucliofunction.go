@@ -196,7 +196,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		GetPlatformConfiguration().
 		GetFunctionReadinessTimeoutOrDefault(function.Spec.ReadinessTimeoutSeconds)
 
-	fo.logger.DebugWithCtx(ctx, "Ensuring function resources",
+	fo.logger.DebugWithCtx(ctx,
+		"Ensuring function resources",
 		"functionNamespace", function.Namespace,
 		"readinessTimeout", readinessTimeout,
 		"functionName", function.Name)

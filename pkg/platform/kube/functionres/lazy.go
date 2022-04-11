@@ -64,10 +64,9 @@ import (
 )
 
 const (
-	ContainerHTTPPortName         = "http"
-	containerMetricPort           = 8090
-	containerMetricPortName       = "metrics"
-	nginxIngressUpdateGracePeriod = 5 * time.Second
+	ContainerHTTPPortName   = "http"
+	containerMetricPort     = 8090
+	containerMetricPortName = "metrics"
 )
 
 type deploymentResourceMethod string
@@ -87,7 +86,6 @@ type lazyClient struct {
 	nuclioClientSet               nuclioioclient.Interface
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
-	nginxIngressUpdateGracePeriod time.Duration
 	nodeScaleUpSleepTimeout       time.Duration
 }
 
@@ -96,11 +94,10 @@ func NewLazyClient(parentLogger logger.Logger,
 	nuclioClientSet nuclioioclient.Interface) (Client, error) {
 
 	newClient := lazyClient{
-		logger:                        parentLogger.GetChild("functionres"),
-		kubeClientSet:                 kubeClientSet,
-		nuclioClientSet:               nuclioClientSet,
-		classLabels:                   make(labels.Set),
-		nginxIngressUpdateGracePeriod: nginxIngressUpdateGracePeriod,
+		logger:          parentLogger.GetChild("functionres"),
+		kubeClientSet:   kubeClientSet,
+		nuclioClientSet: nuclioClientSet,
+		classLabels:     make(labels.Set),
 
 		// TODO: make this value configurable
 		// from k8s docs (https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#how-does-scale-up-work):
@@ -244,7 +241,8 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 		}
 	}
 
-	lc.logger.DebugWithCtx(ctx, "Successfully created/updated resources",
+	lc.logger.DebugWithCtx(ctx,
+		"Successfully created/updated resources",
 		"functionName", function.Name,
 		"functionNamespace", function.Namespace)
 	return &resources, nil
@@ -301,6 +299,10 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			if err == nil {
 				deploymentReady = true
 				timeDeploymentReady = time.Now()
+				lc.logger.DebugWithCtx(ctx,
+					"Function deployment is ready",
+					"namespace", function.Namespace,
+					"name", function.Name)
 				continue
 			}
 
@@ -326,6 +328,10 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					"name", function.Name)
 				continue
 			}
+			lc.logger.DebugWithCtx(ctx,
+				"Function ingress is ready",
+				"namespace", function.Namespace,
+				"name", function.Name)
 			ingressReady = true
 		}
 	}
@@ -450,12 +456,10 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 	function *nuclioio.NuclioFunction,
 	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
 
-	deploymentName := kube.DeploymentNameFromFunctionName(function.Name)
-
 	// get the deployment. if it doesn't exist yet, retry a bit later
 	functionDeployment, err := lc.kubeClientSet.AppsV1().
 		Deployments(function.Namespace).
-		Get(ctx, deploymentName, metav1.GetOptions{})
+		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function deployment"), ""
 	}
@@ -472,7 +476,7 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 				lc.logger.DebugWithCtx(ctx,
 					"Deployment is available",
 					"reason", deploymentCondition.Reason,
-					"deploymentName", deploymentName)
+					"functionName", function.Name)
 				return nil, functionconfig.FunctionStateReady
 			}
 
@@ -480,7 +484,7 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 				"Deployment not available yet",
 				"reason", deploymentCondition.Reason,
 				"unavailableReplicas", functionDeployment.Status.UnavailableReplicas,
-				"deploymentName", deploymentName)
+				"functionName", function.Name)
 
 			// we found the condition, wasn't available
 			break
@@ -1253,7 +1257,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 			return nil, nil
 		}
 
-		resultIngress, err := lc.kubeClientSet.NetworkingV1().
+		return lc.kubeClientSet.NetworkingV1().
 			Ingresses(function.Namespace).
 			Create(ctx,
 				&networkingv1.Ingress{
@@ -1261,11 +1265,6 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 					Spec:       ingressSpec,
 				},
 				metav1.CreateOptions{})
-		if err == nil {
-			lc.waitForNginxIngressToStabilize(ctx, resultIngress)
-		}
-
-		return resultIngress, err
 	}
 
 	updateIngress := func(resource interface{}) (interface{}, error) {
@@ -1298,12 +1297,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 			return nil, nil
 		}
 
-		resultIngress, err := lc.kubeClientSet.NetworkingV1().Ingresses(function.Namespace).Update(ctx, ingress, metav1.UpdateOptions{})
-		if err == nil {
-			lc.waitForNginxIngressToStabilize(ctx, ingress)
-		}
-
-		return resultIngress, err
+		return lc.kubeClientSet.NetworkingV1().Ingresses(function.Namespace).Update(ctx, ingress, metav1.UpdateOptions{})
 	}
 
 	resource, err := lc.createOrUpdateResource(ctx,
@@ -1468,19 +1462,6 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 		return "", errors.Wrap(err, "Failed to create cron trigger list requirement label")
 	}
 	return labelSet.String(), nil
-}
-
-// nginx ingress controller might need a grace period to stabilize after an update, otherwise it might respond with 503
-func (lc *lazyClient) waitForNginxIngressToStabilize(ctx context.Context, ingress *networkingv1.Ingress) {
-	lc.logger.DebugWithCtx(ctx, "Waiting for nginx ingress to stabilize",
-		"nginxIngressUpdateGracePeriod", lc.nginxIngressUpdateGracePeriod.String(),
-		"ingressNamespace", ingress.Namespace,
-		"ingressName", ingress.Name)
-
-	time.Sleep(lc.nginxIngressUpdateGracePeriod)
-	lc.logger.DebugWithCtx(ctx, "Finished waiting for nginx ingress to stabilize",
-		"ingressNamespace", ingress.Namespace,
-		"ingressName", ingress.Name)
 }
 
 func (lc *lazyClient) initClassLabels() {

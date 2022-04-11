@@ -199,8 +199,6 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			functionLabels := suite.client.getFunctionLabels(&function)
 			functionLabels["nuclio.io/function-name"] = function.Name
 
-			suite.client.nginxIngressUpdateGracePeriod = 0
-
 			// "create the ingress
 			ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 			suite.Require().NoError(err)
@@ -259,8 +257,6 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			},
 		},
 	})
-
-	suite.client.nginxIngressUpdateGracePeriod = 0
 
 	// "create the ingress
 	ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
