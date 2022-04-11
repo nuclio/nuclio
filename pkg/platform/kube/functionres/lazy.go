@@ -422,9 +422,9 @@ func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProv
 func (lc *lazyClient) waitFunctionIngressReadiness(ctx context.Context,
 	function *nuclioio.NuclioFunction) error {
 
-	// no ingresses were requested, bail
-	if functionIngressesSpec :=
-		functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function)); functionIngressesSpec == nil {
+	if len(functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))) == 0 {
+
+		// no ingresses were requested, bail
 		return nil
 	}
 
