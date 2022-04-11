@@ -325,6 +325,13 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		}
 
 		if !ingressReady {
+
+			// if function have no ingress, assume ready and bail ingress readiness
+			if len(functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))) == 0 {
+				ingressReady = true
+				continue
+			}
+
 			if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
 
 				// to avoid spamming the output
@@ -436,12 +443,6 @@ func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProv
 
 func (lc *lazyClient) waitFunctionIngressReadiness(ctx context.Context,
 	function *nuclioio.NuclioFunction) error {
-
-	if len(functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))) == 0 {
-
-		// no ingresses were requested, bail
-		return nil
-	}
 
 	functionIngresses, err := lc.kubeClientSet.NetworkingV1().
 		Ingresses(function.Namespace).
