@@ -221,10 +221,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 		// wait until the function resources are ready
 		if err, functionState := fo.functionresClient.WaitAvailable(waitContext,
-			function.Namespace,
-			function.Name,
-			functionResourcesCreateOrUpdateTimestamp,
-			function.Spec.WaitReadinessTimeoutBeforeFailure); err != nil {
+			function,
+			functionResourcesCreateOrUpdateTimestamp); err != nil {
 			return fo.setFunctionError(ctx,
 				function,
 				functionState,

@@ -251,15 +251,17 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context,
-	namespace string,
-	name string,
-	functionResourcesCreateOrUpdateTimestamp time.Time,
-	waitReadinessTimeoutBeforeFailure bool) (error, functionconfig.FunctionState) {
-	deploymentName := kube.DeploymentNameFromFunctionName(name)
-	lc.logger.DebugWithCtx(ctx, "Waiting for deployment to be available",
-		"namespace", namespace,
-		"functionName", name,
-		"deploymentName", deploymentName)
+	function *nuclioio.NuclioFunction,
+	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
+
+	lc.logger.DebugWithCtx(ctx,
+		"Waiting for function resources to be available",
+		"namespace", function.Namespace,
+		"functionName", function.Name)
+
+	var deploymentReady bool
+	var ingressReady bool
+	var timeDeploymentReady time.Time
 
 	waitMs := 250
 
@@ -279,63 +281,50 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			return err, functionconfig.FunctionStateUnhealthy
 		}
 
-		// get the deployment. if it doesn't exist yet, retry a bit later
-		result, err := lc.kubeClientSet.AppsV1().
-			Deployments(namespace).
-			Get(ctx, deploymentName, metav1.GetOptions{})
-		if err != nil {
-			continue
+		if deploymentReady && ingressReady {
+			return nil, functionconfig.FunctionStateReady
 		}
 
-		// find the condition whose type is Available - that's the one we want to examine
-		for _, deploymentCondition := range result.Status.Conditions {
+		// deployment is ready, ingress is not yet (being too slow I guess, marking as unhealthy)
+		if deploymentReady && !ingressReady && time.Since(timeDeploymentReady) >= time.Minute {
+			lc.logger.WarnWithCtx(ctx, "Function deployment is ready while ingress is not yet, stop waiting",
+				"namespace", function.Namespace,
+				"name", function.Name)
+			return errors.New("Function deployment is ready while ingress is not"), functionconfig.FunctionStateUnhealthy
 
-			// when we find the right condition, check its Status to see if it's true.
-			// a DeploymentCondition whose Type == Available and Status == True means the deployment is available
-			if deploymentCondition.Type == appsv1.DeploymentAvailable {
-				available := deploymentCondition.Status == v1.ConditionTrue
-
-				if available && result.Status.UnavailableReplicas == 0 {
-					lc.logger.DebugWithCtx(ctx,
-						"Deployment is available",
-						"reason", deploymentCondition.Reason,
-						"deploymentName", deploymentName)
-					return nil, functionconfig.FunctionStateReady
-				}
-
-				lc.logger.DebugWithCtx(ctx,
-					"Deployment not available yet",
-					"reason", deploymentCondition.Reason,
-					"unavailableReplicas", result.Status.UnavailableReplicas,
-					"deploymentName", deploymentName)
-
-				// we found the condition, wasn't available
-				break
-			}
 		}
 
-		if !waitReadinessTimeoutBeforeFailure {
+		if !deploymentReady {
 
-			// get the deployment pods. if it doesn't exist yet, retry a bit later
-			podsList, err := lc.kubeClientSet.CoreV1().
-				Pods(namespace).
-				List(ctx,
-					metav1.ListOptions{
-						LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
-					})
-			if err != nil {
-				lc.logger.WarnWithCtx(ctx, "Failed to get deployment pods",
-					"err", errors.GetErrorStackString(err, 10),
-					"namespace", namespace)
+			// TODO: log waiting for function deployment readiness
+			err, functionState := lc.waitFunctionDeploymentReadiness(ctx, function, functionResourcesCreateOrUpdateTimestamp)
+			if err == nil {
+				deploymentReady = true
+				timeDeploymentReady = time.Now()
 				continue
 			}
 
-			// fail-fast mechanism
-			if err := lc.resolveFailFast(ctx,
-				podsList,
-				functionResourcesCreateOrUpdateTimestamp); err != nil {
+			// HACK - we return with empty function state to indicate a possibly transient error
+			if functionState == "" {
+				lc.logger.WarnWithCtx(ctx,
+					"Failed to wait for function deployment readiness (probably a transient error)",
+					"err", errors.GetErrorStackString(err, 10),
+					"namespace", function.Namespace,
+					"name", function.Name)
+				continue
+			}
 
-				return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
+			return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
+		}
+
+		if !ingressReady {
+			if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
+				lc.logger.WarnWithCtx(ctx,
+					"Function ingress is not ready yet, continuing",
+					"err", errors.GetErrorStackString(err, 10),
+					"namespace", function.Namespace,
+					"name", function.Name)
+				continue
 			}
 		}
 	}
@@ -427,6 +416,99 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 // SetPlatformConfigurationProvider sets the provider of the platform configuration for any future access
 func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProvider PlatformConfigurationProvider) {
 	lc.platformConfigurationProvider = platformConfigurationProvider
+}
+
+func (lc *lazyClient) waitFunctionIngressReadiness(ctx context.Context,
+	function *nuclioio.NuclioFunction) error {
+
+	// no ingresses were requested, bail
+	if functionIngressesSpec :=
+		functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function)); functionIngressesSpec == nil {
+		return nil
+	}
+
+	functionIngresses, err := lc.kubeClientSet.NetworkingV1().
+		Ingresses(function.Namespace).
+		Get(ctx, kube.IngressNameFromFunctionName(function.Name), metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function ingresses")
+	}
+
+	for _, ingress := range functionIngresses.Status.LoadBalancer.Ingress {
+		if ingress.IP != "" {
+			lc.logger.DebugWithCtx(ctx, "Found at least one ingress ip, assuming ingress is ready")
+			return nil
+		}
+	}
+
+	return errors.New("Function ingress is not ready yet")
+
+}
+
+func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
+	function *nuclioio.NuclioFunction,
+	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
+
+	deploymentName := kube.DeploymentNameFromFunctionName(function.Name)
+
+	// get the deployment. if it doesn't exist yet, retry a bit later
+	functionDeployment, err := lc.kubeClientSet.AppsV1().
+		Deployments(function.Namespace).
+		Get(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function deployment"), ""
+	}
+
+	// find the condition whose type is Available - that's the one we want to examine
+	for _, deploymentCondition := range functionDeployment.Status.Conditions {
+
+		// when we find the right condition, check its Status to see if it's true.
+		// a DeploymentCondition whose Type == Available and Status == True means the deployment is available
+		if deploymentCondition.Type == appsv1.DeploymentAvailable {
+			available := deploymentCondition.Status == v1.ConditionTrue
+
+			if available && functionDeployment.Status.UnavailableReplicas == 0 {
+				lc.logger.DebugWithCtx(ctx,
+					"Deployment is available",
+					"reason", deploymentCondition.Reason,
+					"deploymentName", deploymentName)
+				return nil, functionconfig.FunctionStateReady
+			}
+
+			lc.logger.DebugWithCtx(ctx,
+				"Deployment not available yet",
+				"reason", deploymentCondition.Reason,
+				"unavailableReplicas", functionDeployment.Status.UnavailableReplicas,
+				"deploymentName", deploymentName)
+
+			// we found the condition, wasn't available
+			break
+		}
+	}
+
+	// avoid fail-fast when user explicitly asks to wait for function readiness timeout
+	if !function.Spec.WaitReadinessTimeoutBeforeFailure {
+
+		// get the deployment pods. if it doesn't exist yet, retry a bit later
+		podsList, err := lc.kubeClientSet.CoreV1().
+			Pods(function.Namespace).
+			List(ctx,
+				metav1.ListOptions{
+					LabelSelector: common.CompileListFunctionPodsLabelSelector(function.Name),
+				})
+		if err != nil {
+			return errors.Wrap(err, "Failed to list function pods"), ""
+		}
+
+		// fail-fast mechanism
+		if err := lc.resolveFailFast(ctx,
+			podsList,
+			functionResourcesCreateOrUpdateTimestamp); err != nil {
+			return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
+		}
+	}
+
+	return errors.New("Function deployment is not ready yet"), ""
 }
 
 func (lc *lazyClient) createOrUpdateCronJobs(ctx context.Context,
