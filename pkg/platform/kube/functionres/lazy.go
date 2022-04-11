@@ -459,8 +459,8 @@ func (lc *lazyClient) waitFunctionIngressReadiness(ctx context.Context,
 	}
 
 	for _, ingress := range functionIngresses.Status.LoadBalancer.Ingress {
-		if ingress.IP != "" {
-			lc.logger.DebugWithCtx(ctx, "Found at least one ingress ip, assuming ingress is ready")
+		if ingress.IP != "" || ingress.Hostname != "" {
+			lc.logger.DebugWithCtx(ctx, "Found at least one configured ingress, assuming ingress is ready")
 			return nil
 		}
 	}
