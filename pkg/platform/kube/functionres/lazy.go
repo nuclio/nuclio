@@ -2376,7 +2376,7 @@ func (lc *lazyClient) resolveFailFast(ctx context.Context,
 
 					lc.logger.DebugWithCtx(errGroupCtx,
 						"Waiting for autoscale evaluation",
-						"nodeScaleUpSleepTimeout", lc.nodeScaleUpSleepTimeout,
+						"nodeScaleUpSleepTimeout", lc.nodeScaleUpSleepTimeout.String(),
 						"podName", pod.Name)
 					time.Sleep(lc.nodeScaleUpSleepTimeout)
 
