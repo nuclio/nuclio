@@ -165,7 +165,13 @@
          * Sets current language as selected
          */
         function setSelectedLanguage() {
-            ctrl.selectedLanguage = lodash.find(ctrl.languages, ['id', i18next.language.replace(/(\w{2}).+/, '$1')]);
+            var initialLng = i18next.language.replace(/(\w{2}).+/, '$1');
+            ctrl.selectedLanguage = lodash.find(ctrl.languages, ['id', initialLng]);
+
+            if (!ctrl.selectedLanguage) {
+                ctrl.selectedLanguage = lodash.find(ctrl.languages, ['id', 'en']);
+                $i18next.changeLanguage(ctrl.selectedLanguage.id);
+            }
         }
     }
 }());

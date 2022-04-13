@@ -69,10 +69,14 @@
                 ],
                 backendOptions: [
                     {
-                        expirationTime: ConfigService.i18nextExpirationTime
+                        expirationTime: ConfigService.i18nextExpirationTime,
+                        defaultVersion: 'v0.1'
                     },
                     {
-                        loadPath: 'assets/i18n/{{lng}}/{{ns}}.json'
+                        loadPath: 'assets/i18n/{{lng}}/{{ns}}.json',
+                        customHeaders: {
+                            'Cache-Control': 'no-cache'
+                        },
                     }
                 ]
             }
