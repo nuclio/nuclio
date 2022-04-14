@@ -196,7 +196,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		GetPlatformConfiguration().
 		GetFunctionReadinessTimeoutOrDefault(function.Spec.ReadinessTimeoutSeconds)
 
-	fo.logger.DebugWithCtx(ctx, "Ensuring function resources",
+	fo.logger.DebugWithCtx(ctx,
+		"Ensuring function resources",
 		"functionNamespace", function.Namespace,
 		"readinessTimeout", readinessTimeout,
 		"functionName", function.Name)
@@ -221,8 +222,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 		// wait until the function resources are ready
 		if err, functionState := fo.functionresClient.WaitAvailable(waitContext,
-			function.Namespace,
-			function.Name,
+			function,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 			return fo.setFunctionError(ctx,
 				function,
