@@ -1811,7 +1811,9 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		},
 	}
 
-	lc.populateDefaultContainerResources(ctx, &spec.JobTemplate.Spec.Template.Spec.Containers[0])
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+		lc.logger,
+		&spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources)
 
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1.ForbidConcurrent
@@ -2014,7 +2016,10 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
-	lc.populateDefaultContainerResources(ctx, container)
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+		lc.logger,
+		&container.Resources)
+
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
 		{
@@ -2451,40 +2456,40 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 	return false, nil
 }
 
-func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, container *v1.Container) {
+func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, resources *v1.ResourceRequirements) {
 
 	defaultFunctionPodResources := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodResources
 
 	lc.logger.DebugWithCtx(ctx,
-		"Populating container resources with default values",
+		"Populating resources with default values",
 		"defaultFunctionPodResources", defaultFunctionPodResources)
 
-	if container.Resources.Requests == nil {
-		container.Resources.Requests = make(v1.ResourceList)
+	if resources.Requests == nil {
+		resources.Requests = make(v1.ResourceList)
 
-		container.Resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
+		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
 			"25m",
 			lc.logger)
-		container.Resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
+		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
 			"1Mi",
 			lc.logger)
 	}
-	if container.Resources.Limits == nil {
-		container.Resources.Limits = make(v1.ResourceList)
+	if resources.Limits == nil {
+		resources.Limits = make(v1.ResourceList)
 
 		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
 		if err == nil {
-			container.Resources.Limits["cpu"] = cpuQuantity
+			resources.Limits["cpu"] = cpuQuantity
 		}
 		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
 		if err == nil {
-			container.Resources.Limits["memory"] = memoryQuantity
+			resources.Limits["memory"] = memoryQuantity
 		}
 	}
 
 	lc.logger.DebugWithCtx(ctx,
-		"Populated container resources with default values",
-		"containerResources", container.Resources)
+		"Populated resources with default values",
+		"resources", resources)
 }
 
 //

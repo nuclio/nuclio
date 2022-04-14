@@ -714,7 +714,7 @@ func (suite *lazyTestSuite) TestPopulateDefaultContainerResources() {
 
 	container := v1.Container{Name: "some-container"}
 
-	suite.client.populateDefaultContainerResources(suite.ctx, &container)
+	suite.client.populateDefaultContainerResources(suite.ctx, &container.Resources)
 
 	suite.Require().Equal(container.Resources.Requests["cpu"], expectedResources["requestsCPU"])
 	suite.Require().Equal(container.Resources.Requests["memory"], expectedResources["requestsMemory"])
@@ -732,7 +732,7 @@ func (suite *lazyTestSuite) TestPopulateDefaultContainerResourcesWithoutDefaults
 
 	container := v1.Container{Name: "some-container"}
 
-	suite.client.populateDefaultContainerResources(suite.ctx, &container)
+	suite.client.populateDefaultContainerResources(suite.ctx, &container.Resources)
 
 	suite.Require().Equal(container.Resources.Requests["cpu"], expectedRequestsCPU)
 	suite.Require().Equal(container.Resources.Requests["memory"], expectedRequestsMemory)

@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -28,7 +29,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"github.com/v3io/scaler/pkg/scalertypes"
+	v1 "k8s.io/api/core/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Config struct {
@@ -184,6 +188,44 @@ func (c *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {
 
 func (c *Config) GetFunctionMetricSinks() (map[string]MetricSink, error) {
 	return c.getMetricSinks(c.Metrics.Functions)
+}
+
+func (c *Config) EnrichContainerResources(ctx context.Context,
+	logger logger.Logger,
+	resources *v1.ResourceRequirements) {
+
+	defaultFunctionPodResources := c.Kube.DefaultFunctionPodResources
+
+	logger.DebugWithCtx(ctx,
+		"Populating resources with default values",
+		"defaultFunctionPodResources", defaultFunctionPodResources)
+
+	if resources.Requests == nil {
+		resources.Requests = make(v1.ResourceList)
+
+		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
+			"25m",
+			logger)
+		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
+			"1Mi",
+			logger)
+	}
+	if resources.Limits == nil {
+		resources.Limits = make(v1.ResourceList)
+
+		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
+		if err == nil {
+			resources.Limits["cpu"] = cpuQuantity
+		}
+		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
+		if err == nil {
+			resources.Limits["memory"] = memoryQuantity
+		}
+	}
+
+	logger.DebugWithCtx(ctx,
+		"Populated resources with default values",
+		"resources", resources)
 }
 
 func (c *Config) getMetricSinks(metricSinkNames []string) (map[string]MetricSink, error) {

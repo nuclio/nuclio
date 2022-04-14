@@ -256,6 +256,8 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 		return errors.Wrap(err, "Failed enriching volumes")
 	}
 
+	ap.Config.EnrichContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
+
 	return nil
 }
 
