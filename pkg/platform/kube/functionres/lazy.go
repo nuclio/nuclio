@@ -2456,42 +2456,6 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 	return false, nil
 }
 
-func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, resources *v1.ResourceRequirements) {
-
-	defaultFunctionPodResources := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodResources
-
-	lc.logger.DebugWithCtx(ctx,
-		"Populating resources with default values",
-		"defaultFunctionPodResources", defaultFunctionPodResources)
-
-	if resources.Requests == nil {
-		resources.Requests = make(v1.ResourceList)
-
-		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
-			"25m",
-			lc.logger)
-		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
-			"1Mi",
-			lc.logger)
-	}
-	if resources.Limits == nil {
-		resources.Limits = make(v1.ResourceList)
-
-		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
-		if err == nil {
-			resources.Limits["cpu"] = cpuQuantity
-		}
-		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
-		if err == nil {
-			resources.Limits["memory"] = memoryQuantity
-		}
-	}
-
-	lc.logger.DebugWithCtx(ctx,
-		"Populated resources with default values",
-		"resources", resources)
-}
-
 //
 // Resources
 //

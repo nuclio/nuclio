@@ -20,6 +20,7 @@ package platformconfig
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"testing"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,11 +41,13 @@ type PlatformConfigTestSuite struct {
 	suite.Suite
 	logger logger.Logger
 	reader *Reader
+	ctx    context.Context
 }
 
 func (suite *PlatformConfigTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.reader, _ = NewReader()
+	suite.ctx = context.Background()
 }
 
 func (suite *PlatformConfigTestSuite) TestReadConfiguration() {
@@ -529,6 +533,65 @@ functionAugmentedConfigs:
 	}
 
 	suite.Require().Empty(cmp.Diff(&expectedFunctionAugmentedConfigs, &readConfiguration.FunctionAugmentedConfigs, cmpopts.IgnoreUnexported(Config{})))
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichContainerResources() {
+
+	platformConfig := &Config{
+		Kube: PlatformKubeConfig{
+			DefaultFunctionPodResources: PodResourceRequirements{
+				Requests: ResourceRequirements{
+					CPU:    "25m",
+					Memory: "1Mi",
+				},
+				Limits: ResourceRequirements{
+					CPU:    "2",
+					Memory: "20Gi",
+				},
+			},
+		},
+	}
+
+	// prepare expected resource quantities
+	var err error
+	expectedResources := map[string]apiresource.Quantity{}
+	expectedResources["requestsCPU"], err = apiresource.ParseQuantity("25m")
+	suite.Require().NoError(err)
+	expectedResources["requestsMemory"], err = apiresource.ParseQuantity("1Mi")
+	suite.Require().NoError(err)
+	expectedResources["limitsCPU"], err = apiresource.ParseQuantity("2")
+	suite.Require().NoError(err)
+	expectedResources["limitsMemory"], err = apiresource.ParseQuantity("20Gi")
+	suite.Require().NoError(err)
+
+	resources := corev1.ResourceRequirements{}
+
+	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
+
+	suite.Require().Equal(resources.Requests["cpu"], expectedResources["requestsCPU"])
+	suite.Require().Equal(resources.Requests["memory"], expectedResources["requestsMemory"])
+	suite.Require().Equal(resources.Limits["cpu"], expectedResources["limitsCPU"])
+	suite.Require().Equal(resources.Limits["memory"], expectedResources["limitsMemory"])
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesWithoutDefaults() {
+
+	platformConfig := &Config{}
+
+	// prepare expected resource quantities
+	expectedRequestsCPU, err := apiresource.ParseQuantity("25m")
+	suite.Require().NoError(err)
+	expectedRequestsMemory, err := apiresource.ParseQuantity("1Mi")
+	suite.Require().NoError(err)
+
+	resources := corev1.ResourceRequirements{}
+
+	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
+
+	suite.Require().Equal(resources.Requests["cpu"], expectedRequestsCPU)
+	suite.Require().Equal(resources.Requests["memory"], expectedRequestsMemory)
+	suite.Require().Empty(resources.Limits["cpu"])
+	suite.Require().Empty(resources.Limits["memory"])
 }
 
 func TestRegistryTestSuite(t *testing.T) {

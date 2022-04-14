@@ -202,21 +202,29 @@ func (c *Config) EnrichContainerResources(ctx context.Context,
 
 	if resources.Requests == nil {
 		resources.Requests = make(v1.ResourceList)
+	}
 
+	if resources.Requests["cpu"] == (apiresource.Quantity{}) {
 		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
 			"25m",
 			logger)
+	}
+	if resources.Requests["memory"] == (apiresource.Quantity{}) {
 		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
 			"1Mi",
 			logger)
 	}
+
 	if resources.Limits == nil {
 		resources.Limits = make(v1.ResourceList)
-
+	}
+	if resources.Limits["cpu"] == (apiresource.Quantity{}) {
 		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
 		if err == nil {
 			resources.Limits["cpu"] = cpuQuantity
 		}
+	}
+	if resources.Limits["memory"] == (apiresource.Quantity{}) {
 		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
 		if err == nil {
 			resources.Limits["memory"] = memoryQuantity
