@@ -594,6 +594,90 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesWithoutDefault
 	suite.Require().Empty(resources.Limits["memory"])
 }
 
+func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialEnrichment() {
+
+	platformConfig := &Config{
+		Kube: PlatformKubeConfig{
+			DefaultFunctionPodResources: PodResourceRequirements{
+				Requests: ResourceRequirements{
+					CPU:    "25m",
+					Memory: "1Mi",
+				},
+				Limits: ResourceRequirements{
+					CPU:    "2",
+					Memory: "20Gi",
+				},
+			},
+		},
+	}
+
+	// prepare expected resource quantities
+	var err error
+	expectedResources := map[string]apiresource.Quantity{}
+	expectedResources["requestsCPU"], err = apiresource.ParseQuantity("15m")
+	suite.Require().NoError(err)
+	expectedResources["requestsMemory"], err = apiresource.ParseQuantity("1Mi")
+	suite.Require().NoError(err)
+	expectedResources["limitsCPU"], err = apiresource.ParseQuantity("2")
+	suite.Require().NoError(err)
+	expectedResources["limitsMemory"], err = apiresource.ParseQuantity("15Gi")
+	suite.Require().NoError(err)
+
+	requestedMemoryLimit, err := apiresource.ParseQuantity("15Gi")
+	suite.Require().NoError(err)
+	requestedCPURequest, err := apiresource.ParseQuantity("15m")
+	suite.Require().NoError(err)
+
+	resources := corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			"memory": requestedMemoryLimit,
+		},
+		Requests: corev1.ResourceList{
+			"cpu": requestedCPURequest,
+		},
+	}
+
+	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
+
+	suite.Require().Equal(resources.Requests["cpu"], expectedResources["requestsCPU"])
+	suite.Require().Equal(resources.Requests["memory"], expectedResources["requestsMemory"])
+	suite.Require().Equal(resources.Limits["cpu"], expectedResources["limitsCPU"])
+	suite.Require().Equal(resources.Limits["memory"], expectedResources["limitsMemory"])
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialDefaults() {
+
+	platformConfig := &Config{
+		Kube: PlatformKubeConfig{
+			DefaultFunctionPodResources: PodResourceRequirements{
+				Requests: ResourceRequirements{
+					Memory: "3Mi",
+				},
+				Limits: ResourceRequirements{
+					CPU: "5",
+				},
+			},
+		},
+	}
+
+	// prepare expected resource quantities
+	expectedRequestsCPU, err := apiresource.ParseQuantity("25m")
+	suite.Require().NoError(err)
+	expectedRequestsMemory, err := apiresource.ParseQuantity("3Mi")
+	suite.Require().NoError(err)
+	expectedLimitsCPU, err := apiresource.ParseQuantity("5")
+	suite.Require().NoError(err)
+
+	resources := corev1.ResourceRequirements{}
+
+	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
+
+	suite.Require().Equal(resources.Requests["cpu"], expectedRequestsCPU)
+	suite.Require().Equal(resources.Requests["memory"], expectedRequestsMemory)
+	suite.Require().Equal(resources.Limits["cpu"], expectedLimitsCPU)
+	suite.Require().Empty(resources.Limits["memory"])
+}
+
 func TestRegistryTestSuite(t *testing.T) {
 	suite.Run(t, new(PlatformConfigTestSuite))
 }
