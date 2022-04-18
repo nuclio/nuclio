@@ -31,7 +31,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/scaler/pkg/scalertypes"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -190,6 +190,8 @@ func (c *Config) GetFunctionMetricSinks() (map[string]MetricSink, error) {
 	return c.getMetricSinks(c.Metrics.Functions)
 }
 
+// EnrichContainerResources enriches an object's requests and limits with the default
+// resources defined in the platform config, only if they are not already configured
 func (c *Config) EnrichContainerResources(ctx context.Context,
 	logger logger.Logger,
 	resources *v1.ResourceRequirements) {
@@ -204,12 +206,12 @@ func (c *Config) EnrichContainerResources(ctx context.Context,
 		resources.Requests = make(v1.ResourceList)
 	}
 
-	if resources.Requests["cpu"] == (apiresource.Quantity{}) {
+	if _, exists := resources.Requests["cpu"]; !exists {
 		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
 			"25m",
 			logger)
 	}
-	if resources.Requests["memory"] == (apiresource.Quantity{}) {
+	if _, exists := resources.Requests["memory"]; !exists {
 		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
 			"1Mi",
 			logger)
@@ -218,13 +220,13 @@ func (c *Config) EnrichContainerResources(ctx context.Context,
 	if resources.Limits == nil {
 		resources.Limits = make(v1.ResourceList)
 	}
-	if resources.Limits["cpu"] == (apiresource.Quantity{}) {
+	if _, exists := resources.Limits["cpu"]; !exists {
 		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
 		if err == nil {
 			resources.Limits["cpu"] = cpuQuantity
 		}
 	}
-	if resources.Limits["memory"] == (apiresource.Quantity{}) {
+	if _, exists := resources.Limits["memory"]; !exists {
 		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
 		if err == nil {
 			resources.Limits["memory"] = memoryQuantity

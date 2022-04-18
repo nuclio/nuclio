@@ -553,25 +553,20 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResources() {
 	}
 
 	// prepare expected resource quantities
-	var err error
 	expectedResources := map[string]apiresource.Quantity{}
-	expectedResources["requestsCPU"], err = apiresource.ParseQuantity("25m")
-	suite.Require().NoError(err)
-	expectedResources["requestsMemory"], err = apiresource.ParseQuantity("1Mi")
-	suite.Require().NoError(err)
-	expectedResources["limitsCPU"], err = apiresource.ParseQuantity("2")
-	suite.Require().NoError(err)
-	expectedResources["limitsMemory"], err = apiresource.ParseQuantity("20Gi")
-	suite.Require().NoError(err)
+	expectedResources["requestsCPU"] = apiresource.MustParse("25m")
+	expectedResources["requestsMemory"] = apiresource.MustParse("1Mi")
+	expectedResources["limitsCPU"] = apiresource.MustParse("2")
+	expectedResources["limitsMemory"] = apiresource.MustParse("20Gi")
 
 	resources := corev1.ResourceRequirements{}
 
 	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
 
-	suite.Require().Equal(resources.Requests["cpu"], expectedResources["requestsCPU"])
-	suite.Require().Equal(resources.Requests["memory"], expectedResources["requestsMemory"])
-	suite.Require().Equal(resources.Limits["cpu"], expectedResources["limitsCPU"])
-	suite.Require().Equal(resources.Limits["memory"], expectedResources["limitsMemory"])
+	suite.Require().Equal(expectedResources["requestsCPU"], resources.Requests["cpu"])
+	suite.Require().Equal(expectedResources["requestsMemory"], resources.Requests["memory"])
+	suite.Require().Equal(expectedResources["limitsCPU"], resources.Limits["cpu"])
+	suite.Require().Equal(expectedResources["limitsMemory"], resources.Limits["memory"])
 }
 
 func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesWithoutDefaults() {
@@ -579,17 +574,15 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesWithoutDefault
 	platformConfig := &Config{}
 
 	// prepare expected resource quantities
-	expectedRequestsCPU, err := apiresource.ParseQuantity("25m")
-	suite.Require().NoError(err)
-	expectedRequestsMemory, err := apiresource.ParseQuantity("1Mi")
-	suite.Require().NoError(err)
+	expectedRequestsCPU := apiresource.MustParse("25m")
+	expectedRequestsMemory := apiresource.MustParse("1Mi")
 
 	resources := corev1.ResourceRequirements{}
 
 	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
 
-	suite.Require().Equal(resources.Requests["cpu"], expectedRequestsCPU)
-	suite.Require().Equal(resources.Requests["memory"], expectedRequestsMemory)
+	suite.Require().Equal(expectedRequestsCPU, resources.Requests["cpu"])
+	suite.Require().Equal(expectedRequestsMemory, resources.Requests["memory"])
 	suite.Require().Empty(resources.Limits["cpu"])
 	suite.Require().Empty(resources.Limits["memory"])
 }
@@ -612,21 +605,14 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialEnrichm
 	}
 
 	// prepare expected resource quantities
-	var err error
 	expectedResources := map[string]apiresource.Quantity{}
-	expectedResources["requestsCPU"], err = apiresource.ParseQuantity("15m")
-	suite.Require().NoError(err)
-	expectedResources["requestsMemory"], err = apiresource.ParseQuantity("1Mi")
-	suite.Require().NoError(err)
-	expectedResources["limitsCPU"], err = apiresource.ParseQuantity("2")
-	suite.Require().NoError(err)
-	expectedResources["limitsMemory"], err = apiresource.ParseQuantity("15Gi")
-	suite.Require().NoError(err)
+	expectedResources["requestsCPU"] = apiresource.MustParse("15m")
+	expectedResources["requestsMemory"] = apiresource.MustParse("1Mi")
+	expectedResources["limitsCPU"] = apiresource.MustParse("2")
+	expectedResources["limitsMemory"] = apiresource.MustParse("15Gi")
 
-	requestedMemoryLimit, err := apiresource.ParseQuantity("15Gi")
-	suite.Require().NoError(err)
-	requestedCPURequest, err := apiresource.ParseQuantity("15m")
-	suite.Require().NoError(err)
+	requestedMemoryLimit := apiresource.MustParse("15Gi")
+	requestedCPURequest := apiresource.MustParse("15m")
 
 	resources := corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
@@ -639,10 +625,10 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialEnrichm
 
 	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
 
-	suite.Require().Equal(resources.Requests["cpu"], expectedResources["requestsCPU"])
-	suite.Require().Equal(resources.Requests["memory"], expectedResources["requestsMemory"])
-	suite.Require().Equal(resources.Limits["cpu"], expectedResources["limitsCPU"])
-	suite.Require().Equal(resources.Limits["memory"], expectedResources["limitsMemory"])
+	suite.Require().Equal(expectedResources["requestsCPU"], resources.Requests["cpu"])
+	suite.Require().Equal(expectedResources["requestsMemory"], resources.Requests["memory"])
+	suite.Require().Equal(expectedResources["limitsCPU"], resources.Limits["cpu"])
+	suite.Require().Equal(expectedResources["limitsMemory"], resources.Limits["memory"])
 }
 
 func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialDefaults() {
@@ -661,20 +647,17 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialDefault
 	}
 
 	// prepare expected resource quantities
-	expectedRequestsCPU, err := apiresource.ParseQuantity("25m")
-	suite.Require().NoError(err)
-	expectedRequestsMemory, err := apiresource.ParseQuantity("3Mi")
-	suite.Require().NoError(err)
-	expectedLimitsCPU, err := apiresource.ParseQuantity("5")
-	suite.Require().NoError(err)
+	expectedRequestsCPU := apiresource.MustParse("25m")
+	expectedRequestsMemory := apiresource.MustParse("3Mi")
+	expectedLimitsCPU := apiresource.MustParse("5")
 
 	resources := corev1.ResourceRequirements{}
 
 	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
 
-	suite.Require().Equal(resources.Requests["cpu"], expectedRequestsCPU)
-	suite.Require().Equal(resources.Requests["memory"], expectedRequestsMemory)
-	suite.Require().Equal(resources.Limits["cpu"], expectedLimitsCPU)
+	suite.Require().Equal(expectedRequestsCPU, resources.Requests["cpu"])
+	suite.Require().Equal(expectedRequestsMemory, resources.Requests["memory"])
+	suite.Require().Equal(expectedLimitsCPU, resources.Limits["cpu"])
 	suite.Require().Empty(resources.Limits["memory"])
 }
 
