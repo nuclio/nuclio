@@ -265,6 +265,10 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 	for counter := 0; ; counter++ {
 
+		if deploymentReady && ingressReady {
+			return nil, functionconfig.FunctionStateReady
+		}
+
 		// wait a bit
 		time.Sleep(time.Duration(waitMs) * time.Millisecond)
 
@@ -277,10 +281,6 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		// check if context is still OK
 		if err := ctx.Err(); err != nil {
 			return err, functionconfig.FunctionStateUnhealthy
-		}
-
-		if deploymentReady && ingressReady {
-			return nil, functionconfig.FunctionStateReady
 		}
 
 		// deployment is ready
