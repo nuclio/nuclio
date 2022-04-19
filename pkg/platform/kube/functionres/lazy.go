@@ -266,6 +266,10 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	readinessVerifierTicker := time.NewTicker(time.Duration(waitMs) * time.Millisecond)
 	availableTicker := time.NewTicker(50 * time.Millisecond)
 
+	// cleanup resources once done
+	defer readinessVerifierTicker.Stop()
+	defer availableTicker.Stop()
+
 	for {
 		select {
 
