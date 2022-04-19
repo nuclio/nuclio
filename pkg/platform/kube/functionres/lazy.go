@@ -325,8 +325,6 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 			// check deployment readiness
 			if !deploymentReady {
-
-				// TODO: log waiting for function deployment readiness
 				err, functionState := lc.waitFunctionDeploymentReadiness(ctx,
 					function,
 					functionResourcesCreateOrUpdateTimestamp)
