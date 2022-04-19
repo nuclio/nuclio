@@ -261,101 +261,116 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	var ingressReady bool
 	var timeDeploymentReady time.Time
 
+	counter := 0
 	waitMs := 250
+	readinessVerifierTicker := time.NewTicker(time.Duration(waitMs) * time.Millisecond)
+	availableTicker := time.NewTicker(50 * time.Millisecond)
 
-	for counter := 0; ; counter++ {
-
-		// wait a bit
-		time.Sleep(time.Duration(waitMs) * time.Millisecond)
-
-		// exponentially wait more next time, up to 2 seconds
-		waitMs *= 2
-		if waitMs > 2000 {
-			waitMs = 2000
-		}
+	for {
+		select {
 
 		// check if context is still OK
-		if err := ctx.Err(); err != nil {
-			return err, functionconfig.FunctionStateUnhealthy
-		}
-
-		if deploymentReady && ingressReady {
-			return nil, functionconfig.FunctionStateReady
-		}
-
-		// deployment is ready
-		// ingress is not yet (being too slow I guess, marking as unhealthy)
-		// give ingress a minute to be ready
-		// apply fail-fast when user did not ask to wait the full timeout
-		if deploymentReady &&
-			!ingressReady &&
-			time.Since(timeDeploymentReady) >= time.Minute &&
-			!function.Spec.WaitReadinessTimeoutBeforeFailure {
+		case <-ctx.Done():
 			lc.logger.WarnWithCtx(ctx,
-				"Function deployment is ready while ingress is not yet, stop waiting",
+				"Function available wait is cancelled due to context timeout",
+				"err", ctx.Err(),
 				"namespace", function.Namespace,
-				"name", function.Name)
-			return errors.New("Function deployment is ready while ingress is not"), functionconfig.FunctionStateUnhealthy
+				"functionName", function.Name)
+			return ctx.Err(), functionconfig.FunctionStateUnhealthy
 
-		}
+		// verify availability
+		case <-availableTicker.C:
+			if deploymentReady && ingressReady {
+				return nil, functionconfig.FunctionStateReady
+			}
 
-		if !deploymentReady {
+		// verify function resources readiness
+		case <-readinessVerifierTicker.C:
+			counter++
 
-			// TODO: log waiting for function deployment readiness
-			err, functionState := lc.waitFunctionDeploymentReadiness(ctx, function, functionResourcesCreateOrUpdateTimestamp)
-			if err == nil {
-				deploymentReady = true
-				timeDeploymentReady = time.Now()
-				lc.logger.DebugWithCtx(ctx,
-					"Function deployment is ready",
+			// exponentially wait more next time, up to 2 seconds
+			waitMs *= 2
+			if waitMs > 2000 {
+				waitMs = 2000
+			}
+			readinessVerifierTicker.Reset(time.Duration(waitMs) * time.Millisecond)
+
+			// deployment is ready
+			// ingress is not yet (being too slow I guess, marking as unhealthy)
+			// give ingress a minute to be ready
+			// apply fail-fast when user did not ask to wait the full timeout
+			if deploymentReady &&
+				!ingressReady &&
+				time.Since(timeDeploymentReady) >= time.Minute &&
+				!function.Spec.WaitReadinessTimeoutBeforeFailure {
+				lc.logger.WarnWithCtx(ctx,
+					"Function deployment is ready while ingress is not yet, stop waiting",
 					"namespace", function.Namespace,
 					"name", function.Name)
-				continue
+				return errors.New("Function deployment is ready while ingress is not"), functionconfig.FunctionStateUnhealthy
+
 			}
 
-			// HACK - we return with empty function state to indicate a possibly transient error
-			if functionState == "" {
+			// check deployment readiness
+			if !deploymentReady {
 
-				// to avoid spamming the output
-				if counter == 0 || counter%5 == 0 {
-					lc.logger.WarnWithCtx(ctx,
-						"Failed to wait for function deployment readiness (probably a transient error)",
-						"err", err.Error(),
+				// TODO: log waiting for function deployment readiness
+				err, functionState := lc.waitFunctionDeploymentReadiness(ctx, function, functionResourcesCreateOrUpdateTimestamp)
+				if err == nil {
+					deploymentReady = true
+					timeDeploymentReady = time.Now()
+					lc.logger.DebugWithCtx(ctx,
+						"Function deployment is ready",
 						"namespace", function.Namespace,
 						"name", function.Name)
+					continue
 				}
 
-				continue
+				// HACK - we return with empty function state to indicate a possibly transient error
+				if functionState == "" {
+
+					// to avoid spamming the output
+					if counter == 0 || counter%5 == 0 {
+						lc.logger.WarnWithCtx(ctx,
+							"Failed to wait for function deployment readiness (probably a transient error)",
+							"err", err.Error(),
+							"namespace", function.Namespace,
+							"name", function.Name)
+					}
+
+					continue
+				}
+
+				return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
 			}
 
-			return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
-		}
+			// check ingress readiness
+			if !ingressReady {
 
-		if !ingressReady {
+				// if function have no ingress, assume ready and bail ingress readiness
+				if len(functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))) == 0 {
+					ingressReady = true
+					continue
+				}
 
-			// if function have no ingress, assume ready and bail ingress readiness
-			if len(functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))) == 0 {
+				if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
+
+					// to avoid spamming the output
+					if counter == 0 || counter%5 == 0 {
+						lc.logger.WarnWithCtx(ctx,
+							"Function ingress is not ready yet, continuing",
+							"err", err.Error(),
+							"namespace", function.Namespace,
+							"name", function.Name)
+					}
+					continue
+				}
+				lc.logger.DebugWithCtx(ctx,
+					"Function ingress is ready",
+					"namespace", function.Namespace,
+					"name", function.Name)
 				ingressReady = true
-				continue
 			}
-
-			if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
-
-				// to avoid spamming the output
-				if counter == 0 || counter%5 == 0 {
-					lc.logger.WarnWithCtx(ctx,
-						"Function ingress is not ready yet, continuing",
-						"err", err.Error(),
-						"namespace", function.Namespace,
-						"name", function.Name)
-				}
-				continue
-			}
-			lc.logger.DebugWithCtx(ctx,
-				"Function ingress is ready",
-				"namespace", function.Namespace,
-				"name", function.Name)
-			ingressReady = true
 		}
 	}
 }
