@@ -151,11 +151,6 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 		return nil
 	}
 
-	fm.logger.DebugWithCtx(ctx,
-		"Getting function deployment function",
-		"functionName", function.Name,
-		"functionNamespace", function.Namespace)
-
 	functionDeployment, err := fm.kubeClientSet.
 		AppsV1().
 		Deployments(function.Namespace).

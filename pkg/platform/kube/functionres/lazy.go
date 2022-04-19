@@ -271,6 +271,18 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 		// check if context is still OK
 		case <-ctx.Done():
+
+			// for an edge-case where context exceeded deadline/cancelled right when resources got ready
+			if deploymentReady && ingressReady {
+
+				lc.logger.DebugWithCtx(ctx,
+					"Function reached availability right when context is cancelled",
+					"err", ctx.Err(),
+					"namespace", function.Namespace,
+					"functionName", function.Name)
+				return nil, functionconfig.FunctionStateReady
+			}
+
 			lc.logger.WarnWithCtx(ctx,
 				"Function available wait is cancelled due to context timeout",
 				"err", ctx.Err(),
@@ -328,16 +340,11 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 				// HACK - we return with empty function state to indicate a possibly transient error
 				if functionState == "" {
-
-					// to avoid spamming the output
-					if counter == 0 || counter%5 == 0 {
-						lc.logger.WarnWithCtx(ctx,
-							"Failed to wait for function deployment readiness (probably a transient error)",
-							"err", err.Error(),
-							"namespace", function.Namespace,
-							"name", function.Name)
-					}
-
+					lc.logger.WarnWithCtx(ctx,
+						"Failed to wait for function deployment readiness (probably a transient error)",
+						"err", err.Error(),
+						"namespace", function.Namespace,
+						"name", function.Name)
 					continue
 				}
 
@@ -354,15 +361,11 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				}
 
 				if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
-
-					// to avoid spamming the output
-					if counter == 0 || counter%5 == 0 {
-						lc.logger.WarnWithCtx(ctx,
-							"Function ingress is not ready yet, continuing",
-							"err", err.Error(),
-							"namespace", function.Namespace,
-							"name", function.Name)
-					}
+					lc.logger.WarnWithCtx(ctx,
+						"Function ingress is not ready yet, continuing",
+						"err", err.Error(),
+						"namespace", function.Namespace,
+						"name", function.Name)
 					continue
 				}
 				lc.logger.DebugWithCtx(ctx,
@@ -475,13 +478,16 @@ func (lc *lazyClient) waitFunctionIngressReadiness(ctx context.Context,
 
 	for _, ingress := range functionIngresses.Status.LoadBalancer.Ingress {
 		if ingress.IP != "" || ingress.Hostname != "" {
-			lc.logger.DebugWithCtx(ctx, "Found at least one configured ingress, assuming ingress is ready")
+			lc.logger.DebugWithCtx(ctx,
+				"Found at least one populated ingress, ingress is ready",
+				"functionName", function.Name,
+				"functionNamespace", function.Namespace,
+				"ingress", ingress)
 			return nil
 		}
 	}
 
 	return errors.New("Function ingress is not ready yet")
-
 }
 
 func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
