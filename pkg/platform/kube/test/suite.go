@@ -385,7 +385,7 @@ func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 }
 
 func (suite *KubeTestSuite) RolloutRestartDeployment(deploymentName string) error {
-	positionalArgs := []string{"rollout", "restart", deploymentName}
+	positionalArgs := []string{"rollout", "restart", "deployment", deploymentName}
 	_, err := suite.executeKubectl(positionalArgs, nil)
 	return err
 }
