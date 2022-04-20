@@ -272,6 +272,12 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 
 		})
 
+		// forcefully rollout the deployment to trigger a deployment spec change
+		// it is observed that sometime it takes longer for the deployment to learn that the resource quota
+		// is gone and there is no restriction to spin new pods.
+		err := suite.RolloutRestartDeployment(kube.DeploymentNameFromFunctionName(functionName))
+		suite.Require().NoError(err, "Failed to rollout restart function deployment")
+
 		// wait for function pods to run, meaning its deployment is available
 		suite.WaitForFunctionPods(functionName, time.Minute, func(pods []v1.Pod) bool {
 			suite.Logger.InfoWithCtx(suite.Ctx,
@@ -293,23 +299,19 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		// log function deployment statuses while waiting for function state
 		showFunctionDeploymentStatusChan := make(chan struct{})
 		go func() {
+			getFunctionDeploymentsTicket := time.NewTicker(10 * time.Second)
+			defer getFunctionDeploymentsTicket.Stop()
 			for {
 				select {
-				case <-time.After(5 * time.Second):
-					deployment, err := suite.KubeClientSet.
-						AppsV1().
-						Deployments(suite.Namespace).
-						Get(suite.Ctx, kube.DeploymentNameFromFunctionName(functionName), metav1.GetOptions{})
-					if err != nil {
-						suite.Logger.WarnWithCtx(suite.Ctx,
-							"Failed to get function deployment, retrying...",
-							"err", err.Error())
-						continue
-					}
+				case <-getFunctionDeploymentsTicket.C:
+					pods := suite.GetFunctionPods(functionName)
+					deployment := suite.GetFunctionDeployment(functionName)
 					suite.Logger.DebugWithCtx(suite.Ctx,
 						"Received function deployment",
 						"functionDeploymentStatus", deployment.Status)
-					break
+					suite.Logger.DebugWithCtx(suite.Ctx,
+						"Received function pods",
+						"pods", pods)
 				case <-showFunctionDeploymentStatusChan:
 					return
 				}

@@ -352,6 +352,9 @@ func (suite *KubeTestSuite) GetFunctionIngress(functionName string) *networkingv
 }
 
 func (suite *KubeTestSuite) WithResourceQuota(rq *v1.ResourceQuota, handler func()) {
+
+	suite.Logger.DebugWithCtx(suite.Ctx, "Creating resource quota", "name", rq.Name)
+
 	// limit running pod on a node
 	resourceQuota, err := suite.KubeClientSet.
 		CoreV1().
@@ -360,10 +363,14 @@ func (suite *KubeTestSuite) WithResourceQuota(rq *v1.ResourceQuota, handler func
 	suite.Require().NoError(err)
 
 	// clean leftovers
-	defer suite.KubeClientSet.
-		CoreV1().
-		ResourceQuotas(suite.Namespace).
-		Delete(suite.Ctx, resourceQuota.Name, metav1.DeleteOptions{}) // nolint: errcheck
+	defer func() {
+		suite.Logger.DebugWithCtx(suite.Ctx, "Deleting resource quota", "name", resourceQuota.Name)
+		err = suite.KubeClientSet.
+			CoreV1().
+			ResourceQuotas(suite.Namespace).
+			Delete(suite.Ctx, resourceQuota.Name, metav1.DeleteOptions{}) // nolint: errcheck
+		suite.Require().NoError(err)
+	}()
 
 	handler()
 }
@@ -375,6 +382,12 @@ func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 
 	suite.Require().NoError(err, "Failed to list function pods")
 	return pods.Items
+}
+
+func (suite *KubeTestSuite) RolloutRestartDeployment(deploymentName string) error {
+	positionalArgs := []string{"rollout", "restart", deploymentName}
+	_, err := suite.executeKubectl(positionalArgs, nil)
+	return err
 }
 
 func (suite *KubeTestSuite) DrainNode(nodeName string, ignoreDaemonSet bool) error {
