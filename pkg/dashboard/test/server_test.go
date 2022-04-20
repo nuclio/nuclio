@@ -3431,7 +3431,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                 },
                 "build": {},
                 "platform": {},
-                "readinessTimeoutSeconds": 60,
+                "readinessTimeoutSeconds": 120,
                 "eventTimeout": ""
             }
         }
