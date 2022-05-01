@@ -261,101 +261,125 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	var ingressReady bool
 	var timeDeploymentReady time.Time
 
+	counter := 0
 	waitMs := 250
+	readinessVerifierTicker := time.NewTicker(time.Duration(waitMs) * time.Millisecond)
+	availableTicker := time.NewTicker(50 * time.Millisecond)
 
-	for counter := 0; ; counter++ {
+	// cleanup resources once done
+	defer readinessVerifierTicker.Stop()
+	defer availableTicker.Stop()
 
-		// wait a bit
-		time.Sleep(time.Duration(waitMs) * time.Millisecond)
-
-		// exponentially wait more next time, up to 2 seconds
-		waitMs *= 2
-		if waitMs > 2000 {
-			waitMs = 2000
-		}
+	for {
+		select {
 
 		// check if context is still OK
-		if err := ctx.Err(); err != nil {
-			return err, functionconfig.FunctionStateUnhealthy
-		}
+		case <-ctx.Done():
 
-		if deploymentReady && ingressReady {
-			return nil, functionconfig.FunctionStateReady
-		}
+			// for an edge-case where context exceeded deadline/cancelled right when resources got ready
+			if deploymentReady && ingressReady {
 
-		// deployment is ready
-		// ingress is not yet (being too slow I guess, marking as unhealthy)
-		// give ingress a minute to be ready
-		// apply fail-fast when user did not ask to wait the full timeout
-		if deploymentReady &&
-			!ingressReady &&
-			time.Since(timeDeploymentReady) >= time.Minute &&
-			!function.Spec.WaitReadinessTimeoutBeforeFailure {
-			lc.logger.WarnWithCtx(ctx,
-				"Function deployment is ready while ingress is not yet, stop waiting",
-				"namespace", function.Namespace,
-				"name", function.Name)
-			return errors.New("Function deployment is ready while ingress is not"), functionconfig.FunctionStateUnhealthy
-
-		}
-
-		if !deploymentReady {
-
-			// TODO: log waiting for function deployment readiness
-			err, functionState := lc.waitFunctionDeploymentReadiness(ctx, function, functionResourcesCreateOrUpdateTimestamp)
-			if err == nil {
-				deploymentReady = true
-				timeDeploymentReady = time.Now()
 				lc.logger.DebugWithCtx(ctx,
-					"Function deployment is ready",
+					"Function reached availability right when context is cancelled",
+					"err", ctx.Err(),
+					"namespace", function.Namespace,
+					"functionName", function.Name)
+				return nil, functionconfig.FunctionStateReady
+			}
+
+			lc.logger.WarnWithCtx(ctx,
+				"Function available wait is cancelled due to context timeout",
+				"err", ctx.Err(),
+				"namespace", function.Namespace,
+				"functionName", function.Name)
+			return ctx.Err(), functionconfig.FunctionStateUnhealthy
+
+		// verify availability
+		case <-availableTicker.C:
+			if deploymentReady && ingressReady {
+				return nil, functionconfig.FunctionStateReady
+			}
+
+		// verify function resources readiness
+		case <-readinessVerifierTicker.C:
+			counter++
+
+			// exponentially wait more next time, up to 2 seconds
+			waitMs *= 2
+			if waitMs > 2000 {
+				waitMs = 2000
+			}
+			readinessVerifierTicker.Reset(time.Duration(waitMs) * time.Millisecond)
+
+			// deployment is ready
+			// ingress is not yet (being too slow I guess, marking as unhealthy)
+			// give ingress a minute to be ready
+			// apply fail-fast when user did not ask to wait the full timeout
+			if deploymentReady &&
+				!ingressReady &&
+				time.Since(timeDeploymentReady) >= time.Minute &&
+				!function.Spec.WaitReadinessTimeoutBeforeFailure {
+				lc.logger.WarnWithCtx(ctx,
+					"Function deployment is ready while ingress is not yet, stop waiting",
 					"namespace", function.Namespace,
 					"name", function.Name)
-				continue
+				return errors.New("Function deployment is ready while ingress is not"), functionconfig.FunctionStateUnhealthy
+
 			}
 
-			// HACK - we return with empty function state to indicate a possibly transient error
-			if functionState == "" {
-
-				// to avoid spamming the output
-				if counter == 0 || counter%5 == 0 {
-					lc.logger.WarnWithCtx(ctx,
-						"Failed to wait for function deployment readiness (probably a transient error)",
-						"err", err.Error(),
+			// check deployment readiness
+			if !deploymentReady {
+				err, functionState := lc.waitFunctionDeploymentReadiness(ctx,
+					function,
+					functionResourcesCreateOrUpdateTimestamp)
+				if err == nil {
+					deploymentReady = true
+					timeDeploymentReady = time.Now()
+					lc.logger.DebugWithCtx(ctx,
+						"Function deployment is ready",
 						"namespace", function.Namespace,
 						"name", function.Name)
+					continue
 				}
 
-				continue
+				// HACK - we return with empty function state to indicate a possibly transient error
+				if functionState == "" {
+					if counter == 1 || counter%5 == 0 {
+						lc.logger.WarnWithCtx(ctx,
+							"Failed to wait for function deployment readiness (probably a transient error)",
+							"err", err.Error(),
+							"namespace", function.Namespace,
+							"name", function.Name)
+					}
+					continue
+				}
+
+				return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
 			}
 
-			return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
-		}
+			// check ingress readiness
+			if !ingressReady {
 
-		if !ingressReady {
+				// if function have no ingress, assume ready and bail ingress readiness
+				if len(functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))) == 0 {
+					ingressReady = true
+					continue
+				}
 
-			// if function have no ingress, assume ready and bail ingress readiness
-			if len(functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))) == 0 {
-				ingressReady = true
-				continue
-			}
-
-			if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
-
-				// to avoid spamming the output
-				if counter == 0 || counter%5 == 0 {
+				if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
 					lc.logger.WarnWithCtx(ctx,
 						"Function ingress is not ready yet, continuing",
 						"err", err.Error(),
 						"namespace", function.Namespace,
 						"name", function.Name)
+					continue
 				}
-				continue
+				lc.logger.DebugWithCtx(ctx,
+					"Function ingress is ready",
+					"namespace", function.Namespace,
+					"name", function.Name)
+				ingressReady = true
 			}
-			lc.logger.DebugWithCtx(ctx,
-				"Function ingress is ready",
-				"namespace", function.Namespace,
-				"name", function.Name)
-			ingressReady = true
 		}
 	}
 }
@@ -460,13 +484,16 @@ func (lc *lazyClient) waitFunctionIngressReadiness(ctx context.Context,
 
 	for _, ingress := range functionIngresses.Status.LoadBalancer.Ingress {
 		if ingress.IP != "" || ingress.Hostname != "" {
-			lc.logger.DebugWithCtx(ctx, "Found at least one configured ingress, assuming ingress is ready")
+			lc.logger.DebugWithCtx(ctx,
+				"Found at least one populated ingress, ingress is ready",
+				"functionName", function.Name,
+				"functionNamespace", function.Namespace,
+				"ingress", ingress)
 			return nil
 		}
 	}
 
 	return errors.New("Function ingress is not ready yet")
-
 }
 
 func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
@@ -1811,7 +1838,9 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		},
 	}
 
-	lc.populateDefaultContainerResources(ctx, &spec.JobTemplate.Spec.Template.Spec.Containers[0])
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+		lc.logger,
+		&spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources)
 
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1.ForbidConcurrent
@@ -2014,7 +2043,10 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
-	lc.populateDefaultContainerResources(ctx, container)
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+		lc.logger,
+		&container.Resources)
+
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
 		{
@@ -2449,42 +2481,6 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 		}
 	}
 	return false, nil
-}
-
-func (lc *lazyClient) populateDefaultContainerResources(ctx context.Context, container *v1.Container) {
-
-	defaultFunctionPodResources := lc.platformConfigurationProvider.GetPlatformConfiguration().Kube.DefaultFunctionPodResources
-
-	lc.logger.DebugWithCtx(ctx,
-		"Populating container resources with default values",
-		"defaultFunctionPodResources", defaultFunctionPodResources)
-
-	if container.Resources.Requests == nil {
-		container.Resources.Requests = make(v1.ResourceList)
-
-		container.Resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
-			"25m",
-			lc.logger)
-		container.Resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
-			"1Mi",
-			lc.logger)
-	}
-	if container.Resources.Limits == nil {
-		container.Resources.Limits = make(v1.ResourceList)
-
-		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
-		if err == nil {
-			container.Resources.Limits["cpu"] = cpuQuantity
-		}
-		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
-		if err == nil {
-			container.Resources.Limits["memory"] = memoryQuantity
-		}
-	}
-
-	lc.logger.DebugWithCtx(ctx,
-		"Populated container resources with default values",
-		"containerResources", container.Resources)
 }
 
 //

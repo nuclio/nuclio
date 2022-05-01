@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -28,7 +29,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"github.com/v3io/scaler/pkg/scalertypes"
+	"k8s.io/api/core/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Config struct {
@@ -184,6 +188,54 @@ func (c *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {
 
 func (c *Config) GetFunctionMetricSinks() (map[string]MetricSink, error) {
 	return c.getMetricSinks(c.Metrics.Functions)
+}
+
+// EnrichContainerResources enriches an object's requests and limits with the default
+// resources defined in the platform config, only if they are not already configured
+func (c *Config) EnrichContainerResources(ctx context.Context,
+	logger logger.Logger,
+	resources *v1.ResourceRequirements) {
+
+	defaultFunctionPodResources := c.Kube.DefaultFunctionPodResources
+
+	logger.DebugWithCtx(ctx,
+		"Populating resources with default values",
+		"defaultFunctionPodResources", defaultFunctionPodResources)
+
+	if resources.Requests == nil {
+		resources.Requests = make(v1.ResourceList)
+	}
+
+	if _, exists := resources.Requests["cpu"]; !exists {
+		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
+			"25m",
+			logger)
+	}
+	if _, exists := resources.Requests["memory"]; !exists {
+		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
+			"1Mi",
+			logger)
+	}
+
+	if resources.Limits == nil {
+		resources.Limits = make(v1.ResourceList)
+	}
+	if _, exists := resources.Limits["cpu"]; !exists {
+		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
+		if err == nil {
+			resources.Limits["cpu"] = cpuQuantity
+		}
+	}
+	if _, exists := resources.Limits["memory"]; !exists {
+		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
+		if err == nil {
+			resources.Limits["memory"] = memoryQuantity
+		}
+	}
+
+	logger.DebugWithCtx(ctx,
+		"Populated resources with default values",
+		"resources", resources)
 }
 
 func (c *Config) getMetricSinks(metricSinkNames []string) (map[string]MetricSink, error) {
