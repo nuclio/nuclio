@@ -388,7 +388,8 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 			Jobs(namespace).
 			Get(context.Background(), jobName, metav1.GetOptions{})
 		if err != nil {
-			return errors.Wrap(err, "Failed to poll kaniko job status")
+			k.logger.WarnWith("Failed to poll kaniko job status", "err", err.Error())
+			continue
 		}
 
 		if runningJob.Status.Succeeded > 0 {
