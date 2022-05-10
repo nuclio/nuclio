@@ -238,13 +238,13 @@ const (
 )
 
 type PodResourceRequirements struct {
-	Requests ResourceRequirements
-	Limits   ResourceRequirements
+	Requests ResourceRequirements `json:"requests,omitempty"`
+	Limits   ResourceRequirements `json:"limits,omitempty"`
 }
 
 type ResourceRequirements struct {
-	CPU    string
-	Memory string
+	CPU    string `json:"cpu,omitempty"`
+	Memory string `json:"memory,omitempty"`
 }
 
 const (
