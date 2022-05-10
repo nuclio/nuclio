@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Run [dev]" type="js.build_tools.npm">
+    <package-json value="$PROJECT_DIR$/pkg/dashboard/ui/package.json" />
+    <command value="run" />
+    <scripts>
+      <script value="run-dev" />
+    </scripts>
+    <node-interpreter value="project" />
+    <envs />
+    <method v="2" />
+  </configuration>
+</component>
