@@ -3439,7 +3439,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
     "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
     "defaultFunctionPodResources": {
         "requests": {},
-		"limits": {}
+        "limits": {}
     },
     "externalIPAddresses": [
         "address1",
