@@ -28,6 +28,7 @@
                         lodash.assign(ConfigService.nuclio, {
                             allowedAuthenticationModes: lodash.get(response, 'allowedAuthenticationModes', []),
                             defaultFunctionConfig: lodash.get(response, 'defaultFunctionConfig', {}),
+                            defaultFunctionPodResources: lodash.get(response, 'defaultFunctionPodResources', {}),
                             externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
                             imageNamePrefixTemplate: lodash.get(response, 'imageNamePrefixTemplate', ''),
                             ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', ''),
