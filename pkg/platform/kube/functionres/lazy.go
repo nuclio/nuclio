@@ -336,11 +336,13 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				// HACK - we return with empty function state to indicate a possibly transient error
 				if functionState == "" {
 					if counter == 1 || counter%5 == 0 {
-						lc.logger.WarnWithCtx(ctx,
-							"Failed to wait for function deployment readiness (probably a transient error)",
-							"err", err.Error(),
-							"namespace", function.Namespace,
-							"name", function.Name)
+						if err != nil {
+							lc.logger.WarnWithCtx(ctx,
+								"Failed to wait for function deployment readiness (probably a transient error)",
+								"err", err.Error(),
+								"namespace", function.Namespace,
+								"name", function.Name)
+						}
 					}
 					continue
 				}
