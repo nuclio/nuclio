@@ -59,11 +59,11 @@ require (
 	google.golang.org/grpc v1.36.1
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.21.8
-	k8s.io/apimachinery v0.21.8
-	k8s.io/client-go v0.21.8
-	k8s.io/code-generator v0.21.8
-	k8s.io/metrics v0.21.8
+	k8s.io/api v0.21.12
+	k8s.io/apimachinery v0.21.12
+	k8s.io/client-go v0.21.12
+	k8s.io/code-generator v0.21.12
+	k8s.io/metrics v0.21.12
 )
 
 require (
@@ -172,8 +172,8 @@ require (
 	k8s.io/gengo v0.0.0-20201214224949-b6c5ce23f027 // indirect
 	k8s.io/klog/v2 v2.9.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20211110012726-3cc51fd1e909 // indirect
-	k8s.io/utils v0.0.0-20210521133846-da695404a2bc // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
+	k8s.io/utils v0.0.0-20211116205334-6203023598ed // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 	zombiezen.com/go/capnproto2 v2.17.0+incompatible // indirect
 )
