@@ -33,6 +33,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/api/core/v1"
 )
 
@@ -69,7 +70,8 @@ func (suite *testSuite) SetupSuite() {
 
 	time.Sleep(10 * time.Second)
 
-	conn, err := grpc.Dial(suite.brokerURL, grpc.WithInsecure()) // local address, insecure
+	// local address, insecure
+	conn, err := grpc.Dial(suite.brokerURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	suite.Require().NoError(err)
 
 	// pubsub client
