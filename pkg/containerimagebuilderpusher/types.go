@@ -60,11 +60,11 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 	}
 	if containerBuilderConfiguration.BusyBoxImage == "" {
 		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_BUSYBOX_CONTAINER_IMAGE",
-			"busybox:1.31")
+			"busybox:stable")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
-			"gcr.io/kaniko-project/executor:v1.7.0")
+			"gcr.io/kaniko-project/executor:v1.8.1")
 	}
 	if containerBuilderConfiguration.KanikoImagePullPolicy == "" {
 		containerBuilderConfiguration.KanikoImagePullPolicy = common.GetEnvOrDefaultString(

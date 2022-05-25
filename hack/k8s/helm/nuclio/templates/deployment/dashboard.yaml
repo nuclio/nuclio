@@ -95,7 +95,7 @@ spec:
         - name: NUCLIO_BUSYBOX_CONTAINER_IMAGE
           value: {{ .Values.dashboard.kaniko.initContainerImage.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.tag}}
         - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
-          value: {{ .Values.dashboard.kaniko.pushImagesRestries | quote }}
+          value: {{ .Values.dashboard.kaniko.pushImagesRetries | quote }}
         - name: NUCLIO_AUTH_KIND
           value: {{ .Values.dashboard.authConfig.kind }}
         - name: NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT
