@@ -67,7 +67,8 @@ RUN apk --update --no-cache add ca-certificates git parallel curl \
     && curl -L $DOCKER_CLI_DOWNLOAD_URL | tar -xz -C /tmp/download \
     && mv /tmp/download/docker/docker /usr/local/bin/ \
     && rm -rf /tmp/download \
-    && apk del curl
+    && apk del curl \
+    && apk upgrade --no-cache
 
 # copy runners
 COPY cmd/dashboard/docker/runners /runners

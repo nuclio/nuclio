@@ -135,13 +135,13 @@ dashboard:
 
     initContainerImage:
       repository: busybox
-      tag: 1.31
+      tag: stable
 
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m
 
     # How many times to retry pushing images to registry
-    pushImagesRestries: 3
+    pushImagesRetries: 3
 
   # Uncomment to configure node port
   # nodePort: 32050

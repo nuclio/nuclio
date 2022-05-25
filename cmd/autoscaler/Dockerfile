@@ -35,7 +35,8 @@ RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
 
 FROM $ALPINE_IMAGE
 
-RUN apk add --no-cache ca-certificates
+RUN apk upgrade --no-cache \
+    && apk add --no-cache ca-certificates
 
 # copy autoscaler binary from build stage
 COPY --from=build-autoscaler /nuclio/autoscaler /usr/local/bin
