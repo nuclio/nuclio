@@ -41,6 +41,8 @@ spec:
         checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.dashboard.securityContext | nindent 8 }}
       containers:
       - name: {{ template "nuclio.dashboardName" . }}
         image: {{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}

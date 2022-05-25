@@ -19,6 +19,11 @@ controller:
   ##
   nodeSelector: {}
 
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
+
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
   #  - key: "key"
@@ -77,6 +82,11 @@ dashboard:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -254,6 +264,11 @@ autoscaler:
   ##
   nodeSelector: {}
 
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: { }
+
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
   #  - key: "key"
@@ -282,6 +297,11 @@ dlx:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: { }
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
