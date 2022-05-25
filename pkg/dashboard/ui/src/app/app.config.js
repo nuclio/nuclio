@@ -27,7 +27,8 @@
                 inactivityWindowPresets: null,
                 mode: 'disabled',
                 scaleResources: null
-            }
+            },
+            validFunctionPriorityClassNames: null
         },
         screenAutoRefreshIntervals: {
             apiGateways: 30000
