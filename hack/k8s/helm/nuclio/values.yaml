@@ -86,7 +86,8 @@ dashboard:
   ## Deployment security context
   ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   ##
-  securityContext: {}
+  securityContext:
+    runAsUser: 1001
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []

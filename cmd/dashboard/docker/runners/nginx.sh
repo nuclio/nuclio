@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 
 echo "Starting nginx"
-/usr/sbin/nginx -g "daemon off;" &> /var/log/nginx/logs.log
+/usr/sbin/nginx -g "daemon off;" &> /tmp/nginx-logs.log

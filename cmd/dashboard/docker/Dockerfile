@@ -18,6 +18,7 @@
 ARG NGINX_IMAGE=nginx
 ARG NUCLIO_LABEL
 ARG UHTTPC_ARCH=amd64
+ARG NUCLIO_DOCKER_ALPINE_IMAGE
 
 FROM gcr.io/iguazio/node:10.21.0 as build-static
 
@@ -55,27 +56,23 @@ FROM gcr.io/iguazio/uhttpc:0.0.1-$UHTTPC_ARCH AS uhttpc
 # Output stage: Creates version file, copies binary and assets to an alpine image
 #
 
-FROM $NGINX_IMAGE
+FROM $NUCLIO_DOCKER_ALPINE_IMAGE as downloaddocker
 
 # docker client
 ARG DOCKER_CLI_ARCH=x86_64
 ARG DOCKER_CLI_VERSION="19.03.14"
 ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
-RUN apk --update --no-cache add ca-certificates git parallel curl \
+RUN apk --update --no-cache add curl \
     && mkdir -p /tmp/download \
-    && curl -L $DOCKER_CLI_DOWNLOAD_URL | tar -xz -C /tmp/download \
-    && mv /tmp/download/docker/docker /usr/local/bin/ \
-    && rm -rf /tmp/download \
-    && apk del curl \
-    && apk upgrade --no-cache
+    && curl -L $DOCKER_CLI_DOWNLOAD_URL | tar -xz -C /tmp/download
+
+
+FROM $NGINX_IMAGE
 
 # copy runners
 COPY cmd/dashboard/docker/runners /runners
 COPY cmd/dashboard/docker/runner.sh /runner.sh
-
-# make them executable
-RUN chmod +x /runners/*.sh /runner.sh
 
 # copy nginx config
 COPY cmd/dashboard/docker/nginx.conf /etc/nginx/conf.d/default.conf
@@ -88,6 +85,15 @@ COPY --from=build-binary /nuclio/dashboard /usr/local/bin
 
 # copy a lightweight http client
 COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# copy docker client
+COPY --from=downloaddocker /tmp/download/docker/docker /usr/local/bin
+
+USER root
+
+RUN apk --update --no-cache add parallel
+
+USER 1001
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
