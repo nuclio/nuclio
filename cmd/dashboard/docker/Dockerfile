@@ -90,7 +90,11 @@ COPY cmd/dashboard/docker/runner.sh /runner.sh
 COPY cmd/dashboard/docker/default.conf /etc/nginx/conf.d/default.conf
 COPY cmd/dashboard/docker/nginx.conf /etc/nginx/nginx.conf
 
-RUN apk --update --no-cache add parallel
+RUN apk --update --no-cache add \
+        parallel \
+        ca-certificates \
+        git \
+    && apk upgrade --no-cache
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
