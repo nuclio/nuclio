@@ -242,7 +242,7 @@ ifeq ($(NUCLIO_ARCH), armhf)
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.21.5-alpine
 else
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx-unprivileged:1.21-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.21.6-alpine
 endif
 
 dashboard: ensure-gopath build-base

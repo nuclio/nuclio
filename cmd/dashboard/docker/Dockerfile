@@ -70,13 +70,6 @@ RUN apk --update --no-cache add curl \
 
 FROM $NGINX_IMAGE
 
-# copy runners
-COPY cmd/dashboard/docker/runners /runners
-COPY cmd/dashboard/docker/runner.sh /runner.sh
-
-# copy nginx config
-COPY cmd/dashboard/docker/nginx.conf /etc/nginx/conf.d/default.conf
-
 # copy dashboard static from build assets stage. /etc/nuclio/dashboard/static will contain index.html and assets
 COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
 
@@ -89,11 +82,15 @@ COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 # copy docker client
 COPY --from=downloaddocker /tmp/download/docker/docker /usr/local/bin
 
-USER root
+# copy runners
+COPY cmd/dashboard/docker/runners /runners
+COPY cmd/dashboard/docker/runner.sh /runner.sh
+
+# copy nginx config
+COPY cmd/dashboard/docker/default.conf /etc/nginx/conf.d/default.conf
+COPY cmd/dashboard/docker/nginx.conf /etc/nginx/nginx.conf
 
 RUN apk --update --no-cache add parallel
-
-USER 1001
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
