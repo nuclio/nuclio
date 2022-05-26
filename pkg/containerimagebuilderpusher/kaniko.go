@@ -192,11 +192,17 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 		return "", "", errors.Wrapf(err, "Failed to compress build bundle")
 	}
 
+	buildDir := "/tmp/kaniko-builds"
+	if err := os.MkdirAll(buildDir, 0755); err != nil {
+		return "", "", errors.Wrapf(err, "Failed to ensure directory")
+	}
+
 	// Create symlink to bundle tar file in nginx serving directory
-	assetPath := path.Join("/etc/nginx/static/assets", path.Base(tarFile.Name()))
+	assetPath := path.Join(buildDir, path.Base(tarFile.Name()))
 	k.logger.DebugWith("Creating symlink to bundle tar",
 		"tarFileName", tarFile.Name(),
 		"assetPath", assetPath)
+
 	if err := os.Link(tarFile.Name(), assetPath); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to create symlink to build bundle")
 	}
@@ -244,7 +250,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 
 	jobName := k.compileJobName(buildOptions.Image)
 
-	assetsURL := fmt.Sprintf("http://%s:8070/assets/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
+	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
 	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
 	kanikoJobSpec := &batchv1.Job{

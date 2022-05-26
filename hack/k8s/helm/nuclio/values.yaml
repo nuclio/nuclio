@@ -19,6 +19,11 @@ controller:
   ##
   nodeSelector: {}
 
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
+
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
   #  - key: "key"
@@ -78,6 +83,11 @@ dashboard:
   ##
   nodeSelector: {}
 
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
+
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
   #  - key: "key"
@@ -108,9 +118,8 @@ dashboard:
 
   kaniko:
 
-    #  Set this flag to specify a remote repository for storing cached layers
-    #
-    # cacheRepo: someurl
+    #  Set to a repository url for storing cached layers
+    cacheRepo: ""
 
     # Set this flag to push images to a plain HTTP registry
     insecurePushRegistry: false
@@ -136,9 +145,9 @@ dashboard:
   # Uncomment to configure node port
   # nodePort: 32050
 
-  # Uncomment if you serve the templates locally (for offline environments);
+  # Use if you serve the templates locally (for offline environments);
   # otherwise, the templates will be pulled from GitHub
-  # templatesArchiveAddress: <url>
+  templatesArchiveAddress: ""
 
   ingress:
     enabled: false
@@ -209,7 +218,7 @@ dashboard:
       tag: 0.30.1
       pullPolicy: IfNotPresent
       pullSecrets: []
-
+    resources: {}
     securityContext: {}
     # capabilities:
     #   drop:
@@ -236,9 +245,9 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
-  # Uncomment to volumize pip ca cert
+  # Use to volumize pip ca cert
   # Note: secret name must contain "pip-ca-certificates.crt" key
-  # pipCACertSecretName: secret-name
+  pipCACertSecretName: ""
 
 autoscaler:
   enabled: false
@@ -253,6 +262,11 @@ autoscaler:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -282,6 +296,11 @@ dlx:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -337,6 +356,12 @@ registry:
   #
   # pushPullUrl: gcr.io/<project-name>
 
+
+  # For cases where the deployed function container is pulled from a different registry than it was pushed to
+  # E.g.: when using `minikube` you push to `$(minikube ip):5000` but pull from `localhost:5000`
+  # > Then `pushPullUrl` is set to the value of `$(minikube ip):5000` and  runRegistryURL is set to `localhost:5000`
+  runRegistryURL: ""
+
   # In case you'd like helm to generate the secret for you, `loginUrl` specifies
   # the URL with which the components in nuclio will try to log into
   #
@@ -358,7 +383,7 @@ registry:
 
   # Use this registry URL as an override for both base and "onbuild" images, so they'll be pulled from the
   # specified registry URL and not from the default registries
-  # dependantImageRegistryURL: someUrl
+  dependantImageRegistryURL: ""
 
 rbac:
 
