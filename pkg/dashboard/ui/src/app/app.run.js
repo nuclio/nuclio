@@ -34,7 +34,8 @@
                             ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', ''),
                             namespace: lodash.get(response, 'namespace', ''),
                             platformKind: lodash.get(response, 'platformKind', ''),
-                            scaleToZero: lodash.get(response, 'scaleToZero', {})
+                            scaleToZero: lodash.get(response, 'scaleToZero', {}),
+                            validFunctionPriorityClassNames: lodash.get(response, 'validFunctionPriorityClassNames', null)
                         });
                     });
             })
