@@ -51,7 +51,7 @@ func (j *java) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, sta
 func (j *java) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
-	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"
+	processorDockerfileInfo.BaseImage = "openjdk:11-jre-slim"
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
@@ -134,7 +134,7 @@ func (j *java) createGradleBuildScript(stagingBuildDir string) error {
 
 func (j *java) getGradleBuildScriptTemplateContents() string {
 	return `plugins {
-  id 'com.github.johnrengelman.shadow' version '2.0.2'
+  id 'com.github.johnrengelman.shadow' version '5.2.0'
   id 'java'
 }
 
@@ -149,7 +149,7 @@ dependencies {
 	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
 	{{ end }}
 
-    compile files('./nuclio-sdk-java-1.0.0.jar')
+    compile files('./nuclio-sdk-java-1.1.0.jar')
 }
 
 shadowJar {

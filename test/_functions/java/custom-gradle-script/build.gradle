@@ -1,5 +1,5 @@
 plugins {
-  id 'com.github.johnrengelman.shadow' version '2.0.2'
+  id 'com.github.johnrengelman.shadow' version '5.2.0'
   id 'java'
 }
 
@@ -13,7 +13,7 @@ dependencies {
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.0'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.0'
 
-    compile files('./nuclio-sdk-java-1.0.0.jar')
+    compile files('./nuclio-sdk-java-1.1.0.jar')
 }
 
 shadowJar {
