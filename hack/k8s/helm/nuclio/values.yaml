@@ -10,7 +10,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.8.12-amd64
+    tag: 1.8.14-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -18,6 +18,11 @@ controller:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -69,7 +74,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.8.12-amd64
+    tag: 1.8.14-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -77,6 +82,11 @@ dashboard:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -108,9 +118,8 @@ dashboard:
 
   kaniko:
 
-    #  Set this flag to specify a remote repository for storing cached layers
-    #
-    # cacheRepo: someurl
+    #  Set to a repository url for storing cached layers
+    cacheRepo: ""
 
     # Set this flag to push images to a plain HTTP registry
     insecurePushRegistry: false
@@ -125,20 +134,20 @@ dashboard:
 
     initContainerImage:
       repository: busybox
-      tag: 1.31
+      tag: stable
 
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m
 
     # How many times to retry pushing images to registry
-    pushImagesRestries: 3
+    pushImagesRetries: 3
 
   # Uncomment to configure node port
   # nodePort: 32050
 
-  # Uncomment if you serve the templates locally (for offline environments);
+  # Use if you serve the templates locally (for offline environments);
   # otherwise, the templates will be pulled from GitHub
-  # templatesArchiveAddress: <url>
+  templatesArchiveAddress: ""
 
   ingress:
     enabled: false
@@ -209,7 +218,7 @@ dashboard:
       tag: 0.30.1
       pullPolicy: IfNotPresent
       pullSecrets: []
-
+    resources: {}
     securityContext: {}
     # capabilities:
     #   drop:
@@ -236,16 +245,16 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
-  # Uncomment to volumize pip ca cert
+  # Use to volumize pip ca cert
   # Note: secret name must contain "pip-ca-certificates.crt" key
-  # pipCACertSecretName: secret-name
+  pipCACertSecretName: ""
 
 autoscaler:
   enabled: false
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.8.12-amd64
+    tag: 1.8.14-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -253,6 +262,11 @@ autoscaler:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -274,7 +288,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.8.12-amd64
+    tag: 1.8.14-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -282,6 +296,11 @@ dlx:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -337,6 +356,12 @@ registry:
   #
   # pushPullUrl: gcr.io/<project-name>
 
+
+  # For cases where the deployed function container is pulled from a different registry than it was pushed to
+  # E.g.: when using `minikube` you push to `$(minikube ip):5000` but pull from `localhost:5000`
+  # > Then `pushPullUrl` is set to the value of `$(minikube ip):5000` and  runRegistryURL is set to `localhost:5000`
+  runRegistryURL: ""
+
   # In case you'd like helm to generate the secret for you, `loginUrl` specifies
   # the URL with which the components in nuclio will try to log into
   #
@@ -358,7 +383,7 @@ registry:
 
   # Use this registry URL as an override for both base and "onbuild" images, so they'll be pulled from the
   # specified registry URL and not from the default registries
-  # dependantImageRegistryURL: someUrl
+  dependantImageRegistryURL: ""
 
 rbac:
 
@@ -422,7 +447,7 @@ platform: {}
 #
 #     # set to 10 for extra verbosity on top of nuclio logger
 #     logLevel: 0
-#     address: http://1.8.12.0.1.8.121
+#     address: http://1.8.14.0.1.8.141
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow

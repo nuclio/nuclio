@@ -41,6 +41,8 @@ spec:
         checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.dashboard.securityContext | nindent 8 }}
       containers:
       - name: {{ template "nuclio.dashboardName" . }}
         image: {{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}
@@ -95,7 +97,7 @@ spec:
         - name: NUCLIO_BUSYBOX_CONTAINER_IMAGE
           value: {{ .Values.dashboard.kaniko.initContainerImage.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.tag}}
         - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
-          value: {{ .Values.dashboard.kaniko.pushImagesRestries | quote }}
+          value: {{ .Values.dashboard.kaniko.pushImagesRetries | quote }}
         - name: NUCLIO_AUTH_KIND
           value: {{ .Values.dashboard.authConfig.kind }}
         - name: NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT
@@ -148,8 +150,10 @@ spec:
         - name: NUCLIO_DASHBOARD_KANIKO_CACHE_REPO
           value: {{ .Values.dashboard.kaniko.cacheRepo }}
         {{- end }}
-#        - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
-#          value: "localhost:5000"
+        {{- if .Values.registry.runRegistryURL }}
+        - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
+          value: {{ .Values.registry.runRegistryURL }}
+        {{- end }}
         {{- if eq .Values.dashboard.baseImagePullPolicy "Never" }}
         - name: NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES
           value: "true"
