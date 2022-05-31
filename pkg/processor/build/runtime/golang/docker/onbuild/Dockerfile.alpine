@@ -33,7 +33,8 @@ RUN GOOS=$GOOS GOARCH=$GOARCH go build \
 FROM gcr.io/iguazio/golang:1.17-alpine3.15
 
 # Download required packages for plugin compilation
-RUN apk --update --no-cache add git gcc musl-dev file
+RUN apk upgrade --no-cache \
+    && apk add --no-cache git gcc musl-dev file
 
 # Store processor binary
 COPY --from=build-processor /home/nuclio/bin/processor /home/nuclio/bin/processor
