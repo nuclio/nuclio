@@ -13,11 +13,14 @@
 # limitations under the License.
 #
 
+ARG NUCLIO_BASE_IMAGE_NAME
+ARG NUCLIO_BASE_IMAGE_TAG
+
 ARG NUCLIO_LABEL
 
 FROM nuclio-builder:$NUCLIO_LABEL as builder
 
-FROM gcr.io/iguazio/golang:1.17
+FROM ${NUCLIO_BASE_IMAGE_NAME}:${NUCLIO_BASE_IMAGE_TAG}
 
 ARG GOOS=linux
 ARG GOARCH=amd64

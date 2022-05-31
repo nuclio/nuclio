@@ -13,7 +13,10 @@
 # limitations under the License.
 #
 
-FROM gcr.io/iguazio/golang:1.17
+ARG NUCLIO_BASE_IMAGE_NAME
+ARG NUCLIO_BASE_IMAGE_TAG
+
+FROM ${NUCLIO_BASE_IMAGE_NAME}:${NUCLIO_BASE_IMAGE_TAG}
 
 ARG GOOS=linux
 ARG GOARCH=amd64

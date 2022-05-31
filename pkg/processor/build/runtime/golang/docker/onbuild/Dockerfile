@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ARG NUCLIO_BASE_IMAGE_NAME
+ARG NUCLIO_BASE_IMAGE_TAG
 ARG NUCLIO_LABEL
 
 # Build the processor
@@ -29,7 +31,7 @@ RUN GOOS=$GOOS GOARCH=$GOARCH go build \
     -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM gcr.io/iguazio/golang:1.17
+FROM ${NUCLIO_BASE_IMAGE_NAME}:${NUCLIO_BASE_IMAGE_TAG}
 
 # Store processor binary
 COPY --from=build-processor /home/nuclio/bin/processor /home/nuclio/bin/processor

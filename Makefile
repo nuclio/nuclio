@@ -20,6 +20,12 @@ KUBECONFIG := $(if $(KUBECONFIG),$(KUBECONFIG),$(HOME)/.kube/config)
 # upstream repo
 NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 
+# dockerfile base image
+NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
+NUCLIO_BASE_IMAGE_TAG ?= 1.17
+NUCLIO_BASE_ALPINE_IMAGE_NAME ?= gcr.io/iguazio/golang
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.17-alpine3.15
+
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 ifeq ($(GOARCH), arm)
@@ -329,6 +335,8 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
 handler-builder-golang-onbuild-alpine: build-base
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_BASE_ALPINE_IMAGE_NAME=$(NUCLIO_BASE_ALPINE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_ALPINE_IMAGE_TAG=$(NUCLIO_BASE_ALPINE_IMAGE_TAG) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
@@ -337,6 +345,8 @@ handler-builder-golang-onbuild-alpine: build-base
 handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
@@ -418,11 +428,15 @@ endif
 build-base: build-builder
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file hack/docker/build/base/Dockerfile \
 		--tag nuclio-base:$(NUCLIO_LABEL) .
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_BASE_ALPINE_IMAGE_NAME=$(NUCLIO_BASE_ALPINE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_ALPINE_IMAGE_TAG=$(NUCLIO_BASE_ALPINE_IMAGE_TAG) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file hack/docker/build/base-alpine/Dockerfile \
 		--tag nuclio-base-alpine:$(NUCLIO_LABEL) .
@@ -430,9 +444,12 @@ build-base: build-builder
 .PHONY: build-builder
 build-builder:
 	docker build \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--file hack/docker/build/builder/Dockerfile \
 		--tag nuclio-builder:$(NUCLIO_LABEL) .
-
+		
 
 #
 # Misc
