@@ -449,7 +449,6 @@ build-builder:
 		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--file hack/docker/build/builder/Dockerfile \
 		--tag nuclio-builder:$(NUCLIO_LABEL) .
-		
 
 #
 # Misc
