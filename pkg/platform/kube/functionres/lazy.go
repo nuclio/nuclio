@@ -332,29 +332,31 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				err, functionState := lc.waitFunctionDeploymentReadiness(ctx,
 					function,
 					functionResourcesCreateOrUpdateTimestamp)
-				if err == nil {
-					deploymentReady = true
-					timeDeploymentReady = time.Now()
-					lc.logger.DebugWithCtx(ctx,
-						"Function deployment is ready",
-						"namespace", function.Namespace,
-						"name", function.Name)
-					continue
-				}
 
 				// HACK - we return with empty function state to indicate a possibly transient error
 				if functionState == "" {
 					if counter == 1 || counter%5 == 0 {
-						lc.logger.WarnWithCtx(ctx,
-							"Failed to wait for function deployment readiness (probably a transient error)",
-							"err", err.Error(),
-							"namespace", function.Namespace,
-							"name", function.Name)
+						if err != nil {
+							lc.logger.WarnWithCtx(ctx,
+								"Failed to wait for function deployment readiness (probably a transient error)",
+								"err", err.Error(),
+								"namespace", function.Namespace,
+								"name", function.Name)
+						}
 					}
 					continue
 				}
 
-				return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
+				if err != nil {
+					return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
+				}
+
+				deploymentReady = true
+				timeDeploymentReady = time.Now()
+				lc.logger.DebugWithCtx(ctx,
+					"Function deployment is ready",
+					"namespace", function.Namespace,
+					"name", function.Name)
 			}
 
 			// check ingress readiness

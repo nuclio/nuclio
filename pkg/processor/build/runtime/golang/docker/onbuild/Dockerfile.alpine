@@ -35,7 +35,8 @@ RUN GOOS=$GOOS GOARCH=$GOARCH go build \
 FROM ${NUCLIO_BASE_ALPINE_IMAGE_NAME}:${NUCLIO_BASE_ALPINE_IMAGE_TAG}
 
 # Download required packages for plugin compilation
-RUN apk --update --no-cache add git gcc musl-dev file
+RUN apk upgrade --no-cache \
+    && apk add --no-cache git gcc musl-dev file
 
 # Store processor binary
 COPY --from=build-processor /home/nuclio/bin/processor /home/nuclio/bin/processor
