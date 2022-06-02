@@ -287,8 +287,8 @@ jobs:
           github token: ${{ github.token }}
           start args: "--addons registry --addons ingress"
 
-            # TODO: run on containerd as well
-            container runtime: docker
+          # TODO: run on containerd as well
+          container runtime: docker
 
       - name: Post minikube setup
         run: |
