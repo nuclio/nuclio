@@ -159,13 +159,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - uses: manusa/actions-setup-minikube@v2.4.3
+      - uses: manusa/actions-setup-minikube@v2.6.0
         with:
-          minikube version: "v1.25.1"
-          kubernetes version: "v1.22.6"
+          minikube version: "v1.25.2"
+          kubernetes version: "v1.23.7"
           driver: docker
           github token: ${{ github.token }}
           start args: "--addons registry --addons ingress"
+
+          # TODO: run on containerd as well
+          container runtime: docker
 
       - name: Post minikube setup
         run: |
@@ -276,13 +279,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - uses: manusa/actions-setup-minikube@v2.4.3
+      - uses: manusa/actions-setup-minikube@v2.6.0
         with:
-          minikube version: "v1.25.1"
-          kubernetes version: "v1.22.6"
+          minikube version: "v1.25.2"
+          kubernetes version: "v1.23.7"
           driver: docker
           github token: ${{ github.token }}
           start args: "--addons registry --addons ingress"
+
+          # TODO: run on containerd as well
+          container runtime: docker
 
       - name: Post minikube setup
         run: |
