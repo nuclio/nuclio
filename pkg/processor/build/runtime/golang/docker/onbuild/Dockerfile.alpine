@@ -13,6 +13,8 @@
 # limitations under the License.
 
 # Build the processor
+ARG NUCLIO_BASE_ALPINE_IMAGE_NAME
+ARG NUCLIO_BASE_ALPINE_IMAGE_TAG
 ARG NUCLIO_LABEL
 
 # Build the processor
@@ -30,7 +32,7 @@ RUN GOOS=$GOOS GOARCH=$GOARCH go build \
     -o /home/nuclio/bin/processor cmd/processor/main.go
 
 # Build the plugin
-FROM gcr.io/iguazio/golang:1.17-alpine3.15
+FROM ${NUCLIO_BASE_ALPINE_IMAGE_NAME}:${NUCLIO_BASE_ALPINE_IMAGE_TAG}
 
 # Download required packages for plugin compilation
 RUN apk upgrade --no-cache \
