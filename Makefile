@@ -26,6 +26,9 @@ NUCLIO_BASE_IMAGE_TAG ?= 1.17
 NUCLIO_BASE_ALPINE_IMAGE_NAME ?= gcr.io/iguazio/golang
 NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.17-alpine3.15
 
+# add go proxy
+NUCLIO_GO_PROXY ?= https://proxy.golang.org,direct
+
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 ifeq ($(GOARCH), arm)
@@ -337,6 +340,7 @@ handler-builder-golang-onbuild-alpine: build-base
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_BASE_ALPINE_IMAGE_NAME=$(NUCLIO_BASE_ALPINE_IMAGE_NAME) \
 		--build-arg NUCLIO_BASE_ALPINE_IMAGE_TAG=$(NUCLIO_BASE_ALPINE_IMAGE_TAG) \
+		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
@@ -347,6 +351,7 @@ handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
 		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
+		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
@@ -447,6 +452,7 @@ build-builder:
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
 		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
+		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--file hack/docker/build/builder/Dockerfile \
 		--tag nuclio-builder:$(NUCLIO_LABEL) .
 
