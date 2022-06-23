@@ -248,10 +248,10 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		MountPath: "/tmp",
 	}
 
-	awsSecret := v1.VolumeMount{
-		Name:      "aws-secret",
-		MountPath: "/root/.aws/",
-	}
+	//awsSecret := v1.VolumeMount{
+	//	Name:      "aws-secret",
+	//	MountPath: "/root/.aws/",
+	//}
 
 	jobName := k.compileJobName(buildOptions.Image)
 
@@ -279,7 +279,18 @@ func (k *Kaniko) compileJobSpec(namespace string,
 							Image:           k.builderConfiguration.KanikoImage,
 							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
 							Args:            buildArgs,
-							VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount, awsSecret},
+							VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount},
+							Env: []v1.EnvVar{
+								{
+									Name: "AWS_SDK_LOAD_CONFIG",
+									Value: "true",
+								},
+								{
+									Name: "AWS_EC2_METADATA_DISABLED",
+									Value: "true",
+								},
+
+							},
 						},
 					},
 					InitContainers: []v1.Container{
@@ -316,12 +327,12 @@ func (k *Kaniko) compileJobSpec(namespace string,
 							},
 						},
 						{
-							Name: awsSecret.Name,
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
-									SecretName: awsSecret.Name,
-								},
-							},
+							//Name: awsSecret.Name,
+							//VolumeSource: v1.VolumeSource{
+							//	Secret: &v1.SecretVolumeSource{
+							//		SecretName: awsSecret.Name,
+							//	},
+							//},
 						},
 					},
 					RestartPolicy:     v1.RestartPolicyNever,
