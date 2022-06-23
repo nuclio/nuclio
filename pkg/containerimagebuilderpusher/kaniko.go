@@ -248,6 +248,11 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		MountPath: "/tmp",
 	}
 
+	awsSecret := v1.VolumeMount{
+		Name:      "aws-secret",
+		MountPath: "/root/.aws/",
+	}
+
 	jobName := k.compileJobName(buildOptions.Image)
 
 	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
@@ -274,7 +279,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 							Image:           k.builderConfiguration.KanikoImage,
 							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
 							Args:            buildArgs,
-							VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount},
+							VolumeMounts:    []v1.VolumeMount{tmpFolderVolumeMount, awsSecret},
 						},
 					},
 					InitContainers: []v1.Container{
@@ -310,6 +315,14 @@ func (k *Kaniko) compileJobSpec(namespace string,
 								EmptyDir: &v1.EmptyDirVolumeSource{},
 							},
 						},
+						{
+							Name: awsSecret.Name,
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: awsSecret.Name,
+								},
+							},
+						},
 					},
 					RestartPolicy:     v1.RestartPolicyNever,
 					NodeSelector:      buildOptions.NodeSelector,
@@ -323,30 +336,30 @@ func (k *Kaniko) compileJobSpec(namespace string,
 	}
 
 	// if SecretName is defined - configure mount with docker credentials
-	if len(buildOptions.SecretName) > 0 {
+	//if len(buildOptions.SecretName) > 0 {
 
-		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
-				Name:      "docker-config",
-				MountPath: "/kaniko/.docker",
-				ReadOnly:  true,
-			})
+		//kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
+		//	append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
+		//		Name:      "docker-config",
+		//		MountPath: "/kaniko/.docker",
+		//		ReadOnly:  true,
+		//	})
 
-		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
-			Name: "docker-config",
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: buildOptions.SecretName,
-					Items: []v1.KeyToPath{
-						{
-							Key:  ".dockerconfigjson",
-							Path: "config.json",
-						},
-					},
-				},
-			},
-		})
-	}
+		//kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
+		//	Name: "docker-config",
+		//	VolumeSource: v1.VolumeSource{
+		//		Secret: &v1.SecretVolumeSource{
+		//			SecretName: buildOptions.SecretName,
+		//			Items: []v1.KeyToPath{
+		//				{
+		//					Key:  ".dockerconfigjson",
+		//					Path: "config.json",
+		//				},
+		//			},
+		//		},
+		//	},
+		//})
+	//}
 
 	return kanikoJobSpec
 }
