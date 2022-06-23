@@ -326,14 +326,14 @@ func (k *Kaniko) compileJobSpec(namespace string,
 								EmptyDir: &v1.EmptyDirVolumeSource{},
 							},
 						},
-						{
+						//{
 							//Name: awsSecret.Name,
 							//VolumeSource: v1.VolumeSource{
 							//	Secret: &v1.SecretVolumeSource{
 							//		SecretName: awsSecret.Name,
 							//	},
 							//},
-						},
+						//},
 					},
 					RestartPolicy:     v1.RestartPolicyNever,
 					NodeSelector:      buildOptions.NodeSelector,
