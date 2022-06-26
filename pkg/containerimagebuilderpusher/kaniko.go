@@ -632,8 +632,8 @@ func (k *Kaniko) deleteJob(namespace string, jobName string) error {
 	return nil
 }
 
-func (k *Kaniko) matchECRRegex(RegistryURL string) bool {
-	isECRRegex := regexp.MustCompile(
+func (k *Kaniko) matchECRRegex(registryURL string) bool {
+	ecrRegex := regexp.MustCompile(
 		`([a-zA-Z0-9][a-zA-Z0-9-_]*)\.dkr\.ecr\.([a-zA-Z0-9][a-zA-Z0-9-_]*)\.amazonaws\.com`)
-	return isECRRegex.MatchString(RegistryURL)
+	return ecrRegex.MatchString(registryURL)
 }
