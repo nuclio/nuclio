@@ -326,9 +326,10 @@ func (k *Kaniko) compileJobSpec(namespace string,
 	if len(buildOptions.SecretName) > 0 {
 		if k.matchECRRegex(buildOptions.RegistryURL) {
 
-			// TODO: wrap with error catcher
-			// Add init container to create the repository
-			createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s", buildOptions.RepoName)
+			// Add init container to create the repository - ignore already exists
+			createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s" +
+				"|| if [ $? -eq 254 ]; then echo 'Ignoring repository already exits'; else exit $?; fi",
+				buildOptions.RepoName)
 			kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers,
 				v1.Container{
 					Name:  "create-repo",
