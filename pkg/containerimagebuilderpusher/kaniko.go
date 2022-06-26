@@ -327,11 +327,12 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		if k.matchECRRegex(buildOptions.RegistryURL) {
 
 			// TODO: wrap with error catcher
+			// Add init container to create the repository
 			createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s", buildOptions.RepoName)
 			kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers,
 				v1.Container{
 					Name:  "create-repo",
-					Image: k.builderConfiguration.BusyBoxImage,
+					Image: k.builderConfiguration.AWSCLIImage,
 					Command: []string{
 						"/bin/sh",
 					},
@@ -339,6 +340,8 @@ func (k *Kaniko) compileJobSpec(namespace string,
 						"-c",
 						createRepoCommand,
 					},
+
+					// mount the credentials file to /tmp for permissions reasons
 					Env: []v1.EnvVar{
 						{
 							Name:  "AWS_SHARED_CREDENTIALS_FILE",
@@ -353,6 +356,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 					},
 				})
 
+			// Volume aws secret to kaniko
 			kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
 				kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
 				v1.VolumeMount{
