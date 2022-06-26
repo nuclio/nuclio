@@ -95,7 +95,9 @@ spec:
         {{- end }}
         env:
         - name: NUCLIO_BUSYBOX_CONTAINER_IMAGE
-          value: {{ .Values.dashboard.kaniko.initContainerImage.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.tag}}
+          value: {{ .Values.dashboard.kaniko.initContainerImage.busybox.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.busybox.tag}}
+        - name: NUCLIO_AWS_CLI_CONTAINER_IMAGE
+          value: {{ .Values.dashboard.kaniko.initContainerImage.awscli.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.awscli.tag}}
         - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
           value: {{ .Values.dashboard.kaniko.pushImagesRetries | quote }}
         - name: NUCLIO_AUTH_KIND

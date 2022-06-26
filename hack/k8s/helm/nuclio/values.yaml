@@ -133,8 +133,12 @@ dashboard:
       pullPolicy: IfNotPresent
 
     initContainerImage:
-      repository: busybox
-      tag: stable
+      busybox:
+        repository: busybox
+        tag: stable
+      awscli:
+        repository: aws-cli
+        tag: stable
 
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m

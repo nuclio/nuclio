@@ -22,6 +22,7 @@ type BuildOptions struct {
 	NoBaseImagePull         bool
 	BuildArgs               map[string]string
 	RegistryURL             string
+	RepoName                string
 	SecretName              string
 	OutputImageFile         string
 	BuildTimeoutSeconds     int64
@@ -36,6 +37,7 @@ type BuildOptions struct {
 type ContainerBuilderConfiguration struct {
 	Kind                                 string
 	BusyBoxImage                         string
+	AWSCLIImage                          string
 	KanikoImage                          string
 	KanikoImagePullPolicy                string
 	JobPrefix                            string
@@ -61,6 +63,10 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 	if containerBuilderConfiguration.BusyBoxImage == "" {
 		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_BUSYBOX_CONTAINER_IMAGE",
 			"busybox:stable")
+	}
+	if containerBuilderConfiguration.AWSCLIImage == "" {
+		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_AWS_CLI_CONTAINER_IMAGE",
+			"aws-cli:stable")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
