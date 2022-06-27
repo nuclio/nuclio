@@ -324,7 +324,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 
 	// if SecretName is defined - configure mount with credentials
 	if len(buildOptions.SecretName) > 0 {
-		if k.matchECRRegex(buildOptions.RegistryURL) {
+		if k.matchEcrUrl(buildOptions.RegistryURL) {
 
 			// Add init container to create the repository - ignore already exists
 			createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s"+
@@ -637,8 +637,6 @@ func (k *Kaniko) deleteJob(namespace string, jobName string) error {
 	return nil
 }
 
-func (k *Kaniko) matchECRRegex(registryURL string) bool {
-	ecrRegex := regexp.MustCompile(
-		`([a-zA-Z0-9][a-zA-Z0-9-_]*)\.dkr\.ecr\.([a-zA-Z0-9][a-zA-Z0-9-_]*)\.amazonaws\.com`)
-	return ecrRegex.MatchString(registryURL)
+func (k *Kaniko) matchEcrUrl(registryURL string) bool {
+	return strings.HasSuffix(registryURL, ".amazonaws.com") && strings.Contains(registryURL, ".ecr.")
 }
