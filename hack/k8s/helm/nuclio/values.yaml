@@ -146,6 +146,9 @@ dashboard:
     # How many times to retry pushing images to registry
     pushImagesRetries: 3
 
+    # secret from aws credentials file for pushing images to ECR
+    # awsSecretName: ""
+
   # Uncomment to configure node port
   # nodePort: 32050
 

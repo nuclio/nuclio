@@ -324,82 +324,91 @@ func (k *Kaniko) compileJobSpec(namespace string,
 
 	// if SecretName is defined - configure mount with credentials
 	if len(buildOptions.SecretName) > 0 {
-		if k.matchEcrUrl(buildOptions.RegistryURL) {
-
-			// Add init container to create the repository - ignore already exists
-			createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s"+
-				"|| if [ $? -eq 254 ]; then echo 'Ignoring repository already exits'; else exit $?; fi",
-				buildOptions.RepoName)
-			kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers,
-				v1.Container{
-					Name:  "create-repo",
-					Image: k.builderConfiguration.AWSCLIImage,
-					Command: []string{
-						"/bin/sh",
-					},
-					Args: []string{
-						"-c",
-						createRepoCommand,
-					},
-
-					// mount the credentials file to /tmp for permissions reasons
-					Env: []v1.EnvVar{
-						{
-							Name:  "AWS_SHARED_CREDENTIALS_FILE",
-							Value: "/tmp/credentials",
-						},
-					},
-					VolumeMounts: []v1.VolumeMount{
-						{
-							Name:      buildOptions.SecretName,
-							MountPath: "/tmp",
-						},
-					},
-				})
-
-			// Volume aws secret to kaniko
-			kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-				kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
-				v1.VolumeMount{
-					Name:      buildOptions.SecretName,
-					MountPath: "/root/.aws/",
-				})
-			kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
-				v1.Volume{
-					Name: buildOptions.SecretName,
-					VolumeSource: v1.VolumeSource{
-						Secret: &v1.SecretVolumeSource{
-							SecretName: buildOptions.SecretName,
-						},
-					},
-				})
-
-		} else {
-			kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
-				append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
-					Name:      "docker-config",
-					MountPath: "/kaniko/.docker",
-					ReadOnly:  true,
-				})
-
-			kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
-				Name: "docker-config",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
-						SecretName: buildOptions.SecretName,
-						Items: []v1.KeyToPath{
-							{
-								Key:  ".dockerconfigjson",
-								Path: "config.json",
-							},
-						},
-					},
-				},
-			})
-		}
+		k.configureSecretVolumeMount(buildOptions, kanikoJobSpec)
 	}
 
 	return kanikoJobSpec
+}
+
+func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+	if k.matchEcrUrl(buildOptions.RegistryURL) {
+		k.configureEcrInitContainerAndMount(buildOptions, kanikoJobSpec)
+	} else {
+
+		// configure docker config
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
+				Name:      "docker-config",
+				MountPath: "/kaniko/.docker",
+				ReadOnly:  true,
+			})
+
+		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes, v1.Volume{
+			Name: "docker-config",
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: buildOptions.SecretName,
+					Items: []v1.KeyToPath{
+						{
+							Key:  ".dockerconfigjson",
+							Path: "config.json",
+						},
+					},
+				},
+			},
+		})
+	}
+}
+
+func (k *Kaniko) configureEcrInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+
+	// Add init container to create the repository - ignore already exists
+	createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s"+
+		"|| if [ $? -eq 254 ]; then echo 'Ignoring repository already exits'; else exit $?; fi",
+		buildOptions.RepoName)
+	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers,
+		v1.Container{
+			Name:  "create-repo",
+			Image: k.builderConfiguration.AWSCLIImage,
+			Command: []string{
+				"/bin/sh",
+			},
+			Args: []string{
+				"-c",
+				createRepoCommand,
+			},
+
+			// mount the credentials file to /tmp for permissions reasons
+			Env: []v1.EnvVar{
+				{
+					Name:  "AWS_SHARED_CREDENTIALS_FILE",
+					Value: "/tmp/credentials",
+				},
+			},
+			VolumeMounts: []v1.VolumeMount{
+				{
+					Name:      buildOptions.SecretName,
+					MountPath: "/tmp",
+				},
+			},
+		})
+
+	// volume aws secret to kaniko
+	kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
+		v1.VolumeMount{
+			Name:      buildOptions.SecretName,
+			MountPath: "/root/.aws/",
+		})
+	kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
+		v1.Volume{
+			Name: buildOptions.SecretName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: buildOptions.SecretName,
+				},
+			},
+		})
 }
 
 func (k *Kaniko) compileJobName(image string) string {
