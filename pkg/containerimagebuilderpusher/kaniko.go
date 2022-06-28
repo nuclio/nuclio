@@ -402,7 +402,7 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 		})
 	kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
 		v1.Volume{
-			Name: buildOptions.SecretName,
+			Name: k.builderConfiguration.AWSSecretName,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
 					SecretName: k.builderConfiguration.AWSSecretName,
