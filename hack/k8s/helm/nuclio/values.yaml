@@ -138,7 +138,7 @@ dashboard:
         tag: stable
       awscli:
         repository: aws-cli
-        tag: stable
+        tag: 2.7.0
 
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m

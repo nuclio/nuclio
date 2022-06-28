@@ -322,7 +322,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		},
 	}
 
-	// if SecretName is defined - configure mount with credentials
+	// if SecretName is defined - configure mount with docker/aws credentials
 	if len(buildOptions.SecretName) > 0 {
 		k.configureSecretVolumeMount(buildOptions, kanikoJobSpec)
 	}
