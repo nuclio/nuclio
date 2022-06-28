@@ -183,7 +183,7 @@ spec:
         {{- if .Values.dashboard.kaniko.awsSecretName }}
         - name: NUCLIO_KANIKO_AWS_CREDENTIALS_SECRET_NAME
           value: {{ .Values.dashboard.kaniko.awsSecretName | quote }}
-        {{ - end }}
+        {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ template "nuclio.externalIPAddresses" . }}
         - name: NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE
