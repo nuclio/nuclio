@@ -38,6 +38,7 @@ type ContainerBuilderConfiguration struct {
 	Kind                                 string
 	BusyBoxImage                         string
 	AWSCLIImage                          string
+	AWSSecretName                        string
 	KanikoImage                          string
 	KanikoImagePullPolicy                string
 	JobPrefix                            string
@@ -65,8 +66,12 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 			"busybox:stable")
 	}
 	if containerBuilderConfiguration.AWSCLIImage == "" {
-		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_AWS_CLI_CONTAINER_IMAGE",
+		containerBuilderConfiguration.AWSCLIImage = common.GetEnvOrDefaultString("NUCLIO_AWS_CLI_CONTAINER_IMAGE",
 			"aws-cli:stable")
+	}
+	if containerBuilderConfiguration.AWSSecretName == "" {
+		containerBuilderConfiguration.AWSSecretName = common.GetEnvOrDefaultString("NUCLIO_KANIKO_AWS_CREDENTIALS_SECRET_NAME",
+			"")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",

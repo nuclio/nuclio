@@ -387,7 +387,7 @@ func (k *Kaniko) configureEcrInitContainerAndMount(buildOptions *BuildOptions, k
 			},
 			VolumeMounts: []v1.VolumeMount{
 				{
-					Name:      buildOptions.SecretName,
+					Name:      k.builderConfiguration.AWSSecretName,
 					MountPath: "/tmp",
 				},
 			},
@@ -397,7 +397,7 @@ func (k *Kaniko) configureEcrInitContainerAndMount(buildOptions *BuildOptions, k
 	kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
 		v1.VolumeMount{
-			Name:      buildOptions.SecretName,
+			Name:      k.builderConfiguration.AWSSecretName,
 			MountPath: "/root/.aws/",
 		})
 	kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
@@ -405,7 +405,7 @@ func (k *Kaniko) configureEcrInitContainerAndMount(buildOptions *BuildOptions, k
 			Name: buildOptions.SecretName,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
-					SecretName: buildOptions.SecretName,
+					SecretName: k.builderConfiguration.AWSSecretName,
 				},
 			},
 		})
