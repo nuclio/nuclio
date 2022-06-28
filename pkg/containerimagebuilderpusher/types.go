@@ -67,7 +67,7 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 	}
 	if containerBuilderConfiguration.AWSCLIImage == "" {
 		containerBuilderConfiguration.AWSCLIImage = common.GetEnvOrDefaultString("NUCLIO_AWS_CLI_CONTAINER_IMAGE",
-			"aws-cli:2.7.0")
+			"aws-cli:2.7.10")
 	}
 	if containerBuilderConfiguration.AWSSecretName == "" {
 		containerBuilderConfiguration.AWSSecretName = common.GetEnvOrDefaultString("NUCLIO_KANIKO_AWS_CREDENTIALS_SECRET_NAME",

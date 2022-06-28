@@ -331,11 +331,11 @@ func (k *Kaniko) compileJobSpec(namespace string,
 }
 
 func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
-	if k.matchEcrUrl(buildOptions.RegistryURL) {
+	if k.matchECRUrl(buildOptions.RegistryURL) {
 		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
 	} else {
 
-		// configure docker config
+		// configure mount with docker credentials
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
 				Name:      "docker-config",
@@ -646,6 +646,6 @@ func (k *Kaniko) deleteJob(namespace string, jobName string) error {
 	return nil
 }
 
-func (k *Kaniko) matchEcrUrl(registryURL string) bool {
+func (k *Kaniko) matchECRUrl(registryURL string) bool {
 	return strings.HasSuffix(registryURL, ".amazonaws.com") && strings.Contains(registryURL, ".ecr.")
 }
