@@ -332,7 +332,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 
 func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
 	if k.matchEcrUrl(buildOptions.RegistryURL) {
-		k.configureEcrInitContainerAndMount(buildOptions, kanikoJobSpec)
+		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
 	} else {
 
 		// configure docker config
@@ -360,7 +360,7 @@ func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJo
 	}
 }
 
-func (k *Kaniko) configureEcrInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
 
 	// Add init container to create the repository - ignore already exists
 	createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s"+
