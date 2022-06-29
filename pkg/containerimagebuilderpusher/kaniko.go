@@ -337,7 +337,8 @@ func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJo
 			k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
 		} else {
 
-			// assume instance role
+			// assume instance role has permissions to register, and store a container image
+			// https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
 			kanikoJobSpec.Spec.Template.Spec.Containers[0].Env = append(kanikoJobSpec.Spec.Template.Spec.Containers[0].Env,
 				[]v1.EnvVar{
 					{

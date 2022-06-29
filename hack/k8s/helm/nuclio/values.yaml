@@ -137,8 +137,8 @@ dashboard:
         repository: busybox
         tag: stable
       awscli:
-        repository: aws-cli
-        tag: 2.7.0
+        repository: amazon/aws-cli
+        tag: 2.7.10
 
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m
