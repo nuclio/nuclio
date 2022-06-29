@@ -139,7 +139,7 @@ This is rather straightforward; however, note the following:
 ECR requires handling repository creations and time limited authorization tokens. To do so, provide nuclio with the following values.
 - Image with AWS CLI binary installed to create repositories of function images (default to `amazon/aws-cli:2.7.10`)
 - AWS secret name generated from `.aws/credentials` file configured with proper access key id and secret access key so that it has access to pull/push images and create a repository.
-- ECR secret name to be used as `imagePullSecret` of function pods (since ECR tokens stale after 12 hours, the secret must be refreshed periodically - can be done with a cron job as stated in [Sergey's blog](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
+- ECR secret name to be used as `imagePullSecret` of function pods (since ECR tokens stale after 12 hours, the secret must be refreshed periodically - can be done with a cron job as described in [Sergey's blog](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
     ```sh
     --set dashboard.kaniko.initContainerImage.awscli.repository=<repository> \
     --set dashboard.kaniko.initContainerImage.awscli.tag=<tag> \
