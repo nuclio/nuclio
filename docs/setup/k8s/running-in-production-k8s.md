@@ -147,6 +147,3 @@ ECR requires handling repository creations and time limited authorization tokens
     --set registry.secretName=<ecr-secret-name>
     ```
 
-
-> **Note:** The Nuclio team is also looking into enabling Docker-in-Docker (DinD) as a possible mode of operation.
-
