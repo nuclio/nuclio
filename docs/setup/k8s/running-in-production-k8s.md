@@ -134,7 +134,7 @@ This is rather straightforward; however, note the following:
     --set dashboard.kaniko.cacheRepo=quay.io/<repo name>/cache
     ```
 
-###Using kaniko with amazon elastic container registry (ECR):
+### Using kaniko with amazon elastic container registry (ECR):
 
 ECR requires handling repository creations and time limited authorization tokens. To do so, provide nuclio with the following values.
 - Image with AWS CLI binary installed to create repositories of function images (default to `amazon/aws-cli:2.7.10`)
