@@ -23,13 +23,19 @@ import (
 )
 
 type Config struct {
+	Common *Common `json:"common,omitempty"`
 	Python *Python `json:"python,omitempty"`
 }
 
-type Python struct {
+type Common struct {
+	Env       map[string]string
 	BuildArgs map[string]string `json:"buildArgs,omitempty"`
-	PipCAPath string            `json:"pipCAPath,omitempty"`
+}
 
+type Python struct {
+	Common
+
+	PipCAPath     string `json:"pipCAPath,omitempty"`
 	pipCAContents []byte
 }
 
