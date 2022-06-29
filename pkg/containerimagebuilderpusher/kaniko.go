@@ -332,7 +332,23 @@ func (k *Kaniko) compileJobSpec(namespace string,
 
 func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
 	if k.matchECRUrl(buildOptions.RegistryURL) {
-		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
+
+		if k.builderConfiguration.AWSSecretName != "" {
+			k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
+		} else {
+
+			// assume instance role
+			kanikoJobSpec.Spec.Template.Spec.Containers[0].Env = append(kanikoJobSpec.Spec.Template.Spec.Containers[0].Env,
+				[]v1.EnvVar{
+					{
+						Name:  "AWS_SDK_LOAD_CONFIG",
+						Value: "true",
+					},
+					{
+						Name:  "AWS_EC2_METADATA_DISABLED",
+						Value: "true",
+					}}...)
+		}
 	} else {
 
 		// configure mount with docker credentials
