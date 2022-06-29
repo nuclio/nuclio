@@ -28,7 +28,7 @@ type Config struct {
 }
 
 type Common struct {
-	Env       map[string]string
+	Env       map[string]string `json:"env,omitempty"`
 	BuildArgs map[string]string `json:"buildArgs,omitempty"`
 }
 
