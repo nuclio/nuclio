@@ -33,7 +33,7 @@ type Common struct {
 }
 
 type Python struct {
-	Common
+	Common `json:",inline"`
 
 	PipCAPath     string `json:"pipCAPath,omitempty"`
 	pipCAContents []byte
