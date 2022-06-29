@@ -322,9 +322,37 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		},
 	}
 
-	// if SecretName is defined - configure mount with docker credentials
+	// if SecretName is defined - configure mount with docker/aws credentials
 	if len(buildOptions.SecretName) > 0 {
+		k.configureSecretVolumeMount(buildOptions, kanikoJobSpec)
+	}
 
+	return kanikoJobSpec
+}
+
+func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+	if k.matchECRUrl(buildOptions.RegistryURL) {
+
+		if k.builderConfiguration.AWSSecretName != "" {
+			k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
+		} else {
+
+			// assume instance role has permissions to register and store a container image
+			// https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
+			kanikoJobSpec.Spec.Template.Spec.Containers[0].Env = append(kanikoJobSpec.Spec.Template.Spec.Containers[0].Env,
+				[]v1.EnvVar{
+					{
+						Name:  "AWS_SDK_LOAD_CONFIG",
+						Value: "true",
+					},
+					{
+						Name:  "AWS_EC2_METADATA_DISABLED",
+						Value: "true",
+					}}...)
+		}
+	} else {
+
+		// configure mount with docker credentials
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
 				Name:      "docker-config",
@@ -347,8 +375,57 @@ func (k *Kaniko) compileJobSpec(namespace string,
 			},
 		})
 	}
+}
 
-	return kanikoJobSpec
+func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+
+	// Add init container to create the repository - ignore already exists
+	createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s"+
+		"|| if [ $? -eq 254 ]; then echo 'Ignoring repository already exits'; else exit $?; fi",
+		buildOptions.RepoName)
+	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers,
+		v1.Container{
+			Name:  "create-repo",
+			Image: k.builderConfiguration.AWSCLIImage,
+			Command: []string{
+				"/bin/sh",
+			},
+			Args: []string{
+				"-c",
+				createRepoCommand,
+			},
+
+			// mount the credentials file to /tmp for permissions reasons
+			Env: []v1.EnvVar{
+				{
+					Name:  "AWS_SHARED_CREDENTIALS_FILE",
+					Value: "/tmp/credentials",
+				},
+			},
+			VolumeMounts: []v1.VolumeMount{
+				{
+					Name:      k.builderConfiguration.AWSSecretName,
+					MountPath: "/tmp",
+				},
+			},
+		})
+
+	// volume aws secret to kaniko
+	kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
+		v1.VolumeMount{
+			Name:      k.builderConfiguration.AWSSecretName,
+			MountPath: "/root/.aws/",
+		})
+	kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
+		v1.Volume{
+			Name: k.builderConfiguration.AWSSecretName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: k.builderConfiguration.AWSSecretName,
+				},
+			},
+		})
 }
 
 func (k *Kaniko) compileJobName(image string) string {
@@ -584,4 +661,8 @@ func (k *Kaniko) deleteJob(namespace string, jobName string) error {
 	}
 	k.logger.DebugWith("Successfully deleted job", "namespace", namespace, "job", jobName)
 	return nil
+}
+
+func (k *Kaniko) matchECRUrl(registryURL string) bool {
+	return strings.HasSuffix(registryURL, ".amazonaws.com") && strings.Contains(registryURL, ".ecr.")
 }

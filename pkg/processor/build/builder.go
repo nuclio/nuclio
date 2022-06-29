@@ -1049,17 +1049,17 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
 
-	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
+	taggedImageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
 	b.logger.InfoWith("Building processor image",
 		"registryURL", registryURL,
-		"imageName", imageName)
+		"taggedImageName", taggedImageName)
 
 	err = b.platform.BuildAndPushContainerImage(context.Background(),
 		&containerimagebuilderpusher.BuildOptions{
 			ContextDir:     b.stagingDir,
-			Image:          imageName,
+			Image:          taggedImageName,
 			TempDir:        b.tempDir,
 			DockerfileInfo: processorDockerfileInfo,
 
@@ -1070,6 +1070,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 			NoBaseImagePull:     b.GetNoBaseImagePull(),
 			BuildArgs:           buildArgs,
 			RegistryURL:         registryURL,
+			RepoName:            b.processorImage.imageName,
 			SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 			OutputImageFile:     b.options.OutputImageFile,
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
@@ -1084,7 +1085,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
 		})
 
-	return imageName, err
+	return taggedImageName, err
 }
 
 func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildImageRegistry string) (

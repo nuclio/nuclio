@@ -95,7 +95,9 @@ spec:
         {{- end }}
         env:
         - name: NUCLIO_BUSYBOX_CONTAINER_IMAGE
-          value: {{ .Values.dashboard.kaniko.initContainerImage.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.tag}}
+          value: {{ .Values.dashboard.kaniko.initContainerImage.busybox.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.busybox.tag}}
+        - name: NUCLIO_AWS_CLI_CONTAINER_IMAGE
+          value: {{ .Values.dashboard.kaniko.initContainerImage.awscli.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.awscli.tag}}
         - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
           value: {{ .Values.dashboard.kaniko.pushImagesRetries | quote }}
         - name: NUCLIO_AUTH_KIND
@@ -178,6 +180,10 @@ spec:
           value: {{ .Values.dashboard.monitorDockerDeamon.maxConsecutiveErrors | quote }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
+        {{- if .Values.dashboard.kaniko.awsSecretName }}
+        - name: NUCLIO_KANIKO_AWS_CREDENTIALS_SECRET_NAME
+          value: {{ .Values.dashboard.kaniko.awsSecretName | quote }}
+        {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ template "nuclio.externalIPAddresses" . }}
         - name: NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE
