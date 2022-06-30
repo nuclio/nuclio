@@ -179,5 +179,8 @@ func (ar *AbstractRuntime) GetOverrideImageRegistryFromMap(imagesOverrideMap map
 }
 
 func (ar *AbstractRuntime) GetRuntimeBuildArgs(runtimeConfig *runtimeconfig.Config) map[string]string {
+	if runtimeConfig != nil && runtimeConfig.Common != nil {
+		return runtimeConfig.Common.BuildArgs
+	}
 	return map[string]string{}
 }

@@ -256,6 +256,8 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 		return errors.Wrap(err, "Failed enriching volumes")
 	}
 
+	ap.enrichEnvVars(functionConfig)
+
 	ap.Config.EnrichContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
 
 	return nil
@@ -1612,4 +1614,17 @@ func (ap *Platform) enrichVolumes(functionConfig *functionconfig.Config) error {
 		}
 	}
 	return nil
+}
+
+func (ap *Platform) enrichEnvVars(config *functionconfig.Config) {
+	if ap.Config.Runtime != nil {
+		if ap.Config.Runtime.Common != nil {
+			for envKey, envValue := range ap.Config.Runtime.Common.Env {
+				config.Spec.Env = append(config.Spec.Env, v1.EnvVar{
+					Name:  envKey,
+					Value: envValue,
+				})
+			}
+		}
+	}
 }
