@@ -65,7 +65,13 @@ kube:
   defaultFunctionNodeSelector:
     defaultFunctionNodeSelectorKey: defaultFunctionNodeSelectorValue
 runtime:
+  common:
+    env:
+      someEnvKey: someEnvValue
   python:
+    pipCAPath: /somewhere
+    env:
+      somePythonEnvKey: somePythonEnvValue
     buildArgs:
       a: b
 logger:
@@ -176,12 +182,21 @@ metrics:
 
 	// runtime
 	expectedConfiguration.Runtime = &runtimeconfig.Config{
+		Common: &runtimeconfig.Common{
+			Env: map[string]string{
+				"someEnvKey": "someEnvValue",
+			},
+		},
 		Python: &runtimeconfig.Python{
 			Common: runtimeconfig.Common{
+				Env: map[string]string{
+					"somePythonEnvKey": "somePythonEnvValue",
+				},
 				BuildArgs: map[string]string{
 					"a": "b",
 				},
 			},
+			PipCAPath: "/somewhere",
 		},
 	}
 
