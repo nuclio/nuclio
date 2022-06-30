@@ -251,6 +251,17 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
+			// signal all workers on re-balance
+			// TODO: do this only if Explicit Ack is enabled
+			for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
+				if err := workerInstance.Stop(); err != nil {
+					return errors.Wrap(err, "Failed to signal worker to terminate")
+				}
+			}
+
+			// wait for workers finish
+			time.Sleep(k.configuration.workerTerminationWaitTime)
+
 			// wait a bit more for event to process
 			select {
 			case <-submittedEventInstance.done:

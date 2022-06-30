@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -149,6 +150,12 @@ func (r *AbstractRuntime) Stop() error {
 		"wrapperProcess", r.wrapperProcess)
 
 	if r.wrapperProcess != nil {
+
+		// signal wrapper to terminate
+		if err := r.wrapperProcess.Signal(syscall.SIGTERM); err != nil {
+			r.Logger.WarnWith("Failed to signal termination to wrapper process")
+			return errors.Wrap(err, "Can't signal termination to wrapper process")
+		}
 
 		// stop waiting for process
 		if err := r.processWaiter.Cancel(); err != nil {

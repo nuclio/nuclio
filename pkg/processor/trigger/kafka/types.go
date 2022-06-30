@@ -69,6 +69,7 @@ type Configuration struct {
 	RetryBackoff                  string
 	MaxWaitTime                   string
 	MaxWaitHandlerDuringRebalance string
+	WorkerTerminationWaitTime     string
 	WorkerAllocationMode          partitionworker.AllocationMode
 	RebalanceRetryMax             int
 	FetchMin                      int
@@ -94,6 +95,7 @@ type Configuration struct {
 	retryBackoff                  time.Duration
 	maxWaitTime                   time.Duration
 	maxWaitHandlerDuringRebalance time.Duration
+	workerTerminationWaitTime     time.Duration
 	ackWindowSize                 int
 }
 
@@ -118,6 +120,7 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-balance-strategy", ValueString: &newConfiguration.BalanceStrategy},
 		{Key: "nuclio.io/kafka-max-wait-time", ValueString: &newConfiguration.MaxWaitTime},
 		{Key: "nuclio.io/kafka-max-wait-handler-during-rebalance", ValueString: &newConfiguration.MaxWaitHandlerDuringRebalance},
+		{Key: "nuclio.io/kafka-termination-wait-time", ValueString: &newConfiguration.WorkerTerminationWaitTime},
 		{Key: "nuclio.io/kafka-worker-allocation-mode", ValueString: &workerAllocationModeValue},
 		{Key: "nuclio.io/kafka-rebalance-retry-max", ValueInt: &newConfiguration.RebalanceRetryMax},
 		{Key: "nuclio.io/kafka-fetch-min", ValueInt: &newConfiguration.FetchMin},
@@ -148,6 +151,9 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-sasl-oauth-scopes", ValueListString: newConfiguration.SASL.OAuth.Scopes},
 
 		// window-ack
+		{Key: "nuclio.io/kafka-window-size", ValueInt: &newConfiguration.ackWindowSize},
+
+		// for backwards-compatibility
 		{Key: "custom.nuclio.io/kafka-window-size", ValueInt: &newConfiguration.ackWindowSize},
 	})
 
@@ -268,6 +274,12 @@ func NewConfiguration(id string,
 			Value:   newConfiguration.MaxWaitHandlerDuringRebalance,
 			Field:   &newConfiguration.maxWaitHandlerDuringRebalance,
 			Default: 5 * time.Second,
+		},
+		{
+			Name:    "termination wait time",
+			Value:   newConfiguration.WorkerTerminationWaitTime,
+			Field:   &newConfiguration.workerTerminationWaitTime,
+			Default: 30 * time.Second,
 		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {

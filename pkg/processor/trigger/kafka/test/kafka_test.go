@@ -153,6 +153,49 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.publishMessageToTopic)
 }
 
+func (suite *testSuite) TestTerminateWorkers() {
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+		Attributes: map[string]interface{}{
+			"network": suite.BrokerContainerNetworkName,
+		},
+	}
+
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"my-kafka": {
+			Kind: "kafka-cluster",
+			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+			Attributes: map[string]interface{}{
+				"topics":        []string{suite.topic},
+				"consumerGroup": suite.consumerGroup,
+				"initialOffset": suite.initialOffset,
+			},
+		},
+	}
+
+	// TODO: test it
+	//// deploy functions
+	//suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+	//	suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+	//
+	//	// send messages on topic
+	//	for messageIdx := 0; messageIdx < 10; messageIdx++ {
+	//		messageBody := fmt.Sprintf("%s-%d", suite.topic, messageIdx)
+	//
+	//		// send the message
+	//		err := suite.publishMessageToTopic(suite.topic, messageBody)
+	//		suite.Require().NoError(err, "Failed to publish message")
+	//	}
+	//
+	//	// trigger re-balance!
+	//
+	//	// make sure worker receives termination signal
+	//
+	//	return true
+	//})
+
+}
+
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "wurstmeister/kafka", &dockerclient.RunOptions{
