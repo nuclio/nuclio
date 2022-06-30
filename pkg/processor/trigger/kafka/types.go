@@ -157,6 +157,18 @@ func NewConfiguration(id string,
 
 	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
 
+	// default explicit ack mode to 'disable'
+	if triggerConfiguration.ExplicitAckMode == "" {
+		newConfiguration.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+	}
+
+	// explicit ack is only allowed for Static Allocation mode
+	if newConfiguration.WorkerAllocationMode == partitionworker.AllocationModePool &&
+		(triggerConfiguration.ExplicitAckMode == functionconfig.ExplicitAckModeEnable ||
+			triggerConfiguration.ExplicitAckMode == functionconfig.ExplicitAckModeExplicitOnly) {
+		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
+	}
+
 	if ackWindowSizeInterface, ok := newConfiguration.Attributes["ackWindowSize"]; ok {
 		var ackWindowSize int
 		errMessage := "Failed loading ack window size from trigger attributes."
