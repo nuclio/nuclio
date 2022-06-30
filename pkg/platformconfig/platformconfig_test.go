@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -63,6 +64,10 @@ kube:
     effect: NoSchedule
   defaultFunctionNodeSelector:
     defaultFunctionNodeSelectorKey: defaultFunctionNodeSelectorValue
+runtime:
+  python:
+    buildArgs:
+      a: b
 logger:
   sinks:
     stdout:
@@ -169,11 +174,25 @@ metrics:
 		},
 	}
 
+	// runtime
+	expectedConfiguration.Runtime = &runtimeconfig.Config{
+		Python: &runtimeconfig.Python{
+			Common: runtimeconfig.Common{
+				BuildArgs: map[string]string{
+					"a": "b",
+				},
+			},
+		},
+	}
+
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
 	suite.Require().NoError(err)
 
-	suite.Require().Empty(cmp.Diff(&expectedConfiguration, &readConfiguration, cmpopts.IgnoreUnexported(Config{})))
+	suite.Require().Empty(cmp.Diff(&expectedConfiguration,
+		&readConfiguration,
+		cmpopts.IgnoreUnexported(Config{}),
+		cmpopts.IgnoreUnexported(runtimeconfig.Python{})))
 }
 
 func (suite *PlatformConfigTestSuite) TestGetSystemLoggerSinks() {
