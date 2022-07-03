@@ -77,6 +77,7 @@ type Trigger struct {
 	Annotations                           map[string]string `json:"annotations,omitempty"`
 	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
+	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
 
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
@@ -84,6 +85,37 @@ type Trigger struct {
 
 	// General attributes
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type ExplicitAckMode string
+
+const (
+
+	// ExplicitAckModeEnable allows explicit and implicit ack according to the "no-ack" header
+	ExplicitAckModeEnable ExplicitAckMode = "enable"
+
+	// ExplicitAckModeDisable disables the explicit ack feature and allows only implicit acks (default)
+	ExplicitAckModeDisable ExplicitAckMode = "disable"
+
+	// ExplicitAckModeExplicitOnly allows only explicit acks and disables implicit acks
+	ExplicitAckModeExplicitOnly ExplicitAckMode = "explicitOnly"
+)
+
+func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {
+	for _, mode := range ackModes {
+		if ackMode == mode {
+			return true
+		}
+	}
+	return false
+}
+
+func ExplicitAckEnabled(mode ExplicitAckMode) bool {
+	return ExplicitAckModeInSlice(mode,
+		[]ExplicitAckMode{
+			ExplicitAckModeEnable,
+			ExplicitAckModeExplicitOnly,
+		})
 }
 
 // GetTriggersByKind returns a map of triggers by their kind
