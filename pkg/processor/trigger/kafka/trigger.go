@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/kafka/scram"
@@ -251,16 +252,25 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			// signal all workers on re-balance
 			// TODO: do this only if Explicit Ack is enabled
-			for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-				if err := workerInstance.Stop(); err != nil {
-					return errors.Wrap(err, "Failed to signal worker to terminate")
+			if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
+
+				// signal all workers on re-balance
+				errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
+
+				for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
+					errGroup.Go("Terminate worker", func() error {
+						if err := workerInstance.Stop(); err != nil {
+							return errors.Wrap(err, "Failed to signal worker to terminate")
+						}
+						return nil
+					})
+				}
+
+				if err := errGroup.Wait(); err != nil {
+					return errors.Wrap(err, "Failed to wait ")
 				}
 			}
-
-			// wait for workers finish
-			time.Sleep(k.configuration.workerTerminationWaitTime)
 
 			// wait a bit more for event to process
 			select {

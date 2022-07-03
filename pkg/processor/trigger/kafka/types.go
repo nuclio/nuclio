@@ -327,6 +327,10 @@ func NewConfiguration(id string,
 		*cert = newConfiguration.unflattenCertificate(*cert)
 	}
 
+	// populate runConfigurations with Explicit-Ack related properties
+	runtimeConfiguration.ExplicitAckEnabled = functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode)
+	runtimeConfiguration.WorkerTerminationTimeout = newConfiguration.workerTerminationWaitTime
+
 	return &newConfiguration, nil
 }
 

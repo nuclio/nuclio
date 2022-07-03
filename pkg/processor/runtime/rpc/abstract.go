@@ -78,7 +78,7 @@ type rpcLogRecord struct {
 	With     map[string]interface{} `json:"with"`
 }
 
-// NewRPCRuntime returns a new RPC runtime
+// NewAbstractRuntime returns a new RPC runtime
 func NewAbstractRuntime(logger logger.Logger,
 	configuration *runtime.Configuration,
 	runtimeInstance Runtime) (*AbstractRuntime, error) {
@@ -151,10 +151,16 @@ func (r *AbstractRuntime) Stop() error {
 
 	if r.wrapperProcess != nil {
 
-		// signal wrapper to terminate
-		if err := r.wrapperProcess.Signal(syscall.SIGTERM); err != nil {
-			r.Logger.WarnWith("Failed to signal termination to wrapper process")
-			return errors.Wrap(err, "Can't signal termination to wrapper process")
+		if r.configuration.ExplicitAckEnabled {
+
+			// signal wrapper to terminate
+			if err := r.wrapperProcess.Signal(syscall.SIGTERM); err != nil {
+				r.Logger.WarnWith("Failed to signal termination to wrapper process")
+				return errors.Wrap(err, "Can't signal termination to wrapper process")
+			}
+
+			// wait for workers to finish
+			time.Sleep(r.configuration.WorkerTerminationTimeout)
 		}
 
 		// stop waiting for process
