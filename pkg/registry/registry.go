@@ -24,14 +24,14 @@ import (
 
 type Registry struct {
 	className  string
-	Lock       sync.Locker
+	Lock       sync.RWMutex
 	Registered map[string]interface{}
 }
 
 func NewRegistry(className string) *Registry {
 	return &Registry{
 		className:  className,
-		Lock:       &sync.Mutex{},
+		Lock:       sync.RWMutex{},
 		Registered: map[string]interface{}{},
 	}
 }
@@ -51,8 +51,8 @@ func (r *Registry) Register(kind string, registeree interface{}) {
 }
 
 func (r *Registry) Get(kind string) (interface{}, error) {
-	r.Lock.Lock()
-	defer r.Lock.Unlock()
+	r.Lock.RLock()
+	defer r.Lock.RUnlock()
 
 	registree, found := r.Registered[kind]
 	if !found {
@@ -65,8 +65,8 @@ func (r *Registry) Get(kind string) (interface{}, error) {
 }
 
 func (r *Registry) GetKinds() []string {
-	r.Lock.Lock()
-	defer r.Lock.Unlock()
+	r.Lock.RLock()
+	defer r.Lock.RUnlock()
 
 	keys := make([]string, 0, len(r.Registered))
 
