@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/docker/distribution/reference"
 	"github.com/google/go-cmp/cmp"
@@ -1452,6 +1453,16 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 				continue
 			}
 			return nuclio.NewErrBadRequest("There's more than one http trigger (unsupported)")
+		}
+
+		// explicit ack is only allowed for Static Allocation mode
+		if triggerInstance.Kind == "kafka" {
+			if workerAllocationMode, exists := functionConfig.Meta.Annotations["nuclio.io/kafka-worker-allocation-mode"]; exists {
+				if partitionworker.AllocationMode(workerAllocationMode) != partitionworker.AllocationModeStatic &&
+					functionconfig.ExplicitAckEnabled(triggerInstance.ExplicitAckMode) {
+					return nuclio.NewErrBadRequest("Explicit ack mode is not allowed when using worker pool allocation mode")
+				}
+			}
 		}
 	}
 
