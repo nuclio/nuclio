@@ -21,9 +21,11 @@ package test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/Shopify/sarama"
@@ -174,25 +176,31 @@ func (suite *testSuite) TestTerminateWorkers() {
 	}
 
 	// TODO: test it
-	//// deploy functions
-	//suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-	//	suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
-	//
-	//	// send messages on topic
-	//	for messageIdx := 0; messageIdx < 10; messageIdx++ {
-	//		messageBody := fmt.Sprintf("%s-%d", suite.topic, messageIdx)
-	//
-	//		// send the message
-	//		err := suite.publishMessageToTopic(suite.topic, messageBody)
-	//		suite.Require().NoError(err, "Failed to publish message")
-	//	}
-	//
-	//	// trigger re-balance!
-	//
-	//	// make sure worker receives termination signal
-	//
-	//	return true
-	//})
+	// deploy functions
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		go func() {
+			time.Sleep(5 * time.Second)
+
+			// trigger re-balance! - close broker?
+			err := suite.broker.Close()
+			suite.Require().NoError(err, "Failed to close broker")
+		}()
+
+		// send messages on topic
+		for messageIdx := 0; messageIdx < 10; messageIdx++ {
+			messageBody := fmt.Sprintf("%s-%d", suite.topic, messageIdx)
+
+			// send the message
+			err := suite.publishMessageToTopic(suite.topic, messageBody)
+			suite.Require().NoError(err, "Failed to publish message")
+		}
+
+		// make sure worker receives termination signal
+
+		return true
+	})
 
 }
 
