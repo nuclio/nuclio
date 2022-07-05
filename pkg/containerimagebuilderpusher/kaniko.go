@@ -332,23 +332,6 @@ func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJo
 		if k.builderConfiguration.AWSSecretName != "" {
 			k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
 		} else {
-			createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s --region %s "+
-				"|| if [ $? -eq 254 ]; then echo 'Ignoring repository already exits'; else exit $?; fi",
-				buildOptions.RepoName,
-				k.resolveAWSRegionFromECR(buildOptions.RegistryURL))
-			kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers,
-				v1.Container{
-					Name:  "test",
-					Image: k.builderConfiguration.AWSCLIImage,
-					Command: []string{
-						"/bin/sh",
-					},
-					Args: []string{
-						"-c",
-						"aws sts get-caller-identity",
-						createRepoCommand,
-					},
-				})
 
 			// assume instance role has permissions to register and store a container image
 			// https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
@@ -358,10 +341,11 @@ func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJo
 						Name:  "AWS_SDK_LOAD_CONFIG",
 						Value: "true",
 					},
-					{
-						Name:  "AWS_EC2_METADATA_DISABLED",
-						Value: "true",
-					}}...)
+					//{
+					//	Name:  "AWS_EC2_METADATA_DISABLED",
+					//	Value: "true",
+					//},
+				}...)
 		}
 
 		// if SecretName is defined - configure mount with docker credentials
