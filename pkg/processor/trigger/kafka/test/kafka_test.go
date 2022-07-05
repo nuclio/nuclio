@@ -20,10 +20,14 @@ package test
 
 import (
 	"fmt"
+	"sort"
 	"testing"
+	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/Shopify/sarama"
@@ -87,6 +91,9 @@ func (suite *testSuite) SetupSuite() {
 
 	brokerConfig := sarama.NewConfig()
 	brokerConfig.Version = sarama.V0_11_0_2
+
+	// change partitioner , so we can specify which partition to send on
+	brokerConfig.Producer.Partitioner = sarama.NewManualPartitioner
 
 	// connect to the broker
 	err = suite.broker.Open(brokerConfig)
@@ -153,6 +160,127 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.publishMessageToTopic)
 }
 
+func (suite *testSuite) TestEventRecorderRebalance() {
+
+	createFunctionOptions := suite.GetDeployOptions("event_recorder-1", suite.FunctionPaths["python"])
+	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+		Attributes: map[string]interface{}{
+			"network": suite.BrokerContainerNetworkName,
+		},
+	}
+
+	initialOffset := "latest"
+
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"my-kafka": {
+			Kind: "kafka-cluster",
+			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+			Attributes: map[string]interface{}{
+				"topics":        []string{suite.topic},
+				"consumerGroup": suite.consumerGroup,
+				"initialOffset": initialOffset,
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		var sentBodies []string
+
+		suite.Logger.DebugWith("Created first function, producing messages to topic",
+			"topic", suite.topic)
+
+		// write messages on 4 shards
+		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+			messageBody := fmt.Sprintf("%s-%d", "messagingCycleA", partitionIdx)
+
+			// send the message
+			err := suite.publishMessageToTopicOnSpecificShard(suite.topic, messageBody, partitionIdx)
+			suite.Require().NoError(err, "Failed to publish message")
+
+			// add body to bodies we expect to see in response
+			sentBodies = append(sentBodies, messageBody)
+		}
+
+		// make sure they are all read
+		time.Sleep(3 * time.Second)
+		suite.Logger.DebugWith("Done producing")
+
+		receivedBodies := suite.resolveReceivedEventBodies(deployResult)
+
+		suite.Logger.DebugWith("Received events from functions",
+			"event-recorder-1-events", receivedBodies)
+
+		sort.Strings(sentBodies)
+		sort.Strings(receivedBodies)
+
+		// compare bodies
+		suite.Require().Equal(sentBodies, receivedBodies)
+
+		// create another function that consumes from the same topic and consumer group
+		newCreateFunctionOptions := suite.GetDeployOptions("event_recorder-2", suite.FunctionPaths["python"])
+		newCreateFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+			Attributes: map[string]interface{}{
+				"network": suite.BrokerContainerNetworkName,
+			},
+		}
+
+		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+			"my-kafka": {
+				Kind: "kafka-cluster",
+				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+				Attributes: map[string]interface{}{
+					"topics":        []string{suite.topic},
+					"consumerGroup": suite.consumerGroup,
+					"initialOffset": initialOffset,
+				},
+			},
+		}
+
+		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
+
+			suite.Logger.DebugWith("Created second function, producing messages to topic",
+				"topic", suite.topic)
+
+			// write messages to all 4 shards
+			for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+				messageBody := fmt.Sprintf("%s-%d", "messagingCycleB", partitionIdx)
+
+				// send the message
+				err := suite.publishMessageToTopicOnSpecificShard(suite.topic, messageBody, partitionIdx)
+				suite.Require().NoError(err, "Failed to publish message")
+
+				// add body to bodies we expect to see in response
+				sentBodies = append(sentBodies, messageBody)
+			}
+
+			// make sure they are all read
+			time.Sleep(3 * time.Second)
+			suite.Logger.DebugWith("Done producing")
+
+			// make sure both functions read form different shards - a rebalance occurred!
+			receivedBodies1 := suite.resolveReceivedEventBodies(deployResult)
+			receivedBodies2 := suite.resolveReceivedEventBodies(newDeployResult)
+
+			suite.Logger.DebugWith("Received events from functions",
+				"event-recorder-1-events", receivedBodies1,
+				"event-recorder-2-events", receivedBodies2)
+
+			for _, body := range receivedBodies1 {
+				suite.Require().False(common.StringInSlice(body, receivedBodies2))
+			}
+
+			for _, body := range receivedBodies2 {
+				suite.Require().False(common.StringInSlice(body, receivedBodies1))
+			}
+
+			return true
+		})
+
+		return true
+	})
+}
+
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "wurstmeister/kafka", &dockerclient.RunOptions{
@@ -192,10 +320,15 @@ func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclie
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
+	return suite.publishMessageToTopicOnSpecificShard(topic, body, 0)
+}
+
+func (suite *testSuite) publishMessageToTopicOnSpecificShard(topic string, body string, partitionID int32) error {
 	producerMessage := sarama.ProducerMessage{
-		Topic: topic,
-		Key:   sarama.StringEncoder("key"),
-		Value: sarama.StringEncoder(body),
+		Topic:     topic,
+		Key:       sarama.StringEncoder(fmt.Sprintf("key-%d", partitionID)),
+		Value:     sarama.StringEncoder(body),
+		Partition: partitionID,
 	}
 
 	suite.Logger.InfoWith("Producing", "topic", topic, "body", body)
@@ -206,6 +339,23 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 	suite.Logger.InfoWith("Produced", "partition", partition, "offset", offset)
 
 	return nil
+}
+
+func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.CreateFunctionResult) []string {
+
+	receivedEvents := triggertest.GetEventRecorderReceivedEvents(suite.Suite, suite.Logger, suite.BrokerHost, deployResult.Port)
+	var receivedBodies []string
+
+	// compare only bodies due to a deficiency in CompareNoOrder
+	for _, receivedEvent := range receivedEvents {
+
+		// some brokers need data to be able to read the stream. these write "ignore", so we ignore that
+		if receivedEvent.Body != "ignore" {
+			receivedBodies = append(receivedBodies, receivedEvent.Body)
+		}
+	}
+
+	return receivedBodies
 }
 
 func TestIntegrationSuite(t *testing.T) {
