@@ -419,7 +419,7 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 				Value: "true",
 			})
 	}
-	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers)
+	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers, initContainer)
 }
 
 func (k *Kaniko) compileJobName(image string) string {
