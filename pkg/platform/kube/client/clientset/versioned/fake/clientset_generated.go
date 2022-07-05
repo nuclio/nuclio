@@ -74,7 +74,10 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var _ clientset.Interface = &Clientset{}
+var (
+	_ clientset.Interface = &Clientset{}
+	_ testing.FakeClient  = &Clientset{}
+)
 
 // NuclioV1beta1 retrieves the NuclioV1beta1Client
 func (c *Clientset) NuclioV1beta1() nucliov1beta1.NuclioV1beta1Interface {
