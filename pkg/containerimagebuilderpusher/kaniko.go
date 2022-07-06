@@ -377,9 +377,9 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 		},
 	}
 
-	if k.builderConfiguration.RegistryProviderSecretName != "" {
+	if k.builderConfiguration.AWSSecretName != "" {
 
-		// mount AWS credentials file to /tmp for permissions reasons
+		// mount the credentials file to /tmp for permissions reasons
 		initContainer.Env = []v1.EnvVar{
 			{
 				Name:  "AWS_SHARED_CREDENTIALS_FILE",
@@ -388,7 +388,7 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 		}
 		initContainer.VolumeMounts = []v1.VolumeMount{
 			{
-				Name:      k.builderConfiguration.RegistryProviderSecretName,
+				Name:      k.builderConfiguration.AWSSecretName,
 				MountPath: "/tmp",
 			},
 		}
@@ -397,15 +397,15 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
 			kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
 			v1.VolumeMount{
-				Name:      k.builderConfiguration.RegistryProviderSecretName,
+				Name:      k.builderConfiguration.AWSSecretName,
 				MountPath: "/root/.aws/",
 			})
 		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
 			v1.Volume{
-				Name: k.builderConfiguration.RegistryProviderSecretName,
+				Name: k.builderConfiguration.AWSSecretName,
 				VolumeSource: v1.VolumeSource{
 					Secret: &v1.SecretVolumeSource{
-						SecretName: k.builderConfiguration.RegistryProviderSecretName,
+						SecretName: k.builderConfiguration.AWSSecretName,
 					},
 				},
 			})

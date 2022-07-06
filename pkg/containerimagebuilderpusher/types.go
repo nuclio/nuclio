@@ -38,7 +38,7 @@ type ContainerBuilderConfiguration struct {
 	Kind                                 string
 	BusyBoxImage                         string
 	AWSCLIImage                          string
-	RegistryProviderSecretName           string
+	AWSSecretName                        string
 	KanikoImage                          string
 	KanikoImagePullPolicy                string
 	JobPrefix                            string
@@ -69,8 +69,8 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 		containerBuilderConfiguration.AWSCLIImage = common.GetEnvOrDefaultString("NUCLIO_AWS_CLI_CONTAINER_IMAGE",
 			"amazon/aws-cli:2.7.10")
 	}
-	if containerBuilderConfiguration.RegistryProviderSecretName == "" {
-		containerBuilderConfiguration.RegistryProviderSecretName = common.GetEnvOrDefaultString("NUCLIO_KANIKO_REGISTRY_PROVIDER_CREDENTIALS_SECRET_NAME",
+	if containerBuilderConfiguration.AWSSecretName == "" {
+		containerBuilderConfiguration.AWSSecretName = common.GetEnvOrDefaultString("NUCLIO_KANIKO_AWS_CREDENTIALS_SECRET_NAME",
 			"")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {

@@ -146,9 +146,8 @@ dashboard:
     # How many times to retry pushing images to registry
     pushImagesRetries: 3
 
-    # auth secret to attach to kaniko pod for off cluster registries
-    # for example: aws-secret in https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
-    # registryProviderSecretName: ""
+    # secret from aws credentials file for pushing images to ECR
+    # awsSecretName: ""
 
   # Uncomment to configure node port
   # nodePort: 32050
