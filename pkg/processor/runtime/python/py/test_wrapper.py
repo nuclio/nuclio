@@ -76,7 +76,7 @@ class TestSubmitEvents(unittest.TestCase):
 
     def tearDown(self):
         sys.path.remove(self._temp_path)
-        self._wrapper._processor_sock.close()
+        self._wrapper._event_sock.close()
         self._unix_stream_server.server_close()
         self._unix_stream_server.shutdown()
         self._unix_stream_server_thread.join()
@@ -109,7 +109,7 @@ class TestSubmitEvents(unittest.TestCase):
         self._send_events(events)
         self._wrapper._is_entrypoint_coroutine = True
         self._wrapper._entrypoint = event_recorder
-        self._wrapper._processor_sock.setblocking(False)
+        self._wrapper._event_sock.setblocking(False)
         self._loop.run_until_complete(self._wrapper.serve_requests(num_of_events))
         self._loop.run_until_complete(self._loop.shutdown_asyncgens())
         self.assertEqual(num_of_events, len(recorded_events), 'wrong number of events')

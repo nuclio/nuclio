@@ -49,7 +49,8 @@ class Wrapper(object):
                  logger,
                  loop,
                  handler,
-                 socket_path,
+                 event_socket_path,
+                 control_socket_path,
                  platform_kind,
                  namespace=None,
                  worker_id=None,
@@ -57,11 +58,15 @@ class Wrapper(object):
                  trigger_name=None,
                  decode_event_strings=True):
         self._logger = logger
-        self._socket_path = socket_path
+        self._event_socket_path = event_socket_path
+        self._control_socket_path = control_socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
         self._entrypoint = None
-        self._processor_sock = None
-        self._platform = nuclio_sdk.Platform(platform_kind, namespace=namespace)
+        self._event_sock = None
+        self._control_sock = None
+        self._platform = nuclio_sdk.Platform(platform_kind,
+                                             namespace=namespace)
+                                             # control_callback=self._send_data_on_control_socket)
         self._decode_event_strings = decode_event_strings
 
         # 1gb
@@ -73,14 +78,21 @@ class Wrapper(object):
         self._is_entrypoint_coroutine = asyncio.iscoroutinefunction(self._entrypoint)
 
         # connect to processor
-        self._processor_sock = self._connect_to_processor(self._socket_path)
+        self._event_sock = self._connect_to_processor(self._event_socket_path)
 
         # make a writeable file from processor
-        self._processor_sock_wfile = self._processor_sock.makefile('w')
+        self._event_sock_wfile = self._event_sock.makefile('w')
+
+        # initialize the control socket in case explicit ack is enabled
+        if self._control_socket_path:
+            self._control_sock = self._connect_to_processor(self._control_socket_path)
+            self._control_sock_wfile = self._control_sock.makefile('w')
 
         # if we're in a coroutine - set socket to non-blocking
         if self._is_entrypoint_coroutine:
-            self._processor_sock.setblocking(False)
+            self._event_sock.setblocking(False)
+            if self._control_sock:
+                self._control_sock.setblocking(False)
 
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
@@ -101,7 +113,7 @@ class Wrapper(object):
                                            nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
 
         # replace the default output with the process socket
-        self._logger.set_handler('default', self._processor_sock_wfile, JSONFormatterOverSocket())
+        self._logger.set_handler('default', self._event_sock_wfile, JSONFormatterOverSocket())
 
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
@@ -151,7 +163,7 @@ class Wrapper(object):
         await self._initialize_context()
 
         # indicate that we're ready
-        await self._write_packet_to_processor(self._processor_sock, 's')
+        await self._write_packet_to_processor(self._event_sock, 's')
 
     async def _initialize_context(self):
 
@@ -166,6 +178,12 @@ class Wrapper(object):
             except:
                 self._logger.error('Exception raised while running init_context')
                 raise
+
+    async def _send_data_on_control_socket(self, data):
+
+        # send mark offset request to processor
+        encoded_offset_data = self._json_encoder.encode(data)
+        await self._write_packet_to_processor(self._control_sock, encoded_offset_data)
 
     def _resolve_unpacker(self):
         """
@@ -237,9 +255,9 @@ class Wrapper(object):
         Determines the message body size
         """
         if self._is_entrypoint_coroutine:
-            int_buf = await self._loop.sock_recv(self._processor_sock, 4)
+            int_buf = await self._loop.sock_recv(self._event_sock, 4)
         else:
-            int_buf = self._processor_sock.recv(4)
+            int_buf = self._event_sock.recv(4)
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
@@ -264,9 +282,9 @@ class Wrapper(object):
         while cumulative_bytes_read < expected_event_bytes_length:
             bytes_to_read_now = expected_event_bytes_length - cumulative_bytes_read
             if self._is_entrypoint_coroutine:
-                bytes_read = await self._loop.sock_recv(self._processor_sock, bytes_to_read_now)
+                bytes_read = await self._loop.sock_recv(self._event_sock, bytes_to_read_now)
             else:
-                bytes_read = self._processor_sock.recv(bytes_to_read_now)
+                bytes_read = self._event_sock.recv(bytes_to_read_now)
 
             if not bytes_read:
                 raise WrapperFatalException('Client disconnected')
@@ -303,7 +321,7 @@ class Wrapper(object):
             })
 
             # try write the formatted exception back to processor
-            await self._write_packet_to_processor(self._processor_sock, 'r' + encoded_response)
+            await self._write_packet_to_processor(self._event_sock, 'r' + encoded_response)
         except Exception as exc:
             print('Failed to write message to processor after serving error detected, is socket open?\n'
                   'Exception: {0}'.format(str(exc)))
@@ -321,7 +339,7 @@ class Wrapper(object):
         # measure duration, set to minimum float in case execution was too fast
         duration = time.time() - start_time or sys.float_info.min
 
-        await self._write_packet_to_processor(self._processor_sock, 'm' + json.dumps({'duration': duration}))
+        await self._write_packet_to_processor(self._event_sock, 'm' + json.dumps({'duration': duration}))
 
         response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
                                                               entrypoint_output)
@@ -330,11 +348,11 @@ class Wrapper(object):
         encoded_response = self._json_encoder.encode(response)
 
         # write response to the socket
-        await self._write_packet_to_processor(self._processor_sock, 'r' + encoded_response)
+        await self._write_packet_to_processor(self._event_sock, 'r' + encoded_response)
 
     def _shutdown(self, error_code=0):
         print('Shutting down')
-        self._processor_sock.close()
+        self._event_sock.close()
         sys.exit(error_code)
 
 #
@@ -355,9 +373,13 @@ def parse_args():
                         help='handler (module.sub:handler)',
                         required=True)
 
-    parser.add_argument('--socket-path',
+    parser.add_argument('--event-socket-path',
                         help='path to unix socket to listen on',
                         required=True)
+
+    parser.add_argument('--control-socket-path',
+                        help='path to unix socket to send the processor messages on',
+                        required=False)
 
     parser.add_argument('--log-level',
                         help='level of logging',
@@ -405,7 +427,8 @@ def run_wrapper():
         wrapper_instance = Wrapper(root_logger,
                                    loop,
                                    args.handler,
-                                   args.socket_path,
+                                   args.event_socket_path,
+                                   args.control_socket_path,
                                    args.platform_kind,
                                    args.namespace,
                                    args.worker_id,
