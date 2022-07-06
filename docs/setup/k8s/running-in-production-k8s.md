@@ -143,7 +143,7 @@ ECR requires handling repository creations and time limited authorization tokens
     ```sh
     --set dashboard.kaniko.initContainerImage.awscli.repository=<repository> \
     --set dashboard.kaniko.initContainerImage.awscli.tag=<tag> \
-    --set dashboard.kaniko.awsSecretName=<aws-secret-name> \
+    --set dashboard.kaniko.registryProviderSecretName=<aws-secret-name> \
     --set registry.secretName=<ecr-secret-name>
     ```
 
