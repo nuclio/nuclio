@@ -2068,7 +2068,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	}
 
 	container.ReadinessProbe = &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port: intstr.FromInt(abstract.FunctionContainerHTTPPort),
 				Path: http.InternalHealthPath,
@@ -2080,7 +2080,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	}
 
 	container.LivenessProbe = &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port: intstr.FromInt(abstract.FunctionContainerHealthCheckHTTPPort),
 				Path: "/live",

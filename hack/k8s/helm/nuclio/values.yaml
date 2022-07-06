@@ -10,7 +10,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.8.17-amd64
+    tag: 1.9.0-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -74,7 +74,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.8.17-amd64
+    tag: 1.9.0-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -261,7 +261,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.8.17-amd64
+    tag: 1.9.0-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -295,7 +295,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.8.17-amd64
+    tag: 1.9.0-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -454,7 +454,7 @@ platform: {}
 #
 #     # set to 10 for extra verbosity on top of nuclio logger
 #     logLevel: 0
-#     address: http://1.8.17.0.1.8.171
+#     address: http://1.9.0.0.1.9.01
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow
