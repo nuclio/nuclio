@@ -444,17 +444,8 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		return errors.Wrap(err, "Failed to enrich http trigger")
 	}
 
-	// enrich kafka triggers
-	for triggerName, trigger := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "kafka") {
-		if trigger.ExplicitAckMode == "" {
-			trigger.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
-		} else if functionconfig.ExplicitAckEnabled(trigger.ExplicitAckMode) {
-			if trigger.WorkerTerminationTimeout == "" {
-				trigger.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
-			}
-		}
-
-		functionConfig.Spec.Triggers[triggerName] = trigger
+	if err := p.EnrichExplicitAckParams(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich explicit ack params")
 	}
 
 	// enrich function node selector

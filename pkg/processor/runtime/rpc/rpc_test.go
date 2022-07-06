@@ -36,13 +36,8 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
-
-type wrapperProcessMock struct {
-	mock.Mock
-}
 
 type RPCSuite struct {
 	suite.Suite

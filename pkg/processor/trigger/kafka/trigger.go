@@ -252,7 +252,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			// TODO: do this only if Explicit Ack is enabled
 			if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
 
 				// signal all workers on re-balance

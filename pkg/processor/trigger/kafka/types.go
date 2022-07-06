@@ -69,7 +69,6 @@ type Configuration struct {
 	RetryBackoff                  string
 	MaxWaitTime                   string
 	MaxWaitHandlerDuringRebalance string
-	WorkerTerminationWaitTime     string
 	WorkerAllocationMode          partitionworker.AllocationMode
 	RebalanceRetryMax             int
 	FetchMin                      int
@@ -95,7 +94,6 @@ type Configuration struct {
 	retryBackoff                  time.Duration
 	maxWaitTime                   time.Duration
 	maxWaitHandlerDuringRebalance time.Duration
-	workerTerminationWaitTime     time.Duration
 	ackWindowSize                 int
 }
 
@@ -120,7 +118,6 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-balance-strategy", ValueString: &newConfiguration.BalanceStrategy},
 		{Key: "nuclio.io/kafka-max-wait-time", ValueString: &newConfiguration.MaxWaitTime},
 		{Key: "nuclio.io/kafka-max-wait-handler-during-rebalance", ValueString: &newConfiguration.MaxWaitHandlerDuringRebalance},
-		{Key: "nuclio.io/kafka-termination-wait-time", ValueString: &newConfiguration.WorkerTerminationWaitTime},
 		{Key: "nuclio.io/kafka-worker-allocation-mode", ValueString: &workerAllocationModeValue},
 		{Key: "nuclio.io/kafka-rebalance-retry-max", ValueInt: &newConfiguration.RebalanceRetryMax},
 		{Key: "nuclio.io/kafka-fetch-min", ValueInt: &newConfiguration.FetchMin},
@@ -166,14 +163,12 @@ func NewConfiguration(id string,
 	// default explicit ack mode to 'disable'
 	if triggerConfiguration.ExplicitAckMode == "" {
 		newConfiguration.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
-	} else {
+	}
 
-		if triggerConfiguration.WorkerTerminationTimeout == "" {
-			runtimeConfiguration.WorkerTerminationTimeout, err = time.ParseDuration(functionconfig.DefaultWorkerTerminationTimeout)
-			if err != nil {
-				return nil, errors.New("Failed to parse default worker termination timeout")
-			}
-		}
+	// pass worker termination timeout to runtime config
+	runtimeConfiguration.WorkerTerminationTimeout, err = time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
+	if err != nil {
+		return nil, errors.New("Failed to parse default worker termination timeout")
 	}
 
 	// explicit ack is only allowed for Static Allocation mode
@@ -294,12 +289,6 @@ func NewConfiguration(id string,
 			Field:   &newConfiguration.maxWaitHandlerDuringRebalance,
 			Default: 5 * time.Second,
 		},
-		{
-			Name:    "termination wait time",
-			Value:   newConfiguration.WorkerTerminationWaitTime,
-			Field:   &newConfiguration.workerTerminationWaitTime,
-			Default: 30 * time.Second,
-		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err
@@ -334,10 +323,6 @@ func NewConfiguration(id string,
 	} {
 		*cert = newConfiguration.unflattenCertificate(*cert)
 	}
-
-	// populate runConfigurations with Explicit-Ack properties
-	runtimeConfiguration.ExplicitAckEnabled = functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode)
-	runtimeConfiguration.WorkerTerminationTimeout = newConfiguration.workerTerminationWaitTime
 
 	return &newConfiguration, nil
 }
