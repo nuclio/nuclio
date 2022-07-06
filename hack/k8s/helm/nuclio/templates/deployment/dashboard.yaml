@@ -181,7 +181,7 @@ spec:
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
         {{- if .Values.dashboard.kaniko.registryProviderSecretName }}
-        - name: NUCLIO_KANIKO_REGISTRY_PROVIDER_CREDENTIALS_SECRET_NAME
+        - name: NUCLIO_KANIKO_REGISTRY_PROVIDER_AUTH_SECRET_NAME
           value: {{ .Values.dashboard.kaniko.registryProviderSecretName | quote }}
         {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
