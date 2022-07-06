@@ -70,7 +70,7 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 			"amazon/aws-cli:2.7.10")
 	}
 	if containerBuilderConfiguration.RegistryProviderSecretName == "" {
-		containerBuilderConfiguration.RegistryProviderSecretName = common.GetEnvOrDefaultString("NUCLIO_KANIKO_REGISTRY_PROVIDER_CREDENTIALS_SECRET_NAME",
+		containerBuilderConfiguration.RegistryProviderSecretName = common.GetEnvOrDefaultString("NUCLIO_KANIKO_REGISTRY_PROVIDER_AUTH_SECRET_NAME",
 			"")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
