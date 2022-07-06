@@ -68,37 +68,6 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 	suite.True(strings.Contains(sink.String(), message), "Didn't get log")
 }
 
-func (suite *RPCSuite) TestSignalWrapperOnStop() {
-
-	wrapperMock := &wrapperProcessMock{}
-
-	// create logger
-	var sink bytes.Buffer
-	var errSink bytes.Buffer
-	logger, err := nucliozap.NewNuclioZap("RPCTest", "json", nil, &sink, &errSink, nucliozap.DebugLevel)
-	suite.Require().NoError(err, "Can't create logger")
-
-	// get runtime config
-	runtimeConfig := suite.runtimeConfiguration(logger)
-
-	// enable explicit ack and set timeout
-	runtimeConfig.ExplicitAckEnabled = true
-	runtimeConfig.WorkerTerminationTimeout = 2 * time.Second
-
-	// create new abstract runtime
-	rpcRuntime, err := NewAbstractRuntime(logger, runtimeConfig, nil)
-	suite.Require().NoError(err, "Can't create RPC runtime")
-
-	rpcRuntime.wrapperProcess = wrapperMock
-
-	// call stop
-	err = rpcRuntime.Stop()
-	suite.Require().NoError(err, "Couldn't stop RPC runtime")
-
-	// make sure signal was called
-
-}
-
 func (suite *RPCSuite) emitLog(message string, conn io.Writer) {
 	log := &rpcLogRecord{
 		DateTime: time.Now().String(),

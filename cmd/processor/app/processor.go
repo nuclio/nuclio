@@ -316,6 +316,8 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 				&runtime.Configuration{
 					Configuration:  processorConfiguration,
 					FunctionLogger: p.functionLogger,
+					ExplicitAckEnabled: functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode),
+					WorkerTerminationTimeout: triggerConfiguration.
 				},
 				p.namedWorkerAllocators,
 				p.restartTriggerChan)

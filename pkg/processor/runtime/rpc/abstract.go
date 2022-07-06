@@ -154,12 +154,18 @@ func (r *AbstractRuntime) Stop() error {
 		if r.configuration.ExplicitAckEnabled {
 
 			// signal wrapper to terminate
+			r.Logger.DebugWith("Sending termination signal to wrapper process",
+				"wrapperProcess", r.wrapperProcess)
+
 			if err := r.wrapperProcess.Signal(syscall.SIGTERM); err != nil {
 				r.Logger.WarnWith("Failed to signal termination to wrapper process")
 				return errors.Wrap(err, "Can't signal termination to wrapper process")
 			}
 
 			// wait for workers to finish
+			r.Logger.DebugWith("Waiting for wrapper process to stop processing events",
+				"wrapperProcess", r.wrapperProcess,
+				"waitTime", r.configuration.WorkerTerminationTimeout)
 			time.Sleep(r.configuration.WorkerTerminationTimeout)
 		}
 

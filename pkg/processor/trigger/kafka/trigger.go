@@ -256,6 +256,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
 
 				// signal all workers on re-balance
+				k.Logger.Debug("Signaling all workers to drop or ack events")
+
 				errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
 
 				for _, workerInstance := range k.WorkerAllocator.GetWorkers() {

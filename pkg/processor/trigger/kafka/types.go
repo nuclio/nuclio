@@ -166,6 +166,14 @@ func NewConfiguration(id string,
 	// default explicit ack mode to 'disable'
 	if triggerConfiguration.ExplicitAckMode == "" {
 		newConfiguration.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+	} else {
+
+		if triggerConfiguration.WorkerTerminationTimeout == "" {
+			runtimeConfiguration.WorkerTerminationTimeout, err = time.ParseDuration(functionconfig.DefaultWorkerTerminationTimeout)
+			if err != nil {
+				return nil, errors.New("Failed to parse default worker termination timeout")
+			}
+		}
 	}
 
 	// explicit ack is only allowed for Static Allocation mode
@@ -327,7 +335,7 @@ func NewConfiguration(id string,
 		*cert = newConfiguration.unflattenCertificate(*cert)
 	}
 
-	// populate runConfigurations with Explicit-Ack related properties
+	// populate runConfigurations with Explicit-Ack properties
 	runtimeConfiguration.ExplicitAckEnabled = functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode)
 	runtimeConfiguration.WorkerTerminationTimeout = newConfiguration.workerTerminationWaitTime
 

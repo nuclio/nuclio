@@ -78,6 +78,7 @@ type Trigger struct {
 	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
 	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
+	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
 
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
@@ -99,6 +100,8 @@ const (
 
 	// ExplicitAckModeExplicitOnly allows only explicit acks and disables implicit acks
 	ExplicitAckModeExplicitOnly ExplicitAckMode = "explicitOnly"
+
+	DefaultWorkerTerminationTimeout string = "30s"
 )
 
 func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {
