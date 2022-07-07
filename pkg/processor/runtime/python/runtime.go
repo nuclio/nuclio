@@ -58,7 +58,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newPythonRuntime, nil
 }
 
-func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
+func (py *python) RunWrapper(eventSocketPath, controlSocketPath string) (*os.Process, error) {
 
 	// TODO: remove warning once python 3.6 is not supported
 	_, runtimeVersion := common.GetRuntimeNameAndVersion(py.configuration.Spec.Runtime)
@@ -93,7 +93,8 @@ func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	args := []string{
 		pythonExePath, "-u", wrapperScriptPath,
 		"--handler", handler,
-		"--socket-path", socketPath,
+		"--event-socket-path", eventSocketPath,
+		"--control-socket-path", controlSocketPath,
 		"--platform-kind", py.configuration.PlatformConfig.Kind,
 		"--namespace", py.configuration.Meta.Namespace,
 		"--worker-id", strconv.Itoa(py.configuration.WorkerID),

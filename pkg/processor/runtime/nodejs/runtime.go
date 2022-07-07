@@ -59,7 +59,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 }
 
 // We can't use n.Logger since it's not initialized
-func (n *nodejs) RunWrapper(socketPath string) (*os.Process, error) {
+func (n *nodejs) RunWrapper(socketPath, controlSocketPath string) (*os.Process, error) {
 	wrapperScriptPath := n.getWrapperScriptPath()
 	n.Logger.DebugWith("Using nodejs wrapper script path", "path", wrapperScriptPath)
 	if !common.IsFile(wrapperScriptPath) {

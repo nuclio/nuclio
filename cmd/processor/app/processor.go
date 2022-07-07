@@ -86,6 +86,7 @@ type Processor struct {
 	stop                      chan bool
 	stopRestartTriggerRoutine chan bool
 	restartTriggerChan        chan trigger.Trigger
+	controlChannels           trigger.ControlChannelMap
 }
 
 // NewProcessor returns a new Processor
@@ -98,6 +99,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		stopRestartTriggerRoutine: make(chan bool, 1),
 		restartTriggerChan:        make(chan trigger.Trigger, 1),
 	}
+
+	newProcessor.controlChannels.Initialize()
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -314,8 +317,9 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 				triggerName,
 				&triggerConfiguration,
 				&runtime.Configuration{
-					Configuration:  processorConfiguration,
-					FunctionLogger: p.functionLogger,
+					Configuration:   processorConfiguration,
+					FunctionLogger:  p.functionLogger,
+					ControlChannels: p.controlChannels,
 				},
 				p.namedWorkerAllocators,
 				p.restartTriggerChan)

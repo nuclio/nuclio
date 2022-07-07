@@ -152,3 +152,40 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 type Secret struct {
 	Contents string
 }
+
+type OffsetData struct {
+	Topic       string `json:"topic"`
+	Partition   int32  `json:"partition"`
+	Offset      int64  `json:"offset"`
+	TriggerName string `json:"trigger_name"`
+	Err         error
+}
+
+type ControlChannelMap struct {
+
+	// TODO: Generalize channel type
+	controlChannels map[string]chan *OffsetData
+}
+
+func (c *ControlChannelMap) Initialize() {
+	c.controlChannels = make(map[string]chan *OffsetData)
+}
+
+func (c *ControlChannelMap) Read(triggerName string) <-chan *OffsetData {
+	return c.controlChannels[triggerName]
+}
+
+func (c *ControlChannelMap) Write(triggerName string, message *OffsetData) {
+	c.controlChannels[triggerName] <- message
+}
+
+func (c *ControlChannelMap) CloseChannel(triggerName string) {
+	close(c.controlChannels[triggerName])
+}
+
+func (c *ControlChannelMap) HasTriggerName(message OffsetData) bool {
+	if message.TriggerName == "" {
+		return false
+	}
+	return true
+}

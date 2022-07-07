@@ -56,7 +56,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newDotnetCoreRuntime, nil
 }
 
-func (d *dotnetcore) RunWrapper(socketPath string) (*os.Process, error) {
+func (d *dotnetcore) RunWrapper(socketPath, controlSocketPath string) (*os.Process, error) {
 	wrapperDLLPath := d.getWrapperDLLPath()
 	d.Logger.DebugWith("Using dotnet core wrapper dll path", "path", wrapperDLLPath)
 	if !common.IsFile(wrapperDLLPath) {

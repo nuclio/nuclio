@@ -57,7 +57,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 	return newTestRuntime, nil
 }
 
-func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
+func (r *testRuntime) RunWrapper(socketPath, controlSocketPath string) (*os.Process, error) {
 	var err error
 	cmd := exec.Command("sleep", "999999")
 	if err = cmd.Start(); err != nil {

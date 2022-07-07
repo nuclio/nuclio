@@ -30,8 +30,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -44,6 +46,17 @@ const (
 	connectionTimeout  = 2 * time.Minute
 )
 
+type ControlMessage struct {
+	Kind       string      `json:"kind"`
+	Attributes interface{} `json:"attributes"`
+}
+
+type socketConnection struct {
+	conn     net.Conn
+	listener net.Listener
+	address  string
+}
+
 type result struct {
 	StatusCode   int                    `json:"status_code"`
 	ContentType  string                 `json:"content_type"`
@@ -55,7 +68,7 @@ type result struct {
 	err         error
 }
 
-// Runtime is a runtime that communicates via unix domain socket
+// AbstractRuntime is a runtime that communicates via unix domain socket
 type AbstractRuntime struct {
 	runtime.AbstractRuntime
 	configuration  *runtime.Configuration
@@ -77,7 +90,7 @@ type rpcLogRecord struct {
 	With     map[string]interface{} `json:"with"`
 }
 
-// NewRPCRuntime returns a new RPC runtime
+// NewAbstractRuntime returns a new RPC runtime
 func NewAbstractRuntime(logger logger.Logger,
 	configuration *runtime.Configuration,
 	runtimeInstance Runtime) (*AbstractRuntime, error) {
@@ -214,19 +227,19 @@ func (r *AbstractRuntime) SupportsRestart() bool {
 }
 
 func (r *AbstractRuntime) startWrapper() error {
-	var err error
+	var (
+		err                                error
+		eventConnection, controlConnection socketConnection
+	)
 
-	var listener net.Listener
-	var address string
-
-	if r.runtime.GetSocketType() == UnixSocket {
-		listener, address, err = r.createUnixListener()
-	} else {
-		listener, address, err = r.createTCPListener()
+	if err = r.createSocketConnection(&eventConnection); err != nil {
+		return errors.Wrap(err, "Failed to create socket connection")
 	}
 
-	if err != nil {
-		return errors.Wrap(err, "Can't create listener")
+	if r.configuration.ExplicitAckEnabled {
+		if err = r.createSocketConnection(&controlConnection); err != nil {
+			return errors.Wrap(err, "Failed to create socket connection")
+		}
 	}
 
 	r.processWaiter, err = processwaiter.NewProcessWaiter()
@@ -234,7 +247,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		return errors.Wrap(err, "Failed to create process waiter")
 	}
 
-	wrapperProcess, err := r.runtime.RunWrapper(address)
+	wrapperProcess, err := r.runtime.RunWrapper(eventConnection.address, controlConnection.address)
 	if err != nil {
 		return errors.Wrap(err, "Can't run wrapper")
 	}
@@ -243,7 +256,7 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	go r.watchWrapperProcess()
 
-	conn, err := listener.Accept()
+	eventConnection.conn, err = eventConnection.listener.Accept()
 	if err != nil {
 		return errors.Wrap(err, "Can't get connection from wrapper")
 	}
@@ -252,9 +265,19 @@ func (r *AbstractRuntime) startWrapper() error {
 		"wid", r.Context.WorkerID,
 		"pid", r.wrapperProcess.Pid)
 
-	r.eventEncoder = r.runtime.GetEventEncoder(conn)
+	r.eventEncoder = r.runtime.GetEventEncoder(eventConnection.conn)
 	r.resultChan = make(chan *result)
-	go r.wrapperOutputHandler(conn, r.resultChan)
+	go r.eventWrapperOutputHandler(eventConnection.conn, r.resultChan)
+
+	// control connection
+	if r.configuration.ExplicitAckEnabled {
+		controlConnection.conn, err = controlConnection.listener.Accept()
+		if err != nil {
+			return errors.Wrap(err, "Can't get connection from wrapper")
+		}
+
+		go r.controlOutputHandler(controlConnection.conn, r.configuration.ControlChannels)
+	}
 
 	// wait for start if required to
 	if r.runtime.WaitForStart() {
@@ -264,6 +287,22 @@ func (r *AbstractRuntime) startWrapper() error {
 	}
 
 	r.Logger.Debug("Started")
+
+	return nil
+}
+
+// Create a listener on unix domain docker, return listener, path to socket and error
+func (r *AbstractRuntime) createSocketConnection(connection *socketConnection) error {
+	var err error
+	if r.runtime.GetSocketType() == UnixSocket {
+		connection.listener, connection.address, err = r.createUnixListener()
+	} else {
+		connection.listener, connection.address, err = r.createTCPListener()
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "Can't create listener")
+	}
 
 	return nil
 }
@@ -317,12 +356,12 @@ func (r *AbstractRuntime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *result) {
+func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan chan *result) {
 
 	// Reset might close outChan, which will cause panic when sending
 	defer func() {
 		if err := recover(); err != nil {
-			r.Logger.WarnWith("Recovered during output handler (Restart called?)", "err", err)
+			r.Logger.WarnWith("Recovered during event output handler (Restart called?)", "err", err)
 		}
 	}()
 
@@ -368,6 +407,51 @@ func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *
 		case 's':
 			r.handleStart()
 		}
+	}
+}
+
+func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels trigger.ControlChannelMap) {
+
+	var err error
+
+	// Reset might close outChan, which will cause panic when sending
+	defer func() {
+		if err := recover(); err != nil {
+			r.Logger.WarnWith("Recovered during control output handler (Restart called?)", "err", err)
+		}
+	}()
+
+	outReader := bufio.NewReader(conn)
+
+	for {
+		unmarshalledControlMessage := &ControlMessage{}
+		var data []byte
+
+		data, err = outReader.ReadBytes('\n')
+		if err != nil {
+
+		}
+
+		// try to unmarshall the data
+		if err = json.Unmarshal(data, unmarshalledControlMessage); err != nil {
+			r.Logger.WarnWith("Failed unmarshalling control message", "err", err)
+		}
+
+		// TODO: support other types of messages
+		if unmarshalledControlMessage.Kind == "ack" {
+
+			offsetData := &trigger.OffsetData{}
+			if err := mapstructure.Decode(unmarshalledControlMessage.Attributes, offsetData); err != nil {
+				r.Logger.WarnWith("Failed decoding control message attributes", "err", err)
+			}
+
+			// TOMER - from playground, this might result in: {TriggerName: Err:<nil>}
+
+			// send offset data to trigger
+			controlChannels.Write(r.configuration.TriggerName, offsetData)
+		}
+
+		continue
 	}
 }
 
