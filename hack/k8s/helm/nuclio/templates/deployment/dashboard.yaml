@@ -180,9 +180,9 @@ spec:
           value: {{ .Values.dashboard.monitorDockerDeamon.maxConsecutiveErrors | quote }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
-        {{- if .Values.dashboard.kaniko.awsSecretName }}
-        - name: NUCLIO_KANIKO_AWS_CREDENTIALS_SECRET_NAME
-          value: {{ .Values.dashboard.kaniko.awsSecretName | quote }}
+        {{- if .Values.dashboard.kaniko.registryProviderSecretName }}
+        - name: NUCLIO_KANIKO_REGISTRY_PROVIDER_AUTH_SECRET_NAME
+          value: {{ .Values.dashboard.kaniko.registryProviderSecretName | quote }}
         {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ template "nuclio.externalIPAddresses" . }}
