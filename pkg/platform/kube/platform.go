@@ -444,10 +444,6 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		return errors.Wrap(err, "Failed to enrich http trigger")
 	}
 
-	if err := p.EnrichExplicitAckParams(ctx, functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to enrich explicit ack params")
-	}
-
 	// enrich function node selector
 	if functionConfig.Spec.NodeSelector == nil && p.Config.Kube.DefaultFunctionNodeSelector != nil {
 		p.Logger.DebugWithCtx(ctx,

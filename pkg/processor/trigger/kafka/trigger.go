@@ -255,7 +255,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
 
 				// signal all workers on re-balance
-				k.Logger.Debug("Signaling all workers to drop or ack events")
+				k.Logger.Debug("Signaling all workers to drop or ack events due to rebalance")
 
 				errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
 
@@ -269,7 +269,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				}
 
 				if err := errGroup.Wait(); err != nil {
-					return errors.Wrap(err, "Failed to wait ")
+					return errors.Wrap(err, "Failed waiting for the termination of all workers")
 				}
 			}
 

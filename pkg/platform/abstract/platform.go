@@ -279,27 +279,6 @@ func (ap *Platform) EnrichLabels(ctx context.Context, labels map[string]string) 
 	}
 }
 
-func (ap *Platform) EnrichExplicitAckParams(ctx context.Context, functionConfig *functionconfig.Config) error {
-
-	// explicit ack is relevant for stream triggers
-	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "kafka") {
-		ap.Logger.DebugWithCtx(ctx, "Enriching explicit ack params",
-			"functionName", functionConfig.Meta.Name)
-
-		if triggerInstance.ExplicitAckMode == "" {
-			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
-		}
-
-		if triggerInstance.WorkerTerminationTimeout == "" {
-			triggerInstance.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
-		}
-
-		functionConfig.Spec.Triggers[triggerName] = triggerInstance
-	}
-
-	return nil
-}
-
 func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Config) {
 	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) > 0 {
 		return
@@ -1535,7 +1514,7 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 	// add default http trigger if missing http trigger
 	ap.enrichDefaultHTTPTrigger(functionConfig)
 
-	if err := ap.EnrichExplicitAckParams(ctx, functionConfig); err != nil {
+	if err := ap.enrichExplicitAckParams(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich explicit ack params")
 	}
 
@@ -1555,6 +1534,27 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
+	return nil
+}
+
+func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig *functionconfig.Config) error {
+
+	// explicit ack is relevant for stream triggers
+	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "kafka") {
+		ap.Logger.DebugWithCtx(ctx, "Enriching explicit ack params",
+			"functionName", functionConfig.Meta.Name)
+
+		if triggerInstance.ExplicitAckMode == "" {
+			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+		}
+
+		if triggerInstance.WorkerTerminationTimeout == "" {
+			triggerInstance.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
+		}
+
+		functionConfig.Spec.Triggers[triggerName] = triggerInstance
+	}
+
 	return nil
 }
 
