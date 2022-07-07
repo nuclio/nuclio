@@ -322,35 +322,16 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		},
 	}
 
-	// if SecretName is defined - configure mount with docker/aws credentials
-	if len(buildOptions.SecretName) > 0 {
-		k.configureSecretVolumeMount(buildOptions, kanikoJobSpec)
-	}
-
+	k.configureSecretVolumeMount(buildOptions, kanikoJobSpec)
 	return kanikoJobSpec
 }
 
 func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
 	if k.matchECRUrl(buildOptions.RegistryURL) {
+		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
 
-		if k.builderConfiguration.AWSSecretName != "" {
-			k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
-		} else {
-
-			// assume instance role has permissions to register and store a container image
-			// https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
-			kanikoJobSpec.Spec.Template.Spec.Containers[0].Env = append(kanikoJobSpec.Spec.Template.Spec.Containers[0].Env,
-				[]v1.EnvVar{
-					{
-						Name:  "AWS_SDK_LOAD_CONFIG",
-						Value: "true",
-					},
-					{
-						Name:  "AWS_EC2_METADATA_DISABLED",
-						Value: "true",
-					}}...)
-		}
-	} else {
+		// if SecretName is defined - configure mount with docker credentials
+	} else if len(buildOptions.SecretName) > 0 {
 
 		// configure mount with docker credentials
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
@@ -384,49 +365,61 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 		"|| if [ $? -eq 254 ]; then echo 'Ignoring repository already exits'; else exit $?; fi",
 		buildOptions.RepoName,
 		k.resolveAWSRegionFromECR(buildOptions.RegistryURL))
-	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers,
-		v1.Container{
-			Name:  "create-repo",
-			Image: k.builderConfiguration.AWSCLIImage,
-			Command: []string{
-				"/bin/sh",
-			},
-			Args: []string{
-				"-c",
-				createRepoCommand,
-			},
+	initContainer := v1.Container{
+		Name:  "create-repo",
+		Image: k.builderConfiguration.AWSCLIImage,
+		Command: []string{
+			"/bin/sh",
+		},
+		Args: []string{
+			"-c",
+			createRepoCommand,
+		},
+	}
 
-			// mount the credentials file to /tmp for permissions reasons
-			Env: []v1.EnvVar{
-				{
-					Name:  "AWS_SHARED_CREDENTIALS_FILE",
-					Value: "/tmp/credentials",
-				},
-			},
-			VolumeMounts: []v1.VolumeMount{
-				{
-					Name:      k.builderConfiguration.AWSSecretName,
-					MountPath: "/tmp",
-				},
-			},
-		})
+	if k.builderConfiguration.RegistryProviderSecretName != "" {
 
-	// volume aws secret to kaniko
-	kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
-		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
-		v1.VolumeMount{
-			Name:      k.builderConfiguration.AWSSecretName,
-			MountPath: "/root/.aws/",
-		})
-	kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
-		v1.Volume{
-			Name: k.builderConfiguration.AWSSecretName,
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: k.builderConfiguration.AWSSecretName,
-				},
+		// mount AWS credentials file to /tmp for permissions reasons
+		initContainer.Env = []v1.EnvVar{
+			{
+				Name:  "AWS_SHARED_CREDENTIALS_FILE",
+				Value: "/tmp/credentials",
 			},
-		})
+		}
+		initContainer.VolumeMounts = []v1.VolumeMount{
+			{
+				Name:      k.builderConfiguration.RegistryProviderSecretName,
+				MountPath: "/tmp",
+			},
+		}
+
+		// volume aws secret to kaniko
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+			kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
+			v1.VolumeMount{
+				Name:      k.builderConfiguration.RegistryProviderSecretName,
+				MountPath: "/root/.aws/",
+			})
+		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
+			v1.Volume{
+				Name: k.builderConfiguration.RegistryProviderSecretName,
+				VolumeSource: v1.VolumeSource{
+					Secret: &v1.SecretVolumeSource{
+						SecretName: k.builderConfiguration.RegistryProviderSecretName,
+					},
+				},
+			})
+	} else {
+
+		// assume instance role has permissions to register and store a container image
+		// https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].Env = append(kanikoJobSpec.Spec.Template.Spec.Containers[0].Env,
+			v1.EnvVar{
+				Name:  "AWS_SDK_LOAD_CONFIG",
+				Value: "true",
+			})
+	}
+	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers, initContainer)
 }
 
 func (k *Kaniko) compileJobName(image string) string {
