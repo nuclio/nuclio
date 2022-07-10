@@ -181,7 +181,7 @@ class Wrapper(object):
 
     async def _send_data_on_control_socket(self, data):
 
-        # send mark offset request to processor
+        # send message to processor
         encoded_offset_data = self._json_encoder.encode(data)
         await self._write_packet_to_processor(self._control_sock, encoded_offset_data)
 

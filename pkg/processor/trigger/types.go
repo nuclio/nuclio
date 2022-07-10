@@ -161,6 +161,13 @@ type OffsetData struct {
 	Err         error
 }
 
+func (o *OffsetData) HasTriggerName() bool {
+	if o.TriggerName == "" {
+		return false
+	}
+	return true
+}
+
 type ControlChannelMap struct {
 
 	// TODO: Generalize channel type
@@ -181,11 +188,4 @@ func (c *ControlChannelMap) Write(triggerName string, message *OffsetData) {
 
 func (c *ControlChannelMap) CloseChannel(triggerName string) {
 	close(c.controlChannels[triggerName])
-}
-
-func (c *ControlChannelMap) HasTriggerName(message OffsetData) bool {
-	if message.TriggerName == "" {
-		return false
-	}
-	return true
 }

@@ -438,17 +438,26 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels t
 		}
 
 		// TODO: support other types of messages
-		if unmarshalledControlMessage.Kind == "ack" {
+		switch unmarshalledControlMessage.Kind {
+		case "streamMessageAck":
 
+			// decode offset data from message attributes
 			offsetData := &trigger.OffsetData{}
 			if err := mapstructure.Decode(unmarshalledControlMessage.Attributes, offsetData); err != nil {
 				r.Logger.WarnWith("Failed decoding control message attributes", "err", err)
 			}
 
-			// TOMER - from playground, this might result in: {TriggerName: Err:<nil>}
+			if !offsetData.HasTriggerName() {
+
+				// TODO: respond back to wrapper that trigger name is missing
+			}
 
 			// send offset data to trigger
-			controlChannels.Write(r.configuration.TriggerName, offsetData)
+			controlChannels.Write(offsetData.TriggerName, offsetData)
+
+		default:
+			r.Logger.WarnWith("Received unsupported message kind",
+				"kind", unmarshalledControlMessage.Kind)
 		}
 
 		continue
