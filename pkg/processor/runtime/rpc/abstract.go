@@ -149,64 +149,35 @@ func (r *AbstractRuntime) Stop() error {
 		"status", r.GetStatus(),
 		"wrapperProcess", r.wrapperProcess)
 
-	processTerminated := false
-
 	if r.wrapperProcess != nil {
 
-		if r.configuration.ExplicitAckEnabled {
-
-			// send SIGTERM to wrapper process
-			if err := r.signal(syscall.SIGTERM); err != nil {
-				r.Logger.WarnWith("Failed to send termination signal to wrapper process",
-					"pid", r.wrapperProcess.Pid)
-			}
-
-			// wait for process to finish or timeout
-			processTerminated = r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
+		// send SIGTERM to wrapper process
+		if err := r.signal(syscall.SIGTERM); err != nil {
+			r.Logger.WarnWith("Failed to send termination signal to wrapper process",
+				"pid", r.wrapperProcess.Pid)
 		}
 
-		if !processTerminated {
+		// wait for process to finish or timeout
+		r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
 
-			// stop waiting for process
-			if err := r.processWaiter.Cancel(); err != nil {
-				r.Logger.WarnWith("Failed to cancel process waiting")
-			}
+		// stop waiting for process
+		if err := r.processWaiter.Cancel(); err != nil {
+			r.Logger.WarnWith("Failed to cancel process waiting")
+		}
 
-			r.Logger.WarnWith("Killing wrapper process", "wrapperProcessPid", r.wrapperProcess.Pid)
-			if err := r.wrapperProcess.Kill(); err != nil {
-				r.SetStatus(status.Error)
-				return errors.Wrap(err, "Can't kill wrapper process")
-			}
+		r.Logger.WarnWith("Killing wrapper process", "wrapperProcessPid", r.wrapperProcess.Pid)
+		if err := r.wrapperProcess.Kill(); err != nil {
+			r.SetStatus(status.Error)
+			return errors.Wrap(err, "Can't kill wrapper process")
 		}
 	}
 
-	if !processTerminated {
-		r.waitForProcessTermination(10 * time.Second)
-	}
+	r.waitForProcessTermination(10 * time.Second)
 
 	r.wrapperProcess = nil
 
 	r.SetStatus(status.Stopped)
 	r.Logger.Warn("Successfully stopped wrapper process")
-	return nil
-}
-
-func (r *AbstractRuntime) signal(signal syscall.Signal) error {
-
-	if r.wrapperProcess != nil && r.configuration.ExplicitAckEnabled {
-
-		// signal wrapper to terminate
-		r.Logger.DebugWith("Sending signal to wrapper process",
-			"pid", r.wrapperProcess.Pid,
-			"signal", signal.String())
-
-		if err := r.wrapperProcess.Signal(signal); err != nil {
-			r.Logger.WarnWith("Failed to signal wrapper process",
-				"pid", r.wrapperProcess.Pid,
-				"signal", signal.String())
-		}
-	}
-
 	return nil
 }
 
@@ -511,19 +482,38 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 }
 
 // waitForProcessTermination will best effort wait few seconds to stop channel, if timeout - assume closed
-func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) bool {
+func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 	for {
 		select {
 		case <-r.stopChan:
 			r.Logger.DebugWith("Process terminated",
 				"wid", r.Context.WorkerID,
 				"process", r.wrapperProcess)
-			return true
+			return
 		case <-time.After(timeout):
 			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
 				"wid", r.Context.WorkerID,
 				"process", r.wrapperProcess)
-			return false
+			return
 		}
 	}
+}
+
+func (r *AbstractRuntime) signal(signal syscall.Signal) error {
+
+	if r.wrapperProcess != nil {
+
+		// signal wrapper to terminate
+		r.Logger.DebugWith("Signaling to wrapper process",
+			"pid", r.wrapperProcess.Pid,
+			"signal", signal.String())
+
+		if err := r.wrapperProcess.Signal(signal); err != nil {
+			r.Logger.WarnWith("Failed to signal wrapper process",
+				"pid", r.wrapperProcess.Pid,
+				"signal", signal.String())
+		}
+	}
+
+	return nil
 }

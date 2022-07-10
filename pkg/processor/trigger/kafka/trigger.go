@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -260,7 +261,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
 
 				for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-					errGroup.Go("Terminate worker", func() error {
+					errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
 						if err := workerInstance.Stop(); err != nil {
 							return errors.Wrap(err, "Failed to signal worker to terminate")
 						}
@@ -269,7 +270,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				}
 
 				if err := errGroup.Wait(); err != nil {
-					return errors.Wrap(err, "Failed waiting for the termination of all workers")
+					return errors.Wrap(err, "At least one worker failed to stop")
 				}
 			}
 

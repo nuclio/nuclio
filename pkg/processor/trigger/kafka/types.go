@@ -165,12 +165,6 @@ func NewConfiguration(id string,
 		newConfiguration.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 	}
 
-	// pass worker termination timeout to runtime config
-	runtimeConfiguration.WorkerTerminationTimeout, err = time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
-	if err != nil {
-		return nil, errors.New("Failed to parse default worker termination timeout")
-	}
-
 	// explicit ack is only allowed for Static Allocation mode
 	if newConfiguration.WorkerAllocationMode != partitionworker.AllocationModeStatic &&
 		functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode) {
@@ -293,6 +287,25 @@ func NewConfiguration(id string,
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err
 		}
+	}
+
+	workerTerminationTimeout, err := time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
+	if err != nil {
+		return nil, errors.New("Failed to parse default worker termination timeout")
+	}
+
+	if functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode) {
+
+		// pass max worker termination timeout to runtime config
+		if newConfiguration.maxWaitHandlerDuringRebalance > workerTerminationTimeout {
+			runtimeConfiguration.WorkerTerminationTimeout = newConfiguration.maxWaitHandlerDuringRebalance
+		} else {
+			runtimeConfiguration.WorkerTerminationTimeout = workerTerminationTimeout
+		}
+	} else {
+
+		// when explicit ack is disabled we don't need to wait for workers to terminate gracefully
+		runtimeConfiguration.WorkerTerminationTimeout = 0 * time.Second
 	}
 
 	if newConfiguration.WorkerAllocationMode == "" {

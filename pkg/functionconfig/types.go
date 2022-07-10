@@ -102,7 +102,7 @@ const (
 	ExplicitAckModeExplicitOnly ExplicitAckMode = "explicitOnly"
 
 	// DefaultWorkerTerminationTimeout wait time for workers after sending them a SIGTERM on rebalance
-	DefaultWorkerTerminationTimeout string = "30s"
+	DefaultWorkerTerminationTimeout string = "5s"
 )
 
 func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {

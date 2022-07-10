@@ -21,7 +21,6 @@ import socket
 import sys
 import time
 import traceback
-import signal
 
 import msgpack
 import nuclio_sdk
@@ -103,10 +102,6 @@ class Wrapper(object):
 
         # replace the default output with the process socket
         self._logger.set_handler('default', self._processor_sock_wfile, JSONFormatterOverSocket())
-
-        # register the platform on_abort callback to termination signal
-        if hasattr(self._platform, "on_abort"):
-            signal.signal(signal.SIGTERM, self._platform.on_abort)
 
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
