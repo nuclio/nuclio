@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -153,36 +154,21 @@ type Secret struct {
 	Contents string
 }
 
-type OffsetData struct {
-	Topic       string `json:"topic"`
-	Partition   int32  `json:"partition"`
-	Offset      int64  `json:"offset"`
-	TriggerName string `json:"trigger_name"`
-	Err         error
-}
-
-func (o *OffsetData) HasTriggerName() bool {
-	if o.TriggerName == "" {
-		return false
-	}
-	return true
-}
-
 type ControlChannelMap struct {
 
 	// TODO: Generalize channel type
-	controlChannels map[string]chan *OffsetData
+	controlChannels map[string]chan *processor.OffsetData
 }
 
 func (c *ControlChannelMap) Initialize() {
-	c.controlChannels = make(map[string]chan *OffsetData)
+	c.controlChannels = make(map[string]chan *processor.OffsetData)
 }
 
-func (c *ControlChannelMap) Read(triggerName string) <-chan *OffsetData {
+func (c *ControlChannelMap) Read(triggerName string) <-chan *processor.OffsetData {
 	return c.controlChannels[triggerName]
 }
 
-func (c *ControlChannelMap) Write(triggerName string, message *OffsetData) {
+func (c *ControlChannelMap) Write(triggerName string, message *processor.OffsetData) {
 	c.controlChannels[triggerName] <- message
 }
 

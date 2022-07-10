@@ -65,8 +65,8 @@ class Wrapper(object):
         self._event_sock = None
         self._control_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind,
-                                             namespace=namespace)
-                                             # control_callback=self._send_data_on_control_socket)
+                                             namespace=namespace,
+                                             control_callback=self._send_data_on_control_socket)
         self._decode_event_strings = decode_event_strings
 
         # 1gb
@@ -184,6 +184,9 @@ class Wrapper(object):
         # send message to processor
         encoded_offset_data = self._json_encoder.encode(data)
         await self._write_packet_to_processor(self._control_sock, encoded_offset_data)
+
+        # wait for response that processor received data
+        await self._wait_for_control_response()
 
     def _resolve_unpacker(self):
         """
@@ -349,6 +352,17 @@ class Wrapper(object):
 
         # write response to the socket
         await self._write_packet_to_processor(self._event_sock, 'r' + encoded_response)
+
+    async def _wait_for_control_response(self):
+
+        # read from socket
+        if self._is_entrypoint_coroutine:
+            buf = await self._loop.sock_recv(self._control_sock, 4)
+        else:
+            buf = self._control_sock.recv(4)
+
+        if len(buf) != 4:
+            raise WrapperFatalException('Control client disconnected')
 
     def _shutdown(self, error_code=0):
         print('Shutting down')

@@ -302,13 +302,18 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession, ackWindowSize int64) {
 	for offsetData := range k.configuration.RuntimeConfiguration.ControlChannels.Read(k.Trigger.GetName()) {
 
-		// mark offset
-		session.MarkOffset(
-			offsetData.Topic,
-			offsetData.Partition,
-			offsetData.Offset+1-ackWindowSize,
-			"",
-		)
+		if offsetData.Err == nil {
+
+			// mark offset
+			session.MarkOffset(
+				offsetData.Topic,
+				offsetData.Partition,
+				offsetData.Offset+1-ackWindowSize,
+				"",
+			)
+		} else {
+			k.Logger.DebugWith("Received erroneous offset data", "err", offsetData.Err.Error())
+		}
 	}
 }
 

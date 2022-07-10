@@ -86,7 +86,7 @@ type Processor struct {
 	stop                      chan bool
 	stopRestartTriggerRoutine chan bool
 	restartTriggerChan        chan trigger.Trigger
-	controlChannels           trigger.ControlChannelMap
+	controlChannels           processor.ControlChannel
 }
 
 // NewProcessor returns a new Processor
@@ -98,6 +98,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		stop:                      make(chan bool, 1),
 		stopRestartTriggerRoutine: make(chan bool, 1),
 		restartTriggerChan:        make(chan trigger.Trigger, 1),
+		controlChannels:           &trigger.ControlChannelMap{},
 	}
 
 	newProcessor.controlChannels.Initialize()

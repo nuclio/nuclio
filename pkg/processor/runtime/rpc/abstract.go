@@ -29,8 +29,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
 	"github.com/mitchellh/mapstructure"
@@ -410,7 +410,7 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 	}
 }
 
-func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels trigger.ControlChannelMap) {
+func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels processor.ControlChannel) {
 
 	var err error
 
@@ -429,7 +429,8 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels t
 
 		data, err = outReader.ReadBytes('\n')
 		if err != nil {
-
+			r.Logger.WarnWith(string(common.FailedReadFromConnection), "err", err)
+			continue
 		}
 
 		// try to unmarshall the data
@@ -442,12 +443,18 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels t
 		case "streamMessageAck":
 
 			// decode offset data from message attributes
-			offsetData := &trigger.OffsetData{}
+			offsetData := &processor.OffsetData{Err: err}
 			if err := mapstructure.Decode(unmarshalledControlMessage.Attributes, offsetData); err != nil {
-				r.Logger.WarnWith("Failed decoding control message attributes", "err", err)
+				decodingErrMessage := "Failed decoding control message attributes"
+				r.Logger.WarnWith(decodingErrMessage, "err", err)
+				offsetData.Err = errors.Wrap(offsetData.Err,
+					fmt.Sprintf("%s - %s", decodingErrMessage, err.Error()))
 			}
 
 			if !offsetData.HasTriggerName() {
+				r.Logger.WarnWith("Control message is missing trigger name, can't forward message to trigger",
+					"controlMessageKind", unmarshalledControlMessage.Kind,
+					"offsetData", offsetData)
 
 				// TODO: respond back to wrapper that trigger name is missing
 			}

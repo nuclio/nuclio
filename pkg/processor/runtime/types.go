@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/logger"
 )
@@ -54,5 +53,5 @@ type Configuration struct {
 	TriggerKind              string
 	ExplicitAckEnabled       bool
 	WorkerTerminationTimeout time.Duration
-	ControlChannels          trigger.ControlChannelMap
+	ControlChannels          processor.ControlChannel
 }
