@@ -348,14 +348,13 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 			// check response header
 			if noAckHeader, ok := responseHeaders["x-nuclio-stream-no-ack"]; ok {
 
-				// TODO: find a better way to do this - TOMER
+				// convert header to boolean
 				if noAckHeaderBool, ok := noAckHeader.(bool); ok && noAckHeaderBool {
 
 					// log and continue
-					k.Logger.DebugWith("Event submitted",
-						"partition", submittedEvent.event.kafkaMessage.Partition,
-						"err", processErr.Error())
-					continue
+					k.Logger.DebugWith("Received no-ack on event",
+						"partition", submittedEvent.event.kafkaMessage.Partition)
+					processErr = common.StreamNoAckError{}
 				}
 			}
 
