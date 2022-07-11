@@ -101,7 +101,7 @@ const (
 	// ExplicitAckModeExplicitOnly allows only explicit acks and disables implicit acks
 	ExplicitAckModeExplicitOnly ExplicitAckMode = "explicitOnly"
 
-	// DefaultWorkerTerminationTimeout wait time for workers after sending them a SIGTERM on rebalance
+	// DefaultWorkerTerminationTimeout wait time for workers to drop or ack events before rebalance initiates
 	DefaultWorkerTerminationTimeout string = "5s"
 )
 
