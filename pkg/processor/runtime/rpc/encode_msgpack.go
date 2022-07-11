@@ -53,3 +53,36 @@ func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
 
 	return nil
 }
+
+type ControlMsgPackEncoder struct {
+	logger  logger.Logger
+	writer  io.Writer
+	buf     bytes.Buffer
+	encoder *msgpack.Encoder
+}
+
+// NewControlMsgPackEncoder returns a new MsgPackEncoder
+func NewControlMsgPackEncoder(logger logger.Logger, writer io.Writer) *ControlMsgPackEncoder {
+	controlMsgPackEncoder := ControlMsgPackEncoder{logger: logger, writer: writer}
+	controlMsgPackEncoder.encoder = msgpack.NewEncoder(&controlMsgPackEncoder.buf)
+	return &controlMsgPackEncoder
+}
+
+func (c *ControlMsgPackEncoder) Encode(message string) error {
+
+	c.buf.Reset()
+	if err := c.encoder.Encode(message); err != nil {
+		return errors.Wrap(err, "Failed to encode message")
+	}
+
+	if err := binary.Write(c.writer, binary.BigEndian, int32(c.buf.Len())); err != nil {
+		return errors.Wrap(err, "Failed to write message size to socket")
+	}
+
+	bs := c.buf.Bytes()
+	if _, err := c.writer.Write(bs); err != nil {
+		return errors.Wrap(err, "Failed to write message to socket")
+	}
+
+	return nil
+}

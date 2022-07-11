@@ -139,3 +139,7 @@ func (j *java) getJVMOptions() ([]string, error) {
 func (j *java) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 	return rpc.NewEventJSONEncoder(j.Logger, writer)
 }
+
+func (j *java) GetControlEncoder(writer io.Writer) rpc.ControlEncoder {
+	return nil
+}

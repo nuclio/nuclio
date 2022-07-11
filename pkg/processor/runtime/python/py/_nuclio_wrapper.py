@@ -123,7 +123,7 @@ class Wrapper(object):
             try:
 
                 # resolve event message length
-                event_message_length = await self._resolve_event_message_length()
+                event_message_length = await self._resolve_message_length(self._event_sock)
 
                 # resolve event message
                 event = await self._resolve_event(event_message_length)
@@ -253,14 +253,14 @@ class Wrapper(object):
         else:
             sock.sendall((body + '\n').encode('utf-8'))
 
-    async def _resolve_event_message_length(self):
+    async def _resolve_message_length(self, sock):
         """
         Determines the message body size
         """
         if self._is_entrypoint_coroutine:
-            int_buf = await self._loop.sock_recv(self._event_sock, 4)
+            int_buf = await self._loop.sock_recv(sock, 4)
         else:
-            int_buf = self._event_sock.recv(4)
+            int_buf = sock.recv(4)
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
@@ -355,14 +355,8 @@ class Wrapper(object):
 
     async def _wait_for_control_response(self):
 
-        # read from socket
-        if self._is_entrypoint_coroutine:
-            buf = await self._loop.sock_recv(self._control_sock, 4)
-        else:
-            buf = self._control_sock.recv(4)
+        bytes_to_read = self._resolve_message_length(self._control_sock)
 
-        if len(buf) != 4:
-            raise WrapperFatalException('Control client disconnected')
 
     def _shutdown(self, error_code=0):
         print('Shutting down')

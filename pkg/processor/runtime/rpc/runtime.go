@@ -40,6 +40,8 @@ type Runtime interface {
 
 	GetEventEncoder(writer io.Writer) EventEncoder
 
+	GetControlEncoder(writer io.Writer) ControlEncoder
+
 	// WaitForStart returns whether the runtime supports sending an indication that it started
 	WaitForStart() bool
 }

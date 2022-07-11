@@ -78,6 +78,10 @@ func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
 	return NewEventJSONEncoder(r.Logger, writer)
 }
 
+func (r *testRuntime) GetControlEncoder(writer io.Writer) ControlEncoder {
+	return NewControlMsgPackEncoder(r.Logger, writer)
+}
+
 type RuntimeSuite struct {
 	suite.Suite
 	testRuntimeInstance *testRuntime

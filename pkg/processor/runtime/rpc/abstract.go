@@ -73,6 +73,7 @@ type AbstractRuntime struct {
 	runtime.AbstractRuntime
 	configuration  *runtime.Configuration
 	eventEncoder   EventEncoder
+	controlEncoder ControlEncoder
 	wrapperProcess *os.Process
 	resultChan     chan *result
 	functionLogger logger.Logger
@@ -276,6 +277,8 @@ func (r *AbstractRuntime) startWrapper() error {
 			return errors.Wrap(err, "Can't get connection from wrapper")
 		}
 
+		r.controlEncoder = r.runtime.GetControlEncoder(controlConnection.conn)
+
 		go r.controlOutputHandler(controlConnection.conn, r.configuration.ControlChannels)
 	}
 
@@ -426,6 +429,7 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels p
 	for {
 		unmarshalledControlMessage := &ControlMessage{}
 		var data []byte
+		response := ""
 
 		data, err = outReader.ReadBytes('\n')
 		if err != nil {
@@ -436,6 +440,7 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels p
 		// try to unmarshall the data
 		if err = json.Unmarshal(data, unmarshalledControlMessage); err != nil {
 			r.Logger.WarnWith("Failed unmarshalling control message", "err", err)
+			response = "streamMessageFailedUnmarshalling"
 		}
 
 		// TODO: support other types of messages
@@ -456,11 +461,17 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader, controlChannels p
 					"controlMessageKind", unmarshalledControlMessage.Kind,
 					"offsetData", offsetData)
 
-				// TODO: respond back to wrapper that trigger name is missing
+				// respond to wrapper that trigger name is missing
+				response = "streamMessageMissingTriggerName"
 			}
 
 			// send offset data to trigger
 			controlChannels.Write(offsetData.TriggerName, offsetData)
+
+			// respond to wrapper on control message, empty response means successful receive
+			if err := r.controlEncoder.Encode(response); err != nil {
+				r.Logger.WarnWith("Failed to respond to control message")
+			}
 
 		default:
 			r.Logger.WarnWith("Received unsupported message kind",

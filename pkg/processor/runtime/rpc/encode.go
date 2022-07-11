@@ -24,6 +24,10 @@ type EventEncoder interface {
 	Encode(event nuclio.Event) error
 }
 
+type ControlEncoder interface {
+	Encode(string) error
+}
+
 func eventAsMap(event nuclio.Event) map[string]interface{} {
 	triggerInfo := event.GetTriggerInfo()
 	eventToEncode := map[string]interface{}{
