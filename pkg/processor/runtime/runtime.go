@@ -19,6 +19,7 @@ package runtime
 import (
 	"fmt"
 	"os"
+	"syscall"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
@@ -60,6 +61,9 @@ type Runtime interface {
 
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
+
+	// Signal sends a signal to the runtime process
+	Signal(signal syscall.Signal) error
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -232,5 +236,9 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 // Stop stops the runtime
 func (ar *AbstractRuntime) Stop() error {
 	ar.SetStatus(status.Stopped)
+	return nil
+}
+
+func (ar *AbstractRuntime) Signal(signal syscall.Signal) error {
 	return nil
 }

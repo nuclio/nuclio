@@ -151,15 +151,6 @@ func (r *AbstractRuntime) Stop() error {
 
 	if r.wrapperProcess != nil {
 
-		// send SIGTERM to wrapper process
-		if err := r.signal(syscall.SIGTERM); err != nil {
-			r.Logger.WarnWith("Failed to send termination signal to wrapper process",
-				"pid", r.wrapperProcess.Pid)
-		}
-
-		// wait for process to finish or timeout
-		r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
-
 		// stop waiting for process
 		if err := r.processWaiter.Cancel(); err != nil {
 			r.Logger.WarnWith("Failed to cancel process waiting")
@@ -221,6 +212,40 @@ func (r *AbstractRuntime) WaitForStart() bool {
 // SupportsRestart returns true if the runtime supports restart
 func (r *AbstractRuntime) SupportsRestart() bool {
 	return true
+}
+
+func (r *AbstractRuntime) Signal(signal syscall.Signal) error {
+
+	// signal and wait for process termination
+	if err := r.signal(signal); err != nil {
+		return errors.Wrap(err, "Failed to signal wrapper process")
+	}
+
+	// wait for process to finish or timeout
+	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
+
+	return nil
+}
+
+func (r *AbstractRuntime) signal(signal syscall.Signal) error {
+
+	if r.wrapperProcess != nil {
+
+		// signal wrapper to terminate
+		r.Logger.DebugWith("Signaling wrapper process",
+			"pid", r.wrapperProcess.Pid,
+			"signal", signal.String())
+
+		if err := r.wrapperProcess.Signal(signal); err != nil {
+			r.Logger.WarnWith("Failed to signal wrapper process",
+				"pid", r.wrapperProcess.Pid,
+				"signal", signal.String())
+		}
+	} else {
+		r.Logger.DebugWith("No wrapper process exists, skipping signal")
+	}
+
+	return nil
 }
 
 func (r *AbstractRuntime) startWrapper() error {
@@ -497,23 +522,4 @@ func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 			return
 		}
 	}
-}
-
-func (r *AbstractRuntime) signal(signal syscall.Signal) error {
-
-	if r.wrapperProcess != nil {
-
-		// signal wrapper to terminate
-		r.Logger.DebugWith("Signaling to wrapper process",
-			"pid", r.wrapperProcess.Pid,
-			"signal", signal.String())
-
-		if err := r.wrapperProcess.Signal(signal); err != nil {
-			r.Logger.WarnWith("Failed to signal wrapper process",
-				"pid", r.wrapperProcess.Pid,
-				"signal", signal.String())
-		}
-	}
-
-	return nil
 }

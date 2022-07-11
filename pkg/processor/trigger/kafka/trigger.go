@@ -21,6 +21,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -197,6 +199,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	}
 
 	submittedEventChan := make(chan *submittedEvent)
+	workerTerminationCompleteChan := make(chan bool)
+	readyForRebalanceChan := make(chan bool)
 
 	// submit the events in a goroutine so that we can unblock immediately
 	go k.eventSubmitter(claim, submittedEventChan)
@@ -254,29 +258,32 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			consumeMessages = false
 
 			if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-
-				// signal all workers on re-balance
-				k.Logger.Debug("Signaling all workers to drop or ack events due to rebalance")
-
-				errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
-
-				for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-					errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
-						if err := workerInstance.Stop(); err != nil {
-							return errors.Wrap(err, "Failed to signal worker to terminate")
-						}
-						return nil
-					})
-				}
-
-				if err := errGroup.Wait(); err != nil {
-					return errors.Wrap(err, "At least one worker failed to stop")
-				}
+				go k.signalWorkerTermination(workerTerminationCompleteChan)
 			}
 
-			// wait a bit more for event to process
+			// trigger is ready for rebalance if both the handler is done and
+			// the workers are finished with the graceful termination
+			go func() {
+				var wg sync.WaitGroup
+				wg.Add(2)
+				go func() {
+					<-submittedEventInstance.done
+					k.Logger.Debug("Handler done")
+					wg.Done()
+				}()
+				go func() {
+					<-workerTerminationCompleteChan
+					k.Logger.Debug("Workers terminated")
+					wg.Done()
+				}()
+
+				wg.Wait()
+				readyForRebalanceChan <- true
+			}()
+
+			//  wait a for rebalance readiness or max timeout
 			select {
-			case <-submittedEventInstance.done:
+			case <-readyForRebalanceChan:
 				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
@@ -307,6 +314,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	// shut down the event submitter
 	close(submittedEventChan)
+	close(workerTerminationCompleteChan)
+	close(readyForRebalanceChan)
 
 	return submitError
 }
@@ -483,4 +492,29 @@ func (k *kafka) resolveSCRAMClientGeneratorFunc(mechanism sarama.SASLMechanism) 
 	default:
 		return nil
 	}
+}
+
+func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool) {
+
+	// signal all workers on re-balance
+	k.Logger.Debug("Signaling all workers to drop or ack events due to rebalance")
+
+	errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
+
+	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
+		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
+			if err := workerInstance.Signal(syscall.SIGTERM); err != nil {
+				return errors.Wrap(err, "Failed to signal worker to terminate")
+			}
+
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		k.Logger.WarnWith("At least one worker failed to stop", "err", err.Error())
+	}
+
+	// signal termination complete
+	workerTerminationCompleteChan <- true
 }

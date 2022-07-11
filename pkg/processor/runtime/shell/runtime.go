@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -280,6 +281,10 @@ func (s *shell) Start() error {
 
 func (s *shell) SupportsRestart() bool {
 	return true
+}
+
+func (s *shell) Signal(signal syscall.Signal) error {
+	return nil
 }
 
 func (s *shell) commandIsInPath() (bool, error) {

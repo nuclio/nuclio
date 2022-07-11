@@ -19,6 +19,7 @@ package worker
 import (
 	"net/http"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
@@ -144,4 +145,8 @@ func (w *Worker) Restart() error {
 // SupportsRestart returns true if the underlying runtime supports restart
 func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
+}
+
+func (w *Worker) Signal(signal syscall.Signal) error {
+	return w.runtime.Signal(signal)
 }

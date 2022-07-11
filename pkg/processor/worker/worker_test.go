@@ -19,6 +19,7 @@ limitations under the License.
 package worker
 
 import (
+	"syscall"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
@@ -73,6 +74,10 @@ func (mr *MockRuntime) Restart() error {
 
 func (mr *MockRuntime) SupportsRestart() bool {
 	return true
+}
+
+func (mr *MockRuntime) Signal(signal syscall.Signal) error {
+	return nil
 }
 
 type WorkerTestSuite struct {

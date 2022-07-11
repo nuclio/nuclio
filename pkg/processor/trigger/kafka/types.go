@@ -294,18 +294,9 @@ func NewConfiguration(id string,
 		return nil, errors.New("Failed to parse default worker termination timeout")
 	}
 
-	if functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode) {
-
-		// pass max worker termination timeout to runtime config
-		if newConfiguration.maxWaitHandlerDuringRebalance > workerTerminationTimeout {
-			runtimeConfiguration.WorkerTerminationTimeout = newConfiguration.maxWaitHandlerDuringRebalance
-		} else {
-			runtimeConfiguration.WorkerTerminationTimeout = workerTerminationTimeout
-		}
-	} else {
-
-		// when explicit ack is disabled we don't need to wait for workers to terminate gracefully
-		runtimeConfiguration.WorkerTerminationTimeout = 0 * time.Second
+	// on rebalance, we want to wait the max timeout so the workers can exit gracefully before killing them
+	if newConfiguration.maxWaitHandlerDuringRebalance < workerTerminationTimeout {
+		newConfiguration.maxWaitHandlerDuringRebalance = workerTerminationTimeout
 	}
 
 	if newConfiguration.WorkerAllocationMode == "" {
