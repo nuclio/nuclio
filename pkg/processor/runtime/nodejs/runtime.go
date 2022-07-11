@@ -148,10 +148,6 @@ func (n *nodejs) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 	return rpc.NewEventJSONEncoder(n.Logger, writer)
 }
 
-func (n *nodejs) GetControlEncoder(writer io.Writer) rpc.ControlEncoder {
-	return nil
-}
-
 func (n *nodejs) WaitForStart() bool {
 	return true
 }

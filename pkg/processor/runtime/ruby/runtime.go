@@ -78,7 +78,3 @@ func (r *ruby) RunWrapper(socketPath, controlSocketPath string) (*os.Process, er
 func (r *ruby) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 	return rpc.NewEventJSONEncoder(r.Logger, writer)
 }
-
-func (r *ruby) GetControlEncoder(writer io.Writer) rpc.ControlEncoder {
-	return nil
-}

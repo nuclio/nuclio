@@ -181,10 +181,6 @@ func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 	return rpc.NewEventMsgPackEncoder(py.Logger, writer)
 }
 
-func (py *python) GetControlEncoder(writer io.Writer) rpc.ControlEncoder {
-	return rpc.NewControlMsgPackEncoder(py.Logger, writer)
-}
-
 func (py *python) resolveDecodeEvents() bool {
 
 	// switch case for explicitness

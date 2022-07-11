@@ -101,7 +101,3 @@ func (d *dotnetcore) getWrapperDLLPath() string {
 func (d *dotnetcore) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
 	return rpc.NewEventJSONEncoder(d.Logger, writer)
 }
-
-func (d *dotnetcore) GetControlEncoder(writer io.Writer) rpc.ControlEncoder {
-	return nil
-}
