@@ -65,8 +65,8 @@ class Wrapper(object):
         self._event_sock = None
         self._control_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind,
-                                             namespace=namespace,
-                                             control_callback=self._send_data_on_control_socket)
+                                             namespace=namespace)
+                                             # control_callback=self._send_data_on_control_socket)
         self._decode_event_strings = decode_event_strings
 
         # 1gb
