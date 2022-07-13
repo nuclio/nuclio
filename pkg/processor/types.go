@@ -38,10 +38,3 @@ type OffsetData struct {
 func (o *OffsetData) HasTriggerName() bool {
 	return o.TriggerName == ""
 }
-
-type ControlChannel interface {
-	Initialize()
-	Read(triggerName string) <-chan *OffsetData
-	Write(triggerName string, message *OffsetData)
-	CloseChannel(triggerName string)
-}

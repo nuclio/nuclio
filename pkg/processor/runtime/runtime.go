@@ -17,10 +17,12 @@ limitations under the License.
 package runtime
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
 	"github.com/nuclio/errors"
@@ -60,6 +62,15 @@ type Runtime interface {
 
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
+
+	// SupportsControlCommunication
+	SupportsControlCommunication() bool
+
+	// ConsumeControlMessage returns a channel that receives control messages
+	ConsumeControlMessage() <-chan *controlcommunication.ControlMessage
+
+	// Subscribe subscribes to a control message kind
+	Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -149,6 +160,11 @@ func (ar *AbstractRuntime) SupportsRestart() bool {
 	return false
 }
 
+// SupportsControlCommunication returns true if the runtime supports control communication
+func (ar *AbstractRuntime) SupportsControlCommunication() bool {
+	return false
+}
+
 func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
 	return []string{
 		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", ar.configuration.Meta.Name),
@@ -233,4 +249,61 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 func (ar *AbstractRuntime) Stop() error {
 	ar.SetStatus(status.Stopped)
 	return nil
+}
+
+type AbstractRuntimeControlCommunication struct {
+	Consumers []*controlcommunication.ControlConsumer
+}
+
+func (acc *AbstractRuntimeControlCommunication) WriteControlMessage(message controlcommunication.ControlMessage) error {
+	return nil
+}
+
+func (acc *AbstractRuntimeControlCommunication) ReadControlMessage(reader *bufio.Reader) (*controlcommunication.ControlMessage, error) {
+	return nil, nil
+}
+
+func (acc *AbstractRuntimeControlCommunication) ConsumeControlMessage() <-chan controlcommunication.ControlMessage {
+	return nil
+}
+
+func (acc *AbstractRuntimeControlCommunication) SendToConsumers(message *controlcommunication.ControlMessage) error {
+
+	// send message to all consumers
+	for _, consumer := range acc.Consumers {
+		if err := consumer.Send(message); err != nil {
+			return errors.Wrap(err, "Failed to send message to consumer")
+		}
+	}
+
+	return nil
+}
+
+func (acc *AbstractRuntimeControlCommunication) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
+
+	// create consumers if they don't exist
+	if acc.Consumers == nil {
+		acc.Consumers = make([]*controlcommunication.ControlConsumer, 0)
+	}
+
+	// Add the consumer to the list of the relevant kind
+	for _, consumer := range acc.Consumers {
+		if consumer.GetKind() == kind {
+			consumer.Channels = append(consumer.Channels, channel)
+			return nil
+		}
+	}
+
+	// consumer for the kind doesn't exist, create one
+	consumer := controlcommunication.NewControlConsumer(kind)
+	consumer.Channels = append(consumer.Channels, channel)
+	acc.Consumers = append(acc.Consumers, consumer)
+
+	return nil
+}
+
+func NewAbstractControlCommunication() *AbstractRuntimeControlCommunication {
+	return &AbstractRuntimeControlCommunication{
+		Consumers: make([]*controlcommunication.ControlConsumer, 0),
+	}
 }

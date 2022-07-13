@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -152,26 +151,4 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 
 type Secret struct {
 	Contents string
-}
-
-type ControlChannelMap struct {
-
-	// TODO: Generalize channel type
-	controlChannels map[string]chan *processor.OffsetData
-}
-
-func (c *ControlChannelMap) Initialize() {
-	c.controlChannels = make(map[string]chan *processor.OffsetData)
-}
-
-func (c *ControlChannelMap) Read(triggerName string) <-chan *processor.OffsetData {
-	return c.controlChannels[triggerName]
-}
-
-func (c *ControlChannelMap) Write(triggerName string, message *processor.OffsetData) {
-	c.controlChannels[triggerName] <- message
-}
-
-func (c *ControlChannelMap) CloseChannel(triggerName string) {
-	close(c.controlChannels[triggerName])
 }

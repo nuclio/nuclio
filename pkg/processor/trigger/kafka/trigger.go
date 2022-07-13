@@ -33,7 +33,6 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -207,11 +206,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			"ackWindowSize", ackWindowSize)
 	}
 
-	// listen to explicit ack messages
-	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-		go k.explicitAckHandler(session, ackWindowSize)
-	}
-
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
 	for message := range claim.Messages() {
@@ -291,30 +285,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// shut down the event submitter
 	close(submittedEventChan)
 
-	// shut down explicit ack handler
-	k.configuration.RuntimeConfiguration.ControlChannels.CloseChannel(k.Trigger.GetName())
-
 	return submitError
-}
-
-// explicitAckHandler reads offset data messages from the trigger's control channel, and marks the
-// offset accordingly
-func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession, ackWindowSize int64) {
-	for offsetData := range k.configuration.RuntimeConfiguration.ControlChannels.Read(k.Trigger.GetName()) {
-
-		if offsetData.Err == nil {
-
-			// mark offset
-			session.MarkOffset(
-				offsetData.Topic,
-				offsetData.Partition,
-				offsetData.Offset+1-ackWindowSize,
-				"",
-			)
-		} else {
-			k.Logger.DebugWith("Received erroneous offset data", "err", offsetData.Err.Error())
-		}
-	}
 }
 
 func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventChan chan *submittedEvent) {
@@ -326,54 +297,15 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 	for submittedEvent := range submittedEventChan {
 
 		// submit the event to the worker
-		response, processErr := k.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event) // nolint: errcheck
+		_, processErr := k.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event) // nolint: errcheck
 		if processErr != nil {
 			k.Logger.DebugWith("Process error",
 				"partition", submittedEvent.event.kafkaMessage.Partition,
 				"err", processErr)
 		}
 
-		switch k.configuration.ExplicitAckMode {
-		case functionconfig.ExplicitAckModeEnable:
-
-			// convert response to nuclio response:
-			var responseHeaders map[string]interface{}
-			switch typedResponse := response.(type) {
-			case nuclio.Response:
-				responseHeaders = typedResponse.Headers
-			case *nuclio.Response:
-				responseHeaders = typedResponse.Headers
-			}
-
-			// check response header
-			if noAckHeader, ok := responseHeaders["x-nuclio-stream-no-ack"]; ok {
-
-				// convert header to boolean
-				if noAckHeaderBool, ok := noAckHeader.(bool); ok && noAckHeaderBool {
-
-					// log and continue
-					k.Logger.DebugWith("Received no-ack on event",
-						"partition", submittedEvent.event.kafkaMessage.Partition)
-					processErr = common.StreamNoAckError{}
-				}
-			}
-
-			// it is an ack - indicate that we're done
-			submittedEvent.done <- processErr
-
-		case functionconfig.ExplicitAckModeDisable:
-
-			// indicate that we're done
-			submittedEvent.done <- processErr
-
-		case functionconfig.ExplicitAckModeExplicitOnly:
-
-			// ignore response
-			k.Logger.DebugWith("Event submitted",
-				"partition", submittedEvent.event.kafkaMessage.Partition,
-				"err", processErr.Error())
-
-		}
+		// indicate that we're done
+		submittedEvent.done <- processErr
 	}
 
 	k.Logger.DebugWith("Event submitter stopped",

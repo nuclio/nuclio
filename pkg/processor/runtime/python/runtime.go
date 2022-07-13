@@ -51,6 +51,8 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newPythonRuntime)
 
+	newPythonRuntime.AbstractRuntime.EnableControlCommunication()
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}

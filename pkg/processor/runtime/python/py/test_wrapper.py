@@ -70,6 +70,7 @@ class TestSubmitEvents(unittest.TestCase):
                                         self._loop,
                                         self._default_test_handler,
                                         self._socket_path,
+                                        None,
                                         self._platform_kind,
                                         decode_event_strings=self._decode_event_strings)
         self._loop.run_until_complete(self._wrapper.initialize())

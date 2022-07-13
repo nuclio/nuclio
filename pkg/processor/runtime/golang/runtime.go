@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/errors"
@@ -94,6 +95,21 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	}
 
 	return response, err
+}
+
+// SupportsControlCommunication returns true if the runtime supports control communication
+func (g *golang) SupportsControlCommunication() bool {
+	return false
+}
+
+// ConsumeControlMessage returns a channel that receives control messages
+func (g *golang) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
+	return nil
+}
+
+// Subscribe subscribes to a control message kind
+func (g *golang) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
+	return nil
 }
 
 func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (response interface{}, responseErr error) {

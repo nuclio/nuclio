@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 
@@ -144,4 +145,14 @@ func (w *Worker) Restart() error {
 // SupportsRestart returns true if the underlying runtime supports restart
 func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
+}
+
+// ConsumeControlMessage returns a channel that receives control messages
+func (w *Worker) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
+	return w.runtime.ConsumeControlMessage()
+}
+
+// Subscribe subscribes to a control message kind
+func (w *Worker) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
+	return w.runtime.Subscribe(kind, channel)
 }
