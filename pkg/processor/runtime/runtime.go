@@ -269,13 +269,14 @@ func (ar *AbstractRuntime) ConsumeControlMessage() <-chan *controlcommunication.
 	return nil
 }
 
-// SendToConsumers sends a control message to all consumers
+// SendToConsumers sends a control message to all consumers subscribed to the message kind
 func (ar *AbstractRuntime) SendToConsumers(message *controlcommunication.ControlMessage) error {
 
-	// send message to all consumers
 	for _, consumer := range ar.Consumers {
-		if err := consumer.Send(message); err != nil {
-			return errors.Wrap(err, "Failed to send message to consumer")
+		if consumer.GetKind() == message.Kind {
+			if err := consumer.Send(message); err != nil {
+				return errors.Wrap(err, "Failed to send message to consumer")
+			}
 		}
 	}
 

@@ -34,7 +34,7 @@ func (cme *ControlMessageEvent) GetID() nuclio.ID {
 
 // GetBodyObject returns the control message body of the event
 func (cme *ControlMessageEvent) GetBodyObject() interface{} {
-	a := cme.GetBody()
+	eventBody := cme.GetBody()
 
 	// lazy load
 	if cme.resolvedBody != nil {
@@ -42,7 +42,7 @@ func (cme *ControlMessageEvent) GetBodyObject() interface{} {
 	}
 
 	message := &ControlMessage{}
-	if err := json.Unmarshal(a, message); err != nil {
+	if err := json.Unmarshal(eventBody, message); err != nil {
 		return nil
 	}
 	cme.resolvedBody = message
