@@ -76,9 +76,11 @@ func (r *testRuntime) RunWrapper(eventSocketPath, controlSocketPath string) (*os
 		return nil, err
 	}
 
-	r.controlConn, err = net.Dial("unix", controlSocketPath)
-	if err != nil {
-		return nil, err
+	if controlSocketPath != "" {
+		r.controlConn, err = net.Dial("unix", controlSocketPath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return cmd.Process, nil
