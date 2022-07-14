@@ -45,43 +45,6 @@ const (
 	connectionTimeout  = 2 * time.Minute
 )
 
-type RPCRuntimeControlCommunication struct {
-	runtime.AbstractRuntimeControlCommunication
-	Consumers []*controlcommunication.ControlConsumer
-	Logger    logger.Logger
-}
-
-func (rcc *RPCRuntimeControlCommunication) WriteControlMessage(message controlcommunication.ControlMessage) error {
-
-	// TODO: use msgpack encoder to encode the message and send it to on the control socket
-
-	return nil
-}
-
-func (rcc *RPCRuntimeControlCommunication) ReadControlMessage(reader *bufio.Reader) (*controlcommunication.ControlMessage, error) {
-
-	// read data from reader
-	data, err := reader.ReadBytes('\n')
-	if err != nil {
-		rcc.Logger.WarnWith(string(common.FailedReadFromConnection), "err", err)
-		return nil, errors.Wrap(err, "Failed to read from connection")
-	}
-
-	unmarshalledControlMessage := &controlcommunication.ControlMessage{}
-
-	// try to unmarshall the data
-	if err := json.Unmarshal(data, unmarshalledControlMessage); err != nil {
-		rcc.Logger.WarnWith("Failed unmarshalling control message", "err", err)
-		return nil, errors.Wrap(err, "Failed to unmarshal control message")
-	}
-
-	return unmarshalledControlMessage, nil
-}
-
-func (rcc *RPCRuntimeControlCommunication) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
-	return nil
-}
-
 type socketConnection struct {
 	conn     net.Conn
 	listener net.Listener
@@ -102,18 +65,17 @@ type result struct {
 // AbstractRuntime is a runtime that communicates via unix domain socket
 type AbstractRuntime struct {
 	runtime.AbstractRuntime
-	configuration        *runtime.Configuration
-	eventEncoder         EventEncoder
-	wrapperProcess       *os.Process
-	resultChan           chan *result
-	functionLogger       logger.Logger
-	runtime              Runtime
-	startChan            chan struct{}
-	stopChan             chan struct{}
-	socketType           SocketType
-	processWaiter        *processwaiter.ProcessWaiter
-	controlCommunication controlcommunication.ControlCommunication
-	supportsControl      bool
+	configuration   *runtime.Configuration
+	eventEncoder    EventEncoder
+	wrapperProcess  *os.Process
+	resultChan      chan *result
+	functionLogger  logger.Logger
+	runtime         Runtime
+	startChan       chan struct{}
+	stopChan        chan struct{}
+	socketType      SocketType
+	processWaiter   *processwaiter.ProcessWaiter
+	supportsControl bool
 }
 
 type rpcLogRecord struct {
@@ -141,9 +103,6 @@ func NewAbstractRuntime(logger logger.Logger,
 		startChan:       make(chan struct{}, 1),
 		stopChan:        make(chan struct{}, 1),
 		socketType:      UnixSocket,
-		controlCommunication: &RPCRuntimeControlCommunication{
-			Logger: logger,
-		},
 	}
 
 	return newRuntime, nil
@@ -267,14 +226,39 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 	return r.supportsControl
 }
 
-// ConsumeControlMessage returns a channel that receives control messages
-func (r *AbstractRuntime) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
-	return r.controlCommunication.ConsumeControlMessage()
+func (r *AbstractRuntime) WriteControlMessage(message *controlcommunication.ControlMessage) error {
+
+	// send control message as a nuclio event, this will be handled by the wrapper
+	event := controlcommunication.ControlMessageToEvent(message)
+
+	if err := r.eventEncoder.Encode(event); err != nil {
+		r.functionLogger = nil
+		return errors.Wrapf(err, "Can't encode event: %+v", event)
+	}
+
+	return nil
 }
 
-// Subscribe subscribes to a control message kind
-func (r *AbstractRuntime) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
-	return r.controlCommunication.Subscribe(kind, channel)
+func (r *AbstractRuntime) ReadControlMessage(reader *bufio.Reader) (*controlcommunication.ControlMessage, error) {
+
+	// TODO: use msgpack to decode the message
+
+	// read data from reader
+	data, err := reader.ReadBytes('\n')
+	if err != nil {
+		r.Logger.WarnWith(string(common.FailedReadFromConnection), "err", err)
+		return nil, errors.Wrap(err, "Failed to read from connection")
+	}
+
+	unmarshalledControlMessage := &controlcommunication.ControlMessage{}
+
+	// try to unmarshall the data
+	if err := json.Unmarshal(data, unmarshalledControlMessage); err != nil {
+		r.Logger.WarnWith("Failed unmarshalling control message", "err", err)
+		return nil, errors.Wrap(err, "Failed to unmarshal control message")
+	}
+
+	return unmarshalledControlMessage, nil
 }
 
 // EnableControlCommunication enables control communication
@@ -288,6 +272,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		eventConnection, controlConnection socketConnection
 	)
 
+	// create socket connections
 	if err = r.createSocketConnection(&eventConnection); err != nil {
 		return errors.Wrap(err, "Failed to create socket connection")
 	}
@@ -312,6 +297,7 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	go r.watchWrapperProcess()
 
+	// event connection
 	eventConnection.conn, err = eventConnection.listener.Accept()
 	if err != nil {
 		return errors.Wrap(err, "Can't get connection from wrapper")
@@ -480,14 +466,14 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 	for {
 
 		// read control message
-		controlMessage, err := r.controlCommunication.ReadControlMessage(outReader)
+		controlMessage, err := r.ReadControlMessage(outReader)
 		if err != nil {
 			r.Logger.WarnWith("Failed to read control message", "err", err)
 			continue
 		}
 
 		// send message to control consumers
-		if err = r.controlCommunication.SendToConsumers(controlMessage); err != nil {
+		if err = r.SendToConsumers(controlMessage); err != nil {
 			r.Logger.WarnWith("Failed to send control message to consumers", "err", err)
 		}
 

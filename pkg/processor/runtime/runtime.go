@@ -79,6 +79,7 @@ type AbstractRuntime struct {
 	FunctionLogger logger.Logger
 	Context        *nuclio.Context
 	Statistics     Statistics
+	Consumers      []*controlcommunication.ControlConsumer
 	databindings   map[string]databinding.DataBinding
 	configuration  *Configuration
 	status         status.Status
@@ -251,26 +252,28 @@ func (ar *AbstractRuntime) Stop() error {
 	return nil
 }
 
-type AbstractRuntimeControlCommunication struct {
-	Consumers []*controlcommunication.ControlConsumer
-}
+// Control Communication interface implementations:
 
-func (acc *AbstractRuntimeControlCommunication) WriteControlMessage(message controlcommunication.ControlMessage) error {
+// WriteControlMessage writes a control message to the control communication
+func (ar *AbstractRuntime) WriteControlMessage(message *controlcommunication.ControlMessage) error {
 	return nil
 }
 
-func (acc *AbstractRuntimeControlCommunication) ReadControlMessage(reader *bufio.Reader) (*controlcommunication.ControlMessage, error) {
+// ReadControlMessage reads a control message from the control communication
+func (ar *AbstractRuntime) ReadControlMessage(reader *bufio.Reader) (*controlcommunication.ControlMessage, error) {
 	return nil, nil
 }
 
-func (acc *AbstractRuntimeControlCommunication) ConsumeControlMessage() <-chan controlcommunication.ControlMessage {
+// ConsumeControlMessage returns a channel that receives control messages
+func (ar *AbstractRuntime) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
 	return nil
 }
 
-func (acc *AbstractRuntimeControlCommunication) SendToConsumers(message *controlcommunication.ControlMessage) error {
+// SendToConsumers sends a control message to all consumers
+func (ar *AbstractRuntime) SendToConsumers(message *controlcommunication.ControlMessage) error {
 
 	// send message to all consumers
-	for _, consumer := range acc.Consumers {
+	for _, consumer := range ar.Consumers {
 		if err := consumer.Send(message); err != nil {
 			return errors.Wrap(err, "Failed to send message to consumer")
 		}
@@ -279,15 +282,16 @@ func (acc *AbstractRuntimeControlCommunication) SendToConsumers(message *control
 	return nil
 }
 
-func (acc *AbstractRuntimeControlCommunication) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
+// Subscribe subscribes channel to control messages
+func (ar *AbstractRuntime) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
 
 	// create consumers if they don't exist
-	if acc.Consumers == nil {
-		acc.Consumers = make([]*controlcommunication.ControlConsumer, 0)
+	if ar.Consumers == nil {
+		ar.Consumers = make([]*controlcommunication.ControlConsumer, 0)
 	}
 
 	// Add the consumer to the list of the relevant kind
-	for _, consumer := range acc.Consumers {
+	for _, consumer := range ar.Consumers {
 		if consumer.GetKind() == kind {
 			consumer.Channels = append(consumer.Channels, channel)
 			return nil
@@ -297,13 +301,7 @@ func (acc *AbstractRuntimeControlCommunication) Subscribe(kind string, channel c
 	// consumer for the kind doesn't exist, create one
 	consumer := controlcommunication.NewControlConsumer(kind)
 	consumer.Channels = append(consumer.Channels, channel)
-	acc.Consumers = append(acc.Consumers, consumer)
+	ar.Consumers = append(ar.Consumers, consumer)
 
 	return nil
-}
-
-func NewAbstractControlCommunication() *AbstractRuntimeControlCommunication {
-	return &AbstractRuntimeControlCommunication{
-		Consumers: make([]*controlcommunication.ControlConsumer, 0),
-	}
 }

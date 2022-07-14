@@ -19,7 +19,6 @@ package controlcommunication
 import (
 	"encoding/json"
 
-	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -34,17 +33,27 @@ func (cme *ControlMessageEvent) GetID() nuclio.ID {
 }
 
 // GetBodyObject returns the control message body of the event
-func (cme *ControlMessageEvent) GetBodyObject() (interface{}, error) {
+func (cme *ControlMessageEvent) GetBodyObject() interface{} {
 	a := cme.GetBody()
 
 	// lazy load
 	if cme.resolvedBody != nil {
-		return cme.resolvedBody, nil
+		return cme.resolvedBody
 	}
+
 	message := &ControlMessage{}
 	if err := json.Unmarshal(a, message); err != nil {
-		return nil, errors.Wrap(err, "Failed unmarshalling event body")
+		return nil
 	}
 	cme.resolvedBody = message
-	return message, nil
+	return message
+}
+
+func ControlMessageToEvent(message *ControlMessage) *ControlMessageEvent {
+	event := &ControlMessageEvent{
+		AbstractEvent: nuclio.AbstractEvent{},
+		resolvedBody:  message,
+	}
+
+	return event
 }

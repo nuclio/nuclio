@@ -21,7 +21,7 @@ import "bufio"
 type ControlCommunication interface {
 
 	// WriteControlMessage writes a control message to the control communication
-	WriteControlMessage(message ControlMessage) error
+	WriteControlMessage(message *ControlMessage) error
 
 	// ReadControlMessage reads a control message from the control communication
 	ReadControlMessage(reader *bufio.Reader) (*ControlMessage, error)
@@ -32,6 +32,6 @@ type ControlCommunication interface {
 	// SendToConsumers sends a control message to all consumers
 	SendToConsumers(message *ControlMessage) error
 
-	// Subscribe subscribes to a control message kind
+	// Subscribe subscribes channel to a control message kind
 	Subscribe(kind string, channel chan *ControlMessage) error
 }
