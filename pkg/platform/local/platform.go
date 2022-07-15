@@ -661,13 +661,16 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 		"172.17.0.1",
 	}
 
-	// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
-	dockerHostAddresses, err := net.LookupIP("host.docker.internal")
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to lookup host.docker.internal")
-	}
-	for _, address := range dockerHostAddresses {
-		addresses = append(addresses, address.String())
+	if common.RunningInContainer() {
+
+		// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
+		dockerHostAddresses, err := net.LookupIP("host.docker.internal")
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to lookup host.docker.internal")
+		}
+		for _, address := range dockerHostAddresses {
+			addresses = append(addresses, address.String())
+		}
 	}
 
 	return addresses, nil
