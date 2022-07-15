@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"strconv"
@@ -654,7 +655,22 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 }
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
-	return []string{"172.17.0.1", "0.0.0.0"}, nil
+	addresses := []string{
+
+		// default internal docker network
+		"172.17.0.1",
+	}
+
+	// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
+	dockerHostAddresses, err := net.LookupIP("host.docker.internal")
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to lookup host.docker.internal")
+	}
+	for _, address := range dockerHostAddresses {
+		addresses = append(addresses, address.String())
+	}
+
+	return addresses, nil
 }
 
 func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
