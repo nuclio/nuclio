@@ -20,14 +20,6 @@
         ctrl.isActiveState = isActiveState;
         ctrl.onDataChange = onDataChange;
 
-        // Default to nuclio namespace is provided in list of namespaces
-        if (!lodash.isEmpty(ctrl.namespaceData)) {
-            var nuclioNamespace = lodash.find(ctrl.namespaceData.namespaces, {'name': 'nuclio'});
-            if (!lodash.isNil(nuclioNamespace)) {
-                ctrl.onDataChange(nuclioNamespace);
-            }
-        }
-
         //
         // Hook methods
         //

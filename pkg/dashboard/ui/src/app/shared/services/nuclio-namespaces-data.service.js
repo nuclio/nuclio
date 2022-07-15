@@ -85,7 +85,14 @@
 
                         var selectedNamespace = lodash.find(namespaces, { name: namespaceFromLocalStorage });
                         if (lodash.isNil(selectedNamespace)) {
-                            selectedNamespace = namespaces[0];
+
+                            // Default to nuclio namespace, otherwise use first namespace
+                            var nuclioNamespace = lodash.find(namespaces, {'name': 'nuclio'});
+                            if (!lodash.isNil(nuclioNamespace)) {
+                                selectedNamespace = nuclioNamespace;
+                            } else {
+                                selectedNamespace = namespaces[0];
+                            }
 
                             localStorage.setItem('namespace', selectedNamespace.name);
                         }
