@@ -202,21 +202,22 @@ func (suite *PlatformTestSuite) resolveInClusterRegistryURL() string {
 }
 
 func (suite *PlatformTestSuite) installNuclioHelmChart() {
-	//renderedHelmValues, err := suite.cmdRunner.Run(&cmdrunner.RunOptions{
-	//	Env: map[string]string{
-	//		"NUCLIO_LABEL": common.GetEnvOrDefaultString("NUCLIO_LABEL", "unstable"),
-	//		"REPO":         common.GetEnvOrDefaultString("REPO", "quay.io"),
-	//		"REPO_NAME":    common.GetEnvOrDefaultString("REPO_NAME", "nuclio"),
-	//	},
-	//},
-	//	fmt.Sprintf("cat %s/test/k8s/ci_assets/helm_values.yaml | envsubst", common.GetSourceDir()))
-	//suite.Require().NoError(err)
+	renderedHelmValues, err := suite.cmdRunner.Run(&cmdrunner.RunOptions{
+		Env: map[string]string{
+			"NUCLIO_LABEL": common.GetEnvOrDefaultString("NUCLIO_LABEL", "unstable"),
+			"REPO":         common.GetEnvOrDefaultString("REPO", "quay.io"),
+			"REPO_NAME":    common.GetEnvOrDefaultString("REPO_NAME", "nuclio"),
+			"PULL_POLICY":  common.GetEnvOrDefaultString("PULL_POLICY", "IfNotPresent"),
+		},
+	},
+		fmt.Sprintf("cat %s/test/k8s/ci_assets/helm_values.yaml | envsubst", common.GetSourceDir()))
+	suite.Require().NoError(err)
 
 	nuclioSourceDir := common.GetSourceDir()
 
-	_, err := suite.cmdRunner.Run(&cmdrunner.RunOptions{
+	_, err = suite.cmdRunner.Run(&cmdrunner.RunOptions{
 		WorkingDir: &nuclioSourceDir,
-		//Stdin:      &renderedHelmValues.Output,
+		Stdin:      &renderedHelmValues.Output,
 	}, fmt.Sprintf("helm "+
 		"--namespace %s "+
 		"install "+
@@ -224,8 +225,8 @@ func (suite *PlatformTestSuite) installNuclioHelmChart() {
 		"--debug "+
 		"--wait "+
 		"--set dashboard.nodePort=30060 "+
-		//"--values "+
-		//"- "+
+		"--values "+
+		"- "+
 		"nuclio hack/k8s/helm/nuclio", suite.namespace))
 	suite.Require().NoError(err)
 }

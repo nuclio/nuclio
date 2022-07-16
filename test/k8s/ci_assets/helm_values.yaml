@@ -25,28 +25,28 @@ controller:
   image:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/controller
-    pullPolicy: Never
+    pullPolicy: ${PULL_POLICY}
 
 dashboard:
   image:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/dashboard
-    pullPolicy: Never
-  baseImagePullPolicy: Never
+    pullPolicy: ${PULL_POLICY}
+  baseImagePullPolicy: ${PULL_POLICY}
 
 dlx:
   enabled: true
   image:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/dlx
-    pullPolicy: Never
+    pullPolicy: ${PULL_POLICY}
 
 autoscaler:
   enabled: true
   image:
     tag: ${NUCLIO_LABEL}-amd64
     repository: ${REPO}/${REPO_NAME}/autoscaler
-    pullPolicy: Never
+    pullPolicy: ${PULL_POLICY}
 
 registry:
   defaultOnbuildRegistryURL: ${REPO}
