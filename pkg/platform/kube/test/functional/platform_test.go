@@ -20,28 +20,29 @@ limitations under the License.
 package test
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/rs/xid"
 	"net/http"
-	"strings"
-	"sync"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/kube/test"
 	nucliozap "github.com/nuclio/zap"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/stretchr/testify/suite"
 )
 
 // PlatformTestSuite requires
 // - minikube >= 1.22.0 (https://minikube.sigs.k8s.io/docs/start/) with a preinstalled cluster. e.g.:
-//		minikube start --profile nuclio-test --kubernetes-version v1.23.8 --driver docker --addons registry --addons ingress
+//	  > minikube start --profile nuclio-test --kubernetes-version v1.23.8 --driver docker --addons registry --ports=127.0.0.1:30060:30060
 // - helm >= 3.3.0 (https://helm.sh/docs/intro/install/)
 type PlatformTestSuite struct {
 	suite.Suite
@@ -50,9 +51,7 @@ type PlatformTestSuite struct {
 	registryURL     string
 	minikubeProfile string
 	namespace       string
-
-	tunnelChannelsLock sync.Locker
-	tunnelChannels     map[string]chan context.Context
+	backendAPIURL   string
 }
 
 func (suite *PlatformTestSuite) SetupSuite() {
@@ -67,9 +66,9 @@ func (suite *PlatformTestSuite) SetupSuite() {
 
 	suite.minikubeProfile = common.GetEnvOrDefaultString("NUCLIO_TEST_MINIKUBE_PROFILE", "nuclio-test")
 
-	suite.registryURL = suite.resolveHostRegistryURL()
-	suite.tunnelChannels = map[string]chan context.Context{}
-	suite.tunnelChannelsLock = &sync.Mutex{}
+	// assumes that minikube exposed the backend API on port 30060
+	suite.backendAPIURL = common.GetEnvOrDefaultString("NUCLIO_TEST_BACKEND_API_URL", "http://localhost:30060/api")
+	suite.registryURL = suite.resolveInClusterRegistryURL()
 }
 
 func (suite *PlatformTestSuite) SetupTest() {
@@ -78,12 +77,6 @@ func (suite *PlatformTestSuite) SetupTest() {
 }
 
 func (suite *PlatformTestSuite) TearDownTest() {
-
-	// delete all nuclio resources
-	suite.executeKubectl([]string{"delete", "all"},
-		map[string]string{
-			"selector": "nuclio.io/app",
-		})
 
 	// cleanup nuclio via helm
 	suite.executeHelm([]string{"delete", "nuclio"}, nil)
@@ -104,50 +97,12 @@ func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 			}),
 		})
 
-	ctx := context.Background()
-	suite.minikubeEnsureTunnel(ctx, "nuclio-dashboard")
-
 	// generate function config
 	functionConfig := suite.compileFunctionConfig()
 
 	// create function
 	suite.createFunction(functionConfig)
-}
-
-func (suite *PlatformTestSuite) minikubeEnsureTunnel(ctx context.Context, serviceName string) {
-	if _, exists := suite.tunnelChannels[serviceName]; exists {
-
-		// channel is already open
-		return
-	}
-
-	go func() {
-
-		// TODO: why is that blocking anyway?
-		output, err := suite.cmdRunner.Stream(ctx,
-			nil,
-			"minikube --profile %s --namespace %s service %s",
-			suite.minikubeProfile,
-			suite.namespace,
-			serviceName)
-		suite.Require().NoError(err)
-		suite.Require().NotEmpty(output)
-		suite.tunnelChannelsLock.Lock()
-		defer suite.tunnelChannelsLock.Unlock()
-		suite.tunnelChannels[serviceName] <- ctx
-
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			suite.tunnelChannelsLock.Lock()
-			delete(suite.tunnelChannels, serviceName)
-			suite.tunnelChannelsLock.Unlock()
-			return
-		case <-suite.tunnelChannels[serviceName]:
-			return
-		}
-	}
+	suite.waitForFunctionToBeReady(functionConfig)
 }
 
 func (suite *PlatformTestSuite) compileFunctionConfig() *functionconfig.Config {
@@ -166,32 +121,18 @@ def handler(context, event):
 	return functionConfig
 }
 
-func (suite *PlatformTestSuite) createFunction(functionConfig *functionconfig.Config) {
-
-	// TODO: make sure - `minikube --profile nuclio-test -n test-nuclio-53jun service nuclio-dashboard --ur`
-	encodedFunctionConfig, err := json.Marshal(functionConfig)
-	suite.Require().NoError(err)
-
-	_, _, err = common.SendHTTPRequest(nil,
-		http.MethodPost,
-		"http://nuclio.local",
-		encodedFunctionConfig,
-		nil,
-		nil,
-		http.StatusAccepted)
-	suite.Require().NoError(err, "Failed to create function")
-
-}
-
 func (suite *PlatformTestSuite) executeKubectl(positionalArgs []string,
 	namedArgs map[string]string) cmdrunner.RunResult {
 	if namedArgs == nil {
 		namedArgs = map[string]string{}
 	}
-	namedArgs["namespace"] = suite.namespace
-	runOptions := NewRunOptions(runKubectlCommandMinikube,
+
+	if _, found := namedArgs["namespace"]; !found {
+		namedArgs["namespace"] = suite.namespace
+	}
+	runOptions := test.NewRunOptions(test.RunKubectlCommandMinikube,
 		fmt.Sprintf("minikube --profile %s kubectl --", suite.minikubeProfile))
-	results, err := runKubectlCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runOptions)
+	results, err := test.RunKubectlCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runOptions)
 	suite.Require().NoError(err)
 	return results
 }
@@ -209,7 +150,7 @@ func (suite *PlatformTestSuite) executeHelm(positionalArgs []string,
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &nuclioSourceDir,
 	}
-	results, err := runCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runOptions)
+	results, err := test.RunCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runOptions)
 	suite.Require().NoError(err)
 	return results.Output
 }
@@ -236,22 +177,36 @@ func (suite *PlatformTestSuite) executeMinikube(positionalArgs []string,
 		namedArgs["profile"] = suite.minikubeProfile
 	}
 
-	results, err := runCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, nil)
+	results, err := test.RunCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, nil)
 	suite.Require().NoError(err)
 	return results.Output
 }
 
-func (suite *PlatformTestSuite) resolveHostRegistryURL() string {
-	minikubeIP := suite.executeMinikube([]string{"ip"}, nil)
+func (suite *PlatformTestSuite) resolveInClusterRegistryURL() string {
 
-	// returns 127.0.0.1:<host-port>
-	result, err := suite.cmdRunner.Run(nil, fmt.Sprintf("docker port %s 5000", suite.minikubeProfile))
-	suite.Require().NoError(err)
-	return fmt.Sprintf("%s:%s", minikubeIP, strings.TrimSpace(strings.Split(result.Output, ":")[1]))
+	// resolve the service ip and not using the service "registry.kube-system.svc.cluster.local" as
+	// https://github.com/kubernetes/minikube/issues/2162 is still open
+	results := suite.executeKubectl([]string{"get", "service/registry"}, map[string]string{
+		"output":    "jsonpath='{.spec.clusterIP}'",
+		"namespace": "kube-system",
+	})
+	return results.Output
+
+	// For Host
+	//// returns 127.0.0.1:<host-port>
+	//result, err := suite.cmdRunner.Run(nil, fmt.Sprintf("docker port %s 5000", suite.minikubeProfile))
+	//suite.Require().NoError(err)
+	//return fmt.Sprintf("host.minikube.internal:%s", strings.TrimSpace(strings.Split(result.Output, ":")[1]))
 }
 
 func (suite *PlatformTestSuite) installNuclioHelmChart() {
-	//renderedHelmValues, err := suite.cmdRunner.Run(nil,
+	//renderedHelmValues, err := suite.cmdRunner.Run(&cmdrunner.RunOptions{
+	//	Env: map[string]string{
+	//		"NUCLIO_LABEL": common.GetEnvOrDefaultString("NUCLIO_LABEL", "unstable"),
+	//		"REPO":         common.GetEnvOrDefaultString("REPO", "quay.io"),
+	//		"REPO_NAME":    common.GetEnvOrDefaultString("REPO_NAME", "nuclio"),
+	//	},
+	//},
 	//	fmt.Sprintf("cat %s/test/k8s/ci_assets/helm_values.yaml | envsubst", common.GetSourceDir()))
 	//suite.Require().NoError(err)
 
@@ -266,12 +221,78 @@ func (suite *PlatformTestSuite) installNuclioHelmChart() {
 		"--create-namespace "+
 		"--debug "+
 		"--wait "+
-		"--set dashboard.ingress.enabled=true "+
-		"--set crd.create=false "+
+		"--set dashboard.nodePort=30060 "+
 		//"--values "+
 		//"- "+
 		"nuclio hack/k8s/helm/nuclio", suite.namespace))
 	suite.Require().NoError(err)
+}
+
+func (suite *PlatformTestSuite) waitForFunctionToBeReady(functionConfig *functionconfig.Config) {
+	var function *functionconfig.ConfigWithStatus
+	err := common.RetryUntilSuccessful(10*time.Minute, 10*time.Second,
+		func() bool {
+			var err error
+			function, err = suite.getFunction(functionConfig.Meta.Name)
+			if nuclioError, ok := err.(nuclio.WithStatusCode); ok {
+				if nuclioError.StatusCode() >= 500 {
+
+					// bail here, not expected server error
+					suite.Require().Error(err)
+				}
+
+				suite.logger.WarnWith("Function not ready yet",
+					"function", functionConfig.Meta.Name,
+					"error", err)
+				return false
+			}
+
+			suite.logger.DebugWith("Waiting for function to be ready",
+				"functionState", function.Status.State,
+				"function", functionConfig.Meta.Name)
+			return functionconfig.FunctionStateProvisioned(function.Status.State)
+		})
+
+	suite.Require().Equal(functionconfig.FunctionStateReady, function.Status.State)
+	suite.Require().NoError(err)
+}
+
+func (suite *PlatformTestSuite) createFunction(functionConfig *functionconfig.Config) {
+	encodedFunctionConfig, err := json.Marshal(functionConfig)
+	suite.Require().NoError(err)
+
+	_, _, err = common.SendHTTPRequest(nil,
+		http.MethodPost,
+		suite.backendAPIURL+"/functions",
+		encodedFunctionConfig,
+		nil,
+		nil,
+		http.StatusAccepted)
+	suite.Require().NoError(err, "Failed to create function")
+}
+
+func (suite *PlatformTestSuite) getFunction(functionName string) (*functionconfig.ConfigWithStatus, error) {
+	responseBody, response, err := common.SendHTTPRequest(nil,
+		http.MethodGet,
+		fmt.Sprintf("%s/functions/%s", suite.backendAPIURL, functionName),
+		nil,
+		nil,
+		nil,
+		0)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, nuclio.GetByStatusCode(response.StatusCode)("Failed to get function")
+	}
+
+	functionConfig := &functionconfig.ConfigWithStatus{}
+	if err := json.Unmarshal(responseBody, functionConfig); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal function")
+	}
+	return functionConfig, nil
+
 }
 
 func TestPlatformFunctionalTestSuite(t *testing.T) {

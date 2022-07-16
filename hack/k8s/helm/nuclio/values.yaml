@@ -150,8 +150,8 @@ dashboard:
     # for example: aws-secret in https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
     registryProviderSecretName: ""
 
-  # Uncomment to configure node port
-  # nodePort: 32050
+  # use to configure node port
+  nodePort:
 
   # Use if you serve the templates locally (for offline environments);
   # otherwise, the templates will be pulled from GitHub

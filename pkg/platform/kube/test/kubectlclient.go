@@ -9,20 +9,20 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type runKubectlCommandMode string
+type RunKubectlCommandMode string
 
 const (
-	runKubectlCommandDirect   runKubectlCommandMode = "direct"
-	runKubectlCommandMinikube runKubectlCommandMode = "minikube"
+	RunKubectlCommandDirect   RunKubectlCommandMode = "direct"
+	RunKubectlCommandMinikube RunKubectlCommandMode = "minikube"
 )
 
 type RunOptions struct {
 	*cmdrunner.RunOptions
-	mode         runKubectlCommandMode
+	mode         RunKubectlCommandMode
 	modeExecutor string
 }
 
-func NewRunOptions(mode runKubectlCommandMode, modeExecutor string) *RunOptions {
+func NewRunOptions(mode RunKubectlCommandMode, modeExecutor string) *RunOptions {
 	runOptions := &RunOptions{
 		mode:         mode,
 		modeExecutor: modeExecutor,
@@ -30,22 +30,22 @@ func NewRunOptions(mode runKubectlCommandMode, modeExecutor string) *RunOptions 
 	return runOptions
 }
 
-func runKubectlCommand(logger logger.Logger,
+func RunKubectlCommand(logger logger.Logger,
 	cmdrunner cmdrunner.CmdRunner,
 	positionalArgs []string,
 	namedArgs map[string]string,
 	runOptions *RunOptions) (cmdrunner.RunResult, error) {
 
 	if runOptions == nil {
-		runOptions = NewRunOptions(runKubectlCommandDirect, "kubectl")
+		runOptions = NewRunOptions(RunKubectlCommandDirect, "kubectl")
 	}
 
 	var argsStringSlice []string
 
 	switch runOptions.mode {
-	case runKubectlCommandDirect:
+	case RunKubectlCommandDirect:
 		argsStringSlice = append(argsStringSlice, runOptions.modeExecutor)
-	case runKubectlCommandMinikube:
+	case RunKubectlCommandMinikube:
 		argsStringSlice = append(argsStringSlice, runOptions.modeExecutor)
 	default:
 		argsStringSlice = append(argsStringSlice, runOptions.modeExecutor)
@@ -54,10 +54,10 @@ func runKubectlCommand(logger logger.Logger,
 	// add positional arguments
 	argsStringSlice = append(argsStringSlice, positionalArgs...)
 
-	return runCommand(logger, cmdrunner, argsStringSlice, namedArgs, runOptions.RunOptions)
+	return RunCommand(logger, cmdrunner, argsStringSlice, namedArgs, runOptions.RunOptions)
 }
 
-func runCommand(logger logger.Logger,
+func RunCommand(logger logger.Logger,
 	cmdrunner cmdrunner.CmdRunner,
 	positionalArgs []string,
 	namedArgs map[string]string,
@@ -74,5 +74,4 @@ func runCommand(logger logger.Logger,
 
 	logger.DebugWith("Running command", "encodedCommand", encodedCommand)
 	return cmdrunner.Run(runOptions, encodedCommand)
-
 }
