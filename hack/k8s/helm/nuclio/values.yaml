@@ -129,7 +129,7 @@ dashboard:
 
     image:
       repository: gcr.io/kaniko-project/executor
-      tag: v1.7.0
+      tag: v1.8.1
       pullPolicy: IfNotPresent
 
     initContainerImage:
