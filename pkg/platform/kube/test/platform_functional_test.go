@@ -1,5 +1,5 @@
-// +build test_functional
-// +build test_kube
+//go:build test_functional && test_kube
+// +build test_functional,test_kube
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -41,7 +41,7 @@ import (
 
 // PlatformTestSuite requires
 // - minikube >= 1.22.0 (https://minikube.sigs.k8s.io/docs/start/) with a preinstalled cluster. e.g.:
-//			minikube start --profile nuclio-test --kubernetes-version v1.20.11 --driver docker --addons registry --addons ingress
+//		minikube start --profile nuclio-test --kubernetes-version v1.23.8 --driver docker --addons registry --addons ingress
 // - helm >= 3.3.0 (https://helm.sh/docs/intro/install/)
 type PlatformTestSuite struct {
 	suite.Suite
@@ -67,37 +67,14 @@ func (suite *PlatformTestSuite) SetupSuite() {
 
 	suite.minikubeProfile = common.GetEnvOrDefaultString("NUCLIO_TEST_MINIKUBE_PROFILE", "nuclio-test")
 
-	suite.registryURL = suite.resolveMinikubeRegistryURL()
+	suite.registryURL = suite.resolveHostRegistryURL()
 	suite.tunnelChannels = map[string]chan context.Context{}
 	suite.tunnelChannelsLock = &sync.Mutex{}
 }
 
 func (suite *PlatformTestSuite) SetupTest() {
-	var err error
-	suite.namespace = fmt.Sprintf("test-nuclio-%s",
-		common.GenerateRandomString(5, common.SmallLettersAndNumbers))
-
-	suite.executeKubectl([]string{"create", "namespace", suite.namespace}, nil)
-
-	//renderedHelmValues, err := suite.cmdRunner.Run(nil,
-	//	fmt.Sprintf("cat %s/test/k8s/ci_assets/helm_values.yaml | envsubst", common.GetSourceDir()))
-	//suite.Require().NoError(err)
-
-	nuclioSourceDir := common.GetSourceDir()
-
-	_, err = suite.cmdRunner.Run(&cmdrunner.RunOptions{
-		WorkingDir: &nuclioSourceDir,
-		//Stdin:      &renderedHelmValues.Output,
-	}, fmt.Sprintf("helm "+
-		"--namespace %s "+
-		"install "+
-		"--debug "+
-		"--wait "+
-		"--set dashboard.ingress.enabled=true "+
-		//"--values "+
-		//"- "+
-		"nuclio hack/k8s/helm/nuclio", suite.namespace))
-	suite.Require().NoError(err)
+	suite.namespace = fmt.Sprintf("test-nuclio")
+	suite.installNuclioHelmChart()
 }
 
 func (suite *PlatformTestSuite) TearDownTest() {
@@ -127,7 +104,8 @@ func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 			}),
 		})
 
-	suite.minikubeEnsureTunnel("nuclio-dashboard")
+	ctx := context.Background()
+	suite.minikubeEnsureTunnel(ctx, "nuclio-dashboard")
 
 	// generate function config
 	functionConfig := suite.compileFunctionConfig()
@@ -136,7 +114,7 @@ func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 	suite.createFunction(functionConfig)
 }
 
-func (suite *PlatformTestSuite) minikubeEnsureTunnel(serviceName string) {
+func (suite *PlatformTestSuite) minikubeEnsureTunnel(ctx context.Context, serviceName string) {
 	if _, exists := suite.tunnelChannels[serviceName]; exists {
 
 		// channel is already open
@@ -144,12 +122,11 @@ func (suite *PlatformTestSuite) minikubeEnsureTunnel(serviceName string) {
 	}
 
 	go func() {
-		ctx := context.Background()
 
 		// TODO: why is that blocking anyway?
 		output, err := suite.cmdRunner.Stream(ctx,
 			nil,
-			"minikube --profile %s --namespace %s service %s --url",
+			"minikube --profile %s --namespace %s service %s",
 			suite.minikubeProfile,
 			suite.namespace,
 			serviceName)
@@ -162,6 +139,11 @@ func (suite *PlatformTestSuite) minikubeEnsureTunnel(serviceName string) {
 	}()
 	for {
 		select {
+		case <-ctx.Done():
+			suite.tunnelChannelsLock.Lock()
+			delete(suite.tunnelChannels, serviceName)
+			suite.tunnelChannelsLock.Unlock()
+			return
 		case <-suite.tunnelChannels[serviceName]:
 			return
 		}
@@ -259,11 +241,37 @@ func (suite *PlatformTestSuite) executeMinikube(positionalArgs []string,
 	return results.Output
 }
 
-func (suite *PlatformTestSuite) resolveMinikubeRegistryURL() string {
+func (suite *PlatformTestSuite) resolveHostRegistryURL() string {
 	minikubeIP := suite.executeMinikube([]string{"ip"}, nil)
+
+	// returns 127.0.0.1:<host-port>
 	result, err := suite.cmdRunner.Run(nil, fmt.Sprintf("docker port %s 5000", suite.minikubeProfile))
 	suite.Require().NoError(err)
 	return fmt.Sprintf("%s:%s", minikubeIP, strings.TrimSpace(strings.Split(result.Output, ":")[1]))
+}
+
+func (suite *PlatformTestSuite) installNuclioHelmChart() {
+	//renderedHelmValues, err := suite.cmdRunner.Run(nil,
+	//	fmt.Sprintf("cat %s/test/k8s/ci_assets/helm_values.yaml | envsubst", common.GetSourceDir()))
+	//suite.Require().NoError(err)
+
+	nuclioSourceDir := common.GetSourceDir()
+
+	_, err := suite.cmdRunner.Run(&cmdrunner.RunOptions{
+		WorkingDir: &nuclioSourceDir,
+		//Stdin:      &renderedHelmValues.Output,
+	}, fmt.Sprintf("helm "+
+		"--namespace %s "+
+		"install "+
+		"--create-namespace "+
+		"--debug "+
+		"--wait "+
+		"--set dashboard.ingress.enabled=true "+
+		"--set crd.create=false "+
+		//"--values "+
+		//"- "+
+		"nuclio hack/k8s/helm/nuclio", suite.namespace))
+	suite.Require().NoError(err)
 }
 
 func TestPlatformFunctionalTestSuite(t *testing.T) {
