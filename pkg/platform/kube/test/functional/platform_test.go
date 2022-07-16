@@ -144,7 +144,9 @@ func (suite *PlatformTestSuite) executeHelm(positionalArgs []string,
 	if namedArgs == nil {
 		namedArgs = map[string]string{}
 	}
-	namedArgs["namespace"] = suite.namespace
+	if _, found := namedArgs["namespace"]; !found {
+		namedArgs["namespace"] = suite.namespace
+	}
 
 	nuclioSourceDir := common.GetSourceDir()
 	runOptions := &cmdrunner.RunOptions{
