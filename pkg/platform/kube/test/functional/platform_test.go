@@ -72,7 +72,7 @@ func (suite *PlatformTestSuite) SetupSuite() {
 }
 
 func (suite *PlatformTestSuite) SetupTest() {
-	suite.namespace = fmt.Sprintf("test-nuclio")
+	suite.namespace = "test-nuclio"
 	suite.installNuclioHelmChart()
 }
 
