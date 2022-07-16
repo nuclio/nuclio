@@ -64,6 +64,7 @@ func (suite *PlatformTestSuite) SetupSuite() {
 	suite.cmdRunner, err = cmdrunner.NewShellRunner(suite.logger)
 	suite.Require().NoError(err, "Failed to create shell runner")
 
+	suite.namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "nuclio-test")
 	suite.minikubeProfile = common.GetEnvOrDefaultString("NUCLIO_TEST_MINIKUBE_PROFILE", "nuclio-test")
 
 	// assumes that minikube exposed the backend API on port 30060
@@ -72,7 +73,7 @@ func (suite *PlatformTestSuite) SetupSuite() {
 }
 
 func (suite *PlatformTestSuite) SetupTest() {
-	suite.namespace = "test-nuclio"
+
 	suite.installNuclioHelmChart()
 }
 
