@@ -56,7 +56,7 @@
     "lodash": "^4.17.21",
     "lodash-inflection": "^1.4.0",
     "merge2": "^0.3.6",
-    "moment": "^2.29.2",
+    "moment": "^2.29.4",
     "monaco-editor": "^0.13.1",
     "natives": "^1.1.6",
     "ng-dialog": "~1.4.0",
