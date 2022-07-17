@@ -78,23 +78,13 @@ func (suite *PlatformTestSuite) SetupTest() {
 func (suite *PlatformTestSuite) TearDownTest() {
 
 	// cleanup nuclio via helm
-	suite.executeHelm([]string{"delete", "nuclio"}, nil)
+	suite.executeHelm(nil, []string{"delete", "nuclio"}, nil)
 
 	// delete namespace
 	suite.executeKubectl([]string{"delete", "namespace", suite.namespace}, nil)
 }
 
 func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
-
-	// set nuclio to build with kaniko
-	suite.executeHelm([]string{"upgrade", "nuclio", "hack/k8s/helm/nuclio", "--wait", "--install", "--reuse-values"},
-		map[string]string{
-			"set": common.StringMapToString(map[string]string{
-				"dashboard.containerBuilderKind":        "kaniko",
-				"dashboard.kaniko.insecurePushRegistry": "true",
-				"dashboard.kaniko.insecurePullRegistry": "true",
-			}),
-		})
 
 	// generate function config
 	functionConfig := suite.compileFunctionConfig()
@@ -135,7 +125,8 @@ func (suite *PlatformTestSuite) executeKubectl(positionalArgs []string,
 	return results
 }
 
-func (suite *PlatformTestSuite) executeHelm(positionalArgs []string,
+func (suite *PlatformTestSuite) executeHelm(runOptions *cmdrunner.RunOptions,
+	positionalArgs []string,
 	namedArgs map[string]string) string {
 
 	positionalArgs = append([]string{"helm"}, positionalArgs...)
@@ -146,10 +137,13 @@ func (suite *PlatformTestSuite) executeHelm(positionalArgs []string,
 		namedArgs["namespace"] = suite.namespace
 	}
 
-	nuclioSourceDir := common.GetSourceDir()
-	runOptions := &cmdrunner.RunOptions{
-		WorkingDir: &nuclioSourceDir,
+	if runOptions == nil {
+		nuclioSourceDir := common.GetSourceDir()
+		runOptions = &cmdrunner.RunOptions{
+			WorkingDir: &nuclioSourceDir,
+		}
 	}
+
 	results, err := suite.cmdRunner.RunWithPositionalAndNamedArguments(runOptions, positionalArgs, namedArgs)
 	suite.Require().NoError(err)
 	return results.Output
@@ -212,20 +206,30 @@ func (suite *PlatformTestSuite) installNuclioHelmChart() {
 	suite.Require().NoError(err)
 
 	nuclioSourceDir := common.GetSourceDir()
-
-	_, err = suite.cmdRunner.Run(&cmdrunner.RunOptions{
-		WorkingDir: &nuclioSourceDir,
+	suite.executeHelm(&cmdrunner.RunOptions{
 		Stdin:      &renderedHelmValues.Output,
-	}, fmt.Sprintf("helm "+
-		"--namespace %s "+
-		"install "+
-		"--create-namespace "+
-		"--debug "+
-		"--wait "+
-		"--set dashboard.nodePort=30060 "+
-		"--values "+
-		"- "+
-		"nuclio hack/k8s/helm/nuclio", suite.namespace))
+		WorkingDir: &nuclioSourceDir,
+	}, []string{
+		"install",
+		"--create-namespace",
+		"--debug",
+		"--wait",
+		"--namespace",
+		suite.namespace,
+		"--values",
+		"-",
+		"nuclio",
+		"hack/k8s/helm/nuclio",
+	},
+		map[string]string{
+			"set": common.StringMapToString(map[string]string{
+				"dashboard.nodePort":                    "30060",
+				"dashboard.securityContext.runAsUser":   "1000",
+				"dashboard.containerBuilderKind":        "kaniko",
+				"dashboard.kaniko.insecurePushRegistry": "true",
+				"dashboard.kaniko.insecurePullRegistry": "true",
+			}),
+		})
 	suite.Require().NoError(err)
 }
 

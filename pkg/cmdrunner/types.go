@@ -57,6 +57,6 @@ type CmdRunner interface {
 		positionalArgs []string,
 		namedArgs map[string]string) (RunResult, error)
 
-	// Stream stream command output
+	// Stream streams command output
 	Stream(ctx context.Context, runOptions *RunOptions, format string, vars ...interface{}) (io.ReadCloser, error)
 }
