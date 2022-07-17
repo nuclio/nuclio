@@ -150,13 +150,25 @@ ECR requires handling repository creations and time limited authorization tokens
     --set registry.secretName=<ecr-secret-name>
     ```
 The access keys or EC2 IAM policy must have the following permissions:
-
-- ecr:CreateRepository
-- ecr:GetAuthorizationToken
-- ecr:BatchCheckLayerAvailability
-- ecr:BatchGetImage
-- ecr:CompleteLayerUpload
-- ecr:GetDownloadUrlForLayer
-- ecr:InitiateLayerUpload
-- ecr:PutImage
-- ecr:UploadLayerPart
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:CreateRepository",
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:BatchGetImage",
+                "ecr:CompleteLayerUpload",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:InitiateLayerUpload",
+                "ecr:PutImage",
+                "ecr:UploadLayerPart"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
