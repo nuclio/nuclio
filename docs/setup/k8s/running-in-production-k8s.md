@@ -137,13 +137,38 @@ This is rather straightforward; however, note the following:
 ### Using kaniko with amazon elastic container registry (ECR):
 
 ECR requires handling repository creations and time limited authorization tokens. To do so, provide nuclio with the following values.
-- Image with AWS CLI binary installed to create repositories of function images (default to `amazon/aws-cli:2.7.10`)
-- AWS secret name generated from `.aws/credentials` file configured with proper access key id and secret access key so that it has access to pull/push images and create a repository.
-- ECR secret name to be used as `imagePullSecret` of function pods (since ECR tokens stale after 12 hours, the secret must be refreshed periodically - can be done with a cron job as described in [Sergey's blog](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
+- Image with AWS CLI binary installed to create repositories of function images (defaults to `amazon/aws-cli:2.7.10`)
+- AWS credentials or EC2 IAM policy:
+  1. With AWS credentials specify:
+     1. AWS secret name generated from `.aws/credentials` file configured with access key id and secret access key.
+     2. ECR secret name to be used as `imagePullSecret` of function pods (since ECR tokens stale after 12 hours, the secret must be refreshed periodically - can be done with a cron job as described in [Sergey's blog](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
+  2. To use EC2 IAM policy when running from an EC2 instance do not specify `dashboard.kaniko.registryProviderSecretName` and `registry.secretName`.
     ```sh
     --set dashboard.kaniko.initContainerImage.awscli.repository=<repository> \
     --set dashboard.kaniko.initContainerImage.awscli.tag=<tag> \
     --set dashboard.kaniko.registryProviderSecretName=<aws-secret-name> \
     --set registry.secretName=<ecr-secret-name>
     ```
-
+The access keys or EC2 IAM policy must have the following permissions:
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecr:CreateRepository",
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:BatchGetImage",
+                "ecr:CompleteLayerUpload",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:InitiateLayerUpload",
+                "ecr:PutImage",
+                "ecr:UploadLayerPart"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```

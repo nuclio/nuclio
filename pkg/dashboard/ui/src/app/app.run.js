@@ -72,7 +72,7 @@
                 backendOptions: [
                     {
                         expirationTime: ConfigService.i18nextExpirationTime,
-                        defaultVersion: 'v0.3'
+                        defaultVersion: 'v0.4'
                     },
                     {
                         loadPath: 'assets/i18n/{{lng}}/{{ns}}.json',

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"strconv"
@@ -289,7 +290,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		var deployErr error
 		var functionStatus functionconfig.Status
 
-		previousHTTPPort, err := p.deletePreviousContainers(createFunctionOptions)
+		// delete existing function containers
+		previousHTTPPort, err := p.deleteOrStopFunctionContainers(createFunctionOptions)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to delete previous containers")
 		}
@@ -653,7 +655,25 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 }
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
-	return []string{"172.17.0.1"}, nil
+	addresses := []string{
+
+		// default internal docker network
+		"172.17.0.1",
+	}
+
+	if common.RunningInContainer() {
+
+		// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
+		dockerHostAddresses, err := net.LookupIP("host.docker.internal")
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to lookup host.docker.internal")
+		}
+		for _, address := range dockerHostAddresses {
+			addresses = append(addresses, address.String())
+		}
+	}
+
+	return addresses, nil
 }
 
 func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
@@ -842,20 +862,23 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		FSGroup:       functionSecurityContext.FSGroup,
 	}
 
-	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
-		runContainerOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to run a Docker container")
-	}
+	containerID := p.GetFunctionContainerName(&createFunctionOptions.FunctionConfig)
+	if !createFunctionOptions.FunctionConfig.Spec.Disable {
+		containerID, err = p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
+			runContainerOptions)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to run a Docker container")
+		}
 
-	timeout := createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds
-	if err := p.waitForContainer(containerID, timeout); err != nil {
-		return nil, err
-	}
+		if err := p.waitForContainer(containerID,
+			createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds); err != nil {
+			return nil, err
+		}
 
-	functionExternalHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve a deployed function's HTTP port")
+		functionExternalHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to resolve a deployed function's HTTP port")
+		}
 	}
 
 	return &platform.CreateFunctionResult{
@@ -1054,7 +1077,7 @@ func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
 	return marshalledAnnotations
 }
 
-func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
+func (p *Platform) deleteOrStopFunctionContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
 	var previousHTTPPort int
 
 	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment",
@@ -1069,24 +1092,40 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 		return 0, errors.Wrap(err, "Failed to get function containers")
 	}
 
+	if createFunctionOptions.FunctionConfig.Spec.Disable {
+		createFunctionOptions.Logger.InfoWith("Disabling function",
+			"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
+
+		// if function is disabled, stop all containers
+		for _, container := range containers {
+			createFunctionOptions.Logger.DebugWith("Stop function container",
+				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+				"containerID", container.ID)
+			if err := p.dockerClient.StopContainer(container.ID); err != nil {
+				return 0, errors.Wrap(err, "Failed to stop a container")
+			}
+		}
+		return 0, nil
+	}
+
 	// if the function exists, delete it
 	if len(containers) > 0 {
 		createFunctionOptions.Logger.InfoWith("Function already exists, deleting function containers",
 			"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
+	}
 
-		// iterate over containers and delete
-		for _, container := range containers {
-			createFunctionOptions.Logger.DebugWith("Deleting function container",
-				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
-				"containerName", container.Name)
-			previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
-			if err != nil {
-				return 0, errors.Wrap(err, "Failed to get a container's HTTP-trigger port")
-			}
+	// iterate over containers and delete
+	for _, container := range containers {
+		createFunctionOptions.Logger.DebugWith("Deleting function container",
+			"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+			"containerName", container.Name)
+		previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
+		if err != nil {
+			return 0, errors.Wrap(err, "Failed to get a container's HTTP-trigger port")
+		}
 
-			if err := p.dockerClient.RemoveContainer(container.ID); err != nil {
-				return 0, errors.Wrap(err, "Failed to delete a function container")
-			}
+		if err := p.dockerClient.RemoveContainer(container.ID); err != nil {
+			return 0, errors.Wrap(err, "Failed to delete a function container")
 		}
 	}
 
@@ -1281,7 +1320,12 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 	functionInvocation.InternalInvocationURLs = addressesWithFunctionPort
 	functionInvocation.ExternalInvocationURLs = []string{}
 	for _, externalIPAddress := range externalIPAddresses {
-		if externalIPAddress != "" {
+		switch externalIPAddress {
+
+		// skip if empty or assumes running in docker
+		case "", "172.17.0.1":
+			continue
+		default:
 			functionInvocation.ExternalInvocationURLs = append(functionInvocation.ExternalInvocationURLs,
 				fmt.Sprintf("%s:%d", externalIPAddress, createFunctionResults.Port))
 		}

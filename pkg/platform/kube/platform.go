@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"strings"
 	"time"
@@ -1149,20 +1148,7 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 		defaultNamespace = p.DefaultNamespace
 	}
 
-	if defaultNamespace == "@nuclio.selfNamespace" {
-
-		// get namespace from within the pod. if found, return that
-		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-			return string(namespacePod)
-		}
-	}
-
-	if defaultNamespace == "" {
-
-		return "default"
-	}
-
-	return defaultNamespace
+	return common.ResolveDefaultNamespace(defaultNamespace)
 }
 
 // GetNamespaces returns all the namespaces in the platform
@@ -1181,8 +1167,14 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 
 	var namespaceNames []string
 
+	// put default namespace first in namespace list
+	defaultNamespace := p.ResolveDefaultNamespace("@nuclio.selfNamespace")
+	namespaceNames = append(namespaceNames, defaultNamespace)
+
 	for _, namespace := range namespaces.Items {
-		namespaceNames = append(namespaceNames, namespace.Name)
+		if namespace.Name != defaultNamespace {
+			namespaceNames = append(namespaceNames, namespace.Name)
+		}
 	}
 
 	return namespaceNames, nil
