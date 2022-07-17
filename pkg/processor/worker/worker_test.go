@@ -76,8 +76,9 @@ func (mr *MockRuntime) SupportsRestart() bool {
 	return true
 }
 
-func (mr *MockRuntime) Signal(signal syscall.Signal) error {
-	return nil
+func (mr *MockRuntime) Terminate(signal syscall.Signal) error {
+	args := mr.Called(signal)
+	return args.Error(0)
 }
 
 type WorkerTestSuite struct {

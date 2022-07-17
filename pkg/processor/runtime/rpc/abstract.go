@@ -214,7 +214,8 @@ func (r *AbstractRuntime) SupportsRestart() bool {
 	return true
 }
 
-func (r *AbstractRuntime) Signal(signal syscall.Signal) error {
+// Terminate sends a signal to the runtime and waits for it to exit
+func (r *AbstractRuntime) Terminate(signal syscall.Signal) error {
 
 	// signal and wait for process termination
 	if err := r.signal(signal); err != nil {

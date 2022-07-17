@@ -62,8 +62,8 @@ type Runtime interface {
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
 
-	// Signal sends a signal to the runtime process
-	Signal(signal syscall.Signal) error
+	// Terminate sends a signal to the runtime process and waits for it to exit
+	Terminate(signal syscall.Signal) error
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -239,6 +239,6 @@ func (ar *AbstractRuntime) Stop() error {
 	return nil
 }
 
-func (ar *AbstractRuntime) Signal(signal syscall.Signal) error {
+func (ar *AbstractRuntime) Terminate(signal syscall.Signal) error {
 	return nil
 }

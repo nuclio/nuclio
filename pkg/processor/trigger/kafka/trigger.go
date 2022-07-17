@@ -268,12 +268,12 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				wg.Add(2)
 				go func() {
 					<-submittedEventInstance.done
-					k.Logger.Debug("Handler done")
+					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
 					wg.Done()
 				}()
 				go func() {
 					<-workerTerminationCompleteChan
-					k.Logger.Debug("Workers terminated")
+					k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
 					wg.Done()
 				}()
 
@@ -494,6 +494,8 @@ func (k *kafka) resolveSCRAMClientGeneratorFunc(mechanism sarama.SASLMechanism) 
 	}
 }
 
+// signalWorkerTermination sends a SIGTERM signal to all workers, signaling them to drop or ack events
+// that are currently being processed
 func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool) {
 
 	// signal all workers on re-balance
@@ -503,8 +505,8 @@ func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool)
 
 	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
 		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
-			if err := workerInstance.Signal(syscall.SIGTERM); err != nil {
-				return errors.Wrap(err, "Failed to signal worker to terminate")
+			if err := workerInstance.Terminate(syscall.SIGTERM); err != nil {
+				return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
 			}
 
 			return nil

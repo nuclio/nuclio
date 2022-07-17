@@ -147,6 +147,6 @@ func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
 }
 
-func (w *Worker) Signal(signal syscall.Signal) error {
-	return w.runtime.Signal(signal)
+func (w *Worker) Terminate(signal syscall.Signal) error {
+	return w.runtime.Terminate(signal)
 }
