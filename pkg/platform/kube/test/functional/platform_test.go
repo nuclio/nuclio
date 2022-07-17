@@ -1,5 +1,4 @@
 //go:build test_functional && test_kube
-// +build test_functional,test_kube
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -23,7 +22,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/rs/xid"
 	"net/http"
 	"testing"
 	"time"
@@ -31,12 +29,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/platform/kube/test"
-	nucliozap "github.com/nuclio/zap"
+	"github.com/nuclio/nuclio/pkg/platform/kube/test/kubectlclient"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	nucliozap "github.com/nuclio/zap"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -73,7 +72,6 @@ func (suite *PlatformTestSuite) SetupSuite() {
 }
 
 func (suite *PlatformTestSuite) SetupTest() {
-
 	suite.installNuclioHelmChart()
 }
 
@@ -131,9 +129,8 @@ func (suite *PlatformTestSuite) executeKubectl(positionalArgs []string,
 	if _, found := namedArgs["namespace"]; !found {
 		namedArgs["namespace"] = suite.namespace
 	}
-	runOptions := test.NewRunOptions(test.RunKubectlCommandMinikube,
-		fmt.Sprintf("minikube --profile %s kubectl --", suite.minikubeProfile))
-	results, err := test.RunKubectlCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runOptions)
+	runOptions := kubectlclient.NewRunOptions(kubectlclient.WithMinikubeKubectlCommandRunner(suite.minikubeProfile))
+	results, err := kubectlclient.RunKubectlCommand(suite.cmdRunner, positionalArgs, namedArgs, runOptions)
 	suite.Require().NoError(err)
 	return results
 }
@@ -153,7 +150,7 @@ func (suite *PlatformTestSuite) executeHelm(positionalArgs []string,
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &nuclioSourceDir,
 	}
-	results, err := test.RunCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, runOptions)
+	results, err := suite.cmdRunner.RunWithPositionalAndNamedArguments(runOptions, positionalArgs, namedArgs)
 	suite.Require().NoError(err)
 	return results.Output
 }
@@ -180,7 +177,7 @@ func (suite *PlatformTestSuite) executeMinikube(positionalArgs []string,
 		namedArgs["profile"] = suite.minikubeProfile
 	}
 
-	results, err := test.RunCommand(suite.logger, suite.cmdRunner, positionalArgs, namedArgs, nil)
+	results, err := suite.cmdRunner.RunWithPositionalAndNamedArguments(nil, positionalArgs, namedArgs)
 	suite.Require().NoError(err)
 	return results.Output
 }

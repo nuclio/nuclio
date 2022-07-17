@@ -52,6 +52,11 @@ type CmdRunner interface {
 	// Run runs a command, given runOptions
 	Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error)
 
+	// RunWithPositionalAndNamedArguments runs a command, given runOptions, positional and named arguments
+	RunWithPositionalAndNamedArguments(runOptions *RunOptions,
+		positionalArgs []string,
+		namedArgs map[string]string) (RunResult, error)
+
 	// Stream stream command output
 	Stream(ctx context.Context, runOptions *RunOptions, format string, vars ...interface{}) (io.ReadCloser, error)
 }
