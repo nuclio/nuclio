@@ -77,14 +77,11 @@ func (mr *MockRuntime) SupportsRestart() bool {
 }
 
 func (mr *MockRuntime) SupportsControlCommunication() bool {
-	return false
+	args := mr.Called()
+	return args.Bool(0)
 }
 
-func (mr *MockRuntime) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
-	return nil
-}
-
-func (mr *MockRuntime) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
+func (mr *MockRuntime) GetControlMessageBroker() controlcommunication.ControlMessageBroker {
 	return nil
 }
 

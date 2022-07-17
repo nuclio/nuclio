@@ -147,12 +147,7 @@ func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
 }
 
-// ConsumeControlMessage returns a channel that receives control messages
-func (w *Worker) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
-	return w.runtime.ConsumeControlMessage()
-}
-
 // Subscribe subscribes to a control message kind
 func (w *Worker) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
-	return w.runtime.Subscribe(kind, channel)
+	return w.runtime.GetControlMessageBroker().Subscribe(kind, channel)
 }

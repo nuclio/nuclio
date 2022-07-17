@@ -29,6 +29,12 @@ import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 
 
+class Constants:
+
+    # in msgpack protoctol, binary messages' length is 4 bytes long
+    msgpack_message_length_bytes = 4
+
+
 class WrapperFatalException(Exception):
     """
     Wrapper fatal is an exception the wrapper can not (perhaps should not) recover from
@@ -79,20 +85,16 @@ class Wrapper(object):
 
         # connect to processor
         self._event_sock = self._connect_to_processor(self._event_socket_path)
+        self._control_sock = self._connect_to_processor(self._control_socket_path)
 
         # make a writeable file from processor
         self._event_sock_wfile = self._event_sock.makefile('w')
-
-        # initialize the control socket in case explicit ack is enabled
-        if self._control_socket_path:
-            self._control_sock = self._connect_to_processor(self._control_socket_path)
-            self._control_sock_wfile = self._control_sock.makefile('w')
+        self._control_sock_wfile = self._control_sock.makefile('w')
 
         # if we're in a coroutine - set socket to non-blocking
         if self._is_entrypoint_coroutine:
             self._event_sock.setblocking(False)
-            if self._control_sock:
-                self._control_sock.setblocking(False)
+            self._control_sock.setblocking(False)
 
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
@@ -258,9 +260,9 @@ class Wrapper(object):
         Determines the message body size
         """
         if self._is_entrypoint_coroutine:
-            int_buf = await self._loop.sock_recv(self._event_sock, 4)
+            int_buf = await self._loop.sock_recv(self._event_sock, Constants.msgpack_message_length_bytes)
         else:
-            int_buf = self._event_sock.recv(4)
+            int_buf = self._event_sock.recv(Constants.msgpack_message_length_bytes)
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
@@ -357,9 +359,9 @@ class Wrapper(object):
 
         # read from socket
         if self._is_entrypoint_coroutine:
-            buf = await self._loop.sock_recv(self._control_sock, 4)
+            buf = await self._loop.sock_recv(self._control_sock, Constants.msgpack_message_length_bytes)
         else:
-            buf = self._control_sock.recv(4)
+            buf = self._control_sock.recv(Constants.msgpack_message_length_bytes)
 
         if len(buf) != 4:
             raise WrapperFatalException('Control client disconnected')
@@ -393,7 +395,7 @@ def parse_args():
 
     parser.add_argument('--control-socket-path',
                         help='path to unix socket to send the processor messages on',
-                        required=False)
+                        required=True)
 
     parser.add_argument('--log-level',
                         help='level of logging',

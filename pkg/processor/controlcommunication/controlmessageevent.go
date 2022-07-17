@@ -27,6 +27,15 @@ type ControlMessageEvent struct {
 	resolvedBody *ControlMessage
 }
 
+func NewControlMessageEvent(message *ControlMessage) *ControlMessageEvent {
+	event := &ControlMessageEvent{
+		AbstractEvent: nuclio.AbstractEvent{},
+		resolvedBody:  message,
+	}
+
+	return event
+}
+
 // GetID returns the ID of the event
 func (cme *ControlMessageEvent) GetID() nuclio.ID {
 	return nuclio.ID(cme.resolvedBody.Kind)
@@ -47,13 +56,4 @@ func (cme *ControlMessageEvent) GetBodyObject() interface{} {
 	}
 	cme.resolvedBody = message
 	return message
-}
-
-func ControlMessageToEvent(message *ControlMessage) *ControlMessageEvent {
-	event := &ControlMessageEvent{
-		AbstractEvent: nuclio.AbstractEvent{},
-		resolvedBody:  message,
-	}
-
-	return event
 }

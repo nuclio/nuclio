@@ -29,7 +29,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/errors"
@@ -281,21 +280,6 @@ func (s *shell) Start() error {
 
 func (s *shell) SupportsRestart() bool {
 	return true
-}
-
-// SupportsControlCommunication returns true if the runtime supports control communication
-func (s *shell) SupportsControlCommunication() bool {
-	return false
-}
-
-// ConsumeControlMessage returns a channel that receives control messages
-func (s *shell) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
-	return nil
-}
-
-// Subscribe subscribes to a control message kind
-func (s *shell) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
-	return nil
 }
 
 func (s *shell) commandIsInPath() (bool, error) {

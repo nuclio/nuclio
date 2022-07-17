@@ -51,8 +51,6 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		configuration,
 		newPythonRuntime)
 
-	newPythonRuntime.AbstractRuntime.EnableControlCommunication()
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
@@ -121,6 +119,10 @@ func (py *python) RunWrapper(eventSocketPath, controlSocketPath string) (*os.Pro
 
 // WaitForStart returns whether the runtime supports sending an indication that it started
 func (py *python) WaitForStart() bool {
+	return true
+}
+
+func (py *python) SupportsControlCommunication() bool {
 	return true
 }
 

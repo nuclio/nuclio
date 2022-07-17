@@ -17,7 +17,6 @@ limitations under the License.
 package runtime
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 
@@ -66,23 +65,20 @@ type Runtime interface {
 	// SupportsControlCommunication
 	SupportsControlCommunication() bool
 
-	// ConsumeControlMessage returns a channel that receives control messages
-	ConsumeControlMessage() <-chan *controlcommunication.ControlMessage
-
-	// Subscribe subscribes to a control message kind
-	Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error
+	// GetControlMessageBroker returns the control message broker
+	GetControlMessageBroker() controlcommunication.ControlMessageBroker
 }
 
 // AbstractRuntime is the base for all runtimes
 type AbstractRuntime struct {
-	Logger         logger.Logger
-	FunctionLogger logger.Logger
-	Context        *nuclio.Context
-	Statistics     Statistics
-	Consumers      []*controlcommunication.ControlConsumer
-	databindings   map[string]databinding.DataBinding
-	configuration  *Configuration
-	status         status.Status
+	Logger               logger.Logger
+	FunctionLogger       logger.Logger
+	Context              *nuclio.Context
+	Statistics           Statistics
+	ControlMessageBroker controlcommunication.ControlMessageBroker
+	databindings         map[string]databinding.DataBinding
+	configuration        *Configuration
+	status               status.Status
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -175,6 +171,11 @@ func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
 	}
 }
 
+// GetControlMessageBroker returns the control message broker
+func (ar *AbstractRuntime) GetControlMessageBroker() controlcommunication.ControlMessageBroker {
+	return ar.ControlMessageBroker
+}
+
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
 	configuration *Configuration) (map[string]databinding.DataBinding, error) {
 
@@ -249,60 +250,5 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 // Stop stops the runtime
 func (ar *AbstractRuntime) Stop() error {
 	ar.SetStatus(status.Stopped)
-	return nil
-}
-
-// Control Communication interface implementations:
-
-// WriteControlMessage writes a control message to the control communication
-func (ar *AbstractRuntime) WriteControlMessage(message *controlcommunication.ControlMessage) error {
-	return nil
-}
-
-// ReadControlMessage reads a control message from the control communication
-func (ar *AbstractRuntime) ReadControlMessage(reader *bufio.Reader) (*controlcommunication.ControlMessage, error) {
-	return nil, nil
-}
-
-// ConsumeControlMessage returns a channel that receives control messages
-func (ar *AbstractRuntime) ConsumeControlMessage() <-chan *controlcommunication.ControlMessage {
-	return nil
-}
-
-// SendToConsumers sends a control message to all consumers subscribed to the message kind
-func (ar *AbstractRuntime) SendToConsumers(message *controlcommunication.ControlMessage) error {
-
-	for _, consumer := range ar.Consumers {
-		if consumer.GetKind() == message.Kind {
-			if err := consumer.Send(message); err != nil {
-				return errors.Wrap(err, "Failed to send message to consumer")
-			}
-		}
-	}
-
-	return nil
-}
-
-// Subscribe subscribes channel to control messages
-func (ar *AbstractRuntime) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
-
-	// create consumers if they don't exist
-	if ar.Consumers == nil {
-		ar.Consumers = make([]*controlcommunication.ControlConsumer, 0)
-	}
-
-	// Add the consumer to the list of the relevant kind
-	for _, consumer := range ar.Consumers {
-		if consumer.GetKind() == kind {
-			consumer.Channels = append(consumer.Channels, channel)
-			return nil
-		}
-	}
-
-	// consumer for the kind doesn't exist, create one
-	consumer := controlcommunication.NewControlConsumer(kind)
-	consumer.Channels = append(consumer.Channels, channel)
-	ar.Consumers = append(ar.Consumers, consumer)
-
 	return nil
 }

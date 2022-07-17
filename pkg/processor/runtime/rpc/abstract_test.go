@@ -59,6 +59,9 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
+	newTestRuntime.AbstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(nil,
+		parentLogger.GetChild("controlMessageBroker"))
+
 	return newTestRuntime, nil
 }
 
@@ -125,8 +128,6 @@ func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
 	suite.testRuntimeInstance, err = newTestRuntime(loggerInstance, configInstance)
 	suite.Require().NoError(err, "Can't create runtime")
 
-	suite.testRuntimeInstance.EnableControlCommunication()
-
 	err = suite.testRuntimeInstance.Start()
 	suite.Require().NoError(err, "Can't start runtime")
 
@@ -136,7 +137,7 @@ func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
 	controlMessageChannel := make(chan *controlcommunication.ControlMessage)
 
 	// subscribe to test message kind
-	err = suite.testRuntimeInstance.Subscribe(messageKind, controlMessageChannel)
+	err = suite.testRuntimeInstance.ControlMessageBroker.Subscribe(messageKind, controlMessageChannel)
 	suite.Require().NoError(err, "Can't subscribe to control message")
 
 	// create control message
@@ -157,7 +158,7 @@ func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
 	}()
 
 	// send control message
-	err = suite.testRuntimeInstance.SendToConsumers(controlMessage)
+	err = suite.testRuntimeInstance.ControlMessageBroker.SendToConsumers(controlMessage)
 	suite.Require().NoError(err, "Can't send control message")
 
 	// wait for goroutine to finish
@@ -173,8 +174,6 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 
 	suite.testRuntimeInstance, err = newTestRuntime(loggerInstance, configInstance)
 	suite.Require().NoError(err, "Can't create runtime")
-
-	suite.testRuntimeInstance.EnableControlCommunication()
 
 	err = suite.testRuntimeInstance.Start()
 	suite.Require().NoError(err, "Can't start runtime")
@@ -196,7 +195,7 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 
 	// read control message from buffer
 	buf := bufio.NewReader(bytes.NewReader(byteMessage))
-	reslovedControlMessage, err := suite.testRuntimeInstance.ReadControlMessage(buf)
+	reslovedControlMessage, err := suite.testRuntimeInstance.ControlMessageBroker.ReadControlMessage(buf)
 
 	// check if control message was read correctly
 	suite.Require().NoError(err, "Can't read control message")

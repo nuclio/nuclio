@@ -42,9 +42,3 @@ func ResolveErrorStatusCodeOrDefault(err error, defaultStatusCode int) int {
 	// unable to resolve, returning default
 	return defaultStatusCode
 }
-
-type StreamNoAckError struct{}
-
-func (e StreamNoAckError) Error() string {
-	return "stream-no-ack"
-}
