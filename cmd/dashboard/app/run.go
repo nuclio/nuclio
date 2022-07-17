@@ -297,6 +297,11 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 
 		// "10.0.0.1,10.0.0.2" -> ["10.0.0.1", "10.0.0.2"]
 		splitExternalIPAddresses = strings.Split(createDashboardServerOptions.externalIPAddresses, ",")
+
+		// trim spaces
+		for index := range splitExternalIPAddresses {
+			splitExternalIPAddresses[index] = strings.TrimSpace(splitExternalIPAddresses[index])
+		}
 	}
 
 	if err := platformInstance.SetExternalIPAddresses(splitExternalIPAddresses); err != nil {

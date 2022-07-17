@@ -85,6 +85,7 @@
     "protractor-jasmine2-screenshot-reporter": "^0.2.0"
   },
   "scripts": {
-    "run-dev": "gulp --dev"
+    "run-dev": "gulp --dev",
+    "run-watch": "gulp watch"
   }
 }

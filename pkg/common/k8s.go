@@ -36,19 +36,19 @@ func GetKubeconfigPath(kubeconfigPath string) string {
 
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 func ResolveDefaultNamespace(defaultNamespace string) string {
-	if defaultNamespace == "@nuclio.selfNamespace" {
+	switch defaultNamespace {
+	case "@nuclio.selfNamespace":
 
 		// get namespace from within the pod. if found, return that
 		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
 			return string(namespacePod)
 		}
-	}
-
-	if defaultNamespace == "" {
 		return "default"
+	case "":
+		return "default"
+	default:
+		return defaultNamespace
 	}
-
-	return defaultNamespace
 }
 
 func CompileListFunctionPodsLabelSelector(functionName string) string {
