@@ -22,7 +22,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -505,7 +504,7 @@ func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool)
 
 	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
 		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
-			if err := workerInstance.Terminate(syscall.SIGTERM); err != nil {
+			if err := workerInstance.Terminate(); err != nil {
 				return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
 			}
 

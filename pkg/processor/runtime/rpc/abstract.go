@@ -215,10 +215,10 @@ func (r *AbstractRuntime) SupportsRestart() bool {
 }
 
 // Terminate sends a signal to the runtime and waits for it to exit
-func (r *AbstractRuntime) Terminate(signal syscall.Signal) error {
+func (r *AbstractRuntime) Terminate() error {
 
 	// signal and wait for process termination
-	if err := r.signal(signal); err != nil {
+	if err := r.signal(syscall.SIGTERM); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process")
 	}
 

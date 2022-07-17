@@ -19,7 +19,6 @@ package runtime
 import (
 	"fmt"
 	"os"
-	"syscall"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
@@ -63,7 +62,7 @@ type Runtime interface {
 	SupportsRestart() bool
 
 	// Terminate sends a signal to the runtime process and waits for it to exit
-	Terminate(signal syscall.Signal) error
+	Terminate() error
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -239,6 +238,6 @@ func (ar *AbstractRuntime) Stop() error {
 	return nil
 }
 
-func (ar *AbstractRuntime) Terminate(signal syscall.Signal) error {
+func (ar *AbstractRuntime) Terminate() error {
 	return nil
 }

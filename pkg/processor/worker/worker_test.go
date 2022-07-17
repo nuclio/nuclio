@@ -19,7 +19,6 @@ limitations under the License.
 package worker
 
 import (
-	"syscall"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
@@ -76,8 +75,8 @@ func (mr *MockRuntime) SupportsRestart() bool {
 	return true
 }
 
-func (mr *MockRuntime) Terminate(signal syscall.Signal) error {
-	args := mr.Called(signal)
+func (mr *MockRuntime) Terminate() error {
+	args := mr.Called()
 	return args.Error(0)
 }
 
