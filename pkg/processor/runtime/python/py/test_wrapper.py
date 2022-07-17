@@ -53,10 +53,12 @@ class TestSubmitEvents(unittest.TestCase):
         sys.path.append(self._temp_path)
 
         # generate socket path
-        self._socket_path = os.path.join(self._temp_path, 'nuclio.sock')
+        self._event_socket_path = os.path.join(self._temp_path, 'nuclio.event.sock')
+        self._control_socket_path = os.path.join(self._temp_path, 'nuclio.control.sock')
 
         # create transport
-        self._unix_stream_server = self._create_unix_stream_server(self._socket_path)
+        self._unix_stream_server, self._unix_stream_server_thread = self._create_unix_stream_server(self._event_socket_path)
+        self._unix_control_stream_server, self._control_unix_stream_server_thread = self._create_unix_stream_server(self._control_socket_path)
 
         # create logger
         self._logger = nuclio_sdk.Logger(logging.DEBUG)
@@ -69,8 +71,8 @@ class TestSubmitEvents(unittest.TestCase):
         self._wrapper = wrapper.Wrapper(self._logger,
                                         self._loop,
                                         self._default_test_handler,
-                                        self._socket_path,
-                                        None,
+                                        self._event_socket_path,
+                                        self._control_socket_path,
                                         self._platform_kind,
                                         decode_event_strings=self._decode_event_strings)
         self._loop.run_until_complete(self._wrapper.initialize())
@@ -78,9 +80,15 @@ class TestSubmitEvents(unittest.TestCase):
     def tearDown(self):
         sys.path.remove(self._temp_path)
         self._wrapper._event_sock.close()
-        self._unix_stream_server.server_close()
-        self._unix_stream_server.shutdown()
-        self._unix_stream_server_thread.join()
+        self._wrapper._control_sock.close()
+
+        for unix_stream_server, unix_stream_server_thread in [
+            (self._unix_stream_server, self._unix_stream_server_thread),
+            (self._unix_control_stream_server, self._control_unix_stream_server_thread),
+        ]:
+            unix_stream_server.server_close()
+            unix_stream_server.shutdown()
+            unix_stream_server_thread.join()
 
     def test_async_handler(self):
         """Test function decorated with async and running an event loop"""
@@ -359,10 +367,10 @@ class TestSubmitEvents(unittest.TestCase):
         unix_stream_server = _SingleConnectionUnixStreamServer(socket_path, _Connection)
 
         # create a thread and listen forever on server
-        self._unix_stream_server_thread = threading.Thread(target=unix_stream_server.serve_forever)
-        self._unix_stream_server_thread.daemon = True
-        self._unix_stream_server_thread.start()
-        return unix_stream_server
+        unix_stream_server_thread = threading.Thread(target=unix_stream_server.serve_forever)
+        unix_stream_server_thread.daemon = True
+        unix_stream_server_thread.start()
+        return unix_stream_server, unix_stream_server_thread
 
     def _ensure_str(self, s, encoding='utf-8', errors='strict'):
 
