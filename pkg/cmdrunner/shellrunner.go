@@ -41,6 +41,23 @@ func NewShellRunner(parentLogger logger.Logger) (*ShellRunner, error) {
 	}, nil
 }
 
+func (sr *ShellRunner) RunWithPositionalAndNamedArguments(runOptions *RunOptions,
+	positionalArgs []string,
+	namedArgs map[string]string) (RunResult, error) {
+
+	argsStringSlice := make([]string, len(positionalArgs))
+	copy(argsStringSlice, positionalArgs)
+
+	for argName, argValue := range namedArgs {
+		argsStringSlice = append(argsStringSlice, fmt.Sprintf("--%s %s", argName, argValue))
+	}
+
+	encodedCommand := strings.Join(argsStringSlice, " ")
+
+	sr.logger.DebugWith("Running command", "encodedCommand", encodedCommand)
+	return sr.Run(runOptions, encodedCommand)
+}
+
 func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error) {
 
 	// support missing runOptions for tests that send nil

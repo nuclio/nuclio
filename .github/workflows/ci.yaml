@@ -204,6 +204,7 @@ jobs:
           echo "KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
           echo "NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV
           echo "NUCTL_DEFAULT_SERVICE_TYPE=NodePort" >> $GITHUB_ENV
+          echo "PULL_POLICY=Never" >> $GITHUB_ENV
 
       - name: Install nuclio helm chart
         run: |
@@ -211,6 +212,7 @@ jobs:
           cat test/k8s/ci_assets/helm_values.yaml \
             | envsubst \
             | helm install --debug --wait --namespace ${NAMESPACE} -f - nuclio hack/k8s/helm/nuclio/
+        
 
       - name: Run nuctl k8s tests
         run: |
