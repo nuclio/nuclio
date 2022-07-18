@@ -62,9 +62,6 @@ type Runtime interface {
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
 
-	// SupportsControlCommunication
-	SupportsControlCommunication() bool
-
 	// GetControlMessageBroker returns the control message broker
 	GetControlMessageBroker() controlcommunication.ControlMessageBroker
 }

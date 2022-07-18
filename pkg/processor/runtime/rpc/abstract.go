@@ -237,7 +237,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		return errors.Wrap(err, "Failed to create socket connection")
 	}
 
-	if r.SupportsControlCommunication() {
+	if r.runtime.SupportsControlCommunication() {
 		if err := r.createSocketConnection(&controlConnection); err != nil {
 			return errors.Wrap(err, "Failed to create socket connection")
 		}
@@ -272,7 +272,10 @@ func (r *AbstractRuntime) startWrapper() error {
 	go r.eventWrapperOutputHandler(eventConnection.conn, r.resultChan)
 
 	// control connection
-	if r.SupportsControlCommunication() {
+	if r.runtime.SupportsControlCommunication() {
+
+		r.Logger.DebugWith("Creating control connection",
+			"wid", r.Context.WorkerID)
 		controlConnection.conn, err = controlConnection.listener.Accept()
 		if err != nil {
 			return errors.Wrap(err, "Can't get control connection from wrapper")
@@ -284,6 +287,9 @@ func (r *AbstractRuntime) startWrapper() error {
 		r.ControlMessageBroker = NewRpcControlMessageBroker(r.controlEncoder, r.Logger)
 
 		go r.controlOutputHandler(controlConnection.conn)
+
+		r.Logger.DebugWith("Control connection created",
+			"wid", r.Context.WorkerID)
 	}
 
 	// wait for start if required to

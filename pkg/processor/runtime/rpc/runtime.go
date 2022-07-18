@@ -42,4 +42,7 @@ type Runtime interface {
 
 	// WaitForStart returns whether the runtime supports sending an indication that it started
 	WaitForStart() bool
+
+	// SupportsControlCommunication returns true if the runtime supports control communication
+	SupportsControlCommunication() bool
 }
