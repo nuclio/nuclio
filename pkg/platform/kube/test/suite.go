@@ -40,6 +40,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+	"github.com/nuclio/nuclio/pkg/platform/kube/test/kubectlclient"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
@@ -591,22 +592,7 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 
 func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
 	namedArgs map[string]string) (cmdrunner.RunResult, error) {
-
-	argsStringSlice := []string{
-		"kubectl",
-	}
-
-	// add positional arguments
-	argsStringSlice = append(argsStringSlice, positionalArgs...)
-
-	for argName, argValue := range namedArgs {
-		argsStringSlice = append(argsStringSlice, fmt.Sprintf("--%s %s", argName, argValue))
-	}
-
-	encodedCommand := strings.Join(argsStringSlice, " ")
-
-	suite.Logger.DebugWith("Running kubectl", "encodedCommand", encodedCommand)
-	return suite.CmdRunner.Run(nil, encodedCommand)
+	return kubectlclient.RunKubectlCommand(suite.CmdRunner, positionalArgs, namedArgs, nil)
 }
 
 func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) string {
