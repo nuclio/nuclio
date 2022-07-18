@@ -10,7 +10,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.9.0-amd64
+    tag: 1.9.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -74,7 +74,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.9.0-amd64
+    tag: 1.9.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -129,7 +129,7 @@ dashboard:
 
     image:
       repository: gcr.io/kaniko-project/executor
-      tag: v1.7.0
+      tag: v1.8.1
       pullPolicy: IfNotPresent
 
     initContainerImage:
@@ -150,8 +150,8 @@ dashboard:
     # for example: aws-secret in https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
     registryProviderSecretName: ""
 
-  # Uncomment to configure node port
-  # nodePort: 32050
+  # use to configure node port
+  nodePort:
 
   # Use if you serve the templates locally (for offline environments);
   # otherwise, the templates will be pulled from GitHub
@@ -262,7 +262,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.9.0-amd64
+    tag: 1.9.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -296,7 +296,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.9.0-amd64
+    tag: 1.9.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -455,7 +455,7 @@ platform: {}
 #
 #     # set to 10 for extra verbosity on top of nuclio logger
 #     logLevel: 0
-#     address: http://1.9.0.0.1.9.01
+#     address: http://1.9.1.0.1.9.11
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow

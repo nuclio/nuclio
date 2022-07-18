@@ -1,4 +1,4 @@
-//go:build test_unit || test_integration || test_kube || test_local || test_broken
+//go:build test_unit || test_functional || test_integration || test_kube || test_local || test_broken
 
 /*
 Copyright 2017 The Nuclio Authors.
