@@ -75,6 +75,11 @@ func (mr *MockRuntime) SupportsRestart() bool {
 	return true
 }
 
+func (mr *MockRuntime) Terminate() error {
+	args := mr.Called()
+	return args.Error(0)
+}
+
 type WorkerTestSuite struct {
 	suite.Suite
 	logger logger.Logger

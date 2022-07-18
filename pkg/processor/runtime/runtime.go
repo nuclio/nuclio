@@ -60,6 +60,9 @@ type Runtime interface {
 
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
+
+	// Terminate sends a signal to the runtime process and waits for it to exit
+	Terminate() error
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -232,5 +235,9 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 // Stop stops the runtime
 func (ar *AbstractRuntime) Stop() error {
 	ar.SetStatus(status.Stopped)
+	return nil
+}
+
+func (ar *AbstractRuntime) Terminate() error {
 	return nil
 }

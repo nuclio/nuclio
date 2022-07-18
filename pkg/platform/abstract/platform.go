@@ -244,7 +244,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	}
 
 	// enrich triggers
-	if err := ap.enrichTriggers(functionConfig); err != nil {
+	if err := ap.enrichTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching triggers")
 	}
 
@@ -1509,10 +1509,14 @@ func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) 
 	}
 }
 
-func (ap *Platform) enrichTriggers(functionConfig *functionconfig.Config) error {
+func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// add default http trigger if missing http trigger
 	ap.enrichDefaultHTTPTrigger(functionConfig)
+
+	if err := ap.enrichExplicitAckParams(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich explicit ack params")
+	}
 
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
 
@@ -1530,6 +1534,27 @@ func (ap *Platform) enrichTriggers(functionConfig *functionconfig.Config) error 
 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
+	return nil
+}
+
+func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig *functionconfig.Config) error {
+
+	// explicit ack is relevant for stream triggers
+	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "kafka") {
+		ap.Logger.DebugWithCtx(ctx, "Enriching explicit ack params",
+			"functionName", functionConfig.Meta.Name)
+
+		if triggerInstance.ExplicitAckMode == "" {
+			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+		}
+
+		if triggerInstance.WorkerTerminationTimeout == "" {
+			triggerInstance.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
+		}
+
+		functionConfig.Spec.Triggers[triggerName] = triggerInstance
+	}
+
 	return nil
 }
 

@@ -78,6 +78,7 @@ type Trigger struct {
 	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
 	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
+	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
 
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
@@ -91,7 +92,7 @@ type ExplicitAckMode string
 
 const (
 
-	// ExplicitAckModeEnable allows explicit and implicit ack according to the "no-ack" header
+	// ExplicitAckModeEnable allows explicit and implicit ack according to the "x-nuclio-stream-no-ack" header
 	ExplicitAckModeEnable ExplicitAckMode = "enable"
 
 	// ExplicitAckModeDisable disables the explicit ack feature and allows only implicit acks (default)
@@ -99,6 +100,9 @@ const (
 
 	// ExplicitAckModeExplicitOnly allows only explicit acks and disables implicit acks
 	ExplicitAckModeExplicitOnly ExplicitAckMode = "explicitOnly"
+
+	// DefaultWorkerTerminationTimeout wait time for workers to drop or ack events before rebalance initiates
+	DefaultWorkerTerminationTimeout string = "5s"
 )
 
 func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {

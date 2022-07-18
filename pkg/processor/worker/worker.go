@@ -145,3 +145,7 @@ func (w *Worker) Restart() error {
 func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
 }
+
+func (w *Worker) Terminate() error {
+	return w.runtime.Terminate()
+}
