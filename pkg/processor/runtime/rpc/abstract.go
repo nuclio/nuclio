@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -170,7 +171,7 @@ func (r *AbstractRuntime) Stop() error {
 		}
 	}
 
-	r.waitForProcessTermination()
+	r.waitForProcessTermination(10 * time.Second)
 
 	r.wrapperProcess = nil
 
@@ -224,6 +225,41 @@ func (r *AbstractRuntime) SupportsRestart() bool {
 // SupportsControlCommunication returns true if the runtime supports control communication
 func (r *AbstractRuntime) SupportsControlCommunication() bool {
 	return false
+}
+
+// Terminate sends a signal to the runtime and waits for it to exit
+func (r *AbstractRuntime) Terminate() error {
+
+	// signal and wait for process termination
+	if err := r.signal(syscall.SIGTERM); err != nil {
+		return errors.Wrap(err, "Failed to signal wrapper process")
+	}
+
+	// wait for process to finish or timeout
+	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
+
+	return nil
+}
+
+func (r *AbstractRuntime) signal(signal syscall.Signal) error {
+
+	if r.wrapperProcess != nil {
+
+		// signal wrapper to terminate
+		r.Logger.DebugWith("Signaling wrapper process",
+			"pid", r.wrapperProcess.Pid,
+			"signal", signal.String())
+
+		if err := r.wrapperProcess.Signal(signal); err != nil {
+			r.Logger.WarnWith("Failed to signal wrapper process",
+				"pid", r.wrapperProcess.Pid,
+				"signal", signal.String())
+		}
+	} else {
+		r.Logger.DebugWith("No wrapper process exists, skipping signal")
+	}
+
+	return nil
 }
 
 func (r *AbstractRuntime) startWrapper() error {
@@ -555,7 +591,7 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 }
 
 // waitForProcessTermination will best effort wait few seconds to stop channel, if timeout - assume closed
-func (r *AbstractRuntime) waitForProcessTermination() {
+func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 	for {
 		select {
 		case <-r.stopChan:
@@ -563,7 +599,7 @@ func (r *AbstractRuntime) waitForProcessTermination() {
 				"wid", r.Context.WorkerID,
 				"process", r.wrapperProcess)
 			return
-		case <-time.After(10 * time.Second):
+		case <-time.After(timeout):
 			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
 				"wid", r.Context.WorkerID,
 				"process", r.wrapperProcess)

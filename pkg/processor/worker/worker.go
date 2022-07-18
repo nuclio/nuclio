@@ -147,6 +147,10 @@ func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
 }
 
+func (w *Worker) Terminate() error {
+	return w.runtime.Terminate()
+}
+
 // Subscribe subscribes to a control message kind
 func (w *Worker) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
 	return w.runtime.GetControlMessageBroker().Subscribe(kind, channel)

@@ -911,6 +911,33 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			},
 			shouldFailValidation: true,
 		},
+
+		// enrich explicit ack mode and worker termination timeout
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+				},
+				"kafka-trigger": {
+					Kind: "kafka",
+					Name: "kafka-trigger",
+				},
+			},
+			expectedEnrichedTriggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind:       "http",
+					MaxWorkers: 1,
+					Name:       "http-trigger",
+				},
+				"kafka-trigger": {
+					Kind:                     "kafka",
+					Name:                     "kafka-trigger",
+					ExplicitAckMode:          functionconfig.ExplicitAckModeDisable,
+					WorkerTerminationTimeout: functionconfig.DefaultWorkerTerminationTimeout,
+				},
+			},
+			shouldFailValidation: false,
+		},
 	} {
 
 		suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{

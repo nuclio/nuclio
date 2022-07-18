@@ -148,6 +148,9 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-sasl-oauth-scopes", ValueListString: newConfiguration.SASL.OAuth.Scopes},
 
 		// window-ack
+		{Key: "nuclio.io/kafka-window-size", ValueInt: &newConfiguration.ackWindowSize},
+
+		// for backwards-compatibility
 		{Key: "custom.nuclio.io/kafka-window-size", ValueInt: &newConfiguration.ackWindowSize},
 	})
 
@@ -284,6 +287,16 @@ func NewConfiguration(id string,
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err
 		}
+	}
+
+	workerTerminationTimeout, err := time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
+	if err != nil {
+		return nil, errors.New("Failed to parse default worker termination timeout")
+	}
+
+	// on rebalance, we want to wait the max timeout so the workers can exit gracefully before killing them
+	if newConfiguration.maxWaitHandlerDuringRebalance < workerTerminationTimeout {
+		newConfiguration.maxWaitHandlerDuringRebalance = workerTerminationTimeout
 	}
 
 	if newConfiguration.WorkerAllocationMode == "" {
