@@ -51,6 +51,5 @@ type Configuration struct {
 	WorkerID                 int
 	TriggerName              string
 	TriggerKind              string
-	ExplicitAckEnabled       bool
 	WorkerTerminationTimeout time.Duration
 }
