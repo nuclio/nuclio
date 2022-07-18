@@ -129,7 +129,8 @@ func (suite *testSuite) TearDownSuite() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+	functionName := "event_recorder"
+	createFunctionOptions := suite.GetDeployOptions(functionName, suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 		Attributes: map[string]interface{}{
 			"network": suite.BrokerContainerNetworkName,
@@ -142,7 +143,7 @@ func (suite *testSuite) TestReceiveRecords() {
 			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
 			Attributes: map[string]interface{}{
 				"topics":        []string{suite.topic},
-				"consumerGroup": suite.consumerGroup,
+				"consumerGroup": functionName,
 				"initialOffset": suite.initialOffset,
 			},
 		},
@@ -162,6 +163,22 @@ func (suite *testSuite) TestReceiveRecords() {
 
 func (suite *testSuite) TestEventRecorderRebalance() {
 
+	topic := "someTopic"
+
+	// create topic
+	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+		TopicDetails: map[string]*sarama.TopicDetail{
+			topic: {
+				NumPartitions:     suite.NumPartitions,
+				ReplicationFactor: 1,
+			},
+		},
+	})
+	suite.Require().NoError(err, "Failed to create topic")
+	suite.Logger.InfoWith("Created topic",
+		"topic", suite.topic,
+		"createTopicResponse", createTopicsResponse)
+
 	createFunctionOptions := suite.GetDeployOptions("event_recorder-1", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 		Attributes: map[string]interface{}{
@@ -176,7 +193,7 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 			Kind: "kafka-cluster",
 			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
 			Attributes: map[string]interface{}{
-				"topics":        []string{suite.topic},
+				"topics":        []string{topic},
 				"consumerGroup": suite.consumerGroup,
 				"initialOffset": initialOffset,
 			},
@@ -188,14 +205,14 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 		var sentBodies []string
 
 		suite.Logger.DebugWith("Created first function, producing messages to topic",
-			"topic", suite.topic)
+			"topic", topic)
 
 		// write messages on 4 shards
 		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
 			messageBody := fmt.Sprintf("%s-%d", "messagingCycleA", partitionIdx)
 
 			// send the message
-			err := suite.publishMessageToTopicOnSpecificShard(suite.topic, messageBody, partitionIdx)
+			err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
 			suite.Require().NoError(err, "Failed to publish message")
 
 			// add body to bodies we expect to see in response
@@ -230,7 +247,7 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 				Kind: "kafka-cluster",
 				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
 				Attributes: map[string]interface{}{
-					"topics":        []string{suite.topic},
+					"topics":        []string{topic},
 					"consumerGroup": suite.consumerGroup,
 					"initialOffset": initialOffset,
 				},
@@ -240,14 +257,14 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
 
 			suite.Logger.DebugWith("Created second function, producing messages to topic",
-				"topic", suite.topic)
+				"topic", topic)
 
 			// write messages to all 4 shards
 			for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
 				messageBody := fmt.Sprintf("%s-%d", "messagingCycleB", partitionIdx)
 
 				// send the message
-				err := suite.publishMessageToTopicOnSpecificShard(suite.topic, messageBody, partitionIdx)
+				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
 				suite.Require().NoError(err, "Failed to publish message")
 
 				// add body to bodies we expect to see in response
