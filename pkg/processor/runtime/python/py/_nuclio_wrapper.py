@@ -125,10 +125,10 @@ class Wrapper(object):
             try:
 
                 # resolve event message length
-                event_message_length = await self._resolve_event_message_length()
+                event_message_length = await self._resolve_event_message_length(self._event_sock)
 
                 # resolve event message
-                event = await self._resolve_event(event_message_length)
+                event = await self._resolve_event(self._event_sock, event_message_length)
 
                 try:
 
@@ -166,6 +166,18 @@ class Wrapper(object):
 
         # indicate that we're ready
         await self._write_packet_to_processor(self._event_sock, 's')
+        await self._send_data_on_control_socket({
+            'kind': 'wrapperInitialized',
+            'attributes': {'ready': 'true'}
+        })
+
+    async def receive_control_messages(self):
+
+        control_message_event_length = await self._resolve_event_message_length(self._control_sock)
+
+        control_message_event = await self._resolve_event(self._control_sock, control_message_event_length)
+
+        self._logger.info_with('Received control message', contorl_message=control_message_event.body)
 
     async def _initialize_context(self):
 
@@ -187,8 +199,7 @@ class Wrapper(object):
         encoded_offset_data = self._json_encoder.encode(data)
         await self._write_packet_to_processor(self._control_sock, encoded_offset_data)
 
-        # wait for response that processor received data
-        await self._wait_for_control_response()
+        # TODO: wait for response that processor received data
 
     def _resolve_unpacker(self):
         """
@@ -255,14 +266,14 @@ class Wrapper(object):
         else:
             sock.sendall((body + '\n').encode('utf-8'))
 
-    async def _resolve_event_message_length(self):
+    async def _resolve_event_message_length(self, sock):
         """
         Determines the message body size
         """
         if self._is_entrypoint_coroutine:
-            int_buf = await self._loop.sock_recv(self._event_sock, Constants.msgpack_message_length_bytes)
+            int_buf = await self._loop.sock_recv(sock, Constants.msgpack_message_length_bytes)
         else:
-            int_buf = self._event_sock.recv(Constants.msgpack_message_length_bytes)
+            int_buf = sock.recv(Constants.msgpack_message_length_bytes)
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
@@ -278,7 +289,7 @@ class Wrapper(object):
 
         return bytes_to_read
 
-    async def _resolve_event(self, expected_event_bytes_length):
+    async def _resolve_event(self, sock, expected_event_bytes_length):
         """
         Reading the expected event length from socket and instantiate an event message
         """
@@ -287,9 +298,9 @@ class Wrapper(object):
         while cumulative_bytes_read < expected_event_bytes_length:
             bytes_to_read_now = expected_event_bytes_length - cumulative_bytes_read
             if self._is_entrypoint_coroutine:
-                bytes_read = await self._loop.sock_recv(self._event_sock, bytes_to_read_now)
+                bytes_read = await self._loop.sock_recv(sock, bytes_to_read_now)
             else:
-                bytes_read = self._event_sock.recv(bytes_to_read_now)
+                bytes_read = sock.recv(bytes_to_read_now)
 
             if not bytes_read:
                 raise WrapperFatalException('Client disconnected')
@@ -354,17 +365,6 @@ class Wrapper(object):
 
         # write response to the socket
         await self._write_packet_to_processor(self._event_sock, 'r' + encoded_response)
-
-    async def _wait_for_control_response(self):
-
-        # read from socket
-        if self._is_entrypoint_coroutine:
-            buf = await self._loop.sock_recv(self._control_sock, Constants.msgpack_message_length_bytes)
-        else:
-            buf = self._control_sock.recv(Constants.msgpack_message_length_bytes)
-
-        if len(buf) != 4:
-            raise WrapperFatalException('Control client disconnected')
 
     def _shutdown(self, error_code=0):
         print('Shutting down')

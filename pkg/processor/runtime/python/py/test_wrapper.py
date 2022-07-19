@@ -57,8 +57,10 @@ class TestSubmitEvents(unittest.TestCase):
         self._control_socket_path = os.path.join(self._temp_path, 'nuclio.control.sock')
 
         # create transport
-        self._unix_stream_server, self._unix_stream_server_thread = self._create_unix_stream_server(self._event_socket_path)
-        self._unix_control_stream_server, self._control_unix_stream_server_thread = self._create_unix_stream_server(self._control_socket_path)
+        self._unix_stream_server, self._unix_stream_server_thread = \
+            self._create_unix_stream_server(self._event_socket_path)
+        self._unix_control_stream_server, self._control_unix_stream_server_thread = \
+            self._create_unix_stream_server(self._control_socket_path)
 
         # create logger
         self._logger = nuclio_sdk.Logger(logging.DEBUG)

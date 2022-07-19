@@ -146,6 +146,7 @@ func (suite *testSuite) TestReceiveRecords() {
 				"consumerGroup": functionName,
 				"initialOffset": suite.initialOffset,
 			},
+			WorkerTerminationTimeout: "5s",
 		},
 	}
 
@@ -197,6 +198,7 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 				"consumerGroup": suite.consumerGroup,
 				"initialOffset": initialOffset,
 			},
+			WorkerTerminationTimeout: "5s",
 		},
 	}
 
@@ -251,6 +253,7 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 					"consumerGroup": suite.consumerGroup,
 					"initialOffset": initialOffset,
 				},
+				WorkerTerminationTimeout: "5s",
 			},
 		}
 

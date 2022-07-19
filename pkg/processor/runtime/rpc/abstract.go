@@ -479,6 +479,8 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 			continue
 		}
 
+		r.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)
+
 		// send message to control consumers
 		if err := r.ControlMessageBroker.SendToConsumers(controlMessage); err != nil {
 			r.Logger.WarnWith("Failed to send control message to consumers", "err", err)
