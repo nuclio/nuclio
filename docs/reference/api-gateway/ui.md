@@ -3,51 +3,30 @@
 #### In this document
 
 - [Without Authentication](#none-auth)
-    - [Create](#create-none)
-    - [Invoke](#invoke-none)
 - [Basic Authentication](#basic-auth)
-    - [Create](#create-basic)
-    - [Invoke](#invoke-basic)
-- [Access Key Authentication](#access-key-auth)
-    - [Create](#create-access-key)
-    - [Invoke](#invoke-access-key)
-- [OAuth2 Authentication](#oath2-auth)
-    - [Create](#create-oath2)
-    - [Invoke](#invoke-oath2)
 
+Creating API Gateways from the UI is really simple.
+Inside your project screen, go to the *"API Gateways"* tab, and click *"NEW API Gateway"*.
+
+There, you can create an API Gateway with the following parameters:
+
+    - *Name*: The name of the API Gateway.
+    - *Description*: A description of the API Gateway.
+    - *Host*: The host of the API Gateway.
+    - *Path*: The path of the API Gateway.
+    - *Authentication Mode*: The authentication mode of the API Gateway.
+    - *Function*: The function that will be triggered via the API Gateway. 
+                  You can also add a canary function and determine the percentage 
+                  of traffic that will be sent to the canary function.
 
 <a id="none-auth"></a>
-## Without Authentication
+### Without Authentication
 
-<a id="create-none"></a>
-### Create API Gateways
+![api-gateway](/docs/assets/images/api-gateway-ui.png)
 
-<a id="invoke-none"></a>
-### Invoke API Gateways
 
 <a id="basic-auth"></a>
-## Basic Authentication
+### With Basic Authentication
 
-<a id="create-basic"></a>
-### Create API Gateways
+![api-gateway-basic-auth](/docs/assets/images/api-gateway-ui-basic-auth.png)
 
-<a id="invoke-basic"></a>
-### Invoke API Gateways
-
-<a id="access-key-auth"></a>
-## Access Key Authentication
-
-<a id="create-access-key"></a>
-### Create API Gateways
-
-<a id="invoke-access-key"></a>
-### Invoke API Gateways
-
-<a id="oauth2-auth"></a>
-## OAuth2
-
-<a id="create-oath2"></a>
-### Create API Gateways
-
-<a id="invoke-oath2"></a>
-### Invoke API Gateways

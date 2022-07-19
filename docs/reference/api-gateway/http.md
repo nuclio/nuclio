@@ -8,15 +8,9 @@
 - [Basic Authentication](#basic-auth)
     - [Create](#create-basic)
     - [Invoke](#invoke-basic)
-- [Access Key Authentication](#access-key-auth)
-    - [Create](#create-access-key)
-    - [Invoke](#invoke-access-key)
-- [OAuth2 Authentication](#oath2-auth)
-    - [Create](#create-oath2)
-    - [Invoke](#invoke-oath2)
 - [Canary Function](#canary-function)
 
-- <a id="none-auth"></a>
+<a id="none-auth"></a>
 ## Without Authentication
 
 <a id="create-none"></a>
@@ -132,32 +126,6 @@ Authorization: Basic c29tZS11c2VybmFtZTpzb21lLXBhc3N3b3Jk
 ```
 
 Invoking the function without the above header will respond with `401 Authorization Required`
-
-<a id="access-key-auth"></a>
-## Access Key Authentication
-
-<a id="create-access-key"></a>
-### Create API Gateways
-
-Access key authentication is a way to authenticate users by providing an access key.
-
-To create an api gateway with access key authentication, change the `"authenticationMode"` in the POST request body's spec to the `"accessKey"`
-
-*TOMER - Which access key is used??*
-
-<a id="invoke-access-key"></a>
-### Invoke API Gateways
-
-<a id="oauth2-auth"></a>
-## OAuth2
-
-<a id="create-oath2"></a>
-### Create API Gateways
-
-O
-
-<a id="invoke-oath2"></a>
-### Invoke API Gateways
 
 <a id="canary-function"></a>
 ## Canary Function
