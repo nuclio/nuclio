@@ -1456,7 +1456,7 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		}
 
 		// explicit ack is only allowed for Static Allocation mode
-		if triggerInstance.Kind == "kafka" {
+		if triggerInstance.Kind == "kafka-cluster" {
 			if workerAllocationMode, exists := functionConfig.Meta.Annotations["nuclio.io/kafka-worker-allocation-mode"]; exists {
 				if partitionworker.AllocationMode(workerAllocationMode) != partitionworker.AllocationModeStatic &&
 					functionconfig.ExplicitAckEnabled(triggerInstance.ExplicitAckMode) {
