@@ -1456,7 +1456,7 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		}
 
 		// explicit ack is only allowed for Static Allocation mode
-		if triggerInstance.Kind == "kafka" {
+		if triggerInstance.Kind == "kafka-cluster" {
 			if workerAllocationMode, exists := functionConfig.Meta.Annotations["nuclio.io/kafka-worker-allocation-mode"]; exists {
 				if partitionworker.AllocationMode(workerAllocationMode) != partitionworker.AllocationModeStatic &&
 					functionconfig.ExplicitAckEnabled(triggerInstance.ExplicitAckMode) {
@@ -1540,7 +1540,8 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// explicit ack is relevant for stream triggers
-	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "kafka") {
+	for triggerName, triggerInstance := range functionconfig.GetTriggersByKinds(functionConfig.Spec.Triggers,
+		[]string{"kafka", "kafka-cluster", "v3ioStream"}) {
 		ap.Logger.DebugWithCtx(ctx, "Enriching explicit ack params",
 			"functionName", functionConfig.Meta.Name)
 

@@ -901,7 +901,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					Kind: "http",
 				},
 				"kafka-trigger": {
-					Kind:            "kafka",
+					Kind:            "kafka-cluster",
 					Name:            "kafka-trigger",
 					ExplicitAckMode: "enable",
 				},
@@ -919,7 +919,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					Kind: "http",
 				},
 				"kafka-trigger": {
-					Kind: "kafka",
+					Kind: "kafka-cluster",
 					Name: "kafka-trigger",
 				},
 			},
@@ -930,7 +930,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 					Name:       "http-trigger",
 				},
 				"kafka-trigger": {
-					Kind:                     "kafka",
+					Kind:                     "kafka-cluster",
 					Name:                     "kafka-trigger",
 					ExplicitAckMode:          functionconfig.ExplicitAckModeDisable,
 					WorkerTerminationTimeout: functionconfig.DefaultWorkerTerminationTimeout,
