@@ -1,10 +1,10 @@
-# Nuclio API Gateway
+# API Gateway
 
 #### In this document
 
 - [Overview](#overview)
   - [UI](#ui)
-  - [Http Requests](#http)
+  - [HTTP Requests](#http)
   - [Nuctl](#nuctl)
 
 <a id="overview"></a>

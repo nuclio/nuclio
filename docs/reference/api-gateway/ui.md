@@ -1,8 +1,8 @@
-# API Gateway with the UI
+# API Gateway via the UI
 
 #### In this document
 
-- [Without Authentication](#none-auth)
+- [No Authentication](#none-auth)
 - [Basic Authentication](#basic-auth)
 
 Creating API Gateways from the UI is really simple.
@@ -20,13 +20,15 @@ There, you can create an API Gateway with the following parameters:
                   of traffic that will be sent to the canary function.
 
 <a id="none-auth"></a>
-### Without Authentication
+### No Authentication
 
 ![api-gateway](/docs/assets/images/api-gateway-ui.png)
 
+For invoking the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none)
 
 <a id="basic-auth"></a>
 ### With Basic Authentication
 
 ![api-gateway-basic-auth](/docs/assets/images/api-gateway-ui-basic-auth.png)
 
+For invoking the function using the api gateway, see [invoking API Gateways with basic authentication](/docs/references/api-gateway/http.md#invoke-basic)

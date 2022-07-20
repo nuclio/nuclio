@@ -2,13 +2,13 @@
 
 #### In this document
 
-- [Without Authentication](#none-auth)
+- [No Authentication](#none-auth)
 - [Basic Authentication](#basic-auth)
 
 You can create API Gateways using `nuctl` - the Nuclio cli tool.
 
 <a id="none-auth"></a>
-### Without Authentication
+### No Authentication
 ```
 $ nuctl create apigateway <api-gateway-name> \
 			--host <api-gateway-name>-<project-name>.<nuclio-host-name> \
@@ -18,6 +18,8 @@ $ nuctl create apigateway <api-gateway-name> \
 			--authentication-mode "none" \
 			--namespace <namespace>
 ```
+
+For invoking the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none)
 
 <a id="basic-auth"></a>
 ## Basic Authentication
@@ -35,3 +37,5 @@ $ nuctl create apigateway <api-gateway-name> \
 			--basic-auth-password <some-password> \
 			--namespace <namespace>
 ```
+
+For invoking the function using the api gateway, see [invoking API Gateways with basic authentication](/docs/references/api-gateway/http.md#invoke-basic)

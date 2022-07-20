@@ -1,8 +1,8 @@
-# API Gateway with http requests
+# API Gateway
 
 #### In this document
 
-- [Without Authentication](#none-auth)
+- [No Authentication](#none-auth)
     - [Create](#create-none)
     - [Invoke](#invoke-none)
 - [Basic Authentication](#basic-auth)
@@ -11,7 +11,7 @@
 - [Canary Function](#canary-function)
 
 <a id="none-auth"></a>
-## Without Authentication
+## No Authentication
 
 <a id="create-none"></a>
 ### Create API Gateways
@@ -33,7 +33,7 @@ With the following request body:
             {
                 "kind": "nucliofunction",
                 "nucliofunction": {
-                    "name": "function-name-to-invoke",
+                    "name": "function-name-to-invoke"
                 },
                 "percentage": 0
             }
@@ -52,14 +52,14 @@ With the following request body:
 <a id="invoke-none"></a>
 ### Invoke API Gateways
 
-To invoke it, simply send GET/POST request to `<apigateway-name>-<project-name>.<nuclio-host-name>` (aka - `spec.host` )
-If your function accepts a request body, you can send it as a request body.
+To invoke it, simply send a request to the created API Gateway ingress (e.g.: `<apigateway-name>-<project-name>.<nuclio-host-name>`,
+specified on the request body `spec.host` )
 
 <a id="basic-auth"></a>
 ## Basic Authentication
 
-Basic authentication is a way to authenticate users by providing a username and password.
-
+You may protect your function by setting the API Gateway with [basic authentication](https://en.wikipedia.org/wiki/Basic_access_authentication). 
+That means, to access a function, client would need to provide both username & password.
 
 <a id="create-basic"></a>
 ### Create API Gateways
@@ -106,8 +106,8 @@ With the following request body:
 <a id="invoke-basic"></a>
 ### Invoke API Gateways
 
-To invoke it, send GET/POST request to `<apigateway-name>-<project-name>.<nuclio-host-name>` (aka - `spec.host` )
-with the following header:
+To invoke it, simply send a request to the created API Gateway ingress (e.g.: `<apigateway-name>-<project-name>.<nuclio-host-name>`,
+specified on the request body `spec.host`) with the following header:
 ```
 key: Authorization
 value: Basic base64encode("username:password")
@@ -120,7 +120,9 @@ For the following credentials:
 "username": "some-username"
 "password": "some-password"
 ```
-base64 encoding of "some-username:some-password" is `c29tZS11c2VybmFtZTpzb21lLXBhc3N3b3Jk`, so the resulting header is:
+base64 encoding of "some-username:some-password" is `c29tZS11c2VybmFtZTpzb21lLXBhc3N3b3Jk`(`echo "some-username:some-password" | base64 -d`), 
+so the resulting header is:
+
 ```
 Authorization: Basic c29tZS11c2VybmFtZTpzb21lLXBhc3N3b3Jk
 ```
@@ -147,14 +149,14 @@ For instance, if you have two functions, `function-1` and `function-2`, and you 
             {
                 "kind": "nucliofunction",
                 "nucliofunction": {
-                    "name": "function-1",
+                    "name": "function-1"
                 },
                 "percentage": 80
             },
             {
               "kind": "nucliofunction",
               "nucliofunction": {
-                "name": "function-2",
+                "name": "function-2"
               },
               "percentage": 20
             }
