@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
@@ -128,6 +130,19 @@ func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trig
 
 	for triggerName, trigger := range triggers {
 		if trigger.Kind == kind {
+			matchingTrigger[triggerName] = trigger
+		}
+	}
+
+	return matchingTrigger
+}
+
+// GetTriggersByKinds returns a map of triggers by their kinds
+func GetTriggersByKinds(triggers map[string]Trigger, kinds []string) map[string]Trigger {
+	matchingTrigger := map[string]Trigger{}
+
+	for triggerName, trigger := range triggers {
+		if common.StringSliceContainsString(kinds, trigger.Kind) {
 			matchingTrigger[triggerName] = trigger
 		}
 	}
