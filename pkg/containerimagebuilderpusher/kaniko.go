@@ -360,15 +360,20 @@ func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJo
 
 func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
 
-	// Add init container to create the repository - ignore already exists
-	createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s --region %s "+
-		"|| if [ $? -eq 254 ]; then echo 'Failing silently for idempotency'; else exit $?; fi "+
-		"&& aws ecr create-repository --repository-name %s/cache --region %s "+
-		"|| if [ $? -eq 254 ]; then echo 'Failing silently for idempotency'; else exit $?; fi",
-		buildOptions.RepoName,
-		k.resolveAWSRegionFromECR(buildOptions.RegistryURL),
-		buildOptions.RepoName,
-		k.resolveAWSRegionFromECR(buildOptions.RegistryURL))
+	// Add init container to create the main and cache repositories
+	// since grep on aws cli output adds excessive complexity, we fail silently on exit code 254
+	// in order to ignore "repository already exists" errors
+	region := k.resolveAWSRegionFromECR(buildOptions.RegistryURL)
+	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s " +
+		"|| if [ $? -eq 254 ]; then echo 'Failing silently for idempotency'; else exit $?; fi "
+	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region)
+	createCacheRepo := fmt.Sprintf(createRepoTemplate,
+		fmt.Sprintf("%s/cache", buildOptions.RepoName),
+		region)
+	createReposCommand := fmt.Sprintf("%s && %s",
+		createMainRepo,
+		createCacheRepo)
+
 	initContainer := v1.Container{
 		Name:  "create-repos",
 		Image: k.builderConfiguration.AWSCLIImage,
@@ -377,7 +382,7 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 		},
 		Args: []string{
 			"-c",
-			createRepoCommand,
+			createReposCommand,
 		},
 	}
 
