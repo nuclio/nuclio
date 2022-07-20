@@ -291,7 +291,7 @@ func NewConfiguration(id string,
 
 	workerTerminationTimeout, err := time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
 	if err != nil {
-		return nil, errors.New("Failed to parse default worker termination timeout")
+		return nil, errors.New("Failed to parse worker termination timeout from trigger configuration")
 	}
 
 	// on rebalance, we want to wait the max timeout so the workers can exit gracefully before killing them
