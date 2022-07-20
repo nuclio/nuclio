@@ -255,14 +255,19 @@ func (k *Kaniko) compileJobSpec(namespace string,
 	}
 
 	// Add build options args
-	for k, v := range buildOptions.BuildArgs {
-		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", k, v))
+	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
+		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", buildArgName, buildArgValue))
 	}
 
 	tmpFolderVolumeMount := v1.VolumeMount{
 		Name:      "tmp",
 		MountPath: "/tmp",
 	}
+	kanikoWorkingDirFolderVolumeMount := v1.VolumeMount{
+		Name:      "kaniko-wd",
+		MountPath: "/kaniko-wd",
+	}
+	buildArgs = append(buildArgs, fmt.Sprintf("--kaniko-dir=%s/wd", kanikoWorkingDirFolderVolumeMount.MountPath))
 
 	jobName := k.compileJobName(buildOptions.Image)
 

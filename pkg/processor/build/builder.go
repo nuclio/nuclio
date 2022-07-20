@@ -1084,6 +1084,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 			ServiceAccountName: b.options.FunctionConfig.Spec.ServiceAccount,
 			ReadinessTimeoutSeconds: b.platform.GetConfig().GetFunctionReadinessTimeoutOrDefault(
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
+			SecurityContext: b.options.FunctionConfig.Spec.SecurityContext,
 		})
 
 	return taggedImageName, err

@@ -49,6 +49,7 @@ type BuildOptions struct {
 	Tolerations             []v1.Toleration
 	ReadinessTimeoutSeconds int
 	ServiceAccountName      string
+	SecurityContext         *v1.PodSecurityContext
 }
 
 type ContainerBuilderConfiguration struct {
