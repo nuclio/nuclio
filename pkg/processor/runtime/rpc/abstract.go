@@ -30,7 +30,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
-	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
@@ -608,55 +607,4 @@ func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 			return
 		}
 	}
-}
-
-type rpcControlMessageBroker struct {
-	*controlcommunication.AbstractControlMessageBroker
-	ControlMessageEventEncoder EventEncoder
-	logger                     logger.Logger
-}
-
-// NewRpcControlMessageBroker creates a new RPC control message broker
-func NewRpcControlMessageBroker(encoder EventEncoder, logger logger.Logger) *rpcControlMessageBroker {
-	return &rpcControlMessageBroker{
-		AbstractControlMessageBroker: controlcommunication.NewAbstractControlMessageBroker(),
-		ControlMessageEventEncoder:   encoder,
-		logger:                       logger,
-	}
-}
-
-// WriteControlMessage writes control message to the control socket using MSGPack encoding
-func (b *rpcControlMessageBroker) WriteControlMessage(message *controlcommunication.ControlMessage) error {
-
-	// send control message as a nuclio event, this will be handled by the wrapper
-	controlMessageEvent := controlcommunication.NewControlMessageEvent(message)
-
-	if err := b.ControlMessageEventEncoder.Encode(controlMessageEvent); err != nil {
-		return errors.Wrapf(err, "Can't encode control message event: %+v", controlMessageEvent)
-	}
-
-	return nil
-}
-
-// ReadControlMessage reads from the control socket and unpacks it into a control message
-func (b *rpcControlMessageBroker) ReadControlMessage(reader *bufio.Reader) (*controlcommunication.ControlMessage, error) {
-
-	// TODO: use msgpack to decode the message
-
-	// read data from reader
-	data, err := reader.ReadBytes('\n')
-	if err != nil {
-		b.logger.WarnWith(string(common.FailedReadFromConnection), "err", err)
-		return nil, errors.Wrap(err, "Failed to read from connection")
-	}
-
-	unmarshalledControlMessage := &controlcommunication.ControlMessage{}
-
-	// try to unmarshall the data
-	if err := json.Unmarshal(data, unmarshalledControlMessage); err != nil {
-		b.logger.WarnWith("Failed unmarshalling control message", "err", err)
-		return nil, errors.Wrap(err, "Failed to unmarshal control message")
-	}
-
-	return unmarshalledControlMessage, nil
 }

@@ -177,7 +177,7 @@ class Wrapper(object):
 
         control_message_event = await self._resolve_event(self._control_sock, control_message_event_length)
 
-        self._logger.info_with('Received control message', contorl_message=control_message_event.body)
+        self._logger.debug_with('Received control message', contorl_message=control_message_event.body)
 
     async def _initialize_context(self):
 
