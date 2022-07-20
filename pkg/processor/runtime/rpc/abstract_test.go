@@ -119,7 +119,7 @@ func (suite *RuntimeSuite) TestRestart() {
 
 func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
 	var err error
-	messageKind := "test"
+	messageKind := controlcommunication.ControlMessageKind("test")
 
 	loggerInstance := suite.createLogger()
 	configInstance := suite.createConfig(loggerInstance)
