@@ -132,9 +132,10 @@ Invoking the function without the above header will respond with `401 Authorizat
 <a id="canary-function"></a>
 ## Canary Function
 
-You can add a canary function to an api gateway by adding another upstream to the api gateway.
+You can control the percentage of traffic that goes to a canary function by changing the percentage of the upstream.
 
-You can control the percentage of traffic that goes to the canary function by changing the percentage of the upstream.
+Add a canary function to an api gateway by adding another upstream to the api gateway, and set its `"percentage"` to a value between 0 and 100.
+Make sure to set the percentage of the first function accordingly.
 
 For instance, if you have two functions, `function-1` and `function-2`, and you want to have 80% of the traffic go to `function-1` and 20% of the traffic go to `function-2`, you can do the following:
 
