@@ -1540,7 +1540,7 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// explicit ack is relevant for stream triggers
-	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "kafka") {
+	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "kafka-cluster") {
 		ap.Logger.DebugWithCtx(ctx, "Enriching explicit ack params",
 			"functionName", functionConfig.Meta.Name)
 
