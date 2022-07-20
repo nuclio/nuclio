@@ -362,11 +362,13 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 
 	// Add init container to create the repository - ignore already exists
 	createRepoCommand := fmt.Sprintf(`
-if aws ecr create-repository --repository-name %s --region %s | grep --quiet 'RepositoryAlreadyExistsException';
-	then echo 'Ignoring repository already exits'; else exit $?;
-fi &&
-if aws ecr create-repository --repository-name %s/cache --region %s | grep --quiet 'RepositoryAlreadyExistsException';
-	then echo 'Ignoring cache repository already exits'; else exit $?;
+if aws ecr create-repository --repository-name %s --region %s \
+| grep --quiet 'RepositoryAlreadyExistsException'; \
+then echo 'Ignoring repository already exits'; else exit $?; \
+fi \
+&& if aws ecr create-repository --repository-name %s/cache --region %s \
+| grep --quiet 'RepositoryAlreadyExistsException'; \
+then echo 'Ignoring cache repository already exits'; else exit $?; \
 fi
 `,
 		buildOptions.RepoName,
