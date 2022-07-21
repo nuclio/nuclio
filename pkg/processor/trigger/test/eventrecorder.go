@@ -24,6 +24,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
@@ -85,10 +86,17 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 		}
 
 		// TODO: retry until successful
-		time.Sleep(3 * time.Second)
+		var receivedEvents []Event
+
+		err := common.RetryUntilSuccessful(10*time.Second,
+			2*time.Second,
+			func() bool {
+				receivedEvents = GetEventRecorderReceivedEvents(suite.Suite, suite.Logger, host, deployResult.Port)
+				return len(receivedEvents) >= len(sentBodies)
+			})
+		suite.Require().NoError(err, "Failed to get events")
 		suite.Logger.DebugWith("Done producing")
 
-		receivedEvents := GetEventRecorderReceivedEvents(suite.Suite, suite.Logger, host, deployResult.Port)
 		var receivedBodies []string
 
 		// compare only bodies due to a deficiency in CompareNoOrder

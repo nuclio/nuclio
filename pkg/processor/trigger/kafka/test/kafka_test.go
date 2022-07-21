@@ -220,10 +220,15 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 		}
 
 		// make sure they are all read
-		time.Sleep(3 * time.Second)
+		var receivedBodies []string
+		err := common.RetryUntilSuccessful(10*time.Second,
+			2*time.Second,
+			func() bool {
+				receivedBodies = suite.resolveReceivedEventBodies(deployResult)
+				return len(receivedBodies) >= int(suite.NumPartitions)
+			})
+		suite.Require().NoError(err, "Failed to get events")
 		suite.Logger.DebugWith("Done producing")
-
-		receivedBodies := suite.resolveReceivedEventBodies(deployResult)
 
 		suite.Logger.DebugWith("Received events from functions",
 			"event-recorder-1-events", receivedBodies)
@@ -272,13 +277,21 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 			}
 
 			// make sure they are all read
-			time.Sleep(3 * time.Second)
+			var receivedBodies1, receivedBodies2 []string
+			err := common.RetryUntilSuccessful(10*time.Second,
+				2*time.Second,
+				func() bool {
+					receivedBodies1 = suite.resolveReceivedEventBodies(deployResult)
+					receivedBodies2 = suite.resolveReceivedEventBodies(newDeployResult)
+
+					// make sure that new events were received in both functions
+					return len(receivedBodies1) > len(receivedBodies) && len(receivedBodies2) >= int(suite.NumPartitions)/2
+
+				})
+			suite.Require().NoError(err, "Failed to get events")
 			suite.Logger.DebugWith("Done producing")
 
-			// make sure both functions read form different shards - a rebalance occurred!
-			receivedBodies1 := suite.resolveReceivedEventBodies(deployResult)
-			receivedBodies2 := suite.resolveReceivedEventBodies(newDeployResult)
-
+			// validate functions read form different shards - a rebalance occurred!
 			suite.Logger.DebugWith("Received events from functions",
 				"event-recorder-1-events", receivedBodies1,
 				"event-recorder-2-events", receivedBodies2)
