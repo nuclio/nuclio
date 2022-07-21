@@ -1,14 +1,14 @@
 # API Gateway with nuctl
 
-#### In this document
+#### In This Section
 
 - [No Authentication](#none-auth)
 - [Basic Authentication](#basic-auth)
 
-You can create API Gateways using `nuctl` - the Nuclio cli tool.
+You can create API Gateways using `nuctl` - the Nuclio CLI tool.
 
 <a id="none-auth"></a>
-### No Authentication
+### No authentication
 ```
 $ nuctl create apigateway <api-gateway-name> \
 			--host <api-gateway-name>-<project-name>.<nuclio-host-name> \
@@ -19,10 +19,10 @@ $ nuctl create apigateway <api-gateway-name> \
 			--namespace <namespace>
 ```
 
-For invoking the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none)
+For invoking the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none).
 
 <a id="basic-auth"></a>
-## Basic Authentication
+## Basic authentication
 Basic authentication is a way to authenticate users by providing a username and password.
 
 You can create an api gateway with basic authentication by running the following command:
@@ -38,4 +38,4 @@ $ nuctl create apigateway <api-gateway-name> \
 			--namespace <namespace>
 ```
 
-For invoking the function using the api gateway, see [invoking API Gateways with basic authentication](/docs/references/api-gateway/http.md#invoke-basic)
+To invoke the function using the API gateway, see [invoking API Gateways with basic authentication](/docs/references/api-gateway/http.md#invoke-basic).

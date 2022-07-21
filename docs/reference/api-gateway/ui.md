@@ -1,12 +1,12 @@
 # API Gateway via the UI
 
-#### In this document
+#### In This Section
 
 - [No Authentication](#none-auth)
 - [Basic Authentication](#basic-auth)
 
 Creating API Gateways from the UI is really simple.
-Inside your project screen, go to the *"API Gateways"* tab, and click *"NEW API Gateway"*.
+Inside your project page, go to the **API Gateways** tab, and click **NEW API Gateway**.
 
 There, you can create an API Gateway with the following parameters:
 
@@ -24,11 +24,11 @@ There, you can create an API Gateway with the following parameters:
 
 ![api-gateway](/docs/assets/images/api-gateway-ui.png)
 
-For invoking the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none)
+To invoke the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none).
 
 <a id="basic-auth"></a>
 ### With Basic Authentication
 
 ![api-gateway-basic-auth](/docs/assets/images/api-gateway-ui-basic-auth.png)
 
-For invoking the function using the api gateway, see [invoking API Gateways with basic authentication](/docs/references/api-gateway/http.md#invoke-basic)
+To invoke the function using the api gateway, see [invoking API Gateways with basic authentication](/docs/references/api-gateway/http.md#invoke-basic).
