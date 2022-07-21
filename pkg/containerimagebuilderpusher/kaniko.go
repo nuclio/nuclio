@@ -360,20 +360,28 @@ func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJo
 
 func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
 
-	// Add init container to create the repository - ignore already exists
-	createRepoCommand := fmt.Sprintf("aws ecr create-repository --repository-name %s --region %s "+
-		"|| if [ $? -eq 254 ]; then echo 'Ignoring repository already exits'; else exit $?; fi",
-		buildOptions.RepoName,
-		k.resolveAWSRegionFromECR(buildOptions.RegistryURL))
+	// Add init container to create the main and cache repositories
+	// fail silently in order to ignore "repository already exists" errors
+	// if any other error occurs - kaniko will fail similarly
+	region := k.resolveAWSRegionFromECR(buildOptions.RegistryURL)
+	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s || true"
+	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region)
+	createCacheRepo := fmt.Sprintf(createRepoTemplate,
+		fmt.Sprintf("%s/cache", buildOptions.RepoName),
+		region)
+	createReposCommand := fmt.Sprintf("%s && %s",
+		createMainRepo,
+		createCacheRepo)
+
 	initContainer := v1.Container{
-		Name:  "create-repo",
+		Name:  "create-repos",
 		Image: k.builderConfiguration.AWSCLIImage,
 		Command: []string{
 			"/bin/sh",
 		},
 		Args: []string{
 			"-c",
-			createRepoCommand,
+			createReposCommand,
 		},
 	}
 
