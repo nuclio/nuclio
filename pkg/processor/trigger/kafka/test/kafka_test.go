@@ -221,7 +221,7 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 
 		// make sure they are all read
 		var receivedBodies []string
-		err := common.RetryUntilSuccessful(10*time.Second,
+		err := common.RetryUntilSuccessful(15*time.Second,
 			2*time.Second,
 			func() bool {
 				receivedBodies = suite.resolveReceivedEventBodies(deployResult)
@@ -278,7 +278,7 @@ func (suite *testSuite) TestEventRecorderRebalance() {
 
 			// make sure they are all read
 			var receivedBodies1, receivedBodies2 []string
-			err := common.RetryUntilSuccessful(10*time.Second,
+			err := common.RetryUntilSuccessful(15*time.Second,
 				2*time.Second,
 				func() bool {
 					receivedBodies1 = suite.resolveReceivedEventBodies(deployResult)
