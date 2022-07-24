@@ -485,7 +485,7 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 				errLogCounter = 0
 			}
 			if errLogCounter%5 == 0 {
-				r.Logger.WarnWith("Failed to read control message", "err", err)
+				r.Logger.WarnWith(common.FailedReadControlMessage, "err", err.Error())
 				errLogCounter++
 			}
 			continue
@@ -497,7 +497,7 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 
 		// send message to control consumers
 		if err := r.ControlMessageBroker.SendToConsumers(controlMessage); err != nil {
-			r.Logger.WarnWith("Failed to send control message to consumers", "err", err)
+			r.Logger.WarnWith("Failed to send control message to consumers", "err", err.Error())
 		}
 
 		// TODO: validate and respond to wrapper process
