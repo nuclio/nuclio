@@ -469,13 +469,21 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 
 	outReader := bufio.NewReader(conn)
 
+	// keep a counter for log throttling
+	errLogCounter := 0
+
 	for {
 
 		// read control message
 		controlMessage, err := r.ControlMessageBroker.ReadControlMessage(outReader)
 		if err != nil {
-			r.Logger.WarnWith("Failed to read control message", "err", err)
+			if errLogCounter%5 == 0 {
+				r.Logger.WarnWith("Failed to read control message", "err", err)
+				errLogCounter++
+			}
 			continue
+		} else {
+			errLogCounter = 0
 		}
 
 		r.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)
