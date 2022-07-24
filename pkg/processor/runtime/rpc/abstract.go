@@ -471,12 +471,19 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 
 	// keep a counter for log throttling
 	errLogCounter := 0
+	logCounterTime := time.Now()
 
 	for {
 
 		// read control message
 		controlMessage, err := r.ControlMessageBroker.ReadControlMessage(outReader)
 		if err != nil {
+
+			// if enough time has passed, log the error
+			if time.Since(logCounterTime) > 500*time.Millisecond {
+				logCounterTime = time.Now()
+				errLogCounter = 0
+			}
 			if errLogCounter%5 == 0 {
 				r.Logger.WarnWith("Failed to read control message", "err", err)
 				errLogCounter++
