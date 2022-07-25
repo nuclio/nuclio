@@ -201,8 +201,6 @@ func shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) 
 		string(common.UnexpectedTerminationChildProcess),
 		string(common.FailedReadFromConnection),
 		string(common.FailedReadControlMessage),
-		string(common.FailedReadControlMessage),
-		"Recovered during",
 	}
 
 	// when the log message contains a failure that should be ignored

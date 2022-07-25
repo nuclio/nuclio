@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -407,11 +408,9 @@ func (r *AbstractRuntime) createTCPListener() (net.Listener, string, error) {
 func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan chan *result) {
 
 	// Reset might close outChan, which will cause panic when sending
-	defer func() {
-		if err := recover(); err != nil {
-			r.Logger.WarnWith("Recovered during event output handler (Restart called?)", "err", err)
-		}
-	}()
+	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
+		r.Logger,
+		"Recovered during event output handler (Restart called?)")
 
 	outReader := bufio.NewReader(conn)
 
@@ -461,11 +460,9 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 
 	// Reset might close outChan, which will cause panic when sending
-	defer func() {
-		if err := recover(); err != nil {
-			r.Logger.WarnWith("Recovered during control output handler (Restart called?)", "err", err)
-		}
-	}()
+	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
+		r.Logger,
+		"Recovered during event output handler (Restart called?)")
 
 	outReader := bufio.NewReader(conn)
 
@@ -485,7 +482,7 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 				errLogCounter = 0
 			}
 			if errLogCounter%5 == 0 {
-				r.Logger.WarnWith(common.FailedReadControlMessage, "err", err.Error())
+				r.Logger.WarnWith(string(common.FailedReadControlMessage), "err", err.Error())
 				errLogCounter++
 			}
 			continue
@@ -501,8 +498,6 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 		}
 
 		// TODO: validate and respond to wrapper process
-
-		continue
 	}
 }
 

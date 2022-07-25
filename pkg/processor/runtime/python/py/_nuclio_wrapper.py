@@ -368,8 +368,11 @@ class Wrapper(object):
 
     def _shutdown(self, error_code=0):
         print('Shutting down')
-        self._event_sock.close()
-        sys.exit(error_code)
+        try:
+            self._event_sock.close()
+            self._control_sock.close()
+        finally:
+            sys.exit(error_code)
 
 #
 # init
