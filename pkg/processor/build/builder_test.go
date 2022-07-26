@@ -794,10 +794,26 @@ func (suite *testSuite) TestResolveRepoName() {
 		imageName        string
 		expectedRepoName string
 	}{
-		{registryURL, "my-image", "my-image"},
-		{registryURL + "/test", "an-image", "test/an-image"},
-		{registryURL + "/test/", "an-image", "test/an-image"},
-		{registryURL + "/test/repo2", "an-image", "test/repo2/an-image"},
+		{
+			imageURL:         registryURL,
+			imageName:        "my-image",
+			expectedRepoName: "my-image",
+		},
+		{
+			imageURL:         registryURL + "/test",
+			imageName:        "an-image",
+			expectedRepoName: "test/an-image",
+		},
+		{
+			imageURL:         registryURL + "/test/",
+			imageName:        "some-image",
+			expectedRepoName: "test/some-image",
+		},
+		{
+			imageURL:         registryURL + "/test/repo2",
+			imageName:        "another-image",
+			expectedRepoName: "test/repo2/another-image",
+		},
 	} {
 		suite.builder.processorImage.imageName = testCase.imageName
 		repoName := suite.builder.resolveRepoName(testCase.imageURL)
