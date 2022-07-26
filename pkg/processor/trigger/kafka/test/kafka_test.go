@@ -20,11 +20,8 @@ package test
 
 import (
 	"fmt"
-	"sort"
 	"testing"
-	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -162,144 +159,179 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.publishMessageToTopic)
 }
 
-func (suite *testSuite) TestEventRecorderRebalance() {
-
-	topic := "someTopic"
-
-	// create topic
-	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
-		TopicDetails: map[string]*sarama.TopicDetail{
-			topic: {
-				NumPartitions:     suite.NumPartitions,
-				ReplicationFactor: 1,
-			},
-		},
-	})
-	suite.Require().NoError(err, "Failed to create topic")
-	suite.Logger.InfoWith("Created topic",
-		"topic", suite.topic,
-		"createTopicResponse", createTopicsResponse)
-
-	createFunctionOptions := suite.GetDeployOptions("event_recorder-1", suite.FunctionPaths["python"])
-	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
-		Attributes: map[string]interface{}{
-			"network": suite.BrokerContainerNetworkName,
-		},
-	}
-
-	initialOffset := "latest"
-
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"my-kafka": {
-			Kind: "kafka-cluster",
-			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-			Attributes: map[string]interface{}{
-				"topics":        []string{topic},
-				"consumerGroup": suite.consumerGroup,
-				"initialOffset": initialOffset,
-			},
-			WorkerTerminationTimeout: "5s",
-		},
-	}
-
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
-		var sentBodies []string
-
-		suite.Logger.DebugWith("Created first function, producing messages to topic",
-			"topic", topic)
-
-		// write messages on 4 shards
-		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
-			messageBody := fmt.Sprintf("%s-%d", "messagingCycleA", partitionIdx)
-
-			// send the message
-			err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
-			suite.Require().NoError(err, "Failed to publish message")
-
-			// add body to bodies we expect to see in response
-			sentBodies = append(sentBodies, messageBody)
-		}
-
-		// make sure they are all read
-		time.Sleep(3 * time.Second)
-		suite.Logger.DebugWith("Done producing")
-
-		receivedBodies := suite.resolveReceivedEventBodies(deployResult)
-
-		suite.Logger.DebugWith("Received events from functions",
-			"event-recorder-1-events", receivedBodies)
-
-		sort.Strings(sentBodies)
-		sort.Strings(receivedBodies)
-
-		// compare bodies
-		suite.Require().Equal(sentBodies, receivedBodies)
-
-		// create another function that consumes from the same topic and consumer group
-		newCreateFunctionOptions := suite.GetDeployOptions("event_recorder-2", suite.FunctionPaths["python"])
-		newCreateFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
-			Attributes: map[string]interface{}{
-				"network": suite.BrokerContainerNetworkName,
-			},
-		}
-
-		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-			"my-kafka": {
-				Kind: "kafka-cluster",
-				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-				Attributes: map[string]interface{}{
-					"topics":        []string{topic},
-					"consumerGroup": suite.consumerGroup,
-					"initialOffset": initialOffset,
-				},
-				WorkerTerminationTimeout: "5s",
-			},
-		}
-
-		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
-
-			suite.Logger.DebugWith("Created second function, producing messages to topic",
-				"topic", topic)
-
-			// write messages to all 4 shards
-			for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
-				messageBody := fmt.Sprintf("%s-%d", "messagingCycleB", partitionIdx)
-
-				// send the message
-				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
-				suite.Require().NoError(err, "Failed to publish message")
-
-				// add body to bodies we expect to see in response
-				sentBodies = append(sentBodies, messageBody)
-			}
-
-			// make sure they are all read
-			time.Sleep(3 * time.Second)
-			suite.Logger.DebugWith("Done producing")
-
-			// make sure both functions read form different shards - a rebalance occurred!
-			receivedBodies1 := suite.resolveReceivedEventBodies(deployResult)
-			receivedBodies2 := suite.resolveReceivedEventBodies(newDeployResult)
-
-			suite.Logger.DebugWith("Received events from functions",
-				"event-recorder-1-events", receivedBodies1,
-				"event-recorder-2-events", receivedBodies2)
-
-			for _, body := range receivedBodies1 {
-				suite.Require().False(common.StringInSlice(body, receivedBodies2))
-			}
-
-			for _, body := range receivedBodies2 {
-				suite.Require().False(common.StringInSlice(body, receivedBodies1))
-			}
-
-			return true
-		})
-
-		return true
-	})
-}
+//
+//func (suite *testSuite) TestEventRecorderRebalance() {
+//
+//	topic := "someTopic"
+//
+//	// create topic
+//	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+//		TopicDetails: map[string]*sarama.TopicDetail{
+//			topic: {
+//				NumPartitions:     suite.NumPartitions,
+//				ReplicationFactor: 1,
+//			},
+//		},
+//	})
+//	suite.Require().NoError(err, "Failed to create topic")
+//	suite.Logger.InfoWith("Created topic",
+//		"topic", suite.topic,
+//		"createTopicResponse", createTopicsResponse)
+//
+//	createFunctionOptions := suite.GetDeployOptions("event_recorder-1", suite.FunctionPaths["python"])
+//	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+//		Attributes: map[string]interface{}{
+//			"network": suite.BrokerContainerNetworkName,
+//		},
+//	}
+//
+//	initialOffset := "latest"
+//
+//	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+//		"my-kafka": {
+//			Kind: "kafka-cluster",
+//			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+//			Attributes: map[string]interface{}{
+//				"topics":        []string{topic},
+//				"consumerGroup": suite.consumerGroup,
+//				"initialOffset": initialOffset,
+//			},
+//		},
+//	}
+//
+//	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+//
+//		var sentBodies []string
+//
+//		suite.Logger.DebugWith("Created first function, producing messages to topic",
+//			"topic", topic)
+//
+//		// write messages on 4 shards
+//		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+//			messageBody := fmt.Sprintf("%s-%d", "messagingCycleA", partitionIdx)
+//
+//			// send the message
+//			err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
+//			suite.Require().NoError(err, "Failed to publish message")
+//
+//			// add body to bodies we expect to see in response
+//			sentBodies = append(sentBodies, messageBody)
+//		}
+//
+//		// make sure they are all read
+//		var receivedBodies []string
+//		err := common.RetryUntilSuccessful(15*time.Second,
+//			2*time.Second,
+//			func() bool {
+//				receivedBodies = suite.resolveReceivedEventBodies(deployResult)
+//				return len(receivedBodies) >= int(suite.NumPartitions)
+//			})
+//		if err != nil {
+//
+//			// get container logs
+//			dockerLogs, getLogsErr := suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
+//			suite.Require().NoError(getLogsErr, "Failed to get container logs")
+//			suite.Logger.ErrorWith("At least one message was not received properly by the function",
+//				"containerID", deployResult.ContainerID, "logs", dockerLogs)
+//		}
+//		suite.Require().NoError(err, "Failed to get events")
+//		suite.Logger.DebugWith("Done producing")
+//
+//		suite.Logger.DebugWith("Received events from functions",
+//			"event-recorder-1-events", receivedBodies)
+//
+//		sort.Strings(sentBodies)
+//		sort.Strings(receivedBodies)
+//
+//		// compare bodies
+//		suite.Require().Equal(sentBodies, receivedBodies)
+//
+//		// create another function that consumes from the same topic and consumer group
+//		newCreateFunctionOptions := suite.GetDeployOptions("event_recorder-2", suite.FunctionPaths["python"])
+//		newCreateFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+//			Attributes: map[string]interface{}{
+//				"network": suite.BrokerContainerNetworkName,
+//			},
+//		}
+//
+//		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+//			"my-kafka": {
+//				Kind: "kafka-cluster",
+//				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+//				Attributes: map[string]interface{}{
+//					"topics":        []string{topic},
+//					"consumerGroup": suite.consumerGroup,
+//					"initialOffset": initialOffset,
+//				},
+//			},
+//		}
+//
+//		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
+//
+//			suite.Logger.DebugWith("Created second function, producing messages to topic",
+//				"topic", topic)
+//
+//			// write messages to all 4 shards
+//			for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+//				messageBody := fmt.Sprintf("%s-%d", "messagingCycleB", partitionIdx)
+//
+//				// send the message
+//				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
+//				suite.Require().NoError(err, "Failed to publish message")
+//
+//				// add body to bodies we expect to see in response
+//				sentBodies = append(sentBodies, messageBody)
+//			}
+//
+//			// make sure they are all read
+//			var receivedBodies1, receivedBodies2 []string
+//			err := common.RetryUntilSuccessful(15*time.Second,
+//				2*time.Second,
+//				func() bool {
+//					receivedBodies1 = suite.resolveReceivedEventBodies(deployResult)
+//					receivedBodies2 = suite.resolveReceivedEventBodies(newDeployResult)
+//
+//					// make sure that new events were received in both functions
+//					return len(receivedBodies1) > len(receivedBodies) && len(receivedBodies2) >= int(suite.NumPartitions)/2
+//
+//				})
+//			if err != nil {
+//
+//				// get container logs
+//				dockerLogs1, getLogsErr := suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
+//				suite.Require().NoError(getLogsErr, "Failed to get container logs")
+//
+//				dockerLogs2, getLogsErr := suite.DockerClient.GetContainerLogs(newDeployResult.ContainerID)
+//				suite.Require().NoError(getLogsErr, "Failed to get container logs")
+//
+//				suite.Logger.ErrorWith("At least one message was not received properly by the functions",
+//					"containerID1", deployResult.ContainerID,
+//					"function1DockerLogs", dockerLogs1,
+//					"containerID2", newDeployResult.ContainerID,
+//					"function2DockerLogs", dockerLogs2)
+//			}
+//			suite.Require().NoError(err, "Failed to get events")
+//			suite.Logger.DebugWith("Done producing")
+//
+//			// validate functions read form different shards - a rebalance occurred!
+//			suite.Logger.DebugWith("Received events from functions",
+//				"event-recorder-1-events", receivedBodies1,
+//				"event-recorder-2-events", receivedBodies2)
+//
+//			for _, body := range receivedBodies1 {
+//				suite.Require().False(common.StringInSlice(body, receivedBodies2))
+//			}
+//
+//			for _, body := range receivedBodies2 {
+//				suite.Require().False(common.StringInSlice(body, receivedBodies1))
+//			}
+//
+//			return true
+//		})
+//
+//		return true
+//	})
+//}
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {

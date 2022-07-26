@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -407,11 +408,9 @@ func (r *AbstractRuntime) createTCPListener() (net.Listener, string, error) {
 func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan chan *result) {
 
 	// Reset might close outChan, which will cause panic when sending
-	defer func() {
-		if err := recover(); err != nil {
-			r.Logger.WarnWith("Recovered during event output handler (Restart called?)", "err", err)
-		}
-	}()
+	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
+		r.Logger,
+		"Recovered during event output handler (Restart called?)")
 
 	outReader := bufio.NewReader(conn)
 
@@ -461,33 +460,44 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 
 	// Reset might close outChan, which will cause panic when sending
-	defer func() {
-		if err := recover(); err != nil {
-			r.Logger.WarnWith("Recovered during control output handler (Restart called?)", "err", err)
-		}
-	}()
+	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
+		r.Logger,
+		"Recovered during event output handler (Restart called?)")
 
 	outReader := bufio.NewReader(conn)
+
+	// keep a counter for log throttling
+	errLogCounter := 0
+	logCounterTime := time.Now()
 
 	for {
 
 		// read control message
 		controlMessage, err := r.ControlMessageBroker.ReadControlMessage(outReader)
 		if err != nil {
-			r.Logger.WarnWith("Failed to read control message", "err", err)
+
+			// if enough time has passed, log the error
+			if time.Since(logCounterTime) > 500*time.Millisecond {
+				logCounterTime = time.Now()
+				errLogCounter = 0
+			}
+			if errLogCounter%5 == 0 {
+				r.Logger.WarnWith(string(common.FailedReadControlMessage), "err", err.Error())
+				errLogCounter++
+			}
 			continue
+		} else {
+			errLogCounter = 0
 		}
 
 		r.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)
 
 		// send message to control consumers
 		if err := r.ControlMessageBroker.SendToConsumers(controlMessage); err != nil {
-			r.Logger.WarnWith("Failed to send control message to consumers", "err", err)
+			r.Logger.WarnWith("Failed to send control message to consumers", "err", err.Error())
 		}
 
 		// TODO: validate and respond to wrapper process
-
-		continue
 	}
 }
 

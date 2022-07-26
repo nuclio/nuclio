@@ -63,15 +63,13 @@ func (b *rpcControlMessageBroker) ReadControlMessage(reader *bufio.Reader) (*con
 	// read data from reader
 	data, err := reader.ReadBytes('\n')
 	if err != nil {
-		b.logger.WarnWith(string(common.FailedReadFromConnection), "err", err)
-		return nil, errors.Wrap(err, "Failed to read from connection")
+		return nil, errors.Wrap(err, string(common.FailedReadFromConnection))
 	}
 
 	unmarshalledControlMessage := &controlcommunication.ControlMessage{}
 
 	// try to unmarshall the data
 	if err := json.Unmarshal(data, unmarshalledControlMessage); err != nil {
-		b.logger.WarnWith("Failed unmarshalling control message", "err", err)
 		return nil, errors.Wrap(err, "Failed to unmarshal control message")
 	}
 

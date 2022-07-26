@@ -7,6 +7,7 @@ const (
 	WorkDirectoryDoesNotExist         ReusedMessage = "Work directory does not exist"
 	WorkDirectoryExpectedBeString     ReusedMessage = "Work directory is expected to be string"
 	FailedReadFromConnection          ReusedMessage = "Failed to read from connection"
+	FailedReadControlMessage          ReusedMessage = "Failed to read control message"
 )
 
 type FunctionStateMessage string

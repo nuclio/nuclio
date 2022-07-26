@@ -123,11 +123,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor.logger.InfoWith("Starting processor", "version", version.Get())
 
 	indentedProcessorConfiguration, _ := json.MarshalIndent(processorConfiguration, "", "    ")
-	indentedPlatformConfiguration, _ := json.MarshalIndent(platformConfiguration, "", "    ")
 
 	newProcessor.logger.DebugWith("Read configuration",
-		"config", string(indentedProcessorConfiguration),
-		"platformConfig", string(indentedPlatformConfiguration))
+		"config", string(indentedProcessorConfiguration))
 
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration

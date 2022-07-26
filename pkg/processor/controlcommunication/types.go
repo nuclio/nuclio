@@ -34,13 +34,6 @@ type ControlMessage struct {
 	Attributes map[string]interface{}
 }
 
-type ControlMessageAttributesExplicitAck struct {
-	Topic       string `json:"topic"`
-	Partition   int32  `json:"partition"`
-	Offset      int64  `json:"offset"`
-	TriggerName string `json:"trigger_name"`
-}
-
 type ControlConsumer struct {
 	Channels []chan *ControlMessage
 	kind     ControlMessageKind
