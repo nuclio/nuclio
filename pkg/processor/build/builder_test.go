@@ -800,7 +800,7 @@ func (suite *testSuite) TestResolveRepoName() {
 		{registryURL + "/test/repo2", "an-image", "test/repo2/an-image"},
 	} {
 		suite.builder.processorImage.imageName = testCase.imageName
-		repoName := suite.builder.resolveRepoName(registryURL)
+		repoName := suite.builder.resolveRepoName(testCase.imageURL)
 		suite.Assert().Equal(testCase.expectedRepoName, repoName)
 	}
 }

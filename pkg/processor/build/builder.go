@@ -1092,7 +1092,7 @@ func (b *Builder) resolveRepoName(registryURL string) string {
 	repoName := b.processorImage.imageName
 	urlRepo := ""
 	urlRepoIndex := strings.Index(registryURL, "/")
-	if len(registryURL) > urlRepoIndex {
+	if urlRepoIndex != -1 && len(registryURL) > urlRepoIndex {
 		urlRepo = registryURL[urlRepoIndex+1:]
 		if !strings.HasSuffix(urlRepo, "/") {
 			return fmt.Sprintf("%s/%s", urlRepo, b.processorImage.imageName)
