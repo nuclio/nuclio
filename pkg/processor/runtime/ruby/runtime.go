@@ -55,7 +55,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newRubyRuntime, nil
 }
 
-func (r *ruby) RunWrapper(socketPath string) (*os.Process, error) {
+func (r *ruby) RunWrapper(socketPath, controlSocketPath string) (*os.Process, error) {
 	args := []string{
 		"ruby",
 		"/opt/nuclio/wrapper.rb",

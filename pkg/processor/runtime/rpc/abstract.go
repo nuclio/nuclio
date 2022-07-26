@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -45,6 +46,12 @@ const (
 	connectionTimeout  = 2 * time.Minute
 )
 
+type socketConnection struct {
+	conn     net.Conn
+	listener net.Listener
+	address  string
+}
+
 type result struct {
 	StatusCode   int                    `json:"status_code"`
 	ContentType  string                 `json:"content_type"`
@@ -61,6 +68,7 @@ type AbstractRuntime struct {
 	runtime.AbstractRuntime
 	configuration  *runtime.Configuration
 	eventEncoder   EventEncoder
+	controlEncoder EventEncoder
 	wrapperProcess *os.Process
 	resultChan     chan *result
 	functionLogger logger.Logger
@@ -214,6 +222,11 @@ func (r *AbstractRuntime) SupportsRestart() bool {
 	return true
 }
 
+// SupportsControlCommunication returns true if the runtime supports control communication
+func (r *AbstractRuntime) SupportsControlCommunication() bool {
+	return false
+}
+
 // Terminate sends a signal to the runtime and waits for it to exit
 func (r *AbstractRuntime) Terminate() error {
 
@@ -250,19 +263,20 @@ func (r *AbstractRuntime) signal(signal syscall.Signal) error {
 }
 
 func (r *AbstractRuntime) startWrapper() error {
-	var err error
+	var (
+		err                                error
+		eventConnection, controlConnection socketConnection
+	)
 
-	var listener net.Listener
-	var address string
-
-	if r.runtime.GetSocketType() == UnixSocket {
-		listener, address, err = r.createUnixListener()
-	} else {
-		listener, address, err = r.createTCPListener()
+	// create socket connections
+	if err := r.createSocketConnection(&eventConnection); err != nil {
+		return errors.Wrap(err, "Failed to create socket connection")
 	}
 
-	if err != nil {
-		return errors.Wrap(err, "Can't create listener")
+	if r.runtime.SupportsControlCommunication() {
+		if err := r.createSocketConnection(&controlConnection); err != nil {
+			return errors.Wrap(err, "Failed to create socket connection")
+		}
 	}
 
 	r.processWaiter, err = processwaiter.NewProcessWaiter()
@@ -270,7 +284,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		return errors.Wrap(err, "Failed to create process waiter")
 	}
 
-	wrapperProcess, err := r.runtime.RunWrapper(address)
+	wrapperProcess, err := r.runtime.RunWrapper(eventConnection.address, controlConnection.address)
 	if err != nil {
 		return errors.Wrap(err, "Can't run wrapper")
 	}
@@ -279,7 +293,8 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	go r.watchWrapperProcess()
 
-	conn, err := listener.Accept()
+	// event connection
+	eventConnection.conn, err = eventConnection.listener.Accept()
 	if err != nil {
 		return errors.Wrap(err, "Can't get connection from wrapper")
 	}
@@ -288,9 +303,30 @@ func (r *AbstractRuntime) startWrapper() error {
 		"wid", r.Context.WorkerID,
 		"pid", r.wrapperProcess.Pid)
 
-	r.eventEncoder = r.runtime.GetEventEncoder(conn)
+	r.eventEncoder = r.runtime.GetEventEncoder(eventConnection.conn)
 	r.resultChan = make(chan *result)
-	go r.wrapperOutputHandler(conn, r.resultChan)
+	go r.eventWrapperOutputHandler(eventConnection.conn, r.resultChan)
+
+	// control connection
+	if r.runtime.SupportsControlCommunication() {
+
+		r.Logger.DebugWith("Creating control connection",
+			"wid", r.Context.WorkerID)
+		controlConnection.conn, err = controlConnection.listener.Accept()
+		if err != nil {
+			return errors.Wrap(err, "Can't get control connection from wrapper")
+		}
+
+		r.controlEncoder = r.runtime.GetEventEncoder(controlConnection.conn)
+
+		// initialize control message broker
+		r.ControlMessageBroker = NewRpcControlMessageBroker(r.controlEncoder, r.Logger)
+
+		go r.controlOutputHandler(controlConnection.conn)
+
+		r.Logger.DebugWith("Control connection created",
+			"wid", r.Context.WorkerID)
+	}
 
 	// wait for start if required to
 	if r.runtime.WaitForStart() {
@@ -300,6 +336,22 @@ func (r *AbstractRuntime) startWrapper() error {
 	}
 
 	r.Logger.Debug("Started")
+
+	return nil
+}
+
+// Create a listener on unix domain docker, return listener, path to socket and error
+func (r *AbstractRuntime) createSocketConnection(connection *socketConnection) error {
+	var err error
+	if r.runtime.GetSocketType() == UnixSocket {
+		connection.listener, connection.address, err = r.createUnixListener()
+	} else {
+		connection.listener, connection.address, err = r.createTCPListener()
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "Can't create listener")
+	}
 
 	return nil
 }
@@ -353,14 +405,12 @@ func (r *AbstractRuntime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *result) {
+func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan chan *result) {
 
 	// Reset might close outChan, which will cause panic when sending
-	defer func() {
-		if err := recover(); err != nil {
-			r.Logger.WarnWith("Recovered during output handler (Restart called?)", "err", err)
-		}
-	}()
+	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
+		r.Logger,
+		"Recovered during event output handler (Restart called?)")
 
 	outReader := bufio.NewReader(conn)
 
@@ -404,6 +454,50 @@ func (r *AbstractRuntime) wrapperOutputHandler(conn io.Reader, resultChan chan *
 		case 's':
 			r.handleStart()
 		}
+	}
+}
+
+func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
+
+	// Reset might close outChan, which will cause panic when sending
+	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
+		r.Logger,
+		"Recovered during event output handler (Restart called?)")
+
+	outReader := bufio.NewReader(conn)
+
+	// keep a counter for log throttling
+	errLogCounter := 0
+	logCounterTime := time.Now()
+
+	for {
+
+		// read control message
+		controlMessage, err := r.ControlMessageBroker.ReadControlMessage(outReader)
+		if err != nil {
+
+			// if enough time has passed, log the error
+			if time.Since(logCounterTime) > 500*time.Millisecond {
+				logCounterTime = time.Now()
+				errLogCounter = 0
+			}
+			if errLogCounter%5 == 0 {
+				r.Logger.WarnWith(string(common.FailedReadControlMessage), "err", err.Error())
+				errLogCounter++
+			}
+			continue
+		} else {
+			errLogCounter = 0
+		}
+
+		r.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)
+
+		// send message to control consumers
+		if err := r.ControlMessageBroker.SendToConsumers(controlMessage); err != nil {
+			r.Logger.WarnWith("Failed to send control message to consumers", "err", err.Error())
+		}
+
+		// TODO: validate and respond to wrapper process
 	}
 }
 

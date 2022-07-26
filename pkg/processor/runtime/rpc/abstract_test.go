@@ -16,6 +16,9 @@ limitations under the License.
 package rpc
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"io"
 	"net"
 	"os"
@@ -26,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/errors"
@@ -37,7 +41,8 @@ import (
 type testRuntime struct {
 	*AbstractRuntime
 	wrapperProcess *os.Process
-	wrapperConn    net.Conn
+	eventConn      net.Conn
+	controlConn    net.Conn
 }
 
 // NewRuntime returns a new Python runtime
@@ -54,10 +59,12 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
+	newTestRuntime.AbstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(nil, parentLogger)
+
 	return newTestRuntime, nil
 }
 
-func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
+func (r *testRuntime) RunWrapper(eventSocketPath, controlSocketPath string) (*os.Process, error) {
 	var err error
 	cmd := exec.Command("sleep", "999999")
 	if err = cmd.Start(); err != nil {
@@ -66,9 +73,16 @@ func (r *testRuntime) RunWrapper(socketPath string) (*os.Process, error) {
 	r.wrapperProcess = cmd.Process
 
 	// Connect to runtime
-	r.wrapperConn, err = net.Dial("unix", socketPath)
+	r.eventConn, err = net.Dial("unix", eventSocketPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if controlSocketPath != "" {
+		r.controlConn, err = net.Dial("unix", controlSocketPath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return cmd.Process, nil
@@ -101,6 +115,90 @@ func (suite *RuntimeSuite) TestRestart() {
 	err = suite.testRuntimeInstance.Restart()
 	suite.Require().NoError(err, "Can't restart runtime")
 	suite.Require().NotEqual(oldPid, suite.testRuntimeInstance.wrapperProcess.Pid, "Wrapper process didn't change")
+}
+
+func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
+	var err error
+	messageKind := "test"
+
+	loggerInstance := suite.createLogger()
+	configInstance := suite.createConfig(loggerInstance)
+
+	suite.testRuntimeInstance, err = newTestRuntime(loggerInstance, configInstance)
+	suite.Require().NoError(err, "Can't create runtime")
+
+	err = suite.testRuntimeInstance.Start()
+	suite.Require().NoError(err, "Can't start runtime")
+
+	time.Sleep(1 * time.Second)
+
+	// create channel for consumer
+	controlMessageChannel := make(chan *controlcommunication.ControlMessage)
+
+	// subscribe to test message kind
+	err = suite.testRuntimeInstance.ControlMessageBroker.Subscribe(messageKind, controlMessageChannel)
+	suite.Require().NoError(err, "Can't subscribe to control message")
+
+	// create control message
+	controlMessage := &controlcommunication.ControlMessage{
+		Kind: messageKind,
+		Attributes: map[string]interface{}{
+			"test": "test",
+		},
+	}
+
+	done := make(chan bool)
+
+	// wait for control message in a goroutine
+	go func() {
+		receivedControlMessage := <-controlMessageChannel
+		suite.Require().Equal(controlMessage, receivedControlMessage, "Received control message doesn't match")
+		done <- true
+	}()
+
+	// send control message
+	err = suite.testRuntimeInstance.ControlMessageBroker.SendToConsumers(controlMessage)
+	suite.Require().NoError(err, "Can't send control message")
+
+	// wait for goroutine to finish
+	testDone := <-done
+	suite.Require().True(testDone, "Goroutine didn't finish")
+}
+
+func (suite *RuntimeSuite) TestReadControlMessage() {
+	var err error
+
+	loggerInstance := suite.createLogger()
+	configInstance := suite.createConfig(loggerInstance)
+
+	suite.testRuntimeInstance, err = newTestRuntime(loggerInstance, configInstance)
+	suite.Require().NoError(err, "Can't create runtime")
+
+	err = suite.testRuntimeInstance.Start()
+	suite.Require().NoError(err, "Can't start runtime")
+
+	// create control message
+	controlMessage := &controlcommunication.ControlMessage{
+		Kind: "testKind",
+		Attributes: map[string]interface{}{
+			"test": "test",
+		},
+	}
+
+	// encode control message in json
+	byteMessage, err := json.Marshal(controlMessage)
+	suite.Require().NoError(err, "Can't encode control message")
+
+	// add new line character to the end of the message
+	byteMessage = append(byteMessage, '\n')
+
+	// read control message from buffer
+	buf := bufio.NewReader(bytes.NewReader(byteMessage))
+	reslovedControlMessage, err := suite.testRuntimeInstance.ControlMessageBroker.ReadControlMessage(buf)
+
+	// check if control message was read correctly
+	suite.Require().NoError(err, "Can't read control message")
+	suite.Require().Equal(controlMessage, reslovedControlMessage, "Read control message doesn't match")
 }
 
 func (suite *RuntimeSuite) TearDownTest() {
