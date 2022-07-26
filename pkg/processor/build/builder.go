@@ -1070,7 +1070,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 			NoBaseImagePull:     b.GetNoBaseImagePull(),
 			BuildArgs:           buildArgs,
 			RegistryURL:         registryURL,
-			RepoName:            b.processorImage.imageName,
+			RepoName:            b.resolveRepoName(registryURL),
 			SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 			OutputImageFile:     b.options.OutputImageFile,
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
@@ -1086,6 +1086,20 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		})
 
 	return taggedImageName, err
+}
+
+func (b *Builder) resolveRepoName(registryURL string) string {
+	repoName := b.processorImage.imageName
+	urlRepo := ""
+	urlRepoIndex := strings.Index(registryURL, "/")
+	if urlRepoIndex != -1 && len(registryURL) > urlRepoIndex {
+		urlRepo = registryURL[urlRepoIndex+1:]
+		if !strings.HasSuffix(urlRepo, "/") {
+			return fmt.Sprintf("%s/%s", urlRepo, b.processorImage.imageName)
+		}
+		return fmt.Sprintf("%s%s", urlRepo, b.processorImage.imageName)
+	}
+	return repoName
 }
 
 func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildImageRegistry string) (
