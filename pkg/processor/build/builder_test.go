@@ -787,6 +787,24 @@ func (suite *testSuite) TestImageNameConfigurationEnrichment() {
 	}
 }
 
+func (suite *testSuite) TestResolveRepoName() {
+	registryURL := "docker.io"
+	for _, testCase := range []struct {
+		imageURL         string
+		imageName        string
+		expectedRepoName string
+	}{
+		{registryURL, "my-image", "my-image"},
+		{registryURL + "/test", "an-image", "test/an-image"},
+		{registryURL + "/test/", "an-image", "test/an-image"},
+		{registryURL + "/test/repo2", "an-image", "test/repo2/an-image"},
+	} {
+		suite.builder.processorImage.imageName = testCase.imageName
+		repoName := suite.builder.resolveRepoName(registryURL)
+		suite.Assert().Equal(testCase.expectedRepoName, repoName)
+	}
+}
+
 func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension string) {
 
 	// mock http response
