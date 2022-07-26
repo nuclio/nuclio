@@ -34,11 +34,19 @@ type ControlMessage struct {
 	Attributes map[string]interface{}
 }
 
+type ControlMessageAttributesExplicitAck struct {
+	Topic       string `json:"topic"`
+	Partition   int32  `json:"partition"`
+	Offset      int64  `json:"offset"`
+	TriggerName string `json:"trigger_name"`
+}
+
 type ControlConsumer struct {
 	Channels []chan *ControlMessage
 	kind     ControlMessageKind
 }
 
+// NewControlConsumer creates a new control consumer
 func NewControlConsumer(kind ControlMessageKind) *ControlConsumer {
 
 	return &ControlConsumer{
@@ -81,6 +89,7 @@ type AbstractControlMessageBroker struct {
 	Consumers []*ControlConsumer
 }
 
+// NewAbstractControlMessageBroker creates a new abstract control message broker
 func NewAbstractControlMessageBroker() *AbstractControlMessageBroker {
 	return &AbstractControlMessageBroker{
 		Consumers: make([]*ControlConsumer, 0),
