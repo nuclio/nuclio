@@ -354,28 +354,11 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 		switch k.configuration.ExplicitAckMode {
 		case functionconfig.ExplicitAckModeEnable:
 
-			// convert response to nuclio response:
-			var responseHeaders map[string]interface{}
-			switch typedResponse := response.(type) {
-			case nuclio.Response:
-				responseHeaders = typedResponse.Headers
-			case *nuclio.Response:
-				responseHeaders = typedResponse.Headers
+			if err := k.resolveNoAckMessage(response, submittedEvent); err != nil {
+				processErr = err
 			}
 
-			// check response header for no-ack
-			if noAckHeader, exists := responseHeaders["x-nuclio-stream-no-ack"]; exists {
-
-				// convert header to boolean
-				if noAckHeaderBool, ok := noAckHeader.(bool); ok && noAckHeaderBool {
-
-					k.Logger.DebugWith("Received no-ack on event",
-						"partition", submittedEvent.event.kafkaMessage.Partition)
-					processErr = processor.StreamNoAckError{}
-				}
-			}
-
-			// it is an ack - indicate that we're done
+			// indicate that we're done
 			submittedEvent.done <- processErr
 
 		case functionconfig.ExplicitAckModeDisable:
@@ -383,13 +366,10 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 			// indicate that we're done
 			submittedEvent.done <- processErr
 
-		case functionconfig.ExplicitAckModeExplicitOnly:
+		// also includes ExplicitAckModeExplicitOnly
+		default:
 
 			// ignore response
-			k.Logger.DebugWith("Event submitted",
-				"partition", submittedEvent.event.kafkaMessage.Partition,
-				"err", processErr.Error())
-
 		}
 	}
 
@@ -616,4 +596,30 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 			"",
 		)
 	}
+}
+
+func (k *kafka) resolveNoAckMessage(response interface{}, submittedEvent *submittedEvent) error {
+
+	// convert response to nuclio response:
+	var responseHeaders map[string]interface{}
+	switch typedResponse := response.(type) {
+	case nuclio.Response:
+		responseHeaders = typedResponse.Headers
+	case *nuclio.Response:
+		responseHeaders = typedResponse.Headers
+	}
+
+	// check response header for no-ack
+	if noAckHeader, exists := responseHeaders["x-nuclio-stream-no-ack"]; exists {
+
+		// convert header to boolean
+		if noAckHeaderBool, ok := noAckHeader.(bool); ok && noAckHeaderBool {
+
+			k.Logger.DebugWith("Received no-ack on event",
+				"partition", submittedEvent.event.kafkaMessage.Partition)
+			return processor.StreamNoAckError{}
+		}
+	}
+
+	return nil
 }
