@@ -666,7 +666,7 @@ func (k *Kaniko) deleteJob(namespace string, jobName string) error {
 }
 
 func (k *Kaniko) matchECRUrl(registryURL string) bool {
-	return strings.HasSuffix(registryURL, ".amazonaws.com") && strings.Contains(registryURL, ".ecr.")
+	return strings.Contains(registryURL, ".amazonaws.com") && strings.Contains(registryURL, ".ecr.")
 }
 
 func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
