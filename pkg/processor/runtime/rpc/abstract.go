@@ -462,7 +462,7 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 	// Reset might close outChan, which will cause panic when sending
 	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
 		r.Logger,
-		"Recovered during event output handler (Restart called?)")
+		"Recovered during control output handler (Restart called?)")
 
 	outReader := bufio.NewReader(conn)
 
