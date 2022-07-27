@@ -88,7 +88,7 @@ func (suite *timeoutSuite) TestTimeout() {
 
 			RetryUntilSuccessfulStatusCode: &okStatusCode,
 			RetryUntilSuccessfulInterval:   1,
-			RetryUntilSuccessfulDuration:   3 * sleepTime,
+			RetryUntilSuccessfulDuration:   2 * sleepTime,
 		},
 		{
 			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
