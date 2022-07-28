@@ -524,9 +524,13 @@ func (ar *AbstractResource) callCustomStreamRouteFunc(responseWriter http.Respon
 		// This go routine helps out and flushing every <interval> giving the user
 		// the experience of lively-streaming output
 		go func() {
-			defer common.CatchAndLogPanic(request.Context(), // nolint: errcheck
+			defer common.CatchAndLogPanicWithOptions(request.Context(), // nolint: errcheck
 				ar.Logger,
-				"flush-custom-stream-func")
+				"flush-custom-stream-func",
+				&common.CatchAndLogPanicOptions{
+					Args:          nil,
+					CustomHandler: nil,
+				})
 
 			for {
 				select {
