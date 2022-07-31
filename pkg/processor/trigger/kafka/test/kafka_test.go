@@ -20,12 +20,17 @@ package test
 
 import (
 	"fmt"
+	"net/http"
+	"path"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/suite"
@@ -34,9 +39,12 @@ import (
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
 
+	httpClient *http.Client
+
 	// kafka clients
 	broker   *sarama.Broker
 	producer sarama.SyncProducer
+	client   sarama.Client
 
 	// messaging
 	topic         string
@@ -56,6 +64,11 @@ type testSuite struct {
 
 func (suite *testSuite) SetupSuite() {
 	var err error
+
+	// create http client
+	suite.httpClient = &http.Client{
+		Timeout: 10 * time.Second,
+	}
 
 	// messaging
 	suite.topic = "myTopic"
@@ -114,6 +127,11 @@ func (suite *testSuite) SetupSuite() {
 	// create a sync producer
 	suite.producer, err = sarama.NewSyncProducer([]string{suite.brokerURL}, nil)
 	suite.Require().NoError(err, "Failed to create sync producer")
+
+	// create a sarama client
+	suite.client, err = sarama.NewClient([]string{suite.brokerURL}, nil)
+	suite.Require().NoError(err, "Failed to create client")
+
 }
 
 func (suite *testSuite) TearDownSuite() {
@@ -123,6 +141,9 @@ func (suite *testSuite) TearDownSuite() {
 	}
 
 	suite.AbstractBrokerSuite.TearDownSuite()
+
+	err := suite.client.Close()
+	suite.NoError(err)
 }
 
 func (suite *testSuite) TestReceiveRecords() {
@@ -157,6 +178,123 @@ func (suite *testSuite) TestReceiveRecords() {
 		},
 		nil,
 		suite.publishMessageToTopic)
+}
+
+func (suite *testSuite) TestExplicitAck() {
+
+	topic := "myNewTopic"
+	shardID := int32(1)
+	functionName := "explicitacker"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"kafka-explicit-ack",
+		"explicitacker.py")
+
+	// create new topic
+	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+		TopicDetails: map[string]*sarama.TopicDetail{
+			topic: {
+				NumPartitions:     suite.NumPartitions,
+				ReplicationFactor: 1,
+			},
+		},
+	})
+	suite.Require().NoError(err, "Failed to create topic")
+
+	suite.Logger.InfoWith("Created topic",
+		"topic", topic,
+		"createTopicResponse", createTopicsResponse)
+
+	// create explicit ack function
+
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install nuclio-sdk"}
+	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+		Attributes: map[string]interface{}{
+			"network": suite.BrokerContainerNetworkName,
+		},
+	}
+
+	// configure kafka trigger with explicit ack enabled
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"my-kafka": {
+			Kind: "kafka-cluster",
+			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+			Attributes: map[string]interface{}{
+				"topics":        []string{topic},
+				"consumerGroup": functionName,
+				"initialOffset": suite.initialOffset,
+			},
+			WorkerTerminationTimeout: "5s",
+			ExplicitAckMode:          functionconfig.ExplicitAckModeEnable,
+		},
+		"my-http": {
+			Kind: "http",
+			//URL:  httpURL,
+			Attributes: map[string]interface{}{},
+		},
+	}
+
+	// set worker allocation mode to static
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+		"nuclio.io/kafka-worker-allocation-mode": string(partitionworker.AllocationModeStatic),
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		var err error
+
+		// create partition offset manager
+		//offsetManager, err := sarama.NewOffsetManagerFromClient(functionName, suite.client)
+		//suite.Require().NoError(err, "Failed to create offset manager")
+		//partitionOffsetManager, err := offsetManager.ManagePartition(topic, shardID+1)
+		//suite.Require().NoError(err, "Failed to create partition offset manager")
+
+		// publish 100 messages to the topic
+		for i := 0; i < 99; i++ {
+			err = suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", i), shardID)
+			suite.Require().NoError(err, "Failed to publish message")
+		}
+
+		// check that the current offset on the partition is zero
+		partitionOffset, err := suite.client.GetOffset(topic, shardID+1, sarama.OffsetNewest)
+		suite.Require().NoError(err, "Failed to get partition offset")
+		suite.Logger.DebugWith("Partition offset before http invocation",
+			"partitionOffset", partitionOffset)
+
+		suite.Require().Equal(int64(0), partitionOffset, "Unexpected partition offset")
+
+		// publish 100th message to topic
+		err = suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", 99), shardID)
+		suite.Require().NoError(err, "Failed to publish message")
+
+		//// invoke the function with the http trigger and an explicit ack header
+		//_, err = suite.sendHTTPRequest(deployResult.Port,
+		//	"",
+		//	"/",
+		//	"POST",
+		//	"",
+		//	"",
+		//	map[string]interface{}{
+		//		"x-nuclio-explicit-ack": "true",
+		//	})
+		//suite.Require().NoError(err, "Failed to send request")
+
+		// wait a second
+		time.Sleep(1 * time.Second)
+
+		// check that the current offset on the partition is 100
+		partitionOffset, err = suite.client.GetOffset(topic, shardID+1, sarama.OffsetNewest)
+		suite.Require().NoError(err, "Failed to get partition offset")
+		suite.Logger.DebugWith("Partition offset after http invocation",
+			"partitionOffset", partitionOffset)
+
+		suite.Require().Equal(int64(100), partitionOffset, "Unexpected partition offset")
+
+		return true
+	})
 }
 
 //
@@ -408,6 +546,44 @@ func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.Create
 	}
 
 	return receivedBodies
+}
+
+func (suite *testSuite) sendHTTPRequest(port int, url, path, method, body, logLevel string, headers map[string]interface{}) (*http.Response, error) {
+	host := suite.GetTestHost()
+
+	suite.Logger.DebugWith("Sending request",
+		"Host", host,
+		"Port", port,
+		"Path", path,
+		"Headers", headers,
+		"BodyLength", len(body),
+		"LogLevel", logLevel)
+
+	// Send request to proper url
+	if url == "" {
+		url = fmt.Sprintf("http://%s:%d%s", host, port, path)
+	}
+
+	// create a request
+	httpRequest, err := http.NewRequest(method, url, strings.NewReader(body))
+	suite.Require().NoError(err)
+
+	// if there are request headers, add them
+	if headers != nil {
+		for headerName, headerValue := range headers {
+			httpRequest.Header.Add(headerName, fmt.Sprintf("%v", headerValue))
+		}
+	} else {
+		httpRequest.Header.Add("Content-Type", "text/plain")
+	}
+
+	// if there is a log level, add the header
+	if logLevel != "" {
+		httpRequest.Header.Add("X-nuclio-log-level", logLevel)
+	}
+
+	// invoke the function
+	return suite.httpClient.Do(httpRequest)
 }
 
 func TestIntegrationSuite(t *testing.T) {
