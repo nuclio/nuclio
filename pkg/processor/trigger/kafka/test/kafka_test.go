@@ -20,8 +20,10 @@ package test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +38,16 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+type Request struct {
+	port     int
+	url      string
+	path     string
+	method   string
+	body     string
+	logLevel string
+	headers  map[string]interface{}
+}
+
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
 
@@ -44,7 +56,6 @@ type testSuite struct {
 	// kafka clients
 	broker   *sarama.Broker
 	producer sarama.SyncProducer
-	client   sarama.Client
 
 	// messaging
 	topic         string
@@ -127,11 +138,6 @@ func (suite *testSuite) SetupSuite() {
 	// create a sync producer
 	suite.producer, err = sarama.NewSyncProducer([]string{suite.brokerURL}, nil)
 	suite.Require().NoError(err, "Failed to create sync producer")
-
-	// create a sarama client
-	suite.client, err = sarama.NewClient([]string{suite.brokerURL}, nil)
-	suite.Require().NoError(err, "Failed to create client")
-
 }
 
 func (suite *testSuite) TearDownSuite() {
@@ -141,9 +147,6 @@ func (suite *testSuite) TearDownSuite() {
 	}
 
 	suite.AbstractBrokerSuite.TearDownSuite()
-
-	err := suite.client.Close()
-	suite.NoError(err)
 }
 
 func (suite *testSuite) TestReceiveRecords() {
@@ -246,52 +249,44 @@ func (suite *testSuite) TestExplicitAck() {
 
 		var err error
 
-		// create partition offset manager
-		//offsetManager, err := sarama.NewOffsetManagerFromClient(functionName, suite.client)
-		//suite.Require().NoError(err, "Failed to create offset manager")
-		//partitionOffsetManager, err := offsetManager.ManagePartition(topic, shardID+1)
-		//suite.Require().NoError(err, "Failed to create partition offset manager")
-
-		// publish 100 messages to the topic
-		for i := 0; i < 99; i++ {
+		// publish 10 messages to the topic
+		for i := 0; i < 10; i++ {
 			err = suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", i), shardID)
 			suite.Require().NoError(err, "Failed to publish message")
 		}
 
-		// check that the current offset on the partition is zero
-		partitionOffset, err := suite.client.GetOffset(topic, shardID+1, sarama.OffsetNewest)
-		suite.Require().NoError(err, "Failed to get partition offset")
-		suite.Logger.DebugWith("Partition offset before http invocation",
-			"partitionOffset", partitionOffset)
+		// ensure queue size is 10
+		suite.Logger.Debug("Getting current queue size")
+		queueSize := suite.getQueueSize(deployResult.Port)
+		suite.Require().Equal(queueSize, 10, "Queue size is not 10")
 
-		suite.Require().Equal(int64(0), partitionOffset, "Unexpected partition offset")
+		// ensure commit offset is 0
+		suite.Logger.Debug("Getting commit offset before processing")
+		commitOffset := suite.getLastCommitOffset(deployResult.Port)
+		suite.Require().Equal(commitOffset, 0, "Commit offset is not 0")
 
-		// publish 100th message to topic
-		err = suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", 99), shardID)
-		suite.Require().NoError(err, "Failed to publish message")
+		// send http request "start processing"
+		suite.Logger.Debug("Sending start processing request")
+		response, err := suite.sendHTTPRequest(&Request{
+			method: "POST",
+			body:   "start processing",
+			port:   deployResult.Port,
+		})
+		suite.Require().NoError(err, "Failed to send request")
+		suite.Require().Equal(http.StatusOK, response.StatusCode)
 
-		//// invoke the function with the http trigger and an explicit ack header
-		//_, err = suite.sendHTTPRequest(deployResult.Port,
-		//	"",
-		//	"/",
-		//	"POST",
-		//	"",
-		//	"",
-		//	map[string]interface{}{
-		//		"x-nuclio-explicit-ack": "true",
-		//	})
-		//suite.Require().NoError(err, "Failed to send request")
+		time.Sleep(2 * time.Second)
 
-		// wait a second
-		time.Sleep(1 * time.Second)
+		// ensure queue size is 0 (or < 10)
+		suite.Logger.Debug("Getting queue size after processing")
+		queueSize = suite.getQueueSize(deployResult.Port)
+		suite.Require().Equal(queueSize, 0, "Queue size is not 0")
+		suite.Require().True(queueSize < 10, "Queue size is not less than 10")
 
-		// check that the current offset on the partition is 100
-		partitionOffset, err = suite.client.GetOffset(topic, shardID+1, sarama.OffsetNewest)
-		suite.Require().NoError(err, "Failed to get partition offset")
-		suite.Logger.DebugWith("Partition offset after http invocation",
-			"partitionOffset", partitionOffset)
-
-		suite.Require().Equal(int64(100), partitionOffset, "Unexpected partition offset")
+		// ensure commit offset is 9 (10 in zero-indexed offsets)
+		suite.Logger.Debug("Getting commit offset after processing")
+		commitOffset = suite.getLastCommitOffset(deployResult.Port)
+		suite.Require().Equal(commitOffset, 9, "Commit offset is not 10")
 
 		return true
 	})
@@ -548,29 +543,76 @@ func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.Create
 	return receivedBodies
 }
 
-func (suite *testSuite) sendHTTPRequest(port int, url, path, method, body, logLevel string, headers map[string]interface{}) (*http.Response, error) {
+func (suite *testSuite) getLastCommitOffset(port int) int {
+
+	httpRequest := &Request{
+		method: "GET",
+		body:   "commit offset",
+		port:   port,
+	}
+	response, err := suite.sendHTTPRequest(httpRequest)
+	suite.Require().NoError(err, "Failed to send request")
+	suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+	responseBody, err := ioutil.ReadAll(response.Body)
+	suite.Require().NoError(err, "Failed to read response body")
+	suite.Logger.DebugWith("Got response", "response", response, "responseBody", string(responseBody))
+
+	responseWords := strings.Fields(string(responseBody))
+	commitOffset, err := strconv.Atoi(responseWords[len(responseWords)-1])
+	suite.Require().NoError(err, "Failed to parse commit offset")
+
+	return commitOffset
+}
+
+func (suite *testSuite) getQueueSize(port int) int {
+	httpRequest := &Request{
+		method: "GET",
+		body:   "queue size",
+		port:   port,
+	}
+	response, err := suite.sendHTTPRequest(httpRequest)
+	suite.Require().NoError(err, "Failed to send request")
+	suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+	responseBody, err := ioutil.ReadAll(response.Body)
+	suite.Require().NoError(err, "Failed to read response body")
+	suite.Logger.DebugWith("Got response", "responseStatus", response.Status, "responseBody", string(responseBody))
+
+	responseWords := strings.Fields(string(responseBody))
+	queueSize, err := strconv.Atoi(responseWords[len(responseWords)-1])
+	suite.Require().NoError(err, "Failed to parse queue size")
+
+	return queueSize
+}
+
+func (suite *testSuite) sendHTTPRequest(request *Request) (*http.Response, error) {
 	host := suite.GetTestHost()
 
 	suite.Logger.DebugWith("Sending request",
 		"Host", host,
-		"Port", port,
-		"Path", path,
-		"Headers", headers,
-		"BodyLength", len(body),
-		"LogLevel", logLevel)
+		"Port", request.port,
+		"Path", request.path,
+		"Headers", request.headers,
+		"BodyLength", len(request.body),
+		"LogLevel", request.logLevel)
 
 	// Send request to proper url
-	if url == "" {
-		url = fmt.Sprintf("http://%s:%d%s", host, port, path)
+	if request.url == "" {
+		request.url = fmt.Sprintf("http://%s:%d%s", host, request.port, request.path)
+	}
+
+	if request.path == "" {
+		request.path = "/"
 	}
 
 	// create a request
-	httpRequest, err := http.NewRequest(method, url, strings.NewReader(body))
+	httpRequest, err := http.NewRequest(request.method, request.url, strings.NewReader(request.body))
 	suite.Require().NoError(err)
 
 	// if there are request headers, add them
-	if headers != nil {
-		for headerName, headerValue := range headers {
+	if request.headers != nil {
+		for headerName, headerValue := range request.headers {
 			httpRequest.Header.Add(headerName, fmt.Sprintf("%v", headerValue))
 		}
 	} else {
@@ -578,8 +620,8 @@ func (suite *testSuite) sendHTTPRequest(port int, url, path, method, body, logLe
 	}
 
 	// if there is a log level, add the header
-	if logLevel != "" {
-		httpRequest.Header.Add("X-nuclio-log-level", logLevel)
+	if request.logLevel != "" {
+		httpRequest.Header.Add("X-nuclio-log-level", request.logLevel)
 	}
 
 	// invoke the function

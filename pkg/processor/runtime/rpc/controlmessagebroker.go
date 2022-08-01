@@ -34,9 +34,14 @@ type rpcControlMessageBroker struct {
 }
 
 // NewRpcControlMessageBroker creates a new RPC control message broker
-func NewRpcControlMessageBroker(encoder EventEncoder, logger logger.Logger) *rpcControlMessageBroker {
+func NewRpcControlMessageBroker(encoder EventEncoder, logger logger.Logger, abstractControlMessageBroker *controlcommunication.AbstractControlMessageBroker) *rpcControlMessageBroker {
+
+	if abstractControlMessageBroker == nil {
+		abstractControlMessageBroker = controlcommunication.NewAbstractControlMessageBroker()
+	}
+
 	return &rpcControlMessageBroker{
-		AbstractControlMessageBroker: controlcommunication.NewAbstractControlMessageBroker(),
+		AbstractControlMessageBroker: abstractControlMessageBroker,
 		ControlMessageEventEncoder:   encoder,
 		logger:                       logger.GetChild("controlMessageBroker"),
 	}

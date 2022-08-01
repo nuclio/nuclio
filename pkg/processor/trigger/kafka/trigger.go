@@ -219,11 +219,11 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// listen to explicit ack messages if enabled
 	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
 
-		if err := k.subscribeToControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
+		if err := k.subscribeToControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan, claim.Partition()); err != nil {
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
 
-		go k.explicitAckHandler(session, explicitAckControlMessageChan, ackWindowSize)
+		go k.explicitAckHandler(session, explicitAckControlMessageChan)
 	}
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
@@ -556,9 +556,10 @@ func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool)
 
 // subscribeToControlMessageKind subscribes all workers to control message kind
 func (k *kafka) subscribeToControlMessageKind(kind controlcommunication.ControlMessageKind,
-	controlMessageChan chan *controlcommunication.ControlMessage) error {
+	controlMessageChan chan *controlcommunication.ControlMessage,
+	partition int32) error {
 
-	k.Logger.DebugWith("Subscribing to control message kind", "kind", kind)
+	k.Logger.DebugWith("Subscribing to control message kind", "kind", kind, "partition", partition)
 
 	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
 		if err := workerInstance.Subscribe(kind, controlMessageChan); err != nil {
@@ -572,12 +573,13 @@ func (k *kafka) subscribeToControlMessageKind(kind controlcommunication.ControlM
 // explicitAckHandler reads offset data messages from the trigger's control channel, and marks the
 // offset accordingly
 func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
-	controlMessageChan chan *controlcommunication.ControlMessage,
-	ackWindowSize int64) {
+	controlMessageChan chan *controlcommunication.ControlMessage) {
 
-	k.Logger.DebugWith("Listening to explicit ack control messages", "ackWindowSize", ackWindowSize)
+	k.Logger.DebugWith("Listening for explicit ack control messages")
 
 	for streamAckControlMessage := range controlMessageChan {
+
+		k.Logger.DebugWith("Received explicit ack control message", "controlMessage", streamAckControlMessage)
 
 		// retrieve attributes from control message
 		explicitAckAttributes := &controlcommunication.ControlMessageAttributesExplicitAck{}
@@ -592,7 +594,7 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 		session.MarkOffset(
 			explicitAckAttributes.Topic,
 			explicitAckAttributes.Partition,
-			explicitAckAttributes.Offset+1-ackWindowSize,
+			explicitAckAttributes.Offset+1,
 			"",
 		)
 	}

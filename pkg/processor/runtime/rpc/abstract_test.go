@@ -59,7 +59,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	newTestRuntime.AbstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(nil, parentLogger)
+	newTestRuntime.AbstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(nil, parentLogger, nil)
 
 	return newTestRuntime, nil
 }
@@ -136,7 +136,7 @@ func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
 	controlMessageChannel := make(chan *controlcommunication.ControlMessage)
 
 	// subscribe to test message kind
-	err = suite.testRuntimeInstance.ControlMessageBroker.Subscribe(messageKind, controlMessageChannel)
+	err = suite.testRuntimeInstance.GetControlMessageBroker().Subscribe(messageKind, controlMessageChannel)
 	suite.Require().NoError(err, "Can't subscribe to control message")
 
 	// create control message
@@ -157,7 +157,7 @@ func (suite *RuntimeSuite) TestSubscribeToControlMessage() {
 	}()
 
 	// send control message
-	err = suite.testRuntimeInstance.ControlMessageBroker.SendToConsumers(controlMessage)
+	err = suite.testRuntimeInstance.GetControlMessageBroker().SendToConsumers(controlMessage)
 	suite.Require().NoError(err, "Can't send control message")
 
 	// wait for goroutine to finish
