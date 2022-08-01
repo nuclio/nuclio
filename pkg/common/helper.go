@@ -421,18 +421,6 @@ func GenerateRandomString(length int, letters []rune) string {
 	return string(randomString)
 }
 
-func CatchAndLogPanic(ctx context.Context,
-	loggerInstance logger.Logger,
-	actionName string) error {
-	return CatchAndLogPanicWithOptions(ctx,
-		loggerInstance,
-		actionName,
-		&CatchAndLogPanicOptions{
-			Args:          nil,
-			CustomHandler: nil,
-		})
-}
-
 func CatchAndLogPanicWithOptions(ctx context.Context,
 	loggerInstance logger.Logger,
 	actionName string,

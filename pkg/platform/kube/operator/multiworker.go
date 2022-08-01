@@ -104,9 +104,13 @@ func (mw *MultiWorker) Start(ctx context.Context) error {
 
 	// run the informer
 	go func() {
-		defer common.CatchAndLogPanic(ctx, // nolint: errcheck
+		defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
 			mw.logger,
-			"running multi worker informer")
+			"running multi worker informer",
+			&common.CatchAndLogPanicOptions{
+				Args:          nil,
+				CustomHandler: nil,
+			})
 
 		mw.informer.Run(mw.stopChannel)
 	}()
@@ -120,9 +124,13 @@ func (mw *MultiWorker) Start(ctx context.Context) error {
 	for workerID := 0; workerID < mw.numWorkers; workerID++ {
 		workerID := workerID
 		go func() {
-			defer common.CatchAndLogPanic(ctx, // nolint: errcheck
+			defer common.CatchAndLogPanicWithOptions(ctx, // nolint: errcheck
 				mw.logger,
-				"processing items")
+				"processing items",
+				&common.CatchAndLogPanicOptions{
+					Args:          nil,
+					CustomHandler: nil,
+				})
 
 			workerCtx := context.WithValue(workersCtx, WorkerIDKey, workerID)
 

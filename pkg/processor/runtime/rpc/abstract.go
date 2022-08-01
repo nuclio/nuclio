@@ -408,9 +408,13 @@ func (r *AbstractRuntime) createTCPListener() (net.Listener, string, error) {
 func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan chan *result) {
 
 	// Reset might close outChan, which will cause panic when sending
-	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
+	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
 		r.Logger,
-		"Recovered during event output handler (Restart called?)")
+		"event wrapper output handler (Restart called?)",
+		&common.CatchAndLogPanicOptions{
+			Args:          nil,
+			CustomHandler: nil,
+		})
 
 	outReader := bufio.NewReader(conn)
 
@@ -460,9 +464,13 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 
 	// Reset might close outChan, which will cause panic when sending
-	defer common.CatchAndLogPanic(context.Background(), // nolint: errcheck
+	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
 		r.Logger,
-		"Recovered during event output handler (Restart called?)")
+		"control wrapper output handler (Restart called?)",
+		&common.CatchAndLogPanicOptions{
+			Args:          nil,
+			CustomHandler: nil,
+		})
 
 	outReader := bufio.NewReader(conn)
 

@@ -138,6 +138,9 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 		suite.Require().NotNil(deployResult)
 		for _, request := range requests {
 			request.Enrich(deployResult)
+			suite.Logger.DebugWith("Sending request",
+				"requestBody", request.RequestBody,
+				"expectedResponseStatusCode", request.ExpectedResponseStatusCode)
 			if !suite.SendRequestVerifyResponse(request) {
 
 				// fail fast
