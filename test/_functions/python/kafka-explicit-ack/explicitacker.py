@@ -110,7 +110,7 @@ async def process_events(context):
 
 async def handler(context, event):
 
-    if event.trigger.kind == "kafka-cluster":
+    if event.trigger.kind in ("kafka-cluster", "v3ioStream"):
 
         context.logger.debug("Adding event to queue - event.body: {0}, event.offset: {1}".format(event.body,
                                                                                                  event.offset))

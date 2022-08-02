@@ -21,10 +21,13 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -171,6 +174,7 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	}
 
 	submittedEventChan := make(chan *submittedEvent)
+	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
 
 	// submit the events in a goroutine so that we can unblock immediately
 	go vs.eventSubmitter(claim, submittedEventChan)
@@ -182,6 +186,15 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	}
 
 	commitRecordFuncHandler := vs.resolveCommitRecordFuncHandler(session)
+
+	// listen for explicit ack messages if enabled
+	if functionconfig.ExplicitAckEnabled(vs.configuration.ExplicitAckMode) {
+		if err := vs.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
+			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
+		}
+
+		go vs.explicitAckHandler(explicitAckControlMessageChan, commitRecordFuncHandler)
+	}
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
@@ -219,8 +232,9 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 
 	vs.Logger.DebugWith("Claim consumption stopped", "shardID", claim.GetShardID())
 
-	// shut down the event submitter
+	// shut down the event submitter and the explicit ack handler
 	close(submittedEventChan)
+	close(explicitAckControlMessageChan)
 
 	return submitError
 }
@@ -248,15 +262,33 @@ func (vs *v3iostream) eventSubmitter(claim streamconsumergroup.Claim, submittedE
 	for submittedEvent := range submittedEventChan {
 
 		// submit the event to the worker
-		_, processErr := vs.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event)
+		response, processErr := vs.SubmitEventToWorker(nil, submittedEvent.worker, &submittedEvent.event)
 		if processErr != nil {
 			vs.Logger.DebugWith("Event processing error",
 				"shardID", submittedEvent.event.record.ShardID,
 				"err", processErr)
 		}
 
-		// indicate that we're done
-		submittedEvent.done <- processErr
+		switch vs.configuration.ExplicitAckMode {
+		case functionconfig.ExplicitAckModeEnable:
+
+			if err := vs.resolveNoAckMessage(response, submittedEvent); err != nil {
+				processErr = err
+			}
+
+			// indicate that we're done
+			submittedEvent.done <- processErr
+
+		case functionconfig.ExplicitAckModeDisable:
+
+			// indicate that we're done
+			submittedEvent.done <- processErr
+
+		// also includes ExplicitAckModeExplicitOnly
+		default:
+
+			// ignore response
+		}
 	}
 
 	vs.Logger.DebugWith("Event submitter stopped", "shardID", claim.GetShardID())
@@ -377,4 +409,58 @@ func (vs *v3iostream) resolveCommitRecordFuncHandler(session streamconsumergroup
 	}
 
 	return commitRecordDefaultFuncHandler
+}
+
+func (vs *v3iostream) explicitAckHandler(controlMessageChan chan *controlcommunication.ControlMessage,
+	commitRecordFuncHandler func(*v3io.StreamRecord)) {
+
+	vs.Logger.DebugWith("Listening for explicit ack control messages")
+
+	for streamAckControlMessage := range controlMessageChan {
+
+		vs.Logger.DebugWith("Received explicit ack control message", "controlMessage", streamAckControlMessage)
+
+		// retrieve attributes from control message
+		record := &v3io.StreamRecord{}
+
+		// decode offset data from message attributes
+		if err := mapstructure.Decode(streamAckControlMessage.Attributes, record); err != nil {
+			vs.Logger.WarnWith("Failed decoding control message attributes", "err", err)
+			continue
+		}
+
+		/*
+			MarkRecord uses record.ShardID & record.SequenceNumber
+			to determine which shard/sequence number to mark.
+		*/
+
+		// commit record
+		commitRecordFuncHandler(record)
+	}
+}
+
+func (vs *v3iostream) resolveNoAckMessage(response interface{}, submittedEvent *submittedEvent) error {
+
+	// convert response to nuclio response:
+	var responseHeaders map[string]interface{}
+	switch typedResponse := response.(type) {
+	case nuclio.Response:
+		responseHeaders = typedResponse.Headers
+	case *nuclio.Response:
+		responseHeaders = typedResponse.Headers
+	}
+
+	// check response header for no-ack
+	if noAckHeader, exists := responseHeaders["x-nuclio-stream-no-ack"]; exists {
+
+		// convert header to boolean
+		if noAckHeaderBool, ok := noAckHeader.(bool); ok && noAckHeaderBool {
+
+			vs.Logger.DebugWith("Received no-ack on event",
+				"shardID", submittedEvent.event.record.ShardID)
+			return processor.StreamNoAckError{}
+		}
+	}
+
+	return nil
 }

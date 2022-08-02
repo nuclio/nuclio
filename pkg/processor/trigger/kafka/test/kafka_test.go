@@ -209,7 +209,6 @@ func (suite *testSuite) TestExplicitAck() {
 		"createTopicResponse", createTopicsResponse)
 
 	// create explicit ack function
-
 	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install nuclio-sdk"}
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{

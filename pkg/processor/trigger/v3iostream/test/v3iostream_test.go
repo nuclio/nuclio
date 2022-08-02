@@ -509,6 +509,42 @@ func (suite *testSuite) TestManualAbort() {
 	}
 }
 
+func (suite *testSuite) TestExplicitAck() {
+	functionName := "explicitacker"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"kafka-explicit-ack",
+		"explicitacker.py")
+
+	// create explicit ack function
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+
+	// configure v3io stream trigger with explicit ack enabled
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"v3io": {
+			Kind:     "v3ioStream",
+			URL:      suite.url,
+			Password: suite.accessKey,
+			Attributes: map[string]interface{}{
+				"seekTo":        "earliest", // avoid race condition with `latest` missed by function
+				"containerName": suite.containerName,
+				"streamPath":    suite.streamPath,
+				"consumerGroup": suite.consumerGroup,
+			},
+			ExplicitAckMode: functionconfig.ExplicitAckModeEnable,
+		},
+	}
+
+	// set worker allocation mode to static
+	// deploy function
+	// publish 10 messages to the topic
+	// ensure queue size is 10
+	// ensure commit offset is 0
+	// send http request "start processing"
+	// ensure queue size is 0 (or < 10)
+	// ensure commit offset is 9 (10 in zero-indexed offsets)
+}
+
 func (suite *testSuite) updateHeartBeat(streamPath, consumerGroup, memberName string) error {
 	var (
 		err   error
