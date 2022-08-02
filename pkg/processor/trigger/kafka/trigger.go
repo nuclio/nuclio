@@ -216,10 +216,10 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			"ackWindowSize", ackWindowSize)
 	}
 
-	// listen to explicit ack messages if enabled
+	// listen for explicit ack messages if enabled
 	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
 
-		if err := k.subscribeToControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan, claim.Partition()); err != nil {
+		if err := k.SubscribeToControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
 
@@ -552,22 +552,6 @@ func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool)
 
 	// signal termination complete
 	workerTerminationCompleteChan <- true
-}
-
-// subscribeToControlMessageKind subscribes all workers to control message kind
-func (k *kafka) subscribeToControlMessageKind(kind controlcommunication.ControlMessageKind,
-	controlMessageChan chan *controlcommunication.ControlMessage,
-	partition int32) error {
-
-	k.Logger.DebugWith("Subscribing to control message kind", "kind", kind, "partition", partition)
-
-	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-		if err := workerInstance.Subscribe(kind, controlMessageChan); err != nil {
-			return errors.Wrapf(err, "Failed to subscribe to explicit ack control message kind in worker %d", workerInstance.GetIndex())
-		}
-	}
-
-	return nil
 }
 
 // explicitAckHandler reads offset data messages from the trigger's control channel, and marks the
