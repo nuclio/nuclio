@@ -314,9 +314,9 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 				triggerName,
 				&triggerConfiguration,
 				&runtime.Configuration{
-					Configuration:                processorConfiguration,
-					FunctionLogger:               p.functionLogger,
-					AbstractControlMessageBroker: abstractControlMessageBroker,
+					Configuration:        processorConfiguration,
+					FunctionLogger:       p.functionLogger,
+					ControlMessageBroker: abstractControlMessageBroker,
 				},
 				p.namedWorkerAllocators,
 				p.restartTriggerChan)

@@ -373,7 +373,7 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 		}
 	}
 
-	k.Logger.DebugWith("Event submitter stopped",
+	k.Logger.InfoWith("Event submitter stopped",
 		"topic", claim.Topic(),
 		"partition", claim.Partition())
 }
@@ -559,7 +559,7 @@ func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool)
 func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 	controlMessageChan chan *controlcommunication.ControlMessage) {
 
-	k.Logger.DebugWith("Listening for explicit ack control messages")
+	k.Logger.InfoWith("Listening for explicit ack control messages")
 
 	for streamAckControlMessage := range controlMessageChan {
 
@@ -582,6 +582,8 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 			"",
 		)
 	}
+
+	k.Logger.InfoWith("Stopped listening for explicit ack control messages")
 }
 
 func (k *kafka) resolveNoAckMessage(response interface{}, submittedEvent *submittedEvent) error {

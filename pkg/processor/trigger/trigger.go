@@ -328,7 +328,9 @@ func (at *AbstractTrigger) Restart() error {
 func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunication.ControlMessageKind,
 	controlMessageChan chan *controlcommunication.ControlMessage) error {
 
-	at.Logger.DebugWith("Subscribing to control message kind", "kind")
+	at.Logger.DebugWith("Subscribing to control message kind",
+		"kind", kind,
+		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
 
 	for _, workerInstance := range at.WorkerAllocator.GetWorkers() {
 		if err := workerInstance.Subscribe(kind, controlMessageChan); err != nil {

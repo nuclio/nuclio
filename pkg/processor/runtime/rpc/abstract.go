@@ -320,7 +320,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		r.controlEncoder = r.runtime.GetEventEncoder(controlConnection.conn)
 
 		// initialize control message broker
-		r.ControlMessageBroker = NewRpcControlMessageBroker(r.controlEncoder, r.Logger, r.configuration.AbstractControlMessageBroker)
+		r.ControlMessageBroker = NewRpcControlMessageBroker(r.controlEncoder, r.Logger, r.configuration.ControlMessageBroker)
 
 		go r.controlOutputHandler(controlConnection.conn)
 
