@@ -38,16 +38,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type Request struct {
-	port     int
-	url      string
-	path     string
-	method   string
-	body     string
-	logLevel string
-	headers  map[string]interface{}
-}
-
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
 
@@ -266,10 +256,10 @@ func (suite *testSuite) TestExplicitAck() {
 
 		// send http request "start processing"
 		suite.Logger.Debug("Sending start processing request")
-		response, err := suite.sendHTTPRequest(&Request{
-			method: "POST",
-			body:   "start processing",
-			port:   deployResult.Port,
+		response, err := suite.SendHTTPRequest(&triggertest.Request{
+			Method: "POST",
+			Body:   "start processing",
+			Port:   deployResult.Port,
 		})
 		suite.Require().NoError(err, "Failed to send request")
 		suite.Require().Equal(http.StatusOK, response.StatusCode)
@@ -544,12 +534,12 @@ func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.Create
 
 func (suite *testSuite) getLastCommitOffset(port int) int {
 
-	httpRequest := &Request{
-		method: "GET",
-		body:   "commit offset",
-		port:   port,
+	httpRequest := &triggertest.Request{
+		Method: "GET",
+		Body:   "commit offset",
+		Port:   port,
 	}
-	response, err := suite.sendHTTPRequest(httpRequest)
+	response, err := suite.SendHTTPRequest(httpRequest)
 	suite.Require().NoError(err, "Failed to send request")
 	suite.Require().Equal(http.StatusOK, response.StatusCode)
 
@@ -565,12 +555,12 @@ func (suite *testSuite) getLastCommitOffset(port int) int {
 }
 
 func (suite *testSuite) getQueueSize(port int) int {
-	httpRequest := &Request{
-		method: "GET",
-		body:   "queue size",
-		port:   port,
+	httpRequest := &triggertest.Request{
+		Method: "GET",
+		Body:   "queue size",
+		Port:   port,
 	}
-	response, err := suite.sendHTTPRequest(httpRequest)
+	response, err := suite.SendHTTPRequest(httpRequest)
 	suite.Require().NoError(err, "Failed to send request")
 	suite.Require().Equal(http.StatusOK, response.StatusCode)
 
@@ -583,48 +573,6 @@ func (suite *testSuite) getQueueSize(port int) int {
 	suite.Require().NoError(err, "Failed to parse queue size")
 
 	return queueSize
-}
-
-func (suite *testSuite) sendHTTPRequest(request *Request) (*http.Response, error) {
-	host := suite.GetTestHost()
-
-	suite.Logger.DebugWith("Sending request",
-		"Host", host,
-		"Port", request.port,
-		"Path", request.path,
-		"Headers", request.headers,
-		"BodyLength", len(request.body),
-		"LogLevel", request.logLevel)
-
-	// Send request to proper url
-	if request.url == "" {
-		request.url = fmt.Sprintf("http://%s:%d%s", host, request.port, request.path)
-	}
-
-	if request.path == "" {
-		request.path = "/"
-	}
-
-	// create a request
-	httpRequest, err := http.NewRequest(request.method, request.url, strings.NewReader(request.body))
-	suite.Require().NoError(err)
-
-	// if there are request headers, add them
-	if request.headers != nil {
-		for headerName, headerValue := range request.headers {
-			httpRequest.Header.Add(headerName, fmt.Sprintf("%v", headerValue))
-		}
-	} else {
-		httpRequest.Header.Add("Content-Type", "text/plain")
-	}
-
-	// if there is a log level, add the header
-	if request.logLevel != "" {
-		httpRequest.Header.Add("X-nuclio-log-level", request.logLevel)
-	}
-
-	// invoke the function
-	return suite.httpClient.Do(httpRequest)
 }
 
 func TestIntegrationSuite(t *testing.T) {

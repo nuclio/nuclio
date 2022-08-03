@@ -21,6 +21,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path"
 	"testing"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
@@ -151,7 +153,7 @@ func (suite *testSuite) TestAckWindowSize() {
 		for messageIdx := 0; messageIdx < ackWindowSize; messageIdx++ {
 			recordedEvents += 1
 			messageBody := fmt.Sprintf("%s-%d", suite.streamPath, messageIdx)
-			err := suite.writingMessageToStream(suite.streamPath, messageBody)
+			err := suite.writeMessageToStream(suite.streamPath, messageBody)
 			suite.Require().NoError(err, "Failed to publish message")
 		}
 
@@ -186,7 +188,7 @@ func (suite *testSuite) TestAckWindowSize() {
 		suite.Require().Equal(committed, 0)
 
 		// send another message
-		err = suite.writingMessageToStream(suite.streamPath, "trigger-commit")
+		err = suite.writeMessageToStream(suite.streamPath, "trigger-commit")
 		suite.Require().NoError(err, "Failed to publish message")
 		recordedEvents += 1
 
@@ -223,7 +225,7 @@ func (suite *testSuite) TestAckWindowSize() {
 			for messageIdx := 0; messageIdx < severalMessagesWhileFunctionIsDown; messageIdx++ {
 				recordedEvents += 1
 				messageBody := fmt.Sprintf("%s-%d", suite.streamPath, messageIdx)
-				err := suite.writingMessageToStream(suite.streamPath, messageBody)
+				err := suite.writeMessageToStream(suite.streamPath, messageBody)
 				suite.Require().NoError(err, "Failed to publish message")
 			}
 		})
@@ -293,7 +295,7 @@ func (suite *testSuite) TestReceiveRecords() {
 			},
 		},
 		nil,
-		suite.writingMessageToStream)
+		suite.writeMessageToStream)
 }
 
 // before running this test - create a function on your system with numOfReplicas and a v3iostream trigger,
@@ -515,6 +517,15 @@ func (suite *testSuite) TestExplicitAck() {
 		"python",
 		"kafka-explicit-ack",
 		"explicitacker.py")
+	shardID := 0
+
+	// create a stream
+	err := suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
+		Path:                 suite.streamPath,
+		ShardCount:           1,
+		RetentionPeriodHours: 1,
+	})
+	suite.Require().NoError(err, "Failed to create v3io sync stream")
 
 	// create explicit ack function
 	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
@@ -536,13 +547,68 @@ func (suite *testSuite) TestExplicitAck() {
 	}
 
 	// set worker allocation mode to static
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+		"nuclio.io/v3iostream-worker-allocation-mode": string(partitionworker.AllocationModeStatic),
+	}
+
 	// deploy function
-	// publish 10 messages to the topic
-	// ensure queue size is 10
-	// ensure commit offset is 0
-	// send http request "start processing"
-	// ensure queue size is 0 (or < 10)
-	// ensure commit offset is 9 (10 in zero-indexed offsets)
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		// write 10 messages to the stream
+		for i := 0; i < 10; i++ {
+			err := suite.writeMessageToStreamShard(suite.streamPath, fmt.Sprintf("message-%d", i), &shardID)
+			suite.Require().NoError(err, "Failed to publish message")
+		}
+
+		// TODO: parse the rest of the logic of kafka_test.TestExplicitAck() in a separate function
+		// and call it here
+
+		// ensure queue size is 10
+
+		//suite.Logger.Debug("Getting current queue size")
+		//queueSize := suite.getQueueSize(deployResult.Port)
+		//suite.Require().Equal(queueSize, 10, "Queue size is not 10")
+
+		// ensure commit offset is 0
+
+		//suite.Logger.Debug("Getting commit offset before processing")
+		//commitOffset := suite.getLastCommitOffset(deployResult.Port)
+		//suite.Require().Equal(commitOffset, 0, "Commit offset is not 0")
+
+		current, committed := suite.getShardLagDetails(shardID)
+		suite.Require().Equal(current-committed, 10, "Current lag is not 10")
+
+		// send http request "start processing"
+		suite.Logger.Debug("Sending start processing request")
+		response, err := suite.SendHTTPRequest(&triggertest.Request{
+			Method: "POST",
+			Body:   "start processing",
+			Port:   deployResult.Port,
+		})
+		suite.Require().NoError(err, "Failed to send request")
+		suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+		time.Sleep(2 * time.Second)
+
+		// ensure queue size is 0 (or < 10)
+
+		//suite.Logger.Debug("Getting queue size after processing")
+		//queueSize = suite.getQueueSize(deployResult.Port)
+		//suite.Require().Equal(queueSize, 0, "Queue size is not 0")
+		//suite.Require().True(queueSize < 10, "Queue size is not less than 10")
+		//
+		//// ensure commit offset is 9 (10 in zero-indexed offsets)
+		//suite.Logger.Debug("Getting commit offset after processing")
+		//commitOffset = suite.getLastCommitOffset(deployResult.Port)
+		//suite.Require().Equal(commitOffset, 9, "Commit offset is not 10")
+
+		current, committed = suite.getShardLagDetails(shardID)
+		suite.Require().Equal(current-committed, 0, "Current lag is not 0")
+
+		return true
+	})
+
 }
 
 func (suite *testSuite) updateHeartBeat(streamPath, consumerGroup, memberName string) error {
@@ -593,7 +659,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 	return "", nil
 }
 
-func (suite *testSuite) writingMessageToStream(streamPath string, body string) error {
+func (suite *testSuite) writeMessageToStream(streamPath string, body string) error {
 	suite.Logger.InfoWith("Publishing message to stream",
 		"streamPath", streamPath,
 		"body", body)

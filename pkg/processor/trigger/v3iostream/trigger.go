@@ -429,6 +429,8 @@ func (vs *v3iostream) explicitAckHandler(controlMessageChan chan *controlcommuni
 			continue
 		}
 
+		vs.Logger.DebugWith("TOMER - Decoded control message attributes", "record", record)
+
 		/*
 			MarkRecord uses record.ShardID & record.SequenceNumber
 			to determine which shard/sequence number to mark.
