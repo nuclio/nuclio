@@ -22,18 +22,32 @@ import (
 	"github.com/nuclio/errors"
 )
 
+type ControlMessageKind string
+
+const (
+	StreamMessageAckKind ControlMessageKind = "streamMessageAck"
+)
+
 // TODO: move to nuclio-sdk-go
 type ControlMessage struct {
-	Kind       string
+	Kind       ControlMessageKind
 	Attributes map[string]interface{}
+}
+
+type ControlMessageAttributesExplicitAck struct {
+	Topic       string `json:"topic"`
+	Partition   int32  `json:"partition"`
+	Offset      int64  `json:"offset"`
+	TriggerName string `json:"trigger_name"`
 }
 
 type ControlConsumer struct {
 	Channels []chan *ControlMessage
-	kind     string
+	kind     ControlMessageKind
 }
 
-func NewControlConsumer(kind string) *ControlConsumer {
+// NewControlConsumer creates a new control consumer
+func NewControlConsumer(kind ControlMessageKind) *ControlConsumer {
 
 	return &ControlConsumer{
 		Channels: make([]chan *ControlMessage, 0),
@@ -42,7 +56,7 @@ func NewControlConsumer(kind string) *ControlConsumer {
 }
 
 // GetKind returns the kind of the consumer
-func (c *ControlConsumer) GetKind() string {
+func (c *ControlConsumer) GetKind() ControlMessageKind {
 	return c.kind
 }
 
@@ -68,13 +82,14 @@ type ControlMessageBroker interface {
 	SendToConsumers(message *ControlMessage) error
 
 	// Subscribe subscribes channel to a control message kind
-	Subscribe(kind string, channel chan *ControlMessage) error
+	Subscribe(kind ControlMessageKind, channel chan *ControlMessage) error
 }
 
 type AbstractControlMessageBroker struct {
 	Consumers []*ControlConsumer
 }
 
+// NewAbstractControlMessageBroker creates a new abstract control message broker
 func NewAbstractControlMessageBroker() *AbstractControlMessageBroker {
 	return &AbstractControlMessageBroker{
 		Consumers: make([]*ControlConsumer, 0),
@@ -101,7 +116,7 @@ func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessag
 	return nil
 }
 
-func (acmb *AbstractControlMessageBroker) Subscribe(kind string, channel chan *ControlMessage) error {
+func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind, channel chan *ControlMessage) error {
 
 	// create consumers if they don't exist
 	if acmb.Consumers == nil {

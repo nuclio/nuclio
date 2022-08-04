@@ -26,3 +26,9 @@ type Configuration struct {
 	functionconfig.Config
 	PlatformConfig *platformconfig.Config
 }
+
+type StreamNoAckError struct{}
+
+func (s StreamNoAckError) Error() string {
+	return "stream-no-ack"
+}

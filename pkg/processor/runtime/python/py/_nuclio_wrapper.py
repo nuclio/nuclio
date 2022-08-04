@@ -71,8 +71,8 @@ class Wrapper(object):
         self._event_sock = None
         self._control_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind,
-                                             namespace=namespace)
-                                             # control_callback=self._send_data_on_control_socket)
+                                             namespace=namespace,
+                                             on_control_callback=self._send_data_on_control_socket)
         self._decode_event_strings = decode_event_strings
 
         # 1gb
@@ -177,7 +177,7 @@ class Wrapper(object):
 
         control_message_event = await self._resolve_event(self._control_sock, control_message_event_length)
 
-        self._logger.debug_with('Received control message', contorl_message=control_message_event.body)
+        self._logger.debug_with('Received control message', control_message=control_message_event.body)
 
     async def _initialize_context(self):
 
@@ -194,6 +194,8 @@ class Wrapper(object):
                 raise
 
     async def _send_data_on_control_socket(self, data):
+
+        self._logger.debug_with('Sending data on control socket', data_length=len(data))
 
         # send message to processor
         encoded_offset_data = self._json_encoder.encode(data)

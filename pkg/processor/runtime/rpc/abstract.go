@@ -320,7 +320,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		r.controlEncoder = r.runtime.GetEventEncoder(controlConnection.conn)
 
 		// initialize control message broker
-		r.ControlMessageBroker = NewRpcControlMessageBroker(r.controlEncoder, r.Logger)
+		r.ControlMessageBroker = NewRpcControlMessageBroker(r.controlEncoder, r.Logger, r.configuration.ControlMessageBroker)
 
 		go r.controlOutputHandler(controlConnection.conn)
 
@@ -501,7 +501,7 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 		r.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)
 
 		// send message to control consumers
-		if err := r.ControlMessageBroker.SendToConsumers(controlMessage); err != nil {
+		if err := r.GetControlMessageBroker().SendToConsumers(controlMessage); err != nil {
 			r.Logger.WarnWith("Failed to send control message to consumers", "err", err.Error())
 		}
 

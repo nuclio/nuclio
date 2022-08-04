@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 
 	"github.com/nuclio/logger"
 )
@@ -52,4 +53,5 @@ type Configuration struct {
 	TriggerName              string
 	TriggerKind              string
 	WorkerTerminationTimeout time.Duration
+	ControlMessageBroker     *controlcommunication.AbstractControlMessageBroker
 }

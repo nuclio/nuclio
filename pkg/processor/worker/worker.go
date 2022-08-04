@@ -152,6 +152,6 @@ func (w *Worker) Terminate() error {
 }
 
 // Subscribe subscribes to a control message kind
-func (w *Worker) Subscribe(kind string, channel chan *controlcommunication.ControlMessage) error {
+func (w *Worker) Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
 	return w.runtime.GetControlMessageBroker().Subscribe(kind, channel)
 }

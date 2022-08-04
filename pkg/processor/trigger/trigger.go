@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/google/uuid"
@@ -319,6 +320,23 @@ func (at *AbstractTrigger) Restart() error {
 
 	// signal the processor to restart the trigger
 	at.restartChan <- at.Trigger
+
+	return nil
+}
+
+// SubscribeToControlMessageKind subscribes all workers to control message kind
+func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunication.ControlMessageKind,
+	controlMessageChan chan *controlcommunication.ControlMessage) error {
+
+	at.Logger.DebugWith("Subscribing to control message kind",
+		"kind", kind,
+		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
+
+	for _, workerInstance := range at.WorkerAllocator.GetWorkers() {
+		if err := workerInstance.Subscribe(kind, controlMessageChan); err != nil {
+			return errors.Wrapf(err, "Failed to subscribe to explicit ack control message kind in worker %d", workerInstance.GetIndex())
+		}
+	}
 
 	return nil
 }
