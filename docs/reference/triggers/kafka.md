@@ -250,8 +250,15 @@ context.platform.on_signal(callback)
 **NOTES**:
 * Currently, the explicit ack feature is only available for python runtime and function that have a Kafka trigger.
 * The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"enabled"`.
-* The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function.
+* The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function, or provide an event loop to run that method. e.g.:
+```py
+import asyncio
 
+def handler(context, event):
+  loop = asyncio.get_event_loop()
+  loop.run_until_complete(context.platform.explicit_ack(event)
+  return "acked"
+```
 
 <a id="rebalancing"></a>
 ## Rebalancing

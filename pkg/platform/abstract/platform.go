@@ -1657,10 +1657,13 @@ func (ap *Platform) enrichEnvVars(config *functionconfig.Config) {
 	if ap.Config.Runtime != nil {
 		if ap.Config.Runtime.Common != nil {
 			for envKey, envValue := range ap.Config.Runtime.Common.Env {
-				config.Spec.Env = append(config.Spec.Env, v1.EnvVar{
+				newEnvVar := v1.EnvVar{
 					Name:  envKey,
 					Value: envValue,
-				})
+				}
+				if !common.EnvInSlice(newEnvVar, config.Spec.Env) {
+					config.Spec.Env = append(config.Spec.Env, newEnvVar)
+				}
 			}
 		}
 	}

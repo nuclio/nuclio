@@ -19,6 +19,7 @@ limitations under the License.
 package test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -37,6 +38,16 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/suite"
 )
+
+type Request struct {
+	port     int
+	url      string
+	path     string
+	method   string
+	body     string
+	logLevel string
+	headers  map[string]interface{}
+}
 
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
@@ -199,6 +210,7 @@ func (suite *testSuite) TestExplicitAck() {
 		"createTopicResponse", createTopicsResponse)
 
 	// create explicit ack function
+
 	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install nuclio-sdk"}
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
@@ -246,7 +258,7 @@ func (suite *testSuite) TestExplicitAck() {
 
 		// ensure queue size is 10
 		suite.Logger.Debug("Getting current queue size")
-		queueSize := suite.getQueueSize(deployResult.Port)
+		queueSize := suite.waitForFunctionQueueSize(deployResult.Port, 10, 5*time.Second)
 		suite.Require().Equal(queueSize, 10, "Queue size is not 10")
 
 		// ensure commit offset is 0
@@ -256,10 +268,16 @@ func (suite *testSuite) TestExplicitAck() {
 
 		// send http request "start processing"
 		suite.Logger.Debug("Sending start processing request")
-		response, err := suite.SendHTTPRequest(&triggertest.Request{
-			Method: "POST",
-			Body:   "start processing",
-			Port:   deployResult.Port,
+		body := map[string]string{
+			"resource": "start_processing",
+		}
+
+		marshalledBody, err := json.Marshal(body)
+		suite.Require().NoError(err, "Failed to marshal body")
+		response, err := suite.sendHTTPRequest(&Request{
+			method: "GET",
+			port:   deployResult.Port,
+			body:   string(marshalledBody),
 		})
 		suite.Require().NoError(err, "Failed to send request")
 		suite.Require().Equal(http.StatusOK, response.StatusCode)
@@ -268,9 +286,8 @@ func (suite *testSuite) TestExplicitAck() {
 
 		// ensure queue size is 0 (or < 10)
 		suite.Logger.Debug("Getting queue size after processing")
-		queueSize = suite.getQueueSize(deployResult.Port)
+		queueSize = suite.waitForFunctionQueueSize(deployResult.Port, 0, 5*time.Second)
 		suite.Require().Equal(queueSize, 0, "Queue size is not 0")
-		suite.Require().True(queueSize < 10, "Queue size is not less than 10")
 
 		// ensure commit offset is 9 (10 in zero-indexed offsets)
 		suite.Logger.Debug("Getting commit offset after processing")
@@ -533,46 +550,134 @@ func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.Create
 }
 
 func (suite *testSuite) getLastCommitOffset(port int) int {
-
-	httpRequest := &triggertest.Request{
-		Method: "GET",
-		Body:   "commit offset",
-		Port:   port,
+	body := map[string]string{
+		"resource": "last_committed_offset",
 	}
-	response, err := suite.SendHTTPRequest(httpRequest)
+
+	marshalledBody, err := json.Marshal(body)
+	suite.Require().NoError(err, "Failed to marshal body")
+
+	httpRequest := &Request{
+		method: "GET",
+		port:   port,
+		body:   string(marshalledBody),
+	}
+	response, err := suite.sendHTTPRequest(httpRequest)
 	suite.Require().NoError(err, "Failed to send request")
 	suite.Require().Equal(http.StatusOK, response.StatusCode)
 
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBodyBytes, err := ioutil.ReadAll(response.Body)
 	suite.Require().NoError(err, "Failed to read response body")
-	suite.Logger.DebugWith("Got response", "response", response, "responseBody", string(responseBody))
+	suite.Logger.DebugWith("Got response", "response", response, "responseBody", string(responseBodyBytes))
 
-	responseWords := strings.Fields(string(responseBody))
-	commitOffset, err := strconv.Atoi(responseWords[len(responseWords)-1])
-	suite.Require().NoError(err, "Failed to parse commit offset")
+	responseBody := map[string]interface{}{}
+	err = json.Unmarshal(responseBodyBytes, &responseBody)
+	suite.Require().NoError(err, "Failed to unmarshal response body")
 
-	return commitOffset
+	lastCommittedOffset, exists := responseBody["last_committed_offset"]
+	suite.Require().True(exists, "Failed to find last committed offset")
+
+	lastCommittedOffsetString, ok := lastCommittedOffset.(string)
+	suite.Require().True(ok, "Failed to convert last committed offset to string")
+
+	lastCommittedOffsetInt, err := strconv.Atoi(lastCommittedOffsetString)
+	suite.Require().NoError(err, "Failed to convert last committed offset to int")
+
+	return lastCommittedOffsetInt
 }
 
 func (suite *testSuite) getQueueSize(port int) int {
-	httpRequest := &triggertest.Request{
-		Method: "GET",
-		Body:   "queue size",
-		Port:   port,
+	body := map[string]string{
+		"resource": "queue_size",
 	}
-	response, err := suite.SendHTTPRequest(httpRequest)
+
+	marshalledBody, err := json.Marshal(body)
+	suite.Require().NoError(err, "Failed to marshal body")
+
+	httpRequest := &Request{
+		method: "GET",
+		port:   port,
+		body:   string(marshalledBody),
+	}
+	response, err := suite.sendHTTPRequest(httpRequest)
 	suite.Require().NoError(err, "Failed to send request")
 	suite.Require().Equal(http.StatusOK, response.StatusCode)
 
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBodyBytes, err := ioutil.ReadAll(response.Body)
 	suite.Require().NoError(err, "Failed to read response body")
-	suite.Logger.DebugWith("Got response", "responseStatus", response.Status, "responseBody", string(responseBody))
+	suite.Logger.DebugWith("Got response", "response", response, "responseBody", string(responseBodyBytes))
 
-	responseWords := strings.Fields(string(responseBody))
-	queueSize, err := strconv.Atoi(responseWords[len(responseWords)-1])
-	suite.Require().NoError(err, "Failed to parse queue size")
+	responseBody := map[string]interface{}{}
+	err = json.Unmarshal(responseBodyBytes, &responseBody)
+	suite.Require().NoError(err, "Failed to unmarshal response body")
 
-	return queueSize
+	queueSize, exists := responseBody["queue_size"]
+	suite.Require().True(exists, "Failed to find queue size")
+
+	queueSizeFloat, ok := queueSize.(float64)
+	suite.Require().True(ok, "Failed to convert queue size to int")
+
+	return int(queueSizeFloat)
+}
+
+func (suite *testSuite) waitForFunctionQueueSize(port, expectedQueueSize int, timeout time.Duration) int {
+	timeoutTimer := time.NewTimer(timeout)
+	defer timeoutTimer.Stop()
+
+	for {
+		select {
+		case <-timeoutTimer.C:
+			suite.Fail("Timeout waiting for queue size")
+		default:
+			queueSize := suite.getQueueSize(port)
+			if queueSize == expectedQueueSize {
+				return queueSize
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+}
+
+func (suite *testSuite) sendHTTPRequest(request *Request) (*http.Response, error) {
+	host := suite.GetTestHost()
+
+	suite.Logger.DebugWith("Sending request",
+		"Host", host,
+		"Port", request.port,
+		"Path", request.path,
+		"Headers", request.headers,
+		"BodyLength", len(request.body),
+		"LogLevel", request.logLevel)
+
+	// Send request to proper url
+	if request.url == "" {
+		request.url = fmt.Sprintf("http://%s:%d%s", host, request.port, request.path)
+	}
+
+	if request.path == "" {
+		request.path = "/"
+	}
+
+	// create a request
+	httpRequest, err := http.NewRequest(request.method, request.url, strings.NewReader(request.body))
+	suite.Require().NoError(err)
+
+	// if there are request headers, add them
+	if request.headers != nil {
+		for headerName, headerValue := range request.headers {
+			httpRequest.Header.Add(headerName, fmt.Sprintf("%v", headerValue))
+		}
+	} else {
+		httpRequest.Header.Add("Content-Type", "text/plain")
+	}
+
+	// if there is a log level, add the header
+	if request.logLevel != "" {
+		httpRequest.Header.Add("X-nuclio-log-level", request.logLevel)
+	}
+
+	// invoke the function
+	return suite.httpClient.Do(httpRequest)
 }
 
 func TestIntegrationSuite(t *testing.T) {

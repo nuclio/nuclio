@@ -48,10 +48,10 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 
 type Configuration struct {
 	*processor.Configuration
-	FunctionLogger               logger.Logger
-	WorkerID                     int
-	TriggerName                  string
-	TriggerKind                  string
-	WorkerTerminationTimeout     time.Duration
-	AbstractControlMessageBroker *controlcommunication.AbstractControlMessageBroker
+	FunctionLogger           logger.Logger
+	WorkerID                 int
+	TriggerName              string
+	TriggerKind              string
+	WorkerTerminationTimeout time.Duration
+	ControlMessageBroker     *controlcommunication.AbstractControlMessageBroker
 }
