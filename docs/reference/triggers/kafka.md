@@ -8,6 +8,7 @@
 - [How a message travels through Nuclio to the handler](#message-course)
   - [Configuration parameters](#message-course-config-params)
 - [Offset management](#offset-management)
+  - [Explicit offset commits](#explicit-offset-commits)
 - [Rebalancing](#rebalancing)
   - [Configuration parameters](#rebalancing-config-params)
   - [Choosing the right configuration for rebalancing](#rebalancing-config-choice)
@@ -224,7 +225,7 @@ One example are stateful functions that might need to go and consume already bei
 For that, Nuclio offers a way to accept new events without committing them, and explicitly commit offsets of the partition, when the processing is done.
 This enables the function to receive and process more events simultaneously.
 
-To enable this feature, set the `ExplicitAckMode` of the trigger to `enabled` or `explicitOnly`, where the optional modes are:
+To enable this feature, set the `ExplicitAckMode` in the trigger's spec to `enabled` or `explicitOnly`, where the optional modes are:
 * `enable` - allows explicit and implicit ack according to the "x-nuclio-stream-no-ack" header
 * `disable`- disables the explicit ack feature and allows only implicit acks (default)
 * `explicitOnly`- allows only explicit acks and disables implicit acks
@@ -249,7 +250,7 @@ context.platform.on_signal(callback)
 
 **NOTES**:
 * Currently, the explicit ack feature is only available for python runtime and function that have a Kafka trigger.
-* The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"enabled"`.
+* The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"static"`.
 * The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function, or provide an event loop to run that method. e.g.:
 ```py
 import asyncio
