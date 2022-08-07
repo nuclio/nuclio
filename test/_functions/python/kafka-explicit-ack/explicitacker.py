@@ -115,6 +115,7 @@ def write_event_to_file(context, event):
             'partition': event.shard_id,
             'offset': int(offset),
             'trigger_name': event.trigger.name,
+            'trigger_kind': event.trigger.kind,
             'body': event.body.decode('utf-8')
         })
         file.write(event_json + '\n')
@@ -129,7 +130,7 @@ def event_attributes_to_event(event):
         offset=event_attributes['offset'],
         trigger=nuclio_sdk.TriggerInfo(
             name=event_attributes['trigger_name'],
-            kind='kafka-cluster',
+            kind=event_attributes['trigger_kind'],
         )
     )
 

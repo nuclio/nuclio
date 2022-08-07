@@ -518,6 +518,7 @@ func (suite *testSuite) TestExplicitAck() {
 		"kafka-explicit-ack",
 		"explicitacker.py")
 	shardID := 0
+	sleepTime := 2 * time.Second
 
 	// create a stream
 	err := suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
@@ -561,50 +562,35 @@ func (suite *testSuite) TestExplicitAck() {
 			suite.Require().NoError(err, "Failed to publish message")
 		}
 
-		// TODO: parse the rest of the logic of kafka_test.TestExplicitAck() in a separate function
-		// and call it here
-
-		// ensure queue size is 10
-
-		//suite.Logger.Debug("Getting current queue size")
-		//queueSize := suite.getQueueSize(deployResult.Port)
-		//suite.Require().Equal(queueSize, 10, "Queue size is not 10")
-
-		// ensure commit offset is 0
-
-		//suite.Logger.Debug("Getting commit offset before processing")
-		//commitOffset := suite.getLastCommitOffset(deployResult.Port)
-		//suite.Require().Equal(commitOffset, 0, "Commit offset is not 0")
-
 		current, committed := suite.getShardLagDetails(shardID)
 		suite.Require().Equal(current-committed, 10, "Current lag is not 10")
 
+		// sleep for a while to make sure the messages are processed
+		time.Sleep(sleepTime)
+
 		// send http request "start processing"
 		suite.Logger.Debug("Sending start processing request")
+		body := map[string]string{
+			"resource": "start_processing",
+		}
+
+		marshalledBody, err := json.Marshal(body)
+		suite.Require().NoError(err, "Failed to marshal body")
 		response, err := suite.SendHTTPRequest(&triggertest.Request{
 			Method: "POST",
-			Body:   "start processing",
+			Body:   string(marshalledBody),
 			Port:   deployResult.Port,
 		})
 		suite.Require().NoError(err, "Failed to send request")
 		suite.Require().Equal(http.StatusOK, response.StatusCode)
 
-		time.Sleep(2 * time.Second)
-
-		// ensure queue size is 0 (or < 10)
-
-		//suite.Logger.Debug("Getting queue size after processing")
-		//queueSize = suite.getQueueSize(deployResult.Port)
-		//suite.Require().Equal(queueSize, 0, "Queue size is not 0")
-		//suite.Require().True(queueSize < 10, "Queue size is not less than 10")
-		//
-		//// ensure commit offset is 9 (10 in zero-indexed offsets)
-		//suite.Logger.Debug("Getting commit offset after processing")
-		//commitOffset = suite.getLastCommitOffset(deployResult.Port)
-		//suite.Require().Equal(commitOffset, 9, "Commit offset is not 10")
+		// sleep for a while to make sure the messages are processed
+		suite.Logger.DebugWith("Sent start processing request, sleeping while processing",
+			"sleepDuration", sleepTime)
+		time.Sleep(sleepTime)
 
 		current, committed = suite.getShardLagDetails(shardID)
-		suite.Require().Equal(current-committed, 0, "Current lag is not 0")
+		suite.Require().LessOrEqual(current-committed, 1, "Current lag is not less than or equal to 1")
 
 		return true
 	})

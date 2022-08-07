@@ -421,20 +421,22 @@ func (vs *v3iostream) explicitAckHandler(controlMessageChan chan *controlcommuni
 		vs.Logger.DebugWith("Received explicit ack control message", "controlMessage", streamAckControlMessage)
 
 		// retrieve attributes from control message
-		record := &v3io.StreamRecord{}
+		explicitAckAttributes := &controlcommunication.ControlMessageAttributesExplicitAck{}
 
 		// decode offset data from message attributes
-		if err := mapstructure.Decode(streamAckControlMessage.Attributes, record); err != nil {
+		if err := mapstructure.Decode(streamAckControlMessage.Attributes, explicitAckAttributes); err != nil {
 			vs.Logger.WarnWith("Failed decoding control message attributes", "err", err)
 			continue
 		}
 
-		vs.Logger.DebugWith("TOMER - Decoded control message attributes", "record", record)
+		// transform offset data into a StreamRecord - MarkRecord uses record.ShardID & record.SequenceNumber
+		// to determine which shard/sequence number to mark.
+		shardID := int(explicitAckAttributes.Partition)
 
-		/*
-			MarkRecord uses record.ShardID & record.SequenceNumber
-			to determine which shard/sequence number to mark.
-		*/
+		record := &v3io.StreamRecord{
+			ShardID:        &shardID,
+			SequenceNumber: uint64(explicitAckAttributes.Offset),
+		}
 
 		// commit record
 		commitRecordFuncHandler(record)

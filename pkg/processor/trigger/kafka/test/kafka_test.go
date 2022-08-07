@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"path"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -38,16 +37,6 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/suite"
 )
-
-type Request struct {
-	port     int
-	url      string
-	path     string
-	method   string
-	body     string
-	logLevel string
-	headers  map[string]interface{}
-}
 
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
@@ -233,8 +222,7 @@ func (suite *testSuite) TestExplicitAck() {
 			ExplicitAckMode:          functionconfig.ExplicitAckModeEnable,
 		},
 		"my-http": {
-			Kind: "http",
-			//URL:  httpURL,
+			Kind:       "http",
 			Attributes: map[string]interface{}{},
 		},
 	}
@@ -274,10 +262,10 @@ func (suite *testSuite) TestExplicitAck() {
 
 		marshalledBody, err := json.Marshal(body)
 		suite.Require().NoError(err, "Failed to marshal body")
-		response, err := suite.sendHTTPRequest(&Request{
-			method: "GET",
-			port:   deployResult.Port,
-			body:   string(marshalledBody),
+		response, err := suite.SendHTTPRequest(&triggertest.Request{
+			Method: "POST",
+			Port:   deployResult.Port,
+			Body:   string(marshalledBody),
 		})
 		suite.Require().NoError(err, "Failed to send request")
 		suite.Require().Equal(http.StatusOK, response.StatusCode)
@@ -557,12 +545,12 @@ func (suite *testSuite) getLastCommitOffset(port int) int {
 	marshalledBody, err := json.Marshal(body)
 	suite.Require().NoError(err, "Failed to marshal body")
 
-	httpRequest := &Request{
-		method: "GET",
-		port:   port,
-		body:   string(marshalledBody),
+	httpRequest := &triggertest.Request{
+		Method: "GET",
+		Port:   port,
+		Body:   string(marshalledBody),
 	}
-	response, err := suite.sendHTTPRequest(httpRequest)
+	response, err := suite.SendHTTPRequest(httpRequest)
 	suite.Require().NoError(err, "Failed to send request")
 	suite.Require().Equal(http.StatusOK, response.StatusCode)
 
@@ -594,12 +582,12 @@ func (suite *testSuite) getQueueSize(port int) int {
 	marshalledBody, err := json.Marshal(body)
 	suite.Require().NoError(err, "Failed to marshal body")
 
-	httpRequest := &Request{
-		method: "GET",
-		port:   port,
-		body:   string(marshalledBody),
+	httpRequest := &triggertest.Request{
+		Method: "GET",
+		Port:   port,
+		Body:   string(marshalledBody),
 	}
-	response, err := suite.sendHTTPRequest(httpRequest)
+	response, err := suite.SendHTTPRequest(httpRequest)
 	suite.Require().NoError(err, "Failed to send request")
 	suite.Require().Equal(http.StatusOK, response.StatusCode)
 
@@ -636,48 +624,6 @@ func (suite *testSuite) waitForFunctionQueueSize(port, expectedQueueSize int, ti
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
-}
-
-func (suite *testSuite) sendHTTPRequest(request *Request) (*http.Response, error) {
-	host := suite.GetTestHost()
-
-	suite.Logger.DebugWith("Sending request",
-		"Host", host,
-		"Port", request.port,
-		"Path", request.path,
-		"Headers", request.headers,
-		"BodyLength", len(request.body),
-		"LogLevel", request.logLevel)
-
-	// Send request to proper url
-	if request.url == "" {
-		request.url = fmt.Sprintf("http://%s:%d%s", host, request.port, request.path)
-	}
-
-	if request.path == "" {
-		request.path = "/"
-	}
-
-	// create a request
-	httpRequest, err := http.NewRequest(request.method, request.url, strings.NewReader(request.body))
-	suite.Require().NoError(err)
-
-	// if there are request headers, add them
-	if request.headers != nil {
-		for headerName, headerValue := range request.headers {
-			httpRequest.Header.Add(headerName, fmt.Sprintf("%v", headerValue))
-		}
-	} else {
-		httpRequest.Header.Add("Content-Type", "text/plain")
-	}
-
-	// if there is a log level, add the header
-	if request.logLevel != "" {
-		httpRequest.Header.Add("X-nuclio-log-level", request.logLevel)
-	}
-
-	// invoke the function
-	return suite.httpClient.Do(httpRequest)
 }
 
 func TestIntegrationSuite(t *testing.T) {
