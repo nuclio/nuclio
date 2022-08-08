@@ -577,7 +577,7 @@ func (suite *testSuite) TestExplicitAck() {
 		marshalledBody, err := json.Marshal(body)
 		suite.Require().NoError(err, "Failed to marshal body")
 		response, err := suite.SendHTTPRequest(&triggertest.Request{
-			Method: "POST",
+			Method: http.MethodPost,
 			Body:   string(marshalledBody),
 			Port:   deployResult.Port,
 		})

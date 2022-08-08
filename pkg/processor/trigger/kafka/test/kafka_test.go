@@ -263,7 +263,7 @@ func (suite *testSuite) TestExplicitAck() {
 		marshalledBody, err := json.Marshal(body)
 		suite.Require().NoError(err, "Failed to marshal body")
 		response, err := suite.SendHTTPRequest(&triggertest.Request{
-			Method: "POST",
+			Method: http.MethodPost,
 			Port:   deployResult.Port,
 			Body:   string(marshalledBody),
 		})
@@ -546,7 +546,7 @@ func (suite *testSuite) getLastCommitOffset(port int) int {
 	suite.Require().NoError(err, "Failed to marshal body")
 
 	httpRequest := &triggertest.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		Port:   port,
 		Body:   string(marshalledBody),
 	}
@@ -583,7 +583,7 @@ func (suite *testSuite) getQueueSize(port int) int {
 	suite.Require().NoError(err, "Failed to marshal body")
 
 	httpRequest := &triggertest.Request{
-		Method: "GET",
+		Method: http.MethodGet,
 		Port:   port,
 		Body:   string(marshalledBody),
 	}
