@@ -33,7 +33,7 @@ async def handler(context, event):
 
     context.logger.debug('Received event! event.body: {0}, event.headers: {1}'.format(event.body, event.headers))
 
-    if event.trigger.kind == 'kafka-cluster':
+    if event.trigger.kind in ("kafka-cluster", "v3ioStream", "v3io-stream"):
 
         context.logger.debug('Adding event to queue - event.body: {0}, event.offset: {1}'.format(event.body,
                                                                                                  event.offset))
@@ -115,6 +115,7 @@ def write_event_to_file(context, event):
             'partition': event.shard_id,
             'offset': int(offset),
             'trigger_name': event.trigger.name,
+            'trigger_kind': event.trigger.kind,
             'body': event.body.decode('utf-8')
         })
         file.write(event_json + '\n')
@@ -129,7 +130,7 @@ def event_attributes_to_event(event):
         offset=event_attributes['offset'],
         trigger=nuclio_sdk.TriggerInfo(
             name=event_attributes['trigger_name'],
-            kind='kafka-cluster',
+            kind=event_attributes['trigger_kind'],
         )
     )
 

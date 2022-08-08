@@ -17,13 +17,26 @@ limitations under the License.
 package triggertest
 
 import (
+	"fmt"
+	"net/http"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 )
+
+type Request struct {
+	Port     int
+	Url      string
+	Path     string
+	Method   string
+	Body     string
+	Loglevel string
+	Headers  map[string]interface{}
+}
 
 // BrokerSuite tests a broker by producing messages
 type BrokerSuite interface {
@@ -44,6 +57,8 @@ type AbstractBrokerSuite struct {
 	BrokerContainerID          string
 	BrokerContainerNetworkName string
 	SkipStartBrokerContainer   bool
+
+	HttpClient *http.Client
 }
 
 func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
@@ -81,6 +96,11 @@ func (suite *AbstractBrokerSuite) SetupSuite() {
 			"imageName", imageName,
 			"BrokerHost", suite.BrokerHost)
 		suite.StartBrokerContainer(imageName, runOptions)
+	}
+
+	// create http client
+	suite.HttpClient = &http.Client{
+		Timeout: 10 * time.Second,
 	}
 }
 
@@ -150,4 +170,46 @@ func (suite *AbstractBrokerSuite) EnsureDockerNetworkExisting() {
 				suite.BrokerContainerNetworkName, err.Error())
 		}
 	}
+}
+
+func (suite *AbstractBrokerSuite) SendHTTPRequest(request *Request) (*http.Response, error) {
+	host := suite.GetTestHost()
+
+	suite.Logger.DebugWith("Sending request",
+		"Host", host,
+		"Port", request.Port,
+		"Path", request.Path,
+		"Headers", request.Headers,
+		"BodyLength", len(request.Body),
+		"LogLevel", request.Loglevel)
+
+	// Send request to proper url
+	if request.Url == "" {
+		request.Url = fmt.Sprintf("http://%s:%d%s", host, request.Port, request.Path)
+	}
+
+	if request.Path == "" {
+		request.Path = "/"
+	}
+
+	// create a request
+	httpRequest, err := http.NewRequest(request.Method, request.Url, strings.NewReader(request.Body))
+	suite.Require().NoError(err)
+
+	// if there are request headers, add them
+	if request.Headers != nil {
+		for headerName, headerValue := range request.Headers {
+			httpRequest.Header.Add(headerName, fmt.Sprintf("%v", headerValue))
+		}
+	} else {
+		httpRequest.Header.Add("Content-Type", "text/plain")
+	}
+
+	// if there is a log level, add the header
+	if request.Loglevel != "" {
+		httpRequest.Header.Add("X-nuclio-log-level", request.Loglevel)
+	}
+
+	// invoke the function
+	return suite.HttpClient.Do(httpRequest)
 }
