@@ -158,20 +158,20 @@ func (suite *testSuite) TestAckWindowSize() {
 		err := common.RetryUntilSuccessful(10*time.Second,
 			time.Second,
 			func() bool {
-				receivedEvents := triggertest.GetEventRecorderReceivedEvents(suite.Suite,
-					suite.Logger,
+				receivedEvents, getEventErr := triggertest.GetEventRecorderReceivedEvents(suite.Logger,
 					suite.BrokerHost,
 					deployResult.Port)
+				suite.Require().NoError(getEventErr)
 				return len(receivedEvents) == ackWindowSize
 			})
 		suite.Require().NoError(err,
 			"Exhausted waiting for received event length to be equal to window size")
 
 		// received all events
-		receivedEvents := triggertest.GetEventRecorderReceivedEvents(suite.Suite,
-			suite.Logger,
+		receivedEvents, getEventErr := triggertest.GetEventRecorderReceivedEvents(suite.Logger,
 			suite.BrokerHost,
 			deployResult.Port)
+		suite.Require().NoError(getEventErr)
 		suite.Require().Len(receivedEvents, ackWindowSize)
 
 		current, committed, err := v3ioutil.GetSingleShardLagDetails(suite.v3ioContext,
@@ -232,10 +232,10 @@ func (suite *testSuite) TestAckWindowSize() {
 		err = common.RetryUntilSuccessful(10*time.Second,
 			time.Second,
 			func() bool {
-				receivedEvents = triggertest.GetEventRecorderReceivedEvents(suite.Suite,
-					suite.Logger,
+				receivedEvents, getEventErr = triggertest.GetEventRecorderReceivedEvents(suite.Logger,
 					suite.BrokerHost,
 					deployResult.Port)
+				suite.Require().NoError(getEventErr)
 
 				// first message was committed and hence was not "re processed"
 				return len(receivedEvents) == recordedEvents-1

@@ -394,7 +394,8 @@ func (suite *testSuite) publishMessageToTopicOnSpecificShard(topic string, body 
 
 func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.CreateFunctionResult) []string {
 
-	receivedEvents := triggertest.GetEventRecorderReceivedEvents(suite.Suite, suite.Logger, suite.BrokerHost, deployResult.Port)
+	receivedEvents, err := triggertest.GetEventRecorderReceivedEvents(suite.Logger, suite.BrokerHost, deployResult.Port)
+	suite.Require().NoError(err)
 	var receivedBodies []string
 
 	// compare only bodies due to a deficiency in CompareNoOrder
