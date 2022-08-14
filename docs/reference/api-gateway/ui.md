@@ -22,7 +22,7 @@ There, you can create an API Gateway with the following parameters:
 <a id="none-auth"></a>
 ### No Authentication
 
-![api-gateway](/docs/assets/images/api-gateway-ui.png)
+![api-gateway](/docs/assets/images/api-gateway-ui-none.png)
 
 To invoke the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none).
 
