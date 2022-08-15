@@ -35,7 +35,7 @@ async def handler(context, event):
 
     if event.trigger.kind in ("kafka-cluster", "v3ioStream", "v3io-stream"):
 
-        context.logger.debug('Adding event to offset queue - event.body: {0}, event.offset: {1}'.format(
+        context.logger.debug("Adding event to offset queue - event.body: {0}, event.offset: {1}".format(
             event.body,
             event.offset,
         ))
