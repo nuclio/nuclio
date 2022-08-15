@@ -590,6 +590,7 @@ func (suite *testSuite) TestExplicitAck() {
 		time.Sleep(sleepTime)
 
 		current, committed = suite.getShardLagDetails(shardID)
+		suite.Logger.DebugWith("Got shard lag details", "current", current, "committed", committed)
 		suite.Require().LessOrEqual(current-committed, 1, "Current lag is not less than or equal to 1")
 
 		return true

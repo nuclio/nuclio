@@ -35,10 +35,9 @@ type ControlMessage struct {
 }
 
 type ControlMessageAttributesExplicitAck struct {
-	Topic       string `json:"topic"`
-	Partition   int32  `json:"partition"`
-	Offset      int64  `json:"offset"`
-	TriggerName string `json:"trigger_name"`
+	Topic     string `json:"topic"`
+	Partition int32  `json:"partition"`
+	Offset    int64  `json:"offset"`
 }
 
 type ControlConsumer struct {
