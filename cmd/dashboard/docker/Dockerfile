@@ -61,6 +61,7 @@ FROM $NUCLIO_DOCKER_ALPINE_IMAGE as downloaddocker
 # docker client
 ARG DOCKER_CLI_ARCH=x86_64
 ARG DOCKER_CLI_VERSION="19.03.14"
+
 ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
 RUN apk --update --no-cache add curl \
@@ -69,6 +70,9 @@ RUN apk --update --no-cache add curl \
 
 
 FROM $NGINX_IMAGE
+
+# get nuclio function templates during build time to ease installation on offline environments
+ARG NUCLIO_TEMPLATES_ZIP_GITHUB_URL="https://github.com/nuclio/nuclio-templates/archive/master.zip"
 
 # copy dashboard static from build assets stage. /etc/nuclio/dashboard/static will contain index.html and assets
 COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
@@ -94,7 +98,8 @@ RUN apk --update --no-cache add \
         parallel \
         ca-certificates \
         git \
-    && apk upgrade --no-cache
+    && apk upgrade --no-cache \
+    && wget -O /tmp/templates.zip $NUCLIO_TEMPLATES_ZIP_GITHUB_URL
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 

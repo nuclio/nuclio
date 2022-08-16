@@ -153,9 +153,9 @@ dashboard:
   # use to configure node port
   nodePort:
 
-  # Use if you serve the templates locally (for offline environments);
-  # otherwise, the templates will be pulled from GitHub
-  templatesArchiveAddress: ""
+  # Default behavior is to fetch the templates on build time to /tmp/templates.zip
+  # Unset to pull the templates from GitHub on runtime
+  templatesArchiveAddress: "file://tmp/templates.zip"
 
   ingress:
     enabled: false
