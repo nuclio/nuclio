@@ -299,6 +299,9 @@ func NewConfiguration(id string,
 		newConfiguration.maxWaitHandlerDuringRebalance = workerTerminationTimeout
 	}
 
+	// enrich runtime configuration with worker termination timeout
+	runtimeConfiguration.WorkerTerminationTimeout = workerTerminationTimeout
+
 	if newConfiguration.WorkerAllocationMode == "" {
 		newConfiguration.WorkerAllocationMode = partitionworker.AllocationModePool
 	}
