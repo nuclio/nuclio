@@ -436,14 +436,15 @@ func (k *Kaniko) compileJobName(image string) string {
 	functionName = strings.ReplaceAll(functionName, ":", "")
 	functionName = strings.ReplaceAll(functionName, "-", "")
 	randomSuffix := common.GenerateRandomString(10, common.SmallLettersAndNumbers)
+	nuclioPrefix := "nuclio-"
 
 	// Truncate function name so the job name won't exceed k8s limit of 63
-	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(randomSuffix) + 2)
+	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(randomSuffix) + len(nuclioPrefix) + 2)
 	if len(functionName) > functionNameLimit {
 		functionName = functionName[0:functionNameLimit]
 	}
 
-	jobName := fmt.Sprintf("%s.%s.%s", k.builderConfiguration.JobPrefix, functionName, randomSuffix)
+	jobName := fmt.Sprintf("%s%s.%s.%s", nuclioPrefix, k.builderConfiguration.JobPrefix, functionName, randomSuffix)
 
 	// Fallback
 	if !k.jobNameRegex.MatchString(jobName) {
