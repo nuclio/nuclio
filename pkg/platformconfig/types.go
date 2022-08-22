@@ -147,6 +147,7 @@ type PlatformKubeConfig struct {
 	DefaultHTTPIngressHostTemplate   string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
 	DefaultHTTPIngressAnnotations    map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
 	DefaultFunctionPriorityClassName string                  `json:"defaultFunctionPriorityClassName,omitempty"`
+	DefaultFunctionServiceAccount    string                  `json:"defaultFunctionServiceAccount,omitempty"`
 	ValidFunctionPriorityClassNames  []string                `json:"validFunctionPriorityClassNames,omitempty"`
 	DefaultFunctionPodResources      PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
 	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`

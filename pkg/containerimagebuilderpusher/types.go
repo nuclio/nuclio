@@ -31,7 +31,7 @@ type BuildOptions struct {
 	NodeName                string
 	PriorityClassName       string
 	Tolerations             []v1.Toleration
-	ServiceAccount          string
+	ServiceAccountName      string
 	ReadinessTimeoutSeconds int
 }
 
