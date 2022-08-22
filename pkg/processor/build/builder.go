@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/nuclio/nuclio-sdk-go"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -54,6 +53,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/version-go"
 	"gopkg.in/yaml.v3"
 )
