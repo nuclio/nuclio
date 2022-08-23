@@ -16,6 +16,8 @@ limitations under the License.
 package iguazio
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -56,6 +58,30 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 				"X-User-Id":          {"some-user-id"},
 				"X-V3io-Session-Key": {"some-password"},
 			},
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
+{
+    "data": {
+        "type": "session_verification",
+        "attributes": {
+            "username": "some-username",
+            "context": {
+                "id": "1234",
+                "authentication": {
+                    "user_id": "some-user-id",
+                    "tenant_id": "some-tenant-id",
+                    "group_ids": [
+                        "1,2", 
+                        "3"
+                    ],
+                    "mode": "normal"
+                }
+            }
+        }
+    },
+    "meta": {
+        "ctx": "1234"
+    }
+}`)),
 		}
 	})
 
@@ -103,32 +129,13 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 
 func (suite *AuthTestSuite) TestAuthenticate() {
 
-	// mocks IguazioConfig session verification endpoint
-	mockedHTTPClient := testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
-		authorization := r.Header.Get("Authorization")
-		cookie := r.Header.Get("Cookie")
-		if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
-			return &http.Response{
-				StatusCode: http.StatusUnauthorized,
-			}
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header: map[string][]string{
-				"X-Remote-User":      {"admin"},
-				"X-User-Group-Ids":   {"1", "2"},
-				"X-User-Id":          {"3"},
-				"X-V3io-Session-Key": {"4"},
-			},
-		}
-	})
-
 	for _, testCase := range []struct {
-		name            string
-		auth            auth.Auth
-		authOptions     auth.Options
-		incomingRequest *http.Request
-		invalidRequest  bool
+		name                string
+		auth                auth.Auth
+		authOptions         auth.Options
+		incomingRequest     *http.Request
+		invalidRequest      bool
+		includeResponseBody bool
 	}{
 		{
 			name: "sanity",
@@ -144,6 +151,23 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 					"Cookie":        {"session=some-session"},
 				},
 			},
+			includeResponseBody: true,
+		},
+		{
+			name: "backwardsCompatibilitySanity",
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
+			authOptions: auth.Options{},
+			incomingRequest: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Basic YWJjOmVmZwo="},
+					"Cookie":        {"session=some-session"},
+				},
+			},
+			includeResponseBody: true,
 		},
 		{
 			name: "enrichmentSanity",
@@ -161,6 +185,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 					"Cookie":        {"session=some-session"},
 				},
 			},
+			includeResponseBody: true,
 		},
 		{
 			name: "missingCookie",
@@ -175,7 +200,8 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 					"Authorization": {"Basic YWJjOmVmZwo="},
 				},
 			},
-			invalidRequest: true,
+			invalidRequest:      true,
+			includeResponseBody: true,
 		},
 		{
 			name: "missingAuthorizationHeader",
@@ -190,11 +216,12 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 					"Cookie": {"session=some-session"},
 				},
 			},
-			invalidRequest: true,
+			invalidRequest:      true,
+			includeResponseBody: false,
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			testCase.auth.(*Auth).httpClient = mockedHTTPClient
+			testCase.auth.(*Auth).httpClient = testutils.CreateDummyHTTPClient(suite.resolveMockHttpClientHandler(testCase.includeResponseBody))
 			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest, &testCase.authOptions)
 			if testCase.invalidRequest {
 				suite.Require().Error(err)
@@ -209,6 +236,56 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 	}
 }
 
+func (suite *AuthTestSuite) resolveMockHttpClientHandler(includeResponseBody bool) func(r *http.Request) *http.Response {
+
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: map[string][]string{
+			"X-Remote-User":      {"admin"},
+			"X-User-Group-Ids":   {"1", "2"},
+			"X-User-Id":          {"3"},
+			"X-V3io-Session-Key": {"4"},
+		},
+	}
+
+	if includeResponseBody {
+		response.Body = ioutil.NopCloser(bytes.NewBufferString(`
+{
+    "data": {
+        "type": "session_verification",
+        "attributes": {
+            "username": "some-username",
+            "context": {
+                "id": "1234",
+                "authentication": {
+                    "user_id": "3",
+                    "tenant_id": "some-tenant-id",
+                    "group_ids": [
+                        "1", 
+                        "2"
+                    ],
+                    "mode": "normal"
+                }
+            }
+        }
+    },
+    "meta": {
+        "ctx": "1234"
+    }
+}`))
+	}
+
+	return func(r *http.Request) *http.Response {
+		authorization := r.Header.Get("Authorization")
+		cookie := r.Header.Get("Cookie")
+		if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+			}
+		}
+		return response
+	}
+}
 func TestAuthTestSuite(t *testing.T) {
 	suite.Run(t, new(AuthTestSuite))
 }
