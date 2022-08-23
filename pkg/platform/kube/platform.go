@@ -473,6 +473,15 @@ func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *func
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
 	}
 
+	// enrich function service account
+	if functionConfig.Spec.ServiceAccount == "" && p.Config.Kube.DefaultFunctionServiceAccount != "" {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching service account",
+			"functionName", functionConfig.Meta.Name,
+			"serviceAccount", p.Config.Kube.DefaultFunctionServiceAccount)
+		functionConfig.Spec.ServiceAccount = p.Config.Kube.DefaultFunctionServiceAccount
+	}
+
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	return nil
 }
