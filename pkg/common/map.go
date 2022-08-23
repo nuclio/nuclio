@@ -124,3 +124,17 @@ func GetStringToStringMapOrEmpty(m map[string]string) map[string]string {
 
 	return m
 }
+
+func GetAttributesFromMapStringInterface(mapStringInterface map[string]interface{}, attributes []string) map[string]interface{} {
+
+	currentLevel := mapStringInterface
+	var ok bool
+	for _, attribute := range attributes {
+		currentLevel, ok = currentLevel[attribute].(map[string]interface{})
+		if !ok {
+			return nil
+		}
+	}
+
+	return currentLevel
+}

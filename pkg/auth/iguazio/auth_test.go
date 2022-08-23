@@ -1,3 +1,5 @@
+//go:build test_unit
+
 /*
 Copyright 2017 The Nuclio Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -10,11 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-//go:build test_unit
 
 package iguazio
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -55,6 +58,30 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 				"X-User-Id":          {"some-user-id"},
 				"X-V3io-Session-Key": {"some-password"},
 			},
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
+{
+    "data": {
+        "type": "session_verification",
+        "attributes": {
+            "username": "some-username",
+            "context": {
+                "id": "1234",
+                "authentication": {
+                    "user_id": "some-user-id",
+                    "tenant_id": "some-tenant-id",
+                    "group_ids": [
+                        "1,2", 
+                        "3"
+                    ],
+                    "mode": "normal"
+                }
+            }
+        }
+    },
+    "meta": {
+        "ctx": "1234"
+    }
+}`)),
 		}
 	})
 
@@ -119,6 +146,30 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 				"X-User-Id":          {"3"},
 				"X-V3io-Session-Key": {"4"},
 			},
+			Body: ioutil.NopCloser(bytes.NewBufferString(`
+{
+    "data": {
+        "type": "session_verification",
+        "attributes": {
+            "username": "some-username",
+            "context": {
+                "id": "1234",
+                "authentication": {
+                    "user_id": "3",
+                    "tenant_id": "some-tenant-id",
+                    "group_ids": [
+                        "1", 
+                        "2"
+                    ],
+                    "mode": "normal"
+                }
+            }
+        }
+    },
+    "meta": {
+        "ctx": "1234"
+    }
+}`)),
 		}
 	})
 
