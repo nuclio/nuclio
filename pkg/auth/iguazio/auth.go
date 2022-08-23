@@ -138,7 +138,15 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 
 	userID, groupIDs, err := a.resolveUserAndGroupIDsFromResponseBody(responseBody)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve user and group IDs")
+		a.logger.WarnWithCtx(ctx,
+			"Failed to resolve user and group IDs from response body, reading from headers",
+			"err", err.Error())
+
+		// for backwards compatibility
+		userID = response.Header.Get("x-user-id")
+		if groupIDs == nil {
+			groupIDs = response.Header.Values("x-user-group-ids")
+		}
 	}
 
 	authInfo := &authpkg.IguazioSession{
