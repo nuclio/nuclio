@@ -224,7 +224,7 @@ func (a *Auth) performHTTPRequest(ctx context.Context,
 func (a *Auth) resolveUserAndGroupIDsFromResponseBody(responseBody map[string]interface{}) (string, []string, error) {
 
 	attributes := []string{"data", "attributes", "context", "authentication"}
-	authentication := common.GetAttributesFromMapStringInterface(responseBody, attributes)
+	authentication := common.GetAttributeRecursivelyFromMapStringInterface(responseBody, attributes)
 	if authentication == nil {
 		return "", nil, errors.New("Failed to find authentication in response body")
 	}

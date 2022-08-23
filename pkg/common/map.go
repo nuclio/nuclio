@@ -125,7 +125,9 @@ func GetStringToStringMapOrEmpty(m map[string]string) map[string]string {
 	return m
 }
 
-func GetAttributesFromMapStringInterface(mapStringInterface map[string]interface{}, attributes []string) map[string]interface{} {
+// GetAttributeRecursivelyFromMapStringInterface iterates over the attributes slice and recursively searches the map,
+// returning the last attribute in the slice
+func GetAttributeRecursivelyFromMapStringInterface(mapStringInterface map[string]interface{}, attributes []string) map[string]interface{} {
 
 	currentLevel := mapStringInterface
 	var ok bool

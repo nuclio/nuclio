@@ -129,24 +129,127 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 
 func (suite *AuthTestSuite) TestAuthenticate() {
 
-	// mocks IguazioConfig session verification endpoint
-	mockedHTTPClient := testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
-		authorization := r.Header.Get("Authorization")
-		cookie := r.Header.Get("Cookie")
-		if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
-			return &http.Response{
-				StatusCode: http.StatusUnauthorized,
-			}
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header: map[string][]string{
-				"X-Remote-User":      {"admin"},
-				"X-User-Group-Ids":   {"1", "2"},
-				"X-User-Id":          {"3"},
-				"X-V3io-Session-Key": {"4"},
+	for _, testCase := range []struct {
+		name                string
+		auth                auth.Auth
+		authOptions         auth.Options
+		incomingRequest     *http.Request
+		invalidRequest      bool
+		includeResponseBody bool
+	}{
+		{
+			name: "sanity",
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
+			authOptions: auth.Options{},
+			incomingRequest: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Basic YWJjOmVmZwo="},
+					"Cookie":        {"session=some-session"},
+				},
 			},
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			includeResponseBody: true,
+		},
+		{
+			name: "backwardsCompatibilitySanity",
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
+			authOptions: auth.Options{},
+			incomingRequest: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Basic YWJjOmVmZwo="},
+					"Cookie":        {"session=some-session"},
+				},
+			},
+			includeResponseBody: true,
+		},
+		{
+			name: "enrichmentSanity",
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
+			authOptions: auth.Options{
+				EnrichDataPlane: true,
+			},
+			incomingRequest: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Basic YWJjOmVmZwo="},
+					"Cookie":        {"session=some-session"},
+				},
+			},
+			includeResponseBody: true,
+		},
+		{
+			name: "missingCookie",
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
+			authOptions: auth.Options{},
+			incomingRequest: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Basic YWJjOmVmZwo="},
+				},
+			},
+			invalidRequest:      true,
+			includeResponseBody: true,
+		},
+		{
+			name: "missingAuthorizationHeader",
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				return authConfig
+			}()),
+			authOptions: auth.Options{},
+			incomingRequest: &http.Request{
+				Header: map[string][]string{
+					"Cookie": {"session=some-session"},
+				},
+			},
+			invalidRequest:      true,
+			includeResponseBody: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			testCase.auth.(*Auth).httpClient = testutils.CreateDummyHTTPClient(suite.resolveMockHttpClientHandler(testCase.includeResponseBody))
+			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest, &testCase.authOptions)
+			if testCase.invalidRequest {
+				suite.Require().Error(err)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().Equal("admin", authInfo.GetUsername())
+			suite.Require().Equal([]string{"1", "2"}, authInfo.GetGroupIDs())
+			suite.Require().Equal("3", authInfo.GetUserID())
+			suite.Require().Equal("4", authInfo.GetPassword())
+		})
+	}
+}
+
+func (suite *AuthTestSuite) resolveMockHttpClientHandler(includeResponseBody bool) func(r *http.Request) *http.Response {
+
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: map[string][]string{
+			"X-Remote-User":      {"admin"},
+			"X-User-Group-Ids":   {"1", "2"},
+			"X-User-Id":          {"3"},
+			"X-V3io-Session-Key": {"4"},
+		},
+	}
+
+	if includeResponseBody {
+		response.Body = ioutil.NopCloser(bytes.NewBufferString(`
 {
     "data": {
         "type": "session_verification",
@@ -169,96 +272,20 @@ func (suite *AuthTestSuite) TestAuthenticate() {
     "meta": {
         "ctx": "1234"
     }
-}`)),
-		}
-	})
+}`))
+	}
 
-	for _, testCase := range []struct {
-		name            string
-		auth            auth.Auth
-		authOptions     auth.Options
-		incomingRequest *http.Request
-		invalidRequest  bool
-	}{
-		{
-			name: "sanity",
-			auth: NewAuth(suite.logger, func() *auth.Config {
-				authConfig := auth.NewConfig(auth.KindIguazio)
-				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
-				return authConfig
-			}()),
-			authOptions: auth.Options{},
-			incomingRequest: &http.Request{
-				Header: map[string][]string{
-					"Authorization": {"Basic YWJjOmVmZwo="},
-					"Cookie":        {"session=some-session"},
-				},
-			},
-		},
-		{
-			name: "enrichmentSanity",
-			auth: NewAuth(suite.logger, func() *auth.Config {
-				authConfig := auth.NewConfig(auth.KindIguazio)
-				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
-				return authConfig
-			}()),
-			authOptions: auth.Options{
-				EnrichDataPlane: true,
-			},
-			incomingRequest: &http.Request{
-				Header: map[string][]string{
-					"Authorization": {"Basic YWJjOmVmZwo="},
-					"Cookie":        {"session=some-session"},
-				},
-			},
-		},
-		{
-			name: "missingCookie",
-			auth: NewAuth(suite.logger, func() *auth.Config {
-				authConfig := auth.NewConfig(auth.KindIguazio)
-				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
-				return authConfig
-			}()),
-			authOptions: auth.Options{},
-			incomingRequest: &http.Request{
-				Header: map[string][]string{
-					"Authorization": {"Basic YWJjOmVmZwo="},
-				},
-			},
-			invalidRequest: true,
-		},
-		{
-			name: "missingAuthorizationHeader",
-			auth: NewAuth(suite.logger, func() *auth.Config {
-				authConfig := auth.NewConfig(auth.KindIguazio)
-				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
-				return authConfig
-			}()),
-			authOptions: auth.Options{},
-			incomingRequest: &http.Request{
-				Header: map[string][]string{
-					"Cookie": {"session=some-session"},
-				},
-			},
-			invalidRequest: true,
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			testCase.auth.(*Auth).httpClient = mockedHTTPClient
-			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest, &testCase.authOptions)
-			if testCase.invalidRequest {
-				suite.Require().Error(err)
-				return
+	return func(r *http.Request) *http.Response {
+		authorization := r.Header.Get("Authorization")
+		cookie := r.Header.Get("Cookie")
+		if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
 			}
-			suite.Require().NoError(err)
-			suite.Require().Equal("admin", authInfo.GetUsername())
-			suite.Require().Equal([]string{"1", "2"}, authInfo.GetGroupIDs())
-			suite.Require().Equal("3", authInfo.GetUserID())
-			suite.Require().Equal("4", authInfo.GetPassword())
-		})
+		}
+		return response
 	}
 }
-
 func TestAuthTestSuite(t *testing.T) {
 	suite.Run(t, new(AuthTestSuite))
 }
