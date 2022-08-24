@@ -1,3 +1,15 @@
+/*
+Copyright 2017 The Nuclio Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package containerimagebuilderpusher
 
 import (
@@ -311,12 +323,13 @@ func (k *Kaniko) compileJobSpec(namespace string,
 							},
 						},
 					},
-					RestartPolicy:     v1.RestartPolicyNever,
-					NodeSelector:      buildOptions.NodeSelector,
-					NodeName:          buildOptions.NodeName,
-					Affinity:          buildOptions.Affinity,
-					PriorityClassName: buildOptions.PriorityClassName,
-					Tolerations:       buildOptions.Tolerations,
+					RestartPolicy:      v1.RestartPolicyNever,
+					NodeSelector:       buildOptions.NodeSelector,
+					NodeName:           buildOptions.NodeName,
+					Affinity:           buildOptions.Affinity,
+					PriorityClassName:  buildOptions.PriorityClassName,
+					Tolerations:        buildOptions.Tolerations,
+					ServiceAccountName: buildOptions.ServiceAccountName,
 				},
 			},
 		},
@@ -435,20 +448,21 @@ func (k *Kaniko) compileJobName(image string) string {
 	functionName := strings.ReplaceAll(image, "/", "")
 	functionName = strings.ReplaceAll(functionName, ":", "")
 	functionName = strings.ReplaceAll(functionName, "-", "")
-	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	randomSuffix := common.GenerateRandomString(10, common.SmallLettersAndNumbers)
+	nuclioPrefix := "nuclio-"
 
 	// Truncate function name so the job name won't exceed k8s limit of 63
-	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(timestamp) + 2)
+	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(randomSuffix) + len(nuclioPrefix) + 2)
 	if len(functionName) > functionNameLimit {
 		functionName = functionName[0:functionNameLimit]
 	}
 
-	jobName := fmt.Sprintf("%s.%s.%s", k.builderConfiguration.JobPrefix, functionName, timestamp)
+	jobName := fmt.Sprintf("%s%s.%s.%s", nuclioPrefix, k.builderConfiguration.JobPrefix, functionName, randomSuffix)
 
 	// Fallback
 	if !k.jobNameRegex.MatchString(jobName) {
 		k.logger.DebugWith("Job name does not match k8s regex. Won't use function name", "jobName", jobName)
-		jobName = fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, timestamp)
+		jobName = fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, randomSuffix)
 	}
 
 	return jobName

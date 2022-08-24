@@ -164,7 +164,7 @@ spec:
         - name: NUCLIO_DASHBOARD_OFFLINE
           value: "true"
         {{- end }}
-        {{- if .Values.dashboard.templatesArchiveAddress }}
+        {{- if nq .Values.dashboard.templatesArchiveAddress "nil" }}
         - name: NUCLIO_TEMPLATES_ARCHIVE_ADDRESS
           value: {{ .Values.dashboard.templatesArchiveAddress }}
         - name: NUCLIO_TEMPLATES_GIT_REPOSITORY

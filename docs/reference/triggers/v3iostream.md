@@ -105,9 +105,11 @@ response = nuclio_sdk.Response()
 response.ensure_no_ack()
 ```
 
-To explicitly commit the offset on the received event, use the `explicit_ack()` method of the context's response object, like so:
+To explicitly commit the offset on an event, save the relevant event information in the `QualifiedOffset` object,
+and pass it to async function `explicit_ack()` method of the context's response object, like so:
 ```py
-await context.platform.explicit_ack(event)
+qualified_offset = nuclio.QualifiedOffset.from_event(event)
+await context.platform.explicit_ack(qualified_offset)
 ```
 
 During [rebalance](#rebalancing), the function can still be processing events. We can register a callback to drop or commit events being handled when the rebalancing is about to happen, using the following method:
@@ -117,15 +119,18 @@ context.platform.on_signal(callback)
 
 **NOTES**:
 * Currently, the explicit ack feature is only available for python runtime and function that have a Kafka trigger.
-* The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/v3iostream-worker-allocation-mode":"static"`.
+* The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"static"`.
+* The `QualifiedOffset` object can be saved in a persistent storage and used to commit the offset on later invocation of the function.
 * The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function, or provide an event loop to run that method. e.g.:
 ```py
 import asyncio
+import nuclio
 
 def handler(context, event):
-  loop = asyncio.get_event_loop()
-  loop.run_until_complete(context.platform.explicit_ack(event)
-  return "acked"
+    qualified_offset = nuclio.QualifiedOffset.from_event(event)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(context.platform.explicit_ack(qualified_offset)
+    return "acked"
 ```
 
 

@@ -41,7 +41,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
-	yamlv2 "gopkg.in/yaml.v2"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 var funcMap = template.FuncMap{
@@ -407,7 +407,7 @@ func (g *Generator) parseInlineConfiguration(sourcePath string,
 	}
 
 	// must use yaml.v2 here since yaml.Marshal will err (not sure why)
-	marshalledYAMLContents, err := yamlv2.Marshal(unmarshalledInlineConfigYAML)
+	marshalledYAMLContents, err := yamlv3.Marshal(unmarshalledInlineConfigYAML)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to marshal inline config from source at %s", sourcePath)
 	}

@@ -33,13 +33,15 @@ async def handler(context, event):
 
     context.logger.debug('Received event! event.body: {0}, event.headers: {1}'.format(event.body, event.headers))
 
-    if event.trigger.kind in ("kafka-cluster", "v3ioStream", "v3io-stream"):
+    if event.trigger.kind in ('kafka-cluster', 'v3ioStream', 'v3io-stream'):
 
-        context.logger.debug('Adding event to queue - event.body: {0}, event.offset: {1}'.format(event.body,
-                                                                                                 event.offset))
+        context.logger.debug('Adding event to offset queue - event.body: {0}, event.offset: {1}'.format(
+            event.body,
+            event.offset,
+        ))
 
         # add event to file
-        write_event_to_file(context, event)
+        write_event_offset_to_file(context, event)
 
         # ensure no ack on response
         response = nuclio_sdk.Response()
@@ -104,35 +106,28 @@ def get_number_of_enqueued_events():
         return len(events)
 
 
-def write_event_to_file(context, event):
+def write_event_offset_to_file(context, event):
 
     # add event offset to end of file
     offset = event.body.decode('utf-8').split('-')[-1]
 
     with open(events_file_path, 'a') as file:
-        event_json = json.dumps({
+        qualified_offset_json = json.dumps({
             'topic': event.path,
             'partition': event.shard_id,
             'offset': int(offset),
-            'trigger_name': event.trigger.name,
-            'trigger_kind': event.trigger.kind,
             'body': event.body.decode('utf-8')
         })
-        file.write(event_json + '\n')
+        file.write(qualified_offset_json + '\n')
 
 
-def event_attributes_to_event(event):
-    event_attributes = json.loads(event)
-    return nuclio_sdk.Event(
-        body=event_attributes['body'].encode('utf-8'),
-        path=event_attributes['topic'],
-        shard_id=event_attributes['partition'],
-        offset=event_attributes['offset'],
-        trigger=nuclio_sdk.TriggerInfo(
-            name=event_attributes['trigger_name'],
-            kind=event_attributes['trigger_kind'],
-        )
-    )
+def qualified_offset_attributes_to_qualified_offset(qualified_offset):
+    qualified_offset_attributes = json.loads(qualified_offset)
+    return nuclio_sdk.QualifiedOffset(
+        topic=qualified_offset_attributes['topic'],
+        partition=qualified_offset_attributes['partition'],
+        offset=qualified_offset_attributes['offset']
+    ), qualified_offset_attributes['body'].encode('utf-8')
 
 
 async def process_events(context):
@@ -141,14 +136,14 @@ async def process_events(context):
     last_commit_offset = 0
 
     with open(events_file_path, 'r') as file:
-        events = file.readlines()
-        context.logger.info('Number of events left: {0}'.format(len(events)))
-        for event in events:
-            event_to_ack = event_attributes_to_event(event)
-            context.logger.info('Processing event - body: {0}, offset: {1}'.format(event_to_ack.body,
-                                                                                   event_to_ack.offset))
-            last_commit_offset = event_to_ack.offset
-            await context.platform.explicit_ack(event_to_ack)
+        qualified_offsets = file.readlines()
+        context.logger.info('Number of events left: {0}'.format(len(qualified_offsets)))
+        for qualified_offset in qualified_offsets:
+            qualified_offset_to_ack, event_body = qualified_offset_attributes_to_qualified_offset(qualified_offset)
+            context.logger.info('Processing event - body: {0}, offset: {1}'.format(event_body,
+                                                                                   qualified_offset_to_ack.offset))
+            last_commit_offset = qualified_offset_to_ack.offset
+            await context.platform.explicit_ack(qualified_offset_to_ack)
 
     # clear file
     with open(events_file_path, 'w'):
