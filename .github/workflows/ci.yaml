@@ -68,6 +68,7 @@ jobs:
         run: make lint
 
   check-copyright-license:
+    name: Check copyright and license
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
