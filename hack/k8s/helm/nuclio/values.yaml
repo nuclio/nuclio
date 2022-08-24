@@ -167,9 +167,12 @@ dashboard:
   # use to configure node port
   nodePort:
 
-  # Default behavior is to fetch the templates on build time to /tmp/templates.zip
-  # Unset to pull the templates from GitHub on runtime
-  templatesArchiveAddress: "file://tmp/templates.zip"
+  templates:
+    # Default behavior is to fetch the templates on build time to /tmp/templates.zip
+    # Set to 'nil' and uncomment gitRepository and gitRef to pull the templates from GitHub during runtime
+    archiveAddress: "file://tmp/templates.zip"
+    # gitRepository: "https://github.com/nuclio/nuclio-templates.git"
+    # gitRef: "refs/heads/master"
 
   ingress:
     enabled: false

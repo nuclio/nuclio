@@ -54,8 +54,8 @@ func main() {
 	}
 
 	// git templating env vars
-	templatesGitRepository := flag.String("templates-git-repository", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REPOSITORY", "https://github.com/nuclio/nuclio-templates.git"), "Git templates repo's name")
-	templatesGitBranch := flag.String("templates-git-ref", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REF", "refs/heads/master"), "Git templates repo's branch name")
+	templatesGitRepository := flag.String("templates-git-repository", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REPOSITORY", ""), "Git templates repo's name")
+	templatesGitBranch := flag.String("templates-git-ref", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_REF", ""), "Git templates repo's branch name")
 	templatesGitUsername := flag.String("templates-git-username", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_USERNAME", ""), "Git repo's username")
 	templatesGitPassword := flag.String("templates-git-password", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GIT_PASSWORD", ""), "Git repo's user password")
 	templatesGithubAccessToken := flag.String("templates-github-access-token", common.GetEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN", ""), "Github templates repo's access token")

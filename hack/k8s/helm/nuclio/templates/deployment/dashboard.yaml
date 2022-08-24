@@ -164,13 +164,18 @@ spec:
         - name: NUCLIO_DASHBOARD_OFFLINE
           value: "true"
         {{- end }}
-        {{- if nq .Values.dashboard.templatesArchiveAddress "nil" }}
+        {{- if not (eq .Values.dashboard.templates.archiveAddress "nil") }}
         - name: NUCLIO_TEMPLATES_ARCHIVE_ADDRESS
-          value: {{ .Values.dashboard.templatesArchiveAddress }}
+          value: {{ .Values.dashboard.templates.archiveAddress }}
         - name: NUCLIO_TEMPLATES_GIT_REPOSITORY
           value: "nil"
         - name: NUCLIO_TEMPLATES_GIT_REF
           value: "nil"
+        {{- else }}
+        - name: NUCLIO_TEMPLATES_GIT_REPOSITORY
+          value: {{ .Values.dashboard.templates.gitRepository }}
+        - name: NUCLIO_TEMPLATES_GIT_REF
+          value: {{ .Values.dashboard.templates.getRef }}
         {{- end }}
         - name: NUCLIO_MONITOR_DOCKER_DAEMON
           value: {{ .Values.dashboard.monitorDockerDeamon.enabled | quote }}
