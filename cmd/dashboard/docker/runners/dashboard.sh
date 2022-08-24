@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-#!/usr/bin/env sh
 
 echo "Starting dashboard"
 /usr/local/bin/dashboard --docker-key-dir /etc/nuclio/dashboard/registry-credentials --listen-addr :18070 2>&1
