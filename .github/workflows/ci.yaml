@@ -67,6 +67,14 @@ jobs:
       - name: Lint
         run: make lint
 
+  check-copyright-license:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Check License Lines
+        uses: kt3k/license_checker@v1.0.6
+
   test_short:
     name: Test short
     runs-on: ubuntu-latest
