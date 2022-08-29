@@ -70,6 +70,9 @@ RUN apk --update --no-cache add curl \
 
 FROM $NGINX_IMAGE
 
+# fetch nuclio functions templates during build time to ease installation on offline environments
+ARG NUCLIO_TEMPLATES_ZIP_GITHUB_URL="https://github.com/nuclio/nuclio-templates/archive/master.zip"
+
 # copy dashboard static from build assets stage. /etc/nuclio/dashboard/static will contain index.html and assets
 COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
 
@@ -94,7 +97,8 @@ RUN apk --update --no-cache add \
         parallel \
         ca-certificates \
         git \
-    && apk upgrade --no-cache
+    && apk upgrade --no-cache \
+    && wget -O /tmp/templates.zip $NUCLIO_TEMPLATES_ZIP_GITHUB_URL
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
