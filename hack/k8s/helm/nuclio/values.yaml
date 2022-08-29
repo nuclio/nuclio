@@ -169,10 +169,10 @@ dashboard:
 
   templates:
     # Default behavior is to fetch the templates on build time to /tmp/templates.zip
-    # Set to 'nil' and uncomment gitRepository and gitRef to pull the templates from GitHub during runtime
+    # Set archiveAddress to 'nil' to pull the templates from Nuclio's git repository during runtime
     archiveAddress: "file://tmp/templates.zip"
-    # gitRepository: "https://github.com/nuclio/nuclio-templates.git"
-    # gitRef: "refs/heads/master"
+    gitRepository: "https://github.com/nuclio/nuclio-templates.git"
+    gitRef: "refs/heads/master"
 
   ingress:
     enabled: false
