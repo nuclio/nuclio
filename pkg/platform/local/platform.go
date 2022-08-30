@@ -29,10 +29,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ghodss/yaml"
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -47,6 +43,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/local/client"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
+
+	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 )
 
