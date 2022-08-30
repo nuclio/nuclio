@@ -1106,7 +1106,6 @@ func (suite *functionDeployTestSuite) TestDeployWaitReadinessTimeoutBeforeFailur
 }
 
 func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
-
 	runAsUserID := "1000"
 	runAsGroupID := "2000"
 	fsGroup := "3000"
@@ -1141,10 +1140,19 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 	suite.Require().NoError(err)
 
 	// make sure the id command from the handler, returns the correct uid and gids
-	suite.Require().Contains(suite.outputBuffer.String(), fmt.Sprintf(`uid=%s gid=%s groups=%s`,
-		runAsUserID,
-		runAsGroupID,
-		fsGroup))
+	suite.Require().Condition(func() (success bool) {
+		uidGid := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`uid=%s gid=%s`,
+				runAsUserID,
+				runAsGroupID))
+		groups := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`groups=%s`, fsGroup))
+
+		// it is observed that on azure's docker flavor, the groups are set with both fsGroup and group ID
+		extendedGroups := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`groups=%s`, runAsGroupID+","+fsGroup))
+		return uidGid && (groups || extendedGroups)
+	})
 
 	// with script handler
 	uniqueSuffix = "-" + xid.New().String()
@@ -1153,12 +1161,10 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   imageName,
-			"runtime": "shell",
-			"handler": "main.sh",
-
-			// the `id` command
-			"source":       "aWQ=",
+			"image":        imageName,
+			"runtime":      "shell",
+			"handler":      "main.sh",
+			"source":       base64.StdEncoding.EncodeToString([]byte("id")),
 			"run-as-user":  runAsUserID,
 			"run-as-group": runAsGroupID,
 			"fsgroup":      fsGroup,
@@ -1179,10 +1185,19 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 	suite.Require().NoError(err)
 
 	// make sure the id command from the handler, returns the correct uid and gids
-	suite.Require().Contains(suite.outputBuffer.String(), fmt.Sprintf(`uid=%s gid=%s groups=%s`,
-		runAsUserID,
-		runAsGroupID,
-		fsGroup))
+	suite.Require().Condition(func() (success bool) {
+		uidGid := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`uid=%s gid=%s`,
+				runAsUserID,
+				runAsGroupID))
+		groups := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`groups=%s`, fsGroup))
+
+		// it is observed that on azure's docker flavor, the groups are set with both fsGroup and group ID
+		extendedGroups := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`groups=%s`, runAsGroupID+","+fsGroup))
+		return uidGid && (groups || extendedGroups)
+	})
 }
 
 func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocation() {
