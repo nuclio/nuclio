@@ -1140,10 +1140,19 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 	suite.Require().NoError(err)
 
 	// make sure the id command from the handler, returns the correct uid and gids
-	suite.Require().Contains(suite.outputBuffer.String(), fmt.Sprintf(`uid=%s gid=%s groups=%s`,
-		runAsUserID,
-		runAsGroupID,
-		fsGroup))
+	suite.Require().Condition(func() (success bool) {
+		uidGid := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`uid=%s gid=%s`,
+				runAsUserID,
+				runAsGroupID))
+		groups := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`groups=%s`, fsGroup))
+
+		// it is observed that on azure's docker flavor, the groups are set with both fsGroup and group ID
+		extendedGroups := strings.Contains(suite.outputBuffer.String(),
+			fmt.Sprintf(`groups=%s`, runAsGroupID+","+fsGroup))
+		return uidGid && (groups || extendedGroups)
+	})
 
 	// with script handler
 	uniqueSuffix = "-" + xid.New().String()
