@@ -418,55 +418,77 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 			CustomHandler: nil,
 		})
 	defer func() {
-		close(r.cancelHandlerChan)
+		r.cancelHandlerChan <- struct{}{}
 	}()
 
 	outReader := bufio.NewReader(conn)
 
 	// Read logs & output
 	for {
-		unmarshalledResult := &result{}
-		var data []byte
+		select {
 
-		data, unmarshalledResult.err = outReader.ReadBytes('\n')
+		// TODO: sync between event and control output handlers using a shared context
+		case <-r.cancelHandlerChan:
+			r.Logger.Warn("Control output handler was canceled (Restart called?)")
+			return
 
-		if unmarshalledResult.err != nil {
-			r.Logger.WarnWith(string(common.FailedReadFromConnection), "err", unmarshalledResult.err)
-			resultChan <- unmarshalledResult
-			continue
-		}
+		default:
 
-		switch data[0] {
-		case 'r':
+			unmarshalledResult := &result{}
+			var data []byte
 
-			// try to unmarshall the result
-			if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
-				r.resultChan <- unmarshalledResult
+			data, unmarshalledResult.err = outReader.ReadBytes('\n')
+
+			if unmarshalledResult.err != nil {
+				r.Logger.WarnWith(string(common.FailedReadFromConnection), "err", unmarshalledResult.err)
+				resultChan <- unmarshalledResult
 				continue
 			}
 
-			switch unmarshalledResult.BodyEncoding {
-			case "text":
-				unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
-			case "base64":
-				unmarshalledResult.DecodedBody, unmarshalledResult.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
-			default:
-				unmarshalledResult.err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
-			}
+			switch data[0] {
+			case 'r':
 
-			// write back to result channel
-			resultChan <- unmarshalledResult
-		case 'm':
-			r.handleResponseMetric(data[1:])
-		case 'l':
-			r.handleResponseLog(data[1:])
-		case 's':
-			r.handleStart()
+				// try to unmarshall the result
+				if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
+					r.resultChan <- unmarshalledResult
+					continue
+				}
+
+				switch unmarshalledResult.BodyEncoding {
+				case "text":
+					unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
+				case "base64":
+					unmarshalledResult.DecodedBody, unmarshalledResult.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
+				default:
+					unmarshalledResult.err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
+				}
+
+				// write back to result channel
+				resultChan <- unmarshalledResult
+			case 'm':
+				r.handleResponseMetric(data[1:])
+			case 'l':
+				r.handleResponseLog(data[1:])
+			case 's':
+				r.handleStart()
+			}
 		}
 	}
 }
 
 func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
+
+	// recover from panic in case of error
+	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
+		r.Logger,
+		"control wrapper output handler (Restart called?)",
+		&common.CatchAndLogPanicOptions{
+			Args:          nil,
+			CustomHandler: nil,
+		})
+	defer func() {
+		r.cancelHandlerChan <- struct{}{}
+	}()
 
 	outReader := bufio.NewReader(conn)
 
@@ -478,11 +500,9 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 		select {
 
 		// TODO: sync between event and control output handlers using a shared context
-		case _, ok := <-r.cancelHandlerChan:
-			if !ok {
-				r.Logger.Warn("Control output handler was canceled (Restart called?)")
-				return
-			}
+		case <-r.cancelHandlerChan:
+			r.Logger.Warn("Control output handler was canceled (Restart called?)")
+			return
 
 		default:
 
