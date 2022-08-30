@@ -23,13 +23,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"strconv"
 	"time"
 
+	"github.com/ghodss/yaml"
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -44,12 +47,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/local/client"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/processor/config"
-
-	"github.com/ghodss/yaml"
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 )
 
@@ -815,12 +812,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to create a function's platform configuration")
 	}
 
-	functionMountMode, err := p.resolveFunctionMountMode(functionPlatformConfiguration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve processor mount mode")
-	}
-
-	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions, functionMountMode)
+	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve and create function mounts")
 	}
@@ -936,89 +928,24 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	return nil
 }
 
-func (p *Platform) resolveFunctionMountMode(functionPlatformConfiguration *functionPlatformConfiguration) (
-	FunctionMountMode, error) {
+func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions) (
+	[]dockerclient.MountPoint, map[string]string, error) {
 
-	// if set, return value from function platform configuration
-	if functionPlatformConfiguration.MountMode != "" {
-		return functionPlatformConfiguration.MountMode, nil
+	if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
 	}
-
-	// use platform defaults
-	return p.defaultFunctionMountMode, nil
-}
-
-func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions,
-	functionMountMode FunctionMountMode) ([]dockerclient.MountPoint, map[string]string, error) {
-
-	var mountPoints []dockerclient.MountPoint
 	volumesMap := p.compileDeployFunctionVolumesMap(createFunctionOptions)
+	processorMountPoint := dockerclient.MountPoint{
+		Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
+		Destination: FunctionProcessorContainerDirPath,
 
-	switch functionMountMode {
-	case FunctionMountModeVolume:
-		if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
-		}
-		mountPoints = append(mountPoints, dockerclient.MountPoint{
-			Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
-			Destination: FunctionProcessorContainerDirPath,
-
-			// read only mode
-			RW: false,
-		})
-	default:
-
-		// create processor configuration at a temporary location unless user specified a configuration
-		localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to create a processor configuration")
-		}
-
-		// volumize it
-		volumesMap[localProcessorConfigPath] = path.Join(FunctionProcessorContainerDirPath, "processor.yaml")
+		// read only mode
+		RW: false,
 	}
 
-	return mountPoints, volumesMap, nil
-}
-
-func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateFunctionOptions) (string, error) {
-
-	configWriter, err := processorconfig.NewWriter()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create a processor configuration writer")
-	}
-
-	// must specify "/tmp" here so that it's available on docker for mac
-	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create a temporary processor configuration")
-	}
-
-	defer processorConfigFile.Close() // nolint: errcheck
-
-	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
-		Config: createFunctionOptions.FunctionConfig,
-	}); err != nil {
-		return "", errors.Wrap(err, "Failed to write a processor configuration")
-	}
-
-	// make it readable by other users, in case user use different USER directive on function image
-	if err := os.Chmod(processorConfigFile.Name(), 0644); err != nil {
-		return "", errors.Wrap(err, "Failed to change a processor's configuration-file permission")
-	}
-
-	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
-
-	// read the file once for logging
-	processorConfigContents, err := ioutil.ReadFile(processorConfigFile.Name())
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to read a processor-configuration file")
-	}
-
-	// log
-	p.Logger.DebugWith("Wrote processor configuration file", "contents", string(processorConfigContents))
-
-	return processorConfigFile.Name(), nil
+	return []dockerclient.MountPoint{
+		processorMountPoint,
+	}, volumesMap, nil
 }
 
 func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
