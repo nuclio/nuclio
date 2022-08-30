@@ -66,17 +66,18 @@ type result struct {
 // AbstractRuntime is a runtime that communicates via unix domain socket
 type AbstractRuntime struct {
 	runtime.AbstractRuntime
-	configuration  *runtime.Configuration
-	eventEncoder   EventEncoder
-	controlEncoder EventEncoder
-	wrapperProcess *os.Process
-	resultChan     chan *result
-	functionLogger logger.Logger
-	runtime        Runtime
-	startChan      chan struct{}
-	stopChan       chan struct{}
-	socketType     SocketType
-	processWaiter  *processwaiter.ProcessWaiter
+	configuration     *runtime.Configuration
+	eventEncoder      EventEncoder
+	controlEncoder    EventEncoder
+	wrapperProcess    *os.Process
+	resultChan        chan *result
+	functionLogger    logger.Logger
+	runtime           Runtime
+	startChan         chan struct{}
+	stopChan          chan struct{}
+	cancelHandlerChan chan struct{}
+	socketType        SocketType
+	processWaiter     *processwaiter.ProcessWaiter
 }
 
 type rpcLogRecord struct {
@@ -305,6 +306,7 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	r.eventEncoder = r.runtime.GetEventEncoder(eventConnection.conn)
 	r.resultChan = make(chan *result)
+	r.cancelHandlerChan = make(chan struct{})
 	go r.eventWrapperOutputHandler(eventConnection.conn, r.resultChan)
 
 	// control connection
@@ -410,11 +412,14 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 	// Reset might close outChan, which will cause panic when sending
 	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
 		r.Logger,
-		"event wrapper output handler (Restart called?)",
+		"handling event wrapper output (Restart called?)",
 		&common.CatchAndLogPanicOptions{
 			Args:          nil,
 			CustomHandler: nil,
 		})
+	defer func() {
+		close(r.cancelHandlerChan)
+	}()
 
 	outReader := bufio.NewReader(conn)
 
@@ -463,15 +468,6 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 
 func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 
-	// Reset might close outChan, which will cause panic when sending
-	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
-		r.Logger,
-		"control wrapper output handler (Restart called?)",
-		&common.CatchAndLogPanicOptions{
-			Args:          nil,
-			CustomHandler: nil,
-		})
-
 	outReader := bufio.NewReader(conn)
 
 	// keep a counter for log throttling
@@ -479,33 +475,44 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 	logCounterTime := time.Now()
 
 	for {
+		select {
 
-		// read control message
-		controlMessage, err := r.ControlMessageBroker.ReadControlMessage(outReader)
-		if err != nil {
+		// TODO: sync between event and control output handlers using a shared context
+		case _, ok := <-r.cancelHandlerChan:
+			if !ok {
+				r.Logger.Warn("Control output handler was canceled (Restart called?)")
+				return
+			}
 
-			// if enough time has passed, log the error
-			if time.Since(logCounterTime) > 500*time.Millisecond {
-				logCounterTime = time.Now()
+		default:
+
+			// read control message
+			controlMessage, err := r.ControlMessageBroker.ReadControlMessage(outReader)
+			if err != nil {
+
+				// if enough time has passed, log the error
+				if time.Since(logCounterTime) > 500*time.Millisecond {
+					logCounterTime = time.Now()
+					errLogCounter = 0
+				}
+				if errLogCounter%5 == 0 {
+					r.Logger.WarnWith(string(common.FailedReadControlMessage), "err", err.Error())
+					errLogCounter++
+				}
+				continue
+			} else {
 				errLogCounter = 0
 			}
-			if errLogCounter%5 == 0 {
-				r.Logger.WarnWith(string(common.FailedReadControlMessage), "err", err.Error())
-				errLogCounter++
+
+			r.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)
+
+			// send message to control consumers
+			if err := r.GetControlMessageBroker().SendToConsumers(controlMessage); err != nil {
+				r.Logger.WarnWith("Failed to send control message to consumers", "err", err.Error())
 			}
-			continue
-		} else {
-			errLogCounter = 0
+
+			// TODO: validate and respond to wrapper process
 		}
-
-		r.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)
-
-		// send message to control consumers
-		if err := r.GetControlMessageBroker().SendToConsumers(controlMessage); err != nil {
-			r.Logger.WarnWith("Failed to send control message to consumers", "err", err.Error())
-		}
-
-		// TODO: validate and respond to wrapper process
 	}
 }
 
