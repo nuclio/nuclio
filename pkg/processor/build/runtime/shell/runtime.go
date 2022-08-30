@@ -60,7 +60,7 @@ func (s *shell) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, 
 	return &processorDockerfileInfo, nil
 }
 
-// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+// GetHandlerDirObjectPaths returns the paths of all objects that should reside in the handler
 // directory
 func (s *shell) GetHandlerDirObjectPaths() []string {
 	if s.FunctionConfig.Spec.Build.Path != "/dev/null" {
