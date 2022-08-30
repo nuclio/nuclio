@@ -1189,10 +1189,6 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 			fmt.Sprintf(`groups=%s`, runAsGroupID+","+fsGroup))
 		return uidGid && (groups || extendedGroups)
 	})
-	suite.Require().Contains(suite.outputBuffer.String(), fmt.Sprintf(`uid=%s gid=%s groups=%s`,
-		runAsUserID,
-		runAsGroupID,
-		fsGroup))
 }
 
 func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocation() {
