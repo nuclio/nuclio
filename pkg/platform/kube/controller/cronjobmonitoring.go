@@ -133,11 +133,14 @@ func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
 
 		isJobCompleted := job.Status.Succeeded > 0
 
+		deleteForegroundPolicy := metav1.DeletePropagationBackground
 		if isJobBackOffLimitExceeded || isJobCompleted {
 			err := cjm.controller.kubeClientSet.
 				BatchV1().
 				Jobs(cjm.controller.namespace).
-				Delete(ctx, job.Name, metav1.DeleteOptions{})
+				Delete(ctx, job.Name, metav1.DeleteOptions{
+					PropagationPolicy: &deleteForegroundPolicy,
+				})
 			if err != nil && !apierrors.IsNotFound(err) {
 				cjm.logger.WarnWithCtx(ctx, "Failed to delete cron-job job",
 					"name", job.Name,
