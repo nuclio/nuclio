@@ -11,20 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+
 apiVersion: v1
 description: Serverless for Real-Time and Data-Driven Applications
 name: nuclio
-version: 0.15.4
+version: 0.15.5
 appVersion: 1.10.3
 icon: https://github.com/nuclio/nuclio/raw/master/docs/assets/images/logo.png
 home: https://nuclio.io
 sources:
   - https://github.com/nuclio/nuclio
 maintainers:
-  - name: Eran Duchan
-    email: erand@iguazio.com
-  - name: Oded Messer
-    email: odedm@iguazio.com
   - name: Liran Ben Gida
     email: liranb@iguazio.com
+  - name: Tomer Shor
+    email: tomers@iguazio.com
