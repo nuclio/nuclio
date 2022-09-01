@@ -33,7 +33,7 @@ const (
 type Runtime interface {
 
 	// RunWrapper runs the wrapper
-	RunWrapper(string) (*os.Process, error)
+	RunWrapper(string, string) (*os.Process, error)
 
 	// GetSocketType returns the type of socket the runtime works with (unix/tcp)
 	GetSocketType() SocketType
@@ -42,4 +42,7 @@ type Runtime interface {
 
 	// WaitForStart returns whether the runtime supports sending an indication that it started
 	WaitForStart() bool
+
+	// SupportsControlCommunication returns true if the runtime supports control communication
+	SupportsControlCommunication() bool
 }

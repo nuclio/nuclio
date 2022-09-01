@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/logger"
@@ -73,6 +74,20 @@ func (mr *MockRuntime) Restart() error {
 
 func (mr *MockRuntime) SupportsRestart() bool {
 	return true
+}
+
+func (mr *MockRuntime) Terminate() error {
+	args := mr.Called()
+	return args.Error(0)
+}
+
+func (mr *MockRuntime) SupportsControlCommunication() bool {
+	args := mr.Called()
+	return args.Bool(0)
+}
+
+func (mr *MockRuntime) GetControlMessageBroker() controlcommunication.ControlMessageBroker {
+	return nil
 }
 
 type WorkerTestSuite struct {

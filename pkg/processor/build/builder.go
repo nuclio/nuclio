@@ -55,7 +55,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/version-go"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -1049,17 +1049,17 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
 
-	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
+	taggedImageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
 	b.logger.InfoWith("Building processor image",
 		"registryURL", registryURL,
-		"imageName", imageName)
+		"taggedImageName", taggedImageName)
 
 	err = b.platform.BuildAndPushContainerImage(context.Background(),
 		&containerimagebuilderpusher.BuildOptions{
 			ContextDir:     b.stagingDir,
-			Image:          imageName,
+			Image:          taggedImageName,
 			TempDir:        b.tempDir,
 			DockerfileInfo: processorDockerfileInfo,
 
@@ -1070,21 +1070,37 @@ func (b *Builder) buildProcessorImage() (string, error) {
 			NoBaseImagePull:     b.GetNoBaseImagePull(),
 			BuildArgs:           buildArgs,
 			RegistryURL:         registryURL,
+			RepoName:            b.resolveRepoName(registryURL),
 			SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
 			OutputImageFile:     b.options.OutputImageFile,
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 
 			// kaniko pod attributes
-			NodeSelector:      b.options.FunctionConfig.Spec.NodeSelector,
-			NodeName:          b.options.FunctionConfig.Spec.NodeName,
-			Affinity:          b.options.FunctionConfig.Spec.Affinity,
-			PriorityClassName: b.options.FunctionConfig.Spec.PriorityClassName,
-			Tolerations:       b.options.FunctionConfig.Spec.Tolerations,
+			NodeSelector:       b.options.FunctionConfig.Spec.NodeSelector,
+			NodeName:           b.options.FunctionConfig.Spec.NodeName,
+			Affinity:           b.options.FunctionConfig.Spec.Affinity,
+			PriorityClassName:  b.options.FunctionConfig.Spec.PriorityClassName,
+			Tolerations:        b.options.FunctionConfig.Spec.Tolerations,
+			ServiceAccountName: b.options.FunctionConfig.Spec.ServiceAccount,
 			ReadinessTimeoutSeconds: b.platform.GetConfig().GetFunctionReadinessTimeoutOrDefault(
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
 		})
 
-	return imageName, err
+	return taggedImageName, err
+}
+
+func (b *Builder) resolveRepoName(registryURL string) string {
+	repoName := b.processorImage.imageName
+	urlRepo := ""
+	urlRepoIndex := strings.Index(registryURL, "/")
+	if urlRepoIndex != -1 && len(registryURL) > urlRepoIndex {
+		urlRepo = registryURL[urlRepoIndex+1:]
+		if !strings.HasSuffix(urlRepo, "/") {
+			return fmt.Sprintf("%s/%s", urlRepo, b.processorImage.imageName)
+		}
+		return fmt.Sprintf("%s%s", urlRepo, b.processorImage.imageName)
+	}
+	return repoName
 }
 
 func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildImageRegistry string) (

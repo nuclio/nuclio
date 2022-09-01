@@ -20,6 +20,15 @@ KUBECONFIG := $(if $(KUBECONFIG),$(KUBECONFIG),$(HOME)/.kube/config)
 # upstream repo
 NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 
+# dockerfile base image
+NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
+NUCLIO_BASE_IMAGE_TAG ?= 1.17
+NUCLIO_BASE_ALPINE_IMAGE_NAME ?= gcr.io/iguazio/golang
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.17-alpine3.15
+
+# add go proxy
+NUCLIO_GO_PROXY ?= https://proxy.golang.org,direct
+
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 ifeq ($(GOARCH), arm)
@@ -242,7 +251,7 @@ ifeq ($(NUCLIO_ARCH), armhf)
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.21.5-alpine
 else
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.21.5-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.21.6-alpine
 endif
 
 dashboard: ensure-gopath build-base
@@ -252,6 +261,7 @@ dashboard: ensure-gopath build-base
 		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
 		--build-arg UHTTPC_ARCH=$(NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH) \
 		--build-arg NGINX_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE) \
+		--build-arg NUCLIO_DOCKER_ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file cmd/dashboard/docker/Dockerfile \
@@ -328,6 +338,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
 handler-builder-golang-onbuild-alpine: build-base
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_BASE_ALPINE_IMAGE_NAME=$(NUCLIO_BASE_ALPINE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_ALPINE_IMAGE_TAG=$(NUCLIO_BASE_ALPINE_IMAGE_TAG) \
+		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
@@ -336,6 +349,9 @@ handler-builder-golang-onbuild-alpine: build-base
 handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
+		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
@@ -417,11 +433,15 @@ endif
 build-base: build-builder
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file hack/docker/build/base/Dockerfile \
 		--tag nuclio-base:$(NUCLIO_LABEL) .
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_BASE_ALPINE_IMAGE_NAME=$(NUCLIO_BASE_ALPINE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_ALPINE_IMAGE_TAG=$(NUCLIO_BASE_ALPINE_IMAGE_TAG) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file hack/docker/build/base-alpine/Dockerfile \
 		--tag nuclio-base-alpine:$(NUCLIO_LABEL) .
@@ -429,6 +449,10 @@ build-base: build-builder
 .PHONY: build-builder
 build-builder:
 	docker build \
+		--build-arg GOARCH=$(NUCLIO_ARCH) \
+		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
+		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--file hack/docker/build/builder/Dockerfile \
 		--tag nuclio-builder:$(NUCLIO_LABEL) .
 
@@ -586,6 +610,17 @@ test-k8s: build-test
 		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "make test-k8s-undockerized"
+
+# Runs from host to allow full control over Kubernetes cluster
+.PHONY: test-k8s-functional
+test-k8s-functional:
+	go test \
+		-tags="test_kube,test_functional" \
+ 		-v \
+ 		-p 1 \
+ 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+ 		$(shell go list -tags="test_kube,test_functional" ./cmd/... ./pkg/...)
+
 
 .PHONY: build-test
 build-test: ensure-gopath build-base

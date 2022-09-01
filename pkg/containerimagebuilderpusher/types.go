@@ -1,3 +1,19 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package containerimagebuilderpusher
 
 import (
@@ -22,6 +38,7 @@ type BuildOptions struct {
 	NoBaseImagePull         bool
 	BuildArgs               map[string]string
 	RegistryURL             string
+	RepoName                string
 	SecretName              string
 	OutputImageFile         string
 	BuildTimeoutSeconds     int64
@@ -31,11 +48,14 @@ type BuildOptions struct {
 	PriorityClassName       string
 	Tolerations             []v1.Toleration
 	ReadinessTimeoutSeconds int
+	ServiceAccountName      string
 }
 
 type ContainerBuilderConfiguration struct {
 	Kind                                 string
 	BusyBoxImage                         string
+	AWSCLIImage                          string
+	RegistryProviderSecretName           string
 	KanikoImage                          string
 	KanikoImagePullPolicy                string
 	JobPrefix                            string
@@ -60,11 +80,19 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 	}
 	if containerBuilderConfiguration.BusyBoxImage == "" {
 		containerBuilderConfiguration.BusyBoxImage = common.GetEnvOrDefaultString("NUCLIO_BUSYBOX_CONTAINER_IMAGE",
-			"busybox:1.31")
+			"busybox:stable")
+	}
+	if containerBuilderConfiguration.AWSCLIImage == "" {
+		containerBuilderConfiguration.AWSCLIImage = common.GetEnvOrDefaultString("NUCLIO_AWS_CLI_CONTAINER_IMAGE",
+			"amazon/aws-cli:2.7.10")
+	}
+	if containerBuilderConfiguration.RegistryProviderSecretName == "" {
+		containerBuilderConfiguration.RegistryProviderSecretName = common.GetEnvOrDefaultString("NUCLIO_KANIKO_REGISTRY_PROVIDER_AUTH_SECRET_NAME",
+			"")
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
-			"gcr.io/kaniko-project/executor:v1.7.0")
+			"gcr.io/kaniko-project/executor:v1.8.1")
 	}
 	if containerBuilderConfiguration.KanikoImagePullPolicy == "" {
 		containerBuilderConfiguration.KanikoImagePullPolicy = common.GetEnvOrDefaultString(

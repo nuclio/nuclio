@@ -37,6 +37,18 @@ func (m *MockRunner) Run(runOptions *RunOptions, format string, vars ...interfac
 	return runResults, args.Error(1)
 }
 
+func (m *MockRunner) RunWithPositionalAndNamedArguments(runOptions *RunOptions,
+	positionalArgs []string,
+	namedArgs map[string]string) (RunResult, error) {
+	args := m.Called(runOptions, positionalArgs, namedArgs)
+	runResults, ok := args.Get(0).(RunResult)
+	if ok && runOptions != nil {
+		runResults.Stderr = Redact(runOptions.LogRedactions, runResults.Stderr)
+		runResults.Output = Redact(runOptions.LogRedactions, runResults.Output)
+	}
+	return runResults, args.Error(1)
+}
+
 func (m *MockRunner) Stream(ctx context.Context,
 	runOptions *RunOptions,
 	format string,

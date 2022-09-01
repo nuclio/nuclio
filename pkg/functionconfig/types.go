@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
@@ -77,6 +79,8 @@ type Trigger struct {
 	Annotations                           map[string]string `json:"annotations,omitempty"`
 	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
+	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
+	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
 
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
@@ -86,12 +90,59 @@ type Trigger struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
+type ExplicitAckMode string
+
+const (
+
+	// ExplicitAckModeEnable allows explicit and implicit ack according to the "x-nuclio-stream-no-ack" header
+	ExplicitAckModeEnable ExplicitAckMode = "enable"
+
+	// ExplicitAckModeDisable disables the explicit ack feature and allows only implicit acks (default)
+	ExplicitAckModeDisable ExplicitAckMode = "disable"
+
+	// ExplicitAckModeExplicitOnly allows only explicit acks and disables implicit acks
+	ExplicitAckModeExplicitOnly ExplicitAckMode = "explicitOnly"
+
+	// DefaultWorkerTerminationTimeout wait time for workers to drop or ack events before rebalance initiates
+	DefaultWorkerTerminationTimeout string = "5s"
+)
+
+func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {
+	for _, mode := range ackModes {
+		if ackMode == mode {
+			return true
+		}
+	}
+	return false
+}
+
+func ExplicitAckEnabled(mode ExplicitAckMode) bool {
+	return ExplicitAckModeInSlice(mode,
+		[]ExplicitAckMode{
+			ExplicitAckModeEnable,
+			ExplicitAckModeExplicitOnly,
+		})
+}
+
 // GetTriggersByKind returns a map of triggers by their kind
 func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trigger {
 	matchingTrigger := map[string]Trigger{}
 
 	for triggerName, trigger := range triggers {
 		if trigger.Kind == kind {
+			matchingTrigger[triggerName] = trigger
+		}
+	}
+
+	return matchingTrigger
+}
+
+// GetTriggersByKinds returns a map of triggers by their kinds
+func GetTriggersByKinds(triggers map[string]Trigger, kinds []string) map[string]Trigger {
+	matchingTrigger := map[string]Trigger{}
+
+	for triggerName, trigger := range triggers {
+		if common.StringSliceContainsString(kinds, trigger.Kind) {
 			matchingTrigger[triggerName] = trigger
 		}
 	}

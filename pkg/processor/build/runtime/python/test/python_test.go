@@ -62,8 +62,10 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 	runtimePlatformConfigurationCopy := suite.PlatformConfiguration.Runtime
 	suite.PlatformConfiguration.Runtime = &runtimeconfig.Config{
 		Python: &runtimeconfig.Python{
-			BuildArgs: map[string]string{
-				"PIP_INDEX_URL": pypiRepositoryURL,
+			Common: runtimeconfig.Common{
+				BuildArgs: map[string]string{
+					"PIP_INDEX_URL": pypiRepositoryURL,
+				},
 			},
 		},
 	}
@@ -107,8 +109,10 @@ func (suite *TestSuite) TestBuildWithBuildArgsExtended() {
 	runtimePlatformConfigurationCopy := suite.PlatformConfiguration.Runtime
 	suite.PlatformConfiguration.Runtime = &runtimeconfig.Config{
 		Python: &runtimeconfig.Python{
-			BuildArgs: map[string]string{
-				"PIP_INDEX_URL": "https://test.pypi.org/simple",
+			Common: runtimeconfig.Common{
+				BuildArgs: map[string]string{
+					"PIP_INDEX_URL": "https://test.pypi.org/simple",
+				},
 			},
 		},
 	}

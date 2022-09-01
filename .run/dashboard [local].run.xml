@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="dashboard [local]" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="nuclio" />
+    <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-ldflags=&quot;-X github.com/v3io/version-go.label=unstable&quot;" />
+    <parameters value="--platform local --platform-config hack/env/platform_config.yaml --namespace nuclio" />
+    <kind value="PACKAGE" />
+    <package value="github.com/nuclio/nuclio/cmd/dashboard" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/dashboard/main.go" />
+    <method v="2" />
+  </configuration>
+</component>

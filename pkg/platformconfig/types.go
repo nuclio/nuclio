@@ -147,6 +147,7 @@ type PlatformKubeConfig struct {
 	DefaultHTTPIngressHostTemplate   string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
 	DefaultHTTPIngressAnnotations    map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
 	DefaultFunctionPriorityClassName string                  `json:"defaultFunctionPriorityClassName,omitempty"`
+	DefaultFunctionServiceAccount    string                  `json:"defaultFunctionServiceAccount,omitempty"`
 	ValidFunctionPriorityClassNames  []string                `json:"validFunctionPriorityClassNames,omitempty"`
 	DefaultFunctionPodResources      PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
 	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
@@ -238,13 +239,13 @@ const (
 )
 
 type PodResourceRequirements struct {
-	Requests ResourceRequirements
-	Limits   ResourceRequirements
+	Requests ResourceRequirements `json:"requests,omitempty"`
+	Limits   ResourceRequirements `json:"limits,omitempty"`
 }
 
 type ResourceRequirements struct {
-	CPU    string
-	Memory string
+	CPU    string `json:"cpu,omitempty"`
+	Memory string `json:"memory,omitempty"`
 }
 
 const (

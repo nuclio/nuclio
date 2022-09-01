@@ -1,3 +1,17 @@
+# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # possible release name overrides
 # nameOverride:
 # fullnameOverride:
@@ -10,7 +24,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.8.10-amd64
+    tag: 1.10.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -18,6 +32,11 @@ controller:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -69,7 +88,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.8.10-amd64
+    tag: 1.10.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -77,6 +96,11 @@ dashboard:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -108,9 +132,8 @@ dashboard:
 
   kaniko:
 
-    #  Set this flag to specify a remote repository for storing cached layers
-    #
-    # cacheRepo: someurl
+    #  Set to a repository url for storing cached layers
+    cacheRepo: ""
 
     # Set this flag to push images to a plain HTTP registry
     insecurePushRegistry: false
@@ -120,25 +143,36 @@ dashboard:
 
     image:
       repository: gcr.io/kaniko-project/executor
-      tag: v1.7.0
+      tag: v1.8.1
       pullPolicy: IfNotPresent
 
     initContainerImage:
-      repository: busybox
-      tag: 1.31
+      busybox:
+        repository: busybox
+        tag: stable
+      awscli:
+        repository: amazon/aws-cli
+        tag: 2.7.10
 
     # How long to wait before deleting the build job
     jobDeletionTimeout: 30m
 
     # How many times to retry pushing images to registry
-    pushImagesRestries: 3
+    pushImagesRetries: 3
 
-  # Uncomment to configure node port
-  # nodePort: 32050
+    # auth secret to attach to kaniko pod for off cluster registries
+    # for example: aws-secret in https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
+    registryProviderSecretName: ""
 
-  # Uncomment if you serve the templates locally (for offline environments);
-  # otherwise, the templates will be pulled from GitHub
-  # templatesArchiveAddress: <url>
+  # use to configure node port
+  nodePort:
+
+  templates:
+    # Default behavior is to fetch the templates on build time to /tmp/templates.zip
+    # Set archiveAddress to 'nil' to pull the templates from Nuclio's git repository during runtime
+    archiveAddress: "file://tmp/templates.zip"
+    gitRepository: "https://github.com/nuclio/nuclio-templates.git"
+    gitRef: "refs/heads/master"
 
   ingress:
     enabled: false
@@ -209,7 +243,7 @@ dashboard:
       tag: 0.30.1
       pullPolicy: IfNotPresent
       pullSecrets: []
-
+    resources: {}
     securityContext: {}
     # capabilities:
     #   drop:
@@ -236,16 +270,16 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
-  # Uncomment to volumize pip ca cert
+  # Use to volumize pip ca cert
   # Note: secret name must contain "pip-ca-certificates.crt" key
-  # pipCACertSecretName: secret-name
+  pipCACertSecretName: ""
 
 autoscaler:
   enabled: false
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.8.10-amd64
+    tag: 1.10.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -253,6 +287,11 @@ autoscaler:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -274,7 +313,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.8.10-amd64
+    tag: 1.10.4-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -282,6 +321,11 @@ dlx:
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
   nodeSelector: {}
+
+  ## Deployment security context
+  ## Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  ##
+  securityContext: {}
 
   ## List of node taints to tolerate (requires Kubernetes >= 1.6)
   tolerations: []
@@ -337,6 +381,12 @@ registry:
   #
   # pushPullUrl: gcr.io/<project-name>
 
+
+  # For cases where the deployed function container is pulled from a different registry than it was pushed to
+  # E.g.: when using `minikube` you push to `$(minikube ip):5000` but pull from `localhost:5000`
+  # > Then `pushPullUrl` is set to the value of `$(minikube ip):5000` and  runRegistryURL is set to `localhost:5000`
+  runRegistryURL: ""
+
   # In case you'd like helm to generate the secret for you, `loginUrl` specifies
   # the URL with which the components in nuclio will try to log into
   #
@@ -358,7 +408,7 @@ registry:
 
   # Use this registry URL as an override for both base and "onbuild" images, so they'll be pulled from the
   # specified registry URL and not from the default registries
-  # dependantImageRegistryURL: someUrl
+  dependantImageRegistryURL: ""
 
 rbac:
 
@@ -422,7 +472,7 @@ platform: {}
 #
 #     # set to 10 for extra verbosity on top of nuclio logger
 #     logLevel: 0
-#     address: http://1.8.10.0.1.8.101
+#     address: http://1.10.4.0.1.10.41
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow

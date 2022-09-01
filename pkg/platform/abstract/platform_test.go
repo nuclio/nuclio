@@ -827,6 +827,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() {
 	for idx, testCase := range []struct {
 		triggers                 map[string]functionconfig.Trigger
+		functionMetaAnnotations  map[string]string
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
 		shouldFailValidation     bool
 	}{
@@ -892,6 +893,51 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			},
 			shouldFailValidation: true,
 		},
+
+		// do not allow explicit ack mode and pooled worker allocation mode
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+				},
+				"kafka-trigger": {
+					Kind:            "kafka-cluster",
+					Name:            "kafka-trigger",
+					ExplicitAckMode: "enable",
+				},
+			},
+			functionMetaAnnotations: map[string]string{
+				"nuclio.io/kafka-worker-allocation-mode": "pool",
+			},
+			shouldFailValidation: true,
+		},
+
+		// enrich explicit ack mode and worker termination timeout
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind: "http",
+				},
+				"kafka-trigger": {
+					Kind: "kafka-cluster",
+					Name: "kafka-trigger",
+				},
+			},
+			expectedEnrichedTriggers: map[string]functionconfig.Trigger{
+				"http-trigger": {
+					Kind:       "http",
+					MaxWorkers: 1,
+					Name:       "http-trigger",
+				},
+				"kafka-trigger": {
+					Kind:                     "kafka-cluster",
+					Name:                     "kafka-trigger",
+					ExplicitAckMode:          functionconfig.ExplicitAckModeDisable,
+					WorkerTerminationTimeout: functionconfig.DefaultWorkerTerminationTimeout,
+				},
+			},
+			shouldFailValidation: false,
+		},
 	} {
 
 		suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
@@ -917,6 +963,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		}
 		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+		if testCase.functionMetaAnnotations != nil {
+			createFunctionOptions.FunctionConfig.Meta.Annotations = testCase.functionMetaAnnotations
+		}
 
 		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function")

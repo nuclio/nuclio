@@ -105,7 +105,7 @@ func (c *FakeNuclioAPIGateways) Update(ctx context.Context, nuclioAPIGateway *v1
 // Delete takes name of the nuclioAPIGateway and deletes it. Returns an error if one occurs.
 func (c *FakeNuclioAPIGateways) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(nuclioapigatewaysResource, c.ns, name), &v1beta1.NuclioAPIGateway{})
+		Invokes(testing.NewDeleteActionWithOptions(nuclioapigatewaysResource, c.ns, name, opts), &v1beta1.NuclioAPIGateway{})
 
 	return err
 }

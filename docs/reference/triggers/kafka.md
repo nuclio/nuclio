@@ -8,6 +8,7 @@
 - [How a message travels through Nuclio to the handler](#message-course)
   - [Configuration parameters](#message-course-config-params)
 - [Offset management](#offset-management)
+  - [Explicit offset commits](#explicit-offset-commits)
 - [Rebalancing](#rebalancing)
   - [Configuration parameters](#rebalancing-config-params)
   - [Choosing the right configuration for rebalancing](#rebalancing-config-choice)
@@ -214,6 +215,56 @@ However, the Nuclio replica is responsible for updating this offset. Naively, wh
 The Sarama library offers an "auto-commit" feature wherein Nuclio replicas need only "mark" the message as handled to trigger Sarama to update Kafka periodically, in the background, about the current offsets of all partitions. The default interval is one second and cannot be configured at this time.
 
 In addition to periodically committing offsets, Nuclio and Sarama "flush" the marked offsets to Kafka whenever a replica stops handling a partition, either because of a rebalancing process or some other condition that caused a graceful shutdown of the replica.
+
+<a id="explicit-offset-commits"></a>
+### Explicit offset commits
+
+In some cases, the "auto-commit" feature can be problematic.
+One example are stateful functions that might need to go and consume already being received records upon the function failure.
+
+For that, Nuclio offers a way to accept new events without committing them, and explicitly commit offsets of the partition, when the processing is done.
+This enables the function to receive and process more events simultaneously.
+
+To enable this feature, set the `ExplicitAckMode` in the trigger's spec to `enabled` or `explicitOnly`, where the optional modes are:
+* `enable` - allows explicit and implicit ack according to the "x-nuclio-stream-no-ack" header
+* `disable`- disables the explicit ack feature and allows only implicit acks (default)
+* `explicitOnly`- allows only explicit acks and disables implicit acks
+
+To receive more events without committing them, your function handler must respond with a nuclio response object, set the `x-nuclio-stream-no-ack` header to `true` in the request.
+This can be done by calling the response's `ensure_no_ack()` method, like this:
+
+```py
+response = nuclio_sdk.Response()
+response.ensure_no_ack()
+```
+
+To explicitly commit the offset on an event, save the relevant event information in the `QualifiedOffset` object, 
+and pass it to async function `explicit_ack()` method of the context's response object, like so:
+```py
+qualified_offset = nuclio.QualifiedOffset.from_event(event)
+await context.platform.explicit_ack(qualified_offset)
+```
+
+During [rebalance](#rebalancing), the function can still be processing events. We can register a callback to drop or commit events being handled when the rebalancing is about to happen, using the following method:
+```py
+context.platform.on_signal(callback)
+```
+
+**NOTES**:
+* Currently, the explicit ack feature is only available for python runtime and function that have a Kafka trigger.
+* The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"static"`.
+* The `QualifiedOffset` object can be saved in a persistent storage and used to commit the offset on later invocation of the function.
+* The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function, or provide an event loop to run that method. e.g.:
+```py
+import asyncio
+import nuclio
+
+def handler(context, event):
+  qualified_offset = nuclio.QualifiedOffset.from_event(event)
+  loop = asyncio.get_event_loop()
+  loop.run_until_complete(context.platform.explicit_ack(qualified_offset)
+  return "acked"
+```
 
 <a id="rebalancing"></a>
 ## Rebalancing

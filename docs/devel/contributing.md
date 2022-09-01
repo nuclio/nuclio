@@ -62,6 +62,7 @@ annotations to match the test purpose:
 
 - test_unit - unit testings
 - test_integration - integration testings
+- test_functional - functional testings
 - test_kube - requires kubernetes platform
 - test_local - requires docker platform
 - test_iguazio - requires Iguazio system

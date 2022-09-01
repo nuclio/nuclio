@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 
@@ -144,4 +145,13 @@ func (w *Worker) Restart() error {
 // SupportsRestart returns true if the underlying runtime supports restart
 func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
+}
+
+func (w *Worker) Terminate() error {
+	return w.runtime.Terminate()
+}
+
+// Subscribe subscribes to a control message kind
+func (w *Worker) Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
+	return w.runtime.GetControlMessageBroker().Subscribe(kind, channel)
 }

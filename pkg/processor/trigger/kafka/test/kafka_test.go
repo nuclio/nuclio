@@ -19,12 +19,20 @@ limitations under the License.
 package test
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"path"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/suite"
@@ -32,6 +40,8 @@ import (
 
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
+
+	httpClient *http.Client
 
 	// kafka clients
 	broker   *sarama.Broker
@@ -55,6 +65,11 @@ type testSuite struct {
 
 func (suite *testSuite) SetupSuite() {
 	var err error
+
+	// create http client
+	suite.httpClient = &http.Client{
+		Timeout: 10 * time.Second,
+	}
 
 	// messaging
 	suite.topic = "myTopic"
@@ -87,6 +102,9 @@ func (suite *testSuite) SetupSuite() {
 
 	brokerConfig := sarama.NewConfig()
 	brokerConfig.Version = sarama.V0_11_0_2
+
+	// change partitioner , so we can specify which partition to send on
+	brokerConfig.Producer.Partitioner = sarama.NewManualPartitioner
 
 	// connect to the broker
 	err = suite.broker.Open(brokerConfig)
@@ -122,7 +140,8 @@ func (suite *testSuite) TearDownSuite() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+	functionName := "event_recorder"
+	createFunctionOptions := suite.GetDeployOptions(functionName, suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 		Attributes: map[string]interface{}{
 			"network": suite.BrokerContainerNetworkName,
@@ -135,9 +154,10 @@ func (suite *testSuite) TestReceiveRecords() {
 			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
 			Attributes: map[string]interface{}{
 				"topics":        []string{suite.topic},
-				"consumerGroup": suite.consumerGroup,
+				"consumerGroup": functionName,
 				"initialOffset": suite.initialOffset,
 			},
+			WorkerTerminationTimeout: "5s",
 		},
 	}
 
@@ -152,6 +172,293 @@ func (suite *testSuite) TestReceiveRecords() {
 		nil,
 		suite.publishMessageToTopic)
 }
+
+func (suite *testSuite) TestExplicitAck() {
+
+	topic := "myNewTopic"
+	shardID := int32(1)
+	functionName := "explicitacker"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"kafka-explicit-ack",
+		"explicitacker.py")
+
+	// create new topic
+	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+		TopicDetails: map[string]*sarama.TopicDetail{
+			topic: {
+				NumPartitions:     suite.NumPartitions,
+				ReplicationFactor: 1,
+			},
+		},
+	})
+	suite.Require().NoError(err, "Failed to create topic")
+
+	suite.Logger.InfoWith("Created topic",
+		"topic", topic,
+		"createTopicResponse", createTopicsResponse)
+
+	// create explicit ack function
+
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install nuclio-sdk"}
+	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+		Attributes: map[string]interface{}{
+			"network": suite.BrokerContainerNetworkName,
+		},
+	}
+
+	// configure kafka trigger with explicit ack enabled
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"my-kafka": {
+			Kind: "kafka-cluster",
+			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+			Attributes: map[string]interface{}{
+				"topics":        []string{topic},
+				"consumerGroup": functionName,
+				"initialOffset": suite.initialOffset,
+			},
+			WorkerTerminationTimeout: "5s",
+			ExplicitAckMode:          functionconfig.ExplicitAckModeEnable,
+		},
+		"my-http": {
+			Kind:       "http",
+			Attributes: map[string]interface{}{},
+		},
+	}
+
+	// set worker allocation mode to static
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+		"nuclio.io/kafka-worker-allocation-mode": string(partitionworker.AllocationModeStatic),
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		var err error
+
+		// publish 10 messages to the topic
+		for i := 0; i < 10; i++ {
+			err = suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", i), shardID)
+			suite.Require().NoError(err, "Failed to publish message")
+		}
+
+		// ensure queue size is 10
+		suite.Logger.Debug("Getting current queue size")
+		queueSize := suite.waitForFunctionQueueSize(deployResult.Port, 10, 5*time.Second)
+		suite.Require().Equal(queueSize, 10, "Queue size is not 10")
+
+		// ensure commit offset is 0
+		suite.Logger.Debug("Getting commit offset before processing")
+		commitOffset := suite.getLastCommitOffset(deployResult.Port)
+		suite.Require().Equal(commitOffset, 0, "Commit offset is not 0")
+
+		// send http request "start processing"
+		suite.Logger.Debug("Sending start processing request")
+		body := map[string]string{
+			"resource": "start_processing",
+		}
+
+		marshalledBody, err := json.Marshal(body)
+		suite.Require().NoError(err, "Failed to marshal body")
+		response, err := suite.SendHTTPRequest(&triggertest.Request{
+			Method: http.MethodPost,
+			Port:   deployResult.Port,
+			Body:   string(marshalledBody),
+		})
+		suite.Require().NoError(err, "Failed to send request")
+		suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+		time.Sleep(2 * time.Second)
+
+		// ensure queue size is 0 (or < 10)
+		suite.Logger.Debug("Getting queue size after processing")
+		queueSize = suite.waitForFunctionQueueSize(deployResult.Port, 0, 5*time.Second)
+		suite.Require().Equal(queueSize, 0, "Queue size is not 0")
+
+		// ensure commit offset is 9 (10 in zero-indexed offsets)
+		suite.Logger.Debug("Getting commit offset after processing")
+		commitOffset = suite.getLastCommitOffset(deployResult.Port)
+		suite.Require().Equal(commitOffset, 9, "Commit offset is not 10")
+
+		return true
+	})
+}
+
+//
+//func (suite *testSuite) TestEventRecorderRebalance() {
+//
+//	topic := "someTopic"
+//
+//	// create topic
+//	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+//		TopicDetails: map[string]*sarama.TopicDetail{
+//			topic: {
+//				NumPartitions:     suite.NumPartitions,
+//				ReplicationFactor: 1,
+//			},
+//		},
+//	})
+//	suite.Require().NoError(err, "Failed to create topic")
+//	suite.Logger.InfoWith("Created topic",
+//		"topic", suite.topic,
+//		"createTopicResponse", createTopicsResponse)
+//
+//	createFunctionOptions := suite.GetDeployOptions("event_recorder-1", suite.FunctionPaths["python"])
+//	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+//		Attributes: map[string]interface{}{
+//			"network": suite.BrokerContainerNetworkName,
+//		},
+//	}
+//
+//	initialOffset := "latest"
+//
+//	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+//		"my-kafka": {
+//			Kind: "kafka-cluster",
+//			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+//			Attributes: map[string]interface{}{
+//				"topics":        []string{topic},
+//				"consumerGroup": suite.consumerGroup,
+//				"initialOffset": initialOffset,
+//			},
+//		},
+//	}
+//
+//	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+//
+//		var sentBodies []string
+//
+//		suite.Logger.DebugWith("Created first function, producing messages to topic",
+//			"topic", topic)
+//
+//		// write messages on 4 shards
+//		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+//			messageBody := fmt.Sprintf("%s-%d", "messagingCycleA", partitionIdx)
+//
+//			// send the message
+//			err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
+//			suite.Require().NoError(err, "Failed to publish message")
+//
+//			// add body to bodies we expect to see in response
+//			sentBodies = append(sentBodies, messageBody)
+//		}
+//
+//		// make sure they are all read
+//		var receivedBodies []string
+//		err := common.RetryUntilSuccessful(15*time.Second,
+//			2*time.Second,
+//			func() bool {
+//				receivedBodies = suite.resolveReceivedEventBodies(deployResult)
+//				return len(receivedBodies) >= int(suite.NumPartitions)
+//			})
+//		if err != nil {
+//
+//			// get container logs
+//			dockerLogs, getLogsErr := suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
+//			suite.Require().NoError(getLogsErr, "Failed to get container logs")
+//			suite.Logger.ErrorWith("At least one message was not received properly by the function",
+//				"containerID", deployResult.ContainerID, "logs", dockerLogs)
+//		}
+//		suite.Require().NoError(err, "Failed to get events")
+//		suite.Logger.DebugWith("Done producing")
+//
+//		suite.Logger.DebugWith("Received events from functions",
+//			"event-recorder-1-events", receivedBodies)
+//
+//		sort.Strings(sentBodies)
+//		sort.Strings(receivedBodies)
+//
+//		// compare bodies
+//		suite.Require().Equal(sentBodies, receivedBodies)
+//
+//		// create another function that consumes from the same topic and consumer group
+//		newCreateFunctionOptions := suite.GetDeployOptions("event_recorder-2", suite.FunctionPaths["python"])
+//		newCreateFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+//			Attributes: map[string]interface{}{
+//				"network": suite.BrokerContainerNetworkName,
+//			},
+//		}
+//
+//		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+//			"my-kafka": {
+//				Kind: "kafka-cluster",
+//				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+//				Attributes: map[string]interface{}{
+//					"topics":        []string{topic},
+//					"consumerGroup": suite.consumerGroup,
+//					"initialOffset": initialOffset,
+//				},
+//			},
+//		}
+//
+//		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
+//
+//			suite.Logger.DebugWith("Created second function, producing messages to topic",
+//				"topic", topic)
+//
+//			// write messages to all 4 shards
+//			for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+//				messageBody := fmt.Sprintf("%s-%d", "messagingCycleB", partitionIdx)
+//
+//				// send the message
+//				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
+//				suite.Require().NoError(err, "Failed to publish message")
+//
+//				// add body to bodies we expect to see in response
+//				sentBodies = append(sentBodies, messageBody)
+//			}
+//
+//			// make sure they are all read
+//			var receivedBodies1, receivedBodies2 []string
+//			err := common.RetryUntilSuccessful(15*time.Second,
+//				2*time.Second,
+//				func() bool {
+//					receivedBodies1 = suite.resolveReceivedEventBodies(deployResult)
+//					receivedBodies2 = suite.resolveReceivedEventBodies(newDeployResult)
+//
+//					// make sure that new events were received in both functions
+//					return len(receivedBodies1) > len(receivedBodies) && len(receivedBodies2) >= int(suite.NumPartitions)/2
+//
+//				})
+//			if err != nil {
+//
+//				// get container logs
+//				dockerLogs1, getLogsErr := suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
+//				suite.Require().NoError(getLogsErr, "Failed to get container logs")
+//
+//				dockerLogs2, getLogsErr := suite.DockerClient.GetContainerLogs(newDeployResult.ContainerID)
+//				suite.Require().NoError(getLogsErr, "Failed to get container logs")
+//
+//				suite.Logger.ErrorWith("At least one message was not received properly by the functions",
+//					"containerID1", deployResult.ContainerID,
+//					"function1DockerLogs", dockerLogs1,
+//					"containerID2", newDeployResult.ContainerID,
+//					"function2DockerLogs", dockerLogs2)
+//			}
+//			suite.Require().NoError(err, "Failed to get events")
+//			suite.Logger.DebugWith("Done producing")
+//
+//			// validate functions read form different shards - a rebalance occurred!
+//			suite.Logger.DebugWith("Received events from functions",
+//				"event-recorder-1-events", receivedBodies1,
+//				"event-recorder-2-events", receivedBodies2)
+//
+//			for _, body := range receivedBodies1 {
+//				suite.Require().False(common.StringInSlice(body, receivedBodies2))
+//			}
+//
+//			for _, body := range receivedBodies2 {
+//				suite.Require().False(common.StringInSlice(body, receivedBodies1))
+//			}
+//
+//			return true
+//		})
+//
+//		return true
+//	})
+//}
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
@@ -192,10 +499,15 @@ func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclie
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
+	return suite.publishMessageToTopicOnSpecificShard(topic, body, 0)
+}
+
+func (suite *testSuite) publishMessageToTopicOnSpecificShard(topic string, body string, partitionID int32) error {
 	producerMessage := sarama.ProducerMessage{
-		Topic: topic,
-		Key:   sarama.StringEncoder("key"),
-		Value: sarama.StringEncoder(body),
+		Topic:     topic,
+		Key:       sarama.StringEncoder(fmt.Sprintf("key-%d", partitionID)),
+		Value:     sarama.StringEncoder(body),
+		Partition: partitionID,
 	}
 
 	suite.Logger.InfoWith("Producing", "topic", topic, "body", body)
@@ -206,6 +518,113 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 	suite.Logger.InfoWith("Produced", "partition", partition, "offset", offset)
 
 	return nil
+}
+
+func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.CreateFunctionResult) []string {
+
+	receivedEvents, err := triggertest.GetEventRecorderReceivedEvents(suite.Logger, suite.BrokerHost, deployResult.Port)
+	suite.Require().NoError(err)
+	var receivedBodies []string
+
+	// compare only bodies due to a deficiency in CompareNoOrder
+	for _, receivedEvent := range receivedEvents {
+
+		// some brokers need data to be able to read the stream. these write "ignore", so we ignore that
+		if receivedEvent.Body != "ignore" {
+			receivedBodies = append(receivedBodies, receivedEvent.Body)
+		}
+	}
+
+	return receivedBodies
+}
+
+func (suite *testSuite) getLastCommitOffset(port int) int {
+	body := map[string]string{
+		"resource": "last_committed_offset",
+	}
+
+	marshalledBody, err := json.Marshal(body)
+	suite.Require().NoError(err, "Failed to marshal body")
+
+	httpRequest := &triggertest.Request{
+		Method: http.MethodGet,
+		Port:   port,
+		Body:   string(marshalledBody),
+	}
+	response, err := suite.SendHTTPRequest(httpRequest)
+	suite.Require().NoError(err, "Failed to send request")
+	suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+	responseBodyBytes, err := ioutil.ReadAll(response.Body)
+	suite.Require().NoError(err, "Failed to read response body")
+	suite.Logger.DebugWith("Got response", "response", response, "responseBody", string(responseBodyBytes))
+
+	responseBody := map[string]interface{}{}
+	err = json.Unmarshal(responseBodyBytes, &responseBody)
+	suite.Require().NoError(err, "Failed to unmarshal response body")
+
+	lastCommittedOffset, exists := responseBody["last_committed_offset"]
+	suite.Require().True(exists, "Failed to find last committed offset")
+
+	lastCommittedOffsetString, ok := lastCommittedOffset.(string)
+	suite.Require().True(ok, "Failed to convert last committed offset to string")
+
+	lastCommittedOffsetInt, err := strconv.Atoi(lastCommittedOffsetString)
+	suite.Require().NoError(err, "Failed to convert last committed offset to int")
+
+	return lastCommittedOffsetInt
+}
+
+func (suite *testSuite) getQueueSize(port int) int {
+	body := map[string]string{
+		"resource": "queue_size",
+	}
+
+	marshalledBody, err := json.Marshal(body)
+	suite.Require().NoError(err, "Failed to marshal body")
+
+	httpRequest := &triggertest.Request{
+		Method: http.MethodGet,
+		Port:   port,
+		Body:   string(marshalledBody),
+	}
+	response, err := suite.SendHTTPRequest(httpRequest)
+	suite.Require().NoError(err, "Failed to send request")
+	suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+	responseBodyBytes, err := ioutil.ReadAll(response.Body)
+	suite.Require().NoError(err, "Failed to read response body")
+	suite.Logger.DebugWith("Got response", "response", response, "responseBody", string(responseBodyBytes))
+
+	responseBody := map[string]interface{}{}
+	err = json.Unmarshal(responseBodyBytes, &responseBody)
+	suite.Require().NoError(err, "Failed to unmarshal response body")
+
+	queueSize, exists := responseBody["queue_size"]
+	suite.Require().True(exists, "Failed to find queue size")
+
+	queueSizeFloat, ok := queueSize.(float64)
+	suite.Require().True(ok, "Failed to convert queue size to int")
+
+	return int(queueSizeFloat)
+}
+
+func (suite *testSuite) waitForFunctionQueueSize(port, expectedQueueSize int, timeout time.Duration) int {
+	timeoutTimer := time.NewTimer(timeout)
+	defer timeoutTimer.Stop()
+
+	for {
+		select {
+		case <-timeoutTimer.C:
+			suite.Fail("Timeout waiting for queue size")
+		default:
+			queueSize := suite.getQueueSize(port)
+			if queueSize == expectedQueueSize {
+				return queueSize
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
 }
 
 func TestIntegrationSuite(t *testing.T) {

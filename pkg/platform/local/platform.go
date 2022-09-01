@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"strconv"
@@ -43,7 +43,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/local/client"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
@@ -289,7 +288,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		var deployErr error
 		var functionStatus functionconfig.Status
 
-		previousHTTPPort, err := p.deletePreviousContainers(createFunctionOptions)
+		// delete existing function containers
+		previousHTTPPort, err := p.deleteOrStopFunctionContainers(createFunctionOptions)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to delete previous containers")
 		}
@@ -653,7 +653,25 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 }
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
-	return []string{"172.17.0.1"}, nil
+	addresses := []string{
+
+		// default internal docker network
+		"172.17.0.1",
+	}
+
+	if common.RunningInContainer() {
+
+		// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
+		dockerHostAddresses, err := net.LookupIP("host.docker.internal")
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to lookup host.docker.internal")
+		}
+		for _, address := range dockerHostAddresses {
+			addresses = append(addresses, address.String())
+		}
+	}
+
+	return addresses, nil
 }
 
 func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
@@ -795,12 +813,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to create a function's platform configuration")
 	}
 
-	functionMountMode, err := p.resolveFunctionMountMode(functionPlatformConfiguration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve processor mount mode")
-	}
-
-	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions, functionMountMode)
+	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve and create function mounts")
 	}
@@ -842,20 +855,23 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		FSGroup:       functionSecurityContext.FSGroup,
 	}
 
-	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
-		runContainerOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to run a Docker container")
-	}
+	containerID := p.GetFunctionContainerName(&createFunctionOptions.FunctionConfig)
+	if !createFunctionOptions.FunctionConfig.Spec.Disable {
+		containerID, err = p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image,
+			runContainerOptions)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to run a Docker container")
+		}
 
-	timeout := createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds
-	if err := p.waitForContainer(containerID, timeout); err != nil {
-		return nil, err
-	}
+		if err := p.waitForContainer(containerID,
+			createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds); err != nil {
+			return nil, err
+		}
 
-	functionExternalHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve a deployed function's HTTP port")
+		functionExternalHTTPPort, err = p.resolveDeployedFunctionHTTPPort(containerID)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to resolve a deployed function's HTTP port")
+		}
 	}
 
 	return &platform.CreateFunctionResult{
@@ -913,89 +929,24 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	return nil
 }
 
-func (p *Platform) resolveFunctionMountMode(functionPlatformConfiguration *functionPlatformConfiguration) (
-	FunctionMountMode, error) {
+func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions) (
+	[]dockerclient.MountPoint, map[string]string, error) {
 
-	// if set, return value from function platform configuration
-	if functionPlatformConfiguration.MountMode != "" {
-		return functionPlatformConfiguration.MountMode, nil
+	if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
 	}
-
-	// use platform defaults
-	return p.defaultFunctionMountMode, nil
-}
-
-func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions,
-	functionMountMode FunctionMountMode) ([]dockerclient.MountPoint, map[string]string, error) {
-
-	var mountPoints []dockerclient.MountPoint
 	volumesMap := p.compileDeployFunctionVolumesMap(createFunctionOptions)
+	processorMountPoint := dockerclient.MountPoint{
+		Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
+		Destination: FunctionProcessorContainerDirPath,
 
-	switch functionMountMode {
-	case FunctionMountModeVolume:
-		if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
-		}
-		mountPoints = append(mountPoints, dockerclient.MountPoint{
-			Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
-			Destination: FunctionProcessorContainerDirPath,
-
-			// read only mode
-			RW: false,
-		})
-	default:
-
-		// create processor configuration at a temporary location unless user specified a configuration
-		localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to create a processor configuration")
-		}
-
-		// volumize it
-		volumesMap[localProcessorConfigPath] = path.Join(FunctionProcessorContainerDirPath, "processor.yaml")
+		// read only mode
+		RW: false,
 	}
 
-	return mountPoints, volumesMap, nil
-}
-
-func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateFunctionOptions) (string, error) {
-
-	configWriter, err := processorconfig.NewWriter()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create a processor configuration writer")
-	}
-
-	// must specify "/tmp" here so that it's available on docker for mac
-	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create a temporary processor configuration")
-	}
-
-	defer processorConfigFile.Close() // nolint: errcheck
-
-	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
-		Config: createFunctionOptions.FunctionConfig,
-	}); err != nil {
-		return "", errors.Wrap(err, "Failed to write a processor configuration")
-	}
-
-	// make it readable by other users, in case user use different USER directive on function image
-	if err := os.Chmod(processorConfigFile.Name(), 0644); err != nil {
-		return "", errors.Wrap(err, "Failed to change a processor's configuration-file permission")
-	}
-
-	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
-
-	// read the file once for logging
-	processorConfigContents, err := ioutil.ReadFile(processorConfigFile.Name())
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to read a processor-configuration file")
-	}
-
-	// log
-	p.Logger.DebugWith("Wrote processor configuration file", "contents", string(processorConfigContents))
-
-	return processorConfigFile.Name(), nil
+	return []dockerclient.MountPoint{
+		processorMountPoint,
+	}, volumesMap, nil
 }
 
 func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
@@ -1054,7 +1005,7 @@ func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
 	return marshalledAnnotations
 }
 
-func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
+func (p *Platform) deleteOrStopFunctionContainers(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
 	var previousHTTPPort int
 
 	createFunctionOptions.Logger.InfoWith("Cleaning up before deployment",
@@ -1069,24 +1020,40 @@ func (p *Platform) deletePreviousContainers(createFunctionOptions *platform.Crea
 		return 0, errors.Wrap(err, "Failed to get function containers")
 	}
 
+	if createFunctionOptions.FunctionConfig.Spec.Disable {
+		createFunctionOptions.Logger.InfoWith("Disabling function",
+			"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
+
+		// if function is disabled, stop all containers
+		for _, container := range containers {
+			createFunctionOptions.Logger.DebugWith("Stop function container",
+				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+				"containerID", container.ID)
+			if err := p.dockerClient.StopContainer(container.ID); err != nil {
+				return 0, errors.Wrap(err, "Failed to stop a container")
+			}
+		}
+		return 0, nil
+	}
+
 	// if the function exists, delete it
 	if len(containers) > 0 {
 		createFunctionOptions.Logger.InfoWith("Function already exists, deleting function containers",
 			"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
+	}
 
-		// iterate over containers and delete
-		for _, container := range containers {
-			createFunctionOptions.Logger.DebugWith("Deleting function container",
-				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
-				"containerName", container.Name)
-			previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
-			if err != nil {
-				return 0, errors.Wrap(err, "Failed to get a container's HTTP-trigger port")
-			}
+	// iterate over containers and delete
+	for _, container := range containers {
+		createFunctionOptions.Logger.DebugWith("Deleting function container",
+			"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+			"containerName", container.Name)
+		previousHTTPPort, err = p.getContainerHTTPTriggerPort(&container)
+		if err != nil {
+			return 0, errors.Wrap(err, "Failed to get a container's HTTP-trigger port")
+		}
 
-			if err := p.dockerClient.RemoveContainer(container.ID); err != nil {
-				return 0, errors.Wrap(err, "Failed to delete a function container")
-			}
+		if err := p.dockerClient.RemoveContainer(container.ID); err != nil {
+			return 0, errors.Wrap(err, "Failed to delete a function container")
 		}
 	}
 
@@ -1281,7 +1248,12 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 	functionInvocation.InternalInvocationURLs = addressesWithFunctionPort
 	functionInvocation.ExternalInvocationURLs = []string{}
 	for _, externalIPAddress := range externalIPAddresses {
-		if externalIPAddress != "" {
+		switch externalIPAddress {
+
+		// skip if empty or assumes running in docker
+		case "", "172.17.0.1":
+			continue
+		default:
 			functionInvocation.ExternalInvocationURLs = append(functionInvocation.ExternalInvocationURLs,
 				fmt.Sprintf("%s:%d", externalIPAddress, createFunctionResults.Port))
 		}

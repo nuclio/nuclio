@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
 	"github.com/nuclio/errors"
@@ -60,17 +61,24 @@ type Runtime interface {
 
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
+
+	// Terminate sends a signal to the runtime process and waits for it to exit
+	Terminate() error
+
+	// GetControlMessageBroker returns the control message broker
+	GetControlMessageBroker() controlcommunication.ControlMessageBroker
 }
 
 // AbstractRuntime is the base for all runtimes
 type AbstractRuntime struct {
-	Logger         logger.Logger
-	FunctionLogger logger.Logger
-	Context        *nuclio.Context
-	Statistics     Statistics
-	databindings   map[string]databinding.DataBinding
-	configuration  *Configuration
-	status         status.Status
+	Logger               logger.Logger
+	FunctionLogger       logger.Logger
+	Context              *nuclio.Context
+	Statistics           Statistics
+	ControlMessageBroker controlcommunication.ControlMessageBroker
+	databindings         map[string]databinding.DataBinding
+	configuration        *Configuration
+	status               status.Status
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -149,6 +157,11 @@ func (ar *AbstractRuntime) SupportsRestart() bool {
 	return false
 }
 
+// SupportsControlCommunication returns true if the runtime supports control communication
+func (ar *AbstractRuntime) SupportsControlCommunication() bool {
+	return false
+}
+
 func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
 	return []string{
 		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", ar.configuration.Meta.Name),
@@ -156,6 +169,11 @@ func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
 		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", ar.configuration.Spec.Version),
 		fmt.Sprintf("NUCLIO_FUNCTION_HANDLER=%s", ar.configuration.Spec.Handler),
 	}
+}
+
+// GetControlMessageBroker returns the control message broker
+func (ar *AbstractRuntime) GetControlMessageBroker() controlcommunication.ControlMessageBroker {
+	return ar.ControlMessageBroker
 }
 
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
@@ -232,5 +250,9 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 // Stop stops the runtime
 func (ar *AbstractRuntime) Stop() error {
 	ar.SetStatus(status.Stopped)
+	return nil
+}
+
+func (ar *AbstractRuntime) Terminate() error {
 	return nil
 }

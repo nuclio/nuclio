@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/docker/distribution/reference"
 	"github.com/google/go-cmp/cmp"
@@ -243,7 +244,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	}
 
 	// enrich triggers
-	if err := ap.enrichTriggers(functionConfig); err != nil {
+	if err := ap.enrichTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching triggers")
 	}
 
@@ -255,6 +256,8 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	if err := ap.enrichVolumes(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching volumes")
 	}
+
+	ap.enrichEnvVars(functionConfig)
 
 	ap.Config.EnrichContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
 
@@ -1451,6 +1454,16 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 			}
 			return nuclio.NewErrBadRequest("There's more than one http trigger (unsupported)")
 		}
+
+		// explicit ack is only allowed for Static Allocation mode
+		if triggerInstance.Kind == "kafka-cluster" {
+			if workerAllocationMode, exists := functionConfig.Meta.Annotations["nuclio.io/kafka-worker-allocation-mode"]; exists {
+				if partitionworker.AllocationMode(workerAllocationMode) != partitionworker.AllocationModeStatic &&
+					functionconfig.ExplicitAckEnabled(triggerInstance.ExplicitAckMode) {
+					return nuclio.NewErrBadRequest("Explicit ack mode is not allowed when using worker pool allocation mode")
+				}
+			}
+		}
 	}
 
 	return nil
@@ -1496,10 +1509,14 @@ func (ap *Platform) enrichMinMaxReplicas(functionConfig *functionconfig.Config) 
 	}
 }
 
-func (ap *Platform) enrichTriggers(functionConfig *functionconfig.Config) error {
+func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// add default http trigger if missing http trigger
 	ap.enrichDefaultHTTPTrigger(functionConfig)
+
+	if err := ap.enrichExplicitAckParams(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich explicit ack params")
+	}
 
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
 
@@ -1517,6 +1534,28 @@ func (ap *Platform) enrichTriggers(functionConfig *functionconfig.Config) error 
 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
+	return nil
+}
+
+func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig *functionconfig.Config) error {
+
+	// explicit ack is relevant for stream triggers
+	for triggerName, triggerInstance := range functionconfig.GetTriggersByKinds(functionConfig.Spec.Triggers,
+		[]string{"kafka", "kafka-cluster", "v3ioStream"}) {
+		ap.Logger.DebugWithCtx(ctx, "Enriching explicit ack params",
+			"functionName", functionConfig.Meta.Name)
+
+		if triggerInstance.ExplicitAckMode == "" {
+			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+		}
+
+		if triggerInstance.WorkerTerminationTimeout == "" {
+			triggerInstance.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
+		}
+
+		functionConfig.Spec.Triggers[triggerName] = triggerInstance
+	}
+
 	return nil
 }
 
@@ -1612,4 +1651,20 @@ func (ap *Platform) enrichVolumes(functionConfig *functionconfig.Config) error {
 		}
 	}
 	return nil
+}
+
+func (ap *Platform) enrichEnvVars(config *functionconfig.Config) {
+	if ap.Config.Runtime != nil {
+		if ap.Config.Runtime.Common != nil {
+			for envKey, envValue := range ap.Config.Runtime.Common.Env {
+				newEnvVar := v1.EnvVar{
+					Name:  envKey,
+					Value: envValue,
+				}
+				if !common.EnvInSlice(newEnvVar, config.Spec.Env) {
+					config.Spec.Env = append(config.Spec.Env, newEnvVar)
+				}
+			}
+		}
+	}
 }

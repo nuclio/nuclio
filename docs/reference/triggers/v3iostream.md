@@ -4,6 +4,7 @@
 - [Overview](#overview)
 - [Consuming messages through a consumer group](#consume-messages)
   - [Consumption example](#consumption-example)
+  - [Explicit offset commits](#explicit-offset-commits)
 - [Dashboard configuration](#ui-config)
 - [Example](#example)
 
@@ -81,6 +82,57 @@ At this stage, `replica1` backs off and retries periodically until it eventually
 > **Note:** It's also possible for `replica1` to be removed from the consumer group by `replica2` or `replica3`, because each replica cleans up all stale group members when updating its `last_heartbeat` field.
 
 For shards 0-3, the new instance of `replica1` then reads the shard's offset attribute, which indicates the location in the shard at which the previous instance of `replica1` left off; seeks the read offset in the shard; and continues reading messages from this location. The same process is executed for `replica2` and `replica3`.
+
+<a id="explicit-offset-commits"></a>
+### Explicit offset commits
+
+In some cases, the "auto-commit" feature can be problematic.
+One example are stateful functions that might need to go and consume already being received records upon the function failure.
+
+For that, Nuclio offers a way to accept new events without committing them, and explicitly mark offsets on the relevant stream shard, when the processing is done.
+This enables the function to receive and process more events simultaneously.
+
+To enable this feature, set the `ExplicitAckMode` in the trigger's spec to `enabled` or `explicitOnly`, where the optional modes are:
+* `enable` - allows explicit and implicit ack according to the "x-nuclio-stream-no-ack" header
+* `disable`- disables the explicit ack feature and allows only implicit acks (default)
+* `explicitOnly`- allows only explicit acks and disables implicit acks
+
+To receive more events without committing them, your function handler must respond with a nuclio response object, set the `x-nuclio-stream-no-ack` header to `true` in the request.
+This can be done by calling the response's `ensure_no_ack()` method, like this:
+
+```py
+response = nuclio_sdk.Response()
+response.ensure_no_ack()
+```
+
+To explicitly commit the offset on an event, save the relevant event information in the `QualifiedOffset` object,
+and pass it to async function `explicit_ack()` method of the context's response object, like so:
+```py
+qualified_offset = nuclio.QualifiedOffset.from_event(event)
+await context.platform.explicit_ack(qualified_offset)
+```
+
+During [rebalance](#rebalancing), the function can still be processing events. We can register a callback to drop or commit events being handled when the rebalancing is about to happen, using the following method:
+```py
+context.platform.on_signal(callback)
+```
+
+**NOTES**:
+* Currently, the explicit ack feature is only available for python runtime and function that have a Kafka trigger.
+* The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"static"`.
+* The `QualifiedOffset` object can be saved in a persistent storage and used to commit the offset on later invocation of the function.
+* The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function, or provide an event loop to run that method. e.g.:
+```py
+import asyncio
+import nuclio
+
+def handler(context, event):
+    qualified_offset = nuclio.QualifiedOffset.from_event(event)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(context.platform.explicit_ack(qualified_offset)
+    return "acked"
+```
+
 
 <a id="ui-config"></a>
 ## Dashboard configuration

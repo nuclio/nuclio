@@ -41,6 +41,8 @@ spec:
         checksum/configmap-platform: {{ include (print $.Template.BasePath "/configmap/platform.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ template "nuclio.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.dashboard.securityContext | nindent 8 }}
       containers:
       - name: {{ template "nuclio.dashboardName" . }}
         image: {{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}
@@ -93,9 +95,11 @@ spec:
         {{- end }}
         env:
         - name: NUCLIO_BUSYBOX_CONTAINER_IMAGE
-          value: {{ .Values.dashboard.kaniko.initContainerImage.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.tag}}
+          value: {{ .Values.dashboard.kaniko.initContainerImage.busybox.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.busybox.tag}}
+        - name: NUCLIO_AWS_CLI_CONTAINER_IMAGE
+          value: {{ .Values.dashboard.kaniko.initContainerImage.awscli.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.awscli.tag}}
         - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
-          value: {{ .Values.dashboard.kaniko.pushImagesRestries | quote }}
+          value: {{ .Values.dashboard.kaniko.pushImagesRetries | quote }}
         - name: NUCLIO_AUTH_KIND
           value: {{ .Values.dashboard.authConfig.kind }}
         - name: NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT
@@ -148,8 +152,10 @@ spec:
         - name: NUCLIO_DASHBOARD_KANIKO_CACHE_REPO
           value: {{ .Values.dashboard.kaniko.cacheRepo }}
         {{- end }}
-#        - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
-#          value: "localhost:5000"
+        {{- if .Values.registry.runRegistryURL }}
+        - name: NUCLIO_DASHBOARD_RUN_REGISTRY_URL
+          value: {{ .Values.registry.runRegistryURL }}
+        {{- end }}
         {{- if eq .Values.dashboard.baseImagePullPolicy "Never" }}
         - name: NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES
           value: "true"
@@ -158,13 +164,18 @@ spec:
         - name: NUCLIO_DASHBOARD_OFFLINE
           value: "true"
         {{- end }}
-        {{- if .Values.dashboard.templatesArchiveAddress }}
+        {{- if not (eq .Values.dashboard.templates.archiveAddress "nil") }}
         - name: NUCLIO_TEMPLATES_ARCHIVE_ADDRESS
-          value: {{ .Values.dashboard.templatesArchiveAddress }}
+          value: {{ .Values.dashboard.templates.archiveAddress }}
         - name: NUCLIO_TEMPLATES_GIT_REPOSITORY
           value: "nil"
         - name: NUCLIO_TEMPLATES_GIT_REF
           value: "nil"
+        {{- else }}
+        - name: NUCLIO_TEMPLATES_GIT_REPOSITORY
+          value: {{ .Values.dashboard.templates.gitRepository }}
+        - name: NUCLIO_TEMPLATES_GIT_REF
+          value: {{ .Values.dashboard.templates.getRef }}
         {{- end }}
         - name: NUCLIO_MONITOR_DOCKER_DAEMON
           value: {{ .Values.dashboard.monitorDockerDeamon.enabled | quote }}
@@ -174,6 +185,10 @@ spec:
           value: {{ .Values.dashboard.monitorDockerDeamon.maxConsecutiveErrors | quote }}
         - name: NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME
           value: {{ template "nuclio.registry.credentialsSecretName" . }}
+        {{- if .Values.dashboard.kaniko.registryProviderSecretName }}
+        - name: NUCLIO_KANIKO_REGISTRY_PROVIDER_AUTH_SECRET_NAME
+          value: {{ .Values.dashboard.kaniko.registryProviderSecretName | quote }}
+        {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ template "nuclio.externalIPAddresses" . }}
         - name: NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE

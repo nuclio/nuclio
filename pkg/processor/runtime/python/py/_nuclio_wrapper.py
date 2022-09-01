@@ -29,6 +29,12 @@ import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 
 
+class Constants:
+
+    # in msgpack protoctol, binary messages' length is 4 bytes long
+    msgpack_message_length_bytes = 4
+
+
 class WrapperFatalException(Exception):
     """
     Wrapper fatal is an exception the wrapper can not (perhaps should not) recover from
@@ -49,7 +55,8 @@ class Wrapper(object):
                  logger,
                  loop,
                  handler,
-                 socket_path,
+                 event_socket_path,
+                 control_socket_path,
                  platform_kind,
                  namespace=None,
                  worker_id=None,
@@ -57,11 +64,15 @@ class Wrapper(object):
                  trigger_name=None,
                  decode_event_strings=True):
         self._logger = logger
-        self._socket_path = socket_path
+        self._event_socket_path = event_socket_path
+        self._control_socket_path = control_socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
         self._entrypoint = None
-        self._processor_sock = None
-        self._platform = nuclio_sdk.Platform(platform_kind, namespace=namespace)
+        self._event_sock = None
+        self._control_sock = None
+        self._platform = nuclio_sdk.Platform(platform_kind,
+                                             namespace=namespace,
+                                             on_control_callback=self._send_data_on_control_socket)
         self._decode_event_strings = decode_event_strings
 
         # 1gb
@@ -73,10 +84,17 @@ class Wrapper(object):
         self._is_entrypoint_coroutine = asyncio.iscoroutinefunction(self._entrypoint)
 
         # connect to processor
-        self._processor_sock = self._connect_to_processor()
+        self._event_sock = self._connect_to_processor(self._event_socket_path)
+        self._control_sock = self._connect_to_processor(self._control_socket_path)
 
         # make a writeable file from processor
-        self._processor_sock_wfile = self._processor_sock.makefile('w')
+        self._event_sock_wfile = self._event_sock.makefile('w')
+        self._control_sock_wfile = self._control_sock.makefile('w')
+
+        # if we're in a coroutine - set socket to non-blocking
+        if self._is_entrypoint_coroutine:
+            self._event_sock.setblocking(False)
+            self._control_sock.setblocking(False)
 
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
@@ -97,7 +115,7 @@ class Wrapper(object):
                                            nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
 
         # replace the default output with the process socket
-        self._logger.set_handler('default', self._processor_sock_wfile, JSONFormatterOverSocket())
+        self._logger.set_handler('default', self._event_sock_wfile, JSONFormatterOverSocket())
 
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
@@ -107,20 +125,20 @@ class Wrapper(object):
             try:
 
                 # resolve event message length
-                event_message_length = await self._resolve_event_message_length()
+                event_message_length = await self._resolve_event_message_length(self._event_sock)
 
                 # resolve event message
-                event = await self._resolve_event(event_message_length)
+                event = await self._resolve_event(self._event_sock, event_message_length)
 
                 try:
 
                     # handle event
                     await self._handle_event(event)
                 except BaseException as exc:
-                    self._on_handle_event_error(exc)
+                    await self._on_handle_event_error(exc)
 
             except WrapperFatalException as exc:
-                self._on_serving_error(exc)
+                await self._on_serving_error(exc)
 
                 # explode, unrecoverable exception
                 self._shutdown(error_code=1)
@@ -130,10 +148,10 @@ class Wrapper(object):
                 # reset unpacker to avoid consecutive errors
                 # this may happen when msgpack fails to decode a non-utf8 events
                 self._unpacker = self._resolve_unpacker()
-                self._on_serving_error(exc)
+                await self._on_serving_error(exc)
 
             except Exception as exc:
-                self._on_serving_error(exc)
+                await self._on_serving_error(exc)
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None:
@@ -147,7 +165,19 @@ class Wrapper(object):
         await self._initialize_context()
 
         # indicate that we're ready
-        self._write_packet_to_processor('s')
+        await self._write_packet_to_processor(self._event_sock, 's')
+        await self._send_data_on_control_socket({
+            'kind': 'wrapperInitialized',
+            'attributes': {'ready': 'true'}
+        })
+
+    async def receive_control_messages(self):
+
+        control_message_event_length = await self._resolve_event_message_length(self._control_sock)
+
+        control_message_event = await self._resolve_event(self._control_sock, control_message_event_length)
+
+        self._logger.debug_with('Received control message', control_message=control_message_event.body)
 
     async def _initialize_context(self):
 
@@ -162,6 +192,16 @@ class Wrapper(object):
             except:
                 self._logger.error('Exception raised while running init_context')
                 raise
+
+    async def _send_data_on_control_socket(self, data):
+
+        self._logger.debug_with('Sending data on control socket', data_length=len(data))
+
+        # send message to processor
+        encoded_offset_data = self._json_encoder.encode(data)
+        await self._write_packet_to_processor(self._control_sock, encoded_offset_data)
+
+        # TODO: wait for response that processor received data
 
     def _resolve_unpacker(self):
         """
@@ -204,37 +244,38 @@ class Wrapper(object):
 
         return entrypoint_address
 
-    def _connect_to_processor(self, timeout=60):
+    def _connect_to_processor(self, socket_path, timeout=60):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         for _ in range(timeout):
             try:
-                sock.connect(self._socket_path)
+                sock.connect(socket_path)
                 return sock
 
             except:
 
                 # logger isn't available yet
-                print('Failed to connect to ' + self._socket_path)
+                print('Failed to connect to ' + socket_path)
 
                 time.sleep(1)
 
-        raise RuntimeError('Failed to connect to {0} in given timeframe'.format(self._socket_path))
+        raise RuntimeError('Failed to connect to {0} in given timeframe'.format(socket_path))
 
-    def _write_packet_to_processor(self, body):
+    async def _write_packet_to_processor(self, sock, body):
 
-        # TODO: make async
-        self._processor_sock_wfile.write(body + '\n')
-        self._processor_sock_wfile.flush()
+        if self._is_entrypoint_coroutine:
+            await self._loop.sock_sendall(sock, (body + '\n').encode('utf-8'))
+        else:
+            sock.sendall((body + '\n').encode('utf-8'))
 
-    async def _resolve_event_message_length(self):
+    async def _resolve_event_message_length(self, sock):
         """
         Determines the message body size
         """
         if self._is_entrypoint_coroutine:
-            int_buf = await self._loop.sock_recv(self._processor_sock, 4)
+            int_buf = await self._loop.sock_recv(sock, Constants.msgpack_message_length_bytes)
         else:
-            int_buf = self._processor_sock.recv(4)
+            int_buf = sock.recv(Constants.msgpack_message_length_bytes)
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
@@ -250,7 +291,7 @@ class Wrapper(object):
 
         return bytes_to_read
 
-    async def _resolve_event(self, expected_event_bytes_length):
+    async def _resolve_event(self, sock, expected_event_bytes_length):
         """
         Reading the expected event length from socket and instantiate an event message
         """
@@ -259,9 +300,9 @@ class Wrapper(object):
         while cumulative_bytes_read < expected_event_bytes_length:
             bytes_to_read_now = expected_event_bytes_length - cumulative_bytes_read
             if self._is_entrypoint_coroutine:
-                bytes_read = await self._loop.sock_recv(self._processor_sock, bytes_to_read_now)
+                bytes_read = await self._loop.sock_recv(sock, bytes_to_read_now)
             else:
-                bytes_read = self._processor_sock.recv(bytes_to_read_now)
+                bytes_read = sock.recv(bytes_to_read_now)
 
             if not bytes_read:
                 raise WrapperFatalException('Client disconnected')
@@ -275,20 +316,20 @@ class Wrapper(object):
         # instantiate event message
         return nuclio_sdk.Event.deserialize(event_message, kind=self._event_deserializer_kind)
 
-    def _on_serving_error(self, exc):
-        self._log_and_response_error(exc, 'Exception caught while serving')
+    async def _on_serving_error(self, exc):
+        await self._log_and_response_error(exc, 'Exception caught while serving')
 
-    def _on_handle_event_error(self, exc):
-        self._log_and_response_error(exc, 'Exception caught in handler')
+    async def _on_handle_event_error(self, exc):
+        await self._log_and_response_error(exc, 'Exception caught in handler')
 
-    def _log_and_response_error(self, exc, error_message):
+    async def _log_and_response_error(self, exc, error_message):
         encoded_error_response = '{0} - "{1}": {2}'.format(error_message,
                                                            exc,
                                                            traceback.format_exc())
         self._logger.error_with(error_message, exc=str(exc), traceback=traceback.format_exc())
-        self._write_response_error(encoded_error_response or error_message)
+        await self._write_response_error(encoded_error_response or error_message)
 
-    def _write_response_error(self, body):
+    async def _write_response_error(self, body):
         try:
             encoded_response = self._json_encoder.encode({
                 'body': body,
@@ -298,7 +339,7 @@ class Wrapper(object):
             })
 
             # try write the formatted exception back to processor
-            self._write_packet_to_processor('r' + encoded_response)
+            await self._write_packet_to_processor(self._event_sock, 'r' + encoded_response)
         except Exception as exc:
             print('Failed to write message to processor after serving error detected, is socket open?\n'
                   'Exception: {0}'.format(str(exc)))
@@ -316,7 +357,7 @@ class Wrapper(object):
         # measure duration, set to minimum float in case execution was too fast
         duration = time.time() - start_time or sys.float_info.min
 
-        self._write_packet_to_processor('m' + json.dumps({'duration': duration}))
+        await self._write_packet_to_processor(self._event_sock, 'm' + json.dumps({'duration': duration}))
 
         response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
                                                               entrypoint_output)
@@ -325,12 +366,15 @@ class Wrapper(object):
         encoded_response = self._json_encoder.encode(response)
 
         # write response to the socket
-        self._write_packet_to_processor('r' + encoded_response)
+        await self._write_packet_to_processor(self._event_sock, 'r' + encoded_response)
 
     def _shutdown(self, error_code=0):
         print('Shutting down')
-        self._processor_sock.close()
-        sys.exit(error_code)
+        try:
+            self._event_sock.close()
+            self._control_sock.close()
+        finally:
+            sys.exit(error_code)
 
 #
 # init
@@ -350,8 +394,12 @@ def parse_args():
                         help='handler (module.sub:handler)',
                         required=True)
 
-    parser.add_argument('--socket-path',
+    parser.add_argument('--event-socket-path',
                         help='path to unix socket to listen on',
+                        required=True)
+
+    parser.add_argument('--control-socket-path',
+                        help='path to unix socket to send the processor messages on',
                         required=True)
 
     parser.add_argument('--log-level',
@@ -400,7 +448,8 @@ def run_wrapper():
         wrapper_instance = Wrapper(root_logger,
                                    loop,
                                    args.handler,
-                                   args.socket_path,
+                                   args.event_socket_path,
+                                   args.control_socket_path,
                                    args.platform_kind,
                                    args.namespace,
                                    args.worker_id,

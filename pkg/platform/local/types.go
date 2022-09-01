@@ -45,9 +45,9 @@ type FunctionMountMode string
 
 const (
 
-	// use `/tmp` host path directory and bind mount
+	// FunctionMountModeBind is Deprecated. use FunctionMountModeVolume only.
 	FunctionMountModeBind FunctionMountMode = "bind"
 
-	// create a docker volume and mount it
+	// FunctionMountModeVolume creates a docker volume and mounts processor configuration to it
 	FunctionMountModeVolume FunctionMountMode = "volume"
 )

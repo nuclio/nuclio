@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -123,11 +124,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor.logger.InfoWith("Starting processor", "version", version.Get())
 
 	indentedProcessorConfiguration, _ := json.MarshalIndent(processorConfiguration, "", "    ")
-	indentedPlatformConfiguration, _ := json.MarshalIndent(platformConfiguration, "", "    ")
 
 	newProcessor.logger.DebugWith("Read configuration",
-		"config", string(indentedProcessorConfiguration),
-		"platformConfig", string(indentedPlatformConfiguration))
+		"config", string(indentedProcessorConfiguration))
 
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration
@@ -284,6 +283,7 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
 	var triggers []trigger.Trigger
+	abstractControlMessageBroker := controlcommunication.NewAbstractControlMessageBroker()
 
 	// create error group
 	errGroup, _ := errgroup.WithContext(context.Background(), p.logger)
@@ -314,8 +314,9 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 				triggerName,
 				&triggerConfiguration,
 				&runtime.Configuration{
-					Configuration:  processorConfiguration,
-					FunctionLogger: p.functionLogger,
+					Configuration:        processorConfiguration,
+					FunctionLogger:       p.functionLogger,
+					ControlMessageBroker: abstractControlMessageBroker,
 				},
 				p.namedWorkerAllocators,
 				p.restartTriggerChan)

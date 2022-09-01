@@ -65,10 +65,26 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	// create base
 	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 
+	workerAllocationModeValue := ""
+
 	if err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "custom.nuclio.io/v3iostream-window-size", ValueUInt64: &newConfiguration.AckWindowSize},
+		{Key: "nuclio.io/v3iostream-worker-allocation-mode", ValueString: &workerAllocationModeValue},
 	}); err != nil {
 		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
+	}
+
+	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
+
+	// default explicit ack mode to 'disable'
+	if triggerConfiguration.ExplicitAckMode == "" {
+		newConfiguration.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+	}
+
+	// explicit ack is only allowed for Static Allocation mode
+	if newConfiguration.WorkerAllocationMode != partitionworker.AllocationModeStatic &&
+		functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode) {
+		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
 	}
 
 	// parse attributes

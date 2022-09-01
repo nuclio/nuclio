@@ -332,29 +332,31 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				err, functionState := lc.waitFunctionDeploymentReadiness(ctx,
 					function,
 					functionResourcesCreateOrUpdateTimestamp)
-				if err == nil {
-					deploymentReady = true
-					timeDeploymentReady = time.Now()
-					lc.logger.DebugWithCtx(ctx,
-						"Function deployment is ready",
-						"namespace", function.Namespace,
-						"name", function.Name)
-					continue
-				}
 
 				// HACK - we return with empty function state to indicate a possibly transient error
 				if functionState == "" {
 					if counter == 1 || counter%5 == 0 {
-						lc.logger.WarnWithCtx(ctx,
-							"Failed to wait for function deployment readiness (probably a transient error)",
-							"err", err.Error(),
-							"namespace", function.Namespace,
-							"name", function.Name)
+						if err != nil {
+							lc.logger.WarnWithCtx(ctx,
+								"Failed to wait for function deployment readiness (probably a transient error)",
+								"err", err.Error(),
+								"namespace", function.Namespace,
+								"name", function.Name)
+						}
 					}
 					continue
 				}
 
-				return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
+				if err != nil {
+					return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
+				}
+
+				deploymentReady = true
+				timeDeploymentReady = time.Now()
+				lc.logger.DebugWithCtx(ctx,
+					"Function deployment is ready",
+					"namespace", function.Namespace,
+					"name", function.Name)
 			}
 
 			// check ingress readiness
@@ -2066,7 +2068,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	}
 
 	container.ReadinessProbe = &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port: intstr.FromInt(abstract.FunctionContainerHTTPPort),
 				Path: http.InternalHealthPath,
@@ -2078,7 +2080,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	}
 
 	container.LivenessProbe = &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Port: intstr.FromInt(abstract.FunctionContainerHealthCheckHTTPPort),
 				Path: "/live",

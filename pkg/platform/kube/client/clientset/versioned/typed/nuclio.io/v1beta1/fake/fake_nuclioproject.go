@@ -105,7 +105,7 @@ func (c *FakeNuclioProjects) Update(ctx context.Context, nuclioProject *v1beta1.
 // Delete takes name of the nuclioProject and deletes it. Returns an error if one occurs.
 func (c *FakeNuclioProjects) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(nuclioprojectsResource, c.ns, name), &v1beta1.NuclioProject{})
+		Invokes(testing.NewDeleteActionWithOptions(nuclioprojectsResource, c.ns, name, opts), &v1beta1.NuclioProject{})
 
 	return err
 }

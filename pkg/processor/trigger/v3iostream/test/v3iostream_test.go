@@ -21,6 +21,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path"
 	"testing"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
@@ -151,27 +153,27 @@ func (suite *testSuite) TestAckWindowSize() {
 		for messageIdx := 0; messageIdx < ackWindowSize; messageIdx++ {
 			recordedEvents += 1
 			messageBody := fmt.Sprintf("%s-%d", suite.streamPath, messageIdx)
-			err := suite.writingMessageToStream(suite.streamPath, messageBody)
+			err := suite.writeMessageToStream(suite.streamPath, messageBody)
 			suite.Require().NoError(err, "Failed to publish message")
 		}
 
 		err := common.RetryUntilSuccessful(10*time.Second,
 			time.Second,
 			func() bool {
-				receivedEvents := triggertest.GetEventRecorderReceivedEvents(suite.Suite,
-					suite.Logger,
+				receivedEvents, getEventErr := triggertest.GetEventRecorderReceivedEvents(suite.Logger,
 					suite.BrokerHost,
 					deployResult.Port)
+				suite.Require().NoError(getEventErr)
 				return len(receivedEvents) == ackWindowSize
 			})
 		suite.Require().NoError(err,
 			"Exhausted waiting for received event length to be equal to window size")
 
 		// received all events
-		receivedEvents := triggertest.GetEventRecorderReceivedEvents(suite.Suite,
-			suite.Logger,
+		receivedEvents, getEventErr := triggertest.GetEventRecorderReceivedEvents(suite.Logger,
 			suite.BrokerHost,
 			deployResult.Port)
+		suite.Require().NoError(getEventErr)
 		suite.Require().Len(receivedEvents, ackWindowSize)
 
 		current, committed, err := v3ioutil.GetSingleShardLagDetails(suite.v3ioContext,
@@ -186,7 +188,7 @@ func (suite *testSuite) TestAckWindowSize() {
 		suite.Require().Equal(committed, 0)
 
 		// send another message
-		err = suite.writingMessageToStream(suite.streamPath, "trigger-commit")
+		err = suite.writeMessageToStream(suite.streamPath, "trigger-commit")
 		suite.Require().NoError(err, "Failed to publish message")
 		recordedEvents += 1
 
@@ -223,7 +225,7 @@ func (suite *testSuite) TestAckWindowSize() {
 			for messageIdx := 0; messageIdx < severalMessagesWhileFunctionIsDown; messageIdx++ {
 				recordedEvents += 1
 				messageBody := fmt.Sprintf("%s-%d", suite.streamPath, messageIdx)
-				err := suite.writingMessageToStream(suite.streamPath, messageBody)
+				err := suite.writeMessageToStream(suite.streamPath, messageBody)
 				suite.Require().NoError(err, "Failed to publish message")
 			}
 		})
@@ -232,10 +234,10 @@ func (suite *testSuite) TestAckWindowSize() {
 		err = common.RetryUntilSuccessful(10*time.Second,
 			time.Second,
 			func() bool {
-				receivedEvents = triggertest.GetEventRecorderReceivedEvents(suite.Suite,
-					suite.Logger,
+				receivedEvents, getEventErr = triggertest.GetEventRecorderReceivedEvents(suite.Logger,
 					suite.BrokerHost,
 					deployResult.Port)
+				suite.Require().NoError(getEventErr)
 
 				// first message was committed and hence was not "re processed"
 				return len(receivedEvents) == recordedEvents-1
@@ -293,7 +295,7 @@ func (suite *testSuite) TestReceiveRecords() {
 			},
 		},
 		nil,
-		suite.writingMessageToStream)
+		suite.writeMessageToStream)
 }
 
 // before running this test - create a function on your system with numOfReplicas and a v3iostream trigger,
@@ -509,6 +511,93 @@ func (suite *testSuite) TestManualAbort() {
 	}
 }
 
+func (suite *testSuite) TestExplicitAck() {
+	functionName := "explicitacker"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"kafka-explicit-ack",
+		"explicitacker.py")
+	shardID := 0
+	sleepTime := 2 * time.Second
+
+	// create a stream
+	err := suite.v3ioContainer.CreateStreamSync(&v3io.CreateStreamInput{
+		Path:                 suite.streamPath,
+		ShardCount:           1,
+		RetentionPeriodHours: 1,
+	})
+	suite.Require().NoError(err, "Failed to create v3io sync stream")
+
+	// create explicit ack function
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+
+	// configure v3io stream trigger with explicit ack enabled
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"v3io": {
+			Kind:     "v3ioStream",
+			URL:      suite.url,
+			Password: suite.accessKey,
+			Attributes: map[string]interface{}{
+				"seekTo":        "earliest", // avoid race condition with `latest` missed by function
+				"containerName": suite.containerName,
+				"streamPath":    suite.streamPath,
+				"consumerGroup": suite.consumerGroup,
+			},
+			ExplicitAckMode: functionconfig.ExplicitAckModeEnable,
+		},
+	}
+
+	// set worker allocation mode to static
+	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+		"nuclio.io/v3iostream-worker-allocation-mode": string(partitionworker.AllocationModeStatic),
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		// write 10 messages to the stream
+		for i := 0; i < 10; i++ {
+			err := suite.writeMessageToStreamShard(suite.streamPath, fmt.Sprintf("message-%d", i), &shardID)
+			suite.Require().NoError(err, "Failed to publish message")
+		}
+
+		current, committed := suite.getShardLagDetails(shardID)
+		suite.Require().Equal(current-committed, 10, "Current lag is not 10")
+
+		// sleep for a while to make sure the messages are processed
+		time.Sleep(sleepTime)
+
+		// send http request "start processing"
+		suite.Logger.Debug("Sending start processing request")
+		body := map[string]string{
+			"resource": "start_processing",
+		}
+
+		marshalledBody, err := json.Marshal(body)
+		suite.Require().NoError(err, "Failed to marshal body")
+		response, err := suite.SendHTTPRequest(&triggertest.Request{
+			Method: http.MethodPost,
+			Body:   string(marshalledBody),
+			Port:   deployResult.Port,
+		})
+		suite.Require().NoError(err, "Failed to send request")
+		suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+		// sleep for a while to make sure the messages are processed
+		suite.Logger.DebugWith("Sent start processing request, sleeping while processing",
+			"sleepDuration", sleepTime)
+		time.Sleep(sleepTime)
+
+		current, committed = suite.getShardLagDetails(shardID)
+		suite.Logger.DebugWith("Got shard lag details", "current", current, "committed", committed)
+		suite.Require().LessOrEqual(current-committed, 1, "Current lag is not less than or equal to 1")
+
+		return true
+	})
+
+}
+
 func (suite *testSuite) updateHeartBeat(streamPath, consumerGroup, memberName string) error {
 	var (
 		err   error
@@ -557,7 +646,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 	return "", nil
 }
 
-func (suite *testSuite) writingMessageToStream(streamPath string, body string) error {
+func (suite *testSuite) writeMessageToStream(streamPath string, body string) error {
 	suite.Logger.InfoWith("Publishing message to stream",
 		"streamPath", streamPath,
 		"body", body)

@@ -1,3 +1,19 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package containerimagebuilderpusher
 
 import (
@@ -192,11 +208,17 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 		return "", "", errors.Wrapf(err, "Failed to compress build bundle")
 	}
 
+	buildDir := "/tmp/kaniko-builds"
+	if err := os.MkdirAll(buildDir, 0755); err != nil {
+		return "", "", errors.Wrapf(err, "Failed to ensure directory")
+	}
+
 	// Create symlink to bundle tar file in nginx serving directory
-	assetPath := path.Join("/etc/nginx/static/assets", path.Base(tarFile.Name()))
+	assetPath := path.Join(buildDir, path.Base(tarFile.Name()))
 	k.logger.DebugWith("Creating symlink to bundle tar",
 		"tarFileName", tarFile.Name(),
 		"assetPath", assetPath)
+
 	if err := os.Link(tarFile.Name(), assetPath); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to create symlink to build bundle")
 	}
@@ -244,7 +266,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 
 	jobName := k.compileJobName(buildOptions.Image)
 
-	assetsURL := fmt.Sprintf("http://%s:8070/assets/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
+	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
 	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
 	kanikoJobSpec := &batchv1.Job{
@@ -305,20 +327,30 @@ func (k *Kaniko) compileJobSpec(namespace string,
 							},
 						},
 					},
-					RestartPolicy:     v1.RestartPolicyNever,
-					NodeSelector:      buildOptions.NodeSelector,
-					NodeName:          buildOptions.NodeName,
-					Affinity:          buildOptions.Affinity,
-					PriorityClassName: buildOptions.PriorityClassName,
-					Tolerations:       buildOptions.Tolerations,
+					RestartPolicy:      v1.RestartPolicyNever,
+					NodeSelector:       buildOptions.NodeSelector,
+					NodeName:           buildOptions.NodeName,
+					Affinity:           buildOptions.Affinity,
+					PriorityClassName:  buildOptions.PriorityClassName,
+					Tolerations:        buildOptions.Tolerations,
+					ServiceAccountName: buildOptions.ServiceAccountName,
 				},
 			},
 		},
 	}
 
-	// if SecretName is defined - configure mount with docker credentials
-	if len(buildOptions.SecretName) > 0 {
+	k.configureSecretVolumeMount(buildOptions, kanikoJobSpec)
+	return kanikoJobSpec
+}
 
+func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+	if k.matchECRUrl(buildOptions.RegistryURL) {
+		k.configureECRInitContainerAndMount(buildOptions, kanikoJobSpec)
+
+		// if SecretName is defined - configure mount with docker credentials
+	} else if len(buildOptions.SecretName) > 0 {
+
+		// configure mount with docker credentials
 		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts, v1.VolumeMount{
 				Name:      "docker-config",
@@ -341,8 +373,78 @@ func (k *Kaniko) compileJobSpec(namespace string,
 			},
 		})
 	}
+}
 
-	return kanikoJobSpec
+func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
+
+	// Add init container to create the main and cache repositories
+	// fail silently in order to ignore "repository already exists" errors
+	// if any other error occurs - kaniko will fail similarly
+	region := k.resolveAWSRegionFromECR(buildOptions.RegistryURL)
+	createRepoTemplate := "aws ecr create-repository --repository-name %s --region %s || true"
+	createMainRepo := fmt.Sprintf(createRepoTemplate, buildOptions.RepoName, region)
+	createCacheRepo := fmt.Sprintf(createRepoTemplate,
+		fmt.Sprintf("%s/cache", buildOptions.RepoName),
+		region)
+	createReposCommand := fmt.Sprintf("%s && %s",
+		createMainRepo,
+		createCacheRepo)
+
+	initContainer := v1.Container{
+		Name:  "create-repos",
+		Image: k.builderConfiguration.AWSCLIImage,
+		Command: []string{
+			"/bin/sh",
+		},
+		Args: []string{
+			"-c",
+			createReposCommand,
+		},
+	}
+
+	if k.builderConfiguration.RegistryProviderSecretName != "" {
+
+		// mount AWS credentials file to /tmp for permissions reasons
+		initContainer.Env = []v1.EnvVar{
+			{
+				Name:  "AWS_SHARED_CREDENTIALS_FILE",
+				Value: "/tmp/credentials",
+			},
+		}
+		initContainer.VolumeMounts = []v1.VolumeMount{
+			{
+				Name:      k.builderConfiguration.RegistryProviderSecretName,
+				MountPath: "/tmp",
+			},
+		}
+
+		// volume aws secret to kaniko
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+			kanikoJobSpec.Spec.Template.Spec.Containers[0].VolumeMounts,
+			v1.VolumeMount{
+				Name:      k.builderConfiguration.RegistryProviderSecretName,
+				MountPath: "/root/.aws/",
+			})
+		kanikoJobSpec.Spec.Template.Spec.Volumes = append(kanikoJobSpec.Spec.Template.Spec.Volumes,
+			v1.Volume{
+				Name: k.builderConfiguration.RegistryProviderSecretName,
+				VolumeSource: v1.VolumeSource{
+					Secret: &v1.SecretVolumeSource{
+						SecretName: k.builderConfiguration.RegistryProviderSecretName,
+					},
+				},
+			})
+	} else {
+
+		// assume instance role has permissions to register and store a container image
+		// https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
+		kanikoJobSpec.Spec.Template.Spec.Containers[0].Env = append(kanikoJobSpec.Spec.Template.Spec.Containers[0].Env,
+			v1.EnvVar{
+				Name:  "AWS_SDK_LOAD_CONFIG",
+				Value: "true",
+			})
+	}
+	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers, initContainer)
 }
 
 func (k *Kaniko) compileJobName(image string) string {
@@ -350,20 +452,21 @@ func (k *Kaniko) compileJobName(image string) string {
 	functionName := strings.ReplaceAll(image, "/", "")
 	functionName = strings.ReplaceAll(functionName, ":", "")
 	functionName = strings.ReplaceAll(functionName, "-", "")
-	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	randomSuffix := common.GenerateRandomString(10, common.SmallLettersAndNumbers)
+	nuclioPrefix := "nuclio-"
 
 	// Truncate function name so the job name won't exceed k8s limit of 63
-	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(timestamp) + 2)
+	functionNameLimit := 63 - (len(k.builderConfiguration.JobPrefix) + len(randomSuffix) + len(nuclioPrefix) + 2)
 	if len(functionName) > functionNameLimit {
 		functionName = functionName[0:functionNameLimit]
 	}
 
-	jobName := fmt.Sprintf("%s.%s.%s", k.builderConfiguration.JobPrefix, functionName, timestamp)
+	jobName := fmt.Sprintf("%s%s.%s.%s", nuclioPrefix, k.builderConfiguration.JobPrefix, functionName, randomSuffix)
 
 	// Fallback
 	if !k.jobNameRegex.MatchString(jobName) {
 		k.logger.DebugWith("Job name does not match k8s regex. Won't use function name", "jobName", jobName)
-		jobName = fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, timestamp)
+		jobName = fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, randomSuffix)
 	}
 
 	return jobName
@@ -388,7 +491,8 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 			Jobs(namespace).
 			Get(context.Background(), jobName, metav1.GetOptions{})
 		if err != nil {
-			return errors.Wrap(err, "Failed to poll kaniko job status")
+			k.logger.WarnWith("Failed to poll kaniko job status", "err", err.Error())
+			continue
 		}
 
 		if runningJob.Status.Succeeded > 0 {
@@ -577,4 +681,12 @@ func (k *Kaniko) deleteJob(namespace string, jobName string) error {
 	}
 	k.logger.DebugWith("Successfully deleted job", "namespace", namespace, "job", jobName)
 	return nil
+}
+
+func (k *Kaniko) matchECRUrl(registryURL string) bool {
+	return strings.Contains(registryURL, ".amazonaws.com") && strings.Contains(registryURL, ".ecr.")
+}
+
+func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
+	return strings.Split(registryURL, ".")[3]
 }

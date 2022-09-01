@@ -24,11 +24,12 @@ import (
 	"sort"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/stretchr/testify/suite"
 )
 
 type Event struct {
@@ -85,10 +86,18 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 		}
 
 		// TODO: retry until successful
-		time.Sleep(3 * time.Second)
+		var receivedEvents []Event
+		var getEventErr error
+		err := common.RetryUntilSuccessful(10*time.Second,
+			2*time.Second,
+			func() bool {
+				receivedEvents, getEventErr = GetEventRecorderReceivedEvents(suite.Logger, host, deployResult.Port)
+				suite.Require().NoError(getEventErr)
+				return len(receivedEvents) >= len(sentBodies)
+			})
+		suite.Require().NoError(err, "Failed to get events")
 		suite.Logger.DebugWith("Done producing")
 
-		receivedEvents := GetEventRecorderReceivedEvents(suite.Suite, suite.Logger, host, deployResult.Port)
 		var receivedBodies []string
 
 		// compare only bodies due to a deficiency in CompareNoOrder
@@ -110,29 +119,33 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 	})
 }
 
-func GetEventRecorderReceivedEvents(suite suite.Suite,
-	logger logger.Logger,
+func GetEventRecorderReceivedEvents(logger logger.Logger,
 	functionHost string,
-	functionPort int) []Event {
+	functionPort int) ([]Event, error) {
 
 	// Set the url for the http request
 	url := fmt.Sprintf("http://%s:%d", functionHost, functionPort)
 
 	// read the events from the function
 	httpResponse, err := http.Get(url)
-	suite.Require().NoError(err, "Failed to read events from function: %s", url)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get events")
+	}
 
 	marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read response body")
+	}
 	logger.DebugWith("Got messages", "marshalledResponseBody", string(marshalledResponseBody))
-	suite.Require().NoError(err, "Failed to read response body")
 
 	// unmarshall the body into a list
 	// TODO: accept various of events
 	var receivedEvents []Event
 
-	err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
-	suite.Require().NoError(err, "Failed to unmarshal response")
+	if err := json.Unmarshal(marshalledResponseBody, &receivedEvents); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal response body")
+	}
 
-	return receivedEvents
+	return receivedEvents, nil
 
 }

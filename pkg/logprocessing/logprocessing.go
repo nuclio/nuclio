@@ -200,6 +200,7 @@ func shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) 
 	ignoreFailureSubstrings := [...]string{
 		string(common.UnexpectedTerminationChildProcess),
 		string(common.FailedReadFromConnection),
+		string(common.FailedReadControlMessage),
 	}
 
 	// when the log message contains a failure that should be ignored

@@ -56,7 +56,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newJavaRuntime, nil
 }
 
-func (j *java) RunWrapper(port string) (*os.Process, error) {
+func (j *java) RunWrapper(port, controlPort string) (*os.Process, error) {
 	jvmOptions, err := j.getJVMOptions()
 	if err != nil {
 		return nil, err

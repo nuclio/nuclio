@@ -18,6 +18,7 @@
 ARG NGINX_IMAGE=nginx
 ARG NUCLIO_LABEL
 ARG UHTTPC_ARCH=amd64
+ARG NUCLIO_DOCKER_ALPINE_IMAGE
 
 FROM gcr.io/iguazio/node:10.21.0 as build-static
 
@@ -55,29 +56,22 @@ FROM gcr.io/iguazio/uhttpc:0.0.1-$UHTTPC_ARCH AS uhttpc
 # Output stage: Creates version file, copies binary and assets to an alpine image
 #
 
-FROM $NGINX_IMAGE
+FROM $NUCLIO_DOCKER_ALPINE_IMAGE as downloaddocker
 
 # docker client
 ARG DOCKER_CLI_ARCH=x86_64
 ARG DOCKER_CLI_VERSION="19.03.14"
 ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
-RUN apk --update --no-cache add ca-certificates git parallel curl \
+RUN apk --update --no-cache add curl \
     && mkdir -p /tmp/download \
-    && curl -L $DOCKER_CLI_DOWNLOAD_URL | tar -xz -C /tmp/download \
-    && mv /tmp/download/docker/docker /usr/local/bin/ \
-    && rm -rf /tmp/download \
-    && apk del curl
+    && curl -L $DOCKER_CLI_DOWNLOAD_URL | tar -xz -C /tmp/download
 
-# copy runners
-COPY cmd/dashboard/docker/runners /runners
-COPY cmd/dashboard/docker/runner.sh /runner.sh
 
-# make them executable
-RUN chmod +x /runners/*.sh /runner.sh
+FROM $NGINX_IMAGE
 
-# copy nginx config
-COPY cmd/dashboard/docker/nginx.conf /etc/nginx/conf.d/default.conf
+# fetch nuclio functions templates during build time to ease installation on offline environments
+ARG NUCLIO_TEMPLATES_ZIP_GITHUB_URL="https://github.com/nuclio/nuclio-templates/archive/master.zip"
 
 # copy dashboard static from build assets stage. /etc/nuclio/dashboard/static will contain index.html and assets
 COPY --from=build-static /home/nuclio/dashboard/src/dist /etc/nginx/static/
@@ -87,6 +81,24 @@ COPY --from=build-binary /nuclio/dashboard /usr/local/bin
 
 # copy a lightweight http client
 COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# copy docker client
+COPY --from=downloaddocker /tmp/download/docker/docker /usr/local/bin
+
+# copy runners
+COPY cmd/dashboard/docker/runners /runners
+COPY cmd/dashboard/docker/runner.sh /runner.sh
+
+# copy nginx config
+COPY cmd/dashboard/docker/default.conf /etc/nginx/conf.d/default.conf
+COPY cmd/dashboard/docker/nginx.conf /etc/nginx/nginx.conf
+
+RUN apk --update --no-cache add \
+        parallel \
+        ca-certificates \
+        git \
+    && apk upgrade --no-cache \
+    && wget -O /tmp/templates.zip $NUCLIO_TEMPLATES_ZIP_GITHUB_URL
 
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 

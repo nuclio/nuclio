@@ -1,4 +1,4 @@
-//go:build test_unit || test_integration || test_kube || test_local
+//go:build test_functional || test_unit || test_integration || test_kube || test_local
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -138,6 +138,9 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 		suite.Require().NotNil(deployResult)
 		for _, request := range requests {
 			request.Enrich(deployResult)
+			suite.Logger.DebugWith("Sending request",
+				"requestBody", request.RequestBody,
+				"expectedResponseStatusCode", request.ExpectedResponseStatusCode)
 			if !suite.SendRequestVerifyResponse(request) {
 
 				// fail fast

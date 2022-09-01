@@ -82,6 +82,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	defaultFunctionConfig := fsr.getDefaultFunctionConfig()
 	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
 	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
+	defaultFunctionPodResources := fsr.resolveDefaultFunctionPodResources()
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
@@ -94,6 +95,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"platformKind":                    platformKind,
 			"allowedAuthenticationModes":      allowedAuthenticationModes,
 			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
+			"defaultFunctionPodResources":     defaultFunctionPodResources,
 		},
 	}
 
@@ -112,6 +114,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 	defaultFunctionNodeSelector := fsr.resolveDefaultFunctionNodeSelector()
 	defaultFunctionTolerations := fsr.resolveDefaultFunctionTolerations()
 	defaultFunctionPriorityClassName := fsr.resolveDefaultFunctionPriorityClassName()
+	defaultFunctionServiceAccount := fsr.resolveDefaultFunctionServiceAccount()
 	defaultServiceType := fsr.resolveDefaultServiceType()
 	defaultPreemptionMode := fsr.resolveDefaultFunctionPreemptionMode()
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
@@ -126,6 +129,7 @@ func (fsr *frontendSpecResource) getDefaultFunctionConfig() map[string]interface
 		ReadinessTimeoutSeconds: fsr.resolveFunctionReadinessTimeoutSeconds(),
 		NodeSelector:            defaultFunctionNodeSelector,
 		PriorityClassName:       defaultFunctionPriorityClassName,
+		ServiceAccount:          defaultFunctionServiceAccount,
 		Tolerations:             defaultFunctionTolerations,
 		TargetCPU:               abstract.DefaultTargetCPU,
 		PreemptionMode:          defaultPreemptionMode,
@@ -212,6 +216,22 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionPriorityClassName() strin
 		defaultFunctionPriorityClassName = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionPriorityClassName
 	}
 	return defaultFunctionPriorityClassName
+}
+
+func (fsr *frontendSpecResource) resolveDefaultFunctionServiceAccount() string {
+	var defaultFunctionServiceAccount string
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		defaultFunctionServiceAccount = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionServiceAccount
+	}
+	return defaultFunctionServiceAccount
+}
+
+func (fsr *frontendSpecResource) resolveDefaultFunctionPodResources() platformconfig.PodResourceRequirements {
+	var defaultFunctionPodResources platformconfig.PodResourceRequirements
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		defaultFunctionPodResources = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionPodResources
+	}
+	return defaultFunctionPodResources
 }
 
 func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []string {

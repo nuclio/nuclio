@@ -148,6 +148,9 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-sasl-oauth-scopes", ValueListString: newConfiguration.SASL.OAuth.Scopes},
 
 		// window-ack
+		{Key: "nuclio.io/kafka-window-size", ValueInt: &newConfiguration.ackWindowSize},
+
+		// for backwards-compatibility
 		{Key: "custom.nuclio.io/kafka-window-size", ValueInt: &newConfiguration.ackWindowSize},
 	})
 
@@ -156,6 +159,17 @@ func NewConfiguration(id string,
 	}
 
 	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
+
+	// default explicit ack mode to 'disable'
+	if triggerConfiguration.ExplicitAckMode == "" {
+		newConfiguration.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+	}
+
+	// explicit ack is only allowed for Static Allocation mode
+	if newConfiguration.WorkerAllocationMode != partitionworker.AllocationModeStatic &&
+		functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode) {
+		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
+	}
 
 	if ackWindowSizeInterface, ok := newConfiguration.Attributes["ackWindowSize"]; ok {
 		var ackWindowSize int
@@ -274,6 +288,19 @@ func NewConfiguration(id string,
 			return nil, err
 		}
 	}
+
+	workerTerminationTimeout, err := time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
+	if err != nil {
+		return nil, errors.New("Failed to parse worker termination timeout from trigger configuration")
+	}
+
+	// on rebalance, we want to wait the max timeout so the workers can exit gracefully before killing them
+	if newConfiguration.maxWaitHandlerDuringRebalance < workerTerminationTimeout {
+		newConfiguration.maxWaitHandlerDuringRebalance = workerTerminationTimeout
+	}
+
+	// enrich runtime configuration with worker termination timeout
+	runtimeConfiguration.WorkerTerminationTimeout = workerTerminationTimeout
 
 	if newConfiguration.WorkerAllocationMode == "" {
 		newConfiguration.WorkerAllocationMode = partitionworker.AllocationModePool
