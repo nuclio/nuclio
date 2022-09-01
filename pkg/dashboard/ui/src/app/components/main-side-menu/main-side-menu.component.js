@@ -29,6 +29,7 @@ limitations under the License.
 
         ctrl.$onInit = onInit;
 
+        ctrl.isMenuShown = true;
         ctrl.isDemoMode = ConfigService.isDemoMode;
         ctrl.namespaceData = NuclioNamespacesDataService.namespaceData;
 
@@ -44,10 +45,19 @@ limitations under the License.
          * Initialization function
          */
         function onInit() {
-            NuclioVersionService.getVersion()
-                .then(function (versionInfo) {
-                    ctrl.nuclioVersion = lodash.get(versionInfo, 'dashboard.label', 'unknown version');
-                });
+            var origin = sessionStorage.getItem('origin')
+
+            if (origin) {
+                ctrl.isMenuShown = false
+
+                angular.element('.ncl-main-wrapper').css('padding-left', '0');
+                angular.element('.ncl-main-header').css('left', '0');
+            } else {
+                NuclioVersionService.getVersion()
+                    .then(function (versionInfo) {
+                        ctrl.nuclioVersion = lodash.get(versionInfo, 'dashboard.label', 'unknown version');
+                    });
+            }
         }
 
         //
