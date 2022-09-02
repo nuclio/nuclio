@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/logger"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -265,9 +266,9 @@ func (k *Kaniko) compileJobSpec(namespace string,
 	}
 	kanikoWorkingDirFolderVolumeMount := v1.VolumeMount{
 		Name:      "kaniko-wd",
-		MountPath: "/kaniko-wd",
+		MountPath: "/kaniko",
 	}
-	buildArgs = append(buildArgs, fmt.Sprintf("--kaniko-dir=%s/wd", kanikoWorkingDirFolderVolumeMount.MountPath))
+	buildArgs = append(buildArgs, fmt.Sprintf("--kaniko-dir=%s", kanikoWorkingDirFolderVolumeMount.MountPath))
 
 	jobName := k.compileJobName(buildOptions.Image)
 
@@ -496,7 +497,10 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 			Jobs(namespace).
 			Get(context.Background(), jobName, metav1.GetOptions{})
 		if err != nil {
-			k.logger.WarnWith("Failed to poll kaniko job status", "err", err.Error())
+			if !apierrors.IsNotFound(err) {
+				k.logger.WarnWith("Failed to pull kaniko job status", "err", err.Error())
+			}
+			time.Sleep(1 * time.Second)
 			continue
 		}
 

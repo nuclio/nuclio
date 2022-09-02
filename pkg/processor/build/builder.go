@@ -991,7 +991,7 @@ func (b *Builder) mkDirUnderTemp(name string) (string, error) {
 	dir := path.Join(b.tempDir, name)
 
 	// temp dir needs executable permission for docker to be able to pull from it
-	if err := os.Mkdir(dir, 0744); err != nil {
+	if err := os.MkdirAll(dir, 0744); err != nil {
 		return "", errors.Wrapf(err, "Failed to create temporary subdir %s", dir)
 	}
 
