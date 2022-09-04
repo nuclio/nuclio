@@ -49,6 +49,7 @@ type BuildOptions struct {
 	Tolerations             []v1.Toleration
 	ReadinessTimeoutSeconds int
 	ServiceAccountName      string
+	SecurityContext         *v1.PodSecurityContext
 }
 
 type ContainerBuilderConfiguration struct {
@@ -92,7 +93,7 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 	}
 	if containerBuilderConfiguration.KanikoImage == "" {
 		containerBuilderConfiguration.KanikoImage = common.GetEnvOrDefaultString("NUCLIO_KANIKO_CONTAINER_IMAGE",
-			"gcr.io/kaniko-project/executor:v1.8.1")
+			"gcr.io/kaniko-project/executor:v1.9.0")
 	}
 	if containerBuilderConfiguration.KanikoImagePullPolicy == "" {
 		containerBuilderConfiguration.KanikoImagePullPolicy = common.GetEnvOrDefaultString(

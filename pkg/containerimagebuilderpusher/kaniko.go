@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/logger"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -255,15 +256,14 @@ func (k *Kaniko) compileJobSpec(namespace string,
 	}
 
 	// Add build options args
-	for k, v := range buildOptions.BuildArgs {
-		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", k, v))
+	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
+		buildArgs = append(buildArgs, fmt.Sprintf("--build-arg=%s=%s", buildArgName, buildArgValue))
 	}
 
 	tmpFolderVolumeMount := v1.VolumeMount{
 		Name:      "tmp",
 		MountPath: "/tmp",
 	}
-
 	jobName := k.compileJobName(buildOptions.Image)
 
 	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
@@ -491,7 +491,10 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 			Jobs(namespace).
 			Get(context.Background(), jobName, metav1.GetOptions{})
 		if err != nil {
-			k.logger.WarnWith("Failed to poll kaniko job status", "err", err.Error())
+			if !apierrors.IsNotFound(err) {
+				k.logger.WarnWith("Failed to pull kaniko job status", "err", err.Error())
+			}
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
