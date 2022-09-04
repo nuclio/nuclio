@@ -194,7 +194,6 @@ class Wrapper(object):
                 raise
 
     async def _send_data_on_control_socket(self, data):
-
         self._logger.debug_with('Sending data on control socket', data_length=len(data))
 
         # send message to processor
