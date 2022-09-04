@@ -176,6 +176,12 @@ jobs:
           export unstable_tag=$(if [ -z "$version_suffix" ]; then echo "unstable-cache"; else echo "unstable-cache-$version_suffix";fi)
           echo "::set-output name=tag::$(echo $unstable_tag)"
 
+      - uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.REPO }}
+          username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
+          password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
+
       - name: Build
         run: |
           NUCLIO_CACHE_LABEL=${{ steps.docker_cache.outputs.tag }} make pull-image-cache || true
