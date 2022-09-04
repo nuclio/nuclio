@@ -382,7 +382,7 @@ handler-builder-golang-onbuild-alpine: build-base
 		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--build-arg $(NUCLIO_DOCKER_REPO)=$(NUCLIO_DOCKER_REPO) \
+		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
 
@@ -395,7 +395,7 @@ handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--build-arg $(NUCLIO_DOCKER_REPO)=$(NUCLIO_DOCKER_REPO) \
+		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
