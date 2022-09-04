@@ -271,9 +271,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-				go k.signalWorkerTermination(workerTerminationCompleteChan)
-			}
+			go k.signalWorkerTermination(workerTerminationCompleteChan)
 
 			// trigger is ready for rebalance if both the handler is done and
 			// the workers are finished with the graceful termination
