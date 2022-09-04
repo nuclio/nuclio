@@ -485,6 +485,7 @@ build-base: build-builder
 		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
+		--cache-from $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file hack/docker/build/base/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_LABEL) .
 	docker build \
@@ -493,6 +494,7 @@ build-base: build-builder
 		--build-arg NUCLIO_BASE_ALPINE_IMAGE_TAG=$(NUCLIO_BASE_ALPINE_IMAGE_TAG) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
+		--cache-from $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file hack/docker/build/base-alpine/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_LABEL) .
 
@@ -503,6 +505,7 @@ build-builder:
 		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
 		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
+		--cache-from $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file hack/docker/build/builder/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_LABEL) .
 
