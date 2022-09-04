@@ -13,8 +13,9 @@
 # limitations under the License.
 
 ARG NUCLIO_LABEL
+ARG NUCLIO_DOCKER_REPO
 
-FROM nuclio-base:$NUCLIO_LABEL as build-processor
+FROM $NUCLIO_DOCKER_REPO/nuclio-base:$NUCLIO_LABEL as build-processor
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 

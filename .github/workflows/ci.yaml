@@ -164,8 +164,23 @@ jobs:
           chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
           "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
+      - name: Extract git branch
+        id: git_info
+        run: |
+          echo "::set-output name=branch::$(echo ${GITHUB_BASE_REF#refs/heads/})"
+
+      - name: Resolve docker cache tag
+        id: docker_cache
+        run: |
+          export version_suffix=$(echo "${{ steps.git_info.outputs.branch }}" | grep -E "^[0-9]+\.[0-9]+\.x$" | tr -d '.')
+          export unstable_tag=$(if [ -z "$version_suffix" ]; then echo "unstable-cache"; else echo "unstable-cache-$version_suffix";fi)
+          echo "::set-output name=tag::$(echo $unstable_tag)"
+
       - name: Build
-        run: make docker-images
+        run: |
+          NUCLIO_CACHE_LABEL=${{ steps.docker_cache.outputs.tag }} make pull-image-cache
+          make docker-images
+          NUCLIO_CACHE_LABEL=${{ steps.docker_cache.outputs.tag }} make push-image-cache
         env:
           NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
 
