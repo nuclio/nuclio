@@ -178,7 +178,7 @@ jobs:
 
       - name: Build
         run: |
-          NUCLIO_CACHE_LABEL=${{ steps.docker_cache.outputs.tag }} make pull-image-cache
+          NUCLIO_CACHE_LABEL=${{ steps.docker_cache.outputs.tag }} make pull-image-cache || true
           make docker-images
           NUCLIO_CACHE_LABEL=${{ steps.docker_cache.outputs.tag }} make push-image-cache
         env:

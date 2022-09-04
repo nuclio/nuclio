@@ -68,6 +68,7 @@ NUCLIO_DOCKER_TEST_TAG := nuclio/tester
 NUCLIO_DOCKER_LABELS = --label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
 
 NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
+NUCLIO_DOCKER_IMAGE_CACHE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
 
 # Link flags
 GO_LINK_FLAGS ?= -s -w
@@ -158,16 +159,16 @@ docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 .PHONY: pull-image-cache
 pull-image-cache:
 	@echo Pulling cache
-	docker pull $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_CACHE_LABEL)
-	docker pull $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_CACHE_LABEL)
+	docker pull $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	docker pull $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: push-image-cache
 push-image-cache:
 	@echo Pushing cache
-	docker tag $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_LABEL) $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_CACHE_LABEL)
-	docker tag $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_LABEL) $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_CACHE_LABEL)
-	docker push $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_CACHE_LABEL)
-	docker push $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_CACHE_LABEL)
+	docker tag $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_LABEL) $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	docker tag $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_LABEL) $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	docker push $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	docker push $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: tools
 tools: ensure-gopath nuctl
