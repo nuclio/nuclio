@@ -112,18 +112,21 @@ jobs:
 
     - name: Build
       run: |
+        make pull-image-cache || true
         make docker-images
-        NUCLIO_CACHE_LABEL=${{ steps.docker_cache.outputs.tag }} make push-image-cache
       env:
         NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
         NUCLIO_ARCH: ${{ matrix.arch }}
+        NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
 
     - name: Push images
       run: |
         make push-docker-images
+        make push-image-cache
       env:
         NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
         NUCLIO_ARCH: ${{ matrix.arch }}
+        NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
 
     - name: Tag and push stable images
       if: env.NUCLIO_LABEL != 'unstable'
