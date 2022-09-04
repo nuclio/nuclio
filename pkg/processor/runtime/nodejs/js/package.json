@@ -17,7 +17,7 @@
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
-    "mocha": "^8.2.0",
+    "mocha": "^10.0.0",
     "rewire": "^5.0.0"
   }
 }
