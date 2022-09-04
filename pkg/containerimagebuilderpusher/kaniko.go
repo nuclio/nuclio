@@ -264,12 +264,6 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		Name:      "tmp",
 		MountPath: "/tmp",
 	}
-	kanikoWorkingDirFolderVolumeMount := v1.VolumeMount{
-		Name:      "kaniko-wd",
-		MountPath: "/kaniko",
-	}
-	buildArgs = append(buildArgs, fmt.Sprintf("--kaniko-dir=%s", kanikoWorkingDirFolderVolumeMount.MountPath))
-
 	jobName := k.compileJobName(buildOptions.Image)
 
 	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
