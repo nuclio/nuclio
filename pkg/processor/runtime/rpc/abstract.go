@@ -429,7 +429,7 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 
 		// TODO: sync between event and control output handlers using a shared context
 		case <-r.cancelHandlerChan:
-			r.Logger.Warn("Control output handler was canceled (Restart called?)")
+			r.Logger.Warn("Event output handler was canceled (Restart called?)")
 			return
 
 		default:
@@ -440,7 +440,7 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 			data, unmarshalledResult.err = outReader.ReadBytes('\n')
 
 			if unmarshalledResult.err != nil {
-				r.Logger.WarnWith(string(common.FailedReadFromConnection), "err", unmarshalledResult.err)
+				r.Logger.WarnWith(string(common.FailedReadFromEventConnection), "err", unmarshalledResult.err)
 				resultChan <- unmarshalledResult
 				continue
 			}

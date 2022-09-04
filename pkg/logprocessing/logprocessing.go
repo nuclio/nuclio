@@ -199,7 +199,7 @@ func shouldAddToBriefErrorsMessage(logLevel uint8, logMessage, workerID string) 
 	knownFailureSubstrings := [...]string{"Failed to connect to broker"}
 	ignoreFailureSubstrings := [...]string{
 		string(common.UnexpectedTerminationChildProcess),
-		string(common.FailedReadFromConnection),
+		string(common.FailedReadFromEventConnection),
 		string(common.FailedReadControlMessage),
 	}
 

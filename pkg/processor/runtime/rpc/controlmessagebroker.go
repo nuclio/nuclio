@@ -68,7 +68,7 @@ func (b *rpcControlMessageBroker) ReadControlMessage(reader *bufio.Reader) (*con
 	// read data from reader
 	data, err := reader.ReadBytes('\n')
 	if err != nil {
-		return nil, errors.Wrap(err, string(common.FailedReadFromConnection))
+		return nil, errors.Wrap(err, string(common.FailedReadFromEventConnection))
 	}
 
 	unmarshalledControlMessage := &controlcommunication.ControlMessage{}
