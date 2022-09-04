@@ -185,6 +185,7 @@ jobs:
           make docker-images
         env:
           NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+          NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
 
       # Clean build leftovers
       - name: Post build cleanup
