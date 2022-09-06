@@ -19,6 +19,7 @@ package dashboard
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -135,6 +136,19 @@ func NewServer(parentLogger logger.Logger,
 	if containerBuilderKind == "docker" {
 		if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
 			newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
+		}
+	} else if containerBuilderKind == "kaniko" {
+		if common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE",
+			"local") == "local" {
+
+			// allow dashboard server to handle request to get kaniko artifacts for function builds
+			// this is useful when running dashboard locally. in production, nginx will handle this
+			newServer.Router.HandleFunc("/kaniko/*", func(w http.ResponseWriter, r *http.Request) {
+				ctx := chi.RouteContext(r.Context())
+				serverRoutePrefix := strings.TrimSuffix(ctx.RoutePattern(), "/*")
+				fs := http.StripPrefix(serverRoutePrefix, http.FileServer(http.Dir("/tmp/kaniko-builds")))
+				fs.ServeHTTP(w, r)
+			})
 		}
 	}
 

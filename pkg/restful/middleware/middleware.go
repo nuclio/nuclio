@@ -125,6 +125,7 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 					"/api/functions",
 					"/api/function_templates",
 					"/api/v3io_streams",
+					"/kaniko",
 				}, strings.TrimSuffix(request.URL.Path, "/")) {
 					logVars = append(logVars, "responseBody", responseBodyBuffer.String())
 				}

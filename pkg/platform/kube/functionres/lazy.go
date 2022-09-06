@@ -313,11 +313,12 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 			// deployment is ready
 			// ingress is not yet (being too slow I guess, marking as unhealthy)
-			// give ingress a minute to be ready
+			// give ingress 2.5 minutes to be ready - since nginx ingress controller's
+			// sync cycle is 1 minute this ensures we'll wait at least 2 cycles.
 			// apply fail-fast when user did not ask to wait the full timeout
 			if deploymentReady &&
 				!ingressReady &&
-				time.Since(timeDeploymentReady) >= time.Minute &&
+				time.Since(timeDeploymentReady) >= 150*time.Second &&
 				!function.Spec.WaitReadinessTimeoutBeforeFailure {
 				lc.logger.WarnWithCtx(ctx,
 					"Function deployment is ready while ingress is not yet, stop waiting",
