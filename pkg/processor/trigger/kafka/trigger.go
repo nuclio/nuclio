@@ -271,23 +271,30 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			go k.signalWorkerTermination(workerTerminationCompleteChan)
+			if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
+				go k.signalWorkerTermination(workerTerminationCompleteChan)
+			}
 
 			// trigger is ready for rebalance if both the handler is done and
 			// the workers are finished with the graceful termination
 			go func() {
 				var wg sync.WaitGroup
-				wg.Add(2)
+				wg.Add(1)
 				go func() {
 					<-submittedEventInstance.done
 					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
 					wg.Done()
 				}()
-				go func() {
-					<-workerTerminationCompleteChan
-					k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
-					wg.Done()
-				}()
+
+				// only wait for worker termination if explicit ack is enabled
+				if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
+					wg.Add(1)
+					go func() {
+						<-workerTerminationCompleteChan
+						k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
+						wg.Done()
+					}()
+				}
 
 				wg.Wait()
 				readyForRebalanceChan <- true
