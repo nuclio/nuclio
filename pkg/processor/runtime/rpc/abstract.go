@@ -232,7 +232,7 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 func (r *AbstractRuntime) Terminate() error {
 
 	// signal and wait for process termination
-	if err := r.signal(syscall.SIGTERM); err != nil {
+	if err := r.signal(syscall.SIGUSR1); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process")
 	}
 

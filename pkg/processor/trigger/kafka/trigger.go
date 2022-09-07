@@ -210,11 +210,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	go k.eventSubmitter(claim, submittedEventChan)
 
 	ackWindowSize := int64(k.configuration.ackWindowSize)
-	if k.configuration.ackWindowSize > 0 {
-		k.Logger.DebugWith("Starting claim consumption with ack window",
-			"partition", claim.Partition(),
-			"ackWindowSize", ackWindowSize)
-	}
 
 	// listen for explicit ack messages if enabled
 	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
@@ -225,6 +220,10 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 		go k.explicitAckHandler(session, explicitAckControlMessageChan)
 	}
+
+	k.Logger.DebugWith("Starting claim consumption with ack window",
+		"partition", claim.Partition(),
+		"ackWindowSize", ackWindowSize)
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
@@ -271,30 +270,24 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-				go k.signalWorkerTermination(workerTerminationCompleteChan)
-			}
+			go k.signalWorkerTermination(workerTerminationCompleteChan)
 
 			// trigger is ready for rebalance if both the handler is done and
 			// the workers are finished with the graceful termination
 			go func() {
 				var wg sync.WaitGroup
-				wg.Add(1)
+				wg.Add(2)
 				go func() {
 					<-submittedEventInstance.done
 					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
 					wg.Done()
 				}()
 
-				// only wait for worker termination if explicit ack is enabled
-				if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-					wg.Add(1)
-					go func() {
-						<-workerTerminationCompleteChan
-						k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
-						wg.Done()
-					}()
-				}
+				go func() {
+					<-workerTerminationCompleteChan
+					k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
+					wg.Done()
+				}()
 
 				wg.Wait()
 				readyForRebalanceChan <- true
@@ -542,13 +535,16 @@ func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool)
 	errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
 
 	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
-			if err := workerInstance.Terminate(); err != nil {
-				return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
-			}
+		workerInstance := workerInstance
+		if !workerInstance.IsTerminated() {
+			errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
+				if err := workerInstance.Terminate(); err != nil {
+					return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
+				}
 
-			return nil
-		})
+				return nil
+			})
+		}
 	}
 
 	if err := errGroup.Wait(); err != nil {

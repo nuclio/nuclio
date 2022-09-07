@@ -296,7 +296,7 @@ func NewConfiguration(id string,
 
 	// on rebalance, we want to wait the max timeout so the workers can exit gracefully before killing them
 	if newConfiguration.maxWaitHandlerDuringRebalance < workerTerminationTimeout {
-		newConfiguration.maxWaitHandlerDuringRebalance = workerTerminationTimeout
+		newConfiguration.maxWaitHandlerDuringRebalance = workerTerminationTimeout + 3*time.Second
 	}
 
 	// enrich runtime configuration with worker termination timeout
