@@ -270,24 +270,26 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			go k.signalWorkerTermination(workerTerminationCompleteChan)
+			// TODO: find a way to signal the workers on an imminent rebalance so they can stop gracefully
+			// since current implementation is not working (IG-21152)
+			// go k.signalWorkerTermination(workerTerminationCompleteChan)
 
 			// trigger is ready for rebalance if both the handler is done and
 			// the workers are finished with the graceful termination
 			go func() {
 				var wg sync.WaitGroup
-				wg.Add(2)
+				wg.Add(1)
 				go func() {
 					<-submittedEventInstance.done
 					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
 					wg.Done()
 				}()
 
-				go func() {
-					<-workerTerminationCompleteChan
-					k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
-					wg.Done()
-				}()
+				//go func() {
+				//	<-workerTerminationCompleteChan
+				//	k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
+				//	wg.Done()
+				//}()
 
 				wg.Wait()
 				readyForRebalanceChan <- true
