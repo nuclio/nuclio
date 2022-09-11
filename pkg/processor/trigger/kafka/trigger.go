@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -203,18 +202,11 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	submittedEventChan := make(chan *submittedEvent)
 	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
-	workerTerminationCompleteChan := make(chan bool)
-	readyForRebalanceChan := make(chan bool)
 
 	// submit the events in a goroutine so that we can unblock immediately
 	go k.eventSubmitter(claim, submittedEventChan)
 
 	ackWindowSize := int64(k.configuration.ackWindowSize)
-	if k.configuration.ackWindowSize > 0 {
-		k.Logger.DebugWith("Starting claim consumption with ack window",
-			"partition", claim.Partition(),
-			"ackWindowSize", ackWindowSize)
-	}
 
 	// listen for explicit ack messages if enabled
 	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
@@ -225,6 +217,10 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 		go k.explicitAckHandler(session, explicitAckControlMessageChan)
 	}
+
+	k.Logger.DebugWith("Starting claim consumption with ack window",
+		"partition", claim.Partition(),
+		"ackWindowSize", ackWindowSize)
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
@@ -271,31 +267,13 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			go k.signalWorkerTermination(workerTerminationCompleteChan)
-
-			// trigger is ready for rebalance if both the handler is done and
-			// the workers are finished with the graceful termination
-			go func() {
-				var wg sync.WaitGroup
-				wg.Add(2)
-				go func() {
-					<-submittedEventInstance.done
-					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
-					wg.Done()
-				}()
-				go func() {
-					<-workerTerminationCompleteChan
-					k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
-					wg.Done()
-				}()
-
-				wg.Wait()
-				readyForRebalanceChan <- true
-			}()
+			// TODO: find a way to signal the workers on an imminent rebalance so they can stop gracefully
+			// since current implementation is not working (IG-21152)
+			// go k.signalWorkerTermination(workerTerminationCompleteChan)
 
 			//  wait a for rebalance readiness or max timeout
 			select {
-			case <-readyForRebalanceChan:
+			case <-submittedEventInstance.done:
 				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
@@ -327,8 +305,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// shut down goroutines and channels
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
-	close(workerTerminationCompleteChan)
-	close(readyForRebalanceChan)
 
 	return submitError
 }
@@ -535,13 +511,16 @@ func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool)
 	errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
 
 	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
-			if err := workerInstance.Terminate(); err != nil {
-				return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
-			}
+		workerInstance := workerInstance
+		if !workerInstance.IsTerminated() {
+			errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
+				if err := workerInstance.Terminate(); err != nil {
+					return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
+				}
 
-			return nil
-		})
+				return nil
+			})
+		}
 	}
 
 	if err := errGroup.Wait(); err != nil {
