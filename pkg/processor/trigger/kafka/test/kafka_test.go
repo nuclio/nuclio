@@ -286,7 +286,6 @@ func (suite *testSuite) TestExplicitAck() {
 	})
 }
 
-//
 //func (suite *testSuite) TestEventRecorderRebalance() {
 //
 //	topic := "someTopic"
