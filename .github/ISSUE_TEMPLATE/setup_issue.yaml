@@ -26,19 +26,6 @@ body:
             I have read the [setting up guide](https://github.com/nuclio/nuclio#further-reading) to my relevant platform.
           required: true
   - type: dropdown
-    id: os
-    attributes:
-      label: OS
-      description: >
-        Please provide the OS you are setting up Nuclio on.
-      options:
-        - Mac
-        - Windows
-        - Linux
-        - Other
-    validations:
-      required: true
-  - type: dropdown
     id: method
     attributes:
       label: Setup Method
@@ -88,11 +75,7 @@ body:
       description: >
         Please copy and paste the dashboard/controller logs when attempting to set-up Nuclio.
       value: >
-        <details>
-
         Replace this line with the setup logs.
-
-        </details>
       render: shell
     validations:
       required: true

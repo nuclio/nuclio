@@ -48,24 +48,9 @@ body:
     id: deployment_method
     attributes:
       label: Deployment Method
-      description: >
-        Please paste the output of ``import platform; platform.python_version()``
       options:
         - Docker
         - Kubernetes
-    validations:
-      required: true
-  - type: dropdown
-    id: os
-    attributes:
-      label: Installation OS
-      description: >
-        Please provide the OS you are installing on.
-      options:
-        - Mac
-        - Windows
-        - Linux
-        - Other
     validations:
       required: true
   - type: input

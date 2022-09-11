@@ -14,6 +14,6 @@
 #
 blank_issues_enabled: true
 contact_links:
-  - name: Question/Help/Support
+  - name: Try Us @ Slack
     url: https://lit-oasis-83353.herokuapp.com/
-    about: "If you have a question, please join the Nuclio community on Slack."
+    about: "If you have any other questions, please join the Nuclio community on Slack."
