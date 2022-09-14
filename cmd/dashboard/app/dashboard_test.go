@@ -20,7 +20,7 @@ package app
 
 import (
 	"context"
-	"go.uber.org/atomic"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -101,25 +101,25 @@ func (suite *DashboardTestSuite) TestStayReadyOnTransientFailures() {
 	interval := 100 * time.Millisecond
 
 	// return OK, error, error, OK, OK, OK, ...
-	getVersionCounter := atomic.Int32{}
+	var getVersionCounter int32
 	suite.dockerClient.
 		On("GetVersion", true).
 		Run(func(args mock.Arguments) {
-			getVersionCounter.Add(1)
+			atomic.AddInt32(&getVersionCounter, 1)
 		}).
 		Return("1", nil).
 		Once()
 	suite.dockerClient.
 		On("GetVersion", true).
 		Run(func(args mock.Arguments) {
-			getVersionCounter.Add(2)
+			atomic.AddInt32(&getVersionCounter, 2)
 		}).
 		Return("", errors.New("Something bad happened")).
 		Twice()
 	suite.dockerClient.
 		On("GetVersion", true).
 		Run(func(args mock.Arguments) {
-			getVersionCounter.Add(1)
+			atomic.AddInt32(&getVersionCounter, 1)
 		}).
 		Return("2", nil)
 
@@ -127,7 +127,7 @@ func (suite *DashboardTestSuite) TestStayReadyOnTransientFailures() {
 		err := common.RetryUntilSuccessful(3*time.Second,
 			interval,
 			func() bool {
-				return getVersionCounter.Load() >= 4
+				return atomic.LoadInt32(&getVersionCounter) >= 4
 			})
 		suite.Require().NoError(err, "Exhausted waiting for docker client to perform healthcheck validation")
 
