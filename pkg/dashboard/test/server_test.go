@@ -77,6 +77,10 @@ func (suite *dashboardTestSuite) SetupTest() {
 	templateRepository, err := functiontemplates.NewRepository(suite.logger, []functiontemplates.FunctionTemplateFetcher{})
 	suite.Require().NoError(err)
 
+	suite.mockPlatform.
+		On("GetContainerBuilderKind").
+		Return("")
+
 	// create a mock platform
 	suite.dashboardServer, err = dashboard.NewServer(suite.logger,
 		suite.mockPlatform.GetContainerBuilderKind(),
@@ -3480,7 +3484,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func TestDashboardTestSuite(t *testing.T) {
+func TestDashboardServerTestSuite(t *testing.T) {
 	suite.Run(t, new(functionTestSuite))
 	suite.Run(t, new(projectTestSuite))
 	suite.Run(t, new(functionEventTestSuite))

@@ -30,7 +30,6 @@ import (
 
 type TestSuite struct {
 	suite.Suite
-	//processorsuite.TestSuite
 	trigger iotcoremqtt
 }
 
@@ -88,6 +87,6 @@ NSoWKZp3rjklHIznbbSiBuRtuT47bYcpo/3IOFwKv3F3rr7zAXg=
 
 }
 
-func TestRabbitMQSuite(t *testing.T) {
+func TestRabbitMQIOTCoreSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }

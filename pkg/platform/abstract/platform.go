@@ -1028,17 +1028,16 @@ func (ap *Platform) WaitForProjectResourcesDeletion(ctx context.Context, project
 	return nil
 }
 
-func (ap *Platform) GetProjectResources(ctx context.Context, projectMeta *platform.ProjectMeta) ([]platform.Function,
-	[]platform.APIGateway,
-	error) {
+func (ap *Platform) GetProjectResources(ctx context.Context,
+	projectMeta *platform.ProjectMeta) ([]platform.Function, []platform.APIGateway, error) {
 
-	var err error
 	var functions []platform.Function
 	var apiGateways []platform.APIGateway
 	errGroup, _ := errgroup.WithContext(ctx, ap.Logger)
 
 	// get api gateways
 	errGroup.Go("GetAPIGateways", func() error {
+		var err error
 		apiGateways, err = ap.platform.GetAPIGateways(ctx, &platform.GetAPIGatewaysOptions{
 			Namespace: projectMeta.Namespace,
 			Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
@@ -1051,6 +1050,7 @@ func (ap *Platform) GetProjectResources(ctx context.Context, projectMeta *platfo
 
 	// get functions
 	errGroup.Go("GetFunctions", func() error {
+		var err error
 		functions, err = ap.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 			Namespace: projectMeta.Namespace,
 			Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),

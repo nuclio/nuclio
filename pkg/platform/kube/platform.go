@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -1939,6 +1940,8 @@ func (p *Platform) alignIngressHostSubdomainLevel(host string, randomCharsLength
 func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 	apiGateway *platform.APIGatewayConfig,
 	validateFunctionExistence bool) ([]platform.Function, error) {
+
+	var upstreamFunctionLock sync.Mutex
 	var upstreamFunctions []platform.Function
 
 	// get upstream functions
@@ -1967,7 +1970,9 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 				return errors.Wrap(err, "Failed to initialize function")
 			}
 
+			upstreamFunctionLock.Lock()
 			upstreamFunctions = append(upstreamFunctions, functionInstance)
+			upstreamFunctionLock.Unlock()
 			return nil
 		})
 	}

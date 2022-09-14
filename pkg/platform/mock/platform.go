@@ -56,7 +56,8 @@ func (mp *Platform) GetConfig() *platformconfig.Config {
 }
 
 func (mp *Platform) GetContainerBuilderKind() string {
-	return "docker"
+	args := mp.Called()
+	return args.Get(0).(string)
 }
 
 // CreateFunctionBuild will locally build a processor image and return its name (or the error)
