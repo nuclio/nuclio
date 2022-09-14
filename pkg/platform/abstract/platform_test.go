@@ -571,11 +571,13 @@ func (suite *AbstractPlatformTestSuite) TestGetProjectResources() {
 
 			suite.mockedPlatform.
 				On("GetAPIGateways", suite.ctx, mock.Anything).
-				Return(testCase.apiGateways, nil).Once()
+				Return(testCase.apiGateways, nil).
+				Once()
 
 			suite.mockedPlatform.
 				On("GetFunctions", suite.ctx, mock.Anything).
-				Return(testCase.functions, testCase.getFunctionsError).Once()
+				Return(testCase.functions, testCase.getFunctionsError).
+				Once()
 
 			projectFunctions, projectAPIGateways, err := suite.Platform.GetProjectResources(suite.ctx,
 				&platform.ProjectMeta{

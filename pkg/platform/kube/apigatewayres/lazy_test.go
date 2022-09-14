@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -42,6 +44,7 @@ type lazyTestSuite struct {
 	logger         logger.Logger
 	client         Client
 	ingressManager *ingress.Manager
+	mockCmdRunner  *cmdrunner.MockRunner
 }
 
 func (suite *lazyTestSuite) SetupTest() {
@@ -50,8 +53,10 @@ func (suite *lazyTestSuite) SetupTest() {
 	platformConfig, err := platformconfig.NewPlatformConfig("")
 	suite.Require().NoError(err)
 
+	suite.mockCmdRunner = cmdrunner.NewMockRunner()
+
 	kubeClientset := k8sfake.NewSimpleClientset()
-	suite.ingressManager, err = ingress.NewManager(suite.logger, kubeClientset, platformConfig)
+	suite.ingressManager, err = ingress.NewManager(suite.logger, kubeClientset, suite.mockCmdRunner, platformConfig)
 	suite.Require().NoError(err)
 
 	suite.client, err = NewLazyClient(suite.logger,
@@ -66,6 +71,10 @@ func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
 	primaryFunctionConfig.Meta.Name = "primary-function-name"
 	canaryFunctionConfig := *functionconfig.NewConfig()
 	canaryFunctionConfig.Meta.Name = "canary-function-name"
+	suite.mockCmdRunner.
+		On("Run", mock.Anything, mock.IsType(""), mock.Anything).
+		Return("echo ehsom | htpasswd -n -i moshe", nil)
+
 	resources, err := suite.client.CreateOrUpdate(context.Background(), &nuclioio.NuclioAPIGateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -111,7 +120,7 @@ func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
 	}
 
 	// expect primary function ingress to have `X-Nuclio-Target`
-	// so that if has STZ option, it would wake up upon a request
+	// so that if it has STZ option, it would wake up upon a request
 	suite.Require().Equal(`proxy_set_header X-Nuclio-Target "primary-function-name,canary-function-name";`,
 		primaryIngressResources.Ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
 }

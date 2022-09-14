@@ -1,4 +1,4 @@
-//go:build test_unit
+//go:build test_integration
 
 /*
 Copyright 2017 The Nuclio Authors.
@@ -123,5 +123,8 @@ func (suite *ShellRuntimeSuite) resolveRuntimeConfiguration(loggerInstance logge
 }
 
 func TestShellRuntimeSuite(t *testing.T) {
+	if testing.Short() {
+		return
+	}
 	suite.Run(t, new(ShellRuntimeSuite))
 }

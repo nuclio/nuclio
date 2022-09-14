@@ -629,8 +629,12 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	suite.FunctionClient, err = functionres.NewLazyClient(suite.Logger, suite.KubeClientSet, suite.FunctionClientSet)
 	suite.Require().NoError(err)
 
+	// create cmd runner
+	cmdRunner, err := cmdrunner.NewShellRunner(suite.Logger)
+	suite.Require().NoError(err)
+
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(suite.Logger, suite.KubeClientSet, suite.PlatformConfiguration)
+	ingressManager, err := ingress.NewManager(suite.Logger, suite.KubeClientSet, cmdRunner, suite.PlatformConfiguration)
 	suite.Require().NoError(err)
 
 	// create api-gateway provisioner

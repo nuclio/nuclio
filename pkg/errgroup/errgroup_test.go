@@ -40,7 +40,6 @@ func (suite *ErrGroupTestSuite) SetupTest() {
 }
 
 func (suite *ErrGroupTestSuite) TestSemaphoredErrGroup() {
-
 	for _, testCase := range []struct {
 		name          string
 		concurrency   uint
@@ -73,9 +72,9 @@ func (suite *ErrGroupTestSuite) TestSemaphoredErrGroup() {
 
 					suite.logger.DebugWithCtx(errGroupCtx,
 						"In a goroutine",
-						"callCount", concurrentCallCount)
+						"callCount", atomic.LoadInt32(totalCallCount))
 					if testCase.concurrency > 0 {
-						suite.Require().LessOrEqual(uint(*concurrentCallCount), testCase.concurrency)
+						suite.Require().LessOrEqual(atomic.LoadInt32(concurrentCallCount), int32(testCase.concurrency))
 					}
 
 					atomic.AddInt32(concurrentCallCount, -1)

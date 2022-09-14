@@ -23,8 +23,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
+	"github.com/nuclio/logger"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,21 +35,18 @@ const (
 )
 
 type TestSuite struct {
-	processorsuite.TestSuite
+	suite.Suite
 	trigger rabbitMq
+	logger  logger.Logger
 }
 
 func (suite *TestSuite) SetupSuite() {
-	suite.TestSuite.SetupSuite()
-}
-
-func (suite *TestSuite) TearDownSuite() {
-	suite.TestSuite.TearDownTest()
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
 func (suite *TestSuite) SetupTest() {
 	suite.trigger = rabbitMq{}
-	suite.trigger.Logger = suite.Logger.GetChild("rabbitMQ")
+	suite.trigger.Logger = suite.logger.GetChild("rabbitMQ")
 
 	suite.trigger.configuration = &Configuration{
 		QueueName:    queueName,

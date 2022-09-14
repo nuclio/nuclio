@@ -18,6 +18,7 @@ package app
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	commonhealthcheck "github.com/nuclio/nuclio/pkg/common/healthcheck"
@@ -33,20 +34,28 @@ type Dashboard struct {
 	healthCheckServer commonhealthcheck.Server
 	logger            logger.Logger
 
-	status status.Status
+	status atomic.Value
+}
+
+func NewDashboard(logger logger.Logger) *Dashboard {
+	d := &Dashboard{
+		status: atomic.Value{},
+		logger: logger,
+	}
+	d.status.Store(status.Initializing)
+	return d
 }
 
 func (d *Dashboard) GetStatus() status.Status {
-	return d.status
+	return d.status.Load().(status.Status)
 }
 
 func (d *Dashboard) SetStatus(status status.Status) {
-	if d.status != status {
+	if d.status.CompareAndSwap(d.GetStatus(), status) {
 		d.logger.InfoWith("Updating server healthiness",
 			"currentStatus", d.status,
 			"desiredStatus", status)
 	}
-	d.status = status
 }
 
 func (d *Dashboard) monitorDockerConnectivity(ctx context.Context,

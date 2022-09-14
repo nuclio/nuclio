@@ -87,11 +87,7 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	dashboardInstance := &Dashboard{
-		logger: rootLogger,
-		status: status.Initializing,
-	}
-
+	dashboardInstance := NewDashboard(rootLogger)
 	dashboardInstance.healthCheckServer, err = createAndStartHealthCheckServer(platformConfiguration,
 		rootLogger,
 		dashboardInstance)
@@ -190,7 +186,7 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to start server")
 	}
 
-	dashboardInstance.status = status.Ready
+	dashboardInstance.SetStatus(status.Ready)
 	select {}
 }
 
