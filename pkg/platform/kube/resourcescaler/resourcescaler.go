@@ -72,10 +72,14 @@ func New(logger logger.Logger,
 }
 
 func (n *NuclioResourceScaler) SetScale(resources []scalertypes.Resource, scale int) error {
+	return n.SetScaleCtx(context.Background(), resources, scale)
+}
+
+func (n *NuclioResourceScaler) SetScaleCtx(ctx context.Context, resources []scalertypes.Resource, scale int) error {
 	if scale == 0 {
-		return n.scaleFunctionsToZero(resources)
+		return n.scaleFunctionsToZero(ctx, resources)
 	}
-	return n.scaleFunctionsFromZero(resources)
+	return n.scaleFunctionsFromZero(ctx, resources)
 }
 
 // SetHTTPClient sets the http client for testing purposes
@@ -212,13 +216,15 @@ func (n *NuclioResourceScaler) parseLastScaleEvent(
 	return &function.Status.ScaleToZero.LastScaleEvent, function.Status.ScaleToZero.LastScaleEventTime, nil
 }
 
-func (n *NuclioResourceScaler) scaleFunctionsToZero(resources []scalertypes.Resource) error {
+func (n *NuclioResourceScaler) scaleFunctionsToZero(ctx context.Context, resources []scalertypes.Resource) error {
 	failedFunctionNames := make([]string, 0)
 	for _, resource := range resources {
-		n.logger.DebugWith("Scaling to zero",
+		n.logger.DebugWithCtx(ctx,
+			"Scaling to zero",
 			"functionName", resource.Name,
 			"functionNamespace", resource.Namespace)
-		if err := n.updateFunctionStatus(resource.Namespace,
+		if err := n.updateFunctionStatus(ctx,
+			resource.Namespace,
 			resource.Name,
 			functionconfig.FunctionStateWaitingForScaleResourcesToZero,
 			scalertypes.ScaleToZeroStartedScaleEvent); err != nil {
@@ -236,25 +242,30 @@ func (n *NuclioResourceScaler) scaleFunctionsToZero(resources []scalertypes.Reso
 	return nil
 }
 
-func (n *NuclioResourceScaler) scaleFunctionsFromZero(resources []scalertypes.Resource) error {
+func (n *NuclioResourceScaler) scaleFunctionsFromZero(ctx context.Context, resources []scalertypes.Resource) error {
 	failedFunctionNames := make([]string, 0)
 	for _, resource := range resources {
-		n.logger.DebugWith("Scaling from zero",
+		n.logger.DebugWith(ctx,
+			"Scaling from zero",
 			"functionName", resource.Name,
 			"functionNamespace", resource.Namespace)
-		if err := n.updateFunctionStatus(resource.Namespace,
+		if err := n.updateFunctionStatus(ctx,
+			resource.Namespace,
 			resource.Name,
 			functionconfig.FunctionStateWaitingForScaleResourcesFromZero,
 			scalertypes.ScaleFromZeroStartedScaleEvent); err != nil {
 			failedFunctionNames = append(failedFunctionNames, resource.Name)
-			n.logger.WarnWith("Failed to update function status to scale from zero",
+			n.logger.WarnWithCtx(ctx,
+				"Failed to update function status to scale from zero",
 				"functionName", resource.Name,
 				"functionNamespace", resource.Namespace)
 			continue
 		}
-		if err := n.waitFunctionReadiness(resource.Namespace, resource.Name); err != nil {
+		if err := n.waitFunctionReadiness(ctx, resource.Namespace, resource.Name); err != nil {
 			failedFunctionNames = append(failedFunctionNames, resource.Name)
-			n.logger.WarnWith("Failed waiting for function readiness", "functionName", resource.Name,
+			n.logger.WarnWithCtx(ctx,
+				"Failed waiting for function readiness",
+				"functionName", resource.Name,
 				"functionNamespace", resource.Namespace)
 			continue
 		}
@@ -265,13 +276,20 @@ func (n *NuclioResourceScaler) scaleFunctionsFromZero(resources []scalertypes.Re
 	return nil
 }
 
-func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
+func (n *NuclioResourceScaler) updateFunctionStatus(ctx context.Context,
+	namespace string,
 	functionName string,
 	functionState functionconfig.FunctionState,
 	functionScaleEvent scalertypes.ScaleEvent) error {
-	function, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Get(context.Background(), functionName, metav1.GetOptions{})
+	function, err := n.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(namespace).
+		Get(ctx, functionName, metav1.GetOptions{})
 	if err != nil {
-		n.logger.WarnWith("Failed getting nuclio function to update function status", "functionName", functionName, "err", err)
+		n.logger.WarnWithCtx(ctx,
+			"Failed getting nuclio function to update function status",
+			"functionName", functionName,
+			"err", err)
 		return errors.Wrap(err, "Failed getting nuclio function to update function status")
 	}
 
@@ -281,45 +299,58 @@ func (n *NuclioResourceScaler) updateFunctionStatus(namespace string,
 		LastScaleEvent:     functionScaleEvent,
 		LastScaleEventTime: &now,
 	}
-	if _, err := n.nuclioClientSet.NuclioV1beta1().NuclioFunctions(namespace).Update(context.Background(),
-		function,
-		metav1.UpdateOptions{}); err != nil {
-		n.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
+	if _, err := n.nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(namespace).
+		Update(ctx,
+			function,
+			metav1.UpdateOptions{}); err != nil {
+		n.logger.WarnWithCtx(ctx,
+			"Failed to update function",
+			"functionName", functionName,
+			"err", err)
 		return errors.Wrap(err, "Failed to update nuclio function")
 	}
 	return nil
 }
 
-func (n *NuclioResourceScaler) waitFunctionReadiness(namespace string, functionName string) error {
-	n.logger.DebugWith("Waiting for function readiness", "functionName", functionName)
+func (n *NuclioResourceScaler) waitFunctionReadiness(ctx context.Context, namespace string, functionName string) error {
+	n.logger.DebugWithCtx(ctx,
+		"Waiting for function readiness",
+		"functionName", functionName)
 	var function *nuclioio.NuclioFunction
 	var err error
 	for {
 		function, err = n.nuclioClientSet.
 			NuclioV1beta1().
 			NuclioFunctions(namespace).
-			Get(context.Background(), functionName, metav1.GetOptions{})
+			Get(ctx, functionName, metav1.GetOptions{})
 		if err != nil {
-			n.logger.WarnWith("Failed getting nuclio function", "functionName", functionName, "err", err)
+			n.logger.WarnWithCtx(ctx, "Failed getting nuclio function", "functionName", functionName, "err", err)
 			return errors.Wrap(err, "Failed getting nuclio function")
 		}
 		if function.Status.State == functionconfig.FunctionStateReady {
-			n.logger.InfoWith("Function is ready", "functionName", functionName)
+			n.logger.InfoWithCtx(ctx, "Function is ready", "functionName", functionName)
 			break
 		}
 
-		n.logger.DebugWith("Function is not ready yet",
+		if ctx.Err() != nil {
+			return errors.Wrap(ctx.Err(), "Context error")
+		}
+
+		n.logger.DebugWithCtx(ctx,
+			"Function is not ready yet",
 			"functionName", functionName,
 			"currentState", function.Status.State)
 
 		time.Sleep(3 * time.Second)
 	}
-	return n.verifyReadiness(function)
+	return n.verifyReadiness(ctx, function)
 }
 
-func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction) error {
+func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nuclioio.NuclioFunction) error {
 	if !n.functionReadinessVerificationEnabled {
-		n.logger.Debug("Skipping function readiness verification")
+		n.logger.DebugWithCtx(ctx, "Skipping function readiness verification")
 	}
 
 	url := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080%s",
@@ -327,7 +358,7 @@ func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction
 		function.Namespace,
 		httptrigger.InternalHealthPath)
 
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create request")
 	}
@@ -338,7 +369,8 @@ func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction
 		func() bool {
 			response, err := n.httpClient.Do(request)
 			if err != nil {
-				n.logger.WarnWith("Failed to send request",
+				n.logger.WarnWithCtx(ctx,
+					"Failed to send request",
 					"err", err,
 					"elapsed", time.Since(startTime),
 					"url", url)
@@ -347,13 +379,15 @@ func (n *NuclioResourceScaler) verifyReadiness(function *nuclioio.NuclioFunction
 
 			// response is within [200, 300)
 			if response.StatusCode >= http.StatusOK && response.StatusCode < 300 {
-				n.logger.InfoWith("Function readiness is verified",
+				n.logger.InfoWithCtx(ctx,
+					"Function readiness is verified",
 					"elapsed", time.Since(startTime),
 					"url", url)
 				return true
 			}
 
-			n.logger.DebugWith("Function readiness verification hit unexpected status code, retrying",
+			n.logger.DebugWithCtx(ctx,
+				"Function readiness verification hit unexpected status code, retrying",
 				"err", err,
 				"elapsed", time.Since(startTime),
 				"url", url,

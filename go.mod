@@ -30,7 +30,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/nats-io/go-nats v1.7.2
-	github.com/nuclio/errors v0.0.3
+	github.com/nuclio/errors v0.0.4
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.1
 	github.com/nuclio/nuclio-sdk-go v0.4.0
@@ -45,7 +45,7 @@ require (
 	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
 	github.com/stretchr/testify v1.8.0
 	github.com/tsenart/vegeta/v12 v12.8.4
-	github.com/v3io/scaler v0.5.2
+	github.com/v3io/scaler v0.5.3
 	github.com/v3io/v3io-go v0.2.27
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
