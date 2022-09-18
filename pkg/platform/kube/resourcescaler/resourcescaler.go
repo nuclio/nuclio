@@ -245,7 +245,7 @@ func (n *NuclioResourceScaler) scaleFunctionsToZero(ctx context.Context, resourc
 func (n *NuclioResourceScaler) scaleFunctionsFromZero(ctx context.Context, resources []scalertypes.Resource) error {
 	failedFunctionNames := make([]string, 0)
 	for _, resource := range resources {
-		n.logger.DebugWith(ctx,
+		n.logger.DebugWithCtx(ctx,
 			"Scaling from zero",
 			"functionName", resource.Name,
 			"functionNamespace", resource.Namespace)
