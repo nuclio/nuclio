@@ -384,7 +384,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		}
 
 		if skipDeploy {
-			p.Logger.InfoWithCtx(ctx, "Skipping function deployment",
+			p.Logger.InfoWithCtx(ctx,
+				"Skipping function deployment",
 				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
 				"functionNamespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
 
