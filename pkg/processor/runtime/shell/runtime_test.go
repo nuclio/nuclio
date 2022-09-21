@@ -25,14 +25,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -44,26 +45,32 @@ func (ti *TestTriggerInfoProvider) GetKind() string  { return "test kind" }
 func (ti *TestTriggerInfoProvider) GetName() string  { return "test name" }
 
 type ShellRuntimeSuite struct {
-	processorsuite.TestSuite
-	runtimeInstance runtime.Runtime
+	suite.Suite
 
+	runtimeInstance       runtime.Runtime
+	logger                logger.Logger
+	runtime               string
 	tempRuntimeHandlerDir string
 }
 
 func (suite *ShellRuntimeSuite) SetupSuite() {
-	suite.TestSuite.SetupSuite()
-	suite.Runtime = "shell"
-	configuration, err := NewConfiguration(suite.resolveRuntimeConfiguration(suite.Logger))
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.runtime = "shell"
+	configuration, err := NewConfiguration(suite.resolveRuntimeConfiguration(suite.logger))
 	suite.Require().NoError(err, "Failed to create new configuration")
 
 	suite.tempRuntimeHandlerDir = os.Getenv("NUCLIO_SHELL_HANDLER_DIR")
-	err = os.Setenv("NUCLIO_SHELL_HANDLER_DIR", path.Join(suite.GetTestFunctionsDir(),
-		suite.Runtime, "timeout"))
+	err = os.Setenv("NUCLIO_SHELL_HANDLER_DIR", path.Join(
+		common.GetSourceDir(),
+		"test",
+		"_functions",
+		suite.runtime,
+		"timeout"))
 	suite.Require().NoError(err, "Failed to set NUCLIO_SHELL_HANDLER_DIR env")
 
 	configuration.Spec.Handler = "timeout.sh:main"
 
-	suite.runtimeInstance, err = NewRuntime(suite.Logger, configuration)
+	suite.runtimeInstance, err = NewRuntime(suite.logger, configuration)
 	suite.Require().NoError(err, "Failed to create new shell runtime")
 }
 
@@ -76,7 +83,7 @@ func (suite *ShellRuntimeSuite) TestExecute() {
 		Body: []byte("sleep 0.1"),
 	}
 	eventInstance.SetTriggerInfoProvider(&TestTriggerInfoProvider{})
-	response, err := suite.runtimeInstance.ProcessEvent(eventInstance, suite.Logger)
+	response, err := suite.runtimeInstance.ProcessEvent(eventInstance, suite.logger)
 	suite.Require().NotNil(response)
 	suite.Require().NoError(err)
 
@@ -101,7 +108,7 @@ func (suite *ShellRuntimeSuite) TestTimeout() {
 	eventInstance.SetTriggerInfoProvider(&TestTriggerInfoProvider{})
 
 	// process event
-	_, err := suite.runtimeInstance.ProcessEvent(eventInstance, suite.Logger)
+	_, err := suite.runtimeInstance.ProcessEvent(eventInstance, suite.logger)
 	suite.Require().Error(err)
 
 	// error should be with status, to inform user his request has timed out
