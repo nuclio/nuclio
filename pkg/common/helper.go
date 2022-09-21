@@ -287,7 +287,15 @@ func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
 	return strings.ToLower(GetEnvOrDefaultString(key, strconv.FormatBool(defaultValue))) == "true"
 }
 
-// Checks if the given @dirPath is in a java project structure
+func GetEnvOrDefaultInt(key string, defaultValue int) int {
+	valueInt, err := strconv.Atoi(GetEnvOrDefaultString(key, strconv.Itoa(defaultValue)))
+	if err != nil {
+		return defaultValue
+	}
+	return valueInt
+}
+
+// IsJavaProjectDir Checks if the given @dirPath is in a java project structure
 // for example if the following dir existed "/my-project/src/main/java" then IsJavaProjectDir("/my-project") -> true
 func IsJavaProjectDir(dirPath string) bool {
 	javaProjectStructurePath := path.Join(dirPath, "src", "main", "java")
