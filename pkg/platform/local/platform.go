@@ -154,7 +154,8 @@ func NewPlatform(ctx context.Context,
 	newPlatform.defaultFunctionNetwork = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_NETWORK", defaultNetwork)
 	newPlatform.defaultFunctionRestartPolicy = &dockerclient.RestartPolicy{
 		Name: dockerclient.RestartPolicyName(
-			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_RESTART_POLICY", "unless-stopped")),
+			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_RESTART_POLICY",
+				string(dockerclient.RestartPolicyNameNo))),
 		MaximumRetryCount: common.GetEnvOrDefaultInt("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_RESTART_POLICY_MAX_RETRY_COUNT", 0),
 	}
 	return newPlatform, nil
