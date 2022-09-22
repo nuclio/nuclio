@@ -121,7 +121,9 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 
 		// ensure recorded event
 		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Body, firstEvent.Body))
-		suite.Require().Empty(cmp.Diff(cronTriggerEvent.Headers, firstEvent.Headers))
+		for headerName := range cronTriggerEvent.Headers {
+			suite.Require().Empty(cmp.Diff(cronTriggerEvent.Headers[headerName], firstEvent.Headers[headerName]))
+		}
 		return true
 	})
 }
