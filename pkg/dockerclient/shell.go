@@ -275,12 +275,19 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 	if len(runOptions.MountPoints) > 0 {
 		for _, mountPoint := range runOptions.MountPoints {
+			mountType := ""
+			if mountPoint.Type != "" {
+
+				// e.g: type=bind,
+				mountType = fmt.Sprintf("%s,", mountPoint.Type)
+			}
 			readonly := ""
 			if !mountPoint.RW {
 				readonly = ",readonly"
 			}
 			dockerArguments = append(dockerArguments,
-				fmt.Sprintf("--mount source=%s,destination=%s%s",
+				fmt.Sprintf("--mount %ssource=%s,destination=%s%s",
+					mountType,
 					mountPoint.Source,
 					mountPoint.Destination,
 					readonly))

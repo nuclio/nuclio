@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -54,13 +53,10 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	cmdRunner                    cmdrunner.CmdRunner
-	dockerClient                 dockerclient.Client
-	localStore                   *client.Store
-	defaultFunctionMountMode     FunctionMountMode
-	defaultFunctionRestartPolicy *dockerclient.RestartPolicy
-	defaultFunctionNetwork       string
-	projectsClient               project.Client
+	cmdRunner      cmdrunner.CmdRunner
+	dockerClient   dockerclient.Client
+	localStore     *client.Store
+	projectsClient project.Client
 }
 
 const Mib = 1048576
@@ -134,29 +130,6 @@ func NewPlatform(ctx context.Context,
 				newPlatform.ValidateFunctionContainersHealthiness(ctx)
 			}
 		}(newPlatform)
-	}
-
-	// Default to mount function configurations from docker volume
-	newPlatform.defaultFunctionMountMode = FunctionMountMode(
-		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_MOUNT_MODE", string(FunctionMountModeVolume)),
-	)
-
-	// resolves default network
-	// if running in container, get nuclio-dashboard's network and use that
-	// alternatively, blank for docker to decide the default (usually, bridge)
-	defaultNetwork := ""
-	if common.RunningInContainer() {
-		defaultNetwork, err = GetRunningContainerNetwork(newPlatform.dockerClient)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get running container network")
-		}
-	}
-	newPlatform.defaultFunctionNetwork = common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_NETWORK", defaultNetwork)
-	newPlatform.defaultFunctionRestartPolicy = &dockerclient.RestartPolicy{
-		Name: dockerclient.RestartPolicyName(
-			common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_RESTART_POLICY",
-				string(dockerclient.RestartPolicyNameNo))),
-		MaximumRetryCount: common.GetEnvOrDefaultInt("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_RESTART_POLICY_MAX_RETRY_COUNT", 0),
 	}
 	return newPlatform, nil
 }
@@ -828,7 +801,7 @@ func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Con
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
-	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions)
+	mountPoints, err := p.resolveAndCreateFunctionMounts(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve and create function mounts")
 	}
@@ -870,7 +843,6 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		},
 		Env:           envMap,
 		Labels:        labels,
-		Volumes:       volumesMap,
 		Network:       network,
 		RestartPolicy: restartPolicy,
 		GPUs:          gpus,
@@ -954,24 +926,44 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	return nil
 }
 
-func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions) (
-	[]dockerclient.MountPoint, map[string]string, error) {
+func (p *Platform) resolveAndCreateFunctionMounts(
+	createFunctionOptions *platform.CreateFunctionOptions) ([]dockerclient.MountPoint, error) {
 
 	if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
-	}
-	volumesMap := p.compileDeployFunctionVolumesMap(createFunctionOptions)
-	processorMountPoint := dockerclient.MountPoint{
-		Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
-		Destination: FunctionProcessorContainerDirPath,
-
-		// read only mode
-		RW: false,
+		return nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
 	}
 
-	return []dockerclient.MountPoint{
-		processorMountPoint,
-	}, volumesMap, nil
+	// add processor mount
+	mountPoints := []dockerclient.MountPoint{
+		{
+			Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
+			Destination: FunctionProcessorContainerDirPath,
+
+			// read only mode
+			RW:   false,
+			Type: "volume",
+		},
+	}
+
+	functionVolumes := createFunctionOptions.FunctionConfig.Spec.Volumes
+	if functionVolumes == nil {
+		functionVolumes = p.Config.Local.DefaultFunctionVolumes
+	}
+
+	for _, functionVolume := range functionVolumes {
+
+		// add only host path
+		if functionVolume.Volume.HostPath != nil {
+			mountPoints = append(mountPoints, dockerclient.MountPoint{
+				Source:      functionVolume.Volume.HostPath.Path,
+				Destination: functionVolume.VolumeMount.MountPath,
+				RW:          functionVolume.VolumeMount.ReadOnly,
+				Type:        "bind",
+			})
+		}
+	}
+
+	return mountPoints, nil
 }
 
 func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
@@ -1162,18 +1154,6 @@ func (p *Platform) waitForContainer(containerID string, timeout int) error {
 	return nil
 }
 
-func (p *Platform) compileDeployFunctionVolumesMap(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
-	volumesMap := map[string]string{}
-	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
-
-		// only add hostpath volumes
-		if volume.Volume.HostPath != nil {
-			volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
-		}
-	}
-	return volumesMap
-}
-
 func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	// create docker volume
@@ -1299,7 +1279,7 @@ func (p *Platform) resolveFunctionNetwork(createFunctionOptions *platform.Create
 		return functionPlatformConfiguration.Network, nil
 	}
 
-	return p.defaultFunctionNetwork, nil
+	return p.Config.Local.DefaultFunctionContainerNetworkName, nil
 }
 
 func (p *Platform) resolveFunctionRestartPolicy(createFunctionOptions *platform.CreateFunctionOptions) (*dockerclient.RestartPolicy, error) {
@@ -1313,24 +1293,5 @@ func (p *Platform) resolveFunctionRestartPolicy(createFunctionOptions *platform.
 		return functionPlatformConfiguration.RestartPolicy, nil
 	}
 
-	return p.defaultFunctionRestartPolicy, nil
-}
-
-// GetRunningContainerNetwork returns the docker network for a running container
-func GetRunningContainerNetwork(dockerClient dockerclient.Client) (string, error) {
-	containerID, err := ioutil.ReadFile("/etc/hostname")
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to open docker daemon config file")
-	}
-	containers, err := dockerClient.GetContainers(&dockerclient.GetContainerOptions{
-		ID: string(containerID),
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get container network")
-	}
-	for networkName := range containers[0].NetworkSettings.Networks {
-		return networkName, nil
-	}
-
-	return "bridge", nil
+	return p.Config.Local.DefaultFunctionRestartPolicy, nil
 }
