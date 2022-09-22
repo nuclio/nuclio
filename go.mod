@@ -7,7 +7,7 @@ require (
 	github.com/Azure/go-amqp v0.17.0
 	github.com/Microsoft/ApplicationInsights-Go v0.4.2
 	github.com/Shopify/sarama v1.23.1
-	github.com/aws/aws-sdk-go v1.39.6
+	github.com/aws/aws-sdk-go v1.44.103
 	github.com/coreos/go-semver v0.3.0
 	github.com/disintegration/imaging v1.6.0
 	github.com/docker/distribution v2.8.1+incompatible
@@ -150,7 +150,7 @@ require (
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/mod v0.4.2 // indirect
-	golang.org/x/net v0.0.0-20220812174116-3211cb980234 // indirect
+	golang.org/x/net v0.0.0-20220921203646-d300de134e69 // indirect
 	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
