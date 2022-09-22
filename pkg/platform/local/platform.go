@@ -657,15 +657,33 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 
 		// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
 		dockerHostAddresses, err := net.LookupIP("host.docker.internal")
+		if err == nil {
+			for _, address := range dockerHostAddresses {
+				addresses = append(addresses, address.String())
+			}
+		}
+
+		containerID, err := common.RunningContainerHostname()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to lookup host.docker.internal")
+			return nil, errors.Wrap(err, "Failed to get running container ID")
 		}
-		for _, address := range dockerHostAddresses {
-			addresses = append(addresses, address.String())
+
+		networkSettings, err := p.dockerClient.GetContainerNetworkSettings(containerID)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get container network settings")
 		}
+
+		// docker gateway, usually 172.17.0.1
+		addresses = append(addresses, networkSettings.Gateway)
+
+		// attach each network driver gateway
+		for _, network := range networkSettings.Networks {
+			addresses = append(addresses, network.Gateway)
+		}
+
 	}
 
-	return addresses, nil
+	return common.RemoveDuplicatesFromSliceString(addresses), nil
 }
 
 func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
@@ -957,7 +975,7 @@ func (p *Platform) resolveAndCreateFunctionMounts(
 			mountPoints = append(mountPoints, dockerclient.MountPoint{
 				Source:      functionVolume.Volume.HostPath.Path,
 				Destination: functionVolume.VolumeMount.MountPath,
-				RW:          functionVolume.VolumeMount.ReadOnly,
+				RW:          !functionVolume.VolumeMount.ReadOnly,
 				Type:        "bind",
 			})
 		}

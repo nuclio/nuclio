@@ -76,6 +76,9 @@ type Client interface {
 	// CreateNetwork creates a docker network
 	CreateNetwork(*CreateNetworkOptions) error
 
+	// GetContainerNetworkSettings returns container network settings
+	GetContainerNetworkSettings(containerID string) (*NetworkSettings, error)
+
 	// DeleteNetwork deletes a docker network
 	DeleteNetwork(networkName string) error
 

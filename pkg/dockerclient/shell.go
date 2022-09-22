@@ -279,7 +279,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 			if mountPoint.Type != "" {
 
 				// e.g: type=bind,
-				mountType = fmt.Sprintf("%s,", mountPoint.Type)
+				mountType = fmt.Sprintf("type=%s,", mountPoint.Type)
 			}
 			readonly := ""
 			if !mountPoint.RW {
@@ -681,6 +681,24 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 		options.URL)
 
 	return err
+}
+
+// GetContainerNetworkSettings returns container network settings
+func (c *ShellClient) GetContainerNetworkSettings(containerID string) (*NetworkSettings, error) {
+	c.logger.DebugWith("Getting container network setting docker network",
+		"containerID", containerID)
+
+	runResults, err := c.runCommand(nil, `docker inspect --format '{{ .NetworkSettings.Networks | json }}' %s`, containerID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get container ip addresses")
+	}
+
+	networkSettings := &NetworkSettings{}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(runResults.Output)), &networkSettings); err != nil {
+		return nil, errors.Wrap(err, "Failed to parse network settings")
+	}
+
+	return networkSettings, nil
 }
 
 // CreateNetwork creates a docker network

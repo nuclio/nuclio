@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -198,6 +199,18 @@ func retryUntilSuccessful(duration time.Duration,
 // RunningInContainer returns true if currently running in a container, false otherwise
 func RunningInContainer() bool {
 	return FileExists("/.dockerenv")
+}
+
+// RunningContainerHostname returns the hostname (aka container id) of the running container
+func RunningContainerHostname() (string, error) {
+	if !RunningInContainer() {
+		return "", errors.New("Not running in container")
+	}
+	containerID, err := ioutil.ReadFile("/etc/hostname")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to open docker daemon config file")
+	}
+	return strings.TrimSpace(string(containerID)), nil
 }
 
 func StripPrefixes(input string, prefixes []string) string {
@@ -532,4 +545,16 @@ func ParseQuantityOrDefault(value string,
 		quantity = apiresource.MustParse(defaultValue)
 	}
 	return quantity
+}
+
+func RemoveDuplicatesFromSliceString(slice []string) []string {
+	keys := make(map[string]bool)
+	var list []string
+	for _, entry := range slice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
