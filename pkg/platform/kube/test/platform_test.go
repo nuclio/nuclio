@@ -89,10 +89,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 
 	// compile cron trigger
 	cronTriggerEvent := cron.Event{
-		Body: `{
-			"key_a": true,
-			"key_b": ["value_1", "value_2"]
-		}`,
+		Body: `{"key_a":true,"key_b":["value_1","value_2"]}`,
 		Headers: map[string]interface{}{
 			"Extra-Header-1": "value1",
 			"Extra-Header-2": "value2",
