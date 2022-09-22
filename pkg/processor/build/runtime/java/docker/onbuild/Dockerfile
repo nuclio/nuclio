@@ -18,14 +18,16 @@ ARG NUCLIO_ARCH=amd64
 # Supplies processor
 FROM quay.io/nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 
-FROM gcr.io/iguazio/openjdk:9-slim as user-handler-builder
+FROM gcr.io/iguazio/openjdk:11-slim as user-handler-builder
+
+ENV GRADLEVERSION=5.6.4
 
 RUN apt-get update -qqy \
-    && apt-get install -o APT::Immediate-Configure=false -qqy curl \
-    && curl -LO https://services.gradle.org/distributions/gradle-4.5.1-bin.zip \
-    && unzip gradle-4.5.1-bin.zip \
-    && rm gradle-4.5.1-bin.zip \
-    && ln -s /gradle-4.5.1/bin/gradle /usr/local/bin \
+    && apt-get install -o APT::Immediate-Configure=false -qqy unzip curl \
+    && curl -LO https://services.gradle.org/distributions/gradle-${GRADLEVERSION}-bin.zip \
+    && unzip gradle-${GRADLEVERSION}-bin.zip \
+    && rm gradle-${GRADLEVERSION}-bin.zip \
+    && ln -s /gradle-${GRADLEVERSION}/bin/gradle /usr/local/bin \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir /home/gradle
@@ -46,10 +48,10 @@ COPY pkg/processor/build/runtime/java/docker/onbuild/build-user-handler.sh /home
 RUN chmod +x /home/gradle/src/userHandler/build-user-handler.sh
 
 # Download the nuclio SDK Jar
-RUN curl -LO https://repo1.maven.org/fromsearch?filepath=io/nuclio/nuclio-sdk-java/1.0.0/nuclio-sdk-java-1.0.0.jar
+RUN curl -LO https://repo1.maven.org/fromsearch?filepath=io/nuclio/nuclio-sdk-java/1.1.0/nuclio-sdk-java-1.1.0.jar
 
 # Copy the downloaded SDK Jar to the userHandler folder
-RUN cp nuclio-sdk-java-1.0.0.jar /home/gradle/src/userHandler/nuclio-sdk-java-1.0.0.jar
+RUN cp nuclio-sdk-java-1.1.0.jar /home/gradle/src/userHandler/nuclio-sdk-java-1.1.0.jar
 
 # Copy the gradle build script and user sources to /home/gradle/src/userHandler
 ONBUILD COPY handler/build.gradle /home/gradle/src/userHandler
@@ -82,7 +84,7 @@ COPY pkg/processor/runtime/java/build.gradle \
     /home/gradle/src/wrapper/
 
 # Copy also the downloaded nuclio SDK Jar to the wrapper folder
-RUN cp nuclio-sdk-java-1.0.0.jar /home/gradle/src/wrapper/nuclio-sdk-java-1.0.0.jar
+RUN cp nuclio-sdk-java-1.1.0.jar /home/gradle/src/wrapper/nuclio-sdk-java-1.1.0.jar
 
 # Download dependencies
 RUN cd /home/gradle/src/wrapper \
