@@ -20,6 +20,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	nucliozap "github.com/nuclio/zap"
@@ -207,9 +208,12 @@ func (p *PreemptibleNodes) CompileAntiAffinityByLabelSelectorNoScheduleOnMatchin
 }
 
 type PlatformLocalConfig struct {
-	FunctionContainersHealthinessEnabled  bool
-	FunctionContainersHealthinessTimeout  time.Duration
-	FunctionContainersHealthinessInterval time.Duration
+	FunctionContainersHealthinessEnabled  bool                        `json:"FunctionContainersHealthinessEnabled"`
+	FunctionContainersHealthinessTimeout  time.Duration               `json:"FunctionContainersHealthinessTimeout,omitempty"`
+	FunctionContainersHealthinessInterval time.Duration               `json:"FunctionContainersHealthinessInterval,omitempty"`
+	DefaultFunctionContainerNetworkName   string                      `json:"DefaultFunctionContainerNetworkName,omitempty"`
+	DefaultFunctionRestartPolicy          *dockerclient.RestartPolicy `json:"DefaultFunctionRestartPolicy,omitempty"`
+	DefaultFunctionVolumes                []functionconfig.Volume     `json:"DefaultFunctionVolumes,omitempty"`
 }
 
 type ImageRegistryOverridesConfig struct {

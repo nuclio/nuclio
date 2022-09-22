@@ -124,6 +124,11 @@ func (mdc *MockDockerClient) CreateNetwork(options *CreateNetworkOptions) error 
 	return args.Error(0)
 }
 
+func (mdc *MockDockerClient) GetContainerNetworkSettings(containerID string) (*NetworkSettings, error) {
+	args := mdc.Called(containerID)
+	return args.Get(0).(*NetworkSettings), args.Error(1)
+}
+
 // DeleteNetwork deletes a docker network
 func (mdc *MockDockerClient) DeleteNetwork(networkName string) error {
 	args := mdc.Called(networkName)

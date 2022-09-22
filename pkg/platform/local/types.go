@@ -27,7 +27,6 @@ import (
 type functionPlatformConfiguration struct {
 	Network       string
 	RestartPolicy *dockerclient.RestartPolicy
-	MountMode     FunctionMountMode
 }
 
 func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*functionPlatformConfiguration, error) {
@@ -40,14 +39,3 @@ func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*f
 
 	return &newConfiguration, nil
 }
-
-type FunctionMountMode string
-
-const (
-
-	// FunctionMountModeBind is Deprecated. use FunctionMountModeVolume only.
-	FunctionMountModeBind FunctionMountMode = "bind"
-
-	// FunctionMountModeVolume creates a docker volume and mounts processor configuration to it
-	FunctionMountModeVolume FunctionMountMode = "volume"
-)

@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -200,6 +201,18 @@ func RunningInContainer() bool {
 	return FileExists("/.dockerenv")
 }
 
+// RunningContainerHostname returns the hostname (aka container id) of the running container
+func RunningContainerHostname() (string, error) {
+	if !RunningInContainer() {
+		return "", errors.New("Not running in container")
+	}
+	containerID, err := ioutil.ReadFile("/etc/hostname")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to open docker daemon config file")
+	}
+	return strings.TrimSpace(string(containerID)), nil
+}
+
 func StripPrefixes(input string, prefixes []string) string {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(input, prefix) {
@@ -287,7 +300,15 @@ func GetEnvOrDefaultBool(key string, defaultValue bool) bool {
 	return strings.ToLower(GetEnvOrDefaultString(key, strconv.FormatBool(defaultValue))) == "true"
 }
 
-// Checks if the given @dirPath is in a java project structure
+func GetEnvOrDefaultInt(key string, defaultValue int) int {
+	valueInt, err := strconv.Atoi(GetEnvOrDefaultString(key, strconv.Itoa(defaultValue)))
+	if err != nil {
+		return defaultValue
+	}
+	return valueInt
+}
+
+// IsJavaProjectDir Checks if the given @dirPath is in a java project structure
 // for example if the following dir existed "/my-project/src/main/java" then IsJavaProjectDir("/my-project") -> true
 func IsJavaProjectDir(dirPath string) bool {
 	javaProjectStructurePath := path.Join(dirPath, "src", "main", "java")
@@ -524,4 +545,16 @@ func ParseQuantityOrDefault(value string,
 		quantity = apiresource.MustParse(defaultValue)
 	}
 	return quantity
+}
+
+func RemoveDuplicatesFromSliceString(slice []string) []string {
+	keys := make(map[string]bool)
+	var list []string
+	for _, entry := range slice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }

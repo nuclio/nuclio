@@ -91,8 +91,11 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 			buffer := bytes.NewBuffer([]byte{})
 			bufferIsFilled := make(chan bool)
 			go func() {
+				defer cancel()
 				for buffer.Len() == 0 {
-					suite.logger.DebugWithCtx(ctx, "Filling buffer with commands output")
+					if ctx.Err() != nil {
+						return
+					}
 					io.Copy(buffer, fileReader) // nolint: errcheck
 					time.Sleep(250 * time.Millisecond)
 				}
@@ -100,12 +103,12 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 
 				// let it stream for a second and then stop it
 				suite.logger.DebugWithCtx(ctx, "Got some data, cancelling context")
-				cancel()
 			}()
 
 			// In case stream channel is still open
-			time.AfterFunc(3*time.Second, func() {
+			time.AfterFunc(5*time.Second, func() {
 				suite.logger.DebugWithCtx(ctx, "Forcefully cancelling context")
+				fileReader.Close() // nolint: errcheck
 				cancel()
 			})
 
@@ -124,7 +127,7 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 			time.Sleep(1 * time.Second)
 
 			// `stream` is running with a context, once it is being terminated (or cancelled), the reader should be closed
-			// this ensure it has been closed.
+			// this ensures it has been closed.
 			err = fileReader.Close()
 			suite.Require().Error(err)
 			suite.Require().Contains(err.Error(), "already closed", "should have been closed")
