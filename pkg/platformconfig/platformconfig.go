@@ -19,7 +19,6 @@ package platformconfig
 import (
 	"context"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -88,6 +87,16 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 
 	// enrich local platform configuration
 	config.enrichLocalPlatform()
+
+	if config.Logger.Sinks == nil {
+		config.Logger.Sinks = platformConfigurationReader.GetDefaultConfiguration().Logger.Sinks
+	}
+	if config.Logger.Functions == nil {
+		config.Logger.Functions = platformConfigurationReader.GetDefaultConfiguration().Logger.Functions
+	}
+	if config.Logger.System == nil {
+		config.Logger.System = platformConfigurationReader.GetDefaultConfiguration().Logger.System
+	}
 
 	// default cron trigger creation mode to processor
 	// TODO: move under `config.Kube`
@@ -278,12 +287,8 @@ func (c *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding)
 func (c *Config) enrichLocalPlatform() {
 
 	// if set via envvar, override given configuration
-	switch strings.ToLower(os.Getenv("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS")) {
-	case "false":
-		c.Local.FunctionContainersHealthinessEnabled = false
-	case "true":
-		c.Local.FunctionContainersHealthinessEnabled = true
-	}
+	c.Local.FunctionContainersHealthinessEnabled = common.GetEnvOrDefaultBool(
+		"NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", true)
 
 	if c.Local.FunctionContainersHealthinessInterval == 0 {
 		c.Local.FunctionContainersHealthinessInterval = time.Second * 30

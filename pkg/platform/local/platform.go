@@ -126,6 +126,7 @@ func NewPlatform(ctx context.Context,
 		newPlatform.Logger.DebugWithCtx(ctx, "Igniting container healthiness validator")
 		go func(newPlatform *Platform) {
 			uptimeTicker := time.NewTicker(newPlatform.Config.Local.FunctionContainersHealthinessInterval)
+			defer uptimeTicker.Stop()
 			for range uptimeTicker.C {
 				newPlatform.ValidateFunctionContainersHealthiness(ctx)
 			}
@@ -721,7 +722,8 @@ func (p *Platform) ValidateFunctionContainersHealthiness(ctx context.Context) {
 			Namespace: namespace,
 		})
 		if err != nil {
-			p.Logger.WarnWithCtx(ctx, "Failed to get namespaced functions",
+			p.Logger.WarnWithCtx(ctx,
+				"Failed to get namespaced functions",
 				"namespace", namespace,
 				"err", err)
 			continue
@@ -963,12 +965,7 @@ func (p *Platform) resolveAndCreateFunctionMounts(
 		},
 	}
 
-	functionVolumes := createFunctionOptions.FunctionConfig.Spec.Volumes
-	if functionVolumes == nil {
-		functionVolumes = p.Config.Local.DefaultFunctionVolumes
-	}
-
-	for _, functionVolume := range functionVolumes {
+	for _, functionVolume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
 
 		// add only host path
 		if functionVolume.Volume.HostPath != nil {
@@ -1239,6 +1236,10 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 }
 
 func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if len(functionConfig.Spec.Volumes) == 0 {
+		functionConfig.Spec.Volumes = p.Config.Local.DefaultFunctionVolumes
+	}
+
 	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
