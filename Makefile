@@ -704,7 +704,7 @@ test-nodejs:
 	 --volume $(NUCLIO_PATH)/test:/nuclio/test \
 	 --workdir /nuclio/nodejs \
 	 --env RUN_MODE=CI \
-	 node:10.20-alpine \
+	 node:16-alpine \
 	 sh -c 'npm install && npm run lint && npm run test'
 
 .PHONY: test-python
