@@ -300,20 +300,16 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Project, error) {
 	requestURL := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
 	requestURL += "?include=owner&enrich_namespace=true"
-	var retryOnFailure bool
 	if updatedAfterTime != nil && updatedAfterTime.IsZero() {
-		retryOnFailure = true
-		zeroEpoch := time.Unix(0, 0)
-		updatedAfterTime = &zeroEpoch
+		updatedAfterTime = nil
 	}
 
 	responseBody, err := c.getUpdatedAfter(requestURL, updatedAfterTime)
 	if err != nil {
-		c.logger.WarnWith("Failed to get projects from leader", "err", err.Error())
-		if !retryOnFailure {
-			return nil, errors.Wrap(err, "Failed to get projects from leader")
-		}
-		c.logger.DebugWith("Retrying with no update-at")
+		c.logger.DebugWith(
+			"Retrying with no update-at",
+			"updatedAfterTime", updatedAfterTime,
+			"err", err.Error())
 		responseBody, err = c.getUpdatedAfter(requestURL, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get projects from leader")
