@@ -133,8 +133,8 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 			err = k.consumerGroup.Consume(context.Background(), k.configuration.Topics, k)
 
 			if err != nil {
-				k.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", errors.GetErrorStackString(err, 10))
-
+				k.Logger.WarnWith("Failed to consume from group, waiting before retrying",
+					"err", errors.GetErrorStackString(err, 10))
 				time.Sleep(1 * time.Second)
 			} else {
 				k.Logger.DebugWith("Consumer session closed (possibly due to a rebalance), re-creating")
@@ -149,8 +149,7 @@ func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
 	k.shutdownSignal <- struct{}{}
 	close(k.shutdownSignal)
 
-	err := k.consumerGroup.Close()
-	if err != nil {
+	if err := k.consumerGroup.Close(); err != nil {
 		return nil, errors.Wrap(err, "Failed to close consumer")
 	}
 	return nil, nil
@@ -259,7 +258,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				)
 			}
 
-		case <-claim.StopConsuming():
+		case <-claim.Messages():
 			k.Logger.DebugWith("Got signal to stop consumption",
 				"wait", k.configuration.maxWaitHandlerDuringRebalance,
 				"partition", claim.Partition())
@@ -352,7 +351,8 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 		"partition", claim.Partition())
 }
 
-func (k *kafka) cancelEventHandling(workerInstance *worker.Worker, claim sarama.ConsumerGroupClaim) error {
+func (k *kafka) cancelEventHandling(workerInstance *worker.Worker,
+	claim sarama.ConsumerGroupClaim) error {
 	if workerInstance.SupportsRestart() {
 		return workerInstance.Restart()
 	}
@@ -372,7 +372,9 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.Group.Rebalance.Timeout = k.configuration.rebalanceTimeout
 	config.Consumer.Group.Rebalance.Retry.Max = k.configuration.RebalanceRetryMax
 	config.Consumer.Group.Rebalance.Retry.Backoff = k.configuration.rebalanceRetryBackoff
-	config.Consumer.Group.Rebalance.Strategy = k.configuration.balanceStrategy
+	config.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
+		k.configuration.balanceStrategy,
+	}
 	config.Consumer.Retry.Backoff = k.configuration.retryBackoff
 	config.Consumer.Fetch.Min = int32(k.configuration.FetchMin)
 	config.Consumer.Fetch.Default = int32(k.configuration.FetchDefault)
@@ -380,7 +382,6 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.MaxWaitTime = k.configuration.maxWaitTime
 	config.Consumer.MaxProcessingTime = k.configuration.maxProcessingTime
 	config.ChannelBufferSize = k.configuration.ChannelBufferSize
-	config.LogLevel = k.configuration.LogLevel
 
 	// configure TLS if applicable
 	config.Net.TLS.Enable = k.configuration.CACert != "" || k.configuration.TLS.Enable
@@ -460,7 +461,6 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 }
 
 func (k *kafka) newConsumerGroup() (sarama.ConsumerGroup, error) {
-
 	consumerGroup, err := sarama.NewConsumerGroup(k.configuration.brokers, k.configuration.ConsumerGroup, k.kafkaConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer")

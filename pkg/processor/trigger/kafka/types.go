@@ -127,6 +127,8 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-access-key", ValueString: &newConfiguration.AccessKey},
 		{Key: "nuclio.io/kafka-access-cert", ValueString: &newConfiguration.AccessCertificate},
 		{Key: "nuclio.io/kafka-ca-cert", ValueString: &newConfiguration.CACert},
+
+		// deprecated
 		{Key: "nuclio.io/kafka-log-level", ValueInt: &newConfiguration.LogLevel},
 		{Key: "nuclio.io/kafka-version", ValueString: &newConfiguration.Version},
 
