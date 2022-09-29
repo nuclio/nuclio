@@ -89,6 +89,16 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	// enrich local platform configuration
 	config.enrichLocalPlatform()
 
+	if config.Logger.Sinks == nil {
+		config.Logger.Sinks = platformConfigurationReader.GetDefaultConfiguration().Logger.Sinks
+	}
+	if config.Logger.Functions == nil {
+		config.Logger.Functions = platformConfigurationReader.GetDefaultConfiguration().Logger.Functions
+	}
+	if config.Logger.System == nil {
+		config.Logger.System = platformConfigurationReader.GetDefaultConfiguration().Logger.System
+	}
+
 	// default cron trigger creation mode to processor
 	// TODO: move under `config.Kube`
 	if config.CronTriggerCreationMode == "" {

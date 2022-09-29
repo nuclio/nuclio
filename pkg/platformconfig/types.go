@@ -208,12 +208,12 @@ func (p *PreemptibleNodes) CompileAntiAffinityByLabelSelectorNoScheduleOnMatchin
 }
 
 type PlatformLocalConfig struct {
-	FunctionContainersHealthinessEnabled  bool                        `json:"FunctionContainersHealthinessEnabled"`
-	FunctionContainersHealthinessTimeout  time.Duration               `json:"FunctionContainersHealthinessTimeout,omitempty"`
-	FunctionContainersHealthinessInterval time.Duration               `json:"FunctionContainersHealthinessInterval,omitempty"`
-	DefaultFunctionContainerNetworkName   string                      `json:"DefaultFunctionContainerNetworkName,omitempty"`
-	DefaultFunctionRestartPolicy          *dockerclient.RestartPolicy `json:"DefaultFunctionRestartPolicy,omitempty"`
-	DefaultFunctionVolumes                []functionconfig.Volume     `json:"DefaultFunctionVolumes,omitempty"`
+	FunctionContainersHealthinessEnabled  bool                        `json:"functionContainersHealthinessEnabled"`
+	FunctionContainersHealthinessTimeout  time.Duration               `json:"functionContainersHealthinessTimeout,omitempty"`
+	FunctionContainersHealthinessInterval time.Duration               `json:"functionContainersHealthinessInterval,omitempty"`
+	DefaultFunctionContainerNetworkName   string                      `json:"defaultFunctionContainerNetworkName,omitempty"`
+	DefaultFunctionRestartPolicy          *dockerclient.RestartPolicy `json:"defaultFunctionRestartPolicy,omitempty"`
+	DefaultFunctionVolumes                []functionconfig.Volume     `json:"defaultFunctionVolumes,omitempty"`
 }
 
 type ImageRegistryOverridesConfig struct {

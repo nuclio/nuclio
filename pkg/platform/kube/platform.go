@@ -436,7 +436,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	return p.HandleDeployFunction(ctx, existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
-func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 	if err := p.Platform.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return err
 	}
