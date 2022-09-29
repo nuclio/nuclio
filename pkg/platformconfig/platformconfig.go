@@ -19,7 +19,6 @@ package platformconfig
 import (
 	"context"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -288,12 +287,8 @@ func (c *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding)
 func (c *Config) enrichLocalPlatform() {
 
 	// if set via envvar, override given configuration
-	switch strings.ToLower(os.Getenv("NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS")) {
-	case "false":
-		c.Local.FunctionContainersHealthinessEnabled = false
-	case "true":
-		c.Local.FunctionContainersHealthinessEnabled = true
-	}
+	c.Local.FunctionContainersHealthinessEnabled = common.GetEnvOrDefaultBool(
+		"NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS", true)
 
 	if c.Local.FunctionContainersHealthinessInterval == 0 {
 		c.Local.FunctionContainersHealthinessInterval = time.Second * 30

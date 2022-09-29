@@ -126,6 +126,7 @@ func NewPlatform(ctx context.Context,
 		newPlatform.Logger.DebugWithCtx(ctx, "Igniting container healthiness validator")
 		go func(newPlatform *Platform) {
 			uptimeTicker := time.NewTicker(newPlatform.Config.Local.FunctionContainersHealthinessInterval)
+			defer uptimeTicker.Stop()
 			for range uptimeTicker.C {
 				newPlatform.ValidateFunctionContainersHealthiness(ctx)
 			}
@@ -721,7 +722,8 @@ func (p *Platform) ValidateFunctionContainersHealthiness(ctx context.Context) {
 			Namespace: namespace,
 		})
 		if err != nil {
-			p.Logger.WarnWithCtx(ctx, "Failed to get namespaced functions",
+			p.Logger.WarnWithCtx(ctx,
+				"Failed to get namespaced functions",
 				"namespace", namespace,
 				"err", err)
 			continue
