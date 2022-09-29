@@ -300,17 +300,41 @@ func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) err
 func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Project, error) {
 	requestURL := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
 	requestURL += "?include=owner&enrich_namespace=true"
+	var retryOnFailure bool
+	if updatedAfterTime != nil && updatedAfterTime.IsZero() {
+		retryOnFailure = true
+		zeroEpoch := time.Unix(0, 0)
+		updatedAfterTime = &zeroEpoch
+	}
 
+	responseBody, err := c.getUpdatedAfter(requestURL, updatedAfterTime)
+	if err != nil {
+		c.logger.WarnWith("Failed to get projects from leader", "err", err.Error())
+		if !retryOnFailure {
+			return nil, errors.Wrap(err, "Failed to get projects from leader")
+		}
+		c.logger.DebugWith("Retrying with no update-at")
+		responseBody, err = c.getUpdatedAfter(requestURL, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get projects from leader")
+		}
+	}
+
+	return c.resolveGetProjectResponse(false, responseBody)
+}
+
+func (c *Client) getUpdatedAfter(requestURL string, updatedAfterTime *time.Time) ([]byte, error) {
+	var requestURLFilterByURL string
 	if updatedAfterTime != nil {
-		updatedAfterTimestamp := updatedAfterTime.Format(time.RFC3339Nano)
-		requestURL += fmt.Sprintf("&filter[updated_at]=[$gt]%s", updatedAfterTimestamp)
+		requestURLFilterByURL = fmt.Sprintf("&filter[updated_at]=[$gt]%s",
+			updatedAfterTime.Format(time.RFC3339Nano))
 	}
 
 	// send the request
 	headers := c.generateCommonRequestHeaders()
 	responseBody, _, err := common.SendHTTPRequest(c.httpClient,
 		http.MethodGet,
-		requestURL,
+		requestURL+requestURLFilterByURL,
 		nil,
 		headers,
 		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
@@ -318,8 +342,7 @@ func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Projec
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to send request to leader")
 	}
-
-	return c.resolveGetProjectResponse(false, responseBody)
+	return responseBody, nil
 }
 
 func (c *Client) generateCommonRequestHeaders() map[string]string {
