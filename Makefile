@@ -153,7 +153,7 @@ DOCKER_IMAGES_RULES ?= \
 	handler-builder-nodejs-onbuild
 
 DOCKER_IMAGES_CACHE ?= \
-	build-builder \
+	nuclio-builder \
 	nuclio-base \
 	nuclio-base-alpine
 
