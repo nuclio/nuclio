@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -264,6 +265,56 @@ func (suite *ClientTestSuite) TestCreate() {
 	}
 }
 
+func (suite *ClientTestSuite) TestGetUpdatedAfter() {
+	zeroUpdatedAfterTime := time.Time{}
+	nowUpdatedAfterTime := time.Now()
+	for _, testCase := range []struct {
+		name             string
+		updatedAfterTime *time.Time
+		response         func(*http.Request) *http.Response
+	}{
+		{
+			name:             "sanity",
+			updatedAfterTime: &nowUpdatedAfterTime,
+			response: func(r *http.Request) *http.Response {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       suite.mockIgzAPIGetProject(false),
+				}
+			},
+		},
+		{
+			name:             "retryOnError",
+			updatedAfterTime: &zeroUpdatedAfterTime,
+			response: func(r *http.Request) *http.Response {
+				if strings.Contains(r.URL.RawQuery, "0001-01-01T00:00:00Z") {
+					suite.FailNow("updated_after should not be zero")
+				} else if strings.Contains(r.URL.RawQuery, "1970-01-01T00:00:00Z") {
+					return &http.Response{
+						StatusCode: http.StatusInternalServerError,
+						Body:       ioutil.NopCloser(bytes.NewBufferString("")),
+					}
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       suite.mockIgzAPIGetProject(false),
+				}
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+				suite.Require().LessOrEqual(strings.Count(r.URL.RawQuery, "updated_at"), 1)
+				return testCase.response(r)
+			})
+			projects, err := suite.client.GetUpdatedAfter(testCase.updatedAfterTime)
+			suite.Require().NoError(err)
+			suite.Require().Len(projects, 1)
+			suite.Require().Equal(projects[0].GetConfig().Spec.Owner, "admin")
+		})
+	}
+}
+
 func (suite *ClientTestSuite) TestGet() {
 	for _, testCase := range []struct {
 		name   string
@@ -311,7 +362,7 @@ func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
             "name": "a1",
             "operational_status": "online",
             "owner_username": "admin",
-            "updated_at": "2021-08-12T07:13:29.845000+00:00"
+            "updated_at": "0000-00-00T00:00:00.000000+00:00"
         },
         "id": "798d8441-1ca6-407d-8e8a-5ac24ba41ece",
         "relationships": {
