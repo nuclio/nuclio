@@ -519,6 +519,7 @@ build-builder:
 .PHONY: fmt
 fmt:
 	gofmt -s -w .
+	golangci-lint run --fix
 
 .PHONY: lint
 lint: modules ensure-test-files-annotated
@@ -533,7 +534,7 @@ lint: modules ensure-test-files-annotated
 		&& chmod +x $(GOPATH)/bin/impi)
 
 	@test -e $(GOPATH)/bin/golangci-lint || \
-	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.41.1)
+	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.50.0)
 
 	@echo Verifying imports...
 	$(GOPATH)/bin/impi \

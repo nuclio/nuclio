@@ -45,9 +45,7 @@ const (
 	FunctionsArchiveFilePath = "test/test_funcs.zip"
 )
 
-//
 // Test suite
-//
 type testSuite struct {
 	suite.Suite
 	logger       logger.Logger

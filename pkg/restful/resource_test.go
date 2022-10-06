@@ -36,9 +36,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-//
 // Base resource
-//
 type resource struct {
 	*AbstractResource
 }
@@ -563,9 +561,7 @@ func (suite *r3TestSuite) TestUpdate() {
 	})
 }
 
-//
 // Run suites
-//
 func TestResourceTestSuite(t *testing.T) {
 	suite.Run(t, new(r1TestSuite))
 	suite.Run(t, new(r2TestSuite))

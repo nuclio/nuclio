@@ -463,10 +463,12 @@ func CatchAndLogPanicWithOptions(ctx context.Context,
 // corresponding to https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 //
 // Example:
-//   labelsMap:
-//     a: b
-//     c: d
-//   encodedLabelSelector: a=b
+//
+//	labelsMap:
+//	  a: b
+//	  c: d
+//	encodedLabelSelector: a=b
+//
 // returns true
 func LabelsMapMatchByLabelSelector(labelSelector string, labelsMap map[string]string) (bool, error) {
 

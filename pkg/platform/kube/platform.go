@@ -1277,15 +1277,16 @@ func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions
 
 // enrichFunctionPreemptionSpec - Enriches function pod with the below described spec. if no platformConfiguration related
 // configuration is given, do nothing.
-// 	`Allow` 	- Adds Tolerations / GPU Tolerations if taints were given. otherwise, assume pods can be scheduled on preemptible nodes.
-//                > Purges any `affinity` / `anti-affinity` preemption related configuration
-// 	`Constrain` - Uses node-affinity to make sure pods are assigned using OR on the given node label selectors.
-//                > Uses `Allow` configuration as well.
-//                > Purges any `anti-affinity` preemption related configuration
-// 	`Prevent`	- Prevention is done either using taints (if Tolerations were given) or anti-affinity.
-//                > Purges any `tolerations` / `gpuTolerations` preemption related configuration
-//                > Purges any `affinity` preemption related configuration
-//                > Adds anti-affinity IF no tolerations were given
+//
+//		`Allow` 	- Adds Tolerations / GPU Tolerations if taints were given. otherwise, assume pods can be scheduled on preemptible nodes.
+//	               > Purges any `affinity` / `anti-affinity` preemption related configuration
+//		`Constrain` - Uses node-affinity to make sure pods are assigned using OR on the given node label selectors.
+//	               > Uses `Allow` configuration as well.
+//	               > Purges any `anti-affinity` preemption related configuration
+//		`Prevent`	- Prevention is done either using taints (if Tolerations were given) or anti-affinity.
+//	               > Purges any `tolerations` / `gpuTolerations` preemption related configuration
+//	               > Purges any `affinity` preemption related configuration
+//	               > Adds anti-affinity IF no tolerations were given
 func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 	preemptibleNodes *platformconfig.PreemptibleNodes,
 	functionConfig *functionconfig.Config) {
