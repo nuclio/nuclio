@@ -291,6 +291,10 @@ func NewConfiguration(id string,
 		}
 	}
 
+	if triggerConfiguration.WorkerTerminationTimeout == "" {
+		triggerConfiguration.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
+	}
+
 	workerTerminationTimeout, err := time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
 	if err != nil {
 		return nil, errors.New("Failed to parse worker termination timeout from trigger configuration")

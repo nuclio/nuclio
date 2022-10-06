@@ -179,11 +179,9 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	// submit the events in a goroutine so that we can unblock immediately
 	go vs.eventSubmitter(claim, submittedEventChan)
 
-	if vs.configuration.AckWindowSize > 0 {
-		vs.Logger.DebugWith("Starting claim consumption with ack window",
-			"shardID", claim.GetShardID(),
-			"ackWindowSize", vs.configuration.AckWindowSize)
-	}
+	vs.Logger.DebugWith("Starting claim consumption",
+		"shardID", claim.GetShardID(),
+		"ackWindowSize", vs.configuration.AckWindowSize)
 
 	commitRecordFuncHandler := vs.resolveCommitRecordFuncHandler(session)
 

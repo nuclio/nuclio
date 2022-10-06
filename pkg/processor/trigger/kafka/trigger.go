@@ -56,6 +56,7 @@ type kafka struct {
 	shutdownSignal           chan struct{}
 	stopConsumptionChan      chan struct{}
 	partitionWorkerAllocator partitionworker.Allocator
+	ctx                      context.Context
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -127,18 +128,18 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 	// start consumption in the background
 	go func() {
 		for {
+			k.ctx = context.Background()
 			k.Logger.DebugWith("Starting to consume from broker", "topics", k.configuration.Topics)
 
 			// start consuming. this will exit without error if a rebalancing occurs
-			err = k.consumerGroup.Consume(context.Background(), k.configuration.Topics, k)
-
-			if err != nil {
+			if err := k.consumerGroup.Consume(k.ctx, k.configuration.Topics, k); err != nil {
 				k.Logger.WarnWith("Failed to consume from group, waiting before retrying",
 					"err", errors.GetErrorStackString(err, 10))
 				time.Sleep(1 * time.Second)
-			} else {
-				k.Logger.DebugWith("Consumer session closed (possibly due to a rebalance), re-creating")
+				continue
 			}
+			k.Logger.DebugWith("Consumer session closed (possibly due to a rebalance), re-creating")
+
 		}
 	}()
 
@@ -176,8 +177,7 @@ func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
 }
 
 func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
-	err := k.partitionWorkerAllocator.Stop()
-	if err != nil {
+	if err := k.partitionWorkerAllocator.Stop(); err != nil {
 		return errors.Wrap(err, "Failed to stop partition worker allocator")
 	}
 
@@ -217,7 +217,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		go k.explicitAckHandler(session, explicitAckControlMessageChan)
 	}
 
-	k.Logger.DebugWith("Starting claim consumption with ack window",
+	k.Logger.DebugWith("Starting claim consumption",
 		"partition", claim.Partition(),
 		"ackWindowSize", ackWindowSize)
 
@@ -258,7 +258,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				)
 			}
 
-		case <-claim.Messages():
+		case <-session.Context().Done():
 			k.Logger.DebugWith("Got signal to stop consumption",
 				"wait", k.configuration.maxWaitHandlerDuringRebalance,
 				"partition", claim.Partition())
@@ -276,7 +276,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
-				k.Logger.DebugWith("Timed out waiting for handler to complete", "partition", claim.Partition())
+				k.Logger.DebugWith("Timed out waiting for handler to complete",
+					"partition", claim.Partition())
 
 				// mark this as a failure, metric-wise
 				k.UpdateStatistics(false)
@@ -293,8 +294,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		}
 
 		// release the worker from whence it came
-		err = k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
-		if err != nil {
+		if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
 			return errors.Wrap(err, "Failed to release worker")
 		}
 	}
