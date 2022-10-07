@@ -25,46 +25,47 @@ nodejs code need to export a handler function:
 	}
 
 context is current call context, it contains the following:
-    callback:
-		Callback function, *must* be used to return response.
-		Response can be one of:
-			- string
-			- Buffer
-			- array of [status, body]
-			- context.Response object
 
-		Response:
-			A response. Has the following fields
-				- body
-				- headers
-				- content_type
-				- status_code
+	  callback:
+			Callback function, *must* be used to return response.
+			Response can be one of:
+				- string
+				- Buffer
+				- array of [status, body]
+				- context.Response object
 
-		Logging functions:
-			- logger.error: function(message)
-			- logger.warn: function(message)
-			- logger.info: function(message)
-			- logger.debug: function(message)
-			- logger.errorWith: function(message, with_data)
-			- logger.warnWith: function(message, with_data)
-			- logger.infoWith: function(message, with_data)
-			- logger.debugWith: function(message, with_data)
+			Response:
+				A response. Has the following fields
+					- body
+					- headers
+					- content_type
+					- status_code
 
-event is the current event, it contains the following:
-	- body: Buffer (*not* string, use event.body.toString())
-	- content_type: string
-	- trigger:
-		- class: string
-		- kind: string
-	- fields: object of field->value
-	- headers: object of header->value
-	- id: string
-	- method: string
-	- path: string
-	- size: int
-	- timestamp: Date
-	- url: string
+			Logging functions:
+				- logger.error: function(message)
+				- logger.warn: function(message)
+				- logger.info: function(message)
+				- logger.debug: function(message)
+				- logger.errorWith: function(message, with_data)
+				- logger.warnWith: function(message, with_data)
+				- logger.infoWith: function(message, with_data)
+				- logger.debugWith: function(message, with_data)
 
+Event is the current event, it contains the following:
+- body: Buffer (*not* string, use event.body.toString())
+- content_type: string
+- trigger:
+  - class: string
+  - kind: string
+
+- fields: object of field->value
+- headers: object of header->value
+- id: string
+- method: string
+- path: string
+- size: int
+- timestamp: Date
+- url: string
 
 If you use your own base image, make sure to set NODE_PATH.
 In nuclio/handler-nodejs-alpine image NODE_PATH is set to /usr/local/lib/node_modules
