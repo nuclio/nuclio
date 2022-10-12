@@ -19,6 +19,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -29,8 +30,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/xid"
-	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -234,7 +235,8 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 	}
 
 	// publish the message
-	return suite.brokerChannel.Publish(suite.brokerExchangeName,
+	return suite.brokerChannel.PublishWithContext(context.TODO(),
+		suite.brokerExchangeName,
 		topic,
 		false,
 		false,

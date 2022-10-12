@@ -27,7 +27,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type rabbitMq struct {
@@ -38,7 +38,7 @@ type rabbitMq struct {
 	brokerChannel              *amqp.Channel
 	brokerQueue                amqp.Queue
 	brokerInputMessagesChannel <-chan amqp.Delivery
-	worker                     *worker.Worker
+	stopChan                   chan struct{}
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -67,17 +67,11 @@ func newTrigger(parentLogger logger.Logger,
 }
 
 func (rmq *rabbitMq) Start(checkpoint functionconfig.Checkpoint) error {
-	var err error
-
 	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.URL)
 
-	// get a worker, we'll be using this one always
-	rmq.worker, err = rmq.WorkerAllocator.Allocate(10 * time.Second)
-	if err != nil {
-		return errors.Wrap(err, "Failed to allocate worker")
-	}
-
 	rmq.setEmptyParameters()
+
+	rmq.stopChan = make(chan struct{})
 
 	if err := rmq.createBrokerResources(); err != nil {
 		return errors.Wrap(err, "Failed to create broker resources")
@@ -91,7 +85,8 @@ func (rmq *rabbitMq) Start(checkpoint functionconfig.Checkpoint) error {
 
 func (rmq *rabbitMq) Stop(force bool) (functionconfig.Checkpoint, error) {
 
-	// TODO
+	// stop listening for messages
+	close(rmq.stopChan)
 	return nil, nil
 }
 
@@ -105,7 +100,6 @@ func (rmq *rabbitMq) setEmptyParameters() {
 			rmq.configuration.RuntimeConfiguration.Meta.Namespace,
 			rmq.configuration.RuntimeConfiguration.Meta.Name)
 	}
-
 }
 
 func (rmq *rabbitMq) createBrokerResources() error {
@@ -200,19 +194,24 @@ func (rmq *rabbitMq) createBrokerResources() error {
 }
 
 func (rmq *rabbitMq) handleBrokerMessages() {
-	for message := range rmq.brokerInputMessagesChannel {
+	for {
+		select {
+		case <-rmq.stopChan:
+			rmq.Logger.DebugWith("Stopping consumption from queue", "queueName", rmq.configuration.QueueName)
+			return
+		case message := <-rmq.brokerInputMessagesChannel:
+			// bind to delivery
+			rmq.event.message = &message
 
-		// bind to delivery
-		rmq.event.message = &message
+			// submit to worker
+			_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
 
-		// submit to worker
-		_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
-
-		// ack the message if we didn't fail to submit
-		if submitError == nil {
-			message.Ack(false) // nolint: errcheck
-		} else {
-			rmq.Logger.WarnWith("Failed to submit to worker", "err", submitError)
+			// ack the message if we didn't fail to submit
+			if submitError == nil {
+				message.Ack(false) // nolint: errcheck
+			} else {
+				rmq.Logger.WarnWith("Failed to submit to worker", "err", submitError)
+			}
 		}
 	}
 }

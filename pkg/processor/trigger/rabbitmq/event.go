@@ -18,10 +18,10 @@ package rabbitmq
 
 import (
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// allows accessing an amqp.Delivery
+// Event allows accessing an amqp.Delivery
 type Event struct {
 	nuclio.AbstractEvent
 	message *amqp.Delivery
