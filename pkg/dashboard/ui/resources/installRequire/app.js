@@ -40,8 +40,7 @@ function _checkDependenciesStatus(src) {
 function _installDependencies(src) {
     gutil.log('Installing node dependencies for', src);
     try {
-        var commands = ['cd ' + src, 'npm install --silent'];
-        execSync(commands.join(' && '));
+        execSync('npm install --silent', { cwd: src });
     } catch (e) {
         gutil.log(
             'An error has occurred during dependency installation for',
