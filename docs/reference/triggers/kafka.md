@@ -104,8 +104,25 @@ For more information on Nuclio function configuration, see the [function-configu
   **Type:** `object` with the following attributes -
 
   - **`enable`** (`bool`) - Enable authentication.
+  - **`handshake`** (`bool`) - Whether to send Kafka SASL handshake first. (default to: `true`)
   - **`user`** (`string`) - Username to be used for authentication.
   - **`password`** (`string`) - Password to be used for authentication.
+  - **`mechanism`** (`string`) - Name of SASL mechanism to use for authentication. (default to: `plain`, see [here](https://github.com/Shopify/sarama/blob/f16c9d8fbe4866c970b20a08be14d57553b0b660/broker.go#L62) for options)
+    NOTE: `GSSAPI` is yet to be supported by Nuclio. (read: Kerberos)
+
+  - <a id="sasl.oauth"></a>**`sasl.oauth`** - SASL OAuth configuration object.
+    <br/>
+    **Type:** `object` with the following attributes -
+    - **`clientID`** (`string`) - The client ID to use for OAuth authentication.
+    - **`clientSecret`** (`string`) - The client secret to use for OAuth authentication.
+    - **`tokenURL`** (`string`) - The URL of the OAuth token endpoint.
+    - **`scopes`** (`[]string`) - A list of OAuth scopes to request.
+
+  - <a id="sasl.tls"></a>**`sasl.tls`** - SASL TLS configuration object.
+    <br/>
+    **Type:** `object` with the following attributes -
+    - **`enable`** (`bool`) - Enable TLS.
+    - **`insecureSkipVerify`** (`bool`) - Allow insecure server connections when TLS enabled. (default to: `false`)
 
 - <a id="sessionTimeout"></a>**`sessionTimeout`** (`kafka-session-timeout`) - The timeout used to detect consumer failures when using Kafka's group management facility. The consumer sends periodic heartbeats to indicate its liveness to the broker. If no heartbeats are received by the broker before the expiration of this session timeout, the broker removes this consumer from the group and initiates rebalancing. Note that the value must be in the allowable range, as configured in the `group.min.session.timeout.ms` and `group.max.session.timeout.ms` broker configuration parameters.
   <br/>
