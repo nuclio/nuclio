@@ -398,8 +398,8 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
 			if k.configuration.AccessKey != "" && k.configuration.AccessCertificate != "" {
 				k.Logger.DebugWith("Configuring cert authentication",
-					"keylen", len(k.configuration.AccessKey),
-					"certlen", len(k.configuration.AccessCertificate))
+					"keyLen", len(k.configuration.AccessKey),
+					"certLen", len(k.configuration.AccessCertificate))
 
 				keypair, err := tls.X509KeyPair([]byte(k.configuration.AccessCertificate), []byte(k.configuration.AccessKey))
 				if err != nil {
