@@ -28,6 +28,12 @@ public class Account
 
 public class nuclio
 {
+    public void InitContext(Context context){
+        context.Name = "Test";
+        context.IsInitialized = true;
+        context.UserData.Add("a", "b");
+    }
+
     public object outputter(Context context, Event eventBase)
     {
         if (eventBase.Method != "POST")
@@ -36,6 +42,11 @@ public class nuclio
         var body = eventBase.GetBody();
         switch (body)
         {
+            case "check_context":
+                {                    
+                    string json = JsonConvert.SerializeObject(context, Formatting.Indented);
+                    return json;
+                }
             case "return_string":
                 return "a string";
             case "log":
