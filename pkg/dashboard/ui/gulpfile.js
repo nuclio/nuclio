@@ -35,7 +35,6 @@ var lessImport = require('gulp-less-import');
 var log = require('fancy-log');
 var rename = require('gulp-rename');
 var concat = require('gulp-concat');
-var runSequence = require('run-sequence');
 var eslint = require('gulp-eslint');
 var preprocess = require('gulp-preprocess');
 var minifyCss = require('gulp-clean-css');
@@ -82,43 +81,54 @@ var previewServer = iRequire(config.resources.previewServer);
 // ******* Tasks *******
 //
 
-/**
- * Set build for testing
- */
-gulp.task('set-testing', function () {
-    state.isForTesting = true;
-    state.isDevMode = true;
-});
+gulp.task('test-unit', testUnit);
+gulp.task('test-e2e', testE2e);
+gulp.task('test', test);
+gulp.task('watch', watch);
+
+//
+// ******* Functions *******
+//
 
 /**
  * Set build for testing
  */
-gulp.task('set-e2e-testing', function () {
+function setTesting(next) {
+    state.isForTesting = true;
+    state.isDevMode = true;
+
+    next();
+}
+
+/**
+ * Set build for testing
+ */
+function setE2eTesting() {
     state.isForE2ETesting = true;
     //state.isDevMode = true;
-});
+}
 
 /**
  * Clean build directory
  */
-gulp.task('clean', function () {
-    return gulp.src([config.build_dir, config.cache_file])
+function clean() {
+    return gulp.src([config.build_dir, config.cache_file], {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(vinylPaths(del));
-});
+}
 
 /**
  * Build vendor.css (include all vendor css files)
  */
-gulp.task('vendor.css', function () {
+function vendorCss() {
     var distFolder = config.assets_dir + '/css';
 
     return merge2(
-        gulp.src(config.vendor_files.less)
+        gulp.src(config.vendor_files.less, {allowEmpty: true})
             .pipe(errorHandler(handleError))
             .pipe(lessImport('bootstrap.less'))
             .pipe(less()),
-        gulp.src([path.join(distFolder, 'bootstrap.css')].concat(config.vendor_files.css)))
+        gulp.src([path.join(distFolder, 'bootstrap.css')].concat(config.vendor_files.css), {allowEmpty: true}))
         .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.css))
         .pipe(gulpIf(!state.isDevMode, minifyCss()))
@@ -126,15 +136,15 @@ gulp.task('vendor.css', function () {
         .pipe(gulp.dest(distFolder))
         .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.vendor.css_manifest)))
         .pipe(gulp.dest(distFolder));
-});
+}
 
 /**
  * Build vendor.js (include all vendor js files)
  */
-gulp.task('vendor.js', function () {
+function vendorJs() {
     var distFolder = config.assets_dir + '/js';
 
-    return gulp.src(config.vendor_files.js)
+    return gulp.src(config.vendor_files.js, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.js))
         .pipe(gulpIf(!state.isDevMode, uglify()))
@@ -142,12 +152,12 @@ gulp.task('vendor.js', function () {
         .pipe(gulp.dest(distFolder))
         .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.vendor.js_manifest)))
         .pipe(gulp.dest(distFolder));
-});
+}
 
 /**
  * Build app.css (include all project css files)
  */
-gulp.task('app.css', function () {
+function appCss() {
     var distFolder = config.assets_dir + '/css';
 
     var task = gulp
@@ -172,16 +182,16 @@ gulp.task('app.css', function () {
     }
 
     return task;
-});
+}
 
 /**
  * Build app.js (include all project js files and templates)
  */
-gulp.task('app.js', function () {
+function appJs() {
     var distFolder = config.assets_dir + '/js';
     var customConfig = buildConfigFromArgs();
 
-    var js = gulp.src(config.app_files.js)
+    var js = gulp.src(config.app_files.js, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(preprocess({
             context: {
@@ -200,7 +210,7 @@ gulp.task('app.js', function () {
             ]
         }));
 
-    var templates = gulp.src(config.app_files.templates)
+    var templates = gulp.src(config.app_files.templates, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(minifyHtml({
             removeComments: true,
@@ -234,33 +244,35 @@ gulp.task('app.js', function () {
     }
 
     return task;
-});
+}
 
 /**
  * Temporary task to copy the monaco-editor files to the assets directory
  */
-gulp.task('monaco', function () {
-    gulp.src(['node_modules/monaco-editor/**/*']).pipe(gulp.dest(config.assets_dir + '/monaco-editor'));
-});
+function monaco(next) {
+    gulp.src(['node_modules/monaco-editor/**/*'], {allowEmpty: true})
+        .pipe(gulp.dest(config.assets_dir + '/monaco-editor'));
+    next();
+}
 
 /**
  * Copy all fonts to the build directory
  */
-gulp.task('fonts', function () {
+function fonts() {
     var distFolder = config.assets_dir + '/fonts';
 
-    return gulp.src(config.app_files.fonts + '/**/*')
+    return gulp.src(config.app_files.fonts + '/**/*', {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
-});
+}
 
 /**
  * Optimize all images and copy them to the build directory
  */
-gulp.task('images', function () {
+function images() {
     var distFolder = config.assets_dir + '/images';
 
-    return gulp.src(config.app_files.images)
+    return gulp.src(config.app_files.images, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(gulpIf(!state.isDevMode, imagemin({
             optimizationLevel: 3,
@@ -268,58 +280,59 @@ gulp.task('images', function () {
             interlaced: true
         })))
         .pipe(gulp.dest(distFolder));
-});
+}
 
 /**
  * Copy all translation files to the build directory
  */
-gulp.task('i18n', function () {
+function i18n() {
     var distFolder = config.assets_dir + '/i18n';
 
-    return gulp.src(config.app_files.i18n)
+    return gulp.src(config.app_files.i18n, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
-});
+}
 
 /**
  * Build index.html for ordinary use
  */
-gulp.task('index.html', function () {
+function indexHtml() {
     return buildIndexHtml(false);
-});
+}
 
 /**
  * Build dashboard-config.json
  */
-gulp.task('dashboard-config.json', function () {
-    return gulp.src(config.app_files.json)
+function dashboardConfigJson() {
+    return gulp.src(config.app_files.json, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(gulp.dest(config.build_dir));
-});
+}
 
 /**
  * Lint source code
  */
-gulp.task('lint', function () {
-    return gulp.src(config.app_files.js)
+function lint() {
+    return gulp.src(config.app_files.js, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(eslint())
         .pipe(eslint.format('compact'))
         .pipe(eslint.failAfterError());
-});
+}
 
 /**
  * Serve static files
  */
-gulp.task('serve-static', function () {
+function serveStatic(next) {
     previewServer.start(log, config.build_dir);
-});
+    next();
+}
 
 /**
  * Run unit tests (Karma)
  * Task for development environment only
  */
-gulp.task('test-unit-run', function (done) {
+function testUnitRun(done) {
     var KarmaServer = require('karma').Server;
     var files = [__dirname + '/' + config.assets_dir + '/js/' + config.output_files.vendor.js]
         .concat(__dirname + '/' + config.test_files.unit.vendor)
@@ -331,33 +344,33 @@ gulp.task('test-unit-run', function (done) {
         files: files,
         action: 'run'
     }, done).start();
-});
+}
 
 /**
  * Build e2e mock module with dependencies
  */
-gulp.task('test-e2e-mock-module', function () {
+function testE2eMockModule() {
     var files = config.test_files.e2e.vendor
         .concat(config.test_files.e2e.mock_module);
 
-    return gulp.src(files)
+    return gulp.src(files, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(concat(config.test_files.e2e.built_file_name))
         .pipe(gulp.dest(config.test_files.e2e.built_folder_name));
-});
+}
 
 /**
  * Process index.html and inject mocked module for e2e testing
  */
-gulp.task('test-e2e-mock-html', function () {
+function testE2eMockHtml() {
     return buildIndexHtml(true);
-});
+}
 
 /**
  * Print info about test-e2e-run task options
  * Task for development environment only
  */
-gulp.task('e2e-help', function () {
+function e2eHelp(next) {
     var greenColor = '\x1b[32m';
     var regularColor = '\x1b[0m';
     var helpMessage = '\n' +
@@ -368,14 +381,15 @@ gulp.task('e2e-help', function () {
         greenColor + '--exclude-pattern={string}' + regularColor + '\n\tcomma separated set of spec patterns for excluding from test run\n' +
         greenColor + '--junit-report' + regularColor + '\n\toption for generating test reporter in XML format that is compatible with JUnit\n' +
         greenColor + '--dont-update-wd' + regularColor + '\n\toption to prevent WebDriver updating';
+    next();
     console.info(helpMessage);
-});
+}
 
 /**
  * Run e2e tests (Protractor)
  * Task for development environment only
  */
-gulp.task('test-e2e-run', function () {
+function testE2eRun() {
     console.info('Use \'gulp e2e-help\' to get info about test run options');
     var argumentList = [];
     var src = [];
@@ -457,7 +471,13 @@ gulp.task('test-e2e-run', function () {
         console.info('JUnit reporter will be used');
     }
 
-    return gulp.src(src)
+    if (src.length === 0) {
+        Object.values(config.test_files.e2e.spec_path).forEach(function (value) {
+            src.push(value);
+        });
+    }
+
+    return gulp.src(src, {allowEmpty: true})
         .pipe(protractor({
             configFile: config.test_files.e2e.protractor_config,
             args: argumentList
@@ -468,79 +488,65 @@ gulp.task('test-e2e-run', function () {
                 currentTime.getSeconds() + '] ');
             throw e;
         });
-});
+}
 
 /**
  * Stop the server
  */
-gulp.task('stop-server', function (next) {
+function stopServer(next) {
     previewServer.stop();
     next();
-});
+}
 
 /**
  * Watch for changes and build needed sources
  * Task for development environment only
  */
-gulp.task('watcher', function () {
+function watcher(next) {
     state.isDevMode = true;
     if (livereload !== null) {
         livereload.listen();
     }
 
-    gulp.watch(config.app_files.less_files, function () {
-        return runSequence('app.css');
-    });
+    gulp.watch(config.app_files.less_files, appCss);
     log('Watching', color.yellow('LESS'), 'files');
 
     var appFiles = config.app_files.js
         .concat(config.app_files.templates);
-    gulp.watch(appFiles, function () {
-        return runSequence('app.js');
-    });
+    gulp.watch(appFiles, appJs);
     log('Watching', color.yellow('JavaScript'), 'files');
 
-    gulp.watch(config.app_files.html, function () {
-        return runSequence('index.html');
-    });
+    gulp.watch(config.app_files.html, indexHtml);
     log('Watching', color.yellow('HTML'), 'files');
 
-    gulp.watch(config.app_files.json, function () {
-        return runSequence('dashboard-config.json');
-    });
+    gulp.watch(config.app_files.json, dashboardConfigJson);
     log('Watching', color.blue('JSON'), 'files');
 
-    gulp.watch(config.app_files.i18n, {interval: 3000}, function () {
-        return runSequence('i18n');
-    });
+    gulp.watch(config.app_files.i18n, {interval: 3000}, i18n);
     log('Watching', color.blue('I18N'), 'files');
 
-    gulp.watch(config.shared_files.less, function () {
-        return runSequence('build_shared');
-    });
+    gulp.watch(config.shared_files.less, buildShared);
     log('Watching', color.yellow('LESS'), 'shared_files');
 
     var appFilesShared = config.shared_files.js
         .concat(config.shared_files.templates);
-    gulp.watch(appFilesShared, function () {
-        return runSequence('build_shared');
-    });
+    gulp.watch(appFilesShared, buildShared);
     log('Watching', color.yellow('JavaScript'), 'shared_files');
 
-    gulp.watch(config.shared_files.i18n, {interval: 3000}, function () {
-        return runSequence('build_shared');
-    });
+    gulp.watch(config.shared_files.i18n, {interval: 3000}, buildShared);
     log('Watching', color.blue('I18N'), 'shared_files');
-});
+
+    next();
+}
 
 /**
  * Update web driver
  * Task for development environment only
  */
-gulp.task('update-web-driver', function (next) {
+function updateWebDriver(next) {
     var webDriverUpdate = require('gulp-protractor').webdriver_update;
     argv['dont-update-wd'] ? next() : webDriverUpdate(next);
-});
+}
 
 //
 // ******* Common parts *******
@@ -550,7 +556,7 @@ gulp.task('update-web-driver', function (next) {
  * Build index.html
  */
 function buildIndexHtml(isVersionForTests) {
-    var task = gulp.src([config.app_files.html, config.assets_dir + '/**/*.manifest.json'])
+    var task = gulp.src([config.app_files.html, config.assets_dir + '/**/*.manifest.json'], {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(gulpIf(!state.isDevMode, revCollector()))
         .pipe(gulpIf(isVersionForTests, preprocess({context: {IGZ_TEST_E2E: true}}), preprocess()))
@@ -592,60 +598,59 @@ function buildConfigFromArgs() {
 /**
  * Base build task
  */
-gulp.task('build', function (next) {
-    runSequence('lint', 'clean', ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images', 'i18n', 'monaco'], 'index.html', 'dashboard-config.json', next);
-});
+function build(next) {
+    gulp.series(lint, clean, gulp.parallel(vendorCss, vendorJs), gulp.parallel(appCss, appJs, fonts, images, i18n, monaco), indexHtml, dashboardConfigJson)(next);
+}
 
 /**
  * Task for unit test running
  * Task for development environment only
  */
-gulp.task('test-unit', function (next) {
-    runSequence('set-testing', 'build', 'serve-static', 'stop-server', 'test-unit-run', next);
-});
+function testUnit(next) {
+    gulp.series(setTesting, build, serveStatic, stopServer, testUnitRun)(next);
+}
 
 /**
  * Task for e2e test running
  * Task for development environment only
  */
-gulp.task('test-e2e', function (next) {
-    runSequence('e2e-help', 'update-web-driver', 'set-e2e-testing', 'build', 'serve-static', 'test-e2e-mock-module', 'test-e2e-mock-html',
-                'test-e2e-run', 'stop-server', next);
-});
+function testE2e(next) {
+    gulp.series(e2eHelp, updateWebDriver, setE2eTesting, build, serveStatic, testE2eMockModule, testE2eMockHtml, testE2eRun, stopServer)(next);
+}
 
 /**
  * Task for unit and e2e test running (run without tags, using simple state mode)
  * Task for development environment only
  */
-gulp.task('test', function (next) {
-    runSequence('test-unit', 'test-e2e', next);
-});
+function test(next) {
+    gulp.series(testUnit, testE2e)(next);
+}
 
 /**
  * Lifts up preview server
  * This could be used to quickly use dashboard when it is already built.
  */
-gulp.task('lift', function (next) {
-    var mocks = ['serve-static'];
+function lift(next) {
+    var mocks = [serveStatic];
 
-    runSequence(mocks, next);
-});
+    gulp.parallel(...mocks)(next);
+}
 
 /**
  * Default task
  */
-gulp.task('default', function (next) {
-    runSequence(['clean_shared', 'build_shared'], 'build', 'lift', next);
-});
+function defaultTask(next) {
+    gulp.series(gulp.parallel(cleanShared, buildShared), build, lift)(next);
+}
 
 /**
  * Build project, watch for changes and build needed sources
  * Task for development environment only
  */
-gulp.task('watch', function (next) {
+function watch(next) {
     state.isDevMode = true;
-    runSequence('default', 'watcher', next);
-});
+    gulp.series(defaultTask, watcher)(next);
+}
 
 //
 // Shared
@@ -654,18 +659,18 @@ gulp.task('watch', function (next) {
 /**
  * Clean build directory
  */
-gulp.task('clean_shared', function () {
+function cleanShared() {
     if (state.isDevMode) {
-        return gulp.src(config.shared_files.dist)
+        return gulp.src(config.shared_files.dist, {allowEmpty: true})
             .pipe(errorHandler(handleError))
             .pipe(vinylPaths(del));
     }
-});
+}
 
 /**
  * Build shared less file (include all shared less files)
  */
-gulp.task('app.less_shared', function () {
+function appLessShared() {
     var distFolder = config.shared_files.dist + '/less';
 
     var appLess = gulp
@@ -681,15 +686,15 @@ gulp.task('app.less_shared', function () {
         .pipe(gulp.dest(distFolder));
 
     return merge2(appLess, vendorLess);
-});
+}
 
 /**
  * Build app.js (include all project js files and templates)
  */
-gulp.task('app.js_shared', function () {
+function appJsShared() {
     var distFolder = config.shared_files.dist + '/js';
 
-    var js = gulp.src(config.shared_files.js)
+    var js = gulp.src(config.shared_files.js, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(cache({
             path: config.shared_cache_file,
@@ -698,12 +703,12 @@ gulp.task('app.js_shared', function () {
             ]
         }));
 
-    var vendorJs = gulp.src(config.shared_files.vendor.js)
+    var vendorJsTask = gulp.src(config.shared_files.vendor.js, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(concat(config.shared_output_files.vendor.js))
         .pipe(gulp.dest(distFolder));
 
-    var templates = gulp.src(config.shared_files.templates)
+    var templates = gulp.src(config.shared_files.templates, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(minifyHtml({
             removeComments: true,
@@ -720,38 +725,38 @@ gulp.task('app.js_shared', function () {
         .pipe(concat(config.shared_output_files.app.js))
         .pipe(gulp.dest(distFolder));
 
-    return merge2(task, vendorJs);
-});
+    return merge2(task, vendorJsTask);
+}
 
 /**
  * Copy all fonts to the build directory
  */
-gulp.task('fonts_shared', function () {
+function fontsShared() {
     var distFolder = config.shared_files.dist + '/fonts';
 
-    return gulp.src(config.shared_files.fonts)
+    return gulp.src(config.shared_files.fonts, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
-});
+}
 
 /**
  * Copy all translation files to the build directory
  */
-gulp.task('i18n_shared', function () {
+function i18nShared() {
     var distFolder = config.shared_files.dist + '/i18n';
 
-    return gulp.src(config.shared_files.i18n)
+    return gulp.src(config.shared_files.i18n, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
-});
+}
 
 /**
  * Optimize all images and copy them to the build directory
  */
-gulp.task('images_shared', function () {
+function imagesShared() {
     var distFolder = config.shared_files.dist + '/images';
 
-    return gulp.src(config.shared_files.images)
+    return gulp.src(config.shared_files.images, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(imagemin({
             optimizationLevel: 3,
@@ -759,24 +764,25 @@ gulp.task('images_shared', function () {
             interlaced: true
         }))
         .pipe(gulp.dest(distFolder));
-});
+}
 
 /**
  * Lint source code
  */
-gulp.task('lint_shared', function () {
-    return gulp.src(config.shared_files.js)
+function lintShared() {
+    return gulp.src(config.shared_files.js, {allowEmpty: true})
         .pipe(errorHandler(handleError))
         .pipe(eslint())
         .pipe(eslint.format('compact'))
         .pipe(eslint.failAfterError());
-});
+}
 
-gulp.task('inject-version_shared', function () {
+function injectVersionShared(next) {
     exec('git describe --tags --abbrev=40', function (err, stdout) {
         buildVersion = stdout;
+        next();
     });
-});
+}
 
 //
 // ******* Task chains *******
@@ -785,13 +791,13 @@ gulp.task('inject-version_shared', function () {
 /**
  * Base build task
  */
-gulp.task('build_shared', function (next) {
+function buildShared(next) {
     if (state.isDevMode) {
-        runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared', 'i18n_shared'], next);
+        gulp.series(lintShared, injectVersionShared, gulp.parallel(appLessShared, appJsShared, fontsShared, imagesShared, i18nShared))(next);
     } else {
         next();
     }
-});
+}
 
 //
 // Helper methods
