@@ -21,7 +21,7 @@ ARG UHTTPC_ARCH=amd64
 ARG NUCLIO_DOCKER_ALPINE_IMAGE
 ARG NUCLIO_DOCKER_REPO
 
-FROM gcr.io/iguazio/node:10.21.0 as build-static
+FROM gcr.io/iguazio/node:14.21 as build-static
 
 # copy source tree
 COPY ./pkg/dashboard/ui /home/nuclio/dashboard/src

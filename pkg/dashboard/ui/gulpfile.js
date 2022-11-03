@@ -81,6 +81,7 @@ var previewServer = iRequire(config.resources.previewServer);
 // ******* Tasks *******
 //
 
+gulp.task('build', build);
 gulp.task('test-unit', testUnit);
 gulp.task('test-e2e', testE2e);
 gulp.task('test', test);
