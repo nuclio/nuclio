@@ -31,6 +31,7 @@ public class nuclio
     public void InitContext(Context context){
         context.Name = "Test";
         context.IsInitialized = true;
+        context.UserData = new Dictionary<string, object>();
         context.UserData.Add("a", "b");
     }
 
@@ -42,10 +43,9 @@ public class nuclio
         var body = eventBase.GetBody();
         switch (body)
         {
-            case "check_context":
+            case "check_userdata":
                 {                    
-                    string json = JsonConvert.SerializeObject(context, Formatting.Indented);
-                    return json;
+                    return JsonConvert.SerializeObject(context.UserData, Formatting.Indented);
                 }
             case "return_string":
                 return "a string";

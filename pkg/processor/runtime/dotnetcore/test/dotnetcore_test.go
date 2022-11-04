@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package test;
 
 import (
 	"net/http"
@@ -60,10 +60,10 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions.FunctionConfig.Spec.Handler = "nuclio:outputter"
 	suite.DeployFunctionAndRequests(deployOptions, []*httpsuite.Request{
 		{
-			Name:                       "check_context",
-			RequestBody:                "check_context",
+			Name:                       "check_userdata",
+			RequestBody:                "check_userdata",
 			ExpectedResponseHeaders:    headersContentTypeTextPlain,
-			ExpectedResponseBody:       "{\n \"Name\": \"Test\",\n \"Logger\": {\n \"Level\": null,\n \"Message\": null,\n \"DateTime\": null,\n \"With\": null\n },\n \"IsInitialized\": true,\n \"UserData\": {\n \"a\": \"b\"\n }\n }",
+			ExpectedResponseBody:       "{\n  \"a\": \"b\"\n}",
 			ExpectedResponseStatusCode: &statusOK,
 		},
 		{

@@ -12,8 +12,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-using Nuclio.Sdk;
 using System;
+using System.Collections.Generic;
+using System.Text;
+using Nuclio.Sdk;
 
 namespace processor
 {
@@ -31,18 +33,24 @@ namespace processor
 
         public Wrapper(string dllPath, string typeName, string methodName, string socketPath)
         {
-            
+
             CreateTypeAndFunction(dllPath, typeName, methodName);
 
             InitUnixSocketHandler(socketPath);
 
-            //Run the function's method that initializes the context
+            context = new Context();
+            context.UserData = new Dictionary<string, object>();
+
+            InitContextAndStartUnixSocketHandler();
+        }
+
+        private void InitContextAndStartUnixSocketHandler()
+        {
+            //Run the InitContext method on the function implementation
             try
             {
                 ExecuteInitContext();
                 socketHandler.SendMessage("{ 'kind': 'wrapperInitialized', 'attributes': {'ready': 'true'}");
-                context.Logger.Info("Wrapper ready.");
-
             }
             catch (Exception e)
             {
@@ -52,7 +60,6 @@ namespace processor
             }
 
             StartUnixSocketHandler();
-
         }
 
         private void ExecuteInitContext()
@@ -63,29 +70,22 @@ namespace processor
                 throw new Exception("Failed to execute " + initContextFunctionName + ": type not found.");
             }
 
-            context = new Context();
             var initMethod = methodType.GetMethod(initContextFunctionName);
             if (initMethod != null)
             {
                 //invoke the method
-                var methodDelegate = (InitContextDelegate)Delegate.CreateDelegate(typeof(InitContextDelegate), 
+                var methodDelegate = (InitContextDelegate)Delegate.CreateDelegate(typeof(InitContextDelegate),
                     null, initMethod, false);
-                context.Logger.LogEvent += LogEvent;
-                if(methodDelegate != null)
+                if (methodDelegate != null)
                 {
                     methodDelegate.Invoke(context);
                 }
-                else
-                {
-                    context.Logger.Error("Could not find method delegate for " + initContextFunctionName);
-                }
-                
             }
             else
             {
                 context.Logger.Error("Could not locate method " + initContextFunctionName);
             }
-            
+
         }
 
         private void InitUnixSocketHandler(string socketPath)
@@ -95,7 +95,7 @@ namespace processor
 
         private void StartUnixSocketHandler()
         {
-            socketHandler.MessageReceived += MessageReceived;           
+            socketHandler.MessageReceived += MessageReceived;
         }
 
         private void CreateTypeAndFunction(string dllPath, string typeName, string methodName)
@@ -139,12 +139,11 @@ namespace processor
             {
                 var st = new System.Diagnostics.Stopwatch();
                 Response response = null;
-                
+
                 try
                 {
                     st.Start();
                     var eve = NuclioSerializationHelpers<Event>.Deserialize(msgArgs.Message);
-                    context.Logger.LogEvent += LogEvent;
                     var result = InvokeFunction(context, eve);
                     response = CreateResponse(result);
                 }
@@ -155,7 +154,6 @@ namespace processor
                 finally
                 {
                     st.Stop();
-                    context.Logger.LogEvent -= LogEvent;
                     var metric = new Metric() { Duration = st.Elapsed.TotalSeconds };
                     socketHandler.SendMessage(string.Join(String.Empty, "m", NuclioSerializationHelpers<Metric>.Serialize(metric), Environment.NewLine));
                     socketHandler.SendMessage(string.Join(String.Empty, "r", NuclioSerializationHelpers<Response>.Serialize(response), Environment.NewLine));
@@ -210,10 +208,6 @@ namespace processor
             }
         }
 
-        private void LogEvent(object sender, EventArgs e)
-        {
-            var logger = (Logger)sender;
-            socketHandler.SendMessage(string.Join(String.Empty, "l", NuclioSerializationHelpers<Logger>.Serialize(logger), Environment.NewLine));
-        }
+        
     }
 }
