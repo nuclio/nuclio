@@ -172,11 +172,13 @@ func (sr *ShellRunner) Stream(ctx context.Context,
 	}
 
 	go func() {
+		<-ctx.Done()
 		if err := cmd.Wait(); err != nil {
 			sr.logger.DebugWith("Stream command finished with an error", "err", err)
 			return
 		}
 		sr.logger.Debug("Stream command finished")
+
 	}()
 
 	return stdoutPipe, nil

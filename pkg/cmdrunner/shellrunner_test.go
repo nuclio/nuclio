@@ -94,7 +94,7 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 				defer cancel()
 				for buffer.Len() == 0 {
 					if ctx.Err() != nil {
-						return
+						break
 					}
 					io.Copy(buffer, fileReader) // nolint: errcheck
 					time.Sleep(250 * time.Millisecond)
