@@ -574,8 +574,18 @@ functiontemplates: modules ensure-gopath
 	go run -tags=function_templates_generator pkg/dashboard/functiontemplates/generator/generator.go
 
 .PHONY: generate-crds
-generate-crds: modules ensure-gopath
-	@./hack/scripts/generate-crds/update-codegen.sh
+generate-crds: build-base
+	docker build \
+		--file hack/scripts/generate-crds/Dockerfile \
+ 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+ 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
+ 		--tag nuclio/crds:latest .
+	docker run \
+		--rm \
+		--volume $(shell pwd)/hack:/nuclio/hack \
+		--volume $(shell pwd)/pkg:/output \
+		--workdir /nuclio \
+		nuclio/crds:latest
 
 .PHONY: test-unit
 test-unit: modules ensure-gopath

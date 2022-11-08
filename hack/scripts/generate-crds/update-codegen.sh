@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO: Dockerize it nicely
-
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -23,12 +21,8 @@ set -o xtrace
 
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_ROOT}/../../.." && pwd)"
-CODEGEN_PKG=${PROJECT_ROOT}/vendor/k8s.io/code-generator
 
-# vendorize
-cd "${PROJECT_ROOT}" && go mod vendor && cd -
-
-bash "${CODEGEN_PKG}"/generate-groups.sh \
+bash "${CODEGEN_PKG:-/code-generator}"/generate-groups.sh \
   "deepcopy,client,informer,lister" \
   github.com/nuclio/nuclio/pkg/platform/kube/client \
   github.com/nuclio/nuclio/pkg/platform/kube/apis \
@@ -40,7 +34,7 @@ bash "${CODEGEN_PKG}"/generate-groups.sh \
 rsync --recursive \
  --remove-source-files \
  --ignore-times \
- "${PROJECT_ROOT}/github.com/nuclio/nuclio/pkg" "${PROJECT_ROOT}"
+ "${PROJECT_ROOT}/github.com/nuclio/nuclio/pkg/" /output
 
 # delete generated code
 rm -rf "${PROJECT_ROOT}/github.com"
