@@ -2,11 +2,11 @@
 
 ## Setting up for development environment
 1. npm install
-2. gulp --dev
+2. gulp watch --dev
 
 ## Setting up for production(staging) environment
 1. npm install --production
-2. gulp --production (gulp --staging)
+2. gulp watch --production (gulp watch --staging)
 
 ## Watch
 Instead of rebuilding the project after every little modification to the source code, `gulp watch` could be used to watch for changes in source code files and automatically re-build.
