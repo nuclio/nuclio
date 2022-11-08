@@ -17,8 +17,6 @@ limitations under the License.
 package iotcoremqtt
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"time"
 
@@ -27,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/gbrlsnchs/jwt/v3"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -95,28 +93,24 @@ func (t *iotcoremqtt) Start(checkpoint functionconfig.Checkpoint) error {
 	return nil
 }
 
-func (t *iotcoremqtt) createJWT(issuedAt time.Time) ([]byte, error) {
+func (t *iotcoremqtt) createJWT(issuedAt time.Time) (string, error) {
 	t.Logger.DebugWith("Creating JWT",
 		"audience", t.configuration.ProjectID,
 		"expiresIn", t.configuration.jwtRefreshInterval)
 
-	// translate private key contents to go-like private key
-	block, _ := pem.Decode([]byte(t.configuration.PrivateKey.Contents))
-	if block == nil {
-		return nil, errors.New("Invalid private key contents")
-	}
-
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(t.configuration.PrivateKey.Contents))
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse private key")
+		return "", errors.Wrap(err, "Failed to parse private key")
 	}
 
 	// sign payload with private key using sha-256
-	return jwt.Sign(jwt.Payload{
-		Audience:       []string{t.configuration.ProjectID},
-		IssuedAt:       jwt.NumericDate(issuedAt),
-		ExpirationTime: jwt.NumericDate(issuedAt.Add(t.configuration.jwtRefreshInterval)),
-	}, jwt.NewRS256(jwt.RSAPrivateKey(privateKey)))
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{
+		Audience:  []string{t.configuration.ProjectID},
+		ExpiresAt: jwt.NewNumericDate(issuedAt.Add(t.configuration.jwtRefreshInterval)),
+		IssuedAt:  jwt.NewNumericDate(issuedAt),
+	})
+
+	return token.SignedString(privateKey)
 }
 
 func (t *iotcoremqtt) getClientID() string {
@@ -136,7 +130,7 @@ func (t *iotcoremqtt) connect() error {
 	}
 
 	// set the password
-	t.configuration.Password = string(signedJWTContents)
+	t.configuration.Password = signedJWTContents
 
 	// do the initial connect
 	if err := t.Connect(); err != nil {
