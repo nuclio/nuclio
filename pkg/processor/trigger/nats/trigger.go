@@ -27,7 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	natsio "github.com/nats-io/go-nats"
+	natsio "github.com/nats-io/nats.go"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )

@@ -17,11 +17,11 @@ limitations under the License.
 package nats
 
 import (
-	natsio "github.com/nats-io/go-nats"
+	natsio "github.com/nats-io/nats.go"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-// allows accessing an amqp.Delivery
+// Event allows accessing an amqp.Delivery
 type Event struct {
 	nuclio.AbstractEvent
 	natsMessage *natsio.Msg
