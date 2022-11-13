@@ -47,6 +47,7 @@ import (
 var SmallLettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
 var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var containerHostname string
 
 // IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
@@ -206,11 +207,15 @@ func RunningContainerHostname() (string, error) {
 	if !RunningInContainer() {
 		return "", errors.New("Not running in container")
 	}
+	if containerHostname != "" {
+		return containerHostname, nil
+	}
 	containerID, err := ioutil.ReadFile("/etc/hostname")
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to open docker daemon config file")
 	}
-	return strings.TrimSpace(string(containerID)), nil
+	containerHostname = strings.TrimSpace(string(containerID))
+	return containerHostname, nil
 }
 
 func StripPrefixes(input string, prefixes []string) string {
