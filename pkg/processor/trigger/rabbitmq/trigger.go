@@ -151,8 +151,11 @@ func (rmq *rabbitMq) createBrokerResources() error {
 func (rmq *rabbitMq) getConnectionConfig() *amqp.Config {
 	config := amqp.Config{Properties: amqp.NewConnectionProperties()}
 
-	connectionName := rmq.FunctionName + "/" + rmq.ID
-	if strings.HasSuffix(connectionName, "nuclio-") {
+	connectionName := rmq.FunctionName + "-" + rmq.ID
+
+	// when running processor locally, there might be no function name.
+	connectionName = strings.TrimLeft(connectionName, "-")
+	if !strings.HasSuffix(connectionName, "nuclio-") {
 		connectionName = "nuclio-" + connectionName
 	}
 
