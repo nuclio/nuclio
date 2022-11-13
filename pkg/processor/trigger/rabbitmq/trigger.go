@@ -18,6 +18,8 @@ package rabbitmq
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -35,6 +37,7 @@ type rabbitMq struct {
 	trigger.AbstractTrigger
 	event                      Event
 	configuration              *Configuration
+	consumerName               string
 	brokerConn                 *amqp.Connection
 	brokerChannel              *amqp.Channel
 	brokerQueue                amqp.Queue
@@ -68,10 +71,21 @@ func newTrigger(parentLogger logger.Logger,
 	return &newTrigger, nil
 }
 
-func (rmq *rabbitMq) Start(checkpoint functionconfig.Checkpoint) error {
-	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.URL)
+func (rmq *rabbitMq) Initialize() error {
+	var err error
+	rmq.consumerName, err = rmq.getConsumerName()
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve consumer name")
+	}
 
 	rmq.setEmptyParameters()
+	return nil
+}
+
+func (rmq *rabbitMq) Start(checkpoint functionconfig.Checkpoint) error {
+	rmq.Logger.InfoWith("Starting",
+		"consumerName", rmq.consumerName,
+		"brokerUrl", rmq.configuration.URL)
 
 	rmq.stopChan = make(chan struct{})
 
@@ -136,7 +150,13 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 func (rmq *rabbitMq) getConnectionConfig() *amqp.Config {
 	config := amqp.Config{Properties: amqp.NewConnectionProperties()}
-	config.Properties.SetClientConnectionName(rmq.ID)
+
+	connectionName := rmq.FunctionName + "/" + rmq.ID
+	if strings.HasSuffix(connectionName, "nuclio-") {
+		connectionName = "nuclio-" + connectionName
+	}
+
+	config.Properties.SetClientConnectionName(connectionName)
 	return &config
 }
 
@@ -150,7 +170,7 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 				rmq.Logger.ErrorWith("Failed to handle connection error", "err", handleErr)
 				panic(handleErr)
 			}
-			rmq.Logger.Warn("Successfully handled connection error")
+			rmq.Logger.Info("Successfully handled connection error")
 		case <-rmq.stopChan:
 			rmq.Logger.DebugWith("Stopping consumption from queue", "queueName", rmq.configuration.QueueName)
 			return
@@ -181,7 +201,9 @@ func (rmq *rabbitMq) reconnect(duration time.Duration, interval time.Duration) e
 		return errors.Wrap(err, "Failed to reconnect to broker")
 	}
 
-	rmq.Logger.DebugWith("Reconnected to broker", "brokerUrl", rmq.configuration.URL)
+	rmq.Logger.DebugWith("Reconnected to broker",
+		"consumerName", rmq.consumerName,
+		"brokerUrl", rmq.configuration.URL)
 	return nil
 }
 
@@ -260,13 +282,13 @@ func (rmq *rabbitMq) consume() error {
 	var err error
 
 	rmq.brokerInputMessagesChannel, err = rmq.brokerChannel.Consume(
-		rmq.configuration.QueueName, /* queue */
-		"",                          /* consumer */
-		false,                       /* auto-ack */
-		false,                       /* exclusive */
-		false,                       /* no-local */
-		true,                        /* no-wait */
-		nil,                         /* args */
+		rmq.configuration.QueueName,
+		rmq.consumerName,
+		false, /* auto-ack */
+		false, /* exclusive */
+		false, /* no-local */
+		true,  /* no-wait */
+		nil,   /* args */
 	)
 	if err != nil {
 		return errors.Wrap(err, "Failed to start consuming messages")
@@ -322,4 +344,19 @@ func (rmq *rabbitMq) processMessage(message *amqp.Delivery) {
 	} else {
 		rmq.Logger.WarnWith("Failed to submit to worker", "err", submitError)
 	}
+}
+
+func (rmq *rabbitMq) getConsumerName() (string, error) {
+	var consumerName string
+	var err error
+	if common.IsInKubernetesCluster() {
+
+		// in k8s, use the pod name and trigger id as the consumer name
+		consumerName = os.Getenv("HOSTNAME") + rmq.ID
+	} else if common.RunningInContainer() {
+		if consumerName, err = common.RunningContainerHostname(); err != nil {
+			return "", errors.Wrap(err, "Failed to get container hostname")
+		}
+	}
+	return consumerName, nil
 }
