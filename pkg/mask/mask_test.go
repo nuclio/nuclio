@@ -20,7 +20,6 @@ package mask
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -43,7 +42,7 @@ func (suite *MaskTestSuite) SetupTest() {
 }
 
 func (suite *MaskTestSuite) TestMaskBasics() {
-	dummyFunctionConfig := &functionconfig.Config{
+	functionConfig := &functionconfig.Config{
 		Spec: functionconfig.Spec{
 			Build: functionconfig.Build{
 				CodeEntryAttributes: map[string]interface{}{
@@ -54,10 +53,6 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 
 				// should not be masked
 				Image: "some-image:latest",
-				Commands: []string{
-					"some-command-1",
-					"some-command-2",
-				},
 			},
 			Triggers: map[string]functionconfig.Trigger{
 				"secret-trigger": {
@@ -72,6 +67,8 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 					},
 				},
 			},
+
+			// check nested fields
 			Volumes: []functionconfig.Volume{
 				{
 					Volume: v1.Volume{
@@ -89,28 +86,29 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 	}
 
 	// mask the function config
-	maskedFunctionConfig, secretMap, err := ScrubSensitiveDataInFunctionConfig(dummyFunctionConfig, nil)
+	maskedFunctionConfig, secretMap, err := ScrubSensitiveDataInFunctionConfig(functionConfig, nil)
 	suite.Require().NoError(err)
 
 	suite.logger.DebugWith("Masked function config", "functionConfig", maskedFunctionConfig, "secretMap", secretMap)
 
-	suite.Require().Equal(dummyFunctionConfig.Spec.Build.Image, maskedFunctionConfig.Spec.Build.Image)
-	suite.Require().NotEqual(dummyFunctionConfig.Spec.Build.CodeEntryAttributes["password"],
+	suite.Require().NotEmpty(secretMap)
+	suite.Require().NotEqual(functionConfig.Spec.Build.CodeEntryAttributes["password"],
 		maskedFunctionConfig.Spec.Build.CodeEntryAttributes["password"])
-	suite.Require().NotEqual(dummyFunctionConfig.Spec.Triggers["secret-trigger"].Password,
+	suite.Require().Equal(functionConfig.Spec.Build.Image, maskedFunctionConfig.Spec.Build.Image)
+	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Password,
 		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
-	suite.Require().NotEqual(dummyFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"],
+	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Attributes["password"],
 		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
-	suite.Require().Equal(dummyFunctionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"],
+	suite.Require().Equal(functionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"],
 		maskedFunctionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"])
-	suite.Require().NotEqual(dummyFunctionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"],
+	suite.Require().NotEqual(functionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"],
 		maskedFunctionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"])
 
 	restoredFunctionConfig, err := RestoreSensitiveDataInFunctionConfig(maskedFunctionConfig, secretMap)
 	suite.Require().NoError(err)
 
 	suite.logger.DebugWith("Restored function config", "functionConfig", restoredFunctionConfig)
-	suite.Require().Equal(dummyFunctionConfig, restoredFunctionConfig)
+	suite.Require().Equal(functionConfig, restoredFunctionConfig)
 }
 
 func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
@@ -151,31 +149,20 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
 	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Attributes["password"],
 		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
+	suite.Require().Contains(secretMap, maskedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
 	suite.Require().Equal(functionConfig.Spec.Build.CodeEntryAttributes["password"],
 		maskedFunctionConfig.Spec.Build.CodeEntryAttributes["password"])
 
-	// test error case
-	maskedFunctionConfig, secretMap, err = ScrubSensitiveDataInFunctionConfig(functionConfig, nil)
+	// test error cases:
+	// existing secret map is nil
+	_, _, err = ScrubSensitiveDataInFunctionConfig(functionConfig, nil)
 	suite.Require().Error(err)
-	suite.logger.DebugWith("Masked function config", "maskedFunctionConfig", maskedFunctionConfig, "secretMap", secretMap, "err", err.Error())
-}
 
-func (suite *MaskTestSuite) TestMaskSecrets() {
-	secretMap := map[string]string{
-		"secret1": "value1",
-		"secret2": "value2",
-	}
-
-	marshaledSecretMap, err := json.Marshal(secretMap)
-	suite.Require().NoError(err)
-	suite.logger.DebugWith("Marshalled secret map", "marshaledSecretMap", string(marshaledSecretMap))
-	var restoredSecretMap map[string]string
-	err = json.Unmarshal(marshaledSecretMap, &restoredSecretMap)
-	suite.Require().NoError(err)
-
-	suite.logger.DebugWith("Unmarshalled secret map", "restoredSecretMap", restoredSecretMap)
-	suite.Require().Equal(secretMap, restoredSecretMap)
-
+	// existing secret map doesn't contain the secret
+	_, _, err = ScrubSensitiveDataInFunctionConfig(functionConfig, map[string]string{
+		"$ref:/Spec/Something/Else/password": "abcd",
+	})
+	suite.Require().Error(err)
 }
 
 func TestMaskTestSuite(t *testing.T) {

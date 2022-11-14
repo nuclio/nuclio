@@ -29,7 +29,7 @@ import (
 	"github.com/nuclio/gosecretive"
 )
 
-const ReferencePrefix = "$ref:"
+const SecretReferencePrefix = "$ref:"
 
 // ScrubSensitiveDataInFunctionConfig scrubs sensitive data from a function config
 func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
@@ -46,7 +46,7 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 			match, _ := regexp.MatchString(fieldPathToScrub, fieldPath)
 			if match {
 
-				secretKey := fmt.Sprintf("%s%s", ReferencePrefix, fieldPath)
+				secretKey := fmt.Sprintf("%s%s", SecretReferencePrefix, fieldPath)
 
 				if kind := reflect.ValueOf(valueToScrub).Kind(); kind == reflect.String {
 					stringValue := reflect.ValueOf(valueToScrub).String()
@@ -57,7 +57,7 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 					}
 
 					// if it's a reference, check if it exists in the existing secret map
-					if strings.HasPrefix(stringValue, ReferencePrefix) {
+					if strings.HasPrefix(stringValue, SecretReferencePrefix) {
 						if existingSecretMap != nil {
 							if _, exists := existingSecretMap[secretKey]; !exists {
 								err = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
@@ -96,7 +96,7 @@ func RestoreSensitiveDataInFunctionConfig(scrubbedFunctionConfig *functionconfig
 }
 
 // getSensitiveFields returns a list of sensitive fields to scrub as regular expressions
-// TODO: move to configuration
+// TODO: make list configurable
 func getSensitiveFields() []string {
 
 	return []string{
