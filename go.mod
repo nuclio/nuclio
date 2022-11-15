@@ -37,12 +37,12 @@ require (
 	github.com/nuclio/zap v0.1.2
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/prometheus/client_golang v1.12.2
+	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.3.0
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
 	github.com/spf13/cobra v0.0.5
-	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
 	github.com/stretchr/testify v1.7.0
 	github.com/tsenart/vegeta/v12 v12.8.4
 	github.com/v3io/scaler v0.5.1
