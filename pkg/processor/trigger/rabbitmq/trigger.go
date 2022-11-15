@@ -137,10 +137,12 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to connect to broker")
 	}
 
+	// create topics (and exchange, etc)
 	if err := rmq.createTopics(); err != nil {
 		return errors.Wrap(err, "Failed to create topics")
 	}
 
+	// consume from queue
 	if err := rmq.consume(); err != nil {
 		return errors.Wrap(err, "Failed to consume messages")
 	}
@@ -183,19 +185,19 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 	}
 }
 
-func (rmq *rabbitMq) reconnect(duration time.Duration, interval time.Duration) error {
+func (rmq *rabbitMq) reconnect() error {
 	rmq.Logger.DebugWith("Reconnecting to broker",
 		"brokerUrl", rmq.configuration.URL,
-		"duration", duration.String(),
-		"interval", interval.Seconds())
+		"duration", rmq.configuration.reconnectDuration.String(),
+		"interval", rmq.configuration.reconnectInterval.Seconds())
 	timeStart := time.Now()
-	if err := common.RetryUntilSuccessful(duration,
-		interval,
+	if err := common.RetryUntilSuccessful(rmq.configuration.reconnectDuration,
+		rmq.configuration.reconnectInterval,
 		func() bool {
 			if err := rmq.connect(); err != nil {
 				rmq.Logger.WarnWith("Failed to connect to broker, retrying",
-					"interval", interval.String(),
-					"timeLeft", (duration - time.Since(timeStart)).String(),
+					"interval", rmq.configuration.reconnectInterval.String(),
+					"timeLeft", (rmq.configuration.reconnectDuration - time.Since(timeStart)).String(),
 					"err", err.Error())
 				return false
 			}
@@ -235,6 +237,7 @@ func (rmq *rabbitMq) createTopics() error {
 	if len(rmq.configuration.Topics) == 0 {
 		return nil
 	}
+
 	// create exchange and queue only if user provided topics, else assuming the user did all the necessary configuration
 	// to support listening on the provided exchange and queue
 
@@ -317,9 +320,7 @@ func (rmq *rabbitMq) handleConnectionError(handleErr *amqp.Error) error {
 		rmq.Logger.WarnWith("Failed to close broker channel", "err", err.Error())
 	}
 
-	// TODO: get durations from configuration
-	// try reconnecting for a while
-	if err := rmq.reconnect(10*time.Minute, 30*time.Second); err != nil {
+	if err := rmq.reconnect(); err != nil {
 		return errors.Wrap(err, "Failed to reconnect to broker")
 	}
 
@@ -361,5 +362,7 @@ func (rmq *rabbitMq) getConsumerName() (string, error) {
 			return "", errors.Wrap(err, "Failed to get container hostname")
 		}
 	}
+
+	// empty to let the client generate a random name
 	return consumerName, nil
 }
