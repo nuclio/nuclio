@@ -33,6 +33,7 @@ import (
 const (
 	SecretReferencePrefix = "$ref:"
 	SecretKeyPrefix       = "NUCLIO_B64_"
+	NuclioSecretPrefix    = "nuclio-secret-"
 )
 
 // ScrubSensitiveDataInFunctionConfig scrubs sensitive data from a function config
@@ -106,14 +107,27 @@ func EncodeSecretsMap(secretsMap map[string]string) map[string]string {
 	return encodedSecretsMap
 }
 
-// EncodeSecretKey encodes a secret key
+// DecodeSecretData decodes the keys of a secrets map
+func DecodeSecretData(secretData map[string]string) (map[string]string, error) {
+	decodedSecretsMap := map[string]string{}
+	for secretKey, secretValue := range secretData {
+		decodedSecretKey, err := DecodeSecretKey(secretKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode secret key")
+		}
+		decodedSecretsMap[decodedSecretKey] = secretValue
+	}
+	return decodedSecretsMap, nil
+}
+
+// EncodeSecretKey encodes a secret key to a valid env var name
 func EncodeSecretKey(fieldPath string) string {
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
 	return fmt.Sprintf("%s%s", SecretKeyPrefix, encodedFieldPath)
 }
 
-// DecodeSecretKey decodes a secret key
+// DecodeSecretKey decodes a secret key env var to a field path
 func DecodeSecretKey(secretKey string) (string, error) {
 	encodedFieldPath := strings.TrimPrefix(secretKey, SecretKeyPrefix)
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "_", "=")
