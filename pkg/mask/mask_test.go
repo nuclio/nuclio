@@ -144,7 +144,7 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 	suite.Require().NoError(err)
 	suite.logger.DebugWith("Masked function config", "maskedFunctionConfig", maskedFunctionConfig, "secretMap", secretMap)
 
-	suite.Require().NotEqual(existingSecrets, secretMap)
+	suite.Require().Less(len(existingSecrets), len(secretMap))
 	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Password,
 		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
 	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Attributes["password"],

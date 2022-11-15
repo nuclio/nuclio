@@ -36,18 +36,19 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 	existingSecretMap map[string]string) (*functionconfig.Config, map[string]string, error) {
 
 	var err error
-	var secretsMap map[string]string
 
-	// {"secret":"$ref:/Secret","map":{"secret":"$ref:/Map/secret"},"list":["not-a-secret","secret"]}
-	scrubbedFunctionConfig, newSecretsMap := gosecretive.Scrub(functionConfig, func(fieldPath string, valueToScrub interface{}) *string {
+	// scrub the function config
+	scrubbedFunctionConfig, secretsMap := gosecretive.Scrub(functionConfig, func(fieldPath string, valueToScrub interface{}) *string {
 
-		for _, fieldPathToScrub := range getSensitiveFields() {
+		for _, fieldPathToScrub := range getSensitiveFieldPaths() {
 
+			// if the field path matches the field path to scrub, scrub it
 			match, _ := regexp.MatchString(fieldPathToScrub, fieldPath)
 			if match {
 
 				secretKey := fmt.Sprintf("%s%s", SecretReferencePrefix, fieldPath)
 
+				// if the value to scrub is a string, make sure we need to scrub it
 				if kind := reflect.ValueOf(valueToScrub).Kind(); kind == reflect.String {
 					stringValue := reflect.ValueOf(valueToScrub).String()
 
@@ -56,7 +57,7 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 						return nil
 					}
 
-					// if it's a reference, check if it exists in the existing secret map
+					// if it's already a reference, validate that it exists in the existing secret map
 					if strings.HasPrefix(stringValue, SecretReferencePrefix) {
 						if existingSecretMap != nil {
 							if _, exists := existingSecretMap[secretKey]; !exists {
@@ -69,7 +70,7 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 					}
 				}
 
-				// scrub the value, leave a placeholder to allow restoring later on
+				// scrub the value, and leave a $ref placeholder
 				return &secretKey
 			}
 		}
@@ -80,9 +81,7 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 
 	// merge the new secrets map with the existing one
 	if existingSecretMap != nil {
-		secretsMap = common.MergeMaps(existingSecretMap, newSecretsMap)
-	} else {
-		secretsMap = newSecretsMap
+		secretsMap = common.MergeMaps(secretsMap, existingSecretMap)
 	}
 
 	return scrubbedFunctionConfig.(*functionconfig.Config), secretsMap, err
@@ -95,9 +94,9 @@ func RestoreSensitiveDataInFunctionConfig(scrubbedFunctionConfig *functionconfig
 	return restored.(*functionconfig.Config), nil
 }
 
-// getSensitiveFields returns a list of sensitive fields to scrub as regular expressions
+// getSensitiveFieldPaths returns a list of sensitive fields to scrub as regular expressions
 // TODO: make list configurable
-func getSensitiveFields() []string {
+func getSensitiveFieldPaths() []string {
 
 	return []string{
 
