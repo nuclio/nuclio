@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -42,6 +43,8 @@ func (suite *MaskTestSuite) SetupTest() {
 }
 
 func (suite *MaskTestSuite) TestMaskBasics() {
+	sensitiveFields := platformconfig.SensitiveFieldsConfig{}
+
 	functionConfig := &functionconfig.Config{
 		Spec: functionconfig.Spec{
 			Build: functionconfig.Build{
@@ -86,7 +89,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 	}
 
 	// mask the function config
-	maskedFunctionConfig, secretMap, err := ScrubSensitiveDataInFunctionConfig(functionConfig, nil)
+	maskedFunctionConfig, secretMap, err := ScrubSensitiveDataInFunctionConfig(functionConfig, nil, sensitiveFields.GetSensitiveFields())
 	suite.Require().NoError(err)
 
 	suite.logger.DebugWith("Masked function config", "functionConfig", maskedFunctionConfig, "secretMap", secretMap)
@@ -112,6 +115,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 }
 
 func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
+	sensitiveFields := platformconfig.SensitiveFieldsConfig{}
 	existingSecrets := map[string]string{
 		"$ref:/Spec/Build/CodeEntryAttributes/password": "abcd",
 	}
@@ -140,7 +144,9 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 	}
 
 	// mask the function config
-	maskedFunctionConfig, secretMap, err := ScrubSensitiveDataInFunctionConfig(functionConfig, existingSecrets)
+	maskedFunctionConfig, secretMap, err := ScrubSensitiveDataInFunctionConfig(functionConfig,
+		existingSecrets,
+		sensitiveFields.GetSensitiveFields())
 	suite.Require().NoError(err)
 	suite.logger.DebugWith("Masked function config", "maskedFunctionConfig", maskedFunctionConfig, "secretMap", secretMap)
 
@@ -155,14 +161,24 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 
 	// test error cases:
 	// existing secret map is nil
-	_, _, err = ScrubSensitiveDataInFunctionConfig(functionConfig, nil)
+	_, _, err = ScrubSensitiveDataInFunctionConfig(functionConfig, nil, sensitiveFields.GetSensitiveFields())
 	suite.Require().Error(err)
 
 	// existing secret map doesn't contain the secret
 	_, _, err = ScrubSensitiveDataInFunctionConfig(functionConfig, map[string]string{
 		"$ref:/Spec/Something/Else/password": "abcd",
-	})
+	}, sensitiveFields.GetSensitiveFields())
 	suite.Require().Error(err)
+}
+
+func (suite *MaskTestSuite) TestEncodeAndDecodeSecretKeys() {
+	fieldPath := "Spec/Build/CodeEntryAttributes/password"
+	encodedFieldPath := EncodeSecretKey(fieldPath)
+	suite.logger.DebugWith("Encoded field path", "fieldPath", fieldPath, "encodedFieldPath", encodedFieldPath)
+
+	decodedFieldPath, err := DecodeSecretKey(encodedFieldPath)
+	suite.Require().NoError(err)
+	suite.Require().Equal(fieldPath, decodedFieldPath)
 }
 
 func TestMaskTestSuite(t *testing.T) {

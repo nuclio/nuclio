@@ -17,6 +17,7 @@ limitations under the License.
 package mask
 
 import (
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -29,18 +30,21 @@ import (
 	"github.com/nuclio/gosecretive"
 )
 
-const SecretReferencePrefix = "$ref:"
+const (
+	SecretReferencePrefix = "$ref:"
+	SecretKeyPrefix       = "NUCLIO_B64_"
+)
 
 // ScrubSensitiveDataInFunctionConfig scrubs sensitive data from a function config
 func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
-	existingSecretMap map[string]string) (*functionconfig.Config, map[string]string, error) {
+	existingSecretMap map[string]string, sensitiveFields []string) (*functionconfig.Config, map[string]string, error) {
 
 	var err error
 
 	// scrub the function config
 	scrubbedFunctionConfig, secretsMap := gosecretive.Scrub(functionConfig, func(fieldPath string, valueToScrub interface{}) *string {
 
-		for _, fieldPathToScrub := range getSensitiveFieldPaths() {
+		for _, fieldPathToScrub := range sensitiveFields {
 
 			// if the field path matches the field path to scrub, scrub it
 			match, _ := regexp.MatchString(fieldPathToScrub, fieldPath)
@@ -87,38 +91,40 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 	return scrubbedFunctionConfig.(*functionconfig.Config), secretsMap, err
 }
 
-// RestoreSensitiveDataInFunctionConfig restores sensitive data in a function config
+// RestoreSensitiveDataInFunctionConfig restores sensitive data in a function config from a secrets map
 func RestoreSensitiveDataInFunctionConfig(scrubbedFunctionConfig *functionconfig.Config, secretsMap map[string]string) (*functionconfig.Config, error) {
-
 	restored := gosecretive.Restore(scrubbedFunctionConfig, secretsMap)
 	return restored.(*functionconfig.Config), nil
 }
 
-// getSensitiveFieldPaths returns a list of sensitive fields to scrub as regular expressions
-// TODO: make list configurable
-func getSensitiveFieldPaths() []string {
-
-	return []string{
-
-		// build
-		"^/Spec/Build/CodeEntryAttributes/password",
-		//"^/Spec/Build/Commands\\[\\d+\\]",
-		// volumes
-		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey",
-		// triggers - global
-		"^/Spec/Triggers/.+/Password",
-		"^/Spec/Triggers/.+/Secret",
-		// triggers - specific
-		// - v3io stream
-		"^/Spec/Triggers/.+/Attributes/password",
-		// - kinesis
-		"^/Spec/Triggers/.+/Attributes/accessKeyID",
-		"^/Spec/Triggers/.+/Attributes/secretAccessKey",
-		// - kafka
-		"^/Spec/Triggers/.+/Attributes/caCert",
-		"^/Spec/Triggers/.+/Attributes/AccessKey",
-		"^/Spec/Triggers/.+/Attributes/AccessCertificate",
-		"^/Spec/Triggers/.+/Attributes/sasl/password",
-		"^/Spec/Triggers/.+/Attributes/sasl/oauth/clientSecret",
+// EncodeSecretsMap encodes the keys of a secrets map
+func EncodeSecretsMap(secretsMap map[string]string) map[string]string {
+	encodedSecretsMap := map[string]string{}
+	for secretKey, secretValue := range secretsMap {
+		encodedSecretsMap[EncodeSecretKey(secretKey)] = secretValue
 	}
+	return encodedSecretsMap
+}
+
+// EncodeSecretKey encodes a secret key
+func EncodeSecretKey(fieldPath string) string {
+	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
+	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
+	return fmt.Sprintf("%s%s", SecretKeyPrefix, encodedFieldPath)
+}
+
+// DecodeSecretKey decodes a secret key
+func DecodeSecretKey(secretKey string) (string, error) {
+	encodedFieldPath := strings.TrimPrefix(secretKey, SecretKeyPrefix)
+	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "_", "=")
+	decodedFieldPath, err := base64.StdEncoding.DecodeString(encodedFieldPath)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to decode secret key")
+	}
+	return string(decodedFieldPath), nil
+}
+
+func ResolveEnvVarNameFromReference(reference string) string {
+	fieldPath := strings.TrimPrefix(reference, SecretReferencePrefix)
+	return EncodeSecretKey(fieldPath)
 }

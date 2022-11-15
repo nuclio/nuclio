@@ -261,3 +261,41 @@ type StreamMonitoringConfig struct {
 	WebapiURL              string `json:"webapiURL,omitempty"`
 	V3ioRequestConcurrency uint   `json:"v3ioRequestConcurrency,omitempty"`
 }
+
+type SensitiveFieldPath string
+
+type SensitiveFieldsConfig struct {
+
+	// CustomSensitiveFields is a list of fields that should be masked in logs and function config
+	CustomSensitiveFields []string `json:"sensitiveFields,omitempty"`
+}
+
+func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
+	return []string{
+
+		// build
+		"^/Spec/Build/CodeEntryAttributes/password",
+		//"^/Spec/Build/Commands\\[\\d+\\]",
+		// volumes
+		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey",
+		// triggers - global
+		"^/Spec/Triggers/.+/Password",
+		"^/Spec/Triggers/.+/Secret",
+		// triggers - specific
+		// - v3io stream
+		"^/Spec/Triggers/.+/Attributes/password",
+		// - kinesis
+		"^/Spec/Triggers/.+/Attributes/accessKeyID",
+		"^/Spec/Triggers/.+/Attributes/secretAccessKey",
+		// - kafka
+		"^/Spec/Triggers/.+/Attributes/caCert",
+		"^/Spec/Triggers/.+/Attributes/AccessKey",
+		"^/Spec/Triggers/.+/Attributes/AccessCertificate",
+		"^/Spec/Triggers/.+/Attributes/sasl/password",
+		"^/Spec/Triggers/.+/Attributes/sasl/oauth/clientSecret",
+	}
+}
+
+func (sfc *SensitiveFieldsConfig) GetSensitiveFields() []string {
+	return append(sfc.CustomSensitiveFields, sfc.GetDefaultSensitiveFields()...)
+}
