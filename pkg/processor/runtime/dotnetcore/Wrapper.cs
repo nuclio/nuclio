@@ -39,6 +39,8 @@ namespace processor
             InitUnixSocketHandler(socketPath);
 
             context = new Context();
+            context.Logger.LogEvent += LogEvent;
+
             context.UserData = new Dictionary<string, object>();
 
             InitContextAndStartUnixSocketHandler();
@@ -81,11 +83,6 @@ namespace processor
                     methodDelegate.Invoke(context);
                 }
             }
-            else
-            {
-                context.Logger.Error("Could not locate method " + initContextFunctionName);
-            }
-
         }
 
         private void InitUnixSocketHandler(string socketPath)
@@ -208,6 +205,11 @@ namespace processor
             }
         }
 
-        
+        private void LogEvent(object sender, EventArgs e)
+        {
+            var logger = (Logger)sender;
+            socketHandler.SendMessage(string.Join(String.Empty, "l", NuclioSerializationHelpers<Logger>.Serialize(logger), Environment.NewLine));
+        }
+
     }
 }
