@@ -60,6 +60,13 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions.FunctionConfig.Spec.Handler = "nuclio:outputter"
 	suite.DeployFunctionAndRequests(deployOptions, []*httpsuite.Request{
 		{
+			Name:                       "check_userdata",
+			RequestBody:                "check_userdata",
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "{\n  \"a\": \"b\"\n}",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
 			Name:                       "string",
 			RequestBody:                "return_string",
 			ExpectedResponseHeaders:    headersContentTypeTextPlain,
