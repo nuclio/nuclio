@@ -38,19 +38,19 @@ require (
 	github.com/nuclio/zap v0.1.2
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/prometheus/client_golang v1.13.0
+	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/xid v1.4.0
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
 	github.com/spf13/cobra v0.0.5
-	github.com/streadway/amqp v0.0.0-20190815230801-eade30b20f1d
 	github.com/stretchr/testify v1.8.0
 	github.com/tsenart/vegeta/v12 v12.8.4
 	github.com/v3io/scaler v0.5.3
 	github.com/v3io/v3io-go v0.2.27
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
-	github.com/valyala/fasthttp v1.38.0
+	github.com/valyala/fasthttp v1.40.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.1.1
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
