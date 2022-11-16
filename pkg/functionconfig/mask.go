@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mask
+package functionconfig
 
 import (
 	"encoding/base64"
@@ -23,34 +23,33 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-
 	"github.com/nuclio/errors"
 	"github.com/nuclio/gosecretive"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
-	SecretReferencePrefix = "$ref:"
-	SecretKeyPrefix       = "NUCLIO_B64_"
+	referencePrefix         = "$ref:"
+	referenceToEnvVarPrefix = "NUCLIO_B64_"
 )
 
-// ScrubSensitiveDataInFunctionConfig scrubs sensitive data from a function config
-func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
-	existingSecretMap map[string]string, sensitiveFields []string) (*functionconfig.Config, map[string]string, error) {
+// Scrub scrubs sensitive data from a function config
+func Scrub(functionConfig *Config,
+	existingSecretMap map[string]string,
+	sensitiveFields []*regexp.Regexp) (*Config, map[string]string, error) {
 
 	var err error
 
 	// scrub the function config
 	scrubbedFunctionConfig, secretsMap := gosecretive.Scrub(functionConfig, func(fieldPath string, valueToScrub interface{}) *string {
 
-		for _, fieldPathToScrub := range sensitiveFields {
+		for _, fieldPathRegexToScrub := range sensitiveFields {
 
 			// if the field path matches the field path to scrub, scrub it
-			match, _ := regexp.MatchString(fieldPathToScrub, fieldPath)
+			match := fieldPathRegexToScrub.MatchString(fieldPath)
 			if match {
 
-				secretKey := fmt.Sprintf("%s%s", SecretReferencePrefix, fieldPath)
+				secretKey := generateSecretKey(fieldPath)
 
 				// if the value to scrub is a string, make sure we need to scrub it
 				if kind := reflect.ValueOf(valueToScrub).Kind(); kind == reflect.String {
@@ -62,7 +61,7 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 					}
 
 					// if it's already a reference, validate that it exists in the existing secret map
-					if strings.HasPrefix(stringValue, SecretReferencePrefix) {
+					if strings.HasPrefix(stringValue, referencePrefix) {
 						if existingSecretMap != nil {
 							if _, exists := existingSecretMap[secretKey]; !exists {
 								err = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
@@ -85,16 +84,16 @@ func ScrubSensitiveDataInFunctionConfig(functionConfig *functionconfig.Config,
 
 	// merge the new secrets map with the existing one
 	if existingSecretMap != nil {
-		secretsMap = common.MergeMaps(secretsMap, existingSecretMap)
+		secretsMap = labels.Merge(secretsMap, existingSecretMap)
 	}
 
-	return scrubbedFunctionConfig.(*functionconfig.Config), secretsMap, err
+	return scrubbedFunctionConfig.(*Config), secretsMap, err
 }
 
-// RestoreSensitiveDataInFunctionConfig restores sensitive data in a function config from a secrets map
-func RestoreSensitiveDataInFunctionConfig(scrubbedFunctionConfig *functionconfig.Config, secretsMap map[string]string) (*functionconfig.Config, error) {
+// Restore restores sensitive data in a function config from a secrets map
+func Restore(scrubbedFunctionConfig *Config, secretsMap map[string]string) (*Config, error) {
 	restored := gosecretive.Restore(scrubbedFunctionConfig, secretsMap)
-	return restored.(*functionconfig.Config), nil
+	return restored.(*Config), nil
 }
 
 // EncodeSecretsMap encodes the keys of a secrets map
@@ -110,12 +109,12 @@ func EncodeSecretsMap(secretsMap map[string]string) map[string]string {
 func EncodeSecretKey(fieldPath string) string {
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
-	return fmt.Sprintf("%s%s", SecretKeyPrefix, encodedFieldPath)
+	return fmt.Sprintf("%s%s", referenceToEnvVarPrefix, encodedFieldPath)
 }
 
 // DecodeSecretKey decodes a secret key
 func DecodeSecretKey(secretKey string) (string, error) {
-	encodedFieldPath := strings.TrimPrefix(secretKey, SecretKeyPrefix)
+	encodedFieldPath := strings.TrimPrefix(secretKey, referenceToEnvVarPrefix)
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "_", "=")
 	decodedFieldPath, err := base64.StdEncoding.DecodeString(encodedFieldPath)
 	if err != nil {
@@ -125,6 +124,10 @@ func DecodeSecretKey(secretKey string) (string, error) {
 }
 
 func ResolveEnvVarNameFromReference(reference string) string {
-	fieldPath := strings.TrimPrefix(reference, SecretReferencePrefix)
+	fieldPath := strings.TrimPrefix(reference, referencePrefix)
 	return EncodeSecretKey(fieldPath)
+}
+
+func generateSecretKey(fieldPath string) string {
+	return fmt.Sprintf("%s%s", referencePrefix, fieldPath)
 }

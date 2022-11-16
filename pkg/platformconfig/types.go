@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"regexp"
 	"sort"
 	"time"
 
@@ -268,6 +269,8 @@ type SensitiveFieldsConfig struct {
 
 	// CustomSensitiveFields is a list of fields that should be masked in logs and function config
 	CustomSensitiveFields []string `json:"sensitiveFields,omitempty"`
+	SensitiveFieldsRegex  []*regexp.Regexp
+	MaskSensitiveFields   bool
 }
 
 func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
@@ -275,7 +278,6 @@ func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 
 		// build
 		"^/Spec/Build/CodeEntryAttributes/password",
-		//"^/Spec/Build/Commands\\[\\d+\\]",
 		// volumes
 		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey",
 		// triggers - global
@@ -298,4 +300,13 @@ func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 
 func (sfc *SensitiveFieldsConfig) GetSensitiveFields() []string {
 	return append(sfc.CustomSensitiveFields, sfc.GetDefaultSensitiveFields()...)
+}
+
+func (sfc *SensitiveFieldsConfig) CompileSensitiveFieldsRegex() []*regexp.Regexp {
+	if sfc.SensitiveFieldsRegex == nil {
+		for _, field := range sfc.GetSensitiveFields() {
+			sfc.SensitiveFieldsRegex = append(sfc.SensitiveFieldsRegex, regexp.MustCompile(field))
+		}
+	}
+	return sfc.SensitiveFieldsRegex
 }

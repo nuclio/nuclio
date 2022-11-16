@@ -560,11 +560,3 @@ func RemoveDuplicatesFromSliceString(slice []string) []string {
 	}
 	return list
 }
-
-// MergeMaps merges two maps into one
-func MergeMaps(map1 map[string]string, map2 map[string]string) map[string]string {
-	for key, value := range map2 {
-		map1[key] = value
-	}
-	return map1
-}

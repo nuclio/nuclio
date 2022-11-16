@@ -16,19 +16,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mask
+package functionconfig
 
 import (
 	"context"
+	"regexp"
 	"testing"
-
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 )
 
 type MaskTestSuite struct {
@@ -43,11 +41,9 @@ func (suite *MaskTestSuite) SetupTest() {
 }
 
 func (suite *MaskTestSuite) TestMaskBasics() {
-	sensitiveFields := platformconfig.SensitiveFieldsConfig{}
-
-	functionConfig := &functionconfig.Config{
-		Spec: functionconfig.Spec{
-			Build: functionconfig.Build{
+	functionConfig := &Config{
+		Spec: Spec{
+			Build: Build{
 				CodeEntryAttributes: map[string]interface{}{
 
 					// should be masked
@@ -57,7 +53,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 				// should not be masked
 				Image: "some-image:latest",
 			},
-			Triggers: map[string]functionconfig.Trigger{
+			Triggers: map[string]Trigger{
 				"secret-trigger": {
 					Attributes: map[string]interface{}{
 						"password": "1234",
@@ -72,7 +68,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 			},
 
 			// check nested fields
-			Volumes: []functionconfig.Volume{
+			Volumes: []Volume{
 				{
 					Volume: v1.Volume{
 						VolumeSource: v1.VolumeSource{
@@ -89,7 +85,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 	}
 
 	// mask the function config
-	maskedFunctionConfig, secretMap, err := ScrubSensitiveDataInFunctionConfig(functionConfig, nil, sensitiveFields.GetSensitiveFields())
+	maskedFunctionConfig, secretMap, err := Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
 	suite.Require().NoError(err)
 
 	suite.logger.DebugWith("Masked function config", "functionConfig", maskedFunctionConfig, "secretMap", secretMap)
@@ -107,7 +103,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 	suite.Require().NotEqual(functionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"],
 		maskedFunctionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"])
 
-	restoredFunctionConfig, err := RestoreSensitiveDataInFunctionConfig(maskedFunctionConfig, secretMap)
+	restoredFunctionConfig, err := Restore(maskedFunctionConfig, secretMap)
 	suite.Require().NoError(err)
 
 	suite.logger.DebugWith("Restored function config", "functionConfig", restoredFunctionConfig)
@@ -115,14 +111,13 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 }
 
 func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
-	sensitiveFields := platformconfig.SensitiveFieldsConfig{}
 	existingSecrets := map[string]string{
 		"$ref:/Spec/Build/CodeEntryAttributes/password": "abcd",
 	}
 
-	functionConfig := &functionconfig.Config{
-		Spec: functionconfig.Spec{
-			Build: functionconfig.Build{
+	functionConfig := &Config{
+		Spec: Spec{
+			Build: Build{
 				CodeEntryAttributes: map[string]interface{}{
 
 					// should be masked
@@ -132,7 +127,7 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 				// should not be masked
 				Image: "some-image:latest",
 			},
-			Triggers: map[string]functionconfig.Trigger{
+			Triggers: map[string]Trigger{
 				"secret-trigger": {
 					Attributes: map[string]interface{}{
 						"password": "1234",
@@ -144,9 +139,9 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 	}
 
 	// mask the function config
-	maskedFunctionConfig, secretMap, err := ScrubSensitiveDataInFunctionConfig(functionConfig,
+	maskedFunctionConfig, secretMap, err := Scrub(functionConfig,
 		existingSecrets,
-		sensitiveFields.GetSensitiveFields())
+		suite.getSensitiveFieldsPathsRegex())
 	suite.Require().NoError(err)
 	suite.logger.DebugWith("Masked function config", "maskedFunctionConfig", maskedFunctionConfig, "secretMap", secretMap)
 
@@ -161,13 +156,13 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 
 	// test error cases:
 	// existing secret map is nil
-	_, _, err = ScrubSensitiveDataInFunctionConfig(functionConfig, nil, sensitiveFields.GetSensitiveFields())
+	_, _, err = Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
 	suite.Require().Error(err)
 
 	// existing secret map doesn't contain the secret
-	_, _, err = ScrubSensitiveDataInFunctionConfig(functionConfig, map[string]string{
+	_, _, err = Scrub(functionConfig, map[string]string{
 		"$ref:/Spec/Something/Else/password": "abcd",
-	}, sensitiveFields.GetSensitiveFields())
+	}, suite.getSensitiveFieldsPathsRegex())
 	suite.Require().Error(err)
 }
 
@@ -179,6 +174,25 @@ func (suite *MaskTestSuite) TestEncodeAndDecodeSecretKeys() {
 	decodedFieldPath, err := DecodeSecretKey(encodedFieldPath)
 	suite.Require().NoError(err)
 	suite.Require().Equal(fieldPath, decodedFieldPath)
+}
+
+// getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
+// this is implemented here to avoid a circular dependency between platformconfig and functionconfig
+func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
+	var regexpList []*regexp.Regexp
+	for _, sensitiveFieldPath := range []string{
+		// Path nested in a map
+		"^/Spec/Build/CodeEntryAttributes/password",
+		// Path nested in an array
+		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey",
+		// Path for any map element
+		"^/Spec/Triggers/.+/Password",
+		// Nested path in any map element
+		"^/Spec/Triggers/.+/Attributes/password",
+	} {
+		regexpList = append(regexpList, regexp.MustCompile(sensitiveFieldPath))
+	}
+	return regexpList
 }
 
 func TestMaskTestSuite(t *testing.T) {
