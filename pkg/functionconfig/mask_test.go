@@ -176,11 +176,30 @@ func (suite *MaskTestSuite) TestEncodeAndDecodeSecretKeys() {
 	suite.Require().Equal(fieldPath, decodedFieldPath)
 }
 
+func (suite *MaskTestSuite) TestEncodeSecretsMap() {
+
+	secretMap := map[string]string{
+		"$ref:Spec/Build/CodeEntryAttributes/password":          "abcd",
+		"$ref:Spec/Triggers/secret-trigger/Password":            "4567",
+		"$ref:Spec/Triggers/secret-trigger/Attributes/password": "1234",
+	}
+
+	encodedSecretMap := EncodeSecretsMap(secretMap)
+	suite.logger.DebugWith("Encoded secret map", "secretMap", secretMap, "encodedSecretMap", encodedSecretMap)
+	for encodedKey, value := range encodedSecretMap {
+		decodedKey, err := DecodeSecretKey(encodedKey)
+		suite.Require().NoError(err)
+		decodedKey = "$ref:" + decodedKey
+		suite.Require().Equal(secretMap[decodedKey], value)
+	}
+}
+
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
 // this is implemented here to avoid a circular dependency between platformconfig and functionconfig
 func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
 	var regexpList []*regexp.Regexp
 	for _, sensitiveFieldPath := range []string{
+
 		// Path nested in a map
 		"^/Spec/Build/CodeEntryAttributes/password",
 		// Path nested in an array

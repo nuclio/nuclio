@@ -46,12 +46,11 @@ func Scrub(functionConfig *Config,
 		for _, fieldPathRegexToScrub := range sensitiveFields {
 
 			// if the field path matches the field path to scrub, scrub it
-			match := fieldPathRegexToScrub.MatchString(fieldPath)
-			if match {
+			if fieldPathRegexToScrub.MatchString(fieldPath) {
 
 				secretKey := generateSecretKey(fieldPath)
 
-				// if the value to scrub is a string, make sure we need to scrub it
+				// if the value to scrub is a string, make sure that we need to scrub it
 				if kind := reflect.ValueOf(valueToScrub).Kind(); kind == reflect.String {
 					stringValue := reflect.ValueOf(valueToScrub).String()
 
@@ -60,7 +59,8 @@ func Scrub(functionConfig *Config,
 						return nil
 					}
 
-					// if it's already a reference, validate that it exists in the existing secret map
+					// if it's already a reference, validate that it a previous secret map exists,
+					// and contains the reference
 					if strings.HasPrefix(stringValue, referencePrefix) {
 						if existingSecretMap != nil {
 							if _, exists := existingSecretMap[secretKey]; !exists {
@@ -107,12 +107,13 @@ func EncodeSecretsMap(secretsMap map[string]string) map[string]string {
 
 // EncodeSecretKey encodes a secret key
 func EncodeSecretKey(fieldPath string) string {
+	fieldPath = strings.TrimPrefix(fieldPath, referencePrefix)
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
 	return fmt.Sprintf("%s%s", referenceToEnvVarPrefix, encodedFieldPath)
 }
 
-// DecodeSecretKey decodes a secret key
+// DecodeSecretKey decodes a secret key and returns the original field
 func DecodeSecretKey(secretKey string) (string, error) {
 	encodedFieldPath := strings.TrimPrefix(secretKey, referenceToEnvVarPrefix)
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "_", "=")
