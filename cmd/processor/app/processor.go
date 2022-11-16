@@ -541,7 +541,6 @@ func (p *Processor) hardRestartTriggerWorkers(triggerInstance trigger.Trigger) e
 
 	// iterate over the trigger's workers and force restart each of them
 	for _, workerInstance := range triggerInstance.GetWorkers() {
-
 		if err := workerInstance.Restart(); err != nil {
 			return errors.Wrap(err, "Failed to restart worker")
 		}

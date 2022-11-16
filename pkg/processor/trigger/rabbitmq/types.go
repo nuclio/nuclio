@@ -17,6 +17,8 @@ limitations under the License.
 package rabbitmq
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -27,14 +29,20 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	ExchangeName string
-	QueueName    string
-	Topics       []string
+	ExchangeName      string
+	QueueName         string
+	Topics            []string
+	ReconnectDuration string
+	ReconnectInterval string
+
+	reconnectDuration time.Duration
+	reconnectInterval time.Duration
 }
 
 func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
+	var err error
 	newConfiguration := Configuration{}
 
 	// create base
@@ -45,7 +53,23 @@ func NewConfiguration(id string,
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	// TODO: validate
+	// defaults
+	if newConfiguration.ReconnectDuration == "" {
+		newConfiguration.ReconnectDuration = "5m"
+	}
+	if newConfiguration.ReconnectInterval == "" {
+		newConfiguration.ReconnectInterval = "15s"
+	}
 
+	newConfiguration.reconnectDuration, err = time.ParseDuration(newConfiguration.ReconnectDuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse reconnect duration")
+	}
+	newConfiguration.reconnectInterval, err = time.ParseDuration(newConfiguration.ReconnectInterval)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse reconnect interval")
+	}
+
+	// TODO: validate
 	return &newConfiguration, nil
 }
