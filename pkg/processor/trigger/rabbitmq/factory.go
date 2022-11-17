@@ -66,6 +66,10 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create trigger")
 	}
 
+	if err := triggerInstance.Initialize(); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize trigger")
+	}
+
 	return triggerInstance, nil
 }
 

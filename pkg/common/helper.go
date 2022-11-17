@@ -47,6 +47,7 @@ import (
 var SmallLettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
 var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var containerHostname string
 
 // IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
@@ -75,7 +76,7 @@ func FileExists(path string) bool {
 
 // StringSliceToIntSlice converts slices of strings to slices of int. e.g. ["1", "3"] -> [1, 3]
 func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
-	result := []int{}
+	var result []int
 
 	for _, stringValue := range stringSlice {
 		var intValue int
@@ -91,7 +92,7 @@ func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
 	return result, nil
 }
 
-// returns whether the input str is in the slice
+// StringSliceContainsString returns whether the input str is in the slice
 func StringSliceContainsString(slice []string, str string) bool {
 	for _, stringInSlice := range slice {
 		if stringInSlice == str {
@@ -102,7 +103,7 @@ func StringSliceContainsString(slice []string, str string) bool {
 	return false
 }
 
-// returns whether the input str has prefix
+// StringSliceContainsStringPrefix returns whether the input str has prefix
 func StringSliceContainsStringPrefix(prefixes []string, str string) bool {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(str, prefix) {
@@ -112,7 +113,7 @@ func StringSliceContainsStringPrefix(prefixes []string, str string) bool {
 	return false
 }
 
-// returns whether the input str is in the slice case-insensitive
+// StringSliceContainsStringCaseInsensitive returns whether the input str is in the slice case-insensitive
 func StringSliceContainsStringCaseInsensitive(slice []string, str string) bool {
 	for _, stringInSlice := range slice {
 		if strings.EqualFold(stringInSlice, str) {
@@ -123,7 +124,7 @@ func StringSliceContainsStringCaseInsensitive(slice []string, str string) bool {
 	return false
 }
 
-// strips out ANSI Colors chars from string
+// RemoveANSIColorsFromString strips out ANSI Colors chars from string
 // example: "\u001b[31mHelloWorld" -> "HelloWorld"
 func RemoveANSIColorsFromString(s string) string {
 	ansi := "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))"
@@ -206,11 +207,15 @@ func RunningContainerHostname() (string, error) {
 	if !RunningInContainer() {
 		return "", errors.New("Not running in container")
 	}
+	if containerHostname != "" {
+		return containerHostname, nil
+	}
 	containerID, err := ioutil.ReadFile("/etc/hostname")
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to open docker daemon config file")
 	}
-	return strings.TrimSpace(string(containerID)), nil
+	containerHostname = strings.TrimSpace(string(containerID))
+	return containerHostname, nil
 }
 
 func StripPrefixes(input string, prefixes []string) string {
@@ -250,14 +255,14 @@ func RemoveEmptyLines(input string) string {
 	return strings.Join(nonEmptyLines, "\n")
 }
 
-// Generate a function that returns whether a given string matches the specified string
+// GenerateStringMatchVerifier generates a function that returns whether a given string matches the specified string
 func GenerateStringMatchVerifier(str string) func(string) bool {
 	return func(toMatch string) bool {
 		return toMatch == str
 	}
 }
 
-// Removing windows carriage character '\r' when it follows by '\n'
+// RemoveWindowsCarriage removes windows carriage character '\r' when it follows by '\n'
 func RemoveWindowsCarriage(b []byte) []byte {
 	n := utf8.RuneCount(b)
 	for i := 0; i < n-1; i++ {

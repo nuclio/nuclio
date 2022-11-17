@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"regexp"
 	"sort"
 	"time"
 
@@ -268,34 +269,46 @@ type SensitiveFieldsConfig struct {
 
 	// CustomSensitiveFields is a list of fields that should be masked in logs and function config
 	CustomSensitiveFields []string `json:"sensitiveFields,omitempty"`
+	SensitiveFieldsRegex  []*regexp.Regexp
+	MaskSensitiveFields   bool
 }
 
 func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 	return []string{
 
 		// build
-		"^/Spec/Build/CodeEntryAttributes/password",
-		//"^/Spec/Build/Commands\\[\\d+\\]",
+		"^/spec/build/codeentryattributes/password",
 		// volumes
-		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey",
+		"^/spec/volumes\\[\\d+\\]/volume/volumesource/flexvolume/options/accesskey",
 		// triggers - global
-		"^/Spec/Triggers/.+/Password",
-		"^/Spec/Triggers/.+/Secret",
+		"^/spec/triggers/.+/password",
+		"^/spec/triggers/.+/secret",
 		// triggers - specific
 		// - v3io stream
-		"^/Spec/Triggers/.+/Attributes/password",
+		"^/spec/triggers/.+/attributes/password",
 		// - kinesis
-		"^/Spec/Triggers/.+/Attributes/accessKeyID",
-		"^/Spec/Triggers/.+/Attributes/secretAccessKey",
+		"^/spec/triggers/.+/attributes/accesskeyid",
+		"^/spec/triggers/.+/attributes/secretaccesskey",
 		// - kafka
-		"^/Spec/Triggers/.+/Attributes/caCert",
-		"^/Spec/Triggers/.+/Attributes/AccessKey",
-		"^/Spec/Triggers/.+/Attributes/AccessCertificate",
-		"^/Spec/Triggers/.+/Attributes/sasl/password",
-		"^/Spec/Triggers/.+/Attributes/sasl/oauth/clientSecret",
+		"^/spec/triggers/.+/attributes/cacert",
+		"^/spec/triggers/.+/attributes/accesskey",
+		"^/spec/triggers/.+/attributes/accesscertificate",
+		"^/spec/triggers/.+/attributes/sasl/password",
+		"^/spec/triggers/.+/attributes/sasl/oauth/clientsecret",
 	}
 }
 
 func (sfc *SensitiveFieldsConfig) GetSensitiveFields() []string {
 	return append(sfc.CustomSensitiveFields, sfc.GetDefaultSensitiveFields()...)
+}
+
+func (sfc *SensitiveFieldsConfig) CompileSensitiveFieldsRegex() []*regexp.Regexp {
+	if sfc.SensitiveFieldsRegex == nil {
+		for _, field := range sfc.GetSensitiveFields() {
+
+			// compile each regular expression as case-insensitive
+			sfc.SensitiveFieldsRegex = append(sfc.SensitiveFieldsRegex, regexp.MustCompile("(?i)"+field))
+		}
+	}
+	return sfc.SensitiveFieldsRegex
 }

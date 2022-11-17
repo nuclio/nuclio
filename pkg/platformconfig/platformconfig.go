@@ -138,6 +138,8 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 	}
 	config.functionReadinessTimeout = &functionReadinessTimeout
 
+	config.SensitiveFields.CompileSensitiveFieldsRegex()
+
 	return config, nil
 }
 
