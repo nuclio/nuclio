@@ -180,7 +180,7 @@ jobs:
         run: make save-docker-images
 
       - name: Upload
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: nuclio-docker-images
           path: nuclio-docker-images-*.tar.gz
@@ -193,7 +193,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: azure/setup-helm@v1
+      - uses: azure/setup-helm@v3
         with:
           version: "v3.6.3"
 
@@ -201,9 +201,9 @@ jobs:
         with:
           cache: true
 
-      - uses: manusa/actions-setup-minikube@v2.6.0
+      - uses: manusa/actions-setup-minikube@v2.7.1
         with:
-          minikube version: "v1.25.2"
+          minikube version: "v1.26.1"
           kubernetes version: "v1.23.7"
           driver: docker
           github token: ${{ github.token }}
@@ -220,7 +220,7 @@ jobs:
           minikube kubectl -- config view --flatten > kubeconfig_flatten
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: nuclio-docker-images
 
@@ -278,7 +278,7 @@ jobs:
           cache: true
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: nuclio-docker-images
 
@@ -301,7 +301,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: azure/setup-helm@v1
+      - uses: azure/setup-helm@v3
         with:
           version: "v3.6.3"
 
@@ -309,9 +309,9 @@ jobs:
         with:
           cache: true
 
-      - uses: manusa/actions-setup-minikube@v2.6.0
+      - uses: manusa/actions-setup-minikube@v2.7.1
         with:
-          minikube version: "v1.25.2"
+          minikube version: "v1.26.1"
           kubernetes version: "v1.23.7"
           driver: docker
           github token: ${{ github.token }}
@@ -328,7 +328,7 @@ jobs:
           minikube kubectl -- config view --flatten > kubeconfig_flatten
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: nuclio-docker-images
 

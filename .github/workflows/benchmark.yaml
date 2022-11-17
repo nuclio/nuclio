@@ -82,7 +82,7 @@ jobs:
           echo "NUCLIO_LABEL=bm-$GITHUB_RUN_ID" >> $GITHUB_ENV
 
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.8'
 
@@ -134,7 +134,7 @@ jobs:
             await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
 
       - name: Upload benchmarking results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: benchmarking
           path: ./.benchmarking
