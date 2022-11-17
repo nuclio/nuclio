@@ -55,6 +55,7 @@ type Config struct {
 	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
 	Opa                      opa.Config                   `json:"opa,omitempty"`
 	StreamMonitoring         StreamMonitoringConfig       `json:"streamMonitoring,omitempty"`
+	SensitiveFields          SensitiveFieldsConfig        `json:"sensitiveFieldPaths,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -136,6 +137,8 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		return nil, errors.Wrap(err, "Failed to parse function readiness timeout")
 	}
 	config.functionReadinessTimeout = &functionReadinessTimeout
+
+	config.SensitiveFields.CompileSensitiveFieldsRegex()
 
 	return config, nil
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package platformconfig
 
 import (
+	"regexp"
 	"sort"
 	"time"
 
@@ -260,4 +261,54 @@ const (
 type StreamMonitoringConfig struct {
 	WebapiURL              string `json:"webapiURL,omitempty"`
 	V3ioRequestConcurrency uint   `json:"v3ioRequestConcurrency,omitempty"`
+}
+
+type SensitiveFieldPath string
+
+type SensitiveFieldsConfig struct {
+
+	// CustomSensitiveFields is a list of fields that should be masked in logs and function config
+	CustomSensitiveFields []string `json:"sensitiveFields,omitempty"`
+	SensitiveFieldsRegex  []*regexp.Regexp
+	MaskSensitiveFields   bool
+}
+
+func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
+	return []string{
+
+		// build
+		"^/spec/build/codeentryattributes/password",
+		// volumes
+		"^/spec/volumes\\[\\d+\\]/volume/volumesource/flexvolume/options/accesskey",
+		// triggers - global
+		"^/spec/triggers/.+/password",
+		"^/spec/triggers/.+/secret",
+		// triggers - specific
+		// - v3io stream
+		"^/spec/triggers/.+/attributes/password",
+		// - kinesis
+		"^/spec/triggers/.+/attributes/accesskeyid",
+		"^/spec/triggers/.+/attributes/secretaccesskey",
+		// - kafka
+		"^/spec/triggers/.+/attributes/cacert",
+		"^/spec/triggers/.+/attributes/accesskey",
+		"^/spec/triggers/.+/attributes/accesscertificate",
+		"^/spec/triggers/.+/attributes/sasl/password",
+		"^/spec/triggers/.+/attributes/sasl/oauth/clientsecret",
+	}
+}
+
+func (sfc *SensitiveFieldsConfig) GetSensitiveFields() []string {
+	return append(sfc.CustomSensitiveFields, sfc.GetDefaultSensitiveFields()...)
+}
+
+func (sfc *SensitiveFieldsConfig) CompileSensitiveFieldsRegex() []*regexp.Regexp {
+	if sfc.SensitiveFieldsRegex == nil {
+		for _, field := range sfc.GetSensitiveFields() {
+
+			// compile each regular expression as case-insensitive
+			sfc.SensitiveFieldsRegex = append(sfc.SensitiveFieldsRegex, regexp.MustCompile("(?i)"+field))
+		}
+	}
+	return sfc.SensitiveFieldsRegex
 }

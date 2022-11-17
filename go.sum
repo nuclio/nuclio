@@ -431,6 +431,8 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLA
 github.com/nuclio/errors v0.0.1/go.mod h1:it2rUqDarIL8PasLYZo0Q1Ebsx4NRPM+OyYYakgNyrQ=
 github.com/nuclio/errors v0.0.4 h1:Uf/Kfje0VJGYeuNAhuFNaL6bm0O1WCQOg8vEjiY85oQ=
 github.com/nuclio/errors v0.0.4/go.mod h1:KV56dHK50bOG4+fSUvCZA9D9Ky4utc5LBGGDCpxa8dY=
+github.com/nuclio/gosecretive v0.0.2 h1:F5g+3M0tIy2e6UtUzemE4OiHO/Gh8+x9CS6zT137UX4=
+github.com/nuclio/gosecretive v0.0.2/go.mod h1:hHk71R5j/E4SeImd/f/rQ4/vHfzB6oQNaS0xjrN7lwI=
 github.com/nuclio/logger v0.0.0-20190303161055-fc1e4b16d127/go.mod h1:ttazNAqTxKjQ7XrGDZxecumGa9KCIuJh88gzFY1mRXo=
 github.com/nuclio/logger v0.0.1 h1:e+vT/Ug65RC+u0QX2J+lq3P57ZBwJ1ZA6Q2LCEcViwE=
 github.com/nuclio/logger v0.0.1/go.mod h1:ttazNAqTxKjQ7XrGDZxecumGa9KCIuJh88gzFY1mRXo=
