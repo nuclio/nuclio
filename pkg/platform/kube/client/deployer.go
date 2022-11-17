@@ -32,6 +32,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -78,6 +79,15 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 		functionStatus.ExternalInvocationURLs = functionInstance.Status.ExternalInvocationURLs
 		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
 	}
+
+	// scrub the function config
+	scrubbedFunctionConfig, err := d.ScrubFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to scrub function configuration")
+	}
+
+	// replace the function config with the scrubbed one
+	createFunctionOptions.FunctionConfig = *scrubbedFunctionConfig
 
 	// convert config, status -> function
 	if err := d.populateFunction(&createFunctionOptions.FunctionConfig,
@@ -144,6 +154,117 @@ func (d *Deployer) Deploy(ctx context.Context,
 		Port:           updatedFunctionInstance.Status.HTTPPort,
 		FunctionStatus: updatedFunctionInstance.Status,
 	}, updatedFunctionInstance, "", nil
+}
+
+func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
+	functionConfig *functionconfig.Config) (*functionconfig.Config, error) {
+	var err error
+
+	// get existing function secret
+	functionSecretMap, err := d.GetFunctionSecretMap(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// scrub the function config
+	d.logger.DebugWith("Scrubbing function config", "functionName", functionConfig.Meta.Name)
+	scrubbedFunctionConfig, secretsMap, err := functionconfig.Scrub(functionConfig,
+		functionSecretMap,
+		d.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex())
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to scrub function config")
+	}
+
+	// encode secrets map
+	encodedSecretsMap := functionconfig.EncodeSecretsMap(secretsMap)
+
+	// create or update a secret for the function
+	functionSecretExists := functionSecretMap != nil
+	if err := d.CreateOrUpdateFunctionSecret(ctx,
+		encodedSecretsMap,
+		functionSecretExists,
+		functionConfig.Meta.Name,
+		functionConfig.Meta.Namespace); err != nil {
+		return nil, errors.Wrap(err, "Failed to create function secret")
+	}
+
+	return scrubbedFunctionConfig, nil
+}
+
+func (d *Deployer) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
+
+	// get existing function secret
+	d.logger.DebugWithCtx(ctx, "Getting function secret", "functionName", functionName, "functionNamespace", functionNamespace)
+	functionSecretData, err := d.GetFunctionSecretData(ctx, functionName, functionNamespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// if secret exists, get the data
+	if functionSecretData != nil {
+		functionSecretMap, err := functionconfig.DecodeSecretData(functionSecretData)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode function secret data")
+		}
+		return functionSecretMap, nil
+	}
+
+	// secret doesn't exist
+	d.logger.DebugWithCtx(ctx, "Function secret doesn't exist", "functionName", functionName, "functionNamespace", functionNamespace)
+	return nil, nil
+}
+
+func (d *Deployer) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
+
+	// get existing function secret
+	secretName := d.GenerateFunctionSecretName(functionName)
+	functionSecret, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, errors.Wrap(err, "Failed to get function secret")
+		}
+		return nil, nil
+	}
+	return functionSecret.Data, nil
+}
+
+func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecretsMap map[string]string, functionSecretExists bool, name, namespace string) error {
+
+	secretConfig := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: d.GenerateFunctionSecretName(name),
+			Labels: map[string]string{
+				"nuclio.io/function-name": name,
+			},
+		},
+		Type:       functionconfig.NuclioSecretType,
+		StringData: encodedSecretsMap,
+	}
+
+	if !functionSecretExists {
+
+		// create a secret for the function
+		d.logger.DebugWithCtx(ctx, "Creating function secret",
+			"functionName", name)
+		_, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx, secretConfig, metav1.CreateOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to create function secret")
+		}
+	} else {
+
+		// update the secret
+		d.logger.DebugWithCtx(ctx, "Updating function secret",
+			"functionName", name)
+		_, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx, secretConfig, metav1.UpdateOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to update function secret")
+		}
+	}
+	return nil
+}
+
+func (d *Deployer) GenerateFunctionSecretName(functionName string) string {
+	return fmt.Sprintf("%s-%s", functionconfig.NuclioSecretNamePrefix, functionName)
 }
 
 func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,

@@ -31,6 +31,8 @@ import (
 const (
 	referencePrefix         = "$ref:"
 	referenceToEnvVarPrefix = "NUCLIO_B64_"
+	NuclioSecretNamePrefix  = "nuclio-secret-"
+	NuclioSecretType        = "nuclio.io/functionconfig"
 )
 
 // Scrub scrubs sensitive data from a function config
@@ -103,6 +105,23 @@ func EncodeSecretsMap(secretsMap map[string]string) map[string]string {
 		encodedSecretsMap[EncodeSecretKey(secretKey)] = secretValue
 	}
 	return encodedSecretsMap
+}
+
+// DecodeSecretData decodes the keys of a secrets map
+func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
+	decodedSecretsMap := map[string]string{}
+	for secretKey, secretValue := range secretData {
+		decodedSecretKey, err := DecodeSecretKey(secretKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode secret key")
+		}
+		decodedSecretValue, err := base64.StdEncoding.DecodeString(string(secretValue))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode secret key")
+		}
+		decodedSecretsMap[decodedSecretKey] = string(decodedSecretValue)
+	}
+	return decodedSecretsMap, nil
 }
 
 // EncodeSecretKey encodes a secret key

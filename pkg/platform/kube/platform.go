@@ -31,7 +31,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/mask"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
@@ -188,18 +187,6 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
-
-	// scrub the function config from any sensitive data
-	scrubbedFunctionConfig, err := p.ScrubFunctionConfigAndCreateFunctionSecret(ctx, &createFunctionOptions.FunctionConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to scrub function configuration and create function secret")
-	}
-
-	// keep a copy of the raw function config
-	//rawFunctionConfig := createFunctionOptions.FunctionConfig
-
-	// replace the function config with the scrubbed one
-	createFunctionOptions.FunctionConfig = *scrubbedFunctionConfig
 
 	// Check OPA permissions
 	permissionOptions := createFunctionOptions.PermissionOptions
@@ -1238,98 +1225,6 @@ func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, nam
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})
-}
-
-// TODO: move to abstract platform
-func (p *Platform) ScrubFunctionConfigAndCreateFunctionSecret(ctx context.Context, functionConfig *functionconfig.Config) (*functionconfig.Config, error) {
-	var err error
-
-	// get existing function secret
-	functionSecretMap, err := p.GetFunctionSecretMap(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function secret")
-	}
-
-	// scrub the function config
-	p.Logger.DebugWith("Scrubbing function config", "functionName", functionConfig.Meta.Name)
-	scrubbedFunctionConfig, secretsMap, err := mask.ScrubSensitiveDataInFunctionConfig(functionConfig,
-		functionSecretMap,
-		p.Config.SensitiveFields.GetSensitiveFields())
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to scrub function config")
-	}
-
-	// encode secrets map
-	encodedSecretsMap := mask.EncodeSecretsMap(secretsMap)
-
-	// create a secret for the function
-	p.Logger.DebugWithCtx(ctx, "Creating function secret",
-		"functionName", functionConfig.Meta.Name,
-		"functionNamespace", functionConfig.Meta.Namespace)
-	if err := p.CreateFunctionSecret(ctx, encodedSecretsMap, functionConfig.Meta.Name, functionConfig.Meta.Namespace); err != nil {
-		return nil, errors.Wrap(err, "Failed to create function secret")
-	}
-
-	return scrubbedFunctionConfig, nil
-}
-
-func (p *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
-
-	// get existing function secret
-	p.Logger.DebugWithCtx(ctx, "Getting function secret", "functionName", functionName, "functionNamespace", functionNamespace)
-	functionSecretData, err := p.GetFunctionSecretData(ctx, functionName, functionNamespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function secret")
-	}
-
-	// if secret exists, get the data
-	if functionSecretData != nil {
-		functionSecretMap, err := mask.DecodeSecretData(functionSecretData)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to decode function secret data")
-		}
-		return functionSecretMap, nil
-	}
-
-	// secret doesn't exist
-	p.Logger.DebugWithCtx(ctx, "Function secret doesn't exist", "functionName", functionName, "functionNamespace", functionNamespace)
-	return nil, nil
-}
-
-func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
-
-	// get existing function secret
-	secretName := p.GetFunctionSecretName(functionName)
-	functionSecret, err := p.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).Get(ctx, secretName, metav1.GetOptions{})
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, errors.Wrap(err, "Failed to get function secret")
-		}
-		return nil, nil
-	}
-	return functionSecret.StringData, nil
-}
-
-func (p *Platform) CreateFunctionSecret(ctx context.Context, encodedSecretsMap map[string]string, name, namespace string) error {
-
-	// create a secret for the function
-	_, err := p.consumer.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: p.GetFunctionSecretName(name),
-			Labels: map[string]string{
-				"nuclio.io/function-name": name,
-			},
-		},
-		StringData: encodedSecretsMap,
-	}, metav1.CreateOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to create function secret")
-	}
-	return nil
-}
-
-func (p *Platform) GetFunctionSecretName(functionName string) string {
-	return fmt.Sprintf("%s-%s", mask.NuclioSecretPrefix, functionName)
 }
 
 func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, namespace string) (map[string][]string, error) {
