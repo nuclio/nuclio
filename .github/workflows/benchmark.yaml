@@ -46,11 +46,11 @@ jobs:
           RUNNER_CONTEXT: ${{ toJson(runner) }}
 
       # checkout from development
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0

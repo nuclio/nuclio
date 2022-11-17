@@ -48,18 +48,11 @@ jobs:
         env:
           RUNNER_CONTEXT: ${{ toJson(runner) }}
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: "1.17"
-
-      - uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
 
       - name: Ensure go test files are build annotated
         run: make ensure-test-files-annotated
@@ -71,7 +64,7 @@ jobs:
     name: Check copyright and license
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Check License Lines
         uses: kt3k/license_checker@v1.0.6
@@ -103,18 +96,11 @@ jobs:
     name: Test short
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: "1.17"
-
-      - uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
 
       - name: Run unit test
         run: |
@@ -124,11 +110,11 @@ jobs:
     name: Build nuctl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: "1.17"
+          cache: true
 
       - name: Build
         run: |
@@ -158,7 +144,7 @@ jobs:
       - name: Dump github ref
         run: echo "$GITHUB_REF"
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # since github-actions gives us 14G only, and fills it up with some garbage
       # we will free up some space for us (~2GB)
@@ -170,14 +156,14 @@ jobs:
       - name: Extract git branch
         id: git_info
         run: |
-          echo "::set-output name=branch::$(echo ${GITHUB_BASE_REF#refs/heads/})"
+          echo "name=branch::$(echo ${GITHUB_BASE_REF#refs/heads/})" >> $GITHUB_OUTPUT
 
       - name: Resolve docker cache tag
         id: docker_cache
         run: |
           export version_suffix=$(echo "${{ steps.git_info.outputs.branch }}" | grep -E "^[0-9]+\.[0-9]+\.x$" | tr -d '.')
           export unstable_tag=$(if [ -z "$version_suffix" ]; then echo "unstable-cache"; else echo "unstable-cache-$version_suffix";fi)
-          echo "::set-output name=tag::$(echo $unstable_tag)"
+          echo "name=tag::$(echo $unstable_tag)" >> $GITHUB_OUTPUT
 
       - name: Build
         run: |
@@ -205,22 +191,15 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: azure/setup-helm@v1
         with:
           version: "v3.6.3"
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: "1.17"
-
-      - uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
 
       - uses: manusa/actions-setup-minikube@v2.6.0
         with:
@@ -292,18 +271,11 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: "1.17"
-
-      - uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v2
@@ -327,22 +299,15 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: azure/setup-helm@v1
         with:
           version: "v3.6.3"
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: "1.17"
-
-      - uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
 
       - uses: manusa/actions-setup-minikube@v2.6.0
         with:
@@ -400,7 +365,7 @@ jobs:
     name: Test python
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Run python test
         run: |
@@ -410,7 +375,7 @@ jobs:
     name: Test NodeJS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Run NodeJS test
         run: |
