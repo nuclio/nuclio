@@ -80,14 +80,17 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
 	}
 
-	// scrub the function config
-	scrubbedFunctionConfig, err := d.ScrubFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to scrub function configuration")
-	}
+	if d.platform.GetConfig().SensitiveFields.MaskSensitiveFields {
 
-	// replace the function config with the scrubbed one
-	createFunctionOptions.FunctionConfig = *scrubbedFunctionConfig
+		// scrub the function config
+		scrubbedFunctionConfig, err := d.ScrubFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to scrub function configuration")
+		}
+
+		// replace the function config with the scrubbed one
+		createFunctionOptions.FunctionConfig = *scrubbedFunctionConfig
+	}
 
 	// convert config, status -> function
 	if err := d.populateFunction(&createFunctionOptions.FunctionConfig,
@@ -168,6 +171,7 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 
 	// scrub the function config
 	d.logger.DebugWith("Scrubbing function config", "functionName", functionConfig.Meta.Name)
+
 	scrubbedFunctionConfig, secretsMap, err := functionconfig.Scrub(functionConfig,
 		functionSecretMap,
 		d.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex())
@@ -175,14 +179,15 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to scrub function config")
 	}
 
+	// scrubbing removes unexported fields, so we need to re-set them
+	scrubbedFunctionConfig.Spec.Resources = functionConfig.Spec.Resources
+
 	// encode secrets map
 	encodedSecretsMap := functionconfig.EncodeSecretsMap(secretsMap)
 
 	// create or update a secret for the function
-	functionSecretExists := functionSecretMap != nil
 	if err := d.CreateOrUpdateFunctionSecret(ctx,
 		encodedSecretsMap,
-		functionSecretExists,
 		functionConfig.Meta.Name,
 		functionConfig.Meta.Namespace); err != nil {
 		return nil, errors.Wrap(err, "Failed to create function secret")
@@ -217,7 +222,7 @@ func (d *Deployer) GetFunctionSecretMap(ctx context.Context, functionName, funct
 func (d *Deployer) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
 
 	// get existing function secret
-	secretName := d.GenerateFunctionSecretName(functionName)
+	secretName := d.generateFunctionSecretName(functionName)
 	functionSecret, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -228,17 +233,28 @@ func (d *Deployer) GetFunctionSecretData(ctx context.Context, functionName, func
 	return functionSecret.Data, nil
 }
 
-func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecretsMap map[string]string, functionSecretExists bool, name, namespace string) error {
+func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecretsMap map[string]string, name, namespace string) error {
+
+	functionSecretExists := true
 
 	secretConfig := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: d.GenerateFunctionSecretName(name),
+			Name: d.generateFunctionSecretName(name),
 			Labels: map[string]string{
 				"nuclio.io/function-name": name,
 			},
 		},
 		Type:       functionconfig.NuclioSecretType,
 		StringData: encodedSecretsMap,
+	}
+
+	// try to get the secret
+	_, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx, secretConfig.Name, metav1.GetOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "Failed to get function secret")
+		}
+		functionSecretExists = false
 	}
 
 	if !functionSecretExists {
@@ -263,8 +279,8 @@ func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecr
 	return nil
 }
 
-func (d *Deployer) GenerateFunctionSecretName(functionName string) string {
-	return fmt.Sprintf("%s-%s", functionconfig.NuclioSecretNamePrefix, functionName)
+func (d *Deployer) generateFunctionSecretName(functionName string) string {
+	return fmt.Sprintf("%s%s", functionconfig.NuclioSecretNamePrefix, functionName)
 }
 
 func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,

@@ -488,6 +488,9 @@ platform: {}
 #   streamMonitoring:
 #     webapiURL: ""
 #     getStreamShardsConcurrentRequests: 64
+#
+#   sensitiveFields:
+#     maskSensitiveFields: true
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

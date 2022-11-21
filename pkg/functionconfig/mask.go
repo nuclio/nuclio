@@ -65,7 +65,8 @@ func Scrub(functionConfig *Config,
 					// and contains the reference
 					if strings.HasPrefix(stringValue, referencePrefix) {
 						if existingSecretMap != nil {
-							if _, exists := existingSecretMap[secretKey]; !exists {
+							trimmedSecretKey := strings.TrimSpace(strings.TrimPrefix(secretKey, referencePrefix))
+							if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
 								err = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
 							}
 						} else {
@@ -115,11 +116,7 @@ func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to decode secret key")
 		}
-		decodedSecretValue, err := base64.StdEncoding.DecodeString(string(secretValue))
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to decode secret key")
-		}
-		decodedSecretsMap[decodedSecretKey] = string(decodedSecretValue)
+		decodedSecretsMap[decodedSecretKey] = string(secretValue)
 	}
 	return decodedSecretsMap, nil
 }

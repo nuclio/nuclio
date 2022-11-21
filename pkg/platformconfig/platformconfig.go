@@ -55,7 +55,7 @@ type Config struct {
 	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
 	Opa                      opa.Config                   `json:"opa,omitempty"`
 	StreamMonitoring         StreamMonitoringConfig       `json:"streamMonitoring,omitempty"`
-	SensitiveFields          SensitiveFieldsConfig        `json:"sensitiveFieldPaths,omitempty"`
+	SensitiveFields          SensitiveFieldsConfig        `json:"sensitiveFields,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
