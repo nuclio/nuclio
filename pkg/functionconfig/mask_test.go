@@ -184,7 +184,8 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 		"$ref:Spec/Triggers/secret-trigger/Attributes/password": "1234",
 	}
 
-	encodedSecretMap := EncodeSecretsMap(secretMap)
+	encodedSecretMap, err := EncodeSecretsMap(secretMap)
+	suite.Require().NoError(err)
 	suite.logger.DebugWith("Encoded secret map", "secretMap", secretMap, "encodedSecretMap", encodedSecretMap)
 	for encodedKey, value := range encodedSecretMap {
 		decodedKey, err := DecodeSecretKey(encodedKey)

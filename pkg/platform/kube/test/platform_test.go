@@ -20,6 +20,7 @@ package test
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -803,6 +804,18 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 		// verify password is in secret data
 		secretKey := "/Spec/Build/CodeEntryAttributes/password"
 		suite.Require().Equal(password, decodedSecretData[secretKey])
+
+		// verify secret's "content" also contains the password
+
+		var decodedSecretsDataContent map[string]string
+		secretContent := string(secret.Data["content"])
+		decodedContents, err := base64.StdEncoding.DecodeString(secretContent)
+		suite.Require().NoError(err)
+		err = json.Unmarshal(decodedContents, &decodedSecretsDataContent)
+		suite.Require().NoError(err)
+
+		secretKeyEnvVar := functionconfig.ResolveEnvVarNameFromReference(secretKey)
+		suite.Require().Equal(password, decodedSecretsDataContent[secretKeyEnvVar])
 
 		return true
 	})

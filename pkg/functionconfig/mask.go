@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -100,18 +101,34 @@ func Restore(scrubbedFunctionConfig *Config, secretsMap map[string]string) (*Con
 }
 
 // EncodeSecretsMap encodes the keys of a secrets map
-func EncodeSecretsMap(secretsMap map[string]string) map[string]string {
+func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 	encodedSecretsMap := map[string]string{}
+
+	// encode secret map keys
 	for secretKey, secretValue := range secretsMap {
 		encodedSecretsMap[EncodeSecretKey(secretKey)] = secretValue
 	}
-	return encodedSecretsMap
+
+	// encode the entire map into a single string
+	secretsMapContent, err := json.Marshal(encodedSecretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to marshal secrets map")
+	}
+	encodedSecretsMap["content"] = base64.StdEncoding.EncodeToString(secretsMapContent)
+
+	return encodedSecretsMap, nil
 }
 
 // DecodeSecretData decodes the keys of a secrets map
 func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 	decodedSecretsMap := map[string]string{}
 	for secretKey, secretValue := range secretData {
+		if secretKey == "content" {
+
+			// when the secret is created, the entire map is encoded into a single string under the "content" key
+			// which we don't care about when decoding
+			continue
+		}
 		decodedSecretKey, err := DecodeSecretKey(secretKey)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to decode secret key")

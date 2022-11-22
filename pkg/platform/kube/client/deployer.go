@@ -169,6 +169,8 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to get function secret")
 	}
 
+	functionSecretExists := functionSecretMap != nil
+
 	// scrub the function config
 	d.logger.DebugWithCtx(ctx, "Scrubbing function config", "functionName", functionConfig.Meta.Name)
 
@@ -183,10 +185,14 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	scrubbedFunctionConfig.Spec.Resources = functionConfig.Spec.Resources
 
 	// encode secrets map
-	encodedSecretsMap := functionconfig.EncodeSecretsMap(secretsMap)
+	encodedSecretsMap, err := functionconfig.EncodeSecretsMap(secretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to encode secrets map")
+	}
 
 	// create or update a secret for the function
 	if err := d.CreateOrUpdateFunctionSecret(ctx,
+		functionSecretExists,
 		encodedSecretsMap,
 		functionConfig.Meta.Name,
 		functionConfig.Meta.Namespace); err != nil {
@@ -233,9 +239,11 @@ func (d *Deployer) GetFunctionSecretData(ctx context.Context, functionName, func
 	return functionSecret.Data, nil
 }
 
-func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecretsMap map[string]string, name, namespace string) error {
-
-	functionSecretExists := true
+func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context,
+	functionSecretExists bool,
+	encodedSecretsMap map[string]string,
+	name,
+	namespace string) error {
 
 	secretConfig := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -248,37 +256,45 @@ func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecr
 		StringData: encodedSecretsMap,
 	}
 
-	// try to get the secret
-	if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx,
-		secretConfig.Name,
-		metav1.GetOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return errors.Wrap(err, "Failed to get function secret")
-		}
-		functionSecretExists = false
-	}
-
 	if !functionSecretExists {
 
-		// create a secret for the function
-		d.logger.DebugWithCtx(ctx, "Creating function secret",
-			"functionName", name)
+		// function secret doesn't exist + encoded secrets map is not empty -> create function secret
+		if len(encodedSecretsMap) > 0 {
 
-		if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx,
-			secretConfig,
-			metav1.CreateOptions{}); err != nil {
-			return errors.Wrap(err, "Failed to create function secret")
+			d.logger.DebugWithCtx(ctx, "Creating function secret",
+				"functionName", name)
+
+			if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx,
+				secretConfig,
+				metav1.CreateOptions{}); err != nil {
+				return errors.Wrap(err, "Failed to create function secret")
+			}
 		}
 	} else {
 
-		// update the secret
-		d.logger.DebugWithCtx(ctx, "Updating function secret",
-			"functionName", name)
+		// function secret exists + encoded secrets map is not empty -> update function secret
+		if len(encodedSecretsMap) > 0 {
 
-		if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx,
-			secretConfig,
-			metav1.UpdateOptions{}); err != nil {
-			return errors.Wrap(err, "Failed to update function secret")
+			d.logger.DebugWithCtx(ctx, "Updating function secret",
+				"functionName", name)
+
+			if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx,
+				secretConfig,
+				metav1.UpdateOptions{}); err != nil {
+				return errors.Wrap(err, "Failed to update function secret")
+			}
+
+			// function secret exists + encoded secrets map is empty -> delete function secret
+		} else {
+
+			d.logger.DebugWithCtx(ctx, "Deleting function secret",
+				"functionName", name)
+
+			if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx,
+				secretConfig.Name,
+				metav1.DeleteOptions{}); err != nil {
+				return errors.Wrap(err, "Failed to delete function secret")
+			}
 		}
 	}
 	return nil
