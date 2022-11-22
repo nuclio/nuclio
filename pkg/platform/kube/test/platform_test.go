@@ -763,6 +763,51 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
 		})
 }
 
+func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	functionName := "func-with-secret"
+	password := "1234"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	secretName := fmt.Sprintf("%s%s", functionconfig.NuclioSecretNamePrefix, functionName)
+
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"password": password,
+	}
+
+	// delete function secret when done
+	defer func() {
+		err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(suite.Ctx, secretName, metav1.DeleteOptions{})
+		if err != nil {
+			suite.Logger.WarnWith("Failed to delete secret", "err", err)
+		}
+	}()
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get function secret
+		secret, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Get(suite.Ctx, secretName, metav1.GetOptions{})
+		suite.Require().NoError(err)
+
+		// decode data from secret?
+		decodedSecretData, err := functionconfig.DecodeSecretData(secret.Data)
+		suite.Require().NoError(err)
+		suite.Logger.DebugWithCtx(suite.Ctx,
+			"Got function secret",
+			"secretData", secret.Data,
+			"decodedSecretData", decodedSecretData)
+
+		// verify password is in secret data
+		secretKey := "/Spec/Build/CodeEntryAttributes/password"
+		suite.Require().Equal(password, decodedSecretData[secretKey])
+
+		return true
+	})
+}
+
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }

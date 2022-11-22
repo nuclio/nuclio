@@ -170,7 +170,7 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	}
 
 	// scrub the function config
-	d.logger.DebugWith("Scrubbing function config", "functionName", functionConfig.Meta.Name)
+	d.logger.DebugWithCtx(ctx, "Scrubbing function config", "functionName", functionConfig.Meta.Name)
 
 	scrubbedFunctionConfig, secretsMap, err := functionconfig.Scrub(functionConfig,
 		functionSecretMap,
@@ -249,8 +249,9 @@ func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecr
 	}
 
 	// try to get the secret
-	_, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx, secretConfig.Name, metav1.GetOptions{})
-	if err != nil {
+	if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx,
+		secretConfig.Name,
+		metav1.GetOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to get function secret")
 		}
@@ -262,8 +263,10 @@ func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecr
 		// create a secret for the function
 		d.logger.DebugWithCtx(ctx, "Creating function secret",
 			"functionName", name)
-		_, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx, secretConfig, metav1.CreateOptions{})
-		if err != nil {
+
+		if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx,
+			secretConfig,
+			metav1.CreateOptions{}); err != nil {
 			return errors.Wrap(err, "Failed to create function secret")
 		}
 	} else {
@@ -271,8 +274,10 @@ func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context, encodedSecr
 		// update the secret
 		d.logger.DebugWithCtx(ctx, "Updating function secret",
 			"functionName", name)
-		_, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx, secretConfig, metav1.UpdateOptions{})
-		if err != nil {
+
+		if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx,
+			secretConfig,
+			metav1.UpdateOptions{}); err != nil {
 			return errors.Wrap(err, "Failed to update function secret")
 		}
 	}

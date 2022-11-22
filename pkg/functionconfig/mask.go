@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	referencePrefix         = "$ref:"
-	referenceToEnvVarPrefix = "NUCLIO_B64_"
+	ReferencePrefix         = "$ref:"
+	ReferenceToEnvVarPrefix = "NUCLIO_B64_"
 	NuclioSecretNamePrefix  = "nuclio-secret-"
 	NuclioSecretType        = "nuclio.io/functionconfig"
 )
@@ -63,9 +63,9 @@ func Scrub(functionConfig *Config,
 
 					// if it's already a reference, validate that it a previous secret map exists,
 					// and contains the reference
-					if strings.HasPrefix(stringValue, referencePrefix) {
+					if strings.HasPrefix(stringValue, ReferencePrefix) {
 						if existingSecretMap != nil {
-							trimmedSecretKey := strings.TrimSpace(strings.TrimPrefix(secretKey, referencePrefix))
+							trimmedSecretKey := strings.TrimSpace(strings.TrimPrefix(secretKey, ReferencePrefix))
 							if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
 								err = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
 							}
@@ -123,15 +123,15 @@ func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 
 // EncodeSecretKey encodes a secret key
 func EncodeSecretKey(fieldPath string) string {
-	fieldPath = strings.TrimPrefix(fieldPath, referencePrefix)
+	fieldPath = strings.TrimPrefix(fieldPath, ReferencePrefix)
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
-	return fmt.Sprintf("%s%s", referenceToEnvVarPrefix, encodedFieldPath)
+	return fmt.Sprintf("%s%s", ReferenceToEnvVarPrefix, encodedFieldPath)
 }
 
 // DecodeSecretKey decodes a secret key and returns the original field
 func DecodeSecretKey(secretKey string) (string, error) {
-	encodedFieldPath := strings.TrimPrefix(secretKey, referenceToEnvVarPrefix)
+	encodedFieldPath := strings.TrimPrefix(secretKey, ReferenceToEnvVarPrefix)
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "_", "=")
 	decodedFieldPath, err := base64.StdEncoding.DecodeString(encodedFieldPath)
 	if err != nil {
@@ -141,10 +141,10 @@ func DecodeSecretKey(secretKey string) (string, error) {
 }
 
 func ResolveEnvVarNameFromReference(reference string) string {
-	fieldPath := strings.TrimPrefix(reference, referencePrefix)
+	fieldPath := strings.TrimPrefix(reference, ReferencePrefix)
 	return EncodeSecretKey(fieldPath)
 }
 
 func generateSecretKey(fieldPath string) string {
-	return fmt.Sprintf("%s%s", referencePrefix, fieldPath)
+	return fmt.Sprintf("%s%s", ReferencePrefix, fieldPath)
 }
