@@ -1848,7 +1848,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		concurrencyPolicy = batchv1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy))
+		concurrencyPolicy = batchv1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy)) // nolint: staticcheck
 	}
 	spec.ConcurrencyPolicy = concurrencyPolicy
 
