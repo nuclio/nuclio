@@ -168,10 +168,10 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 
 func (suite *MaskTestSuite) TestEncodeAndDecodeSecretKeys() {
 	fieldPath := "Spec/Build/CodeEntryAttributes/password"
-	encodedFieldPath := EncodeSecretKey(fieldPath)
+	encodedFieldPath := encodeSecretKey(fieldPath)
 	suite.logger.DebugWith("Encoded field path", "fieldPath", fieldPath, "encodedFieldPath", encodedFieldPath)
 
-	decodedFieldPath, err := DecodeSecretKey(encodedFieldPath)
+	decodedFieldPath, err := decodeSecretKey(encodedFieldPath)
 	suite.Require().NoError(err)
 	suite.Require().Equal(fieldPath, decodedFieldPath)
 }
@@ -194,7 +194,7 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 		if encodedKey == "content" {
 			continue
 		}
-		decodedKey, err := DecodeSecretKey(encodedKey)
+		decodedKey, err := decodeSecretKey(encodedKey)
 		suite.Require().NoError(err)
 		decodedKey = "$ref:" + decodedKey
 		suite.Require().Equal(secretMap[decodedKey], value)

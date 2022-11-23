@@ -30,10 +30,11 @@ import (
 )
 
 const (
-	ReferencePrefix         = "$ref:"
-	ReferenceToEnvVarPrefix = "NUCLIO_B64_"
-	NuclioSecretNamePrefix  = "nuclio-secret-"
-	NuclioSecretType        = "nuclio.io/functionconfig"
+	ReferencePrefix                  = "$ref:"
+	ReferenceToEnvVarPrefix          = "NUCLIO_B64_"
+	NuclioSecretNamePrefix           = "nuclio-secret-"
+	NuclioSecretType                 = "nuclio.io/functionconfig"
+	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
 )
 
 // Scrub scrubs sensitive data from a function config
@@ -106,7 +107,7 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 
 	// encode secret map keys
 	for secretKey, secretValue := range secretsMap {
-		encodedSecretsMap[EncodeSecretKey(secretKey)] = secretValue
+		encodedSecretsMap[encodeSecretKey(secretKey)] = secretValue
 	}
 
 	// encode the entire map into a single string
@@ -129,7 +130,7 @@ func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 			// which we don't care about when decoding
 			continue
 		}
-		decodedSecretKey, err := DecodeSecretKey(secretKey)
+		decodedSecretKey, err := decodeSecretKey(secretKey)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to decode secret key")
 		}
@@ -138,16 +139,25 @@ func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 	return decodedSecretsMap, nil
 }
 
-// EncodeSecretKey encodes a secret key
-func EncodeSecretKey(fieldPath string) string {
+func ResolveEnvVarNameFromReference(reference string) string {
+	fieldPath := strings.TrimPrefix(reference, ReferencePrefix)
+	return encodeSecretKey(fieldPath)
+}
+
+func GenerateFunctionSecretName(functionName string) string {
+	return fmt.Sprintf("%s%s", NuclioSecretNamePrefix, functionName)
+}
+
+// encodeSecretKey encodes a secret key
+func encodeSecretKey(fieldPath string) string {
 	fieldPath = strings.TrimPrefix(fieldPath, ReferencePrefix)
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
 	return fmt.Sprintf("%s%s", ReferenceToEnvVarPrefix, encodedFieldPath)
 }
 
-// DecodeSecretKey decodes a secret key and returns the original field
-func DecodeSecretKey(secretKey string) (string, error) {
+// decodeSecretKey decodes a secret key and returns the original field
+func decodeSecretKey(secretKey string) (string, error) {
 	encodedFieldPath := strings.TrimPrefix(secretKey, ReferenceToEnvVarPrefix)
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "_", "=")
 	decodedFieldPath, err := base64.StdEncoding.DecodeString(encodedFieldPath)
@@ -155,11 +165,6 @@ func DecodeSecretKey(secretKey string) (string, error) {
 		return "", errors.Wrap(err, "Failed to decode secret key")
 	}
 	return string(decodedFieldPath), nil
-}
-
-func ResolveEnvVarNameFromReference(reference string) string {
-	fieldPath := strings.TrimPrefix(reference, ReferencePrefix)
-	return EncodeSecretKey(fieldPath)
 }
 
 func generateSecretKey(fieldPath string) string {
