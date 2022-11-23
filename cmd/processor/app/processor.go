@@ -18,9 +18,11 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -118,6 +120,13 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
+
+	// restore function configuration from secret
+	restoredFunctionConfig, err := newProcessor.restoreFunctionConfig(&processorConfiguration.Config)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to restore function configuration")
+	}
+	processorConfiguration.Config = *restoredFunctionConfig
 
 	// for now, use the same logger for both the processor and user handler
 	newProcessor.functionLogger = newProcessor.logger
@@ -279,6 +288,55 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 	}
 
 	return &processorConfiguration, nil
+}
+
+func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*functionconfig.Config, error) {
+
+	secretsMap, err := p.getSecretsMap(config.Meta.Annotations)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get secrets map")
+	}
+
+	// if there are no secrets, return
+	if len(secretsMap) == 0 {
+		return nil, nil
+	}
+
+	restoredFunctionConfig, err := functionconfig.Restore(config, secretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to restore function config")
+	}
+
+	return restoredFunctionConfig, nil
+}
+
+func (p *Processor) getSecretsMap(annotations map[string]string) (map[string]string, error) {
+
+	if hasSecret, hasSecretExists := annotations["nuclio.io/function-secret"]; hasSecretExists &&
+		strings.ToLower(hasSecret) == "true" {
+
+		// read secret from file
+		encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/content", functionconfig.NuclioSecretMountPath))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to read function secret")
+		}
+
+		// decode secret
+		decodedSecret, err := base64.StdEncoding.DecodeString(string(encodedSecret))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode function secret")
+		}
+
+		// unmarshal secret into map
+		secretMap := map[string]string{}
+		if err := json.Unmarshal(decodedSecret, &secretMap); err != nil {
+			return nil, errors.Wrap(err, "Failed to unmarshal function secret")
+		}
+
+		return secretMap, nil
+
+	}
+	return map[string]string{}, nil
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {

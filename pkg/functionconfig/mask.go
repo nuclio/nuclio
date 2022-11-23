@@ -35,6 +35,8 @@ const (
 	NuclioSecretNamePrefix           = "nuclio-secret-"
 	NuclioSecretType                 = "nuclio.io/functionconfig"
 	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
+	HasSecretAnnotation              = "nuclio.io/has-secret"
+	NuclioSecretMountPath            = "/etc/nuclio/secrets"
 )
 
 // Scrub scrubs sensitive data from a function config
