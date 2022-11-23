@@ -190,6 +190,16 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to encode secrets map")
 	}
 
+	// if the secret map is not empty, annotate the function so the controller will know to mount the secret
+	if len(encodedSecretsMap) > 0 {
+		if scrubbedFunctionConfig.Meta.Annotations == nil {
+			scrubbedFunctionConfig.Meta.Annotations = map[string]string{}
+		}
+		scrubbedFunctionConfig.Meta.Annotations[functionconfig.HasSecretAnnotation] = "true"
+	} else {
+		delete(scrubbedFunctionConfig.Meta.Annotations, functionconfig.HasSecretAnnotation)
+	}
+
 	// create or update a secret for the function
 	if err := d.CreateOrUpdateFunctionSecret(ctx,
 		functionSecretExists,
@@ -228,7 +238,7 @@ func (d *Deployer) GetFunctionSecretMap(ctx context.Context, functionName, funct
 func (d *Deployer) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
 
 	// get existing function secret
-	secretName := d.generateFunctionSecretName(functionName)
+	secretName := functionconfig.GenerateFunctionSecretName(functionName)
 	functionSecret, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -247,7 +257,7 @@ func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context,
 
 	secretConfig := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: d.generateFunctionSecretName(name),
+			Name: functionconfig.GenerateFunctionSecretName(name),
 			Labels: map[string]string{
 				"nuclio.io/function-name": name,
 			},
@@ -298,10 +308,6 @@ func (d *Deployer) CreateOrUpdateFunctionSecret(ctx context.Context,
 		}
 	}
 	return nil
-}
-
-func (d *Deployer) generateFunctionSecretName(functionName string) string {
-	return fmt.Sprintf("%s%s", functionconfig.NuclioSecretNamePrefix, functionName)
 }
 
 func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,

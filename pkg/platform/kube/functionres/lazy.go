@@ -2147,6 +2147,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
 	trueVal := true
+	falseVal := false
 	var configVolumes []functionconfig.Volume
 	var filteredFunctionVolumes []functionconfig.Volume
 
@@ -2217,6 +2218,17 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 
 				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
 			}
+
+			// resolve sensitive data in flex volume options
+			accessKey, accessKeyExists := configVolume.Volume.FlexVolume.Options["accessKey"]
+			if accessKeyExists && strings.HasPrefix(accessKey, functionconfig.ReferencePrefix) {
+
+				// add secret ref to the flex volume
+				secretRef := &v1.LocalObjectReference{
+					Name: functionconfig.GenerateFunctionSecretName(function.Name),
+				}
+				configVolume.Volume.FlexVolume.SecretRef = secretRef
+			}
 		}
 
 		lc.logger.DebugWithCtx(ctx, "Adding volume",
@@ -2229,6 +2241,25 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 		// same volume name can be shared by n volume mounts
 		volumeNameToVolumeMounts[configVolume.Volume.Name] = append(volumeNameToVolumeMounts[configVolume.Volume.Name],
 			configVolume.VolumeMount)
+	}
+
+	// volume the function secret if needed
+	if hasSecret, hasSecretExists := function.Annotations[functionconfig.HasSecretAnnotation]; hasSecretExists && hasSecret == "true" {
+		secretVolumeName := "function-secret"
+		volumeNameToVolume[secretVolumeName] = v1.Volume{
+			Name: secretVolumeName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: functionconfig.GenerateFunctionSecretName(function.Name),
+					Optional:   &falseVal,
+				},
+			},
+		}
+		volumeNameToVolumeMounts[secretVolumeName] = append(volumeNameToVolumeMounts[secretVolumeName], v1.VolumeMount{
+			Name:      secretVolumeName,
+			MountPath: functionconfig.NuclioSecretMountPath,
+			ReadOnly:  true,
+		})
 	}
 
 	for _, volume := range volumeNameToVolume {

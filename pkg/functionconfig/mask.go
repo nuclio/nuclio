@@ -34,6 +34,8 @@ const (
 	ReferenceToEnvVarPrefix = "NUCLIO_B64_"
 	NuclioSecretNamePrefix  = "nuclio-secret-"
 	NuclioSecretType        = "nuclio.io/functionconfig"
+	HasSecretAnnotation     = "nuclio.io/has-secret"
+	NuclioSecretMountPath   = "/etc/nuclio/secrets"
 )
 
 // Scrub scrubs sensitive data from a function config
@@ -160,6 +162,10 @@ func DecodeSecretKey(secretKey string) (string, error) {
 func ResolveEnvVarNameFromReference(reference string) string {
 	fieldPath := strings.TrimPrefix(reference, ReferencePrefix)
 	return EncodeSecretKey(fieldPath)
+}
+
+func GenerateFunctionSecretName(functionName string) string {
+	return fmt.Sprintf("%s%s", NuclioSecretNamePrefix, functionName)
 }
 
 func generateSecretKey(fieldPath string) string {

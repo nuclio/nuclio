@@ -777,6 +777,25 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
 		"password": password,
 	}
+	//createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+	//	{
+	//		Volume: v1.Volume{
+	//			Name: "flex-volume",
+	//			VolumeSource: v1.VolumeSource{
+	//				FlexVolume: &v1.FlexVolumeSource{
+	//					Driver: "v3io/fuse",
+	//					Options: map[string]string{
+	//						"accessKey": "some-access-key",
+	//					},
+	//				},
+	//			},
+	//		},
+	//		VolumeMount: v1.VolumeMount{
+	//			Name:      "flex-volume",
+	//			MountPath: "/mnt/flex-volume",
+	//		},
+	//	},
+	//}
 
 	// delete function secret when done
 	defer func() {
