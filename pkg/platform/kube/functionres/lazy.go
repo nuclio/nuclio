@@ -426,6 +426,11 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		lc.logger.DebugWithCtx(ctx, "Deleted service", "namespace", namespace, "serviceName", serviceName)
 	}
 
+	// Delete Secrets if exist
+	if err = lc.deleteFunctionSecrets(ctx, namespace, name); err != nil {
+		return errors.Wrap(err, "Failed to delete function secrets")
+	}
+
 	// Delete Deployment if exists
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(ctx, deploymentName, deleteOptions)
@@ -2225,7 +2230,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 
 				// add secret ref to the flex volume
 				secretRef := &v1.LocalObjectReference{
-					Name: functionconfig.GenerateFunctionSecretName(function.Name),
+					Name: fmt.Sprintf("%s%s", functionconfig.NuclioFlexVolumeSecretNamePrefix, function.Name),
 				}
 				configVolume.Volume.FlexVolume.SecretRef = secretRef
 			}
@@ -2244,7 +2249,8 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	}
 
 	// volume the function secret if needed
-	if hasSecret, hasSecretExists := function.Annotations[functionconfig.HasSecretAnnotation]; hasSecretExists && hasSecret == "true" {
+	if hasSecret, hasSecretExists := function.Annotations[functionconfig.HasSecretAnnotation]; hasSecretExists &&
+		strings.ToLower(hasSecret) == "true" {
 		secretVolumeName := "function-secret"
 		volumeNameToVolume[secretVolumeName] = v1.Volume{
 			Name: secretVolumeName,
@@ -2281,6 +2287,27 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 
 	// flatten and return as list of instances
 	return volumes, volumeMounts
+}
+
+// deleteFunctionSecrets deletes the function's secrets
+func (lc *lazyClient) deleteFunctionSecrets(ctx context.Context, functionName, namespace string) error {
+
+	// function can have multiple secrets, in case a flex volume exists
+	// delete all of them
+	secretsToDelete, err := lc.kubeClientSet.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to list secrets")
+	}
+
+	for _, secret := range secretsToDelete.Items {
+		if err := lc.kubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
+			return errors.Wrap(err, "Failed to delete secret")
+		}
+	}
+
+	return nil
 }
 
 func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName string, namespace string) error {

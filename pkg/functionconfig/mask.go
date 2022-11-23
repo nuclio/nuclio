@@ -30,12 +30,13 @@ import (
 )
 
 const (
-	ReferencePrefix         = "$ref:"
-	ReferenceToEnvVarPrefix = "NUCLIO_B64_"
-	NuclioSecretNamePrefix  = "nuclio-secret-"
-	NuclioSecretType        = "nuclio.io/functionconfig"
-	HasSecretAnnotation     = "nuclio.io/has-secret"
-	NuclioSecretMountPath   = "/etc/nuclio/secrets"
+	ReferencePrefix                  = "$ref:"
+	ReferenceToEnvVarPrefix          = "NUCLIO_B64_"
+	NuclioSecretNamePrefix           = "nuclio-secret-"
+	NuclioSecretType                 = "nuclio.io/functionconfig"
+	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
+	HasSecretAnnotation              = "nuclio.io/has-secret"
+	NuclioSecretMountPath            = "/etc/nuclio/secrets"
 )
 
 // Scrub scrubs sensitive data from a function config
