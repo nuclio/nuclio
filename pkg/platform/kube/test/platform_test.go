@@ -769,6 +769,11 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 	// set platform config to support scrubbing
 	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
 
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
 	functionName := "func-with-secret"
 	password := "1234"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)

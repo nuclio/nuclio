@@ -189,9 +189,9 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 	suite.logger.DebugWith("Encoded secret map", "secretMap", secretMap, "encodedSecretMap", encodedSecretMap)
 
 	suite.Require().Contains(encodedSecretMap, "content")
-	suite.Require().Greater(len(encodedSecretMap["content"]), 0)
+	suite.Require().NotEmpty(len(encodedSecretMap["content"]))
 	for encodedKey, value := range encodedSecretMap {
-		if encodedKey == "content" {
+		if encodedKey == SecretContentKey {
 			continue
 		}
 		decodedKey, err := decodeSecretKey(encodedKey)

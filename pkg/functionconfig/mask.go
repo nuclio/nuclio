@@ -35,6 +35,7 @@ const (
 	NuclioSecretNamePrefix           = "nuclio-secret-"
 	NuclioSecretType                 = "nuclio.io/functionconfig"
 	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
+	SecretContentKey                 = "content"
 )
 
 // Scrub scrubs sensitive data from a function config
@@ -115,7 +116,7 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to marshal secrets map")
 	}
-	encodedSecretsMap["content"] = base64.StdEncoding.EncodeToString(secretsMapContent)
+	encodedSecretsMap[SecretContentKey] = base64.StdEncoding.EncodeToString(secretsMapContent)
 
 	return encodedSecretsMap, nil
 }
@@ -124,7 +125,7 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 	decodedSecretsMap := map[string]string{}
 	for secretKey, secretValue := range secretData {
-		if secretKey == "content" {
+		if secretKey == SecretContentKey {
 
 			// when the secret is created, the entire map is encoded into a single string under the "content" key
 			// which we don't care about when decoding
