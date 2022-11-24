@@ -19,6 +19,7 @@ package functionres
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -2228,11 +2229,18 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			accessKey, accessKeyExists := configVolume.Volume.FlexVolume.Options["accessKey"]
 			if accessKeyExists && strings.HasPrefix(accessKey, functionconfig.ReferencePrefix) {
 
-				// add secret ref to the flex volume
-				secretRef := &v1.LocalObjectReference{
-					Name: fmt.Sprintf("%s%s", functionconfig.NuclioFlexVolumeSecretNamePrefix, function.Name),
+				// get the flex volume secret name
+				secretName, err := lc.getFlexVolumeSecretName(ctx, function, accessKey)
+				if err != nil {
+					lc.logger.WarnWithCtx(ctx, "Failed to get flex volume secret name. Ignoring volume",
+						"err", err)
+					continue
 				}
-				configVolume.Volume.FlexVolume.SecretRef = secretRef
+
+				// add secret ref to the flex volume
+				configVolume.Volume.FlexVolume.SecretRef = &v1.LocalObjectReference{
+					Name: secretName,
+				}
 			}
 		}
 
@@ -2287,6 +2295,34 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 
 	// flatten and return as list of instances
 	return volumes, volumeMounts
+}
+
+func (lc *lazyClient) getFlexVolumeSecretName(ctx context.Context, function *nuclioio.NuclioFunction, accessKeyReference string) (string, error) {
+	accessKeyReference = strings.TrimPrefix(accessKeyReference, functionconfig.ReferencePrefix)
+
+	// hash the reference
+	secretRefHash := sha256.Sum256([]byte(accessKeyReference))
+
+	// get all secret with label selector containing the secretRefHash
+	secretList, err := lc.kubeClientSet.CoreV1().Secrets(function.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%x", functionconfig.AccessKeyLabel, secretRefHash),
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to list secrets")
+	}
+
+	// if there are no secrets with the label selector, return error
+	if len(secretList.Items) == 0 {
+		return "", errors.New("No secrets found")
+	}
+
+	// if there are more than one secret with the label selector, return error
+	if len(secretList.Items) > 1 {
+		return "", errors.New("More than one secret found")
+	}
+
+	// return the secret name
+	return secretList.Items[0].Name, nil
 }
 
 // deleteFunctionSecrets deletes the function's secrets

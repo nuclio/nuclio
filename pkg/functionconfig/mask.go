@@ -37,6 +37,7 @@ const (
 	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
 	HasSecretAnnotation              = "nuclio.io/has-secret"
 	NuclioSecretMountPath            = "/etc/nuclio/secrets"
+	AccessKeyLabel                   = "nuclio.io/access-key"
 )
 
 // Scrub scrubs sensitive data from a function config
