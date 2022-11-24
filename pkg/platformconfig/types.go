@@ -280,6 +280,8 @@ func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 		"^/spec/build/codeentryattributes/password",
 		// volumes
 		"^/spec/volumes\\[\\d+\\]/volume/volumesource/flexvolume/options/accesskey",
+		"^/spec/volumes\\[\\d+\\]/volume/flexvolume/options/accesskey",
+
 		// triggers - global
 		"^/spec/triggers/.+/password",
 		"^/spec/triggers/.+/secret",

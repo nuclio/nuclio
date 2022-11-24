@@ -783,45 +783,70 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 		"password": password,
 	}
 
-	// delete function secret when done
+	// delete function secrets when done
 	defer func() {
-		err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(suite.Ctx, secretName, metav1.DeleteOptions{})
+		secrets, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+		})
 		if err != nil {
-			suite.Logger.WarnWith("Failed to delete secret", "err", err)
+			suite.Logger.WarnWith("Failed to list secrets", "err", err)
+		}
+
+		for _, secret := range secrets.Items {
+			err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(suite.Ctx, secret.Name, metav1.DeleteOptions{})
+			if err != nil {
+				suite.Logger.WarnWith("Failed to delete secret", "err", err, "secretName", secret.Name)
+			}
 		}
 	}()
 
 	// deploy function
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
-		// get function secret
-		secret, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Get(suite.Ctx, secretName, metav1.GetOptions{})
+		// get function secrets
+		secrets, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+		})
 		suite.Require().NoError(err)
+		suite.Require().Len(secrets.Items, 1)
 
-		// decode data from secret?
-		decodedSecretData, err := functionconfig.DecodeSecretData(secret.Data)
-		suite.Require().NoError(err)
-		suite.Logger.DebugWithCtx(suite.Ctx,
-			"Got function secret",
-			"secretData", secret.Data,
-			"decodedSecretData", decodedSecretData)
+		for _, secret := range secrets.Items {
+			switch secret.Name {
+			case secretName:
 
-		// verify password is in secret data
-		secretKey := "/Spec/Build/CodeEntryAttributes/password"
-		suite.Require().Equal(password, decodedSecretData[secretKey])
+				// decode data from secret?
+				decodedSecretData, err := functionconfig.DecodeSecretData(secret.Data)
+				suite.Require().NoError(err)
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got function secret",
+					"secretData", secret.Data,
+					"decodedSecretData", decodedSecretData)
 
-		// verify secret's "content" also contains the password
+				// verify password is in secret data
+				secretKey := "/spec/build/codeEntryAttributes/password"
+				suite.Require().Equal(password, decodedSecretData[secretKey])
 
-		var decodedSecretsDataContent map[string]string
-		secretContent := string(secret.Data["content"])
-		decodedContents, err := base64.StdEncoding.DecodeString(secretContent)
-		suite.Require().NoError(err)
-		err = json.Unmarshal(decodedContents, &decodedSecretsDataContent)
-		suite.Require().NoError(err)
+				// verify secret's "content" also contains the password
 
-		secretKeyEnvVar := functionconfig.ResolveEnvVarNameFromReference(secretKey)
-		suite.Require().Equal(password, decodedSecretsDataContent[secretKeyEnvVar])
+				var decodedSecretsDataContent map[string]string
+				secretContent := string(secret.Data["content"])
+				decodedContents, err := base64.StdEncoding.DecodeString(secretContent)
+				suite.Require().NoError(err)
+				err = json.Unmarshal(decodedContents, &decodedSecretsDataContent)
+				suite.Require().NoError(err)
 
+				secretKeyEnvVar := functionconfig.ResolveEnvVarNameFromReference(secretKey)
+				suite.Require().Equal(password, decodedSecretsDataContent[secretKeyEnvVar])
+
+			default:
+
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got unknown secret",
+					"secretName", secret.Name,
+					"secretData", secret.Data)
+			}
+
+		}
 		return true
 	})
 }

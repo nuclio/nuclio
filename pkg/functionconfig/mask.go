@@ -17,12 +17,15 @@ limitations under the License.
 package functionconfig
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/gosecretive"
@@ -45,8 +48,15 @@ func Scrub(functionConfig *Config,
 
 	var err error
 
+	// hack to support avoid losing unexported fields while scrubbing.
+	// scrub the function config to map[string]interface{} and revert it back to a function config later
+	functionConfigAsMap := common.StructureToMap(functionConfig)
+	if len(functionConfigAsMap) == 0 {
+		return nil, nil, errors.New("Failed to convert function config to map")
+	}
+
 	// scrub the function config
-	scrubbedFunctionConfig, secretsMap := gosecretive.Scrub(functionConfig, func(fieldPath string, valueToScrub interface{}) *string {
+	scrubbedFunctionConfigAsMap, secretsMap := gosecretive.Scrub(functionConfigAsMap, func(fieldPath string, valueToScrub interface{}) *string {
 
 		for _, fieldPathRegexToScrub := range sensitiveFields {
 
@@ -93,7 +103,17 @@ func Scrub(functionConfig *Config,
 		secretsMap = labels.Merge(secretsMap, existingSecretMap)
 	}
 
-	return scrubbedFunctionConfig.(*Config), secretsMap, err
+	// marshal and unmarshal the scrubbed object back to function config
+	scrubbedFunctionConfig := &Config{}
+	masrhalledScrubbedFunctionConfig, err := json.Marshal(scrubbedFunctionConfigAsMap.(map[string]interface{}))
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to marshal scrubbed function config")
+	}
+	if err = json.Unmarshal(masrhalledScrubbedFunctionConfig, scrubbedFunctionConfig); err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to unmarshal scrubbed function config")
+	}
+
+	return scrubbedFunctionConfig, secretsMap, err
 }
 
 // Restore restores sensitive data in a function config from a secrets map
@@ -145,8 +165,9 @@ func ResolveEnvVarNameFromReference(reference string) string {
 	return encodeSecretKey(fieldPath)
 }
 
-func GenerateFunctionSecretName(functionName string) string {
-	return fmt.Sprintf("%s%s", NuclioSecretNamePrefix, functionName)
+func GenerateAccessKeyRefHashString(accessKeyRef string) string {
+	accessKeyRefHash := sha256.Sum256([]byte(strings.TrimPrefix(accessKeyRef, ReferencePrefix)))
+	return fmt.Sprintf("%x", accessKeyRefHash)
 }
 
 // encodeSecretKey encodes a secret key

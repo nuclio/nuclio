@@ -211,12 +211,13 @@ func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
 		"^/Spec/Build/CodeEntryAttributes/password",
 		// Path nested in an array
 		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey",
+		"^/Spec/Volumes\\[\\d+\\]/Volume/FlexVolume/Options/accesskey",
 		// Path for any map element
 		"^/Spec/Triggers/.+/Password",
 		// Nested path in any map element
 		"^/Spec/Triggers/.+/Attributes/password",
 	} {
-		regexpList = append(regexpList, regexp.MustCompile(sensitiveFieldPath))
+		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
 	}
 	return regexpList
 }
