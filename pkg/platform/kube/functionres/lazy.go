@@ -49,6 +49,8 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -1848,7 +1850,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		concurrencyPolicy = batchv1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy))
+		concurrencyPolicy = batchv1.ConcurrencyPolicy(cases.Title(language.Und).String(attributes.ConcurrencyPolicy))
 	}
 	spec.ConcurrencyPolicy = concurrencyPolicy
 
