@@ -2290,9 +2290,6 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 }
 
 func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) ([]autosv2.MetricSpec, error) {
-	//if function.Spec.CustomScalingMetricSpecs != nil {
-	//	return function.Spec.CustomScalingMetricSpecs, nil
-	//}
 
 	metricSpecs, err := lc.resolveMetricSpecs(function)
 	if err != nil {
@@ -2308,7 +2305,6 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 		targetCPU = abstract.DefaultTargetCPU
 	}
 
-	var metricSpecs []autosv2.MetricSpec
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	if lc.functionsHaveAutoScaleMetrics(platformConfig) {
 		targetValue, err := apiresource.ParseQuantity(platformConfig.AutoScale.TargetValue)
@@ -2378,9 +2374,9 @@ func (lc *lazyClient) generateMetricSpecFromAutoscaleMetrics(autoscaleMetrics []
 		case autosv2.ResourceMetricSourceType:
 			targetAverageUtilization := int32(autoscaleMetric.TargetValue)
 			metricSpec = autosv2.MetricSpec{
-				Type:     autoscaleMetric.Kind,
+				Type: autoscaleMetric.Kind,
 				Resource: &autosv2.ResourceMetricSource{
-					Name: v1.ResourceName(autoscaleMetric.Name),
+					Name:                     v1.ResourceName(autoscaleMetric.Name),
 					TargetAverageUtilization: &targetAverageUtilization,
 				},
 			}
@@ -2398,13 +2394,16 @@ func (lc *lazyClient) generateMetricSpecFromAutoscaleMetrics(autoscaleMetrics []
 			}
 
 		case autosv2.ExternalMetricSourceType:
-			externalMetricSource, err := lc.generateExternalMetricSourceFromAutoscaleMetric(autoscaleMetric)
+			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.TargetValue))
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to generate external metric source from autoscale metric")
+				return nil, errors.Wrap(err, "Failed to parse quantity")
 			}
-			metricSpecs = append(metricSpecs, autosv2.MetricSpec{
-				Type:     "External",
-				External: externalMetricSource,
+			metricSpec = autosv2.MetricSpec{
+				Type: autoscaleMetric.Kind,
+				External: &autosv2.ExternalMetricSource{
+					MetricName:  autoscaleMetric.Name,
+					TargetValue: &quantity,
+				},
 			}
 		default:
 			return nil, errors.Errorf("Unknown metric type: %s", autoscaleMetric.Type)
@@ -2414,7 +2413,7 @@ func (lc *lazyClient) generateMetricSpecFromAutoscaleMetrics(autoscaleMetrics []
 
 	}
 
-	return nil, nil
+	return metricSpecs, nil
 }
 
 func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceName {

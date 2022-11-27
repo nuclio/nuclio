@@ -226,24 +226,24 @@ func (c *Config) GetDefaultSupportedAutoScaleMetrics() []functionconfig.AutoScal
 
 		// Stream metrics
 		{
-			Name: "hwm_processed",
+			Name: "nuclio_processor_stream_high_water_mark_processed_lag",
 			Kind: autosv2.ExternalMetricSourceType,
 			Type: functionconfig.AutoScaleMetricTypeInt,
 		},
 		{
-			Name: "hwm_committed",
+			Name: "nuclio_processor_stream_high_water_mark_committed_lag",
 			Kind: autosv2.ExternalMetricSourceType,
 			Type: functionconfig.AutoScaleMetricTypeInt,
 		},
 
 		// Event metrics
 		{
-			Name: "events_pending_worker_allocation",
+			Name: "nuclio_processor_worker_pending_allocation_current",
 			Kind: autosv2.ExternalMetricSourceType,
 			Type: functionconfig.AutoScaleMetricTypeInt,
 		},
 		{
-			Name: "waiting_time_for_worker_allocation_over_30s",
+			Name: "nuclio_processor_worker_allocation_wait_duration_ms_sum",
 			Kind: autosv2.ExternalMetricSourceType,
 			Type: functionconfig.AutoScaleMetricTypeInt,
 		},
