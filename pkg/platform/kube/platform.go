@@ -1227,6 +1227,18 @@ func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, nam
 	})
 }
 
+// GetFunctionSecrets returns all the function's secrets
+func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]v1.Secret, error) {
+	secrets, err := p.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list function flex volume secrets")
+	}
+
+	return secrets.Items, nil
+}
+
 func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, namespace string) (map[string][]string, error) {
 	functionToAPIGateways := map[string][]string{}
 

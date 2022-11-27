@@ -17,8 +17,9 @@ limitations under the License.
 package functionconfig
 
 import (
-	"crypto/sha256"
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -36,8 +37,9 @@ const (
 	ReferencePrefix                  = "$ref:"
 	ReferenceToEnvVarPrefix          = "NUCLIO_B64_"
 	NuclioSecretNamePrefix           = "nuclio-secret-"
-	NuclioSecretType                 = "nuclio.io/functionconfig"
 	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
+	SecretTypeFunctionConfig         = "nuclio.io/functionconfig"
+	SecretTypeV3ioFuse               = "v3io/fuse"
 	SecretContentKey                 = "content"
 )
 
@@ -166,8 +168,10 @@ func ResolveEnvVarNameFromReference(reference string) string {
 }
 
 func GenerateAccessKeyRefHashString(accessKeyRef string) string {
-	accessKeyRefHash := sha256.Sum256([]byte(strings.TrimPrefix(accessKeyRef, ReferencePrefix)))
-	return fmt.Sprintf("%x", accessKeyRefHash)
+
+	// using md5 for a shorter hash string (vs sha256) as k8s has a 63 character limit on secret keys
+	hash := md5.Sum([]byte(strings.TrimPrefix(accessKeyRef, ReferencePrefix)))
+	return hex.EncodeToString(hash[:])
 }
 
 // encodeSecretKey encodes a secret key

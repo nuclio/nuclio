@@ -1195,6 +1195,11 @@ func (ap *Platform) QueryOPAMultipleResources(resources []string,
 	return ap.queryOPAPermissionsMultiResources(resources, action, permissionOptions)
 }
 
+// GetFunctionSecrets returns all the function's secrets
+func (ap *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]v1.Secret, error) {
+	return nil, nil
+}
+
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
 
 	// if neverBuild was passed explicitly don't build

@@ -766,24 +766,20 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
 
 func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 
-	// set platform config to support scrubbing
-	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
-
-	// reset platform configuration when done
-	defer func() {
-		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
-	}()
-
 	functionName := "func-with-secret"
 	password := "1234"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-	secretName := fmt.Sprintf("%s%s", functionconfig.NuclioSecretNamePrefix, functionName)
 
+	// enable masking sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.MaskSensitiveFields = true
+
+	// add sensitive fields
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
 		"password": password,
 	}
 
 	// delete function secrets when done
+	// TODO: remove this when the controller side PR is done
 	defer func() {
 		secrets, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
@@ -804,15 +800,12 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get function secrets
-		secrets, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
-		})
+		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
 		suite.Require().NoError(err)
-		suite.Require().Len(secrets.Items, 1)
+		suite.Require().Len(secrets, 2)
 
-		for _, secret := range secrets.Items {
-			switch secret.Name {
-			case secretName:
+		for _, secret := range secrets {
+			if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
 
 				// decode data from secret?
 				decodedSecretData, err := functionconfig.DecodeSecretData(secret.Data)
@@ -823,11 +816,10 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 					"decodedSecretData", decodedSecretData)
 
 				// verify password is in secret data
-				secretKey := "/spec/build/codeEntryAttributes/password"
+				secretKey := strings.ToLower("/spec/build/codeEntryAttributes/password")
 				suite.Require().Equal(password, decodedSecretData[secretKey])
 
 				// verify secret's "content" also contains the password
-
 				var decodedSecretsDataContent map[string]string
 				secretContent := string(secret.Data["content"])
 				decodedContents, err := base64.StdEncoding.DecodeString(secretContent)
@@ -838,12 +830,19 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 				secretKeyEnvVar := functionconfig.ResolveEnvVarNameFromReference(secretKey)
 				suite.Require().Equal(password, decodedSecretsDataContent[secretKeyEnvVar])
 
-			default:
+				//	// TODO: test flex volume secrets once controller PR is implemented
+				//} else if strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
+				//
+				//	// verify access key is in secret data
+				//	suite.Require().Equal(accessKey, string(secret.Data["accessKey"]))
+
+			} else {
 
 				suite.Logger.DebugWithCtx(suite.Ctx,
 					"Got unknown secret",
 					"secretName", secret.Name,
 					"secretData", secret.Data)
+				suite.Failf("Got unknown secret. Secret name: %s\n", secret.Name)
 			}
 
 		}
