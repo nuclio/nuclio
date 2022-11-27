@@ -46,7 +46,7 @@ func Scrub(functionConfig *Config,
 	existingSecretMap map[string]string,
 	sensitiveFields []*regexp.Regexp) (*Config, map[string]string, error) {
 
-	var err error
+	var scrubErr error
 
 	// hack to support avoid losing unexported fields while scrubbing.
 	// scrub the function config to map[string]interface{} and revert it back to a function config later
@@ -78,12 +78,12 @@ func Scrub(functionConfig *Config,
 					// and contains the reference
 					if strings.HasPrefix(stringValue, ReferencePrefix) {
 						if existingSecretMap != nil {
-							trimmedSecretKey := strings.TrimSpace(strings.TrimPrefix(secretKey, ReferencePrefix))
+							trimmedSecretKey := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(secretKey, ReferencePrefix)))
 							if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
-								err = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
+								scrubErr = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
 							}
 						} else {
-							err = errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
+							scrubErr = errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
 						}
 						return nil
 					}
@@ -113,7 +113,7 @@ func Scrub(functionConfig *Config,
 		return nil, nil, errors.Wrap(err, "Failed to unmarshal scrubbed function config")
 	}
 
-	return scrubbedFunctionConfig, secretsMap, err
+	return scrubbedFunctionConfig, secretsMap, scrubErr
 }
 
 // Restore restores sensitive data in a function config from a secrets map
@@ -190,5 +190,5 @@ func decodeSecretKey(secretKey string) (string, error) {
 }
 
 func generateSecretKey(fieldPath string) string {
-	return fmt.Sprintf("%s%s", ReferencePrefix, fieldPath)
+	return fmt.Sprintf("%s%s", ReferencePrefix, strings.ToLower(fieldPath))
 }
