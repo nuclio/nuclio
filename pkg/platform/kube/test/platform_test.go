@@ -802,7 +802,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 		// get function secrets
 		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
 		suite.Require().NoError(err)
-		suite.Require().Len(secrets, 2)
+		suite.Require().Len(secrets, 1)
 
 		for _, secret := range secrets {
 			if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
