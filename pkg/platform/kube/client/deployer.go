@@ -81,9 +81,9 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
 	}
 
-	if functionInstance.Spec.MaskSensitiveFields {
+	// scrub the function config if enabled
+	if d.platform.GetConfig().SensitiveFields.MaskSensitiveFields && !functionInstance.Spec.DisableSensitiveFieldsMasking {
 
-		// scrub the function config
 		scrubbedFunctionConfig, err := d.ScrubFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to scrub function configuration")
@@ -182,8 +182,10 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 
 	// create flex volume secrets if needed
 	if err := d.createFlexVolumeSecrets(ctx,
+		functionConfig.Spec.Volumes,
 		functionConfig.Meta.Name,
 		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		secretsMap); err != nil {
 		return nil, errors.Wrap(err, "Failed to handle v3io fuse secret")
 	}
@@ -198,7 +200,8 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	if err := d.createOrUpdateFunctionSecret(ctx,
 		encodedSecretsMap,
 		functionConfig.Meta.Name,
-		functionConfig.Meta.Namespace); err != nil {
+		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]); err != nil {
 		return nil, errors.Wrap(err, "Failed to create function secret")
 	}
 
@@ -255,13 +258,15 @@ func (d *Deployer) getFunctionSecretData(ctx context.Context, functionName, func
 func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 	encodedSecretsMap map[string]string,
 	name,
-	namespace string) error {
+	namespace,
+	projectName string) error {
 
 	secretConfig := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: d.generateFunctionSecretName(name, functionconfig.NuclioSecretNamePrefix),
 			Labels: map[string]string{
 				common.NuclioResourceLabelKeyFunctionName: name,
+				common.NuclioResourceLabelKeyProjectName:  projectName,
 			},
 		},
 		Type:       functionconfig.SecretTypeFunctionConfig,
@@ -279,73 +284,90 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 	return d.deleteExistingSecret(ctx, namespace, secretConfig.Name)
 }
 
-func (d *Deployer) generateFunctionSecretName(functionName, secretPrefix string) string {
-	secretName := fmt.Sprintf("%s%s", secretPrefix, functionName)
-	if len(secretName) > common.KubernetesDomainLevelMaxLength {
-		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
-	}
-	return secretName
-}
+func (d *Deployer) createFlexVolumeSecrets(ctx context.Context, volumes []functionconfig.Volume, functionName, functionNamespace, projectName string, secretsMap map[string]string) error {
 
-func (d *Deployer) createFlexVolumeSecrets(ctx context.Context, functionName, functionNamespace string, secretsMap map[string]string) error {
+	var createdSecretVolumeNames []string
 
-	// delete stale flex volume secrets
-	if err := d.deleteStaleFlexVolumeSecrets(ctx, functionName, functionNamespace); err != nil {
-		return errors.Wrap(err, "Failed to delete stale flex volume secrets")
-	}
-
-	// check if flex volume secret exists in the secrets map, if so, create or update the secret
-	for secretKey, secretValue := range secretsMap {
-		if strings.Contains(strings.ToLower(secretKey), "flexvolume") &&
-			strings.Contains(strings.ToLower(secretKey), "accesskey") {
-
-			d.logger.DebugWithCtx(ctx, "Found flex volume sensitive data in function config", "functionName", functionName)
-
-			// create secret name with unique suffix
-			flexVolumeSecretName := fmt.Sprintf(d.generateFunctionSecretName(functionName, functionconfig.NuclioFlexVolumeSecretNamePrefix),
-				xid.New().String())
-
-			// create the access key hash based on the reference
-			accessKeyRefHashString := functionconfig.GenerateAccessKeyRefHashString(secretValue)
-
-			// create the secret
-			secretConfig := &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: flexVolumeSecretName,
-					Labels: map[string]string{
-						common.NuclioResourceLabelKeyFunctionName: functionName,
-						common.NuclioResourceLabelKeyAccessKey:    accessKeyRefHashString,
-					},
-				},
-				Type: functionconfig.SecretTypeV3ioFuse,
-				StringData: map[string]string{
-					"accessKey": secretValue,
-				},
-			}
-			if err := d.createOrUpdateSecret(ctx, functionNamespace, secretConfig); err != nil {
+	for volumeIndex, volume := range volumes {
+		if volume.Volume.FlexVolume != nil && volume.Volume.FlexVolume.Driver == functionconfig.SecretTypeV3ioFuse {
+			createdSecretVolumeNames = append(createdSecretVolumeNames, volume.Volume.Name)
+			if err := d.createOrUpdateFlexVolumeSecret(ctx,
+				volumeIndex,
+				volume.Volume.Name,
+				functionName,
+				functionNamespace,
+				projectName,
+				secretsMap); err != nil {
 				return errors.Wrap(err, "Failed to create flex volume secret")
 			}
-
 		}
+	}
+
+	// delete stale flex volume secrets
+	if err := d.deleteStaleFlexVolumeSecrets(ctx, createdSecretVolumeNames, functionName, functionNamespace); err != nil {
+		return errors.Wrap(err, "Failed to delete stale flex volume secrets")
 	}
 
 	return nil
 }
-func (d *Deployer) deleteStaleFlexVolumeSecrets(ctx context.Context, name, namespace string) error {
 
-	// get all secrets for the function
-	secrets, err := d.platform.GetFunctionSecrets(ctx, name, namespace)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function secrets")
+func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
+	volumeIndex int,
+	volumeName,
+	functionName,
+	functionNamespace,
+	projectName string,
+	secretsMap map[string]string) error {
+
+	var accessKey string
+
+	// get access key value
+	for secretKey, secretValue := range secretsMap {
+		if strings.Contains(secretKey, "flexvolume") && strings.Contains(secretKey, fmt.Sprintf("[%d]", volumeIndex)) {
+			accessKey = secretValue
+			break
+		}
 	}
 
-	// delete stale flex volume secrets
-	for _, secret := range secrets {
-		if secret.Type == functionconfig.SecretTypeV3ioFuse && strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
-			if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
-				return errors.Wrap(err, "Failed to delete stale flex volume secret")
-			}
-		}
+	if accessKey == "" {
+		return errors.New("Failed to find access key in secrets map")
+	}
+
+	// create secret name with unique suffix
+	flexVolumeSecretName := d.generateFunctionSecretName(fmt.Sprintf("%s-%s", functionName, xid.New().String()),
+		functionconfig.NuclioFlexVolumeSecretNamePrefix)
+
+	// check if a secret with the same access key reference already exists
+	existingFlexVolumeSecrets, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to list flex volume secrets")
+	}
+
+	// if a secret with the same access key reference exists, use it
+	if len(existingFlexVolumeSecrets.Items) > 0 {
+		flexVolumeSecretName = existingFlexVolumeSecrets.Items[0].Name
+	}
+
+	// create a secret for the volume
+	secretConfig := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: flexVolumeSecretName,
+			Labels: map[string]string{
+				common.NuclioResourceLabelKeyFunctionName: functionName,
+				common.NuclioResourceLabelKeyProjectName:  functionName,
+				common.NuclioResourceLabelKeyVolumeName:   volumeName,
+			},
+		},
+		Type: functionconfig.SecretTypeV3ioFuse,
+		StringData: map[string]string{
+			"accessKey": accessKey,
+		},
+	}
+
+	if err := d.createOrUpdateSecret(ctx, functionNamespace, secretConfig); err != nil {
+		return errors.Wrap(err, "Failed to create flex volume secret")
 	}
 
 	return nil
@@ -380,6 +402,41 @@ func (d *Deployer) createOrUpdateSecret(ctx context.Context, namespace string, s
 	return nil
 }
 
+func (d *Deployer) deleteStaleFlexVolumeSecrets(ctx context.Context,
+	createdSecretVolumeNames []string,
+	functionName,
+	namespace string) error {
+
+	var failedToDeleteSecrets []string
+
+	// get all secrets for the function
+	secrets, err := d.platform.GetFunctionSecrets(ctx, functionName, namespace)
+	if err != nil {
+		return errors.Wrap(err, "Failed to list function flex volume secrets")
+	}
+
+	// delete stale flex volume secrets
+	for _, secret := range secrets {
+		if secret.Type == functionconfig.SecretTypeV3ioFuse {
+			if volumeName, exists := secret.Labels[common.NuclioResourceLabelKeyVolumeName]; exists &&
+				!common.StringSliceContainsString(createdSecretVolumeNames, volumeName) {
+				if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
+					d.logger.WarnWithCtx(ctx, "Failed to delete stale flex volume secret",
+						"secretName", secret.Name,
+						"err", err)
+					failedToDeleteSecrets = append(failedToDeleteSecrets, secret.Name)
+				}
+			}
+		}
+	}
+
+	if len(failedToDeleteSecrets) > 0 {
+		return errors.Errorf("Failed to delete stale flex volume secrets: %v", failedToDeleteSecrets)
+	}
+
+	return nil
+}
+
 func (d *Deployer) deleteExistingSecret(ctx context.Context, namespace, secretName string) error {
 
 	// check if secret exists
@@ -400,6 +457,14 @@ func (d *Deployer) deleteExistingSecret(ctx context.Context, namespace, secretNa
 	}
 
 	return nil
+}
+
+func (d *Deployer) generateFunctionSecretName(functionName, secretPrefix string) string {
+	secretName := fmt.Sprintf("%s%s", secretPrefix, functionName)
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
+	}
+	return secretName
 }
 
 func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,

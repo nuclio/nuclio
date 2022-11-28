@@ -37,7 +37,7 @@ type NuclioResourceLabelKey string
 const NuclioResourceLabelKeyProjectName = "nuclio.io/project-name"
 const NuclioResourceLabelKeyFunctionName = "nuclio.io/function-name"
 const NuclioResourceLabelKeyApiGatewayName = "nuclio.io/apigateway-name"
-const NuclioResourceLabelKeyAccessKey = "nuclio.io/access-key"
+const NuclioResourceLabelKeyVolumeName = "nuclio.io/volume-name"
 
 // KubernetesDomainLevelMaxLength DNS domain level limitation is 63 chars
 // https://en.wikipedia.org/wiki/Subdomain#Overview

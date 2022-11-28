@@ -770,8 +770,13 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 	password := "1234"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 
-	// enable masking sensitive fields
-	createFunctionOptions.FunctionConfig.Spec.MaskSensitiveFields = true
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
 
 	// add sensitive fields
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
@@ -826,6 +831,10 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 				suite.Require().NoError(err)
 				err = json.Unmarshal(decodedContents, &decodedSecretsDataContent)
 				suite.Require().NoError(err)
+
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Decoded secret data content",
+					"decodedSecretsDataContent", decodedSecretsDataContent)
 
 				secretKeyEnvVar := functionconfig.ResolveEnvVarNameFromReference(secretKey)
 				suite.Require().Equal(password, decodedSecretsDataContent[secretKeyEnvVar])
