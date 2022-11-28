@@ -30,32 +30,34 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/scaler/pkg/scalertypes"
+	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Config struct {
-	Kind                     string                       `json:"kind,omitempty"`
-	WebAdmin                 WebServer                    `json:"webAdmin,omitempty"`
-	HealthCheck              WebServer                    `json:"healthCheck,omitempty"`
-	Logger                   Logger                       `json:"logger,omitempty"`
-	Metrics                  Metrics                      `json:"metrics,omitempty"`
-	ScaleToZero              ScaleToZero                  `json:"scaleToZero,omitempty"`
-	AutoScale                AutoScale                    `json:"autoScale,omitempty"`
-	CronTriggerCreationMode  CronTriggerCreationMode      `json:"cronTriggerCreationMode,omitempty"`
-	FunctionAugmentedConfigs []LabelSelectorAndConfig     `json:"functionAugmentedConfigs,omitempty"`
-	FunctionReadinessTimeout *string                      `json:"functionReadinessTimeout,omitempty"`
-	IngressConfig            IngressConfig                `json:"ingressConfig,omitempty"`
-	Kube                     PlatformKubeConfig           `json:"kube,omitempty"`
-	Local                    PlatformLocalConfig          `json:"local,omitempty"`
-	ImageRegistryOverrides   ImageRegistryOverridesConfig `json:"imageRegistryOverrides,omitempty"`
-	Runtime                  *runtimeconfig.Config        `json:"runtime,omitempty"`
-	ProjectsLeader           *ProjectsLeader              `json:"projectsLeader,omitempty"`
-	ManagedNamespaces        []string                     `json:"managedNamespaces,omitempty"`
-	IguazioSessionCookie     string                       `json:"iguazioSessionCookie,omitempty"`
-	Opa                      opa.Config                   `json:"opa,omitempty"`
-	StreamMonitoring         StreamMonitoringConfig       `json:"streamMonitoring,omitempty"`
-	SensitiveFields          SensitiveFieldsConfig        `json:"sensitiveFields,omitempty"`
+	Kind                      string                           `json:"kind,omitempty"`
+	WebAdmin                  WebServer                        `json:"webAdmin,omitempty"`
+	HealthCheck               WebServer                        `json:"healthCheck,omitempty"`
+	Logger                    Logger                           `json:"logger,omitempty"`
+	Metrics                   Metrics                          `json:"metrics,omitempty"`
+	ScaleToZero               ScaleToZero                      `json:"scaleToZero,omitempty"`
+	AutoScale                 AutoScale                        `json:"autoScale,omitempty"`
+	SupportedAutoScaleMetrics []functionconfig.AutoScaleMetric `json:"supportedAutoScaleMetrics,omitempty"`
+	CronTriggerCreationMode   CronTriggerCreationMode          `json:"cronTriggerCreationMode,omitempty"`
+	FunctionAugmentedConfigs  []LabelSelectorAndConfig         `json:"functionAugmentedConfigs,omitempty"`
+	FunctionReadinessTimeout  *string                          `json:"functionReadinessTimeout,omitempty"`
+	IngressConfig             IngressConfig                    `json:"ingressConfig,omitempty"`
+	Kube                      PlatformKubeConfig               `json:"kube,omitempty"`
+	Local                     PlatformLocalConfig              `json:"local,omitempty"`
+	ImageRegistryOverrides    ImageRegistryOverridesConfig     `json:"imageRegistryOverrides,omitempty"`
+	Runtime                   *runtimeconfig.Config            `json:"runtime,omitempty"`
+	ProjectsLeader            *ProjectsLeader                  `json:"projectsLeader,omitempty"`
+	ManagedNamespaces         []string                         `json:"managedNamespaces,omitempty"`
+	IguazioSessionCookie      string                           `json:"iguazioSessionCookie,omitempty"`
+	Opa                       opa.Config                       `json:"opa,omitempty"`
+	StreamMonitoring          StreamMonitoringConfig           `json:"streamMonitoring,omitempty"`
+	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFieldPaths,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 
@@ -200,6 +202,52 @@ func (c *Config) GetSystemMetricSinks() (map[string]MetricSink, error) {
 
 func (c *Config) GetFunctionMetricSinks() (map[string]MetricSink, error) {
 	return c.getMetricSinks(c.Metrics.Functions)
+}
+
+func (c *Config) GetDefaultSupportedAutoScaleMetrics() []functionconfig.AutoScaleMetric {
+	return []functionconfig.AutoScaleMetric{
+
+		// Resource metrics
+		{
+			Name: string(v1.ResourceCPU),
+			Kind: autosv2.ResourceMetricSourceType,
+			Type: functionconfig.AutoScaleMetricTypePercentage,
+		},
+		{
+			Name: string(v1.ResourceMemory),
+			Kind: autosv2.ResourceMetricSourceType,
+			Type: functionconfig.AutoScaleMetricTypePercentage,
+		},
+		{
+			Name: "gpu",
+			Kind: autosv2.PodsMetricSourceType,
+			Type: functionconfig.AutoScaleMetricTypePercentage,
+		},
+
+		// Stream metrics
+		{
+			Name: "nuclio_processor_stream_high_water_mark_processed_lag",
+			Kind: autosv2.ExternalMetricSourceType,
+			Type: functionconfig.AutoScaleMetricTypeInt,
+		},
+		{
+			Name: "nuclio_processor_stream_high_water_mark_committed_lag",
+			Kind: autosv2.ExternalMetricSourceType,
+			Type: functionconfig.AutoScaleMetricTypeInt,
+		},
+
+		// Event metrics
+		{
+			Name: "nuclio_processor_worker_pending_allocation_current",
+			Kind: autosv2.ExternalMetricSourceType,
+			Type: functionconfig.AutoScaleMetricTypeInt,
+		},
+		{
+			Name: "nuclio_processor_worker_allocation_wait_duration_ms_sum",
+			Kind: autosv2.ExternalMetricSourceType,
+			Type: functionconfig.AutoScaleMetricTypeInt,
+		},
+	}
 }
 
 // EnrichContainerResources enriches an object's requests and limits with the default
