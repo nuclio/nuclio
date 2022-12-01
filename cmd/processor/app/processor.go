@@ -312,7 +312,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 
 func (p *Processor) getSecretsMap(annotations map[string]string) (map[string]string, error) {
 
-	if hasSecret, hasSecretExists := annotations["nuclio.io/function-secret"]; hasSecretExists &&
+	if hasSecret, hasSecretExists := annotations[functionconfig.HasSecretAnnotation]; hasSecretExists &&
 		strings.ToLower(hasSecret) == "true" {
 
 		// read secret from file
