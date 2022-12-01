@@ -19,7 +19,6 @@ package functionres
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -2232,7 +2231,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			if accessKeyExists && strings.HasPrefix(accessKey, functionconfig.ReferencePrefix) {
 
 				// get the flex volume secret name
-				secretName, err := lc.getFlexVolumeSecretName(ctx, function, accessKey)
+				secretName, err := lc.getFlexVolumeSecretName(ctx, function, configVolume.Volume.Name)
 				if err != nil {
 					lc.logger.WarnWithCtx(ctx, "Failed to get flex volume secret name. Ignoring volume",
 						"err", err)
@@ -2273,7 +2272,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 		}
 		volumeNameToVolumeMounts[secretVolumeName] = append(volumeNameToVolumeMounts[secretVolumeName], v1.VolumeMount{
 			Name:      secretVolumeName,
-			MountPath: functionconfig.NuclioSecretMountPath,
+			MountPath: functionconfig.FunctionSecretMountPath,
 			ReadOnly:  true,
 		})
 	}
@@ -2299,15 +2298,11 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	return volumes, volumeMounts
 }
 
-func (lc *lazyClient) getFlexVolumeSecretName(ctx context.Context, function *nuclioio.NuclioFunction, accessKeyReference string) (string, error) {
-	accessKeyReference = strings.TrimPrefix(accessKeyReference, functionconfig.ReferencePrefix)
+func (lc *lazyClient) getFlexVolumeSecretName(ctx context.Context, function *nuclioio.NuclioFunction, volumeName string) (string, error) {
 
-	// hash the reference
-	secretRefHash := sha256.Sum256([]byte(accessKeyReference))
-
-	// get all secret with label selector containing the secretRefHash
+	// get the secret with the volume name label
 	secretList, err := lc.kubeClientSet.CoreV1().Secrets(function.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%x", functionconfig.AccessKeyLabel, secretRefHash),
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to list secrets")

@@ -36,7 +36,7 @@ const (
 	NuclioSecretType                 = "nuclio.io/functionconfig"
 	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
 	HasSecretAnnotation              = "nuclio.io/has-secret"
-	NuclioSecretMountPath            = "/etc/nuclio/secrets"
+	FunctionSecretMountPath          = "/etc/nuclio/secrets"
 	AccessKeyLabel                   = "nuclio.io/access-key"
 )
 
