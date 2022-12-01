@@ -83,6 +83,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
 	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
 	defaultFunctionPodResources := fsr.resolveDefaultFunctionPodResources()
+	supportedAutoScaleMetrics := fsr.resolveSupportedAutoScaleMetrics()
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
@@ -96,6 +97,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"allowedAuthenticationModes":      allowedAuthenticationModes,
 			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
 			"defaultFunctionPodResources":     defaultFunctionPodResources,
+			"supportedAutoScaleMetrics":       supportedAutoScaleMetrics,
 		},
 	}
 
@@ -240,6 +242,17 @@ func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []stri
 		validFunctionPriorityClassNames = dashboardServer.GetPlatformConfiguration().Kube.ValidFunctionPriorityClassNames
 	}
 	return validFunctionPriorityClassNames
+}
+
+func (fsr *frontendSpecResource) resolveSupportedAutoScaleMetrics() []functionconfig.AutoScaleMetric {
+	var supportedAutoScaleMetrics []functionconfig.AutoScaleMetric
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().SupportedAutoScaleMetrics
+		if len(supportedAutoScaleMetrics) == 0 {
+			supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().GetDefaultSupportedAutoScaleMetrics()
+		}
+	}
+	return supportedAutoScaleMetrics
 }
 
 func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {

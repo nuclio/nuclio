@@ -3471,7 +3471,44 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 	"allowedAuthenticationModes": [
 		"none",
 		"basicAuth"
-	]
+	],
+	"supportedAutoScaleMetrics": [
+        {
+            "name": "cpu",
+            "kind": "Resource",
+            "type": "percentage"
+        },
+        {
+            "name": "memory",
+            "kind": "Resource",
+            "type": "percentage"
+        },
+        {
+            "name": "gpu",
+            "kind": "Pods",
+            "type": "percentage"
+        },
+        {
+            "name": "nuclio_processor_stream_high_water_mark_processed_lag",
+            "kind": "External",
+            "type": "int"
+        },
+        {
+            "name": "nuclio_processor_stream_high_water_mark_committed_lag",
+            "kind": "External",
+            "type": "int"
+        },
+        {
+            "name": "nuclio_processor_worker_pending_allocation_current",
+            "kind": "External",
+            "type": "int"
+        },
+        {
+            "name": "nuclio_processor_worker_allocation_wait_duration_ms_sum",
+            "kind": "External",
+            "type": "int"
+        }
+    ]
 }`
 
 	suite.sendRequest("GET",

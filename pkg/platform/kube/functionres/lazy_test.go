@@ -20,6 +20,7 @@ package functionres
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -36,8 +37,10 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -678,6 +681,66 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 			err = suite.client.kubeClientSet.CoreV1().Events(namespace).Delete(suite.ctx, testCase.event.Name, metav1.DeleteOptions{})
 			suite.Require().NoError(err)
 		})
+	}
+}
+
+func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
+
+	resourceTargetValue := 60
+	externalTargetValue := 100
+	podTargetValue := *apiresource.NewQuantity(
+		200,
+		apiresource.DecimalSI,
+	)
+
+	functionInstance := &nuclioio.NuclioFunction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "func-name",
+			Namespace: "func-namespace",
+		},
+		Spec: functionconfig.Spec{
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					Name:        string(v1.ResourceMemory),
+					Kind:        v2beta1.ResourceMetricSourceType,
+					Type:        functionconfig.AutoScaleMetricTypePercentage,
+					TargetValue: resourceTargetValue,
+				},
+				{
+					Name:        "custom-metric",
+					Kind:        v2beta1.ExternalMetricSourceType,
+					Type:        functionconfig.AutoScaleMetricTypeInt,
+					TargetValue: externalTargetValue,
+				},
+			},
+			CustomScalingMetricSpecs: []v2beta1.MetricSpec{
+				{
+					Pods: &v2beta1.PodsMetricSource{
+						MetricName:         "another-custom-metric",
+						TargetAverageValue: podTargetValue,
+					},
+				},
+			},
+		},
+	}
+	resolvedMetricSpec, err := suite.client.resolveMetricSpecs(functionInstance)
+	suite.Require().NoError(err)
+	suite.Require().Equal(len(resolvedMetricSpec), 3)
+
+	externalQuantity, err := apiresource.ParseQuantity(strconv.Itoa(externalTargetValue))
+	suite.Require().NoError(err)
+
+	for _, metricSpec := range resolvedMetricSpec {
+		switch metricSpec.Type {
+		case v2beta1.ResourceMetricSourceType:
+			suite.Require().Equal(*metricSpec.Resource.TargetAverageUtilization, int32(resourceTargetValue))
+
+		case v2beta1.ExternalMetricSourceType:
+			suite.Require().True(metricSpec.External.TargetValue.Equal(externalQuantity))
+
+		case v2beta1.PodsMetricSourceType:
+			suite.Require().True(metricSpec.Pods.TargetAverageValue.Equal(podTargetValue))
+		}
 	}
 }
 

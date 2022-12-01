@@ -50,6 +50,8 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -1854,7 +1856,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		concurrencyPolicy = batchv1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy)) // nolint: staticcheck
+		concurrencyPolicy = batchv1.ConcurrencyPolicy(cases.Title(language.Und).String(attributes.ConcurrencyPolicy))
 	}
 	spec.ConcurrencyPolicy = concurrencyPolicy
 
@@ -2384,16 +2386,21 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 }
 
 func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) ([]autosv2.MetricSpec, error) {
-	if function.Spec.CustomScalingMetricSpecs != nil {
-		return function.Spec.CustomScalingMetricSpecs, nil
+
+	metricSpecs, err := lc.resolveMetricSpecs(function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve metric specs")
+	}
+	if len(metricSpecs) > 0 {
+		return metricSpecs, nil
 	}
 
+	// for backwards compatibility, if no custom metrics are specified, use targetCPU and default metric
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
 		targetCPU = abstract.DefaultTargetCPU
 	}
 
-	var metricSpecs []autosv2.MetricSpec
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	if lc.functionsHaveAutoScaleMetrics(platformConfig) {
 		targetValue, err := apiresource.ParseQuantity(platformConfig.AutoScale.TargetValue)
@@ -2435,6 +2442,71 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 				TargetAverageUtilization: &targetCPU,
 			},
 		})
+	}
+
+	return metricSpecs, nil
+}
+
+func (lc *lazyClient) resolveMetricSpecs(function *nuclioio.NuclioFunction) ([]autosv2.MetricSpec, error) {
+
+	metricSpecs, err := lc.generateMetricSpecFromAutoscaleMetrics(function.Spec.AutoScaleMetrics)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to generate metric specs from autoscale metrics")
+	}
+
+	if function.Spec.CustomScalingMetricSpecs != nil {
+		metricSpecs = append(metricSpecs, function.Spec.CustomScalingMetricSpecs...)
+	}
+
+	return metricSpecs, nil
+}
+
+func (lc *lazyClient) generateMetricSpecFromAutoscaleMetrics(autoscaleMetrics []functionconfig.AutoScaleMetric) ([]autosv2.MetricSpec, error) {
+
+	var metricSpecs []autosv2.MetricSpec
+	var metricSpec autosv2.MetricSpec
+	for _, autoscaleMetric := range autoscaleMetrics {
+		switch autoscaleMetric.Kind {
+		case autosv2.ResourceMetricSourceType:
+			targetAverageUtilization := int32(autoscaleMetric.TargetValue)
+			metricSpec = autosv2.MetricSpec{
+				Type: autoscaleMetric.Kind,
+				Resource: &autosv2.ResourceMetricSource{
+					Name:                     v1.ResourceName(autoscaleMetric.Name),
+					TargetAverageUtilization: &targetAverageUtilization,
+				},
+			}
+		case autosv2.PodsMetricSourceType:
+			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.TargetValue))
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to parse quantity")
+			}
+			metricSpec = autosv2.MetricSpec{
+				Type: autoscaleMetric.Kind,
+				Pods: &autosv2.PodsMetricSource{
+					MetricName:         autoscaleMetric.Name,
+					TargetAverageValue: quantity,
+				},
+			}
+
+		case autosv2.ExternalMetricSourceType:
+			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.TargetValue))
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to parse quantity")
+			}
+			metricSpec = autosv2.MetricSpec{
+				Type: autoscaleMetric.Kind,
+				External: &autosv2.ExternalMetricSource{
+					MetricName:  autoscaleMetric.Name,
+					TargetValue: &quantity,
+				},
+			}
+		default:
+			return nil, errors.Errorf("Unknown metric type: %s", autoscaleMetric.Type)
+		}
+
+		metricSpecs = append(metricSpecs, metricSpec)
+
 	}
 
 	return metricSpecs, nil
