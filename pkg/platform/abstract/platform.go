@@ -45,6 +45,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -375,7 +376,7 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 	}
 }
 
-// ValidateFunctionConfig validaets and enforces of required function creation logic
+// ValidateFunctionConfig validates and enforces of required function creation logic
 func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
@@ -410,6 +411,10 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 
 	if err := ap.validatePriorityClassName(functionConfig); err != nil {
 		return errors.Wrap(err, "Priority class name validation failed")
+	}
+
+	if err := ap.validateAutoScaleMetrics(functionConfig); err != nil {
+		return errors.Wrap(err, "Auto scale metrics validation failed")
 	}
 
 	return nil
@@ -1339,6 +1344,45 @@ func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Con
 			functionConfig.Spec.PriorityClassName,
 			strings.Join(ap.Config.Kube.ValidFunctionPriorityClassNames, ", ")))
 	}
+	return nil
+}
+
+func (ap *Platform) validateAutoScaleMetrics(functionConfig *functionconfig.Config) error {
+
+	// validate each autoscale metric has a valid name, kind and value
+	for _, metric := range functionConfig.Spec.AutoScaleMetrics {
+
+		// validate metric name
+		if metric.Name == "" {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric name is missing - %+v", metric))
+		}
+
+		// validate metric kind
+		if metric.Kind == "" {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric kind is missing - %+v", metric))
+		}
+
+		if !common.StringSliceContainsString([]string{
+			string(autosv2.ResourceMetricSourceType),
+			string(autosv2.PodsMetricSourceType),
+			string(autosv2.ExternalMetricSourceType),
+			string(autosv2.ObjectMetricSourceType),
+			string(autosv2.ContainerResourceMetricSourceType),
+		}, string(metric.Kind)) {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric kind is invalid - %+v", metric))
+		}
+
+		// validate metric value
+		if metric.TargetValue == 0 {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric value is missing - %+v", metric))
+		}
+
+		// validate metric value is positive
+		if metric.TargetValue < 0 {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric value must be positive - %+v", metric))
+		}
+	}
+
 	return nil
 }
 

@@ -1532,6 +1532,127 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetrics() {
+	for idx, testCase := range []struct {
+		name                 string
+		AutoScaleMetrics     []functionconfig.AutoScaleMetric
+		shouldFailValidation bool
+	}{
+
+		// happy flows
+		{
+			name:             "Sanity",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{},
+		},
+		{
+			name: "ValidMetrics",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					Name:        "cpu",
+					Kind:        "Resource",
+					TargetValue: 50,
+				},
+				{
+					Name:        "nuclio_processor_stream_something",
+					Kind:        "Pods",
+					TargetValue: 150,
+				},
+			},
+		},
+
+		// bad flows
+		{
+			name: "NoName",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					Kind:        "Resource",
+					TargetValue: 50,
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NoKind",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					Name:        "memory",
+					TargetValue: 75,
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NonValidKind",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					Name:        "memory",
+					Kind:        "something",
+					TargetValue: 75,
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NoTargetValue",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					Name: "memory",
+					Kind: "Resource",
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NonValidTargetValue",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					Name:        "memory",
+					Kind:        "something",
+					TargetValue: -13,
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Name:      platform.DefaultProjectName,
+					Namespace: "default",
+				},
+			}).Return([]platform.Project{
+				&platform.AbstractProject{},
+			}, nil).Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			createFunctionOptions.FunctionConfig.Spec.AutoScaleMetrics = testCase.AutoScaleMetrics
+
+			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
 // Expects 3 files inside functionLogsFilePath: (kept in these constants)
 // - FunctionLogsFile

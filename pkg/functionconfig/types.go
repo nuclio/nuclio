@@ -269,6 +269,20 @@ type Metric struct {
 	WindowSize     string `json:"windowSize,omitempty"`
 }
 
+type AutoScaleMetricType string
+
+const (
+	AutoScaleMetricTypeInt        AutoScaleMetricType = "int"
+	AutoScaleMetricTypePercentage AutoScaleMetricType = "percentage"
+)
+
+type AutoScaleMetric struct {
+	Name        string                   `json:"name,omitempty"`
+	Kind        autosv2.MetricSourceType `json:"kind,omitempty"`
+	Type        AutoScaleMetricType      `json:"type,omitempty"`
+	TargetValue int                      `json:"targetValue,omitempty"`
+}
+
 type BuildMode string
 
 const (
@@ -362,6 +376,7 @@ type Spec struct {
 
 	// Scale function's replica (when min < max replicas) based on given custom metric specs
 	CustomScalingMetricSpecs []autosv2.MetricSpec `json:"customScalingMetricSpecs,omitempty"`
+	AutoScaleMetrics         []AutoScaleMetric    `json:"autoScaleMetrics,omitempty"`
 
 	// Currently relevant only for k8s platform
 	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
