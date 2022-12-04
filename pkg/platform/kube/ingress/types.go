@@ -39,6 +39,7 @@ type Spec struct {
 	UpstreamVhost        string
 	ProxyReadTimeout     string
 	Annotations          map[string]string
+	Labels               map[string]string
 }
 
 type SpecRole string

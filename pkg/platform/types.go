@@ -420,6 +420,7 @@ type APIGatewayUpstreamSpec struct {
 	Percentage       int                           `json:"percentage,omitempty"`
 	RewriteTarget    string                        `json:"rewriteTarget,omitempty"`
 	ExtraAnnotations map[string]string             `json:"extraAnnotations,omitempty"`
+	ExtraLabels      map[string]string             `json:"extraLabels,omitempty"`
 }
 
 type APIGatewaySpec struct {

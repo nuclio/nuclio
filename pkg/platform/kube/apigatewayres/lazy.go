@@ -254,6 +254,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		ServiceName:    serviceName,
 		ServicePort:    servicePort,
 		RewriteTarget:  upstream.RewriteTarget,
+		Labels:         upstream.ExtraLabels,
 	}
 
 	switch apiGateway.Spec.AuthenticationMode {
