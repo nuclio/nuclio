@@ -429,7 +429,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete Secrets if exist
-	if err = lc.deleteFunctionSecrets(ctx, namespace, name); err != nil {
+	if err = lc.deleteFunctionSecrets(ctx, name, namespace); err != nil {
 		return errors.Wrap(err, "Failed to delete function secrets")
 	}
 
@@ -2226,7 +2226,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
 			}
 
-			// resolve sensitive data in flex volume options
+			// add secret ref to the volume if access key is scrubbed
 			accessKey, accessKeyExists := configVolume.Volume.FlexVolume.Options["accessKey"]
 			if accessKeyExists && strings.HasPrefix(accessKey, functionconfig.ReferencePrefix) {
 
@@ -2265,7 +2265,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			Name: secretVolumeName,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
-					SecretName: functionconfig.GenerateFunctionSecretName(function.Name),
+					SecretName: functionconfig.GenerateFunctionSecretName(function.Name, functionconfig.NuclioSecretNamePrefix),
 					Optional:   &falseVal,
 				},
 			},
@@ -2305,17 +2305,17 @@ func (lc *lazyClient) getFlexVolumeSecretName(ctx context.Context, function *nuc
 		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to list secrets")
+		return "", errors.Wrap(err, "Failed to list flex volume secrets")
 	}
 
 	// if there are no secrets with the label selector, return error
 	if len(secretList.Items) == 0 {
-		return "", errors.New("No secrets found")
+		return "", errors.New("No flex volume secrets found")
 	}
 
-	// if there are more than one secret with the label selector, return error
+	// if there is more than one secret with the label selector, return error
 	if len(secretList.Items) > 1 {
-		return "", errors.New("More than one secret found")
+		return "", errors.New("More than one flex volume secret found")
 	}
 
 	// return the secret name
@@ -2327,17 +2327,14 @@ func (lc *lazyClient) deleteFunctionSecrets(ctx context.Context, functionName, n
 
 	// function can have multiple secrets, in case a flex volume exists
 	// delete all of them
-	secretsToDelete, err := lc.kubeClientSet.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
+	if err := lc.kubeClientSet.CoreV1().Secrets(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to list secrets")
-	}
-
-	for _, secret := range secretsToDelete.Items {
-		if err := lc.kubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
-			return errors.Wrap(err, "Failed to delete secret")
-		}
+	}); err != nil {
+		lc.logger.WarnWithCtx(ctx,
+			"Failed to delete function secrets",
+			"functionName", functionName,
+			"err", err)
+		return errors.Wrapf(err, "Failed to delete secret collection for function %s", functionName)
 	}
 
 	return nil
