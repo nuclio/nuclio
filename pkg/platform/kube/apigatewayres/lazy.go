@@ -300,6 +300,12 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		commonIngressSpec.PathType = &defaultPathType
 	}
 
+	if upstream.ExtraLabels != nil {
+		commonIngressSpec.Labels = upstream.ExtraLabels
+	} else {
+		commonIngressSpec.Labels = map[string]string{}
+	}
+
 	return lc.ingressManager.GenerateResources(ctx, commonIngressSpec)
 }
 
