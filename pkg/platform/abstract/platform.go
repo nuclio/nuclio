@@ -1201,7 +1201,7 @@ func (ap *Platform) QueryOPAMultipleResources(resources []string,
 }
 
 // GetFunctionSecrets returns all the function's secrets
-func (ap *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]v1.Secret, error) {
+func (ap *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
 	return nil, nil
 }
 

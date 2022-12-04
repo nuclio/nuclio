@@ -353,7 +353,7 @@ type Spec struct {
 	SecurityContext               *v1.PodSecurityContext  `json:"securityContext,omitempty"`
 	ServiceAccount                string                  `json:"serviceAccount,omitempty"`
 	ScaleToZero                   *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
-	DisableSensitiveFieldsMasking bool                    `json:"maskSensitiveFields,omitempty"`
+	DisableSensitiveFieldsMasking bool                    `json:"disableSensitiveFieldsMasking,omitempty"`
 
 	// Run function on a particular set of node(s)
 	// https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/

@@ -234,15 +234,14 @@ func (d *Deployer) getFunctionSecretMap(ctx context.Context, functionName, funct
 func (d *Deployer) getFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
 
 	// get existing function secret
-	functionSecrets, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
-	})
+	functionSecrets, err := d.platform.GetFunctionSecrets(ctx, functionName, functionNamespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function secret")
 	}
 
 	// if secret exists, get the data
-	for _, functionSecret := range functionSecrets.Items {
+	for _, functionSecret := range functionSecrets {
+		functionSecret := functionSecret.Kubernetes
 
 		// if it is a flex volume secret, skip it
 		if strings.HasPrefix(functionSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
@@ -356,7 +355,7 @@ func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
 			Name: flexVolumeSecretName,
 			Labels: map[string]string{
 				common.NuclioResourceLabelKeyFunctionName: functionName,
-				common.NuclioResourceLabelKeyProjectName:  functionName,
+				common.NuclioResourceLabelKeyProjectName:  projectName,
 				common.NuclioResourceLabelKeyVolumeName:   volumeName,
 			},
 		},
@@ -417,7 +416,10 @@ func (d *Deployer) deleteStaleFlexVolumeSecrets(ctx context.Context,
 
 	// delete stale flex volume secrets
 	for _, secret := range secrets {
+		secret := secret.Kubernetes
 		if secret.Type == functionconfig.SecretTypeV3ioFuse {
+
+			// if the secret is not in the created secret volume names list, delete it
 			if volumeName, exists := secret.Labels[common.NuclioResourceLabelKeyVolumeName]; exists &&
 				!common.StringSliceContainsString(createdSecretVolumeNames, volumeName) {
 				if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {

@@ -269,7 +269,7 @@ type SensitiveFieldsConfig struct {
 
 	// CustomSensitiveFields is a list of fields that should be masked in logs and function config
 	MaskSensitiveFields   bool             `json:"maskSensitiveFields,omitempty"`
-	CustomSensitiveFields []string         `json:"sensitiveFields,omitempty"`
+	CustomSensitiveFields []string         `json:"customSensitiveFields,omitempty"`
 	SensitiveFieldsRegex  []*regexp.Regexp `json:"sensitiveFieldsRegex,omitempty"`
 }
 

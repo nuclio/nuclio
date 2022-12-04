@@ -30,7 +30,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/stretchr/testify/mock"
-	v1 "k8s.io/api/core/v1"
 )
 
 //
@@ -371,6 +370,6 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 }
 
 // GetFunctionSecrets returns all the function's secrets
-func (mp *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]v1.Secret, error) {
+func (mp *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
 	return nil, nil
 }

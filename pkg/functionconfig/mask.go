@@ -111,7 +111,7 @@ func Scrub(functionConfig *Config,
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to marshal scrubbed function config")
 	}
-	if err = json.Unmarshal(masrhalledScrubbedFunctionConfig, scrubbedFunctionConfig); err != nil {
+	if err := json.Unmarshal(masrhalledScrubbedFunctionConfig, scrubbedFunctionConfig); err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to unmarshal scrubbed function config")
 	}
 

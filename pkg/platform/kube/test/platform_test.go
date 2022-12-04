@@ -810,6 +810,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 		suite.Require().Len(secrets, 1)
 
 		for _, secret := range secrets {
+			secret := secret.Kubernetes
 			if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
 
 				// decode data from secret?

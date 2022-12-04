@@ -27,8 +27,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-
-	v1 "k8s.io/api/core/v1"
 )
 
 type HealthCheckMode string
@@ -204,7 +202,7 @@ type Platform interface {
 	GetDefaultRegistryCredentialsSecretName() string
 
 	// GetFunctionSecrets returns all the function's secrets
-	GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]v1.Secret, error)
+	GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]FunctionSecret, error)
 
 	// SaveFunctionDeployLogs Save build logs from platform logger to function store or k8s
 	SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error
