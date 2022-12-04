@@ -3036,6 +3036,9 @@ func (suite *apiGatewayTestSuite) TestCreateSuccessful() {
 		suite.Require().Equal("f4", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].NuclioFunction.Name)
 		suite.Require().Equal(50, createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[1].Percentage)
 
+		suite.Require().Contains(createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].ExtraLabels, "some-label-key")
+		suite.Require().Equal("some-label-value", createAPIGatewayOptions.APIGatewayConfig.Spec.Upstreams[0].ExtraLabels["some-label-key"])
+
 		return true
 	}
 
@@ -3060,7 +3063,10 @@ func (suite *apiGatewayTestSuite) TestCreateSuccessful() {
           "kind": "nucliofunction",
           "nucliofunction": {
             "name": "f3"
-          }
+          },
+		  "extraLabels": {
+			"some-label-key": "some-label-value"
+		  }
         },
         {
           "kind": "nucliofunction",
