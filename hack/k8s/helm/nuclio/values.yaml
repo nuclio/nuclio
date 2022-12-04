@@ -62,6 +62,8 @@ controller:
   # Note: 0 means cancelling resync mechanism. any other value (e.g.: 10m) would turn it on.
   resyncInterval: 0
 
+  evictedPodsCleanupInterval: 30m
+
   operator:
     function:
       numWorkers: 4

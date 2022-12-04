@@ -18,13 +18,12 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"runtime/debug"
-	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/logger"
-	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -70,7 +69,7 @@ func (cjm *CronJobMonitoring) start(ctx context.Context) {
 					"stack", string(callStack))
 			}
 		}()
-		stalePodsFieldSelector := cjm.compileStalePodsFieldSelector()
+		stalePodsFieldSelector := common.CompileStalePodsFieldSelector()
 		cjm.logger.InfoWithCtx(ctx, "Starting cron job stale resources cleanup loop",
 			"cronJobStaleResourcesCleanupInterval", cjm.cronJobStaleResourcesCleanupInterval,
 			"fieldSelectors", stalePodsFieldSelector)
@@ -153,18 +152,4 @@ func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
 			}
 		}
 	}
-}
-
-// create a field selector(string) for stale pods
-func (cjm *CronJobMonitoring) compileStalePodsFieldSelector() string {
-	var fieldSelectors []string
-
-	// filter out non stale pods by their phase
-	nonStalePodPhases := []v1.PodPhase{v1.PodPending, v1.PodRunning}
-	for _, nonStalePodPhase := range nonStalePodPhases {
-		selector := fmt.Sprintf("status.phase!=%s", string(nonStalePodPhase))
-		fieldSelectors = append(fieldSelectors, selector)
-	}
-
-	return strings.Join(fieldSelectors, ",")
 }

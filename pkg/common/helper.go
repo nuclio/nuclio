@@ -565,3 +565,13 @@ func RemoveDuplicatesFromSliceString(slice []string) []string {
 	}
 	return list
 }
+
+func RemoveStringSliceItemsFromStringSlice(slice []string, itemsToRemove []string) []string {
+	var list []string
+	for _, item := range slice {
+		if !StringSliceContainsString(itemsToRemove, item) {
+			list = append(list, item)
+		}
+	}
+	return list
+}

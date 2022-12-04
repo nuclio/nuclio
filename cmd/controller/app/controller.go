@@ -47,6 +47,7 @@ func Run(kubeconfigPath string,
 	resyncIntervalStr string,
 	functionMonitorIntervalStr,
 	cronJobStaleResourcesCleanupIntervalStr string,
+	evictedPodsCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
 	apiGatewayOperatorNumWorkersStr string) error {
@@ -60,6 +61,7 @@ func Run(kubeconfigPath string,
 		resyncIntervalStr,
 		functionMonitorIntervalStr,
 		cronJobStaleResourcesCleanupIntervalStr,
+		evictedPodsCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr,
 		apiGatewayOperatorNumWorkersStr)
@@ -85,6 +87,7 @@ func createController(kubeconfigPath string,
 	resyncIntervalStr string,
 	functionMonitorIntervalStr string,
 	cronJobStaleResourcesCleanupIntervalStr string,
+	evictedPodsCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
 	apiGatewayOperatorNumWorkersStr string) (*controller.Controller, error) {
@@ -110,6 +113,11 @@ func createController(kubeconfigPath string,
 	}
 
 	cronJobStaleResourcesCleanupInterval, err := time.ParseDuration(cronJobStaleResourcesCleanupIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
+	}
+
+	evictedPodsCleanupInterval, err := time.ParseDuration(evictedPodsCleanupIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
 	}
@@ -187,6 +195,7 @@ func createController(kubeconfigPath string,
 		resyncInterval,
 		functionMonitorInterval,
 		cronJobStaleResourcesCleanupInterval,
+		evictedPodsCleanupInterval,
 		platformConfiguration,
 		platformConfigurationName,
 		functionOperatorNumWorkers,
