@@ -97,7 +97,7 @@ func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 func (suite *PlatformTestSuite) compileFunctionConfig() *functionconfig.Config {
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Namespace = suite.namespace
-	functionConfig.Meta.Name = "test-func" + xid.New().String()
+	functionConfig.Meta.Name = "test-func-" + xid.New().String()
 	functionConfig.Spec.RunRegistry = suite.registryURL
 	functionConfig.Spec.Build.Registry = suite.registryURL
 	functionConfig.Spec.Handler = "main:handler"

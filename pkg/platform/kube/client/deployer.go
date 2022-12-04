@@ -31,7 +31,9 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -62,7 +64,7 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 	var err error
 
 	// boolean which indicates whether the function exists or not
-	// the function will be created if it doesn't exit, otherwise will updated
+	// the function will be created if it doesn't exit, otherwise it will be updated
 	functionExists := functionInstance != nil
 
 	createFunctionOptions.Logger.DebugWithCtx(ctx,
@@ -77,6 +79,18 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 		functionStatus.InternalInvocationURLs = functionInstance.Status.InternalInvocationURLs
 		functionStatus.ExternalInvocationURLs = functionInstance.Status.ExternalInvocationURLs
 		functionStatus.HTTPPort = functionInstance.Status.HTTPPort
+	}
+
+	// scrub the function config if enabled
+	if d.platform.GetConfig().SensitiveFields.MaskSensitiveFields && !functionInstance.Spec.DisableSensitiveFieldsMasking {
+
+		scrubbedFunctionConfig, err := d.ScrubFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to scrub function configuration")
+		}
+
+		// replace the function config with the scrubbed one
+		createFunctionOptions.FunctionConfig = *scrubbedFunctionConfig
 	}
 
 	// convert config, status -> function
@@ -144,6 +158,315 @@ func (d *Deployer) Deploy(ctx context.Context,
 		Port:           updatedFunctionInstance.Status.HTTPPort,
 		FunctionStatus: updatedFunctionInstance.Status,
 	}, updatedFunctionInstance, "", nil
+}
+
+func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
+	functionConfig *functionconfig.Config) (*functionconfig.Config, error) {
+	var err error
+
+	// get existing function secret
+	functionSecretMap, err := d.getFunctionSecretMap(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// scrub the function config
+	d.logger.DebugWithCtx(ctx, "Scrubbing function config", "functionName", functionConfig.Meta.Name)
+
+	scrubbedFunctionConfig, secretsMap, err := functionconfig.Scrub(functionConfig,
+		functionSecretMap,
+		d.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex())
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to scrub function config")
+	}
+
+	// create flex volume secrets if needed
+	if err := d.createFlexVolumeSecrets(ctx,
+		functionConfig.Spec.Volumes,
+		functionConfig.Meta.Name,
+		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+		secretsMap); err != nil {
+		return nil, errors.Wrap(err, "Failed to handle v3io fuse secret")
+	}
+
+	// encode secrets map
+	encodedSecretsMap, err := functionconfig.EncodeSecretsMap(secretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to encode secrets map")
+	}
+
+	// create or update a secret for the function
+	if err := d.createOrUpdateFunctionSecret(ctx,
+		encodedSecretsMap,
+		functionConfig.Meta.Name,
+		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]); err != nil {
+		return nil, errors.Wrap(err, "Failed to create function secret")
+	}
+
+	return scrubbedFunctionConfig, nil
+}
+
+func (d *Deployer) getFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
+
+	// get existing function secret
+	d.logger.DebugWithCtx(ctx, "Getting function secret", "functionName", functionName, "functionNamespace", functionNamespace)
+	functionSecretData, err := d.getFunctionSecretData(ctx, functionName, functionNamespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// if secret exists, get the data
+	if functionSecretData != nil {
+		functionSecretMap, err := functionconfig.DecodeSecretData(functionSecretData)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode function secret data")
+		}
+		return functionSecretMap, nil
+	}
+
+	// secret doesn't exist
+	d.logger.DebugWithCtx(ctx, "Function secret doesn't exist", "functionName", functionName, "functionNamespace", functionNamespace)
+	return nil, nil
+}
+
+func (d *Deployer) getFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
+
+	// get existing function secret
+	functionSecrets, err := d.platform.GetFunctionSecrets(ctx, functionName, functionNamespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// if secret exists, get the data
+	for _, functionSecret := range functionSecrets {
+		functionSecret := functionSecret.Kubernetes
+
+		// if it is a flex volume secret, skip it
+		if strings.HasPrefix(functionSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
+			continue
+		}
+
+		return functionSecret.Data, nil
+	}
+
+	return nil, nil
+}
+
+func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
+	encodedSecretsMap map[string]string,
+	name,
+	namespace,
+	projectName string) error {
+
+	secretConfig := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: d.generateFunctionSecretName(name, functionconfig.NuclioSecretNamePrefix),
+			Labels: map[string]string{
+				common.NuclioResourceLabelKeyFunctionName: name,
+				common.NuclioResourceLabelKeyProjectName:  projectName,
+			},
+		},
+		Type:       functionconfig.SecretTypeFunctionConfig,
+		StringData: encodedSecretsMap,
+	}
+
+	if len(encodedSecretsMap) > 0 {
+		if err := d.createOrUpdateSecret(ctx, namespace, secretConfig); err != nil {
+			return errors.Wrap(err, "Failed to create function secret")
+		}
+		return nil
+	}
+
+	// if secret exists and there are no secrets to set, delete the secret
+	return d.deleteExistingSecret(ctx, namespace, secretConfig.Name)
+}
+
+func (d *Deployer) createFlexVolumeSecrets(ctx context.Context, volumes []functionconfig.Volume, functionName, functionNamespace, projectName string, secretsMap map[string]string) error {
+
+	var createdSecretVolumeNames []string
+
+	for volumeIndex, volume := range volumes {
+		if volume.Volume.FlexVolume != nil && volume.Volume.FlexVolume.Driver == functionconfig.SecretTypeV3ioFuse {
+			createdSecretVolumeNames = append(createdSecretVolumeNames, volume.Volume.Name)
+			if err := d.createOrUpdateFlexVolumeSecret(ctx,
+				volumeIndex,
+				volume.Volume.Name,
+				functionName,
+				functionNamespace,
+				projectName,
+				secretsMap); err != nil {
+				return errors.Wrap(err, "Failed to create flex volume secret")
+			}
+		}
+	}
+
+	// delete stale flex volume secrets
+	if err := d.deleteStaleFlexVolumeSecrets(ctx, createdSecretVolumeNames, functionName, functionNamespace); err != nil {
+		return errors.Wrap(err, "Failed to delete stale flex volume secrets")
+	}
+
+	return nil
+}
+
+func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
+	volumeIndex int,
+	volumeName,
+	functionName,
+	functionNamespace,
+	projectName string,
+	secretsMap map[string]string) error {
+
+	var accessKey string
+
+	// get access key value
+	for secretKey, secretValue := range secretsMap {
+		if strings.Contains(secretKey, "flexvolume") && strings.Contains(secretKey, fmt.Sprintf("[%d]", volumeIndex)) {
+			accessKey = secretValue
+			break
+		}
+	}
+
+	if accessKey == "" {
+		return errors.New("Failed to find access key in secrets map")
+	}
+
+	// create secret name with unique suffix
+	flexVolumeSecretName := d.generateFunctionSecretName(fmt.Sprintf("%s-%s", functionName, xid.New().String()),
+		functionconfig.NuclioFlexVolumeSecretNamePrefix)
+
+	// check if a secret with the same access key reference already exists
+	existingFlexVolumeSecrets, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to list flex volume secrets")
+	}
+
+	// if a secret with the same access key reference exists, use it
+	if len(existingFlexVolumeSecrets.Items) > 0 {
+		flexVolumeSecretName = existingFlexVolumeSecrets.Items[0].Name
+	}
+
+	// create a secret for the volume
+	secretConfig := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: flexVolumeSecretName,
+			Labels: map[string]string{
+				common.NuclioResourceLabelKeyFunctionName: functionName,
+				common.NuclioResourceLabelKeyProjectName:  projectName,
+				common.NuclioResourceLabelKeyVolumeName:   volumeName,
+			},
+		},
+		Type: functionconfig.SecretTypeV3ioFuse,
+		StringData: map[string]string{
+			"accessKey": accessKey,
+		},
+	}
+
+	if err := d.createOrUpdateSecret(ctx, functionNamespace, secretConfig); err != nil {
+		return errors.Wrap(err, "Failed to create flex volume secret")
+	}
+
+	return nil
+}
+
+func (d *Deployer) createOrUpdateSecret(ctx context.Context, namespace string, secretConfig *v1.Secret) error {
+
+	// check if secret exists
+	if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx,
+		secretConfig.Name,
+		metav1.GetOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed to get secret %s", secretConfig.Name)
+		}
+
+		// create secret
+		if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx,
+			secretConfig,
+			metav1.CreateOptions{}); err != nil {
+			return errors.Wrapf(err, "Failed to create secret %s", secretConfig.Name)
+		}
+		return nil
+	}
+
+	// update secret
+	if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx,
+		secretConfig,
+		metav1.UpdateOptions{}); err != nil {
+		return errors.Wrapf(err, "Failed to update secret %s", secretConfig.Name)
+	}
+
+	return nil
+}
+
+func (d *Deployer) deleteStaleFlexVolumeSecrets(ctx context.Context,
+	createdSecretVolumeNames []string,
+	functionName,
+	namespace string) error {
+
+	var failedToDeleteSecrets []string
+
+	// get all secrets for the function
+	secrets, err := d.platform.GetFunctionSecrets(ctx, functionName, namespace)
+	if err != nil {
+		return errors.Wrap(err, "Failed to list function flex volume secrets")
+	}
+
+	// delete stale flex volume secrets
+	for _, secret := range secrets {
+		secret := secret.Kubernetes
+		if secret.Type == functionconfig.SecretTypeV3ioFuse {
+
+			// if the secret is not in the created secret volume names list, delete it
+			if volumeName, exists := secret.Labels[common.NuclioResourceLabelKeyVolumeName]; exists &&
+				!common.StringSliceContainsString(createdSecretVolumeNames, volumeName) {
+				if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
+					d.logger.WarnWithCtx(ctx, "Failed to delete stale flex volume secret",
+						"secretName", secret.Name,
+						"err", err)
+					failedToDeleteSecrets = append(failedToDeleteSecrets, secret.Name)
+				}
+			}
+		}
+	}
+
+	if len(failedToDeleteSecrets) > 0 {
+		return errors.Errorf("Failed to delete stale flex volume secrets: %v", failedToDeleteSecrets)
+	}
+
+	return nil
+}
+
+func (d *Deployer) deleteExistingSecret(ctx context.Context, namespace, secretName string) error {
+
+	// check if secret exists
+	if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx,
+		secretName,
+		metav1.GetOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed to get secret %s", secretName)
+		}
+		return nil
+	}
+
+	// delete secret
+	if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx,
+		secretName,
+		metav1.DeleteOptions{}); err != nil {
+		return errors.Wrapf(err, "Failed to delete secret %s", secretName)
+	}
+
+	return nil
+}
+
+func (d *Deployer) generateFunctionSecretName(functionName, secretPrefix string) string {
+	secretName := fmt.Sprintf("%s%s", secretPrefix, functionName)
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
+	}
+	return secretName
 }
 
 func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,

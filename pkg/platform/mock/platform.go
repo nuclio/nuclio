@@ -368,3 +368,8 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 	args := mp.Called(projectName, functionName, functionEventName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }
+
+// GetFunctionSecrets returns all the function's secrets
+func (mp *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
+	return nil, nil
+}

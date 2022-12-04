@@ -112,7 +112,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 
 func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 	existingSecrets := map[string]string{
-		"$ref:/Spec/Build/CodeEntryAttributes/password": "abcd",
+		"/spec/build/codeentryattributes/password": "abcd",
 	}
 
 	functionConfig := &Config{
@@ -168,10 +168,10 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 
 func (suite *MaskTestSuite) TestEncodeAndDecodeSecretKeys() {
 	fieldPath := "Spec/Build/CodeEntryAttributes/password"
-	encodedFieldPath := EncodeSecretKey(fieldPath)
+	encodedFieldPath := encodeSecretKey(fieldPath)
 	suite.logger.DebugWith("Encoded field path", "fieldPath", fieldPath, "encodedFieldPath", encodedFieldPath)
 
-	decodedFieldPath, err := DecodeSecretKey(encodedFieldPath)
+	decodedFieldPath, err := decodeSecretKey(encodedFieldPath)
 	suite.Require().NoError(err)
 	suite.Require().Equal(fieldPath, decodedFieldPath)
 }
@@ -184,10 +184,17 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 		"$ref:Spec/Triggers/secret-trigger/Attributes/password": "1234",
 	}
 
-	encodedSecretMap := EncodeSecretsMap(secretMap)
+	encodedSecretMap, err := EncodeSecretsMap(secretMap)
+	suite.Require().NoError(err)
 	suite.logger.DebugWith("Encoded secret map", "secretMap", secretMap, "encodedSecretMap", encodedSecretMap)
+
+	suite.Require().Contains(encodedSecretMap, "content")
+	suite.Require().NotEmpty(len(encodedSecretMap["content"]))
 	for encodedKey, value := range encodedSecretMap {
-		decodedKey, err := DecodeSecretKey(encodedKey)
+		if encodedKey == SecretContentKey {
+			continue
+		}
+		decodedKey, err := decodeSecretKey(encodedKey)
 		suite.Require().NoError(err)
 		decodedKey = "$ref:" + decodedKey
 		suite.Require().Equal(secretMap[decodedKey], value)
@@ -204,12 +211,13 @@ func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
 		"^/Spec/Build/CodeEntryAttributes/password",
 		// Path nested in an array
 		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey",
+		"^/Spec/Volumes\\[\\d+\\]/Volume/FlexVolume/Options/accesskey",
 		// Path for any map element
 		"^/Spec/Triggers/.+/Password",
 		// Nested path in any map element
 		"^/Spec/Triggers/.+/Attributes/password",
 	} {
-		regexpList = append(regexpList, regexp.MustCompile(sensitiveFieldPath))
+		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
 	}
 	return regexpList
 }

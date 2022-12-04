@@ -20,6 +20,7 @@ package test
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -761,6 +762,102 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
 			// sanity check, redeploy does break on certain ingress / apigateway ingress validations
 			return true
 		})
+}
+
+func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
+
+	functionName := "func-with-secret"
+	password := "1234"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	// add sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"password": password,
+	}
+
+	// delete function secrets when done
+	// TODO: remove this when the controller side PR is done
+	defer func() {
+		secrets, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+		})
+		if err != nil {
+			suite.Logger.WarnWith("Failed to list secrets", "err", err)
+		}
+
+		for _, secret := range secrets.Items {
+			err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(suite.Ctx, secret.Name, metav1.DeleteOptions{})
+			if err != nil {
+				suite.Logger.WarnWith("Failed to delete secret", "err", err, "secretName", secret.Name)
+			}
+		}
+	}()
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get function secrets
+		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
+		suite.Require().NoError(err)
+		suite.Require().Len(secrets, 1)
+
+		for _, secret := range secrets {
+			secret := secret.Kubernetes
+			if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
+
+				// decode data from secret?
+				decodedSecretData, err := functionconfig.DecodeSecretData(secret.Data)
+				suite.Require().NoError(err)
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got function secret",
+					"secretData", secret.Data,
+					"decodedSecretData", decodedSecretData)
+
+				// verify password is in secret data
+				secretKey := strings.ToLower("/spec/build/codeEntryAttributes/password")
+				suite.Require().Equal(password, decodedSecretData[secretKey])
+
+				// verify secret's "content" also contains the password
+				var decodedSecretsDataContent map[string]string
+				secretContent := string(secret.Data["content"])
+				decodedContents, err := base64.StdEncoding.DecodeString(secretContent)
+				suite.Require().NoError(err)
+				err = json.Unmarshal(decodedContents, &decodedSecretsDataContent)
+				suite.Require().NoError(err)
+
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Decoded secret data content",
+					"decodedSecretsDataContent", decodedSecretsDataContent)
+
+				secretKeyEnvVar := functionconfig.ResolveEnvVarNameFromReference(secretKey)
+				suite.Require().Equal(password, decodedSecretsDataContent[secretKeyEnvVar])
+
+				//	// TODO: test flex volume secrets once controller PR is implemented
+				//} else if strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
+				//
+				//	// verify access key is in secret data
+				//	suite.Require().Equal(accessKey, string(secret.Data["accessKey"]))
+
+			} else {
+
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got unknown secret",
+					"secretName", secret.Name,
+					"secretData", secret.Data)
+				suite.Failf("Got unknown secret. Secret name: %s\n", secret.Name)
+			}
+
+		}
+		return true
+	})
 }
 
 type DeleteFunctionTestSuite struct {

@@ -2201,7 +2201,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	volumeNameToVolumeMounts := map[string][]v1.VolumeMount{}
 
 	for _, configVolume := range configVolumes {
-		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == "v3io/fuse" {
+		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == functionconfig.SecretTypeV3ioFuse {
 
 			// make sure the given sub path matches the needed structure. fix in case it doesn't
 			subPath, subPathExists := configVolume.Volume.FlexVolume.Options["subPath"]
