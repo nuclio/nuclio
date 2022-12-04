@@ -113,18 +113,20 @@ func newCreateProjectCommandeer(ctx context.Context, createCommandeer *createCom
 
 type createAPIGatewayCommandeer struct {
 	*createCommandeer
-	apiGatewayConfig   platform.APIGatewayConfig
-	project            string
-	host               string
-	description        string
-	path               string
-	authenticationMode string
-	basicAuthUsername  string
-	basicAuthPassword  string
-	function           string
-	canaryFunction     string
-	canaryPercentage   int
-	encodedAttributes  string
+	apiGatewayConfig         platform.APIGatewayConfig
+	project                  string
+	host                     string
+	description              string
+	path                     string
+	authenticationMode       string
+	basicAuthUsername        string
+	basicAuthPassword        string
+	function                 string
+	canaryFunction           string
+	canaryPercentage         int
+	encodedAttributes        string
+	encodedExtraLables       string
+	encodedCanaryExtraLables string
 }
 
 func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *createCommandeer) *createAPIGatewayCommandeer {
@@ -194,12 +196,20 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 				return errors.New("A primary function must be specified")
 			}
 
+			// decode the JSON extra labels
+			extraLabels := map[string]string{}
+			if err := json.Unmarshal([]byte(commandeer.encodedExtraLables),
+				&extraLabels); err != nil {
+				return errors.Wrap(err, "Failed to decode a function's extra labels")
+			}
+
 			commandeer.apiGatewayConfig.Spec.Upstreams = []platform.APIGatewayUpstreamSpec{
 				{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
 					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 						Name: commandeer.function,
 					},
+					ExtraLabels: extraLabels,
 				},
 			}
 
@@ -208,12 +218,23 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 					return errors.New("Canary function percentage must be specified")
 				}
 
+				canaryExtraLabels := map[string]string{}
+				if commandeer.encodedCanaryExtraLables == "" {
+
+					// decode the canary's JSON extra labels
+					if err := json.Unmarshal([]byte(commandeer.encodedExtraLables),
+						&canaryExtraLabels); err != nil {
+						return errors.Wrap(err, "Failed to decode a function's extra labels")
+					}
+				}
+
 				canaryUpstream := platform.APIGatewayUpstreamSpec{
 					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
 					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
 						Name: commandeer.canaryFunction,
 					},
-					Percentage: commandeer.canaryPercentage,
+					Percentage:  commandeer.canaryPercentage,
+					ExtraLabels: canaryExtraLabels,
 				}
 
 				commandeer.apiGatewayConfig.Spec.Upstreams = append(commandeer.apiGatewayConfig.Spec.Upstreams, canaryUpstream)
@@ -248,6 +269,8 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 	cmd.Flags().StringVar(&commandeer.canaryFunction, "canary-function", "", "The api gateway canary function")
 	cmd.Flags().IntVar(&commandeer.canaryPercentage, "canary-percentage", 0, "The canary function percentage")
 	cmd.Flags().StringVar(&commandeer.encodedAttributes, "attrs", "{}", "JSON-encoded attributes for the api gateway (overrides all the rest)")
+	cmd.Flags().StringVar(&commandeer.encodedExtraLables, "labels", "{}", "JSON-encoded custom labels for the api gateway")
+	cmd.Flags().StringVar(&commandeer.encodedExtraLables, "canary-labels", "{}", "JSON-encoded custom labels for canary upstream of the api gateway")
 
 	commandeer.cmd = cmd
 

@@ -254,6 +254,7 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 		ServiceName:    serviceName,
 		ServicePort:    servicePort,
 		RewriteTarget:  upstream.RewriteTarget,
+		Labels:         upstream.ExtraLabels,
 	}
 
 	switch apiGateway.Spec.AuthenticationMode {
@@ -297,6 +298,12 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	if commonIngressSpec.PathType == nil {
 		defaultPathType := networkingv1.PathTypeImplementationSpecific
 		commonIngressSpec.PathType = &defaultPathType
+	}
+
+	if upstream.ExtraLabels != nil {
+		commonIngressSpec.Labels = upstream.ExtraLabels
+	} else {
+		commonIngressSpec.Labels = map[string]string{}
 	}
 
 	return lc.ingressManager.GenerateResources(ctx, commonIngressSpec)

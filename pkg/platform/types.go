@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -420,6 +421,7 @@ type APIGatewayUpstreamSpec struct {
 	Percentage       int                           `json:"percentage,omitempty"`
 	RewriteTarget    string                        `json:"rewriteTarget,omitempty"`
 	ExtraAnnotations map[string]string             `json:"extraAnnotations,omitempty"`
+	ExtraLabels      map[string]string             `json:"extraLabels,omitempty"`
 }
 
 type APIGatewaySpec struct {
@@ -503,4 +505,9 @@ type GetFunctionReplicaLogsStreamOptions struct {
 
 	// Number of lines to show from the end of the logs
 	TailLines *int64
+}
+
+type FunctionSecret struct {
+	Kubernetes *v1.Secret
+	Local      *string
 }

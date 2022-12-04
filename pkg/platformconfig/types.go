@@ -268,9 +268,9 @@ type SensitiveFieldPath string
 type SensitiveFieldsConfig struct {
 
 	// CustomSensitiveFields is a list of fields that should be masked in logs and function config
-	MaskSensitiveFields   bool     `json:"maskSensitiveFields,omitempty"`
-	CustomSensitiveFields []string `json:"sensitiveFields,omitempty"`
-	SensitiveFieldsRegex  []*regexp.Regexp
+	MaskSensitiveFields   bool             `json:"maskSensitiveFields,omitempty"`
+	CustomSensitiveFields []string         `json:"customSensitiveFields,omitempty"`
+	SensitiveFieldsRegex  []*regexp.Regexp `json:"sensitiveFieldsRegex,omitempty"`
 }
 
 func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
@@ -280,6 +280,8 @@ func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 		"^/spec/build/codeentryattributes/password",
 		// volumes
 		"^/spec/volumes\\[\\d+\\]/volume/volumesource/flexvolume/options/accesskey",
+		"^/spec/volumes\\[\\d+\\]/volume/flexvolume/options/accesskey",
+
 		// triggers - global
 		"^/spec/triggers/.+/password",
 		"^/spec/triggers/.+/secret",
