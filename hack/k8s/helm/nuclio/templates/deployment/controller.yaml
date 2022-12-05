@@ -78,6 +78,8 @@ spec:
           value: {{ .Values.controller.operator.apiGateway.numWorkers | quote }}
         - name: NUCLIO_CONTROLLER_RESYNC_INTERVAL
           value: {{ .Values.controller.resyncInterval | quote }}
+        - name: NUCLIO_CONTROLLER_EVICTED_PODS_CLEANUP_INTERVAL
+          value: {{ .Values.controller.evictedPodsCleanupInterval | quote }}
         {{- if .Values.platform }}
         volumeMounts:
         - name: platform-config

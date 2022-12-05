@@ -49,6 +49,7 @@ func (suite *ControllerTestSuite) SetupTest() {
 	var err error
 	resyncInterval := 0 * time.Second
 	functionMonitoringInterval := 10 * time.Second
+	evictedPodsCleanupInterval := 30 * time.Minute
 	cronJobInterval := 10 * time.Second
 	defaultNumWorkers := 1
 
@@ -79,6 +80,7 @@ func (suite *ControllerTestSuite) SetupTest() {
 		nil,
 		resyncInterval,
 		functionMonitoringInterval,
+		evictedPodsCleanupInterval,
 		cronJobInterval,
 		platformConfig,
 		"configuration-name",

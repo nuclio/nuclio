@@ -55,6 +55,7 @@ type Controller struct {
 
 	// monitors
 	cronJobMonitoring          *CronJobMonitoring
+	evictedPodsMonitoring      *EvictedPodsMonitoring
 	functionMonitoring         *monitoring.FunctionMonitor
 	functionMonitoringInterval time.Duration
 }
@@ -69,6 +70,7 @@ func NewController(parentLogger logger.Logger,
 	resyncInterval time.Duration,
 	functionMonitoringInterval time.Duration,
 	cronJobStaleResourcesCleanupInterval time.Duration,
+	evictedPodsCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
 	platformConfigurationName string,
 	functionOperatorNumWorkers int,
@@ -167,6 +169,12 @@ func NewController(parentLogger logger.Logger,
 			&cronJobStaleResourcesCleanupInterval)
 	}
 
+	// creat evicted pods cleanup monitoring
+	newController.evictedPodsMonitoring = NewEvictedPodsMonitoring(ctx,
+		parentLogger,
+		newController,
+		&evictedPodsCleanupInterval)
+
 	return newController, nil
 }
 
@@ -195,6 +203,11 @@ func (c *Controller) Stop(ctx context.Context) error {
 	// stop cronjob monitoring
 	if c.cronJobMonitoring != nil {
 		c.cronJobMonitoring.stop(ctx)
+	}
+
+	// stop evicted pods monitoring
+	if c.evictedPodsMonitoring != nil {
+		c.evictedPodsMonitoring.stop(ctx)
 	}
 
 	// stop function monitor
@@ -271,6 +284,12 @@ func (c *Controller) startMonitors(ctx context.Context) error {
 
 		// start cron job monitoring
 		c.cronJobMonitoring.start(ctx)
+	}
+
+	if c.evictedPodsMonitoring != nil {
+
+		// start evicted pods monitoring
+		c.evictedPodsMonitoring.start(ctx)
 	}
 
 	return nil
