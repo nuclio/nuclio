@@ -429,7 +429,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete Secrets if exist
-	if err = lc.deleteFunctionSecrets(ctx, name, namespace); err != nil {
+	if err := lc.deleteFunctionSecrets(ctx, name, namespace); err != nil {
 		return errors.Wrap(err, "Failed to delete function secrets")
 	}
 
@@ -441,7 +441,8 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			return errors.Wrap(err, "Failed to delete deployment")
 		}
 	} else {
-		lc.logger.DebugWithCtx(ctx, "Deleted deployment",
+		lc.logger.DebugWithCtx(ctx,
+			"Deleted deployment",
 			"namespace", namespace,
 			"deploymentName", deploymentName)
 	}
@@ -676,7 +677,8 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(ctx context.Context,
 		return nil
 	}
 
-	lc.logger.DebugWithCtx(ctx, "Deleting removed cron trigger cron job",
+	lc.logger.DebugWithCtx(ctx,
+		"Deleting removed cron trigger cron job",
 		"cronJobsToDelete", cronJobsToDelete)
 
 	errGroup, _ := errgroup.WithContext(ctx, lc.logger)
@@ -915,7 +917,10 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	}
 
 	// get volumes and volumeMounts from configuration
-	volumes, volumeMounts := lc.getFunctionVolumeAndMounts(ctx, function)
+	volumes, volumeMounts, err := lc.getFunctionVolumeAndMounts(ctx, function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function volumes and mounts")
+	}
 
 	getDeployment := func() (interface{}, error) {
 		return lc.kubeClientSet.AppsV1().
@@ -1001,7 +1006,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			minReplicas := function.GetComputedMinReplicas()
 			maxReplicas := function.GetComputedMaxReplicas()
 			deploymentReplicas := deployment.Status.Replicas
-			lc.logger.DebugWithCtx(ctx, "Verifying current replicas not lower than minReplicas or higher than max",
+			lc.logger.DebugWithCtx(ctx,
+				"Verifying current replicas not lower than minReplicas or higher than max",
 				"functionName", function.Name,
 				"maxReplicas", maxReplicas,
 				"minReplicas", minReplicas,
@@ -1175,7 +1181,8 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 
 	minReplicas := function.GetComputedMinReplicas()
 	maxReplicas := function.GetComputedMaxReplicas()
-	lc.logger.DebugWithCtx(ctx, "Create/Update hpa",
+	lc.logger.DebugWithCtx(ctx,
+		"Create/Update hpa",
 		"functionName", function.Name,
 		"minReplicas", minReplicas,
 		"maxReplicas", maxReplicas)
@@ -1251,7 +1258,8 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			lc.logger.DebugWithCtx(ctx, "Deleting hpa - min replicas and max replicas are equal",
+			lc.logger.DebugWithCtx(ctx,
+				"Deleting hpa - min replicas and max replicas are equal",
 				"functionName", function.Name,
 				"name", hpa.Name)
 
@@ -1661,7 +1669,8 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 		} else {
 			spec.Ports[0].NodePort = 0
 		}
-		lc.logger.DebugWithCtx(ctx, "Updating service node port",
+		lc.logger.DebugWithCtx(ctx,
+			"Updating service node port",
 			"functionName", function.Name,
 			"ports", spec.Ports)
 	}
@@ -2152,7 +2161,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
-	function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
+	function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount, error) {
 	trueVal := true
 	falseVal := false
 	var configVolumes []functionconfig.Volume
@@ -2233,9 +2242,11 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 				// get the flex volume secret name
 				secretName, err := lc.getFlexVolumeSecretName(ctx, function, configVolume.Volume.Name)
 				if err != nil {
-					lc.logger.WarnWithCtx(ctx, "Failed to get flex volume secret name. Ignoring volume",
-						"err", err)
-					continue
+					lc.logger.WarnWithCtx(ctx,
+						"Failed to get flex volume secret name for access key value",
+						"err", err,
+						"functionName", function.Name)
+					return nil, nil, errors.Wrap(err, "Failed to get flex volume secret name for access key value")
 				}
 
 				// add secret ref to the flex volume
@@ -2245,7 +2256,8 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			}
 		}
 
-		lc.logger.DebugWithCtx(ctx, "Adding volume",
+		lc.logger.DebugWithCtx(ctx,
+			"Adding volume",
 			"configVolume", configVolume,
 			"functionName", function.Name)
 
@@ -2295,7 +2307,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	})
 
 	// flatten and return as list of instances
-	return volumes, volumeMounts
+	return volumes, volumeMounts, nil
 }
 
 func (lc *lazyClient) getFlexVolumeSecretName(ctx context.Context, function *nuclioio.NuclioFunction, volumeName string) (string, error) {
@@ -2613,7 +2625,8 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to list pod events")
 	}
-	lc.logger.DebugWithCtx(ctx, "Received pod events",
+	lc.logger.DebugWithCtx(ctx,
+		"Received pod events",
 		"podEventsLength", len(podEvents.Items))
 
 	for _, event := range podEvents.Items {
