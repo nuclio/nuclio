@@ -654,6 +654,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		0,              // disable resync interval
 		time.Second*5,  // monitor interval
 		time.Second*30, // cronjob stale duration
+		time.Minute*30, // evicted pods cleanup duration
 		suite.PlatformConfiguration,
 		"nuclio-platform-config",
 		1,

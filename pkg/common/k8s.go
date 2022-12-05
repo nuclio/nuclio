@@ -25,6 +25,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
+	"k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -79,6 +80,20 @@ func NewKubernetesClientWarningHandler(logger logger.Logger) *KubernetesClientWa
 	return &KubernetesClientWarningHandler{
 		logger: logger,
 	}
+}
+
+// CompileStalePodsFieldSelector creates a field selector(string) for stale pods
+func CompileStalePodsFieldSelector() string {
+	var fieldSelectors []string
+
+	// filter out non-stale pods by their phase
+	nonStalePodPhases := []v1.PodPhase{v1.PodPending, v1.PodRunning}
+	for _, nonStalePodPhase := range nonStalePodPhases {
+		selector := fmt.Sprintf("status.phase!=%s", string(nonStalePodPhase))
+		fieldSelectors = append(fieldSelectors, selector)
+	}
+
+	return strings.Join(fieldSelectors, ",")
 }
 
 // HandleWarningHeader handles miscellaneous warning messages yielded by Kubernetes api server
