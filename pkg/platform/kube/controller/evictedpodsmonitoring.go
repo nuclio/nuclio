@@ -49,13 +49,19 @@ func NewEvictedPodsMonitoring(ctx context.Context,
 		evictedPodsCleanupInterval: evictedPodsCleanupInterval,
 	}
 
-	parentLogger.DebugWithCtx(ctx, "Successfully created evicted pods monitoring instance",
+	parentLogger.DebugWithCtx(ctx,
+		"Successfully created evicted pods monitoring instance",
 		"evictedPodsCleanupInterval", evictedPodsCleanupInterval)
 
 	return newEvictedPodsMonitoring
 }
 
 func (epm *EvictedPodsMonitoring) start(ctx context.Context) {
+
+	if epm.evictedPodsCleanupInterval == nil || *epm.evictedPodsCleanupInterval == 0*time.Second {
+		epm.logger.DebugWithCtx(ctx, "Evicted pods cleanup is disabled")
+		return
+	}
 
 	// create stop channel
 	epm.stopChan = make(chan struct{}, 1)
@@ -90,7 +96,7 @@ func (epm *EvictedPodsMonitoring) cleanupEvictedPods(ctx context.Context) {
 
 			// get all failed function pods
 			stalePodsFieldSelector := common.CompileStalePodsFieldSelector()
-			pods, err := epm.controller.kubeClientSet.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+			pods, err := epm.controller.kubeClientSet.CoreV1().Pods(epm.controller.namespace).List(ctx, metav1.ListOptions{
 				LabelSelector: "nuclio.io/class=function",
 				FieldSelector: stalePodsFieldSelector,
 			})

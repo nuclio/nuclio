@@ -62,6 +62,8 @@ controller:
   # Note: 0 means cancelling resync mechanism. any other value (e.g.: 10m) would turn it on.
   resyncInterval: 0
 
+  # evicted pods cleanup interval defines how often the Controller goes through all evicted pods and deletes them
+  # Note: 0 means cancelling cleanup mechanism. any other value (e.g.: 10m) would turn it on.
   evictedPodsCleanupInterval: 30m
 
   operator:
