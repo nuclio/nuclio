@@ -17,9 +17,7 @@ limitations under the License.
 package functionconfig
 
 import (
-	"crypto/md5"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -41,6 +39,8 @@ const (
 	SecretTypeFunctionConfig         = "nuclio.io/functionconfig"
 	SecretTypeV3ioFuse               = "v3io/fuse"
 	SecretContentKey                 = "content"
+	HasSecretAnnotation              = "nuclio.io/has-secret"
+	FunctionSecretMountPath          = "/etc/nuclio/secrets"
 )
 
 // Scrub scrubs sensitive data from a function config
@@ -167,11 +167,12 @@ func ResolveEnvVarNameFromReference(reference string) string {
 	return encodeSecretKey(fieldPath)
 }
 
-func GenerateAccessKeyRefHashString(accessKeyRef string) string {
-
-	// using md5 for a shorter hash string (vs sha256) as k8s has a 63 character limit on secret keys
-	hash := md5.Sum([]byte(strings.TrimPrefix(accessKeyRef, ReferencePrefix)))
-	return hex.EncodeToString(hash[:])
+func GenerateFunctionSecretName(functionName, secretPrefix string) string {
+	secretName := fmt.Sprintf("%s%s", secretPrefix, functionName)
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
+	}
+	return secretName
 }
 
 // encodeSecretKey encodes a secret key

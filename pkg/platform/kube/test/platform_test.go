@@ -783,24 +783,6 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 		"password": password,
 	}
 
-	// delete function secrets when done
-	// TODO: remove this when the controller side PR is done
-	defer func() {
-		secrets, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
-		})
-		if err != nil {
-			suite.Logger.WarnWith("Failed to list secrets", "err", err)
-		}
-
-		for _, secret := range secrets.Items {
-			err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(suite.Ctx, secret.Name, metav1.DeleteOptions{})
-			if err != nil {
-				suite.Logger.WarnWith("Failed to delete secret", "err", err, "secretName", secret.Name)
-			}
-		}
-	}()
-
 	// deploy function
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
@@ -813,7 +795,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 			secret := secret.Kubernetes
 			if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
 
-				// decode data from secret?
+				// decode data from secret
 				decodedSecretData, err := functionconfig.DecodeSecretData(secret.Data)
 				suite.Require().NoError(err)
 				suite.Logger.DebugWithCtx(suite.Ctx,
@@ -839,12 +821,6 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 
 				secretKeyEnvVar := functionconfig.ResolveEnvVarNameFromReference(secretKey)
 				suite.Require().Equal(password, decodedSecretsDataContent[secretKeyEnvVar])
-
-				//	// TODO: test flex volume secrets once controller PR is implemented
-				//} else if strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
-				//
-				//	// verify access key is in secret data
-				//	suite.Require().Equal(accessKey, string(secret.Data["accessKey"]))
 
 			} else {
 
