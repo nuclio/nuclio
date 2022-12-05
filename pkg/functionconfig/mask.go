@@ -24,6 +24,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/gosecretive"
 	"k8s.io/apimachinery/pkg/labels"
@@ -33,10 +35,12 @@ const (
 	ReferencePrefix                  = "$ref:"
 	ReferenceToEnvVarPrefix          = "NUCLIO_B64_"
 	NuclioSecretNamePrefix           = "nuclio-secret-"
-	NuclioSecretType                 = "nuclio.io/functionconfig"
 	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
+	SecretTypeFunctionConfig         = "nuclio.io/functionconfig"
+	SecretTypeV3ioFuse               = "v3io/fuse"
+	SecretContentKey                 = "content"
 	HasSecretAnnotation              = "nuclio.io/has-secret"
-	NuclioSecretMountPath            = "/etc/nuclio/secrets"
+	FunctionSecretMountPath          = "/etc/nuclio/secrets"
 )
 
 // Scrub scrubs sensitive data from a function config
@@ -44,10 +48,17 @@ func Scrub(functionConfig *Config,
 	existingSecretMap map[string]string,
 	sensitiveFields []*regexp.Regexp) (*Config, map[string]string, error) {
 
-	var err error
+	var scrubErr error
+
+	// hack to support avoid losing unexported fields while scrubbing.
+	// scrub the function config to map[string]interface{} and revert it back to a function config later
+	functionConfigAsMap := common.StructureToMap(functionConfig)
+	if len(functionConfigAsMap) == 0 {
+		return nil, nil, errors.New("Failed to convert function config to map")
+	}
 
 	// scrub the function config
-	scrubbedFunctionConfig, secretsMap := gosecretive.Scrub(functionConfig, func(fieldPath string, valueToScrub interface{}) *string {
+	scrubbedFunctionConfigAsMap, secretsMap := gosecretive.Scrub(functionConfigAsMap, func(fieldPath string, valueToScrub interface{}) *string {
 
 		for _, fieldPathRegexToScrub := range sensitiveFields {
 
@@ -69,12 +80,12 @@ func Scrub(functionConfig *Config,
 					// and contains the reference
 					if strings.HasPrefix(stringValue, ReferencePrefix) {
 						if existingSecretMap != nil {
-							trimmedSecretKey := strings.TrimSpace(strings.TrimPrefix(secretKey, ReferencePrefix))
+							trimmedSecretKey := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(secretKey, ReferencePrefix)))
 							if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
-								err = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
+								scrubErr = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
 							}
 						} else {
-							err = errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
+							scrubErr = errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
 						}
 						return nil
 					}
@@ -94,7 +105,17 @@ func Scrub(functionConfig *Config,
 		secretsMap = labels.Merge(secretsMap, existingSecretMap)
 	}
 
-	return scrubbedFunctionConfig.(*Config), secretsMap, err
+	// marshal and unmarshal the scrubbed object back to function config
+	scrubbedFunctionConfig := &Config{}
+	masrhalledScrubbedFunctionConfig, err := json.Marshal(scrubbedFunctionConfigAsMap.(map[string]interface{}))
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to marshal scrubbed function config")
+	}
+	if err := json.Unmarshal(masrhalledScrubbedFunctionConfig, scrubbedFunctionConfig); err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to unmarshal scrubbed function config")
+	}
+
+	return scrubbedFunctionConfig, secretsMap, scrubErr
 }
 
 // Restore restores sensitive data in a function config from a secrets map
@@ -117,7 +138,7 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to marshal secrets map")
 	}
-	encodedSecretsMap["content"] = base64.StdEncoding.EncodeToString(secretsMapContent)
+	encodedSecretsMap[SecretContentKey] = base64.StdEncoding.EncodeToString(secretsMapContent)
 
 	return encodedSecretsMap, nil
 }
@@ -126,7 +147,7 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 	decodedSecretsMap := map[string]string{}
 	for secretKey, secretValue := range secretData {
-		if secretKey == "content" {
+		if secretKey == SecretContentKey {
 
 			// when the secret is created, the entire map is encoded into a single string under the "content" key
 			// which we don't care about when decoding
@@ -146,8 +167,12 @@ func ResolveEnvVarNameFromReference(reference string) string {
 	return encodeSecretKey(fieldPath)
 }
 
-func GenerateFunctionSecretName(functionName string) string {
-	return fmt.Sprintf("%s%s", NuclioSecretNamePrefix, functionName)
+func GenerateFunctionSecretName(functionName, secretPrefix string) string {
+	secretName := fmt.Sprintf("%s%s", secretPrefix, functionName)
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
+	}
+	return secretName
 }
 
 // encodeSecretKey encodes a secret key
@@ -170,5 +195,5 @@ func decodeSecretKey(secretKey string) (string, error) {
 }
 
 func generateSecretKey(fieldPath string) string {
-	return fmt.Sprintf("%s%s", ReferencePrefix, fieldPath)
+	return fmt.Sprintf("%s%s", ReferencePrefix, strings.ToLower(fieldPath))
 }

@@ -112,7 +112,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 
 func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 	existingSecrets := map[string]string{
-		"/Spec/Build/CodeEntryAttributes/password": "abcd",
+		"/spec/build/codeentryattributes/password": "abcd",
 	}
 
 	functionConfig := &Config{
@@ -189,9 +189,9 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 	suite.logger.DebugWith("Encoded secret map", "secretMap", secretMap, "encodedSecretMap", encodedSecretMap)
 
 	suite.Require().Contains(encodedSecretMap, "content")
-	suite.Require().Greater(len(encodedSecretMap["content"]), 0)
+	suite.Require().NotEmpty(len(encodedSecretMap["content"]))
 	for encodedKey, value := range encodedSecretMap {
-		if encodedKey == "content" {
+		if encodedKey == SecretContentKey {
 			continue
 		}
 		decodedKey, err := decodeSecretKey(encodedKey)
@@ -211,12 +211,13 @@ func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
 		"^/Spec/Build/CodeEntryAttributes/password",
 		// Path nested in an array
 		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey",
+		"^/Spec/Volumes\\[\\d+\\]/Volume/FlexVolume/Options/accesskey",
 		// Path for any map element
 		"^/Spec/Triggers/.+/Password",
 		// Nested path in any map element
 		"^/Spec/Triggers/.+/Attributes/password",
 	} {
-		regexpList = append(regexpList, regexp.MustCompile(sensitiveFieldPath))
+		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
 	}
 	return regexpList
 }

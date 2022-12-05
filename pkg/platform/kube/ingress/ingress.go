@@ -75,7 +75,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 			Name:        spec.Name,
 			Namespace:   spec.Namespace,
 			Annotations: ingressAnnotations,
-			Labels:      map[string]string{},
+			Labels:      spec.Labels,
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{

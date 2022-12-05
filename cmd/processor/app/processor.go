@@ -316,7 +316,7 @@ func (p *Processor) getSecretsMap(annotations map[string]string) (map[string]str
 		strings.ToLower(hasSecret) == "true" {
 
 		// read secret from file
-		encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/content", functionconfig.NuclioSecretMountPath))
+		encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/content", functionconfig.FunctionSecretMountPath))
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to read function secret")
 		}
