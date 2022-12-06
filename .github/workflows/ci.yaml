@@ -119,7 +119,9 @@ jobs:
       - name: Build
         run: |
           make nuctl
-          make nuctl-bin
+        # setup-go creates /home/runner/go as root, which fails the build.
+        # Uncomment once a fix is available.
+        # make nuctl-bin
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
