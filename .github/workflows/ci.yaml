@@ -125,9 +125,10 @@ jobs:
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-      - name: Ensure version
-        run: |
-          ./nuctl-$NUCLIO_LABEL-linux-amd64 version
+#      # TODO: Uncomment once a fix for nuctl-bin is available.
+#      - name: Ensure version
+#        run: |
+#          ./nuctl-$NUCLIO_LABEL-linux-amd64 version
 
   build_docker_images:
     name: Build docker images
