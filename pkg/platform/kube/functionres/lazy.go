@@ -2253,6 +2253,9 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 				configVolume.Volume.FlexVolume.SecretRef = &v1.LocalObjectReference{
 					Name: secretName,
 				}
+
+				// remove access key from the flex volume options
+				delete(configVolume.Volume.FlexVolume.Options, "accessKey")
 			}
 		}
 

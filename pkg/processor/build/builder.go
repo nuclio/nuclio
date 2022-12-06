@@ -272,7 +272,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
-	b.logger.InfoWith("Build complete", "result", buildResult)
+	// info log only the image name
+	b.logger.InfoWith("Build complete", "image", buildResult.Image)
+	b.logger.DebugWith("Build complete", "result", buildResult)
 
 	return buildResult, nil
 }

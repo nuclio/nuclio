@@ -299,7 +299,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 
 	// if there are no secrets, return
 	if len(secretsMap) == 0 {
-		return nil, nil
+		return config, nil
 	}
 
 	restoredFunctionConfig, err := functionconfig.Restore(config, secretsMap)
@@ -315,22 +315,40 @@ func (p *Processor) getSecretsMap(annotations map[string]string) (map[string]str
 	if hasSecret, hasSecretExists := annotations[functionconfig.HasSecretAnnotation]; hasSecretExists &&
 		strings.ToLower(hasSecret) == "true" {
 
-		// read secret from file
-		encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/content", functionconfig.FunctionSecretMountPath))
+		// the env var is mainly for testing
+		filePath := os.Getenv("NUCLIO_FUNCTION_SECRET_VOLUME_PATH")
+		if filePath == "" {
+			filePath = functionconfig.FunctionSecretMountPath
+		}
+
+		// check that the secret is volume mounted
+		if !common.FileExists(filePath) {
+			return nil, errors.New("Secret volume not mounted to function pod")
+		}
+
+		// read secret content from file
+		encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/%s", filePath, functionconfig.SecretContentKey))
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to read function secret")
 		}
 
 		// decode secret
-		decodedSecret, err := base64.StdEncoding.DecodeString(string(encodedSecret))
+		secretContentStr, err := base64.StdEncoding.DecodeString(string(encodedSecret))
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to decode function secret")
 		}
 
 		// unmarshal secret into map
-		secretMap := map[string]string{}
-		if err := json.Unmarshal(decodedSecret, &secretMap); err != nil {
+		encodedSecretMap := map[string]string{}
+		if err := json.Unmarshal(secretContentStr, &encodedSecretMap); err != nil {
 			return nil, errors.Wrap(err, "Failed to unmarshal function secret")
+		}
+
+		// decode secret keys and values
+		// convert values to byte array for decoding purposes
+		secretMap, err := functionconfig.DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode function secret data")
 		}
 
 		return secretMap, nil
