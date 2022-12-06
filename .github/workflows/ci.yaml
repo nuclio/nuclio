@@ -119,16 +119,13 @@ jobs:
       - name: Build
         run: |
           make nuctl
-        # setup-go creates /home/runner/go as root, which fails the build.
-        # Uncomment once a fix is available.
-        # make nuctl-bin
+          make nuctl-bin
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-#      # TODO: Uncomment once a fix for nuctl-bin is available.
-#      - name: Ensure version
-#        run: |
-#          ./nuctl-$NUCLIO_LABEL-linux-amd64 version
+      - name: Ensure version
+        run: |
+          ./nuctl-$NUCLIO_LABEL-linux-amd64 version
 
   build_docker_images:
     name: Build docker images
