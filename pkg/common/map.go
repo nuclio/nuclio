@@ -111,6 +111,18 @@ func MapStringInterfaceGetOrDefault(mapStringInterface map[string]interface{},
 	return value
 }
 
+// MapStringStringToMapStringBytesArray converts the string values of a map to byte arrays
+// Example: {"a": "b"} -> {"a": []byte("b")}
+func MapStringStringToMapStringBytesArray(m map[string]string) map[string][]byte {
+	out := map[string][]byte{}
+
+	for key, value := range m {
+		out[key] = []byte(value)
+	}
+
+	return out
+}
+
 func StringInSlice(a string, list []string) bool {
 	for _, b := range list {
 		if b == a {

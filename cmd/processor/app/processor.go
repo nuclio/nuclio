@@ -18,9 +18,11 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -118,6 +120,13 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
+
+	// restore function configuration from secret
+	restoredFunctionConfig, err := newProcessor.restoreFunctionConfig(&processorConfiguration.Config)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to restore function configuration")
+	}
+	processorConfiguration.Config = *restoredFunctionConfig
 
 	// for now, use the same logger for both the processor and user handler
 	newProcessor.functionLogger = newProcessor.logger
@@ -279,6 +288,75 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 	}
 
 	return &processorConfiguration, nil
+}
+
+// restoreFunctionConfig restores a scrubbed function configuration to the original values from the
+// mounted secret, if it exists
+func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*functionconfig.Config, error) {
+
+	secretsMap, err := p.getSecretsMap(config.Meta.Annotations)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get secrets map")
+	}
+
+	// if there are no secrets, return
+	if len(secretsMap) == 0 {
+		return config, nil
+	}
+
+	restoredFunctionConfig, err := functionconfig.Restore(config, secretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to restore function config")
+	}
+
+	return restoredFunctionConfig, nil
+}
+
+func (p *Processor) getSecretsMap(annotations map[string]string) (map[string]string, error) {
+
+	if hasSecret, hasSecretExists := annotations[functionconfig.HasSecretAnnotation]; hasSecretExists &&
+		strings.ToLower(hasSecret) == "true" {
+
+		// the env var is mainly for testing
+		filePath := os.Getenv("NUCLIO_FUNCTION_SECRET_VOLUME_PATH")
+		if filePath == "" {
+			filePath = functionconfig.FunctionSecretMountPath
+		}
+
+		// check that the secret is volume mounted
+		if !common.FileExists(filePath) {
+			return nil, errors.New("Secret volume not mounted to function pod")
+		}
+
+		// read secret content from file
+		encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/%s", filePath, functionconfig.SecretContentKey))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to read function secret")
+		}
+
+		// decode secret
+		secretContentStr, err := base64.StdEncoding.DecodeString(string(encodedSecret))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode function secret")
+		}
+
+		// unmarshal secret into map
+		encodedSecretMap := map[string]string{}
+		if err := json.Unmarshal(secretContentStr, &encodedSecretMap); err != nil {
+			return nil, errors.Wrap(err, "Failed to unmarshal function secret")
+		}
+
+		// decode secret keys and values
+		// convert values to byte array for decoding purposes
+		secretMap, err := functionconfig.DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode function secret data")
+		}
+
+		return secretMap, nil
+
+	}
+	return map[string]string{}, nil
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
