@@ -1273,6 +1273,32 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, nam
 	return functionToAPIGateways, nil
 }
 
+func (p *Platform) getFunctionAPIGateways(ctx context.Context, functionName, namespace string) ([]*nuclioio.NuclioAPIGateway, error) {
+	var functionAPIGateways []*nuclioio.NuclioAPIGateway
+
+	// get all api gateways in the namespace
+	apiGateways, err := p.consumer.NuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(namespace).
+		List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list API gateways")
+	}
+
+	// iterate over all api gateways
+	for _, apiGateway := range apiGateways.Items {
+
+		// iterate over all upstreams(functions) of the api gateway
+		for _, upstream := range apiGateway.Spec.Upstreams {
+			if upstream.NuclioFunction.Name == functionName {
+
+				functionAPIGateways = append(functionAPIGateways, &apiGateway)
+			}
+		}
+	}
+
+	return functionAPIGateways, nil
+}
+
 func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions []platform.Function, namespace string) error {
 	var err error
 	var functionToAPIGateways map[string][]string
@@ -1635,20 +1661,22 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 		}
 	}
 
-	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence)
-	if err != nil {
+	if _, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence); err != nil {
 		return errors.Wrap(err, "Failed to get api gateway upstream functions")
 	}
-
-	// validate APIGateway functions have no ingresses
-	for _, upstreamFunction := range upstreamFunctions {
-		ingresses := functionconfig.GetFunctionIngresses(upstreamFunction.GetConfig())
-		if len(ingresses) > 0 {
-			return nuclio.NewErrPreconditionFailed(
-				fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
-					upstreamFunction.GetConfig().Meta.Name))
-		}
-	}
+	//
+	//// validate APIGateway functions ingresses have unique hostnames
+	//for _, upstreamFunction := range upstreamFunctions {
+	//	ingresses := functionconfig.GetFunctionIngresses(upstreamFunction.GetConfig())
+	//	if len(ingresses) > 0 {
+	//		for _, ingressInstance := range ingresses {
+	//			if ingressInstance.Host == apiGateway.Spec.Host &&
+	//				common.StringInSlice(apiGateway.Spec.Path, ingressInstance.Paths) {
+	//				return nuclio.NewErrPreconditionFailed("APIGateway endpoint overrides the function's ingress endpoint")
+	//			}
+	//		}
+	//	}
+	//}
 
 	// ingresses
 	if err := p.validateAPIGatewayIngresses(ctx, apiGateway); err != nil {
@@ -1775,9 +1803,9 @@ func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayCo
 }
 
 func (p *Platform) validateFunctionIngresses(ctx context.Context, functionConfig *functionconfig.Config) error {
-	if err := p.validateFunctionNoIngressAndAPIGateway(ctx, functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate: the function isn't exposed by an internal ingresses or an API gateway")
-	}
+	//if err := p.validateFunctionNoIngressAndAPIGateway(ctx, functionConfig); err != nil {
+	//	return errors.Wrap(err, "Failed to validate: the function isn't exposed by an internal ingresses or an API gateway")
+	//}
 
 	listIngressesOptions := metav1.ListOptions{
 
@@ -1862,13 +1890,21 @@ func (p *Platform) validateFunctionNoIngressAndAPIGateway(ctx context.Context, f
 	if len(ingresses) > 0 {
 
 		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
-		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(ctx, functionConfig.Meta.Namespace)
+		apiGateways, err := p.getFunctionAPIGateways(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
 		}
-		if _, found := functionToAPIGateways[functionConfig.Meta.Name]; found {
-			return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an API gateway")
+		for _, apiGateway := range apiGateways {
+			for _, ingressInstance := range ingresses {
+				if ingressInstance.Host == apiGateway.Spec.Host && common.StringInSlice(apiGateway.Spec.Path, ingressInstance.Paths) {
+					return nuclio.NewErrBadRequest("Function can't expose ingresses with the same endpoint exposed by an API gateway")
+				}
+			}
 		}
+		//
+		//if _, found := functionToAPIGateways[functionConfig.Meta.Name]; found {
+		//	return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an API gateway")
+		//}
 	}
 
 	return nil
@@ -1981,7 +2017,7 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 			}
 			if function == nil {
 				if validateFunctionExistence {
-					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exists",
+					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exist",
 						upstream.NuclioFunction.Name))
 				}
 				return nil
