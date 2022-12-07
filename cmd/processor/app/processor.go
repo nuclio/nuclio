@@ -290,6 +290,8 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 	return &processorConfiguration, nil
 }
 
+// restoreFunctionConfig restores a scrubbed function configuration to the original values from the
+// mounted secret, if it exists
 func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*functionconfig.Config, error) {
 
 	secretsMap, err := p.getSecretsMap(config.Meta.Annotations)

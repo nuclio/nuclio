@@ -272,7 +272,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
-	// info log only the image name
+	// info log only the image name, so that the un-scrubbed function config won't be logged to the user
 	b.logger.InfoWith("Build complete", "image", buildResult.Image)
 	b.logger.DebugWith("Build complete", "result", buildResult)
 
