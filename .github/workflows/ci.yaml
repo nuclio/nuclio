@@ -39,6 +39,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           cache: true
+          go-version: '1.17'
 
       - name: Ensure go test files are build annotated
         run: make ensure-test-files-annotated
@@ -55,6 +56,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           cache: true
+          go-version: '1.17'
 
       - name: Run unit test
         run: |
@@ -69,6 +71,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           cache: true
+          go-version: '1.17'
 
       - name: Build
         run: |
@@ -149,6 +152,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           cache: true
+          go-version: '1.17'
 
       - uses: manusa/actions-setup-minikube@v2.7.1
         with:
@@ -223,6 +227,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           cache: true
+          go-version: '1.17'
 
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v3
@@ -255,6 +260,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           cache: true
+          go-version: '1.17'
 
       - uses: manusa/actions-setup-minikube@v2.7.1
         with:
