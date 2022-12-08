@@ -238,6 +238,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
 		fmt.Sprintf("--destination=%s", common.CompileImageName(buildOptions.RegistryURL, buildOptions.Image)),
 		fmt.Sprintf("--push-retry=%d", k.builderConfiguration.PushImagesRetries),
+		fmt.Sprintf("--image-fs-extract-retry=%d", k.builderConfiguration.ImageFSExtractionRetries),
 	}
 
 	if !buildOptions.NoCache {
