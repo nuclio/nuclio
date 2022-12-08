@@ -23,7 +23,7 @@ jobs:
       env:
         RUNNER_CONTEXT: ${{ toJson(runner) }}
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     # since github-actions gives us 14G only, and fills it up with some garbage
     # we will free up some space for us (~2GB)
