@@ -68,6 +68,7 @@ type ContainerBuilderConfiguration struct {
 	InsecurePushRegistry                 bool
 	InsecurePullRegistry                 bool
 	PushImagesRetries                    int
+	ImageFSExtractionRetries             int
 }
 
 func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) {
@@ -127,6 +128,12 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 
 	containerBuilderConfiguration.PushImagesRetries, err =
 		strconv.Atoi(common.GetEnvOrDefaultString("NUCLIO_KANIKO_PUSH_IMAGES_RETRIES", "3"))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve number of push images retries")
+	}
+
+	containerBuilderConfiguration.ImageFSExtractionRetries, err =
+		strconv.Atoi(common.GetEnvOrDefaultString("NUCLIO_KANIKO_IMAGE_FS_EXTRACTION_RETRIES", "3"))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve number of push images retries")
 	}
