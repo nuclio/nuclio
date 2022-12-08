@@ -125,10 +125,6 @@ jobs:
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-      - name: Ensure version
-        run: |
-          ./nuctl-$NUCLIO_LABEL-linux-amd64 version
-
   build_docker_images:
     name: Build docker images
     runs-on: ubuntu-latest
