@@ -67,23 +67,24 @@ jobs:
       run: |
         echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - uses: actions/setup-go@v2
+    - uses: actions/setup-go@v3
       with:
-        go-version: "1.17"
+        cache: true
+        go-version: '1.17'
 
     - name: Extract git branch
       id: git_info
       run: |
-        echo "::set-output name=branch::$(echo ${GITHUB_BASE_REF#refs/heads/})"
+        echo "name=branch::$(echo ${GITHUB_BASE_REF#refs/heads/})" >> $GITHUB_OUTPUT
 
     - name: Resolve docker cache tag
       id: docker_cache
       run: |
         export version_suffix=$(echo "${{ steps.git_info.outputs.branch }}" | grep -E "^[0-9]+\.[0-9]+\.x$" | tr -d '.')
         export unstable_tag=$(if [ -z "$version_suffix" ]; then echo "unstable-cache"; else echo "unstable-cache-$version_suffix";fi)
-        echo "::set-output name=tag::$(echo $unstable_tag)"      
+        echo "name=tag::$(echo $unstable_tag)" >> $GITHUB_OUTPUT
 
     # since github-actions gives us 14G only, and fills it up with some garbage
     # we will free up some space for us (~2GB)
@@ -131,7 +132,7 @@ jobs:
         NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
 
     - name: Tag and push stable images
-      if: env.NUCLIO_LABEL != 'unstable'
+      if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master'
       run: |
         docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
         docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
@@ -153,7 +154,7 @@ jobs:
         NUCLIO_ARCH: ${{ matrix.arch }}
 
     - name: Upload binaries
-      uses: AButler/upload-release-assets@v2.0
+      uses: AButler/upload-release-assets@v2.0.2
       if: github.event_name == 'release'
       with:
         files: '/home/runner/go/bin/nuctl-*'
