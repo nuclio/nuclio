@@ -1635,19 +1635,9 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 		}
 	}
 
-	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence)
-	if err != nil {
+	// get upstream functions for validating functions existence
+	if _, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence); err != nil {
 		return errors.Wrap(err, "Failed to get api gateway upstream functions")
-	}
-
-	// validate APIGateway functions have no ingresses
-	for _, upstreamFunction := range upstreamFunctions {
-		ingresses := functionconfig.GetFunctionIngresses(upstreamFunction.GetConfig())
-		if len(ingresses) > 0 {
-			return nuclio.NewErrPreconditionFailed(
-				fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
-					upstreamFunction.GetConfig().Meta.Name))
-		}
 	}
 
 	// ingresses
@@ -1775,9 +1765,6 @@ func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayCo
 }
 
 func (p *Platform) validateFunctionIngresses(ctx context.Context, functionConfig *functionconfig.Config) error {
-	if err := p.validateFunctionNoIngressAndAPIGateway(ctx, functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate: the function isn't exposed by an internal ingresses or an API gateway")
-	}
 
 	listIngressesOptions := metav1.ListOptions{
 
@@ -1847,27 +1834,6 @@ func (p *Platform) validateIngressHostAndPathAvailability(ctx context.Context,
 					}
 				}
 			}
-		}
-	}
-
-	return nil
-}
-
-// validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
-// this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
-// (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
-// with canary ingress, when sending requests to host-1.com we may get directed to the canary ingress defined by the api gateway)
-func (p *Platform) validateFunctionNoIngressAndAPIGateway(ctx context.Context, functionConfig *functionconfig.Config) error {
-	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
-	if len(ingresses) > 0 {
-
-		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
-		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(ctx, functionConfig.Meta.Namespace)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
-		}
-		if _, found := functionToAPIGateways[functionConfig.Meta.Name]; found {
-			return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an API gateway")
 		}
 	}
 
@@ -1981,7 +1947,7 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 			}
 			if function == nil {
 				if validateFunctionExistence {
-					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exists",
+					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exist",
 						upstream.NuclioFunction.Name))
 				}
 				return nil

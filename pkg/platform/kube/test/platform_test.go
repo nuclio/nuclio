@@ -41,7 +41,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
@@ -992,84 +991,6 @@ func (suite *UpdateFunctionTestSuite) TestSanity() {
 
 type DeployAPIGatewayTestSuite struct {
 	KubeTestSuite
-}
-
-// test that api gateway cannot be created if one of its functions have ingresses
-func (suite *DeployAPIGatewayTestSuite) TestAPIGatewayFunctionsHaveNoIngress() {
-	functionName := "some-function-name"
-	apiGatewayName := "some-api-gateway-name"
-	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"some-http-trigger": {
-			Kind: "http",
-			Attributes: map[string]interface{}{
-				"ingresses": map[string]interface{}{
-					"1": map[string]interface{}{
-						"host": "some-host",
-						"paths": []string{
-							"/some-path",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	// deploy a function with an ingress
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		expectedErrorMessage := fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", functionName)
-
-		// try to create api gateway with this function as upstream and expect it to fail
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, nil)
-		suite.Require().Error(err)
-		suite.Require().Equal(expectedErrorMessage, errors.RootCause(err).Error())
-
-		return true
-	})
-}
-
-// test that a function cannot expose ingresses if it is already being exposed by an api gateway
-func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIGateway() {
-	functionName := "some-function-name"
-	apiGatewayName := "some-api-gateway-name"
-	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-
-	// deploy a function
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
-		// create an api-gateway with that function as upstream
-		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*networkingv1.Ingress) {
-
-			// update the function to have ingresses
-			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-				"some-http-trigger": {
-					Kind: "http",
-					Attributes: map[string]interface{}{
-						"ingresses": map[string]interface{}{
-							"1": map[string]interface{}{
-								"host": "some-host",
-								"paths": []string{
-									"/some-path",
-								},
-							},
-						},
-					},
-				},
-			}
-
-			// expect the function deployment to fail because it is already being exposed by an api gateway
-			_, err := suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-				return true
-			})
-			suite.Require().Error(err)
-			suite.Require().IsType(&nuclio.ErrBadRequest, errors.RootCause(err))
-		})
-		suite.Require().NoError(err)
-
-		return true
-	})
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {

@@ -1875,7 +1875,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 					},
 				},
 			},
-			validationError: "Api gateway upstream function: function-with-ingresses must not have an ingress",
 		},
 		{
 			name: "ValidateAPIGatewayCanaryFunctionHasNoIngresses",
@@ -1913,7 +1912,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 					},
 				},
 			},
-			validationError: "Api gateway upstream function: function-with-ingresses-2 must not have an ingress",
 		},
 		{
 			name: "PathIsAvailable",
@@ -2014,7 +2012,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				return &apiGatewayConfig
 			}(),
 			validateFunctionsExistence: true,
-			validationError:            "Function default-func-name does not exists",
+			validationError:            "Function default-func-name does not exist",
 		},
 	} {
 		suite.Run(testCase.name, func() {
