@@ -119,7 +119,6 @@ jobs:
       - name: Build
         run: |
           make nuctl
-          make nuctl-bin
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
