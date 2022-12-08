@@ -603,7 +603,6 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 		// if deployed successfully, used deployed func configuration
 		if deployResult != nil {
 			functionConfig = deployResult.UpdatedFunctionConfig
-
 		}
 
 		suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck

@@ -408,7 +408,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 			break
 		}
 
-		// if ontainer doesn't exist return the error
+		// if container doesn't exist return the error
 		if !strings.Contains(err.Error(), "No such container") {
 			return "", "", errors.Wrapf(err, "Failed to execute command: %s", command)
 		}
