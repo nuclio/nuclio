@@ -2274,7 +2274,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	}
 
 	// volume the function secret if needed
-	if hasSecret, hasSecretExists := function.Annotations[functionconfig.HasSecretAnnotation]; hasSecretExists &&
+	if hasSecret, hasSecretExists := function.Annotations[functionconfig.FunctionAnnotationHasSecret]; hasSecretExists &&
 		strings.ToLower(hasSecret) == "true" {
 		secretVolumeName := "function-secret"
 		volumeNameToVolume[secretVolumeName] = v1.Volume{

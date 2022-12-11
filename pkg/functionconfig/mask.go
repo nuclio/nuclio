@@ -39,7 +39,6 @@ const (
 	SecretTypeFunctionConfig         = "nuclio.io/functionconfig"
 	SecretTypeV3ioFuse               = "v3io/fuse"
 	SecretContentKey                 = "content"
-	HasSecretAnnotation              = "nuclio.io/has-secret"
 	FunctionSecretMountPath          = "/etc/nuclio/secrets"
 )
 
@@ -133,12 +132,15 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 		encodedSecretsMap[encodeSecretKey(secretKey)] = secretValue
 	}
 
-	// encode the entire map into a single string
-	secretsMapContent, err := json.Marshal(encodedSecretsMap)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to marshal secrets map")
+	if len(encodedSecretsMap) > 0 {
+
+		// encode the entire map into a single string
+		secretsMapContent, err := json.Marshal(encodedSecretsMap)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to marshal secrets map")
+		}
+		encodedSecretsMap[SecretContentKey] = base64.StdEncoding.EncodeToString(secretsMapContent)
 	}
-	encodedSecretsMap[SecretContentKey] = base64.StdEncoding.EncodeToString(secretsMapContent)
 
 	return encodedSecretsMap, nil
 }

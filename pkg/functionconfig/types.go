@@ -494,6 +494,7 @@ func (s *Spec) PositiveGPUResourceLimit() bool {
 const (
 	FunctionAnnotationSkipBuild  = "skip-build"
 	FunctionAnnotationSkipDeploy = "skip-deploy"
+	FunctionAnnotationHasSecret  = "nuclio.io/has-secret"
 )
 
 // Meta identifies a function
@@ -527,6 +528,10 @@ func (m *Meta) RemoveSkipDeployAnnotation() {
 
 func (m *Meta) RemoveSkipBuildAnnotation() {
 	delete(m.Annotations, FunctionAnnotationSkipBuild)
+}
+
+func (m *Meta) RemoveHasSecretAnnotation() {
+	delete(m.Annotations, FunctionAnnotationHasSecret)
 }
 
 func ShouldSkipDeploy(annotations map[string]string) bool {
@@ -568,6 +573,12 @@ func (c *Config) CleanFunctionSpec() {
 	if c.Spec.Build.FunctionSourceCode != "" {
 		c.Spec.Image = ""
 	}
+}
+
+func (c *Config) CleanFunctionMeta() {
+
+	// when a secret is created, the function is updated with an annotation which is not supposed to be user facing
+	c.Meta.RemoveHasSecretAnnotation()
 }
 
 func (c *Config) PrepareFunctionForExport(noScrub bool) {
