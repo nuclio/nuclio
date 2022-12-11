@@ -608,6 +608,9 @@ func (c *Config) scrubFunctionData() {
 	// scrub resource version
 	c.Meta.ResourceVersion = ""
 
+	// remove annotations from metadata
+	c.CleanFunctionMeta()
+
 	// remove secrets and passwords from triggers
 	newTriggers := c.Spec.Triggers
 	for triggerName, trigger := range newTriggers {
