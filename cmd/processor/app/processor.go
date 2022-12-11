@@ -314,7 +314,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 
 func (p *Processor) getSecretsMap(annotations map[string]string) (map[string]string, error) {
 
-	if hasSecret, hasSecretExists := annotations[functionconfig.HasSecretAnnotation]; hasSecretExists &&
+	if hasSecret, hasSecretExists := annotations[functionconfig.FunctionAnnotationHasSecret]; hasSecretExists &&
 		strings.ToLower(hasSecret) == "true" {
 
 		// the env var is mainly for testing

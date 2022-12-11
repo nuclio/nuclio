@@ -201,9 +201,9 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		if scrubbedFunctionConfig.Meta.Annotations == nil {
 			scrubbedFunctionConfig.Meta.Annotations = map[string]string{}
 		}
-		scrubbedFunctionConfig.Meta.Annotations[functionconfig.HasSecretAnnotation] = "true"
+		scrubbedFunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationHasSecret] = "true"
 	} else {
-		delete(scrubbedFunctionConfig.Meta.Annotations, functionconfig.HasSecretAnnotation)
+		delete(scrubbedFunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationHasSecret)
 	}
 
 	// create or update a secret for the function
@@ -299,6 +299,12 @@ func (d *Deployer) createFlexVolumeSecrets(ctx context.Context, volumes []functi
 
 	for volumeIndex, volume := range volumes {
 		if volume.Volume.FlexVolume != nil && volume.Volume.FlexVolume.Driver == functionconfig.SecretTypeV3ioFuse {
+
+			// if the volume doesn't have an access key, skip it
+			if _, exists := volume.Volume.FlexVolume.Options["accessKey"]; !exists {
+				continue
+			}
+
 			createdSecretVolumeNames = append(createdSecretVolumeNames, volume.Volume.Name)
 			if err := d.createOrUpdateFlexVolumeSecret(ctx,
 				volumeIndex,
