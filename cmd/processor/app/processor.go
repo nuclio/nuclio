@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -294,7 +293,7 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 // mounted secret, if it exists
 func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*functionconfig.Config, error) {
 
-	secretsMap, err := p.getSecretsMap(config.Meta.Annotations)
+	secretsMap, err := p.getSecretsMap()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get secrets map")
 	}
@@ -312,51 +311,48 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 	return restoredFunctionConfig, nil
 }
 
-func (p *Processor) getSecretsMap(annotations map[string]string) (map[string]string, error) {
+func (p *Processor) getSecretsMap() (map[string]string, error) {
 
-	if hasSecret, hasSecretExists := annotations[functionconfig.FunctionAnnotationHasSecret]; hasSecretExists &&
-		strings.ToLower(hasSecret) == "true" {
-
-		// the env var is mainly for testing
-		filePath := os.Getenv("NUCLIO_FUNCTION_SECRET_VOLUME_PATH")
-		if filePath == "" {
-			filePath = functionconfig.FunctionSecretMountPath
-		}
-
-		// check that the secret is volume mounted
-		if !common.FileExists(filePath) {
-			return nil, errors.New("Secret volume not mounted to function pod")
-		}
-
-		// read secret content from file
-		encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/%s", filePath, functionconfig.SecretContentKey))
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to read function secret")
-		}
-
-		// decode secret
-		secretContentStr, err := base64.StdEncoding.DecodeString(string(encodedSecret))
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to decode function secret")
-		}
-
-		// unmarshal secret into map
-		encodedSecretMap := map[string]string{}
-		if err := json.Unmarshal(secretContentStr, &encodedSecretMap); err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshal function secret")
-		}
-
-		// decode secret keys and values
-		// convert values to byte array for decoding purposes
-		secretMap, err := functionconfig.DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to decode function secret data")
-		}
-
-		return secretMap, nil
-
+	// the env var is mainly for testing
+	filePath := os.Getenv("NUCLIO_FUNCTION_SECRET_VOLUME_PATH")
+	if filePath == "" {
+		filePath = functionconfig.FunctionSecretMountPath
 	}
-	return map[string]string{}, nil
+
+	// check if a secret is mounted
+	if !common.FileExists(filePath) {
+		p.logger.Debug("No secret is not mounted to function pod, continuing without restoring function config")
+		return map[string]string{}, nil
+	}
+
+	p.logger.Debug("Secret is mounted to function pod, restoring function config")
+
+	// read secret content from file
+	encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/%s", filePath, functionconfig.SecretContentKey))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read function secret")
+	}
+
+	// decode secret
+	secretContentStr, err := base64.StdEncoding.DecodeString(string(encodedSecret))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to decode function secret")
+	}
+
+	// unmarshal secret into map
+	encodedSecretMap := map[string]string{}
+	if err := json.Unmarshal(secretContentStr, &encodedSecretMap); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal function secret")
+	}
+
+	// decode secret keys and values
+	// convert values to byte array for decoding purposes
+	secretMap, err := functionconfig.DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to decode function secret data")
+	}
+
+	return secretMap, nil
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
