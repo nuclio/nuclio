@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -319,8 +320,10 @@ func (p *Processor) getSecretsMap() (map[string]string, error) {
 		filePath = functionconfig.FunctionSecretMountPath
 	}
 
+	contentPath := path.Join(filePath, functionconfig.SecretContentKey)
+
 	// check if a secret is mounted
-	if !common.FileExists(filePath) {
+	if !common.FileExists(contentPath) {
 		p.logger.Debug("No secret is not mounted to function pod, continuing without restoring function config")
 		return map[string]string{}, nil
 	}
@@ -328,7 +331,7 @@ func (p *Processor) getSecretsMap() (map[string]string, error) {
 	p.logger.Debug("Secret is mounted to function pod, restoring function config")
 
 	// read secret content from file
-	encodedSecret, err := os.ReadFile(fmt.Sprintf("%s/%s", filePath, functionconfig.SecretContentKey))
+	encodedSecret, err := os.ReadFile(contentPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read function secret")
 	}
