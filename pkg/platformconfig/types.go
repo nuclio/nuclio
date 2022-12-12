@@ -277,26 +277,26 @@ func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 	return []string{
 
 		// build
-		"^/spec/build/codeentryattributes/password",
+		"^/spec/build/codeentryattributes/password$",
 		// volumes
-		"^/spec/volumes\\[\\d+\\]/volume/volumesource/flexvolume/options/accesskey",
-		"^/spec/volumes\\[\\d+\\]/volume/flexvolume/options/accesskey",
+		"^/spec/volumes\\[\\d+\\]/volume/volumesource/flexvolume/options/accesskey$",
+		"^/spec/volumes\\[\\d+\\]/volume/flexvolume/options/accesskey$",
 
 		// triggers - global
-		"^/spec/triggers/.+/password",
-		"^/spec/triggers/.+/secret",
+		"^/spec/triggers/.+/password$",
+		"^/spec/triggers/.+/secret$",
 		// triggers - specific
 		// - v3io stream
-		"^/spec/triggers/.+/attributes/password",
+		"^/spec/triggers/.+/attributes/password$",
 		// - kinesis
-		"^/spec/triggers/.+/attributes/accesskeyid",
-		"^/spec/triggers/.+/attributes/secretaccesskey",
+		"^/spec/triggers/.+/attributes/accesskeyid$",
+		"^/spec/triggers/.+/attributes/secretaccesskey$",
 		// - kafka
-		"^/spec/triggers/.+/attributes/cacert",
-		"^/spec/triggers/.+/attributes/accesskey",
-		"^/spec/triggers/.+/attributes/accesscertificate",
-		"^/spec/triggers/.+/attributes/sasl/password",
-		"^/spec/triggers/.+/attributes/sasl/oauth/clientsecret",
+		"^/spec/triggers/.+/attributes/cacert$",
+		"^/spec/triggers/.+/attributes/accesskey$",
+		"^/spec/triggers/.+/attributes/accesscertificate$",
+		"^/spec/triggers/.+/attributes/sasl/password$",
+		"^/spec/triggers/.+/attributes/sasl/oauth/clientsecret$",
 	}
 }
 
