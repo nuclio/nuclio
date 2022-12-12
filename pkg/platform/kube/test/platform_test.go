@@ -636,6 +636,30 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})
+
+	// create a function with a nil service type
+	nilServiceTypeFunctionName := "with-nil-service-type"
+	nilServiceTypeFunctionOptions := suite.CompileCreateFunctionOptions(nilServiceTypeFunctionName)
+	triggerAttributesJSON := `{ "serviceType": null }`
+	triggerAttributes := map[string]interface{}{}
+	err := json.Unmarshal([]byte(triggerAttributesJSON), &triggerAttributes)
+	suite.Require().NoError(err)
+	nilServiceTypeTrigger := functionconfig.Trigger{
+		Kind:       "http",
+		Name:       "nil-service-type-trigger",
+		MaxWorkers: 1,
+		Attributes: triggerAttributes,
+	}
+	nilServiceTypeFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		nilServiceTypeTrigger.Name: nilServiceTypeTrigger,
+	}
+	suite.DeployFunction(nilServiceTypeFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		serviceInstance := &v1.Service{}
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(nilServiceTypeFunctionName), serviceInstance)
+		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
+		return true
+	})
+
 }
 
 func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
