@@ -459,7 +459,6 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
 	functionConfig := function.GetConfig()
 	functionConfig.CleanFunctionSpec()
-	functionConfig.CleanFunctionMeta()
 
 	attributes := restful.Attributes{
 		"metadata": functionConfig.Meta,

@@ -2163,7 +2163,6 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount, error) {
 	trueVal := true
-	falseVal := false
 	var configVolumes []functionconfig.Volume
 	var filteredFunctionVolumes []functionconfig.Volume
 
@@ -2273,25 +2272,22 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			configVolume.VolumeMount)
 	}
 
-	// volume the function secret if needed
-	if hasSecret, hasSecretExists := function.Annotations[functionconfig.FunctionAnnotationHasSecret]; hasSecretExists &&
-		strings.ToLower(hasSecret) == "true" {
-		secretVolumeName := "function-secret"
-		volumeNameToVolume[secretVolumeName] = v1.Volume{
-			Name: secretVolumeName,
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: functionconfig.GenerateFunctionSecretName(function.Name, functionconfig.NuclioSecretNamePrefix),
-					Optional:   &falseVal,
-				},
+	// volume the function secret as optional
+	secretVolumeName := "function-secret"
+	volumeNameToVolume[secretVolumeName] = v1.Volume{
+		Name: secretVolumeName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: functionconfig.GenerateFunctionSecretName(function.Name, functionconfig.NuclioSecretNamePrefix),
+				Optional:   &trueVal,
 			},
-		}
-		volumeNameToVolumeMounts[secretVolumeName] = append(volumeNameToVolumeMounts[secretVolumeName], v1.VolumeMount{
-			Name:      secretVolumeName,
-			MountPath: functionconfig.FunctionSecretMountPath,
-			ReadOnly:  true,
-		})
+		},
 	}
+	volumeNameToVolumeMounts[secretVolumeName] = append(volumeNameToVolumeMounts[secretVolumeName], v1.VolumeMount{
+		Name:      secretVolumeName,
+		MountPath: functionconfig.FunctionSecretMountPath,
+		ReadOnly:  true,
+	})
 
 	for _, volume := range volumeNameToVolume {
 		volumes = append(volumes, volume)

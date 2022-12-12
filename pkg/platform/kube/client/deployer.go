@@ -196,16 +196,6 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to encode secrets map")
 	}
 
-	// if the secret map is not empty, annotate the function so the controller will know to mount the secret
-	if len(encodedSecretsMap) > 0 {
-		if scrubbedFunctionConfig.Meta.Annotations == nil {
-			scrubbedFunctionConfig.Meta.Annotations = map[string]string{}
-		}
-		scrubbedFunctionConfig.Meta.Annotations[functionconfig.FunctionAnnotationHasSecret] = "true"
-	} else {
-		delete(scrubbedFunctionConfig.Meta.Annotations, functionconfig.FunctionAnnotationHasSecret)
-	}
-
 	// create or update a secret for the function
 	if err := d.createOrUpdateFunctionSecret(ctx,
 		encodedSecretsMap,
