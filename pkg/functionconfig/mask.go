@@ -145,6 +145,31 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 	return encodedSecretsMap, nil
 }
 
+// DecodeSecretsMapContent decodes the secrets map content
+func DecodeSecretsMapContent(secretsMapContent string) (map[string]string, error) {
+
+	// decode secret
+	secretContentStr, err := base64.StdEncoding.DecodeString(secretsMapContent)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to decode function secret")
+	}
+
+	// unmarshal secret into map
+	encodedSecretMap := map[string]string{}
+	if err := json.Unmarshal(secretContentStr, &encodedSecretMap); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal function secret")
+	}
+
+	// decode secret keys and values
+	// convert values to byte array for decoding purposes
+	secretMap, err := DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to decode function secret data")
+	}
+
+	return secretMap, nil
+}
+
 // DecodeSecretData decodes the keys of a secrets map
 func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 	decodedSecretsMap := map[string]string{}
