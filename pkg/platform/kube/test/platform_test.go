@@ -827,23 +827,19 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 					"decodedSecretData", decodedSecretData)
 
 				// verify password is in secret data
-				secretKey := strings.ToLower("/spec/build/codeEntryAttributes/password")
+				secretKey := strings.ToLower("$ref:/spec/build/codeEntryAttributes/password")
 				suite.Require().Equal(password, decodedSecretData[secretKey])
 
 				// verify secret's "content" also contains the password
-				var decodedSecretsDataContent map[string]string
 				secretContent := string(secret.Data["content"])
-				decodedContents, err := base64.StdEncoding.DecodeString(secretContent)
-				suite.Require().NoError(err)
-				err = json.Unmarshal(decodedContents, &decodedSecretsDataContent)
+				decodedContents, err := functionconfig.DecodeSecretsMapContent(secretContent)
 				suite.Require().NoError(err)
 
 				suite.Logger.DebugWithCtx(suite.Ctx,
 					"Decoded secret data content",
-					"decodedSecretsDataContent", decodedSecretsDataContent)
+					"decodedSecretsDataContent", decodedContents)
 
-				secretKeyEnvVar := functionconfig.ResolveEnvVarNameFromReference(secretKey)
-				suite.Require().Equal(password, decodedSecretsDataContent[secretKeyEnvVar])
+				suite.Require().Equal(password, decodedContents[secretKey])
 
 			} else {
 

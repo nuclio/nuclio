@@ -79,7 +79,7 @@ func Scrub(functionConfig *Config,
 					// and contains the reference
 					if strings.HasPrefix(stringValue, ReferencePrefix) {
 						if existingSecretMap != nil {
-							trimmedSecretKey := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(secretKey, ReferencePrefix)))
+							trimmedSecretKey := strings.ToLower(strings.TrimSpace(secretKey))
 							if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
 								scrubErr = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
 							}
