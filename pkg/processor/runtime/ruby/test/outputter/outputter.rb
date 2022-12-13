@@ -17,6 +17,8 @@
 def main(context, event)
   return Response.new(event.method) unless event.method == 'POST'
   case event.body
+  when 'return_userdata'
+    context.user_data
   when 'return_string'
     'a string'
   when 'return_bytes'
@@ -44,3 +46,6 @@ def main(context, event)
     raise "Unknown return mode: #{event.body}"
   end
 end
+
+def init_context(context):
+  context.user_data = 'userdata'
