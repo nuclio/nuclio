@@ -79,7 +79,7 @@ RUN python /opt/nuclio/whl/$(basename /opt/nuclio/whl/pip-*.whl)/pip install pip
  && python -m pip install nuclio-sdk msgpack --no-index --find-links /opt/nuclio/whl
 
 # Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+HEALTHCHECK --interval=10s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
 # Copy the function code, including the handler directory to /opt/nuclio
 COPY . /opt/nuclio
