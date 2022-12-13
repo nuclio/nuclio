@@ -112,7 +112,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 
 func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 	existingSecrets := map[string]string{
-		"/spec/build/codeentryattributes/password": "abcd",
+		"$ref:/spec/build/codeentryattributes/password": "abcd",
 	}
 
 	functionConfig := &Config{
