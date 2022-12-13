@@ -273,6 +273,10 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 	}
 
 	if len(encodedSecretsMap) > 0 {
+		d.logger.DebugWithCtx(ctx,
+			"Creating/updating function secret",
+			"functionName", name,
+			"functionNamespace", namespace)
 		if err := d.createOrUpdateSecret(ctx, namespace, secretConfig); err != nil {
 			return errors.Wrap(err, "Failed to create function secret")
 		}
@@ -371,6 +375,10 @@ func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
 		},
 	}
 
+	d.logger.DebugWithCtx(ctx,
+		"Creating/updating flex volume secret",
+		"functionName", functionName,
+		"functionNamespace", functionNamespace)
 	if err := d.createOrUpdateSecret(ctx, functionNamespace, secretConfig); err != nil {
 		return errors.Wrap(err, "Failed to create flex volume secret")
 	}

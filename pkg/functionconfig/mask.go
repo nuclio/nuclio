@@ -179,7 +179,6 @@ func GenerateFunctionSecretName(functionName, secretPrefix string) string {
 
 // encodeSecretKey encodes a secret key
 func encodeSecretKey(fieldPath string) string {
-	fieldPath = strings.TrimPrefix(fieldPath, ReferencePrefix)
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
 	return fmt.Sprintf("%s%s", ReferenceToEnvVarPrefix, encodedFieldPath)
