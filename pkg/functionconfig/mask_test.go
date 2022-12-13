@@ -196,7 +196,6 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 		}
 		decodedKey, err := decodeSecretKey(encodedKey)
 		suite.Require().NoError(err)
-		decodedKey = "$ref:" + decodedKey
 		suite.Require().Equal(secretMap[decodedKey], value)
 	}
 }
