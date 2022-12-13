@@ -112,7 +112,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 
 func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 	existingSecrets := map[string]string{
-		"/spec/build/codeentryattributes/password": "abcd",
+		"$ref:/spec/build/codeentryattributes/password": "abcd",
 	}
 
 	functionConfig := &Config{
@@ -196,9 +196,53 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 		}
 		decodedKey, err := decodeSecretKey(encodedKey)
 		suite.Require().NoError(err)
-		decodedKey = "$ref:" + decodedKey
 		suite.Require().Equal(secretMap[decodedKey], value)
 	}
+}
+
+func (suite *MaskTestSuite) TestDecodeSecretsMapContent() {
+
+	functionConfig := &Config{
+		Spec: Spec{
+			Triggers: map[string]Trigger{
+				"secret-trigger": {
+					Attributes: map[string]interface{}{
+						"password": "1234",
+					},
+					Password: "4567",
+				},
+				"non-secret-trigger": {
+					Attributes: map[string]interface{}{
+						"not-a-password": "4321",
+					},
+				},
+			},
+		},
+	}
+
+	// scrub the function config
+	maskedFunctionConfig, secretMap, err := Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
+	suite.Require().NoError(err)
+
+	// encode the secret map
+	encodedSecretMap, err := EncodeSecretsMap(secretMap)
+	suite.Require().NoError(err)
+
+	// get the encoded secret map content
+	encodedSecretMapContent := encodedSecretMap[SecretContentKey]
+	suite.Require().NotEmpty(encodedSecretMapContent)
+
+	decodedSecretMap, err := DecodeSecretsMapContent(encodedSecretMapContent)
+	suite.Require().NoError(err)
+
+	// restore the function config
+	restoredFunctionConfig, err := Restore(maskedFunctionConfig, decodedSecretMap)
+	suite.Require().NoError(err)
+
+	suite.logger.DebugWith("Restored function config", "functionConfig", restoredFunctionConfig)
+
+	// verify that the restored function config is equal to the original function config
+	suite.Require().Equal(functionConfig, restoredFunctionConfig)
 }
 
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths

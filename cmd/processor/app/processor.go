@@ -18,7 +18,6 @@ package app
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -336,26 +335,7 @@ func (p *Processor) getSecretsMap() (map[string]string, error) {
 		return nil, errors.Wrap(err, "Failed to read function secret")
 	}
 
-	// decode secret
-	secretContentStr, err := base64.StdEncoding.DecodeString(string(encodedSecret))
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decode function secret")
-	}
-
-	// unmarshal secret into map
-	encodedSecretMap := map[string]string{}
-	if err := json.Unmarshal(secretContentStr, &encodedSecretMap); err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal function secret")
-	}
-
-	// decode secret keys and values
-	// convert values to byte array for decoding purposes
-	secretMap, err := functionconfig.DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decode function secret data")
-	}
-
-	return secretMap, nil
+	return functionconfig.DecodeSecretsMapContent(string(encodedSecret))
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {

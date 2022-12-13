@@ -79,7 +79,7 @@ func Scrub(functionConfig *Config,
 					// and contains the reference
 					if strings.HasPrefix(stringValue, ReferencePrefix) {
 						if existingSecretMap != nil {
-							trimmedSecretKey := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(secretKey, ReferencePrefix)))
+							trimmedSecretKey := strings.ToLower(strings.TrimSpace(secretKey))
 							if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
 								scrubErr = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
 							}
@@ -145,6 +145,31 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 	return encodedSecretsMap, nil
 }
 
+// DecodeSecretsMapContent decodes the secrets map content
+func DecodeSecretsMapContent(secretsMapContent string) (map[string]string, error) {
+
+	// decode secret
+	secretContentStr, err := base64.StdEncoding.DecodeString(secretsMapContent)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to decode function secret")
+	}
+
+	// unmarshal secret into map
+	encodedSecretMap := map[string]string{}
+	if err := json.Unmarshal(secretContentStr, &encodedSecretMap); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal function secret")
+	}
+
+	// decode secret keys and values
+	// convert values to byte array for decoding purposes
+	secretMap, err := DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to decode function secret data")
+	}
+
+	return secretMap, nil
+}
+
 // DecodeSecretData decodes the keys of a secrets map
 func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 	decodedSecretsMap := map[string]string{}
@@ -179,7 +204,6 @@ func GenerateFunctionSecretName(functionName, secretPrefix string) string {
 
 // encodeSecretKey encodes a secret key
 func encodeSecretKey(fieldPath string) string {
-	fieldPath = strings.TrimPrefix(fieldPath, ReferencePrefix)
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
 	return fmt.Sprintf("%s%s", ReferenceToEnvVarPrefix, encodedFieldPath)
