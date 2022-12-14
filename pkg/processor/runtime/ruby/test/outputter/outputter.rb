@@ -47,5 +47,5 @@ def main(context, event)
   end
 end
 
-def init_context(context):
+def init_context(context)
   context.user_data = 'userdata'
