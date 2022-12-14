@@ -644,7 +644,7 @@ COPY artifacts/uhttpc /usr/local/bin/uhttpc
 COPY imageLocal1 imageImage1
 COPY imageLocal2 imageImage2
 # Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+HEALTHCHECK --interval=10s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 # Run the post-copy directives
 postCopyKind1 postCopyValue1
 postCopyKind2 postCopyValue2
@@ -777,7 +777,7 @@ COPY --from=quay.io/nuclio/uhttpc:0.0.1-amd64 /home/nuclio/bin/uhttpc /usr/local
 COPY imageLocal1 imageImage1
 COPY imageLocal2 imageImage2
 # Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+HEALTHCHECK --interval=10s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 # Run the post-copy directives
 postCopyKind1 postCopyValue1
 postCopyKind2 postCopyValue2
