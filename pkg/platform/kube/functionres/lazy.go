@@ -2488,7 +2488,7 @@ func (lc *lazyClient) generateMetricSpecFromAutoScaleMetrics(autoScaleMetrics []
 			metricSpec = autosv2.MetricSpec{
 				Type: autoscaleMetric.SourceType,
 				Pods: &autosv2.PodsMetricSource{
-					MetricName:         autoscaleMetric.MetricName,
+					MetricName:         fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
 					TargetAverageValue: quantity,
 				},
 			}
@@ -2501,7 +2501,7 @@ func (lc *lazyClient) generateMetricSpecFromAutoScaleMetrics(autoScaleMetrics []
 			metricSpec = autosv2.MetricSpec{
 				Type: autoscaleMetric.SourceType,
 				External: &autosv2.ExternalMetricSource{
-					MetricName:  autoscaleMetric.MetricName,
+					MetricName:  fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
 					TargetValue: &quantity,
 				},
 			}
