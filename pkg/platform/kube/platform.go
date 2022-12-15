@@ -1247,6 +1247,30 @@ func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functio
 	return functionSecrets, nil
 }
 
+// GetFunctionSecretData returns the function's secret data
+func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
+
+	// get existing function secret
+	functionSecrets, err := p.GetFunctionSecrets(ctx, functionName, functionNamespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// if secret exists, get the data
+	for _, functionSecret := range functionSecrets {
+		functionSecret := functionSecret.Kubernetes
+
+		// if it is a flex volume secret, skip it
+		if strings.HasPrefix(functionSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
+			continue
+		}
+
+		return functionSecret.Data, nil
+	}
+
+	return nil, nil
+}
+
 func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, namespace string) (map[string][]string, error) {
 	functionToAPIGateways := map[string][]string{}
 

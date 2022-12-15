@@ -1009,6 +1009,60 @@ func (suite *UpdateFunctionTestSuite) TestSanity() {
 		))
 }
 
+func (suite *UpdateFunctionTestSuite) TestUpdateFunctionWithSecret() {
+	ctx := suite.Ctx
+	functionName := "update-with-secret"
+	password := "1234"
+	secretPasswordKey := fmt.Sprintf("%s%s",
+		functionconfig.ReferencePrefix,
+		"/spec/build/codeentryattributes/password")
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// add sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"password": password,
+	}
+
+	// create function
+	_, err := suite.Platform.CreateFunction(ctx, createFunctionOptions)
+	suite.Require().NoError(err, "Failed to create function")
+
+	// delete leftovers and reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+
+		err = suite.Platform.DeleteFunction(ctx, &platform.DeleteFunctionOptions{
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+		})
+		suite.Require().NoError(err, "Failed to delete function")
+	}()
+
+	// get function secret data
+	secretData, err := suite.Platform.GetFunctionSecretMap(ctx, functionName, suite.Namespace)
+	suite.Require().NoError(err, "Failed to get function secret data")
+
+	// ensure secret contains the password
+	suite.Require().Equal(password, secretData[secretPasswordKey])
+
+	// set the password to the reference, to mimic updating with an existing secret
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes["password"] = secretPasswordKey
+
+	// update function - use 'CreateFunction' since 'UpdateFunction' doesn't support updating secrets
+	_, err = suite.Platform.CreateFunction(ctx, createFunctionOptions)
+	suite.Require().NoError(err, "Failed to create function")
+
+	// get function secret data
+	secretData, err = suite.Platform.GetFunctionSecretMap(ctx, functionName, suite.Namespace)
+	suite.Require().NoError(err, "Failed to get function secret data")
+
+	// ensure secret still contains the same password
+	suite.Require().Equal(password, secretData[secretPasswordKey])
+}
+
 type DeployAPIGatewayTestSuite struct {
 	KubeTestSuite
 }

@@ -818,6 +818,17 @@ func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Con
 		functionConfig.Meta.Name)
 }
 
+// GetFunctionSecrets returns all the function's secrets
+func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
+
+	// TODO: implement function secrets on local platform
+	return nil, nil
+}
+
+func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
+	return nil, nil
+}
+
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
