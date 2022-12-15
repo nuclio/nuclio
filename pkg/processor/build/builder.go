@@ -366,7 +366,7 @@ COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
 
 {{ if .HealthcheckRequired }}
 # Readiness probe
-HEALTHCHECK --interval=10s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 {{ end }}
 
 # Run the post-copy directives
