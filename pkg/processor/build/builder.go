@@ -1814,14 +1814,14 @@ func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
 	var healthCheckInterval = time.Second
 	if b.options.FunctionConfig.Spec.Platform.Attributes != nil {
 		if healthCheckIntervalString, ok := b.options.FunctionConfig.Spec.Platform.Attributes["healthCheckInterval"]; ok {
-			switch healthCheckIntervalString.(type) {
+			switch healthCheckIntervalValue := healthCheckIntervalString.(type) {
 			case string:
-				healthCheckInterval, err = time.ParseDuration(healthCheckIntervalString.(string))
+				healthCheckInterval, err = time.ParseDuration(healthCheckIntervalValue)
 				if err != nil {
 					return 0, errors.Wrap(err, "Failed to parse health check interval")
 				}
 			case int:
-				healthCheckInterval = time.Duration(healthCheckIntervalString.(int)) * time.Second
+				healthCheckInterval = time.Duration(healthCheckIntervalValue) * time.Second
 			default:
 				return 0, errors.New("Failed to parse health check interval")
 			}
