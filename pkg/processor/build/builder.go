@@ -327,9 +327,10 @@ func (b *Builder) GenerateDockerfileContents(baseImage string,
 	imageArtifactPaths map[string]string,
 	directives map[string][]functionconfig.Directive,
 	healthCheckRequired bool,
+	healthCheckInterval time.Duration,
 	buildArgs map[string]string) (string, error) {
 
-	// now that all artifacts are in the artifacts directory, we can craft a Dockerfile
+	// now that all artifacts are in the artifacts' directory, we can craft a Dockerfile
 	dockerfileTemplateContents := `# Multistage builds
 
 {{ range $onbuildStage := .OnbuildStages }}
@@ -366,7 +367,7 @@ COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
 
 {{ if .HealthcheckRequired }}
 # Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+HEALTHCHECK --interval={{ .HealthcheckIntervalSeconds }} --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 {{ end }}
 
 # Run the post-copy directives
@@ -397,14 +398,15 @@ CMD [ "processor" ]
 
 	var dockerfileTemplateBuffer bytes.Buffer
 	if err := dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
-		"BaseImage":            baseImage,
-		"OnbuildStages":        onbuildStages,
-		"OnbuildArtifactPaths": onbuildArtifactPaths,
-		"ImageArtifactPaths":   imageArtifactPaths,
-		"PreCopyDirectives":    directives["preCopy"],
-		"PostCopyDirectives":   directives["postCopy"],
-		"HealthcheckRequired":  healthCheckRequired,
-		"BuildArgs":            buildArgs,
+		"BaseImage":                  baseImage,
+		"OnbuildStages":              onbuildStages,
+		"OnbuildArtifactPaths":       onbuildArtifactPaths,
+		"ImageArtifactPaths":         imageArtifactPaths,
+		"PreCopyDirectives":          directives["preCopy"],
+		"PostCopyDirectives":         directives["postCopy"],
+		"HealthcheckRequired":        healthCheckRequired,
+		"HealthcheckIntervalSeconds": fmt.Sprintf("%ds", int(healthCheckInterval.Seconds())),
+		"BuildArgs":                  buildArgs,
 	}); err != nil {
 		return "", errors.Wrap(err, "Failed to run template")
 	}
@@ -1270,12 +1272,18 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 	// path where generated dockerfile should reside (staging)
 	processorDockerfileInfo.DockerfilePath = filepath.Join(b.stagingDir, "Dockerfile.processor")
 
+	healthCheckInterval, err := b.resolveFunctionHealthCheckInterval()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve function health check interval")
+	}
+
 	// generate dockerfile contents
 	processorDockerfileInfo.DockerfileContents, err = b.GenerateDockerfileContents(processorDockerfileInfo.BaseImage,
 		processorDockerfileInfo.OnbuildArtifacts,
 		processorDockerfileInfo.ImageArtifactPaths,
 		directives,
 		b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient,
+		healthCheckInterval,
 		processorDockerfileInfo.BuildArgs)
 
 	if err != nil {
@@ -1799,4 +1807,25 @@ func (b *Builder) resolveBuildTimeoutSeconds() int64 {
 
 	// default timeout in seconds
 	return 60 * 60
+}
+
+func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
+	var err error
+	var healthCheckInterval = time.Second
+	if b.options.FunctionConfig.Spec.Platform.Attributes != nil {
+		if healthCheckIntervalString, ok := b.options.FunctionConfig.Spec.Platform.Attributes["healthCheckInterval"]; ok {
+			switch healthCheckIntervalValue := healthCheckIntervalString.(type) {
+			case string:
+				healthCheckInterval, err = time.ParseDuration(healthCheckIntervalValue)
+				if err != nil {
+					return 0, errors.Wrap(err, "Failed to parse health check interval")
+				}
+			case int:
+				healthCheckInterval = time.Duration(healthCheckIntervalValue) * time.Second
+			default:
+				return 0, errors.New("Failed to parse health check interval")
+			}
+		}
+	}
+	return healthCheckInterval, nil
 }
