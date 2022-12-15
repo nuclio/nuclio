@@ -83,7 +83,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
 	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
 	defaultFunctionPodResources := fsr.resolveDefaultFunctionPodResources()
-	supportedAutoScaleMetrics := fsr.resolveSupportedAutoScaleMetrics()
+	AutoScaleMetrics := fsr.resolveAutoScaleMetrics(inactivityWindowPresets)
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
@@ -97,7 +97,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"allowedAuthenticationModes":      allowedAuthenticationModes,
 			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
 			"defaultFunctionPodResources":     defaultFunctionPodResources,
-			"supportedAutoScaleMetrics":       supportedAutoScaleMetrics,
+			"autoScaleMetrics":                AutoScaleMetrics,
 		},
 	}
 
@@ -244,7 +244,7 @@ func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []stri
 	return validFunctionPriorityClassNames
 }
 
-func (fsr *frontendSpecResource) resolveSupportedAutoScaleMetrics() []functionconfig.AutoScaleMetric {
+func (fsr *frontendSpecResource) resolveAutoScaleMetrics(inactivityWindowPresets []string) map[string]interface{} {
 	var supportedAutoScaleMetrics []functionconfig.AutoScaleMetric
 	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().SupportedAutoScaleMetrics
@@ -252,7 +252,10 @@ func (fsr *frontendSpecResource) resolveSupportedAutoScaleMetrics() []functionco
 			supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().GetDefaultSupportedAutoScaleMetrics()
 		}
 	}
-	return supportedAutoScaleMetrics
+	return map[string]interface{}{
+		"supportedAutoScaleMetrics": supportedAutoScaleMetrics,
+		"windowSizePresets":         inactivityWindowPresets,
+	}
 }
 
 func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {
