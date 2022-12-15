@@ -47,7 +47,16 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 				CodeEntryAttributes: map[string]interface{}{
 
 					// should be masked
-					"password": "abcd",
+					"password":           "abcd",
+					"X-V3io-Session-Key": "some-session-key",
+					"s3SecretAccessKey":  "some-s3-secret",
+					"s3SessionToken":     "some-s3-session-token",
+					"headers": map[string]interface{}{
+						"Authorization": "token 1234abcd5678",
+					},
+
+					// should not be masked
+					"workDir": "/path/to/test-func",
 				},
 
 				// should not be masked
@@ -91,8 +100,14 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 	suite.logger.DebugWith("Masked function config", "functionConfig", maskedFunctionConfig, "secretMap", secretMap)
 
 	suite.Require().NotEmpty(secretMap)
-	suite.Require().NotEqual(functionConfig.Spec.Build.CodeEntryAttributes["password"],
-		maskedFunctionConfig.Spec.Build.CodeEntryAttributes["password"])
+
+	// validate code entry attributes
+	for _, attribute := range []string{"password", "X-V3io-Session-Key", "s3SecretAccessKey", "s3SessionToken"} {
+		suite.Require().NotEqual(functionConfig.Spec.Build.CodeEntryAttributes[attribute],
+			maskedFunctionConfig.Spec.Build.CodeEntryAttributes[attribute])
+		suite.Require().Contains(maskedFunctionConfig.Spec.Build.CodeEntryAttributes[attribute], ReferencePrefix)
+	}
+
 	suite.Require().Equal(functionConfig.Spec.Build.Image, maskedFunctionConfig.Spec.Build.Image)
 	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Password,
 		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
@@ -253,6 +268,11 @@ func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
 
 		// Path nested in a map
 		"^/Spec/Build/CodeEntryAttributes/password$",
+		"^/spec/build/codeentryattributes/password$",
+		"^/spec/build/codeentryattributes/x-v3io-session-key$",
+		"^/spec/build/codeentryattributes/s3secretaccesskey$",
+		"^/spec/build/codeentryattributes/s3sessiontoken$",
+		"^/spec/build/codeentryattributes/headers/authorization$",
 		// Path nested in an array
 		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey$",
 		"^/Spec/Volumes\\[\\d+\\]/Volume/FlexVolume/Options/accesskey$",

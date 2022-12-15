@@ -151,6 +151,15 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 
 	// check if we need to build the image
 	if functionBuildRequired && !functionconfig.ShouldSkipBuild(createFunctionOptions.FunctionConfig.Meta.Annotations) {
+
+		// if the function is updated, it might have scrubbed data in the spec that the builder requires,
+		// so we need to restore it before building
+		restoredFunctionConfig, err := ap.RestoreFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to restore function config")
+		}
+		createFunctionOptions.FunctionConfig = *restoredFunctionConfig
+
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 			Logger:                     createFunctionOptions.Logger,
 			FunctionConfig:             createFunctionOptions.FunctionConfig,
@@ -1202,6 +1211,53 @@ func (ap *Platform) QueryOPAMultipleResources(resources []string,
 
 // GetFunctionSecrets returns all the function's secrets
 func (ap *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
+	return nil, nil
+}
+
+// RestoreFunctionConfig restores a function config from the function secret
+func (ap *Platform) RestoreFunctionConfig(ctx context.Context, config *functionconfig.Config) (*functionconfig.Config, error) {
+
+	// get the function secrets
+	secretMap, err := ap.GetFunctionSecretMap(ctx, config.Meta.Name, config.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secrets")
+	}
+
+	// if there are no secrets, return the original config
+	if secretMap == nil {
+		return config, nil
+	}
+
+	// restore the function config from the secret
+	restoredConfig, err := functionconfig.Restore(config, secretMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to restore function config")
+	}
+
+	return restoredConfig, nil
+}
+
+// GetFunctionSecretMap returns a map of function sensitive data
+func (ap *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
+
+	// get existing function secret
+	ap.Logger.DebugWithCtx(ctx, "Getting function secret", "functionName", functionName, "functionNamespace", functionNamespace)
+	functionSecretData, err := ap.platform.GetFunctionSecretData(ctx, functionName, functionNamespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// if secret exists, get the data
+	if functionSecretData != nil {
+		functionSecretMap, err := functionconfig.DecodeSecretData(functionSecretData)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode function secret data")
+		}
+		return functionSecretMap, nil
+	}
+
+	// secret doesn't exist
+	ap.Logger.DebugWithCtx(ctx, "Function secret doesn't exist", "functionName", functionName, "functionNamespace", functionNamespace)
 	return nil, nil
 }
 

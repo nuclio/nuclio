@@ -373,3 +373,15 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 func (mp *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
 	return nil, nil
 }
+
+func (mp *Platform) RestoreFunctionConfig(ctx context.Context, config *functionconfig.Config) (*functionconfig.Config, error) {
+	return nil, nil
+}
+
+func (mp *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
+	return nil, nil
+}
+
+func (mp *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
+	return nil, nil
+}

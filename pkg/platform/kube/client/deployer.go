@@ -165,7 +165,7 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	var err error
 
 	// get existing function secret
-	functionSecretMap, err := d.getFunctionSecretMap(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
+	functionSecretMap, err := d.platform.GetFunctionSecretMap(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function secret")
 	}
@@ -206,52 +206,6 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	}
 
 	return scrubbedFunctionConfig, nil
-}
-
-func (d *Deployer) getFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
-
-	// get existing function secret
-	d.logger.DebugWithCtx(ctx, "Getting function secret", "functionName", functionName, "functionNamespace", functionNamespace)
-	functionSecretData, err := d.getFunctionSecretData(ctx, functionName, functionNamespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function secret")
-	}
-
-	// if secret exists, get the data
-	if functionSecretData != nil {
-		functionSecretMap, err := functionconfig.DecodeSecretData(functionSecretData)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to decode function secret data")
-		}
-		return functionSecretMap, nil
-	}
-
-	// secret doesn't exist
-	d.logger.DebugWithCtx(ctx, "Function secret doesn't exist", "functionName", functionName, "functionNamespace", functionNamespace)
-	return nil, nil
-}
-
-func (d *Deployer) getFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
-
-	// get existing function secret
-	functionSecrets, err := d.platform.GetFunctionSecrets(ctx, functionName, functionNamespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function secret")
-	}
-
-	// if secret exists, get the data
-	for _, functionSecret := range functionSecrets {
-		functionSecret := functionSecret.Kubernetes
-
-		// if it is a flex volume secret, skip it
-		if strings.HasPrefix(functionSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
-			continue
-		}
-
-		return functionSecret.Data, nil
-	}
-
-	return nil, nil
 }
 
 func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,

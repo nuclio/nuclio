@@ -278,6 +278,11 @@ func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
 
 		// build
 		"^/spec/build/codeentryattributes/password$",
+		"^/spec/build/codeentryattributes/x-v3io-session-key$",
+		"^/spec/build/codeentryattributes/s3secretaccesskey$",
+		"^/spec/build/codeentryattributes/s3sessiontoken$",
+		"^/spec/build/codeentryattributes/headers/authorization$",
+
 		// volumes
 		"^/spec/volumes\\[\\d+\\]/volume/volumesource/flexvolume/options/accesskey$",
 		"^/spec/volumes\\[\\d+\\]/volume/flexvolume/options/accesskey$",
