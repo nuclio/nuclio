@@ -11,9 +11,11 @@ This document provides a reference of the Nuclio function configuration.
 - [See also](#see-also)
 
 <a id="basic-structure"></a>
+
 ## Basic configuration structure
 
-The basic structure of the Nuclio function configuration resembles Kubernetes resource definitions, and includes the `apiVersion`, `kind`, `metadata`, `spec`, and `status` sections. Following is an example of a minimal definition:
+The basic structure of the Nuclio function configuration resembles Kubernetes resource definitions, and includes
+the `apiVersion`, `kind`, `metadata`, `spec`, and `status` sections. Following is an example of a minimal definition:
 
 ```yaml
 apiVersion: "nuclio.io/v1"
@@ -25,16 +27,17 @@ spec:
 ```
 
 <a id="metadata"></a>
+
 ## Function Metadata (`metadata`)
 
 The `metadata` section includes the following attributes:
 
-| **Path** | **Type** | **Description** |
-| :--- | :--- | :--- |
-| name | string | The name of the function |
-| namespace | string | A level of isolation provided by the platform (e.g., Kubernetes) |
-| labels | map | A list of key-value tags that are used for looking up the function (immutable, can't update after first deployment) |
-| annotations | map | A list of annotations based on the key-value tags |
+| **Path**    | **Type** | **Description**                                                                                                     |
+|:------------|:---------|:--------------------------------------------------------------------------------------------------------------------|
+| name        | string   | The name of the function                                                                                            |
+| namespace   | string   | A level of isolation provided by the platform (e.g., Kubernetes)                                                    |
+| labels      | map      | A list of key-value tags that are used for looking up the function (immutable, can't update after first deployment) |
+| annotations | map      | A list of annotations based on the key-value tags                                                                   |
 
 ### Example
 
@@ -51,6 +54,7 @@ metadata:
 ```
 
 <a id="specification"></a>
+
 ## Function Specification (`spec`)
 
 The `spec` section contains the requirements and attributes and has the following elements:
@@ -68,6 +72,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | platform.attributes.restartPolicy.name                               | string                                                                                                     | The name of the restart policy for the function-image container; applicable only to Docker platforms                                                                                                                                                                                                              |
 | platform.attributes.restartPolicy.maximumRetryCount                  | int                                                                                                        | The maximum retries for restarting the function-image container; applicable only to Docker platforms                                                                                                                                                                                                              |
 | platform.attributes.mountMode                                        | string                                                                                                     | Function mount mode, which determines how Docker mounts the function configurations - `bind` \                                                                                                                                                                                                                    | `volume` (default: `bind`); applicable only to Docker platforms |
+| platform.attributes.healthCheckInterval                              | string,int                                                                                                 | The interval between health checks, in seconds or as a duration string (e.g., `5s`, `1m`, `1h`).                                                                                                                                                                                                                  |
 | maxReplicas                                                          | int                                                                                                        | The maximum number of replicas                                                                                                                                                                                                                                                                                    |
 | targetCPU                                                            | int                                                                                                        | Target CPU when auto scaling, as a percentage (default: 75%)                                                                                                                                                                                                                                                      |
 | dataBindings                                                         | See reference                                                                                              | A map of data sources used by the function ("data bindings")                                                                                                                                                                                                                                                      |
@@ -108,6 +113,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | disableSensitiveFieldsMasking                                        | bool                                                                                                       | Don't scrub sensitive information form the function configuration                                                                                                                                                                                                                                                 |
 
 <a id="spec-example"></a>
+
 ### Example
 
 ```yaml
@@ -125,17 +131,23 @@ spec:
         name: on-failure
         maximumRetryCount: 3
 
+      # Set the healthcheck interval to specific value
+      # For more information, see https://docs.docker.com/engine/reference/builder/#healthcheck
+      # By default, set to 1s by Nuclio.
+      # Note: This is relevant for local platform only (Docker).
+      healthCheckInterval: 10s
+
       # Use `volume` to mount the processor into the function.
       # For more information, see https://docs.docker.com/storage/volumes.
       mountMode: volume
   env:
-  - name: SOME_ENV
-    value: abc
-  - name: SECRET_PASSWORD_ENV_VAR
-    valueFrom:
-      secretKeyRef:
-        name: my-secret
-        key: password
+    - name: SOME_ENV
+      value: abc
+    - name: SECRET_PASSWORD_ENV_VAR
+      valueFrom:
+        secretKeyRef:
+          name: my-secret
+          key: password
   volumes:
     - volume:
         hostPath:
@@ -150,8 +162,8 @@ spec:
     noBaseImagePull: true
     noCache: true
     commands:
-    - apk --update --no-cache add curl
-    - pip install simplejson
+      - apk --update --no-cache add curl
+      - pip install simplejson
   resources:
     requests:
       cpu: 1
