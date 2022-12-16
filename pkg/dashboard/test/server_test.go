@@ -3467,7 +3467,8 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
         "scaleResources": [
             {
                 "metricName": "metric_name",
-                "windowSize": "1m"
+                "windowSize": "1m",
+				"threshold": 0
             }
         ]
     },
@@ -3478,41 +3479,48 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		"basicAuth"
 	],
 	"autoScaleMetrics": {
-		"supportedAutoScaleMetrics": [
+		"metricPresets": [
 			{
 				"metricName": "cpu",
 				"sourceType": "Resource",
-				"displayType": "percentage"
+				"displayType": "percentage",
+				"threshold": 0
 			},
 			{
 				"metricName": "memory",
 				"sourceType": "Resource",
-				"displayType": "percentage"
+				"displayType": "percentage",
+				"threshold": 0
 			},
 			{
 				"metricName": "gpu",
 				"sourceType": "Pods",
-				"displayType": "percentage"
+				"displayType": "percentage",
+				"threshold": 0
 			},
 			{
 				"metricName": "nuclio_processor_stream_high_water_mark_processed_lag",
 				"sourceType": "External",
-				"displayType": "int"
+				"displayType": "int",
+				"threshold": 0
 			},
 			{
 				"metricName": "nuclio_processor_stream_high_water_mark_committed_lag",
 				"sourceType": "External",
-				"displayType": "int"
+				"displayType": "int",
+				"threshold": 0
 			},
 			{
 				"metricName": "nuclio_processor_worker_pending_allocation_current",
 				"sourceType": "External",
-				"displayType": "int"
+				"displayType": "int",
+				"threshold": 0
 			},
 			{
 				"metricName": "nuclio_processor_worker_allocation_wait_duration_ms_sum",
 				"sourceType": "External",
-				"displayType": "int"
+				"displayType": "int",
+				"threshold": 0
 			}
 		],
 		"windowSizePresets": [

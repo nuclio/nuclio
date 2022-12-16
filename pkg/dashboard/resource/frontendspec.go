@@ -253,8 +253,8 @@ func (fsr *frontendSpecResource) resolveAutoScaleMetrics(inactivityWindowPresets
 		}
 	}
 	return map[string]interface{}{
-		"supportedAutoScaleMetrics": supportedAutoScaleMetrics,
-		"windowSizePresets":         inactivityWindowPresets,
+		"metricPresets":     supportedAutoScaleMetrics,
+		"windowSizePresets": inactivityWindowPresets,
 	}
 }
 

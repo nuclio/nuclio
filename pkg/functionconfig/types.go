@@ -419,7 +419,7 @@ type ScaleToZeroSpec struct {
 type ScaleResource struct {
 	MetricName string `json:"metricName,omitempty"`
 	WindowSize string `json:"windowSize,omitempty"`
-	Threshold  int    `json:"threshold,omitempty"`
+	Threshold  int    `json:"threshold"`
 }
 
 // to appease k8s
