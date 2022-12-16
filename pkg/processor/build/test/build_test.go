@@ -26,6 +26,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -846,6 +847,7 @@ func (suite *testSuite) generateDockerfileAndVerify(builder *build.Builder,
 		dockerfileInfo.ImageArtifactPaths,
 		dockerfileInfo.Directives,
 		healthCheckRequired,
+		time.Second,
 		dockerfileInfo.BuildArgs)
 
 	dockerfileContents = common.RemoveEmptyLines(dockerfileContents)

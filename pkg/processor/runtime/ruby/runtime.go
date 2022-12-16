@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
 
@@ -56,9 +57,10 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 }
 
 func (r *ruby) RunWrapper(socketPath, controlSocketPath string) (*os.Process, error) {
+	wrapperPath := common.GetEnvOrDefaultString("NUCLIO_WRAPPER_PATH", "/opt/nuclio/wrapper.rb")
 	args := []string{
 		"ruby",
-		"/opt/nuclio/wrapper.rb",
+		wrapperPath,
 		"--handler", r.configuration.Spec.Handler,
 		"--socket-path", socketPath,
 	}
