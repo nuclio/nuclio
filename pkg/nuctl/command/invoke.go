@@ -32,7 +32,7 @@ import (
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/mgutz/ansi"
+	"github.com/fatih/color"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -324,7 +324,7 @@ func (i *invokeCommandeer) getOutputByLevelName(logger logger.Logger, levelName 
 }
 
 func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
-	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response headers:", "blue+h")) // nolint: errcheck
+	color.New(color.FgHiBlue).Fprintf(writer, "\n%s\n", "> Response headers:") // nolint: errcheck
 
 	for headerName, headerValue := range invokeResult.Headers {
 
@@ -343,7 +343,7 @@ func (i *invokeCommandeer) outputResponseBody(invokeResult *platform.CreateFunct
 	var responseBodyString string
 
 	// Print raw body
-	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response body:", "blue+h")) // nolint: errcheck
+	color.New(color.FgHiBlue).Fprintf(writer, "\n%s\n", "> Response body:") // nolint: errcheck
 
 	// check if response is json
 	if invokeResult.Headers.Get("Content-Type") == "application/json" {
