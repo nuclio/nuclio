@@ -84,7 +84,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 	return attributes, nil
 }
 
-// returns a list of custom routes for the resource
+// GetCustomRoutes returns a list of custom routes for the resource
 func (ftr *functionTemplateResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	return []restful.CustomRoute{
 		{

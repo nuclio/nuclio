@@ -373,18 +373,18 @@ func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptio
 	}
 
 	runResult, err := c.cmdRunner.Run(
-		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
+		&cmdrunner.RunOptions{
+			LogRedactions: c.redactedValues,
+
+			// too spammy
+			LogOnlyOnFailure: true,
+			SkipLogOnFailure: true,
+		},
 		"docker exec %s %s %s",
 		envArgument,
 		containerID,
 		execOptions.Command)
-
 	if err != nil {
-		c.logger.DebugWith("Failed to execute command in container",
-			"err", err,
-			"stdout", runResult.Output,
-			"stderr", runResult.Stderr)
-
 		return err
 	}
 

@@ -423,7 +423,7 @@ type ScaleResource struct {
 	Threshold  int    `json:"threshold"`
 }
 
-// to appease k8s
+// DeepCopyInto to appease k8s
 func (s *Spec) DeepCopyInto(out *Spec) {
 
 	// TODO: proper deep copy

@@ -189,7 +189,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
 	// we retry as it takes some time for apigw resource create function ingress
-	err = common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+	err = common.RetryUntilSuccessful(90*time.Second, 1*time.Second, func() bool {
 		request := createHTTPRequest()
 		if authenticationMode == ingress.AuthenticationModeBasicAuth {
 			request.SetBasicAuth(basicAuthUsername, basicAuthPassword)
