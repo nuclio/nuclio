@@ -100,8 +100,9 @@ func Scrub(functionConfig *Config,
 	})
 
 	// merge the new secrets map with the existing one
+	// In case of a conflict, the new secrets map will override the existing value
 	if existingSecretMap != nil {
-		secretsMap = labels.Merge(secretsMap, existingSecretMap)
+		secretsMap = labels.Merge(existingSecretMap, secretsMap)
 	}
 
 	// marshal and unmarshal the scrubbed object back to function config
