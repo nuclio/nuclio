@@ -1548,14 +1548,18 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 			name: "ValidMetrics",
 			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
 				{
-					Name:        "cpu",
-					Kind:        "Resource",
-					TargetValue: 50,
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "cpu",
+						Threshold:  50,
+					},
+					SourceType: "Resource",
 				},
 				{
-					Name:        "nuclio_processor_stream_something",
-					Kind:        "Pods",
-					TargetValue: 150,
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "nuclio_processor_stream_something",
+						Threshold:  150,
+					},
+					SourceType: "Pods",
 				},
 			},
 		},
@@ -1565,8 +1569,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 			name: "NoName",
 			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
 				{
-					Kind:        "Resource",
-					TargetValue: 50,
+					ScaleResource: functionconfig.ScaleResource{
+						Threshold: 50,
+					},
+					SourceType: "Resource",
 				},
 			},
 			shouldFailValidation: true,
@@ -1575,8 +1581,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 			name: "NoKind",
 			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
 				{
-					Name:        "memory",
-					TargetValue: 75,
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "memory",
+						Threshold:  75,
+					},
 				},
 			},
 			shouldFailValidation: true,
@@ -1585,30 +1593,36 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 			name: "NonValidKind",
 			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
 				{
-					Name:        "memory",
-					Kind:        "something",
-					TargetValue: 75,
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "memory",
+						Threshold:  75,
+					},
+					SourceType: "something",
 				},
 			},
 			shouldFailValidation: true,
 		},
 		{
-			name: "NoTargetValue",
+			name: "NoThreshold",
 			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
 				{
-					Name: "memory",
-					Kind: "Resource",
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "memory",
+					},
+					SourceType: "Resource",
 				},
 			},
 			shouldFailValidation: true,
 		},
 		{
-			name: "NonValidTargetValue",
+			name: "NonValidThreshold",
 			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
 				{
-					Name:        "memory",
-					Kind:        "something",
-					TargetValue: -13,
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "memory",
+						Threshold:  -13,
+					},
+					SourceType: "something",
 				},
 			},
 			shouldFailValidation: true,

@@ -37,7 +37,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/autoscaling/v2beta1"
+	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
@@ -701,21 +701,25 @@ func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
 		Spec: functionconfig.Spec{
 			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
 				{
-					Name:        string(v1.ResourceMemory),
-					Kind:        v2beta1.ResourceMetricSourceType,
-					Type:        functionconfig.AutoScaleMetricTypePercentage,
-					TargetValue: resourceTargetValue,
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: string(v1.ResourceMemory),
+						Threshold:  resourceTargetValue,
+					},
+					SourceType:  autosv2.ResourceMetricSourceType,
+					DisplayType: functionconfig.AutoScaleMetricTypePercentage,
 				},
 				{
-					Name:        "custom-metric",
-					Kind:        v2beta1.ExternalMetricSourceType,
-					Type:        functionconfig.AutoScaleMetricTypeInt,
-					TargetValue: externalTargetValue,
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "custom-metric",
+						Threshold:  externalTargetValue,
+					},
+					SourceType:  autosv2.ExternalMetricSourceType,
+					DisplayType: functionconfig.AutoScaleMetricTypeInt,
 				},
 			},
-			CustomScalingMetricSpecs: []v2beta1.MetricSpec{
+			CustomScalingMetricSpecs: []autosv2.MetricSpec{
 				{
-					Pods: &v2beta1.PodsMetricSource{
+					Pods: &autosv2.PodsMetricSource{
 						MetricName:         "another-custom-metric",
 						TargetAverageValue: podTargetValue,
 					},
@@ -732,13 +736,13 @@ func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
 
 	for _, metricSpec := range resolvedMetricSpec {
 		switch metricSpec.Type {
-		case v2beta1.ResourceMetricSourceType:
+		case autosv2.ResourceMetricSourceType:
 			suite.Require().Equal(*metricSpec.Resource.TargetAverageUtilization, int32(resourceTargetValue))
 
-		case v2beta1.ExternalMetricSourceType:
+		case autosv2.ExternalMetricSourceType:
 			suite.Require().True(metricSpec.External.TargetValue.Equal(externalQuantity))
 
-		case v2beta1.PodsMetricSourceType:
+		case autosv2.PodsMetricSourceType:
 			suite.Require().True(metricSpec.Pods.TargetAverageValue.Equal(podTargetValue))
 		}
 	}

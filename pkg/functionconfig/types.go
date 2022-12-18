@@ -269,18 +269,17 @@ type Metric struct {
 	WindowSize     string `json:"windowSize,omitempty"`
 }
 
-type AutoScaleMetricType string
+type AutoScaleDisplayType string
 
 const (
-	AutoScaleMetricTypeInt        AutoScaleMetricType = "int"
-	AutoScaleMetricTypePercentage AutoScaleMetricType = "percentage"
+	AutoScaleMetricTypeInt        AutoScaleDisplayType = "int"
+	AutoScaleMetricTypePercentage AutoScaleDisplayType = "percentage"
 )
 
 type AutoScaleMetric struct {
-	Name        string                   `json:"name,omitempty"`
-	Kind        autosv2.MetricSourceType `json:"kind,omitempty"`
-	Type        AutoScaleMetricType      `json:"type,omitempty"`
-	TargetValue int                      `json:"targetValue,omitempty"`
+	ScaleResource `json:",inline"`
+	SourceType    autosv2.MetricSourceType `json:"sourceType,omitempty"`
+	DisplayType   AutoScaleDisplayType     `json:"displayType,omitempty"`
 }
 
 type BuildMode string

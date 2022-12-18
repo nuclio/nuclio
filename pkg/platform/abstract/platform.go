@@ -1414,12 +1414,12 @@ func (ap *Platform) validateAutoScaleMetrics(functionConfig *functionconfig.Conf
 	for _, metric := range functionConfig.Spec.AutoScaleMetrics {
 
 		// validate metric name
-		if metric.Name == "" {
+		if metric.MetricName == "" {
 			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric name is missing - %+v", metric))
 		}
 
 		// validate metric kind
-		if metric.Kind == "" {
+		if metric.SourceType == "" {
 			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric kind is missing - %+v", metric))
 		}
 
@@ -1429,17 +1429,17 @@ func (ap *Platform) validateAutoScaleMetrics(functionConfig *functionconfig.Conf
 			string(autosv2.ExternalMetricSourceType),
 			string(autosv2.ObjectMetricSourceType),
 			string(autosv2.ContainerResourceMetricSourceType),
-		}, string(metric.Kind)) {
+		}, string(metric.SourceType)) {
 			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric kind is invalid - %+v", metric))
 		}
 
 		// validate metric value
-		if metric.TargetValue == 0 {
+		if metric.Threshold == 0 {
 			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric value is missing - %+v", metric))
 		}
 
 		// validate metric value is positive
-		if metric.TargetValue < 0 {
+		if metric.Threshold < 0 {
 			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric value must be positive - %+v", metric))
 		}
 	}

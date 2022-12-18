@@ -209,43 +209,57 @@ func (c *Config) GetDefaultSupportedAutoScaleMetrics() []functionconfig.AutoScal
 
 		// Resource metrics
 		{
-			Name: string(v1.ResourceCPU),
-			Kind: autosv2.ResourceMetricSourceType,
-			Type: functionconfig.AutoScaleMetricTypePercentage,
+			ScaleResource: functionconfig.ScaleResource{
+				MetricName: string(v1.ResourceCPU),
+			},
+			SourceType:  autosv2.ResourceMetricSourceType,
+			DisplayType: functionconfig.AutoScaleMetricTypePercentage,
 		},
 		{
-			Name: string(v1.ResourceMemory),
-			Kind: autosv2.ResourceMetricSourceType,
-			Type: functionconfig.AutoScaleMetricTypePercentage,
+			ScaleResource: functionconfig.ScaleResource{
+				MetricName: string(v1.ResourceMemory),
+			},
+			SourceType:  autosv2.ResourceMetricSourceType,
+			DisplayType: functionconfig.AutoScaleMetricTypePercentage,
 		},
 		{
-			Name: "gpu",
-			Kind: autosv2.PodsMetricSourceType,
-			Type: functionconfig.AutoScaleMetricTypePercentage,
+			ScaleResource: functionconfig.ScaleResource{
+				MetricName: "gpu",
+			},
+			SourceType:  autosv2.PodsMetricSourceType,
+			DisplayType: functionconfig.AutoScaleMetricTypePercentage,
 		},
 
 		// Stream metrics
 		{
-			Name: "nuclio_processor_stream_high_water_mark_processed_lag",
-			Kind: autosv2.ExternalMetricSourceType,
-			Type: functionconfig.AutoScaleMetricTypeInt,
+			ScaleResource: functionconfig.ScaleResource{
+				MetricName: "nuclio_processor_stream_high_water_mark_processed_lag",
+			},
+			SourceType:  autosv2.ExternalMetricSourceType,
+			DisplayType: functionconfig.AutoScaleMetricTypeInt,
 		},
 		{
-			Name: "nuclio_processor_stream_high_water_mark_committed_lag",
-			Kind: autosv2.ExternalMetricSourceType,
-			Type: functionconfig.AutoScaleMetricTypeInt,
+			ScaleResource: functionconfig.ScaleResource{
+				MetricName: "nuclio_processor_stream_high_water_mark_committed_lag",
+			},
+			SourceType:  autosv2.ExternalMetricSourceType,
+			DisplayType: functionconfig.AutoScaleMetricTypeInt,
 		},
 
 		// Event metrics
 		{
-			Name: "nuclio_processor_worker_pending_allocation_current",
-			Kind: autosv2.ExternalMetricSourceType,
-			Type: functionconfig.AutoScaleMetricTypeInt,
+			ScaleResource: functionconfig.ScaleResource{
+				MetricName: "nuclio_processor_worker_pending_allocation_current",
+			},
+			SourceType:  autosv2.ExternalMetricSourceType,
+			DisplayType: functionconfig.AutoScaleMetricTypeInt,
 		},
 		{
-			Name: "nuclio_processor_worker_allocation_wait_duration_ms_sum",
-			Kind: autosv2.ExternalMetricSourceType,
-			Type: functionconfig.AutoScaleMetricTypeInt,
+			ScaleResource: functionconfig.ScaleResource{
+				MetricName: "nuclio_processor_worker_allocation_wait_duration_ms_sum",
+			},
+			SourceType:  autosv2.ExternalMetricSourceType,
+			DisplayType: functionconfig.AutoScaleMetricTypeInt,
 		},
 	}
 }

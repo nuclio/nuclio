@@ -2453,7 +2453,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 
 func (lc *lazyClient) resolveMetricSpecs(function *nuclioio.NuclioFunction) ([]autosv2.MetricSpec, error) {
 
-	metricSpecs, err := lc.generateMetricSpecFromAutoscaleMetrics(function.Spec.AutoScaleMetrics)
+	metricSpecs, err := lc.generateMetricSpecFromAutoScaleMetrics(function.Spec.AutoScaleMetrics)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to generate metric specs from autoscale metrics")
 	}
@@ -2465,48 +2465,48 @@ func (lc *lazyClient) resolveMetricSpecs(function *nuclioio.NuclioFunction) ([]a
 	return metricSpecs, nil
 }
 
-func (lc *lazyClient) generateMetricSpecFromAutoscaleMetrics(autoscaleMetrics []functionconfig.AutoScaleMetric) ([]autosv2.MetricSpec, error) {
+func (lc *lazyClient) generateMetricSpecFromAutoScaleMetrics(autoScaleMetrics []functionconfig.AutoScaleMetric) ([]autosv2.MetricSpec, error) {
 
 	var metricSpecs []autosv2.MetricSpec
 	var metricSpec autosv2.MetricSpec
-	for _, autoscaleMetric := range autoscaleMetrics {
-		switch autoscaleMetric.Kind {
+	for _, autoscaleMetric := range autoScaleMetrics {
+		switch autoscaleMetric.SourceType {
 		case autosv2.ResourceMetricSourceType:
-			targetAverageUtilization := int32(autoscaleMetric.TargetValue)
+			targetAverageUtilization := int32(autoscaleMetric.Threshold)
 			metricSpec = autosv2.MetricSpec{
-				Type: autoscaleMetric.Kind,
+				Type: autoscaleMetric.SourceType,
 				Resource: &autosv2.ResourceMetricSource{
-					Name:                     v1.ResourceName(autoscaleMetric.Name),
+					Name:                     v1.ResourceName(autoscaleMetric.MetricName),
 					TargetAverageUtilization: &targetAverageUtilization,
 				},
 			}
 		case autosv2.PodsMetricSourceType:
-			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.TargetValue))
+			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.Threshold))
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to parse quantity")
 			}
 			metricSpec = autosv2.MetricSpec{
-				Type: autoscaleMetric.Kind,
+				Type: autoscaleMetric.SourceType,
 				Pods: &autosv2.PodsMetricSource{
-					MetricName:         autoscaleMetric.Name,
+					MetricName:         fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
 					TargetAverageValue: quantity,
 				},
 			}
 
 		case autosv2.ExternalMetricSourceType:
-			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.TargetValue))
+			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.Threshold))
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to parse quantity")
 			}
 			metricSpec = autosv2.MetricSpec{
-				Type: autoscaleMetric.Kind,
+				Type: autoscaleMetric.SourceType,
 				External: &autosv2.ExternalMetricSource{
-					MetricName:  autoscaleMetric.Name,
+					MetricName:  fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
 					TargetValue: &quantity,
 				},
 			}
 		default:
-			return nil, errors.Errorf("Unknown metric type: %s", autoscaleMetric.Type)
+			return nil, errors.Errorf("Unknown metric type: %s", autoscaleMetric.SourceType)
 		}
 
 		metricSpecs = append(metricSpecs, metricSpec)
