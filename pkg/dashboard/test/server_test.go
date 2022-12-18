@@ -3468,7 +3468,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
             {
                 "metricName": "metric_name",
                 "windowSize": "1m",
-				"threshold": 0
+                "threshold": 0
             }
         ]
     },
