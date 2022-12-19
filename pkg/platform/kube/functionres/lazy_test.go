@@ -84,7 +84,7 @@ func (suite *lazyTestSuite) SetupTest() {
 		platformConfiguration: defaultPlatformConfiguration,
 	})
 
-	// dont wait for too long
+	// don't wait for too long
 	suite.client.nodeScaleUpSleepTimeout = 100 * time.Millisecond
 }
 
@@ -218,6 +218,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 
 func (suite *lazyTestSuite) TestNoChanges() {
 	one := 1
+	volumeName := "my-volume"
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 	defaultHTTPTrigger.Attributes = map[string]interface{}{
 		"ingresses": map[string]interface{}{
@@ -233,7 +234,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			Namespace: "test-namespace",
 			Labels: map[string]string{
 
-				// we want the created ingress host to be exceed the length limitation
+				// we want the created ingress host to exceed the length limitation
 				"nuclio.io/project-name": common.GenerateRandomString(60, common.SmallLettersAndNumbers),
 			},
 		},
@@ -242,10 +243,44 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			Triggers: map[string]functionconfig.Trigger{
 				defaultHTTPTrigger.Name: defaultHTTPTrigger,
 			},
+			Volumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: volumeName,
+						VolumeSource: v1.VolumeSource{
+							FlexVolume: &v1.FlexVolumeSource{
+								Driver: "v3io/fuse",
+								Options: map[string]string{
+									"container": "users",
+									"subPath":   "/",
+									"accessKey": "$ref:/spec/volumes/bla/bla",
+								},
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      volumeName,
+						MountPath: "/tmp/vol-1",
+					},
+				},
+			},
 		},
 	}
 	functionLabels := suite.client.getFunctionLabels(&function)
 	functionLabels["nuclio.io/function-name"] = function.Name
+
+	// mock volume secret creation
+	_, err := suite.client.kubeClientSet.CoreV1().Secrets("test-namespace").Create(suite.ctx, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-volume-secret",
+			Labels: map[string]string{
+				common.NuclioResourceLabelKeyFunctionName: function.Name,
+				common.NuclioResourceLabelKeyProjectName:  function.Labels["nuclio.io/project-name"],
+				common.NuclioResourceLabelKeyVolumeName:   volumeName,
+			},
+		},
+	}, metav1.CreateOptions{})
+	suite.Require().NoError(err)
 
 	// logs are spammy, let them
 	prevLevel := suite.logger.(*nucliozap.NuclioZap).GetLevel()
@@ -260,7 +295,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 		},
 	})
 
-	// "create the ingress
+	// "create" the ingress
 	ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(ingressInstance)
@@ -291,6 +326,17 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			&function)
 		suite.Require().NoError(err)
 		suite.Require().NotNil(updatedDeploymentInstance)
+
+		// make sure access key is still present in the function spec volume options
+		suite.Require().Contains(function.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options, "accessKey")
+
+		// make sure flex volume doesn't contain access key
+		for _, volume := range updatedDeploymentInstance.Spec.Template.Spec.Volumes {
+			if volume.Name == volumeName {
+				suite.Require().NotContains(volume.FlexVolume.Options, "accessKey")
+				break
+			}
+		}
 
 		// ensure no changes
 		suite.Require().Empty(cmp.Diff(deploymentInstance, updatedDeploymentInstance))

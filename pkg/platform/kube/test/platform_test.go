@@ -855,6 +855,122 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
+
+	functionName := "func-with-multiple-volumes"
+	accessKey := "1234"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	functionSecretCounter, volumeSecretCounter := 0, 0
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	// add sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "volume1",
+				VolumeSource: v1.VolumeSource{
+					FlexVolume: &v1.FlexVolumeSource{
+						Driver: "v3io/fuse",
+						Options: map[string]string{
+							"accessKey": accessKey,
+							"subPath":   "/sub1",
+							"container": "some-container",
+						},
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "volume1",
+				MountPath: "/tmp/volume1",
+			},
+		},
+		{
+			Volume: v1.Volume{
+				Name: "volume2",
+				VolumeSource: v1.VolumeSource{
+					FlexVolume: &v1.FlexVolumeSource{
+						Driver: "v3io/fuse",
+						Options: map[string]string{
+							"accessKey": accessKey,
+							"subPath":   "/sub1",
+							"container": "some-container",
+						},
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "volume2",
+				MountPath: "/tmp/volume2",
+			},
+		},
+	}
+
+	// deploy function, we expect a failure due to the v3io access key being a dummy value
+	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
+
+		// get function secrets
+		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
+		suite.Require().NoError(err)
+		suite.Require().Len(secrets, 3)
+
+		for _, secret := range secrets {
+			kubeSecret := secret.Kubernetes
+			switch {
+			case strings.HasPrefix(kubeSecret.Name, functionconfig.NuclioSecretNamePrefix):
+				functionSecretCounter++
+
+				// decode data from secret
+				decodedSecretData, err := functionconfig.DecodeSecretData(kubeSecret.Data)
+				suite.Require().NoError(err)
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got function secret",
+					"secretData", kubeSecret.Data,
+					"decodedSecretData", decodedSecretData)
+
+				// verify accessKey is in secret data
+				for key, value := range decodedSecretData {
+					if strings.Contains(key, "accesskey") {
+						suite.Require().Equal(accessKey, value)
+					}
+				}
+
+			case strings.HasPrefix(kubeSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix):
+				volumeSecretCounter++
+
+				// validate that the secret contains the volume label
+				volumeNameLabel, exists := kubeSecret.Labels[common.NuclioResourceLabelKeyVolumeName]
+				suite.Require().True(exists)
+				suite.Require().Contains([]string{"volume1", "volume2"}, volumeNameLabel)
+
+				// validate that the secret contains the access key
+				accessKeyData, exists := kubeSecret.Data["accessKey"]
+				suite.Require().True(exists)
+
+				suite.Require().Equal(accessKey, string(accessKeyData))
+
+			default:
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got unknown secret",
+					"secretName", kubeSecret.Name,
+					"secretData", kubeSecret.Data)
+				suite.Failf("Got unknown secret. Secret name: %s\n", kubeSecret.Name)
+			}
+
+		}
+		return true
+	})
+
+	suite.Require().Equal(1, functionSecretCounter)
+	suite.Require().Equal(2, volumeSecretCounter)
+}
+
 func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithMaskedField() {
 
 	functionName := "func-with-v3io-stream-trigger"
