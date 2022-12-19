@@ -838,7 +838,7 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions,
 
 	runResult, err := c.cmdRunner.Run(runOptions, format, vars...)
 
-	if runOptions.CaptureOutputMode == cmdrunner.CaptureOutputModeStdout && runResult.Stderr != "" {
+	if runOptions.CaptureOutputMode == cmdrunner.CaptureOutputModeStdout && runResult.Stderr != "" && !runOptions.SkipLogOnFailure {
 		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
 			"workingDir", runOptions.WorkingDir,
 			"cmd", cmdrunner.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars...)),
@@ -938,6 +938,7 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string) error 
 	runOptions := &cmdrunner.RunOptions{
 		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
 		WorkingDir:        &buildOptions.ContextDir,
+		SkipLogOnFailure:  buildOptions.SkipLogOnFailure,
 	}
 
 	// retry build on predefined errors that occur during race condition and collisions between
