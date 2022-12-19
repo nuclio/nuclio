@@ -237,6 +237,10 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 		return nil
 	}
 
+	d.logger.DebugWithCtx(ctx,
+		"Function has no sensitive data, not deleting previously created secrets (if they exists)",
+		"functionName", name)
+
 	// if secret exists and there are no secrets to set, delete the secret
 	return d.deleteExistingSecret(ctx, namespace, secretConfig.Name)
 }
@@ -331,6 +335,7 @@ func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
 
 	d.logger.DebugWithCtx(ctx,
 		"Creating/updating flex volume secret",
+		"volumeName", volumeName,
 		"functionName", functionName,
 		"functionNamespace", functionNamespace)
 	if err := d.createOrUpdateSecret(ctx, functionNamespace, secretConfig); err != nil {

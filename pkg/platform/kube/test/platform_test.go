@@ -855,6 +855,70 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithMaskedField() {
+
+	functionName := "func-with-v3io-stream-trigger"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	firstPassword := "1234"
+	secondPassword := "abcd"
+	passwordPath := "$ref:/spec/build/codeentryattributes/password"
+	secretName := functionconfig.GenerateFunctionSecretName(functionName, functionconfig.NuclioSecretNamePrefix)
+
+	validateSecretPasswordFunc := func(password string) {
+		secret, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Get(suite.Ctx, secretName, metav1.GetOptions{})
+		suite.Require().NoError(err)
+
+		// decode secret data
+		decodedContents, err := functionconfig.DecodeSecretData(secret.Data)
+		suite.Require().NoError(err)
+
+		// make sure first password is in secret
+		suite.Require().Equal(password, decodedContents[passwordPath])
+	}
+
+	// add sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"password": firstPassword,
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		suite.Require().NotNil(deployResult)
+
+		// validate first password
+		validateSecretPasswordFunc(firstPassword)
+
+		// change password
+		newCreateFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+		newCreateFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+			"password": secondPassword,
+		}
+
+		// redeploy function
+		suite.DeployFunction(newCreateFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+			// make sure deployment succeeded
+			suite.Require().NotNil(deployResult)
+
+			validateSecretPasswordFunc(secondPassword)
+
+			return true
+		})
+
+		return true
+	})
+}
+
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }
