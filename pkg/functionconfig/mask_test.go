@@ -47,12 +47,12 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 				CodeEntryAttributes: map[string]interface{}{
 
 					// should be masked
-					"password":           "abcd",
-					"X-V3io-Session-Key": "some-session-key",
-					"s3SecretAccessKey":  "some-s3-secret",
-					"s3SessionToken":     "some-s3-session-token",
+					"password":          "abcd",
+					"s3SecretAccessKey": "some-s3-secret",
+					"s3SessionToken":    "some-s3-session-token",
 					"headers": map[string]interface{}{
-						"Authorization": "token 1234abcd5678",
+						"Authorization":      "token 1234abcd5678",
+						"X-V3io-Session-Key": "some-session-key",
 					},
 
 					// should not be masked
@@ -102,7 +102,7 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 	suite.Require().NotEmpty(secretMap)
 
 	// validate code entry attributes
-	for _, attribute := range []string{"password", "X-V3io-Session-Key", "s3SecretAccessKey", "s3SessionToken"} {
+	for _, attribute := range []string{"password", "s3SecretAccessKey", "s3SessionToken"} {
 		suite.Require().NotEqual(functionConfig.Spec.Build.CodeEntryAttributes[attribute],
 			maskedFunctionConfig.Spec.Build.CodeEntryAttributes[attribute])
 		suite.Require().Contains(maskedFunctionConfig.Spec.Build.CodeEntryAttributes[attribute], ReferencePrefix)
@@ -269,10 +269,10 @@ func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
 		// Path nested in a map
 		"^/Spec/Build/CodeEntryAttributes/password$",
 		"^/spec/build/codeentryattributes/password$",
-		"^/spec/build/codeentryattributes/x-v3io-session-key$",
 		"^/spec/build/codeentryattributes/s3secretaccesskey$",
 		"^/spec/build/codeentryattributes/s3sessiontoken$",
 		"^/spec/build/codeentryattributes/headers/authorization$",
+		"^/spec/build/codeentryattributes/headers/x-v3io-session-key$",
 		// Path nested in an array
 		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey$",
 		"^/Spec/Volumes\\[\\d+\\]/Volume/FlexVolume/Options/accesskey$",
