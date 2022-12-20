@@ -62,6 +62,7 @@ func (d *Docker) GetKind() string {
 }
 
 func (d *Docker) BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error {
+
 	if err := d.gatherArtifactsForSingleStageDockerfile(buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to build image artifacts")
 	}
