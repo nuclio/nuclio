@@ -63,9 +63,6 @@ func (d *Docker) GetKind() string {
 
 func (d *Docker) BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error {
 
-	// don't log spammy docker command output
-	buildOptions.SkipLogOnFailure = true
-
 	if err := d.gatherArtifactsForSingleStageDockerfile(buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to build image artifacts")
 	}
@@ -126,13 +123,12 @@ func (d *Docker) buildContainerImage(buildOptions *BuildOptions) error {
 	d.logger.InfoWith("Building docker image", "image", buildOptions.Image)
 
 	return d.dockerClient.Build(&dockerclient.BuildOptions{
-		ContextDir:       buildOptions.ContextDir,
-		Image:            buildOptions.Image,
-		DockerfilePath:   buildOptions.DockerfileInfo.DockerfilePath,
-		NoCache:          buildOptions.NoCache,
-		Pull:             buildOptions.Pull,
-		BuildArgs:        buildOptions.BuildArgs,
-		SkipLogOnFailure: true,
+		ContextDir:     buildOptions.ContextDir,
+		Image:          buildOptions.Image,
+		DockerfilePath: buildOptions.DockerfileInfo.DockerfilePath,
+		NoCache:        buildOptions.NoCache,
+		Pull:           buildOptions.Pull,
+		BuildArgs:      buildOptions.BuildArgs,
 	})
 
 }
@@ -208,8 +204,7 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(buildOptions *BuildOpti
 		if err := d.buildFromAndCopyObjectsFromContainer(onbuildArtifact.Image,
 			buildOptions.ContextDir,
 			onbuildArtifactPaths,
-			buildOptions.BuildArgs,
-			buildOptions.SkipLogOnFailure); err != nil {
+			buildOptions.BuildArgs); err != nil {
 			return errors.Wrap(err, "Failed to copy objects from onbuild")
 		}
 	}
@@ -220,8 +215,7 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(buildOptions *BuildOpti
 func (d *Docker) buildFromAndCopyObjectsFromContainer(onbuildImage string,
 	contextDir string,
 	artifactPaths map[string]string,
-	buildArgs map[string]string,
-	skipLogOnFailure bool) error {
+	buildArgs map[string]string) error {
 
 	dockerfilePath := path.Join(contextDir, "Dockerfile.onbuild")
 
@@ -243,11 +237,10 @@ ARG NUCLIO_ARCH
 
 	// trigger a build
 	if err := d.dockerClient.Build(&dockerclient.BuildOptions{
-		Image:            onbuildImageName,
-		ContextDir:       contextDir,
-		BuildArgs:        buildArgs,
-		DockerfilePath:   dockerfilePath,
-		SkipLogOnFailure: skipLogOnFailure,
+		Image:          onbuildImageName,
+		ContextDir:     contextDir,
+		BuildArgs:      buildArgs,
+		DockerfilePath: dockerfilePath,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to build onbuild image")
 	}

@@ -41,13 +41,12 @@ type LogInOptions struct {
 
 // BuildOptions are options for building a docker image
 type BuildOptions struct {
-	Image            string
-	ContextDir       string
-	DockerfilePath   string
-	NoCache          bool
-	Pull             bool
-	BuildArgs        map[string]string
-	SkipLogOnFailure bool
+	Image          string
+	ContextDir     string
+	DockerfilePath string
+	NoCache        bool
+	Pull           bool
+	BuildArgs      map[string]string
 }
 
 // RunOptions are options for running a docker image

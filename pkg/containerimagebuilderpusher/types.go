@@ -50,7 +50,6 @@ type BuildOptions struct {
 	ReadinessTimeoutSeconds int
 	ServiceAccountName      string
 	SecurityContext         *v1.PodSecurityContext
-	SkipLogOnFailure        bool
 }
 
 type ContainerBuilderConfiguration struct {
