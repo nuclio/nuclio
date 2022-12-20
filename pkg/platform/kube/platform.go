@@ -1235,10 +1235,11 @@ func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functio
 		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to list function flex volume secrets")
+		return nil, errors.Wrapf(err, "Failed to list secrets for function - %s", functionName)
 	}
 
 	for _, secret := range secrets.Items {
+		secret := secret
 		functionSecrets = append(functionSecrets, platform.FunctionSecret{
 			Kubernetes: &secret,
 		})

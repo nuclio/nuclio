@@ -200,6 +200,10 @@ func GenerateFunctionSecretName(functionName, secretPrefix string) string {
 	if len(secretName) > common.KubernetesDomainLevelMaxLength {
 		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
 	}
+
+	// remove trailing non-alphanumeric characters
+	secretName = strings.TrimRight(secretName, "-_")
+
 	return secretName
 }
 

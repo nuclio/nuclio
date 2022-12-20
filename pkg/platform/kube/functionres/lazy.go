@@ -2201,8 +2201,17 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	}
 	function.Spec.Volumes = filteredFunctionVolumes
 
-	// merge from functionconfig and injected configuration
-	configVolumes = append(configVolumes, function.Spec.Volumes...)
+	// merge volumes from function spec, use deep copy to avoid mutating the original
+	for _, volume := range function.Spec.Volumes {
+		configVolumeCopy := volume.Volume.DeepCopy()
+		configVolumeMountCopy := volume.VolumeMount.DeepCopy()
+		configVolumes = append(configVolumes, functionconfig.Volume{
+			Volume:      *configVolumeCopy,
+			VolumeMount: *configVolumeMountCopy,
+		})
+	}
+
+	// merge injected configuration
 	configVolumes = append(configVolumes, processorConfigVolume)
 	configVolumes = append(configVolumes, platformConfigVolume)
 
@@ -2243,7 +2252,8 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 				if err != nil {
 					lc.logger.WarnWithCtx(ctx,
 						"Failed to get flex volume secret name for access key value",
-						"err", err,
+						"err", err.Error(),
+						"volumeName", configVolume.Volume.Name,
 						"functionName", function.Name)
 					return nil, nil, errors.Wrap(err, "Failed to get flex volume secret name for access key value")
 				}
