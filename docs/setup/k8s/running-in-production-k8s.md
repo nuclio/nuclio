@@ -184,7 +184,7 @@ EOF
 > Otherwise, Kaniko will fail to push the image to ECR because the image name is being determined during the build process.
 
 Create the ECR token secret to be used as `imagePullSecret` of function pods.
-Since ECR tokens stale after 12 hours, the secret must be refreshed periodically (can be done with a cron job as described in [Sergey's blog](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
+Since ECR tokens go stale after 12 hours, the secret must be refreshed periodically (can be done with a cron job as described in [this blogpost](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
 ```shell
 kubectl -n nuclio create secret docker-registry ecr-registry-credentials \
   --docker-server=${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com \
