@@ -187,8 +187,8 @@ The `statis` section contains the requirements and attributes and has the follow
 | **Path**               | **Type** | **Description**                                                                                   |
 |:-----------------------|:---------|:--------------------------------------------------------------------------------------------------|
 | state                  | string   | A textual representation of the function status                                                   |
-| message                | string   | TBD                                                                                               |
-| logs                   | map      | TBD                                                                                               |
+| message                | string   | Function state message, mostly in use to represent why a function has failed                      |
+| logs                   | map      | The function deployment logs to be returned                                                       |
 | scaleToZero            | object   | The details of the last scale event of the function (contains event message and time)             |
 | apiGateways            | []string | A list of the function's api-gateways                                                             |
 | httpPort               | int      | The http port used to invoke the function                                                         |
