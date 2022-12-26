@@ -798,7 +798,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionImageNameInStatus() {
 		suite.Require().NotNil(deployResult)
 
 		// make sure deployment status contains image name
-		suite.Require().NotEmpty(deployResult.FunctionStatus.Image)
+		suite.Require().NotEmpty(deployResult.FunctionStatus.ContainerImage)
 
 		// get the function
 		function := suite.GetFunction(&platform.GetFunctionsOptions{
@@ -809,9 +809,9 @@ func (suite *DeployFunctionTestSuite) TestFunctionImageNameInStatus() {
 		status := function.GetStatus()
 
 		// make sure the image name exists in the function status
-		suite.Require().NotEmpty(status.Image)
+		suite.Require().NotEmpty(status.ContainerImage)
 
-		suite.Require().Equal(deployResult.FunctionStatus.Image, status.Image)
+		suite.Require().Equal(deployResult.FunctionStatus.ContainerImage, status.ContainerImage)
 
 		return true
 	})
