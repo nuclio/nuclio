@@ -803,6 +803,9 @@ type Status struct {
 	APIGateways []string                 `json:"apiGateways,omitempty"`
 	HTTPPort    int                      `json:"httpPort,omitempty"`
 
+	// the built and pushed image name, populated by the function operator after the function has been deployed
+	ContainerImage string `json:"containerImage,omitempty"`
+
 	// list of internal urls
 	// e.g.:
 	//		Kubernetes 	-	[ my-namespace.my-function.svc.cluster.local:8080 ]

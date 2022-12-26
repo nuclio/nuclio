@@ -256,8 +256,9 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// NOTE: this reconstructs function status and hence omits all other function status fields
 		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
-			State: finalState,
-			Logs:  function.Status.Logs,
+			State:          finalState,
+			Logs:           function.Status.Logs,
+			ContainerImage: function.Spec.Image,
 		}
 
 		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {

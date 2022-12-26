@@ -787,6 +787,36 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
 		})
 }
 
+func (suite *DeployFunctionTestSuite) TestFunctionImageNameInStatus() {
+
+	functionName := "some-test-function"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		suite.Require().NotNil(deployResult)
+
+		// make sure deployment status contains image name
+		suite.Require().NotEmpty(deployResult.FunctionStatus.ContainerImage)
+
+		// get the function
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		status := function.GetStatus()
+
+		// make sure the image name exists in the function status
+		suite.Require().NotEmpty(status.ContainerImage)
+
+		suite.Require().Equal(deployResult.FunctionStatus.ContainerImage, status.ContainerImage)
+
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 
 	functionName := "func-with-secret"

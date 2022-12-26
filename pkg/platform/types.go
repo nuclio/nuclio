@@ -93,7 +93,7 @@ type CreateFunctionBuildResult struct {
 	UpdatedFunctionConfig functionconfig.Config
 }
 
-// CreateFunctionResult holds the results of a deploy
+// CreateFunctionResult holds the results of a deployment
 type CreateFunctionResult struct {
 	CreateFunctionBuildResult
 	FunctionStatus functionconfig.Status
