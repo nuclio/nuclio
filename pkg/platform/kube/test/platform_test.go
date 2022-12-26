@@ -1035,6 +1035,47 @@ func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithMaskedField() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestCleanFlexVolumeSubPath() {
+	functionName := "func-with-v3io-fuse-volume"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "volume1",
+				VolumeSource: v1.VolumeSource{
+					FlexVolume: &v1.FlexVolumeSource{
+						Driver: "v3io/fuse",
+						Options: map[string]string{
+							"subPath":   "///some/bad/sub/path//",
+							"container": "some-container",
+							"accessKey": "some-access-key",
+						},
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "volume1",
+				MountPath: "/tmp/volume1",
+			},
+		},
+	}
+
+	// deploy function, we expect a failure due to the v3io access key being a dummy value
+	_, err := suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		suite.Require().Equal("/some/bad/sub/path",
+			function.GetConfig().Spec.Volumes[0].Volume.FlexVolume.Options["subPath"])
+		return true
+	})
+	suite.Require().Error(err)
+}
+
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }

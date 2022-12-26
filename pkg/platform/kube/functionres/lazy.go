@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -2225,23 +2224,6 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 
 	for _, configVolume := range configVolumes {
 		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == functionconfig.SecretTypeV3ioFuse {
-
-			// make sure the given sub path matches the needed structure. fix in case it doesn't
-			subPath, subPathExists := configVolume.Volume.FlexVolume.Options["subPath"]
-			if subPathExists && len(subPath) != 0 {
-
-				// insert slash in the beginning in case it wasn't given (example: "my/path" -> "/my/path")
-				if !filepath.IsAbs(subPath) {
-					subPath = "/" + subPath
-				}
-
-				subPath = filepath.Clean(subPath)
-				if subPath == "/" {
-					subPath = ""
-				}
-
-				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
-			}
 
 			// add secret ref to the volume if access key is scrubbed
 			accessKey, accessKeyExists := configVolume.Volume.FlexVolume.Options["accessKey"]
