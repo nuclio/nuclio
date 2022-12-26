@@ -802,6 +802,7 @@ type Status struct {
 	ScaleToZero *ScaleToZeroStatus       `json:"scaleToZero,omitempty"`
 	APIGateways []string                 `json:"apiGateways,omitempty"`
 	HTTPPort    int                      `json:"httpPort,omitempty"`
+	Image       string                   `json:"image,omitempty"`
 
 	// list of internal urls
 	// e.g.:

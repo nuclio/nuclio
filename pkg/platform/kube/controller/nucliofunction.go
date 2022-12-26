@@ -258,6 +258,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		functionStatus := &functionconfig.Status{
 			State: finalState,
 			Logs:  function.Status.Logs,
+			Image: function.Spec.Image,
 		}
 
 		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
