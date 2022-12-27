@@ -264,6 +264,16 @@ func (c *Config) GetDefaultSupportedAutoScaleMetrics() []functionconfig.AutoScal
 	}
 }
 
+func (c *Config) GetDefaultWindowSizePresets() []string {
+	return []string{
+		"1m",
+		"2m",
+		"5m",
+		"10m",
+		"30m",
+	}
+}
+
 // EnrichContainerResources enriches an object's requests and limits with the default
 // resources defined in the platform config, only if they are not already configured
 func (c *Config) EnrichContainerResources(ctx context.Context,
