@@ -188,6 +188,14 @@ func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) err
 			// try peek at job results to see if it has a meaningful error message
 			if err := json.Unmarshal([]byte(job.Data.Attributes.Result), &jobResult); err == nil {
 				c.logger.ErrorWith("Create project has failed", "jobResult", jobResult)
+
+				// assume server internal error if no status was given
+				if jobResult.Status == 0 {
+					jobResult.Status = http.StatusInternalServerError
+				}
+				if jobResult.Message == "" {
+					jobResult.Message = "Failed to create project"
+				}
 				return nuclio.GetByStatusCode(jobResult.Status)(jobResult.Message)
 			}
 
