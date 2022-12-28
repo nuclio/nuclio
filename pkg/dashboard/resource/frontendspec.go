@@ -246,15 +246,20 @@ func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []stri
 
 func (fsr *frontendSpecResource) resolveAutoScaleMetrics(inactivityWindowPresets []string) map[string]interface{} {
 	var supportedAutoScaleMetrics []functionconfig.AutoScaleMetric
+	windowSizePresets := inactivityWindowPresets
 	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().SupportedAutoScaleMetrics
 		if len(supportedAutoScaleMetrics) == 0 {
 			supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().GetDefaultSupportedAutoScaleMetrics()
 		}
+		if len(windowSizePresets) == 0 {
+			windowSizePresets = dashboardServer.GetPlatformConfiguration().GetDefaultWindowSizePresets()
+		}
 	}
+
 	return map[string]interface{}{
 		"metricPresets":     supportedAutoScaleMetrics,
-		"windowSizePresets": inactivityWindowPresets,
+		"windowSizePresets": windowSizePresets,
 	}
 }
 
