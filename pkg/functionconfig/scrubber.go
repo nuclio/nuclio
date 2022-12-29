@@ -17,18 +17,22 @@ limitations under the License.
 package functionconfig
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/gosecretive"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -42,8 +46,22 @@ const (
 	FunctionSecretMountPath          = "/etc/nuclio/secrets"
 )
 
+type Scrubber struct {
+	SensitiveFields []*regexp.Regexp
+	KubeClientSet   kubernetes.Interface
+}
+
+// NewScrubber returns a new scrubber
+// If the scrubber is only used for restoring, the arguments and logger can be nil
+func NewScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *Scrubber {
+	return &Scrubber{
+		SensitiveFields: sensitiveFields,
+		KubeClientSet:   kubeClientSet,
+	}
+}
+
 // Scrub scrubs sensitive data from a function config
-func Scrub(functionConfig *Config,
+func (s *Scrubber) Scrub(functionConfig *Config,
 	existingSecretMap map[string]string,
 	sensitiveFields []*regexp.Regexp) (*Config, map[string]string, error) {
 
@@ -64,7 +82,7 @@ func Scrub(functionConfig *Config,
 			// if the field path matches the field path to scrub, scrub it
 			if fieldPathRegexToScrub.MatchString(fieldPath) {
 
-				secretKey := generateSecretKey(fieldPath)
+				secretKey := s.generateSecretKey(fieldPath)
 
 				// if the value to scrub is a string, make sure that we need to scrub it
 				if kind := reflect.ValueOf(valueToScrub).Kind(); kind == reflect.String {
@@ -75,17 +93,9 @@ func Scrub(functionConfig *Config,
 						return nil
 					}
 
-					// if it's already a reference, validate that it a previous secret map exists,
-					// and contains the reference
+					// if it's already a reference, validate that the value exists
 					if strings.HasPrefix(stringValue, ReferencePrefix) {
-						if existingSecretMap != nil {
-							trimmedSecretKey := strings.ToLower(strings.TrimSpace(secretKey))
-							if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
-								scrubErr = errors.New(fmt.Sprintf("Config data in path %s is already masked, but original value does not exist in secret", fieldPath))
-							}
-						} else {
-							scrubErr = errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
-						}
+						scrubErr = s.validateReference(functionConfig, existingSecretMap, fieldPath, secretKey, stringValue)
 						return nil
 					}
 				}
@@ -119,18 +129,18 @@ func Scrub(functionConfig *Config,
 }
 
 // Restore restores sensitive data in a function config from a secrets map
-func Restore(scrubbedFunctionConfig *Config, secretsMap map[string]string) (*Config, error) {
+func (s *Scrubber) Restore(scrubbedFunctionConfig *Config, secretsMap map[string]string) (*Config, error) {
 	restored := gosecretive.Restore(scrubbedFunctionConfig, secretsMap)
 	return restored.(*Config), nil
 }
 
 // EncodeSecretsMap encodes the keys of a secrets map
-func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
+func (s *Scrubber) EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 	encodedSecretsMap := map[string]string{}
 
 	// encode secret map keys
 	for secretKey, secretValue := range secretsMap {
-		encodedSecretsMap[encodeSecretKey(secretKey)] = secretValue
+		encodedSecretsMap[s.encodeSecretKey(secretKey)] = secretValue
 	}
 
 	if len(encodedSecretsMap) > 0 {
@@ -147,7 +157,7 @@ func EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 }
 
 // DecodeSecretsMapContent decodes the secrets map content
-func DecodeSecretsMapContent(secretsMapContent string) (map[string]string, error) {
+func (s *Scrubber) DecodeSecretsMapContent(secretsMapContent string) (map[string]string, error) {
 
 	// decode secret
 	secretContentStr, err := base64.StdEncoding.DecodeString(secretsMapContent)
@@ -163,7 +173,7 @@ func DecodeSecretsMapContent(secretsMapContent string) (map[string]string, error
 
 	// decode secret keys and values
 	// convert values to byte array for decoding purposes
-	secretMap, err := DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
+	secretMap, err := s.DecodeSecretData(common.MapStringStringToMapStringBytesArray(encodedSecretMap))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to decode function secret data")
 	}
@@ -172,7 +182,7 @@ func DecodeSecretsMapContent(secretsMapContent string) (map[string]string, error
 }
 
 // DecodeSecretData decodes the keys of a secrets map
-func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
+func (s *Scrubber) DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 	decodedSecretsMap := map[string]string{}
 	for secretKey, secretValue := range secretData {
 		if secretKey == SecretContentKey {
@@ -181,7 +191,7 @@ func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 			// which we don't care about when decoding
 			continue
 		}
-		decodedSecretKey, err := decodeSecretKey(secretKey)
+		decodedSecretKey, err := s.decodeSecretKey(secretKey)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to decode secret key")
 		}
@@ -190,12 +200,7 @@ func DecodeSecretData(secretData map[string][]byte) (map[string]string, error) {
 	return decodedSecretsMap, nil
 }
 
-func ResolveEnvVarNameFromReference(reference string) string {
-	fieldPath := strings.TrimPrefix(reference, ReferencePrefix)
-	return encodeSecretKey(fieldPath)
-}
-
-func GenerateFunctionSecretName(functionName, secretPrefix string) string {
+func (s *Scrubber) GenerateFunctionSecretName(functionName, secretPrefix string) string {
 	secretName := fmt.Sprintf("%s%s", secretPrefix, functionName)
 	if len(secretName) > common.KubernetesDomainLevelMaxLength {
 		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
@@ -208,14 +213,14 @@ func GenerateFunctionSecretName(functionName, secretPrefix string) string {
 }
 
 // encodeSecretKey encodes a secret key
-func encodeSecretKey(fieldPath string) string {
+func (s *Scrubber) encodeSecretKey(fieldPath string) string {
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "=", "_")
 	return fmt.Sprintf("%s%s", ReferenceToEnvVarPrefix, encodedFieldPath)
 }
 
 // decodeSecretKey decodes a secret key and returns the original field
-func decodeSecretKey(secretKey string) (string, error) {
+func (s *Scrubber) decodeSecretKey(secretKey string) (string, error) {
 	encodedFieldPath := strings.TrimPrefix(secretKey, ReferenceToEnvVarPrefix)
 	encodedFieldPath = strings.ReplaceAll(encodedFieldPath, "_", "=")
 	decodedFieldPath, err := base64.StdEncoding.DecodeString(encodedFieldPath)
@@ -225,6 +230,52 @@ func decodeSecretKey(secretKey string) (string, error) {
 	return string(decodedFieldPath), nil
 }
 
-func generateSecretKey(fieldPath string) string {
+func (s *Scrubber) generateSecretKey(fieldPath string) string {
 	return fmt.Sprintf("%s%s", ReferencePrefix, strings.ToLower(fieldPath))
+}
+
+func (s *Scrubber) validateReference(functionConfig *Config,
+	existingSecretMap map[string]string,
+	fieldPath,
+	secretKey,
+	stringValue string) error {
+
+	// for flex volume access keys, we need to check if the volume secret exists
+	if strings.Contains(stringValue, "flexvolume") {
+
+		// get the volume name
+		volumeIndexStr := strings.Split(strings.Split(stringValue, "[")[1], "]")[0]
+		volumeIndex, err := strconv.Atoi(volumeIndexStr)
+		if err != nil {
+			return errors.Wrap(err, "Failed to parse volume index")
+		}
+		volumeName := functionConfig.Spec.Volumes[volumeIndex].Volume.Name
+
+		// list secrets with the volume name label selector
+		volumeSecrets, err := s.KubeClientSet.CoreV1().Secrets(functionConfig.Meta.Namespace).List(context.Background(),
+			metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
+			})
+		if err != nil {
+			return errors.Wrap(err, "Failed to list volume secrets")
+		}
+
+		// if no secret exists, return an error
+		if len(volumeSecrets.Items) == 0 {
+			return errors.New(fmt.Sprintf("No secret exists for volume %s", volumeName))
+		}
+
+		return nil
+	}
+
+	// for other fields, we need to check if the secret exists in the secret map
+	if existingSecretMap != nil {
+		trimmedSecretKey := strings.ToLower(strings.TrimSpace(secretKey))
+		if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
+			return errors.New(fmt.Sprintf("Config data in path %s is already scrubbed, but original value does not exist in secret", fieldPath))
+		}
+		return nil
+	}
+
+	return errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
 }

@@ -2266,11 +2266,12 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 
 	// volume the function secret as optional
 	secretVolumeName := "function-secret"
+	scrubber := functionconfig.NewScrubber(nil, nil)
 	volumeNameToVolume[secretVolumeName] = v1.Volume{
 		Name: secretVolumeName,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName: functionconfig.GenerateFunctionSecretName(function.Name, functionconfig.NuclioSecretNamePrefix),
+				SecretName: scrubber.GenerateFunctionSecretName(function.Name, functionconfig.NuclioSecretNamePrefix),
 				Optional:   &trueVal,
 			},
 		},

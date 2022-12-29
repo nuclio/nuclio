@@ -27,26 +27,31 @@ import (
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
-type MaskTestSuite struct {
+type ScrubberTestSuite struct {
 	suite.Suite
-	logger logger.Logger
-	ctx    context.Context
+	logger       logger.Logger
+	ctx          context.Context
+	k8sClientSet *k8sfake.Clientset
+	scrubber     *Scrubber
 }
 
-func (suite *MaskTestSuite) SetupTest() {
+func (suite *ScrubberTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
+	suite.k8sClientSet = k8sfake.NewSimpleClientset()
+	suite.scrubber = NewScrubber(suite.getSensitiveFieldsPathsRegex(), suite.k8sClientSet)
 }
 
-func (suite *MaskTestSuite) TestMaskBasics() {
+func (suite *ScrubberTestSuite) TestScrubBasics() {
 	functionConfig := &Config{
 		Spec: Spec{
 			Build: Build{
 				CodeEntryAttributes: map[string]interface{}{
 
-					// should be masked
+					// should be scrubbed
 					"password":          "abcd",
 					"s3SecretAccessKey": "some-s3-secret",
 					"s3SessionToken":    "some-s3-session-token",
@@ -55,11 +60,11 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 						"X-V3io-Session-Key": "some-session-key",
 					},
 
-					// should not be masked
+					// should not be scrubbed
 					"workDir": "/path/to/test-func",
 				},
 
-				// should not be masked
+				// should not be scrubbed
 				Image: "some-image:latest",
 			},
 			Triggers: map[string]Trigger{
@@ -93,39 +98,39 @@ func (suite *MaskTestSuite) TestMaskBasics() {
 		},
 	}
 
-	// mask the function config
-	maskedFunctionConfig, secretMap, err := Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
+	// scrub the function config
+	scrubbedFunctionConfig, secretMap, err := suite.scrubber.Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
 	suite.Require().NoError(err)
 
-	suite.logger.DebugWith("Masked function config", "functionConfig", maskedFunctionConfig, "secretMap", secretMap)
+	suite.logger.DebugWith("Scrubbed function config", "functionConfig", scrubbedFunctionConfig, "secretMap", secretMap)
 
 	suite.Require().NotEmpty(secretMap)
 
 	// validate code entry attributes
 	for _, attribute := range []string{"password", "s3SecretAccessKey", "s3SessionToken"} {
 		suite.Require().NotEqual(functionConfig.Spec.Build.CodeEntryAttributes[attribute],
-			maskedFunctionConfig.Spec.Build.CodeEntryAttributes[attribute])
-		suite.Require().Contains(maskedFunctionConfig.Spec.Build.CodeEntryAttributes[attribute], ReferencePrefix)
+			scrubbedFunctionConfig.Spec.Build.CodeEntryAttributes[attribute])
+		suite.Require().Contains(scrubbedFunctionConfig.Spec.Build.CodeEntryAttributes[attribute], ReferencePrefix)
 	}
 
-	suite.Require().Equal(functionConfig.Spec.Build.Image, maskedFunctionConfig.Spec.Build.Image)
+	suite.Require().Equal(functionConfig.Spec.Build.Image, scrubbedFunctionConfig.Spec.Build.Image)
 	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Password,
-		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
+		scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
 	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Attributes["password"],
-		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
+		scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
 	suite.Require().Equal(functionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"],
-		maskedFunctionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"])
+		scrubbedFunctionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"])
 	suite.Require().NotEqual(functionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"],
-		maskedFunctionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"])
+		scrubbedFunctionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"])
 
-	restoredFunctionConfig, err := Restore(maskedFunctionConfig, secretMap)
+	restoredFunctionConfig, err := suite.scrubber.Restore(scrubbedFunctionConfig, secretMap)
 	suite.Require().NoError(err)
 
 	suite.logger.DebugWith("Restored function config", "functionConfig", restoredFunctionConfig)
 	suite.Require().Equal(functionConfig, restoredFunctionConfig)
 }
 
-func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
+func (suite *ScrubberTestSuite) TestScrubWithExistingSecrets() {
 	existingSecrets := map[string]string{
 		"$ref:/spec/build/codeentryattributes/password": "abcd",
 	}
@@ -135,11 +140,11 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 			Build: Build{
 				CodeEntryAttributes: map[string]interface{}{
 
-					// should be masked
+					// should be scrubbed
 					"password": "$ref:/Spec/Build/CodeEntryAttributes/password",
 				},
 
-				// should not be masked
+				// should not be scrubbed
 				Image: "some-image:latest",
 			},
 			Triggers: map[string]Trigger{
@@ -153,45 +158,45 @@ func (suite *MaskTestSuite) TestScrubWithExistingSecrets() {
 		},
 	}
 
-	// mask the function config
-	maskedFunctionConfig, secretMap, err := Scrub(functionConfig,
+	// scrub the function config
+	scrubbedFunctionConfig, secretMap, err := suite.scrubber.Scrub(functionConfig,
 		existingSecrets,
 		suite.getSensitiveFieldsPathsRegex())
 	suite.Require().NoError(err)
-	suite.logger.DebugWith("Masked function config", "maskedFunctionConfig", maskedFunctionConfig, "secretMap", secretMap)
+	suite.logger.DebugWith("Scrubbed function config", "scrubbedFunctionConfig", scrubbedFunctionConfig, "secretMap", secretMap)
 
 	suite.Require().Less(len(existingSecrets), len(secretMap))
 	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Password,
-		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
+		scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
 	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Attributes["password"],
-		maskedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
-	suite.Require().Contains(secretMap, maskedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
+		scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
+	suite.Require().Contains(secretMap, scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
 	suite.Require().Equal(functionConfig.Spec.Build.CodeEntryAttributes["password"],
-		maskedFunctionConfig.Spec.Build.CodeEntryAttributes["password"])
+		scrubbedFunctionConfig.Spec.Build.CodeEntryAttributes["password"])
 
 	// test error cases:
 	// existing secret map is nil
-	_, _, err = Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
+	_, _, err = suite.scrubber.Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
 	suite.Require().Error(err)
 
 	// existing secret map doesn't contain the secret
-	_, _, err = Scrub(functionConfig, map[string]string{
+	_, _, err = suite.scrubber.Scrub(functionConfig, map[string]string{
 		"$ref:/Spec/Something/Else/password": "abcd",
 	}, suite.getSensitiveFieldsPathsRegex())
 	suite.Require().Error(err)
 }
 
-func (suite *MaskTestSuite) TestEncodeAndDecodeSecretKeys() {
+func (suite *ScrubberTestSuite) TestEncodeAndDecodeSecretKeys() {
 	fieldPath := "Spec/Build/CodeEntryAttributes/password"
-	encodedFieldPath := encodeSecretKey(fieldPath)
+	encodedFieldPath := suite.scrubber.encodeSecretKey(fieldPath)
 	suite.logger.DebugWith("Encoded field path", "fieldPath", fieldPath, "encodedFieldPath", encodedFieldPath)
 
-	decodedFieldPath, err := decodeSecretKey(encodedFieldPath)
+	decodedFieldPath, err := suite.scrubber.decodeSecretKey(encodedFieldPath)
 	suite.Require().NoError(err)
 	suite.Require().Equal(fieldPath, decodedFieldPath)
 }
 
-func (suite *MaskTestSuite) TestEncodeSecretsMap() {
+func (suite *ScrubberTestSuite) TestEncodeSecretsMap() {
 
 	secretMap := map[string]string{
 		"$ref:Spec/Build/CodeEntryAttributes/password":          "abcd",
@@ -199,7 +204,7 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 		"$ref:Spec/Triggers/secret-trigger/Attributes/password": "1234",
 	}
 
-	encodedSecretMap, err := EncodeSecretsMap(secretMap)
+	encodedSecretMap, err := suite.scrubber.EncodeSecretsMap(secretMap)
 	suite.Require().NoError(err)
 	suite.logger.DebugWith("Encoded secret map", "secretMap", secretMap, "encodedSecretMap", encodedSecretMap)
 
@@ -209,13 +214,13 @@ func (suite *MaskTestSuite) TestEncodeSecretsMap() {
 		if encodedKey == SecretContentKey {
 			continue
 		}
-		decodedKey, err := decodeSecretKey(encodedKey)
+		decodedKey, err := suite.scrubber.decodeSecretKey(encodedKey)
 		suite.Require().NoError(err)
 		suite.Require().Equal(secretMap[decodedKey], value)
 	}
 }
 
-func (suite *MaskTestSuite) TestDecodeSecretsMapContent() {
+func (suite *ScrubberTestSuite) TestDecodeSecretsMapContent() {
 
 	functionConfig := &Config{
 		Spec: Spec{
@@ -236,22 +241,22 @@ func (suite *MaskTestSuite) TestDecodeSecretsMapContent() {
 	}
 
 	// scrub the function config
-	maskedFunctionConfig, secretMap, err := Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
+	scrubbedFunctionConfig, secretMap, err := suite.scrubber.Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
 	suite.Require().NoError(err)
 
 	// encode the secret map
-	encodedSecretMap, err := EncodeSecretsMap(secretMap)
+	encodedSecretMap, err := suite.scrubber.EncodeSecretsMap(secretMap)
 	suite.Require().NoError(err)
 
 	// get the encoded secret map content
 	encodedSecretMapContent := encodedSecretMap[SecretContentKey]
 	suite.Require().NotEmpty(encodedSecretMapContent)
 
-	decodedSecretMap, err := DecodeSecretsMapContent(encodedSecretMapContent)
+	decodedSecretMap, err := suite.scrubber.DecodeSecretsMapContent(encodedSecretMapContent)
 	suite.Require().NoError(err)
 
 	// restore the function config
-	restoredFunctionConfig, err := Restore(maskedFunctionConfig, decodedSecretMap)
+	restoredFunctionConfig, err := suite.scrubber.Restore(scrubbedFunctionConfig, decodedSecretMap)
 	suite.Require().NoError(err)
 
 	suite.logger.DebugWith("Restored function config", "functionConfig", restoredFunctionConfig)
@@ -262,7 +267,7 @@ func (suite *MaskTestSuite) TestDecodeSecretsMapContent() {
 
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
 // this is implemented here to avoid a circular dependency between platformconfig and functionconfig
-func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
+func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
 	var regexpList []*regexp.Regexp
 	for _, sensitiveFieldPath := range []string{
 
@@ -286,6 +291,6 @@ func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
 	return regexpList
 }
 
-func TestMaskTestSuite(t *testing.T) {
-	suite.Run(t, new(MaskTestSuite))
+func TestScrubberTestSuite(t *testing.T) {
+	suite.Run(t, new(ScrubberTestSuite))
 }

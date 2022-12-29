@@ -293,7 +293,10 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 // mounted secret, if it exists
 func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*functionconfig.Config, error) {
 
-	secretsMap, err := p.getSecretsMap()
+	// initialize scrubber, we don't care about sensitive fields and kubeClientSet
+	scrubber := functionconfig.NewScrubber(nil, nil)
+
+	secretsMap, err := p.getSecretsMap(scrubber)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get secrets map")
 	}
@@ -303,7 +306,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 		return config, nil
 	}
 
-	restoredFunctionConfig, err := functionconfig.Restore(config, secretsMap)
+	restoredFunctionConfig, err := scrubber.Restore(config, secretsMap)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to restore function config")
 	}
@@ -311,7 +314,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 	return restoredFunctionConfig, nil
 }
 
-func (p *Processor) getSecretsMap() (map[string]string, error) {
+func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string]string, error) {
 
 	// the env var is mainly for testing
 	filePath := os.Getenv("NUCLIO_FUNCTION_SECRET_VOLUME_PATH")
@@ -335,7 +338,7 @@ func (p *Processor) getSecretsMap() (map[string]string, error) {
 		return nil, errors.Wrap(err, "Failed to read function secret")
 	}
 
-	return functionconfig.DecodeSecretsMapContent(string(encodedSecret))
+	return scrubber.DecodeSecretsMapContent(string(encodedSecret))
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {

@@ -75,6 +75,7 @@ type Platform struct {
 	ImageNamePrefixTemplate string
 	DefaultNamespace        string
 	OpaClient               opa.Client
+	Scrubber                *functionconfig.Scrubber
 }
 
 func NewPlatform(parentLogger logger.Logger,
@@ -88,6 +89,8 @@ func NewPlatform(parentLogger logger.Logger,
 		platform:         platform,
 		Config:           platformConfiguration,
 		DeployLogStreams: &sync.Map{},
+		Scrubber: functionconfig.NewScrubber(platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
+			nil),
 	}
 
 	// create invoker
@@ -1230,7 +1233,7 @@ func (ap *Platform) RestoreFunctionConfig(ctx context.Context, config *functionc
 	}
 
 	// restore the function config from the secret
-	restoredConfig, err := functionconfig.Restore(config, secretMap)
+	restoredConfig, err := ap.Scrubber.Restore(config, secretMap)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to restore function config")
 	}
@@ -1250,7 +1253,7 @@ func (ap *Platform) GetFunctionSecretMap(ctx context.Context, functionName, func
 
 	// if secret exists, get the data
 	if functionSecretData != nil {
-		functionSecretMap, err := functionconfig.DecodeSecretData(functionSecretData)
+		functionSecretMap, err := ap.Scrubber.DecodeSecretData(functionSecretData)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to decode function secret data")
 		}

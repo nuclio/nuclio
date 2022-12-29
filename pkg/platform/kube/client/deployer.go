@@ -44,6 +44,7 @@ type Deployer struct {
 	logger   logger.Logger
 	consumer *Consumer
 	platform platform.Platform
+	scrubber *functionconfig.Scrubber
 }
 
 func NewDeployer(parentLogger logger.Logger, consumer *Consumer, platform platform.Platform) (*Deployer, error) {
@@ -164,6 +165,9 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	functionConfig *functionconfig.Config) (*functionconfig.Config, error) {
 	var err error
 
+	d.scrubber = functionconfig.NewScrubber(d.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex(),
+		d.consumer.KubeClientSet)
+
 	// get existing function secret
 	functionSecretMap, err := d.platform.GetFunctionSecretMap(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
 	if err != nil {
@@ -173,7 +177,7 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	// scrub the function config
 	d.logger.DebugWithCtx(ctx, "Scrubbing function config", "functionName", functionConfig.Meta.Name)
 
-	scrubbedFunctionConfig, secretsMap, err := functionconfig.Scrub(functionConfig,
+	scrubbedFunctionConfig, secretsMap, err := d.scrubber.Scrub(functionConfig,
 		functionSecretMap,
 		d.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex())
 	if err != nil {
@@ -191,7 +195,7 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	}
 
 	// encode secrets map
-	encodedSecretsMap, err := functionconfig.EncodeSecretsMap(secretsMap)
+	encodedSecretsMap, err := d.scrubber.EncodeSecretsMap(secretsMap)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to encode secrets map")
 	}
@@ -216,7 +220,7 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 
 	secretConfig := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: functionconfig.GenerateFunctionSecretName(name, functionconfig.NuclioSecretNamePrefix),
+			Name: d.scrubber.GenerateFunctionSecretName(name, functionconfig.NuclioSecretNamePrefix),
 			Labels: map[string]string{
 				common.NuclioResourceLabelKeyFunctionName: name,
 				common.NuclioResourceLabelKeyProjectName:  projectName,
@@ -302,7 +306,7 @@ func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
 	}
 
 	// create secret name with unique suffix
-	flexVolumeSecretName := functionconfig.GenerateFunctionSecretName(fmt.Sprintf("%s-%s", functionName, xid.New().String()),
+	flexVolumeSecretName := d.scrubber.GenerateFunctionSecretName(fmt.Sprintf("%s-%s", functionName, xid.New().String()),
 		functionconfig.NuclioFlexVolumeSecretNamePrefix)
 
 	// check if a secret with the same access key reference already exists
@@ -355,6 +359,10 @@ func (d *Deployer) createOrUpdateSecret(ctx context.Context, namespace string, s
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrapf(err, "Failed to get secret %s", secretConfig.Name)
 		}
+		d.logger.DebugWithCtx(ctx,
+			"Creating secret",
+			"secretName", secretConfig.Name,
+			"namespace", namespace)
 
 		// create secret
 		if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx,
@@ -366,6 +374,10 @@ func (d *Deployer) createOrUpdateSecret(ctx context.Context, namespace string, s
 	}
 
 	// update secret
+	d.logger.DebugWithCtx(ctx,
+		"Updating secret",
+		"secretName", secretConfig.Name,
+		"namespace", namespace)
 	if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx,
 		secretConfig,
 		metav1.UpdateOptions{}); err != nil {
