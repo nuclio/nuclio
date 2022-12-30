@@ -593,7 +593,7 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 
 // GetName returns the platform name
 func (p *Platform) GetName() string {
-	return "kube"
+	return common.KubePlatformName
 }
 
 // GetNodes returns a slice of nodes currently in the cluster

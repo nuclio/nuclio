@@ -814,7 +814,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 
 	// TODO: when we enable some sort of resource validation on other platforms, allow this to run on those as well
-	suite.ensureRunningOnPlatform("kube")
+	suite.ensureRunningOnPlatform(common.KubePlatformName)
 
 	// read and parse the function we're gonna test
 	functionConfig := functionconfig.Config{}
@@ -1203,7 +1203,7 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocation() {
 
 	// TODO: remove this if we ever implement "ServiceType" for local platform
-	suite.ensureRunningOnPlatform("kube")
+	suite.ensureRunningOnPlatform(common.KubePlatformName)
 
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "deploy-reverser" + uniqueSuffix
@@ -1280,7 +1280,7 @@ wget -O - --post-data "$body" $url 2> /dev/null
 func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 
 	// TODO: remove this if we ever implement "ServiceType" for local platform
-	suite.ensureRunningOnPlatform("kube")
+	suite.ensureRunningOnPlatform(common.KubePlatformName)
 
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "reverser-cluster-ip" + uniqueSuffix

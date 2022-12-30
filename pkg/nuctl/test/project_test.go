@@ -26,9 +26,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlCommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/ghodss/yaml"
@@ -278,7 +279,7 @@ type projectExportImportTestSuite struct {
 }
 
 func (suite *projectExportImportTestSuite) TestExportProject() {
-	apiGatewaysEnabled := suite.origPlatformKind == "kube"
+	apiGatewaysEnabled := suite.origPlatformKind == common.KubePlatformName
 
 	uniqueSuffix := "-" + xid.New().String()
 	projectName := "test-project" + uniqueSuffix
@@ -460,7 +461,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjects() {
-	apiGatewaysEnabled := suite.origPlatformKind == "kube"
+	apiGatewaysEnabled := suite.origPlatformKind == common.KubePlatformName
 
 	projectConfigPath := path.Join(suite.GetImportsDir(), "projects.yaml")
 
@@ -517,7 +518,7 @@ func (suite *projectExportImportTestSuite) TestImportProjects() {
 }
 
 func (suite *projectExportImportTestSuite) TestImportProject() {
-	apiGatewaysEnabled := suite.origPlatformKind == "kube"
+	apiGatewaysEnabled := suite.origPlatformKind == common.KubePlatformName
 
 	uniqueSuffix := "-" + xid.New().String()
 	projectConfigPath := path.Join(suite.GetImportsDir(), "project.yaml")
@@ -758,7 +759,7 @@ func (suite *projectExportImportTestSuite) assertProjectImported(projectName str
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "project", projectName}, map[string]string{
-		"output": common.OutputFormatYAML,
+		"output": nuctlCommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
@@ -775,7 +776,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent"}, map[string]string{
-		"output":   common.OutputFormatYAML,
+		"output":   nuctlCommon.OutputFormatYAML,
 		"function": functionName,
 	}, false)
 	suite.Require().NoError(err)

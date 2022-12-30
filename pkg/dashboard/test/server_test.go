@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
@@ -877,10 +878,15 @@ func (suite *functionTestSuite) TestInvokeNoNamespace() {
 
 func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	replicas := 10
+	password := "my-password-1234"
+	passwordReference := "$ref:/spec/build/codeentryattributes/password"
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "f1"
 	returnedFunction.Config.Meta.Namespace = "f1-namespace"
 	returnedFunction.Config.Spec.Replicas = &replicas
+	returnedFunction.Config.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"password": passwordReference,
+	}
 
 	// verify
 	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
@@ -893,6 +899,16 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	suite.mockPlatform.
 		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctionsOptions)).
 		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+	suite.mockPlatform.
+		On("GetName").
+		Return(common.KubePlatformName).
+		Once()
+	suite.mockPlatform.
+		On("GetFunctionSecretMap", mock.Anything, mock.Anything, mock.Anything).
+		Return(map[string]string{
+			passwordReference: password,
+		}, nil).
 		Once()
 
 	headers := map[string]string{
@@ -910,7 +926,11 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	},
 	"spec": {
 		"resources": {},
-		"build": {},
+		"build": {
+			"codeEntryAttributes": {
+				"password": "my-password-1234"
+			}
+		},
 		"platform": {},
 		"replicas": 10,
 		"eventTimeout": ""

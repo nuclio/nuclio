@@ -204,9 +204,6 @@ type Platform interface {
 	// GetFunctionSecrets returns all the function's secrets
 	GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]FunctionSecret, error)
 
-	// RestoreFunctionConfig restores function config from the secret, if it exists
-	RestoreFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) (*functionconfig.Config, error)
-
 	// GetFunctionSecretMap returns a map of function's sensitive data
 	GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error)
 

@@ -132,7 +132,15 @@ Arguments:
 func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
 	functionConfigs := map[string]*functionconfig.Config{}
 	for _, function := range functions {
-		functionConfig := function.GetConfig()
+
+		// restore the function config, if needed
+		functionConfig, err := functionconfig.RestoreFunctionConfig(context.Background(),
+			function.GetConfig(),
+			e.rootCommandeer.platform.GetName(),
+			e.rootCommandeer.platform.GetFunctionSecretMap)
+		if err != nil {
+			return errors.Wrap(err, "Failed to restore function config")
+		}
 		functionConfig.PrepareFunctionForExport(e.noScrub)
 		functionConfigs[functionConfig.Meta.Name] = functionConfig
 	}
@@ -274,7 +282,15 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 		if err := function.Initialize(ctx, nil); err != nil {
 			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize a function", "err", err.Error())
 		}
-		functionConfig := function.GetConfig()
+
+		// restore the function config, if needed
+		functionConfig, err := functionconfig.RestoreFunctionConfig(context.Background(),
+			function.GetConfig(),
+			e.rootCommandeer.platform.GetName(),
+			e.rootCommandeer.platform.GetFunctionSecretMap)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to restore function config")
+		}
 
 		functionEvents, err := e.getFunctionEvents(ctx, functionConfig)
 		if err != nil {
@@ -308,7 +324,7 @@ func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConf
 	}
 
 	// api gateways are supported only on k8s platform
-	if e.rootCommandeer.platform.GetName() == "kube" {
+	if e.rootCommandeer.platform.GetName() == common.KubePlatformName {
 		apiGateways, err := e.exportAPIGateways(ctx, projectConfig)
 		if err != nil {
 

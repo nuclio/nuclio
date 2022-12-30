@@ -100,7 +100,7 @@ func (suite *Suite) SetupSuite() {
 
 	// default to local platform if platform isn't set
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {
-		err = os.Setenv(nuctlPlatformEnvVarName, "local")
+		err = os.Setenv(nuctlPlatformEnvVarName, common.LocalPlatformName)
 		suite.Require().NoError(err)
 	}
 

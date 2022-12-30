@@ -78,7 +78,11 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		if exportFunction {
-			response[function.GetConfig().Meta.Name] = fr.export(ctx, function)
+			exportedFunction, err := fr.export(ctx, function)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to export function")
+			}
+			response[function.GetConfig().Meta.Name] = exportedFunction
 		} else {
 			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
 		}
@@ -104,7 +108,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	}
 
 	if fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
-		return fr.export(ctx, function), nil
+		return fr.export(ctx, function)
 	}
 
 	return fr.functionToAttributes(function), nil
@@ -203,8 +207,16 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) export(ctx context.Context, function platform.Function) restful.Attributes {
-	functionConfig := function.GetConfig()
+func (fr *functionResource) export(ctx context.Context, function platform.Function) (restful.Attributes, error) {
+
+	// restore the function config, if needed
+	functionConfig, err := functionconfig.RestoreFunctionConfig(ctx,
+		function.GetConfig(),
+		fr.getPlatform().GetName(),
+		fr.getPlatform().GetFunctionSecretMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to restore function config")
+	}
 
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
 	functionConfig.PrepareFunctionForExport(false)
@@ -216,7 +228,7 @@ func (fr *functionResource) export(ctx context.Context, function platform.Functi
 		"spec":     functionConfig.Spec,
 	}
 
-	return attributes
+	return attributes, nil
 }
 
 func (fr *functionResource) storeAndDeployFunction(request *http.Request,

@@ -411,7 +411,7 @@ func (i *importProjectCommandeer) importProject(ctx context.Context,
 	}
 
 	// api gateways are supported only on k8s platform
-	if i.rootCommandeer.platform.GetName() == "kube" {
+	if i.rootCommandeer.platform.GetName() == common.KubePlatformName {
 
 		// import api gateways
 		apiGatewaysImportErr := i.importAPIGateways(ctx, projectImportOptions.projectImportConfig.APIGateways)
