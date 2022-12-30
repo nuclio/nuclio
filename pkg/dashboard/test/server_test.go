@@ -972,6 +972,16 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
 		Once()
 
+	suite.mockPlatform.
+		On("GetName").
+		Return(common.KubePlatformName).
+		Twice()
+
+	suite.mockPlatform.
+		On("GetFunctionSecretMap", mock.Anything, mock.Anything, mock.Anything).
+		Return(map[string]string{}, nil).
+		Twice()
+
 	headers := map[string]string{
 		"x-nuclio-function-namespace": "f-namespace",
 	}
@@ -1350,6 +1360,16 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 		On("GetAPIGateways", mock.Anything, mock.MatchedBy(verifyGetAPIGateways)).
 		Return([]platform.APIGateway{&returnedAPIGateway1}, nil).
 		Once()
+
+	suite.mockPlatform.
+		On("GetName").
+		Return(common.KubePlatformName).
+		Twice()
+
+	suite.mockPlatform.
+		On("GetFunctionSecretMap", mock.Anything, mock.Anything, mock.Anything).
+		Return(map[string]string{}, nil).
+		Twice()
 
 	headers := map[string]string{
 		"x-nuclio-project-namespace":  "f-namespace",
