@@ -395,3 +395,11 @@ func (c *Config) enrichOpaConfig() {
 		c.Opa.PermissionFilterPath = opa.DefaultPermissionFilterPath
 	}
 }
+
+func (c *Config) EnableSensitiveFieldMasking() {
+	c.SensitiveFields.MaskSensitiveFields = true
+}
+
+func (c *Config) DisableSensitiveFieldMasking() {
+	c.SensitiveFields.MaskSensitiveFields = false
+}

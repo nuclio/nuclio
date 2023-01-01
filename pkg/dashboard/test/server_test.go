@@ -31,6 +31,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -878,8 +879,12 @@ func (suite *functionTestSuite) TestInvokeNoNamespace() {
 
 func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	replicas := 10
+
+	// we mock a function config with a scrubbed field, that should be unscrubbed on export
 	password := "my-password-1234"
 	passwordReference := "$ref:/spec/build/codeentryattributes/password"
+	passwordPathRegex := regexp.MustCompile("(?i)^/spec/build/codeentryattributes/password$")
+
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "f1"
 	returnedFunction.Config.Meta.Namespace = "f1-namespace"
@@ -915,6 +920,9 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 		Return(&platformconfig.Config{
 			SensitiveFields: platformconfig.SensitiveFieldsConfig{
 				MaskSensitiveFields: true,
+				SensitiveFieldsRegex: []*regexp.Regexp{
+					passwordPathRegex,
+				},
 			},
 		}, nil).
 		Once()
@@ -984,7 +992,8 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		On("GetConfig").
 		Return(&platformconfig.Config{
 			SensitiveFields: platformconfig.SensitiveFieldsConfig{
-				MaskSensitiveFields: true,
+				MaskSensitiveFields:  true,
+				SensitiveFieldsRegex: []*regexp.Regexp{},
 			},
 		}, nil).
 		Twice()
@@ -1372,7 +1381,8 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 		On("GetConfig").
 		Return(&platformconfig.Config{
 			SensitiveFields: platformconfig.SensitiveFieldsConfig{
-				MaskSensitiveFields: true,
+				MaskSensitiveFields:  true,
+				SensitiveFieldsRegex: []*regexp.Regexp{},
 			},
 		}, nil).
 		Twice()
@@ -1547,7 +1557,8 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		On("GetConfig").
 		Return(&platformconfig.Config{
 			SensitiveFields: platformconfig.SensitiveFieldsConfig{
-				MaskSensitiveFields: true,
+				MaskSensitiveFields:  true,
+				SensitiveFieldsRegex: []*regexp.Regexp{},
 			},
 		}, nil).
 		Twice()

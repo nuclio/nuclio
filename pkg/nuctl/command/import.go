@@ -49,9 +49,6 @@ func newImportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 from a configuration file or from the standard input (default)`,
 	}
 
-	// disable sensitive field masking in the platform when importing, for backwards compatibility
-	commandeer.rootCommandeer.platform.GetConfig().SensitiveFields.MaskSensitiveFields = false
-
 	importFunctionCommand := newImportFunctionCommandeer(ctx, commandeer).cmd
 	importProjectCommand := newImportProjectCommandeer(ctx, commandeer).cmd
 
@@ -160,6 +157,9 @@ Arguments:
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
+			// disable sensitive field masking in the platform when importing, for backwards compatibility
+			commandeer.rootCommandeer.platform.GetConfig().DisableSensitiveFieldMasking()
+
 			functionBody, err := commandeer.resolveInputData(args)
 			if err != nil {
 				return errors.Wrap(err, "Failed to read function data")
@@ -258,6 +258,9 @@ Arguments:
 			if err := importCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			// disable sensitive field masking in the platform when importing, for backwards compatibility
+			commandeer.rootCommandeer.platform.GetConfig().DisableSensitiveFieldMasking()
 
 			projectBody, err := commandeer.resolveInputData(args)
 			if err != nil {
