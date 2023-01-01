@@ -1537,6 +1537,16 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		On("GetFunctionEvents", mock.Anything, mock.MatchedBy(verifyGetFunctionEvents)).
 		Return([]platform.FunctionEvent{}, nil).Twice()
 
+	suite.mockPlatform.
+		On("GetName").
+		Return(common.KubePlatformName).
+		Twice()
+
+	suite.mockPlatform.
+		On("GetFunctionSecretMap", mock.Anything, mock.Anything, mock.Anything).
+		Return(map[string]string{}, nil).
+		Twice()
+
 	headers := map[string]string{
 		"x-nuclio-project-namespace":  "f-namespace",
 		"x-nuclio-function-namespace": "f-namespace",
