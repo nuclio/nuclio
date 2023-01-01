@@ -265,6 +265,85 @@ func (suite *ScrubberTestSuite) TestDecodeSecretsMapContent() {
 	suite.Require().Equal(functionConfig, restoredFunctionConfig)
 }
 
+func (suite *ScrubberTestSuite) TestHasScrubbedConfig() {
+
+	for _, testCase := range []struct {
+		name           string
+		functionConfig *Config
+		expectedResult bool
+	}{
+		{
+			name: "ScrubbedConfig",
+			functionConfig: &Config{
+				Spec: Spec{
+					Build: Build{
+						CodeEntryAttributes: map[string]interface{}{
+
+							"password": "$ref:/Spec/Build/CodeEntryAttributes/password",
+						},
+						Image: "some-image:latest",
+					},
+					Triggers: map[string]Trigger{
+						"secret-trigger": {
+							Attributes: map[string]interface{}{
+								"password": "$ref:Spec/Triggers/secret-trigger/Attributes/password",
+							},
+							Password: "$ref:Spec/Triggers/secret-trigger/Password",
+						},
+						"non-secret-trigger": {
+							Attributes: map[string]interface{}{
+								"not-a-password": "4321",
+							},
+						},
+					},
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "NotScrubbedConfig",
+			functionConfig: &Config{
+				Spec: Spec{
+					Build: Build{
+						CodeEntryAttributes: map[string]interface{}{
+
+							"password": "1234",
+						},
+						Image: "some-image:latest",
+					},
+					Triggers: map[string]Trigger{
+						"secret-trigger": {
+							Attributes: map[string]interface{}{
+								"password": "5678",
+							},
+							Password: "abcd",
+						},
+						"non-secret-trigger": {
+							Attributes: map[string]interface{}{
+								"not-a-password": "4321",
+							},
+						},
+					},
+				},
+			},
+			expectedResult: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+
+			// check that the function config has scrubbed fields
+			hasScrubbedConfig, err := suite.scrubber.HasScrubbedConfig(testCase.functionConfig, suite.getSensitiveFieldsPathsRegex())
+			suite.Require().NoError(err)
+
+			if testCase.expectedResult {
+				suite.Require().True(hasScrubbedConfig)
+			} else {
+				suite.Require().False(hasScrubbedConfig)
+			}
+		})
+	}
+}
+
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
 // this is implemented here to avoid a circular dependency between platformconfig and functionconfig
 func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {

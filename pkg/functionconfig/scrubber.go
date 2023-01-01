@@ -212,6 +212,75 @@ func (s *Scrubber) GenerateFunctionSecretName(functionName, secretPrefix string)
 	return secretName
 }
 
+// RestoreFunctionConfig restores a function config from a secret, in case we're running in a kube platform
+func (s *Scrubber) RestoreFunctionConfig(ctx context.Context,
+	functionConfig *Config,
+	platformName string,
+	getSecretMapCallback func(ctx context.Context, functionName, functionNamespace string) (map[string]string, error)) (*Config, error) {
+
+	// if we're in kube platform, we need to restore the function config's
+	// sensitive data from the function's secret
+	if platformName == "common.KubePlatformName" {
+		secretMap, err := getSecretMapCallback(ctx,
+			functionConfig.Meta.Name,
+			functionConfig.Meta.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function secret")
+		}
+		if secretMap != nil {
+
+			// restore the function config
+			restoredFunctionConfig, err := s.Restore(functionConfig, secretMap)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to restore function config")
+			}
+			return restoredFunctionConfig, nil
+		}
+	}
+
+	// if we're not in kube platform, or the function doesn't have a secret, just return the function config
+	return functionConfig, nil
+}
+
+// HasScrubbedConfig checks if a function config has scrubbed data, using the Scrub function
+func (s *Scrubber) HasScrubbedConfig(functionConfig *Config, sensitiveFields []*regexp.Regexp) (bool, error) {
+	var hasScrubbed bool
+
+	// hack to support avoid losing unexported fields while scrubbing.
+	// scrub the function config to map[string]interface{} and revert it back to a function config later
+	functionConfigAsMap := common.StructureToMap(functionConfig)
+	if len(functionConfigAsMap) == 0 {
+		return false, errors.New("Failed to convert function config to map")
+	}
+
+	// scrub the function config
+	_, _ = gosecretive.Scrub(functionConfigAsMap, func(fieldPath string, valueToScrub interface{}) *string {
+
+		for _, fieldPathRegexToScrub := range sensitiveFields {
+
+			// if the field path matches the field path to scrub, scrub it
+			if fieldPathRegexToScrub.MatchString(fieldPath) {
+
+				// if the value to is a string, check if it's a reference
+				if kind := reflect.ValueOf(valueToScrub).Kind(); kind == reflect.String {
+					stringValue := reflect.ValueOf(valueToScrub).String()
+
+					if strings.HasPrefix(stringValue, ReferencePrefix) {
+						hasScrubbed = true
+					}
+				}
+
+				// we never actually scrub the value
+				return nil
+			}
+		}
+
+		return nil
+	})
+
+	return hasScrubbed, nil
+}
+
 // encodeSecretKey encodes a secret key
 func (s *Scrubber) encodeSecretKey(fieldPath string) string {
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))
