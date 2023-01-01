@@ -238,6 +238,45 @@ func GenerateFunctionSecretName(functionName, secretPrefix string) string {
 	return secretName
 }
 
+// HasScrubbedConfig checks if a function config has scrubbed data, using the Scrub function
+func HasScrubbedConfig(functionConfig *Config, sensitiveFields []*regexp.Regexp) (bool, error) {
+	var hasScrubbed bool
+
+	// hack to support avoid losing unexported fields while scrubbing.
+	// scrub the function config to map[string]interface{} and revert it back to a function config later
+	functionConfigAsMap := common.StructureToMap(functionConfig)
+	if len(functionConfigAsMap) == 0 {
+		return false, errors.New("Failed to convert function config to map")
+	}
+
+	// scrub the function config
+	_, _ = gosecretive.Scrub(functionConfigAsMap, func(fieldPath string, valueToScrub interface{}) *string {
+
+		for _, fieldPathRegexToScrub := range sensitiveFields {
+
+			// if the field path matches the field path to scrub, scrub it
+			if fieldPathRegexToScrub.MatchString(fieldPath) {
+
+				// if the value to is a string, check if it's a reference
+				if kind := reflect.ValueOf(valueToScrub).Kind(); kind == reflect.String {
+					stringValue := reflect.ValueOf(valueToScrub).String()
+
+					if strings.HasPrefix(stringValue, ReferencePrefix) {
+						hasScrubbed = true
+					}
+				}
+
+				// we never actually scrub the value
+				return nil
+			}
+		}
+
+		return nil
+	})
+
+	return hasScrubbed, nil
+}
+
 // encodeSecretKey encodes a secret key
 func encodeSecretKey(fieldPath string) string {
 	encodedFieldPath := base64.StdEncoding.EncodeToString([]byte(fieldPath))

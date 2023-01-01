@@ -910,6 +910,14 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 			passwordReference: password,
 		}, nil).
 		Once()
+	suite.mockPlatform.
+		On("GetConfig").
+		Return(&platformconfig.Config{
+			SensitiveFields: platformconfig.SensitiveFieldsConfig{
+				MaskSensitiveFields: true,
+			},
+		}, nil).
+		Once()
 
 	headers := map[string]string{
 		"x-nuclio-function-namespace": "f1-namespace",
@@ -973,13 +981,12 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		Once()
 
 	suite.mockPlatform.
-		On("GetName").
-		Return(common.KubePlatformName).
-		Twice()
-
-	suite.mockPlatform.
-		On("GetFunctionSecretMap", mock.Anything, mock.Anything, mock.Anything).
-		Return(map[string]string{}, nil).
+		On("GetConfig").
+		Return(&platformconfig.Config{
+			SensitiveFields: platformconfig.SensitiveFieldsConfig{
+				MaskSensitiveFields: true,
+			},
+		}, nil).
 		Twice()
 
 	headers := map[string]string{
@@ -1362,13 +1369,12 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 		Once()
 
 	suite.mockPlatform.
-		On("GetName").
-		Return(common.KubePlatformName).
-		Twice()
-
-	suite.mockPlatform.
-		On("GetFunctionSecretMap", mock.Anything, mock.Anything, mock.Anything).
-		Return(map[string]string{}, nil).
+		On("GetConfig").
+		Return(&platformconfig.Config{
+			SensitiveFields: platformconfig.SensitiveFieldsConfig{
+				MaskSensitiveFields: true,
+			},
+		}, nil).
 		Twice()
 
 	headers := map[string]string{
@@ -1538,13 +1544,12 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		Return([]platform.FunctionEvent{}, nil).Twice()
 
 	suite.mockPlatform.
-		On("GetName").
-		Return(common.KubePlatformName).
-		Twice()
-
-	suite.mockPlatform.
-		On("GetFunctionSecretMap", mock.Anything, mock.Anything, mock.Anything).
-		Return(map[string]string{}, nil).
+		On("GetConfig").
+		Return(&platformconfig.Config{
+			SensitiveFields: platformconfig.SensitiveFieldsConfig{
+				MaskSensitiveFields: true,
+			},
+		}, nil).
 		Twice()
 
 	headers := map[string]string{

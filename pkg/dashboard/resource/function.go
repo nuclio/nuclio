@@ -24,12 +24,14 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -76,14 +78,31 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
 
 	// create a map of attributes keyed by the function id (name)
-	for _, function := range functions {
-		if exportFunction {
-			exportedFunction, err := fr.export(ctx, function)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to export function")
-			}
-			response[function.GetConfig().Meta.Name] = exportedFunction
-		} else {
+	if exportFunction {
+
+		// export functions in parallel
+		lock := sync.Mutex{}
+		errGroup, errGroupCtx := errgroup.WithContextSemaphore(ctx, fr.Logger, errgroup.DefaultErrgroupConcurrency)
+		for _, function := range functions {
+			function := function
+			errGroup.Go("ExportFunction", func() error {
+				exportedFunction, err := fr.export(errGroupCtx, function)
+				if err != nil {
+					return errors.Wrap(err, "Failed to export function")
+				}
+				lock.Lock()
+				response[function.GetConfig().Meta.Name] = exportedFunction
+				lock.Unlock()
+				return nil
+			})
+		}
+
+		// wait for all functions to be exported
+		if err := errGroup.Wait(); err != nil {
+			return nil, errors.Wrap(err, "Failed to export functions")
+		}
+	} else {
+		for _, function := range functions {
 			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
 		}
 	}
@@ -209,13 +228,21 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 func (fr *functionResource) export(ctx context.Context, function platform.Function) (restful.Attributes, error) {
 
+	functionConfig := function.GetConfig()
+
 	// restore the function config, if needed
-	functionConfig, err := functionconfig.RestoreFunctionConfig(ctx,
-		function.GetConfig(),
-		fr.getPlatform().GetName(),
-		fr.getPlatform().GetFunctionSecretMap)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to restore function config")
+	if scrubbed, err := functionconfig.HasScrubbedConfig(functionConfig,
+		fr.getPlatform().GetConfig().SensitiveFields.CompileSensitiveFieldsRegex()); err == nil && scrubbed {
+		var restoreErr error
+		functionConfig, restoreErr = functionconfig.RestoreFunctionConfig(ctx,
+			functionConfig,
+			fr.getPlatform().GetName(),
+			fr.getPlatform().GetFunctionSecretMap)
+		if restoreErr != nil {
+			return nil, errors.Wrap(err, "Failed to restore function config")
+		}
+	} else if err != nil {
+		return nil, errors.Wrap(err, "Failed to check if function config is scrubbed")
 	}
 
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)

@@ -260,6 +260,69 @@ func (suite *MaskTestSuite) TestDecodeSecretsMapContent() {
 	suite.Require().Equal(functionConfig, restoredFunctionConfig)
 }
 
+func (suite *MaskTestSuite) TestHasScrubbedConfig() {
+
+	scrubbedFunctionConfig := &Config{
+		Spec: Spec{
+			Build: Build{
+				CodeEntryAttributes: map[string]interface{}{
+
+					"password": "$ref:/Spec/Build/CodeEntryAttributes/password",
+				},
+				Image: "some-image:latest",
+			},
+			Triggers: map[string]Trigger{
+				"secret-trigger": {
+					Attributes: map[string]interface{}{
+						"password": "$ref:Spec/Triggers/secret-trigger/Attributes/password",
+					},
+					Password: "$ref:Spec/Triggers/secret-trigger/Password",
+				},
+				"non-secret-trigger": {
+					Attributes: map[string]interface{}{
+						"not-a-password": "4321",
+					},
+				},
+			},
+		},
+	}
+
+	// check that the function config has scrubbed fields
+	hasScrubbedConfig, err := HasScrubbedConfig(scrubbedFunctionConfig, suite.getSensitiveFieldsPathsRegex())
+	suite.Require().NoError(err)
+	suite.Require().True(hasScrubbedConfig)
+
+	nonScrubbdFunctionConfig := &Config{
+		Spec: Spec{
+			Build: Build{
+				CodeEntryAttributes: map[string]interface{}{
+
+					"password": "1234",
+				},
+				Image: "some-image:latest",
+			},
+			Triggers: map[string]Trigger{
+				"secret-trigger": {
+					Attributes: map[string]interface{}{
+						"password": "5678",
+					},
+					Password: "abcd",
+				},
+				"non-secret-trigger": {
+					Attributes: map[string]interface{}{
+						"not-a-password": "4321",
+					},
+				},
+			},
+		},
+	}
+
+	// check that the function config does not have scrubbed fields
+	hasScrubbedConfig, err = HasScrubbedConfig(nonScrubbdFunctionConfig, suite.getSensitiveFieldsPathsRegex())
+	suite.Require().NoError(err)
+	suite.Require().False(hasScrubbedConfig)
+}
+
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
 // this is implemented here to avoid a circular dependency between platformconfig and functionconfig
 func (suite *MaskTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
