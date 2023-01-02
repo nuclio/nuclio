@@ -100,7 +100,7 @@ func (suite *TestSuite) SetupSuite() {
 	}
 
 	if suite.PlatformType == "" {
-		suite.PlatformType = "local"
+		suite.PlatformType = common.LocalPlatformName
 	}
 
 	if suite.Namespace == "" {

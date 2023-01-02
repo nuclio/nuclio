@@ -84,7 +84,7 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	common.SetVersionFromEnv()
 	suite.Namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "default")
-	suite.PlatformType = "kube"
+	suite.PlatformType = common.KubePlatformName
 
 	if suite.PlatformConfiguration == nil {
 		suite.PlatformConfiguration = &platformconfig.Config{}

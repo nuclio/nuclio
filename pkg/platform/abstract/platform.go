@@ -158,7 +158,10 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 
 		// if the function is updated, it might have scrubbed data in the spec that the builder requires,
 		// so we need to restore it before building
-		restoredFunctionConfig, err := ap.RestoreFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
+		restoredFunctionConfig, err := functionconfig.RestoreFunctionConfig(ctx,
+			&createFunctionOptions.FunctionConfig,
+			ap.platform.GetName(),
+			ap.GetFunctionSecretMap)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to restore function config")
 		}

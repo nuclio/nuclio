@@ -139,7 +139,7 @@ func NewServer(parentLogger logger.Logger,
 		}
 	} else if containerBuilderKind == "kaniko" {
 		if common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE",
-			"local") == "local" {
+			"local") == common.LocalPlatformName {
 
 			// allow dashboard server to handle request to get kaniko artifacts for function builds
 			// this is useful when running dashboard locally. in production, nginx will handle this

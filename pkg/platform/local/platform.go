@@ -430,7 +430,7 @@ func (p *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 
 // GetName returns the platform name
 func (p *Platform) GetName() string {
-	return "local"
+	return common.LocalPlatformName
 }
 
 func (p *Platform) GetNodes() ([]platform.Node, error) {
@@ -923,7 +923,7 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Stopped: true,
 		Labels: map[string]string{
-			"nuclio.io/platform":                      "local",
+			"nuclio.io/platform":                      common.LocalPlatformName,
 			"nuclio.io/namespace":                     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
 			common.NuclioResourceLabelKeyFunctionName: deleteFunctionOptions.FunctionConfig.Meta.Name,
 		},
@@ -1229,7 +1229,7 @@ func (p *Platform) compileDeployFunctionEnvMap(createFunctionOptions *platform.C
 
 func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
 	labels := map[string]string{
-		"nuclio.io/platform":                      "local",
+		"nuclio.io/platform":                      common.LocalPlatformName,
 		"nuclio.io/namespace":                     createFunctionOptions.FunctionConfig.Meta.Namespace,
 		common.NuclioResourceLabelKeyFunctionName: createFunctionOptions.FunctionConfig.Meta.Name,
 		"nuclio.io/function-spec":                 p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),

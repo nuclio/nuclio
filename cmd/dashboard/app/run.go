@@ -178,7 +178,7 @@ func Run(listenAddress string,
 		defer cancel()
 	}
 
-	if platformInstance.GetName() == "kube" {
+	if platformInstance.GetName() == common.KubePlatformName {
 		rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(rootLogger.GetChild("kube_warnings")))
 	}
 

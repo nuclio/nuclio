@@ -134,6 +134,36 @@ func (s *Scrubber) Restore(scrubbedFunctionConfig *Config, secretsMap map[string
 	return restored.(*Config), nil
 }
 
+// RestoreFunctionConfig restores a function config from a secret, in case we're running in a kube platform
+func RestoreFunctionConfig(ctx context.Context,
+	functionConfig *Config,
+	platformName string,
+	getSecretMapCallback func(ctx context.Context, functionName, functionNamespace string) (map[string]string, error)) (*Config, error) {
+
+	// if we're in kube platform, we need to restore the function config's
+	// sensitive data from the function's secret
+	if platformName == common.KubePlatformName {
+		secretMap, err := getSecretMapCallback(ctx,
+			functionConfig.Meta.Name,
+			functionConfig.Meta.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function secret")
+		}
+		if secretMap != nil {
+
+			// restore the function config
+			restoredFunctionConfig, err := Restore(functionConfig, secretMap)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to restore function config")
+			}
+			return restoredFunctionConfig, nil
+		}
+	}
+
+	// if we're not in kube platform, or the function doesn't have a secret, just return the function config
+	return functionConfig, nil
+}
+
 // EncodeSecretsMap encodes the keys of a secrets map
 func (s *Scrubber) EncodeSecretsMap(secretsMap map[string]string) (map[string]string, error) {
 	encodedSecretsMap := map[string]string{}

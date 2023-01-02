@@ -80,9 +80,9 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 
 	// determine config kind
 	if len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0 {
-		config.Kind = "kube"
+		config.Kind = common.KubePlatformName
 	} else {
-		config.Kind = "local"
+		config.Kind = common.LocalPlatformName
 	}
 
 	// enrich opa configuration
@@ -394,4 +394,12 @@ func (c *Config) enrichOpaConfig() {
 	if c.Opa.PermissionFilterPath == "" {
 		c.Opa.PermissionFilterPath = opa.DefaultPermissionFilterPath
 	}
+}
+
+func (c *Config) EnableSensitiveFieldMasking() {
+	c.SensitiveFields.MaskSensitiveFields = true
+}
+
+func (c *Config) DisableSensitiveFieldMasking() {
+	c.SensitiveFields.MaskSensitiveFields = false
 }
