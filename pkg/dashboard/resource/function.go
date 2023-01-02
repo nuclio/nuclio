@@ -228,13 +228,16 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 func (fr *functionResource) export(ctx context.Context, function platform.Function) (restful.Attributes, error) {
 
+	// create a scrubber instance for restoring the function config
+	scrubber := functionconfig.NewScrubber(nil, nil)
+
 	functionConfig := function.GetConfig()
 
 	// restore the function config, if needed
-	if scrubbed, err := functionconfig.HasScrubbedConfig(functionConfig,
+	if scrubbed, err := scrubber.HasScrubbedConfig(functionConfig,
 		fr.getPlatform().GetConfig().SensitiveFields.CompileSensitiveFieldsRegex()); err == nil && scrubbed {
 		var restoreErr error
-		functionConfig, restoreErr = functionconfig.RestoreFunctionConfig(ctx,
+		functionConfig, restoreErr = scrubber.RestoreFunctionConfig(ctx,
 			functionConfig,
 			fr.getPlatform().GetName(),
 			fr.getPlatform().GetFunctionSecretMap)

@@ -35,12 +35,16 @@ import (
 type exportCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
+	scrubber       *functionconfig.Scrubber
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
 	commandeer := &exportCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
+
+	// initialize scrubber, used for restoring only
+	commandeer.scrubber = functionconfig.NewScrubber(nil, nil)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -143,10 +147,10 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 
 			functionConfig := function.GetConfig()
 
-			if scrubbed, err := functionconfig.HasScrubbedConfig(functionConfig,
+			if scrubbed, err := e.scrubber.HasScrubbedConfig(functionConfig,
 				e.rootCommandeer.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex()); err == nil && scrubbed {
 				var restoreErr error
-				functionConfig, restoreErr = functionconfig.RestoreFunctionConfig(errGroupCtx,
+				functionConfig, restoreErr = e.scrubber.RestoreFunctionConfig(errGroupCtx,
 					functionConfig,
 					e.rootCommandeer.platform.GetName(),
 					e.rootCommandeer.platform.GetFunctionSecretMap)
@@ -308,7 +312,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 		}
 
 		// restore the function config, if needed
-		functionConfig, err := functionconfig.RestoreFunctionConfig(context.Background(),
+		functionConfig, err := e.scrubber.RestoreFunctionConfig(context.Background(),
 			function.GetConfig(),
 			e.rootCommandeer.platform.GetName(),
 			e.rootCommandeer.platform.GetFunctionSecretMap)

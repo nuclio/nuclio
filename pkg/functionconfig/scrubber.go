@@ -52,7 +52,7 @@ type Scrubber struct {
 }
 
 // NewScrubber returns a new scrubber
-// If the scrubber is only used for restoring, the arguments and logger can be nil
+// If the scrubber is only used for restoring, the arguments can be nil
 func NewScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *Scrubber {
 	return &Scrubber{
 		SensitiveFields: sensitiveFields,
@@ -135,7 +135,7 @@ func (s *Scrubber) Restore(scrubbedFunctionConfig *Config, secretsMap map[string
 }
 
 // RestoreFunctionConfig restores a function config from a secret, in case we're running in a kube platform
-func RestoreFunctionConfig(ctx context.Context,
+func (s *Scrubber) RestoreFunctionConfig(ctx context.Context,
 	functionConfig *Config,
 	platformName string,
 	getSecretMapCallback func(ctx context.Context, functionName, functionNamespace string) (map[string]string, error)) (*Config, error) {
@@ -152,7 +152,7 @@ func RestoreFunctionConfig(ctx context.Context,
 		if secretMap != nil {
 
 			// restore the function config
-			restoredFunctionConfig, err := Restore(functionConfig, secretMap)
+			restoredFunctionConfig, err := s.Restore(functionConfig, secretMap)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to restore function config")
 			}
@@ -240,36 +240,6 @@ func (s *Scrubber) GenerateFunctionSecretName(functionName, secretPrefix string)
 	secretName = strings.TrimRight(secretName, "-_")
 
 	return secretName
-}
-
-// RestoreFunctionConfig restores a function config from a secret, in case we're running in a kube platform
-func (s *Scrubber) RestoreFunctionConfig(ctx context.Context,
-	functionConfig *Config,
-	platformName string,
-	getSecretMapCallback func(ctx context.Context, functionName, functionNamespace string) (map[string]string, error)) (*Config, error) {
-
-	// if we're in kube platform, we need to restore the function config's
-	// sensitive data from the function's secret
-	if platformName == "common.KubePlatformName" {
-		secretMap, err := getSecretMapCallback(ctx,
-			functionConfig.Meta.Name,
-			functionConfig.Meta.Namespace)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get function secret")
-		}
-		if secretMap != nil {
-
-			// restore the function config
-			restoredFunctionConfig, err := s.Restore(functionConfig, secretMap)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to restore function config")
-			}
-			return restoredFunctionConfig, nil
-		}
-	}
-
-	// if we're not in kube platform, or the function doesn't have a secret, just return the function config
-	return functionConfig, nil
 }
 
 // HasScrubbedConfig checks if a function config has scrubbed data, using the Scrub function
