@@ -2230,7 +2230,8 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			if accessKeyExists && strings.HasPrefix(accessKey, functionconfig.ReferencePrefix) {
 
 				// get the flex volume secret name
-				secretName, err := lc.getFlexVolumeSecretName(ctx, function, configVolume.Volume.Name)
+				volumeName := configVolume.Volume.Name
+				secretName, err := lc.getFlexVolumeSecretName(ctx, function, volumeName)
 				if err != nil {
 					lc.logger.WarnWithCtx(ctx,
 						"Failed to get flex volume secret name for access key value",
@@ -2266,11 +2267,12 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 
 	// volume the function secret as optional
 	secretVolumeName := "function-secret"
+	scrubber := functionconfig.NewScrubber(nil, nil)
 	volumeNameToVolume[secretVolumeName] = v1.Volume{
 		Name: secretVolumeName,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName: functionconfig.GenerateFunctionSecretName(function.Name, functionconfig.NuclioSecretNamePrefix),
+				SecretName: scrubber.GenerateFunctionSecretName(function.Name, functionconfig.NuclioSecretNamePrefix),
 				Optional:   &trueVal,
 			},
 		},

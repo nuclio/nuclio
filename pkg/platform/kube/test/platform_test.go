@@ -818,6 +818,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionImageNameInStatus() {
 }
 
 func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
+	scrubber := functionconfig.NewScrubber(nil, nil)
 
 	functionName := "func-with-secret"
 	password := "1234"
@@ -849,7 +850,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 			if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
 
 				// decode data from secret
-				decodedSecretData, err := functionconfig.DecodeSecretData(secret.Data)
+				decodedSecretData, err := scrubber.DecodeSecretData(secret.Data)
 				suite.Require().NoError(err)
 				suite.Logger.DebugWithCtx(suite.Ctx,
 					"Got function secret",
@@ -862,7 +863,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 
 				// verify secret's "content" also contains the password
 				secretContent := string(secret.Data["content"])
-				decodedContents, err := functionconfig.DecodeSecretsMapContent(secretContent)
+				decodedContents, err := scrubber.DecodeSecretsMapContent(secretContent)
 				suite.Require().NoError(err)
 
 				suite.Logger.DebugWithCtx(suite.Ctx,
@@ -886,6 +887,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 }
 
 func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
+	scrubber := functionconfig.NewScrubber(nil, nil)
 
 	functionName := "func-with-multiple-volumes"
 	accessKey := "1234"
@@ -957,7 +959,7 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 				functionSecretCounter++
 
 				// decode data from secret
-				decodedSecretData, err := functionconfig.DecodeSecretData(kubeSecret.Data)
+				decodedSecretData, err := scrubber.DecodeSecretData(kubeSecret.Data)
 				suite.Require().NoError(err)
 				suite.Logger.DebugWithCtx(suite.Ctx,
 					"Got function secret",
@@ -1001,7 +1003,8 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 	suite.Require().Equal(2, volumeSecretCounter)
 }
 
-func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithMaskedField() {
+func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithScrubbedField() {
+	scrubber := functionconfig.NewScrubber(nil, nil)
 
 	functionName := "func-with-v3io-stream-trigger"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
@@ -1017,14 +1020,14 @@ func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithMaskedField() {
 	firstPassword := "1234"
 	secondPassword := "abcd"
 	passwordPath := "$ref:/spec/build/codeentryattributes/password"
-	secretName := functionconfig.GenerateFunctionSecretName(functionName, functionconfig.NuclioSecretNamePrefix)
+	secretName := scrubber.GenerateFunctionSecretName(functionName, functionconfig.NuclioSecretNamePrefix)
 
 	validateSecretPasswordFunc := func(password string) {
 		secret, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Get(suite.Ctx, secretName, metav1.GetOptions{})
 		suite.Require().NoError(err)
 
 		// decode secret data
-		decodedContents, err := functionconfig.DecodeSecretData(secret.Data)
+		decodedContents, err := scrubber.DecodeSecretData(secret.Data)
 		suite.Require().NoError(err)
 
 		// make sure first password is in secret
