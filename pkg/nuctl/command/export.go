@@ -19,8 +19,10 @@ package command
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -131,10 +133,40 @@ Arguments:
 
 func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
 	functionConfigs := map[string]*functionconfig.Config{}
+	lock := sync.Mutex{}
+	errGroup, errGroupCtx := errgroup.WithContextSemaphore(context.Background(),
+		e.rootCommandeer.loggerInstance,
+		errgroup.DefaultErrgroupConcurrency)
 	for _, function := range functions {
-		functionConfig := function.GetConfig()
-		functionConfig.PrepareFunctionForExport(e.noScrub)
-		functionConfigs[functionConfig.Meta.Name] = functionConfig
+		function := function
+		errGroup.Go("renderFunctionConfig", func() error {
+
+			functionConfig := function.GetConfig()
+
+			if scrubbed, err := functionconfig.HasScrubbedConfig(functionConfig,
+				e.rootCommandeer.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex()); err == nil && scrubbed {
+				var restoreErr error
+				functionConfig, restoreErr = functionconfig.RestoreFunctionConfig(errGroupCtx,
+					functionConfig,
+					e.rootCommandeer.platform.GetName(),
+					e.rootCommandeer.platform.GetFunctionSecretMap)
+				if restoreErr != nil {
+					return errors.Wrap(err, "Failed to restore function config")
+				}
+			} else if err != nil {
+				return errors.Wrap(err, "Failed to check if function config is scrubbed")
+			}
+			functionConfig.PrepareFunctionForExport(e.noScrub)
+			lock.Lock()
+			functionConfigs[functionConfig.Meta.Name] = functionConfig
+			lock.Unlock()
+
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "Failed to render function configs")
 	}
 
 	var err error
@@ -274,7 +306,15 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 		if err := function.Initialize(ctx, nil); err != nil {
 			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize a function", "err", err.Error())
 		}
-		functionConfig := function.GetConfig()
+
+		// restore the function config, if needed
+		functionConfig, err := functionconfig.RestoreFunctionConfig(context.Background(),
+			function.GetConfig(),
+			e.rootCommandeer.platform.GetName(),
+			e.rootCommandeer.platform.GetFunctionSecretMap)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to restore function config")
+		}
 
 		functionEvents, err := e.getFunctionEvents(ctx, functionConfig)
 		if err != nil {
@@ -308,7 +348,7 @@ func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConf
 	}
 
 	// api gateways are supported only on k8s platform
-	if e.rootCommandeer.platform.GetName() == "kube" {
+	if e.rootCommandeer.platform.GetName() == common.KubePlatformName {
 		apiGateways, err := e.exportAPIGateways(ctx, projectConfig)
 		if err != nil {
 

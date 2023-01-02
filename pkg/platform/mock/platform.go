@@ -371,17 +371,16 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 
 // GetFunctionSecrets returns all the function's secrets
 func (mp *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
-	return nil, nil
-}
-
-func (mp *Platform) RestoreFunctionConfig(ctx context.Context, config *functionconfig.Config) (*functionconfig.Config, error) {
-	return nil, nil
+	args := mp.Called(ctx, functionName, functionNamespace)
+	return args.Get(0).([]platform.FunctionSecret), args.Error(1)
 }
 
 func (mp *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
-	return nil, nil
+	args := mp.Called(ctx, functionName, functionNamespace)
+	return args.Get(0).(map[string]string), args.Error(1)
 }
 
 func (mp *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
-	return nil, nil
+	args := mp.Called(ctx, functionName, functionNamespace)
+	return args.Get(0).(map[string][]byte), args.Error(1)
 }

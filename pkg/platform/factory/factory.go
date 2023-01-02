@@ -48,10 +48,10 @@ func CreatePlatform(ctx context.Context,
 	}
 
 	switch platformType {
-	case "local":
+	case common.LocalPlatformName:
 		newPlatform, err = local.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace)
 
-	case "kube":
+	case common.KubePlatformName:
 		newPlatform, err = kube.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace)
 
 	case "auto":
@@ -61,11 +61,11 @@ func CreatePlatform(ctx context.Context,
 			common.IsInKubernetesCluster() {
 
 			// call again, but force kube
-			newPlatform, err = CreatePlatform(ctx, parentLogger, "kube", platformConfiguration, defaultNamespace)
+			newPlatform, err = CreatePlatform(ctx, parentLogger, common.KubePlatformName, platformConfiguration, defaultNamespace)
 		} else {
 
 			// call again, force local
-			newPlatform, err = CreatePlatform(ctx, parentLogger, "local", platformConfiguration, defaultNamespace)
+			newPlatform, err = CreatePlatform(ctx, parentLogger, common.LocalPlatformName, platformConfiguration, defaultNamespace)
 		}
 
 	default:

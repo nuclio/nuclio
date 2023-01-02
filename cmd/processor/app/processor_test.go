@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -77,7 +78,7 @@ func (suite *TriggerTestSuite) TestCreateManyTriggersWithSameWorkerAllocatorName
 			},
 		},
 		PlatformConfig: &platformconfig.Config{
-			Kind: "local",
+			Kind: common.LocalPlatformName,
 		},
 	})
 
@@ -126,7 +127,7 @@ func (suite *TriggerTestSuite) TestRestartTriggers() {
 			},
 		},
 		PlatformConfig: &platformconfig.Config{
-			Kind: "local",
+			Kind: common.LocalPlatformName,
 		},
 	})
 	suite.Require().NoError(err)

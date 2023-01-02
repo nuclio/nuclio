@@ -157,6 +157,9 @@ Arguments:
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
+			// disable sensitive field masking in the platform when importing, for backwards compatibility
+			commandeer.rootCommandeer.platform.GetConfig().DisableSensitiveFieldMasking()
+
 			functionBody, err := commandeer.resolveInputData(args)
 			if err != nil {
 				return errors.Wrap(err, "Failed to read function data")
@@ -255,6 +258,9 @@ Arguments:
 			if err := importCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			// disable sensitive field masking in the platform when importing, for backwards compatibility
+			commandeer.rootCommandeer.platform.GetConfig().DisableSensitiveFieldMasking()
 
 			projectBody, err := commandeer.resolveInputData(args)
 			if err != nil {
@@ -411,7 +417,7 @@ func (i *importProjectCommandeer) importProject(ctx context.Context,
 	}
 
 	// api gateways are supported only on k8s platform
-	if i.rootCommandeer.platform.GetName() == "kube" {
+	if i.rootCommandeer.platform.GetName() == common.KubePlatformName {
 
 		// import api gateways
 		apiGatewaysImportErr := i.importAPIGateways(ctx, projectImportOptions.projectImportConfig.APIGateways)

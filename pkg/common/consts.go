@@ -42,3 +42,8 @@ const NuclioResourceLabelKeyVolumeName = "nuclio.io/volume-name"
 // KubernetesDomainLevelMaxLength DNS domain level limitation is 63 chars
 // https://en.wikipedia.org/wiki/Subdomain#Overview
 const KubernetesDomainLevelMaxLength = 63
+
+const (
+	KubePlatformName  = "kube"
+	LocalPlatformName = "local"
+)
