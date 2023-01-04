@@ -31,13 +31,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
@@ -880,10 +878,8 @@ func (suite *functionTestSuite) TestInvokeNoNamespace() {
 func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	replicas := 10
 
-	// we mock a function config with a scrubbed field, that should be unscrubbed on export
-	password := "my-password-1234"
+	// we mock a function config with a scrubbed field, that should also be scrubbed on export
 	passwordReference := "$ref:/spec/build/codeentryattributes/password"
-	passwordPathRegex := regexp.MustCompile("(?i)^/spec/build/codeentryattributes/password$")
 
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "f1"
@@ -905,27 +901,6 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctionsOptions)).
 		Return([]platform.Function{&returnedFunction}, nil).
 		Once()
-	suite.mockPlatform.
-		On("GetName").
-		Return(common.KubePlatformName).
-		Once()
-	suite.mockPlatform.
-		On("GetFunctionSecretMap", mock.Anything, mock.Anything, mock.Anything).
-		Return(map[string]string{
-			passwordReference: password,
-		}, nil).
-		Once()
-	suite.mockPlatform.
-		On("GetConfig").
-		Return(&platformconfig.Config{
-			SensitiveFields: platformconfig.SensitiveFieldsConfig{
-				MaskSensitiveFields: true,
-				SensitiveFieldsRegex: []*regexp.Regexp{
-					passwordPathRegex,
-				},
-			},
-		}, nil).
-		Once()
 
 	headers := map[string]string{
 		"x-nuclio-function-namespace": "f1-namespace",
@@ -944,7 +919,7 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 		"resources": {},
 		"build": {
 			"codeEntryAttributes": {
-				"password": "my-password-1234"
+				"password": "$ref:/spec/build/codeentryattributes/password"
 			}
 		},
 		"platform": {},
@@ -987,16 +962,6 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctionsOptions)).
 		Return([]platform.Function{&returnedFunction1, &returnedFunction2}, nil).
 		Once()
-
-	suite.mockPlatform.
-		On("GetConfig").
-		Return(&platformconfig.Config{
-			SensitiveFields: platformconfig.SensitiveFieldsConfig{
-				MaskSensitiveFields:  true,
-				SensitiveFieldsRegex: []*regexp.Regexp{},
-			},
-		}, nil).
-		Twice()
 
 	headers := map[string]string{
 		"x-nuclio-function-namespace": "f-namespace",
@@ -1377,16 +1342,6 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 		Return([]platform.APIGateway{&returnedAPIGateway1}, nil).
 		Once()
 
-	suite.mockPlatform.
-		On("GetConfig").
-		Return(&platformconfig.Config{
-			SensitiveFields: platformconfig.SensitiveFieldsConfig{
-				MaskSensitiveFields:  true,
-				SensitiveFieldsRegex: []*regexp.Regexp{},
-			},
-		}, nil).
-		Twice()
-
 	headers := map[string]string{
 		"x-nuclio-project-namespace":  "f-namespace",
 		"x-nuclio-function-namespace": "f-namespace",
@@ -1552,16 +1507,6 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 	suite.mockPlatform.
 		On("GetFunctionEvents", mock.Anything, mock.MatchedBy(verifyGetFunctionEvents)).
 		Return([]platform.FunctionEvent{}, nil).Twice()
-
-	suite.mockPlatform.
-		On("GetConfig").
-		Return(&platformconfig.Config{
-			SensitiveFields: platformconfig.SensitiveFieldsConfig{
-				MaskSensitiveFields:  true,
-				SensitiveFieldsRegex: []*regexp.Regexp{},
-			},
-		}, nil).
-		Twice()
 
 	headers := map[string]string{
 		"x-nuclio-project-namespace":  "f-namespace",

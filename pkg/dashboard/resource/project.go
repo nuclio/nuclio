@@ -29,7 +29,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
@@ -296,41 +295,14 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 	namespace := project.GetConfig().Meta.Namespace
 
 	// create a map of attributes keyed by the function id (name)
-	functionsMaplock := sync.Mutex{}
-	functionEventsMaplock := sync.Mutex{}
-	errGroup, errGroupCtx := errgroup.WithContextSemaphore(ctx, pr.Logger, errgroup.DefaultErrgroupConcurrency)
 	for _, function := range functions {
-		function := function
-		errGroup.Go("ExportFunction", func() error {
-			exportedFunction, err := functionResourceInstance.export(errGroupCtx, function)
-			if err != nil {
-				pr.Logger.WarnWithCtx(errGroupCtx,
-					"Failed to export function",
-					"functionName", function.GetConfig().Meta.Name,
-					"err", err)
-				return errors.Wrapf(err, "Failed to export function %s", function.GetConfig().Meta.Name)
-			}
-			functionsMaplock.Lock()
-			functionsMap[function.GetConfig().Meta.Name] = exportedFunction
-			functionsMaplock.Unlock()
+		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(ctx, function)
 
-			functionEvents := functionEventResourceInstance.getFunctionEvents(request, function, namespace)
-			for _, functionEvent := range functionEvents {
-				functionEventsMaplock.Lock()
-				functionEventsMap[functionEvent.GetConfig().Meta.Name] =
-					functionEventResourceInstance.functionEventToAttributes(functionEvent)
-				functionEventsMaplock.Unlock()
-			}
-			return nil
-		})
-	}
-
-	// wait for all functions to be exported, if one fails, just log it and continue
-	if err := errGroup.Wait(); err != nil {
-		pr.Logger.WarnWithCtx(ctx,
-			"Failed to export project functions",
-			"err", err,
-			"projectName", project.GetConfig().Meta.Name)
+		functionEvents := functionEventResourceInstance.getFunctionEvents(request, function, namespace)
+		for _, functionEvent := range functionEvents {
+			functionEventsMap[functionEvent.GetConfig().Meta.Name] =
+				functionEventResourceInstance.functionEventToAttributes(functionEvent)
+		}
 	}
 
 	return functionsMap, functionEventsMap
