@@ -38,8 +38,8 @@ import (
 const (
 	ReferencePrefix                  = "$ref:"
 	ReferenceToEnvVarPrefix          = "NUCLIO_B64_"
-	NuclioSecretNamePrefix           = "nuclio-secret-"
-	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume-"
+	NuclioSecretNamePrefix           = "nuclio-secret"
+	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume"
 	SecretTypeFunctionConfig         = "nuclio.io/functionconfig"
 	SecretTypeV3ioFuse               = "v3io/fuse"
 	SecretContentKey                 = "content"
@@ -230,8 +230,12 @@ func (s *Scrubber) DecodeSecretData(secretData map[string][]byte) (map[string]st
 	return decodedSecretsMap, nil
 }
 
-func (s *Scrubber) GenerateFunctionSecretName(functionName, secretPrefix string) string {
-	secretName := fmt.Sprintf("%s%s", secretPrefix, functionName)
+func (s *Scrubber) GenerateFunctionSecretName(functionName, projectName string, flexVolumeSecret bool) string {
+	secretPrefix := NuclioSecretNamePrefix
+	if flexVolumeSecret {
+		secretPrefix = NuclioFlexVolumeSecretNamePrefix
+	}
+	secretName := fmt.Sprintf("%s-%s-%s", secretPrefix, projectName, functionName)
 	if len(secretName) > common.KubernetesDomainLevelMaxLength {
 		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
 	}

@@ -220,7 +220,7 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 
 	secretConfig := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: d.scrubber.GenerateFunctionSecretName(name, functionconfig.NuclioSecretNamePrefix),
+			Name: d.scrubber.GenerateFunctionSecretName(name, projectName, false),
 			Labels: map[string]string{
 				common.NuclioResourceLabelKeyFunctionName: name,
 				common.NuclioResourceLabelKeyProjectName:  projectName,
@@ -307,7 +307,8 @@ func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
 
 	// create secret name with unique suffix
 	flexVolumeSecretName := d.scrubber.GenerateFunctionSecretName(fmt.Sprintf("%s-%s", functionName, xid.New().String()),
-		functionconfig.NuclioFlexVolumeSecretNamePrefix)
+		projectName,
+		true)
 
 	// check if a secret with the same access key reference already exists
 	existingFlexVolumeSecrets, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
