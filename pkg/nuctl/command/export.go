@@ -36,6 +36,7 @@ type exportCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
 	scrubber       *functionconfig.Scrubber
+	noScrub        bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -52,6 +53,8 @@ func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *e
 		Long: `Export the configuration of a specific function or project or of all functions/projects (default)
 to the standard output, in JSON or YAML format`,
 	}
+
+	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
@@ -70,7 +73,6 @@ type exportFunctionCommandeer struct {
 	*exportCommandeer
 	getFunctionsOptions platform.GetFunctionsOptions
 	output              string
-	noScrub             bool
 }
 
 func newExportFunctionCommandeer(ctx context.Context, exportCommandeer *exportCommandeer) *exportFunctionCommandeer {
@@ -128,7 +130,6 @@ Arguments:
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
-	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
 
 	commandeer.cmd = cmd
 
@@ -330,7 +331,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
 
-		functionConfig.PrepareFunctionForExport(false)
+		functionConfig.PrepareFunctionForExport(e.noScrub)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 
