@@ -194,6 +194,12 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 	for _, projectInstance := range projectsToCreate {
 		projectInstance := projectInstance
 		createProjectErrGroup.Go("create projects", func() error {
+
+			// TODO: drop invalid project labels or replace invalid characters that fail with:
+			//   a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.',
+			//   and must start and end with an alphanumeric character (e.g. 'MyValue',  or 'my_value',  or '12345',
+			//   regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
+
 			c.logger.DebugWith("Creating project from leader sync", "projectInstance", *projectInstance)
 			createProjectConfig := &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
