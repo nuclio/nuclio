@@ -369,7 +369,7 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 			name:                 "LongFunctionName",
 			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
 			projectName:          "my-project",
-			expectedResultSuffix: "my-project-my-function-with-a-very-long-name-whic",
+			expectedResultSuffix: "my-project-my-function-with-a-very-long-name-whic", // nolint: misspell
 		},
 	} {
 		suite.Run(testCase.name, func() {
