@@ -20,6 +20,7 @@ package functionconfig
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"testing"
 
@@ -368,6 +369,87 @@ func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp 
 		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
 	}
 	return regexpList
+}
+
+func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
+
+	for _, testCase := range []struct {
+		name                 string
+		functionName         string
+		projectName          string
+		expectedResultSuffix string
+	}{
+		{
+			name:                 "Sanity",
+			functionName:         "my-function",
+			projectName:          "my-project",
+			expectedResultSuffix: "my-project-my-function",
+		},
+		{
+			name:                 "FunctionNameWithTrailingDashes",
+			functionName:         "my-function-_",
+			projectName:          "my-project",
+			expectedResultSuffix: "my-project-my-function",
+		},
+		{
+			name:                 "LongFunctionName",
+			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
+			projectName:          "my-project",
+			expectedResultSuffix: "my-project-my-function-with-a-very-long-name-which",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			secretName := suite.scrubber.GenerateFunctionSecretName(testCase.functionName, testCase.projectName)
+			expectedSecretName := fmt.Sprintf("%s-%s", NuclioSecretNamePrefix, testCase.expectedResultSuffix)
+			suite.Require().Equal(expectedSecretName, secretName)
+		})
+	}
+}
+
+func (suite *ScrubberTestSuite) TestGenerateFlexVolumeSecretName() {
+
+	for _, testCase := range []struct {
+		name                 string
+		functionName         string
+		projectName          string
+		volumeName           string
+		expectedResultSuffix string
+	}{
+		{
+			name:                 "Sanity",
+			functionName:         "my-function",
+			projectName:          "my-project",
+			volumeName:           "my-volume",
+			expectedResultSuffix: "my-project-my-function-my-volume",
+		},
+		{
+			name:                 "VolumeNameWithTrailingDashes",
+			functionName:         "my-function",
+			projectName:          "my-project",
+			volumeName:           "my-volume----",
+			expectedResultSuffix: "my-project-my-function-my-volume",
+		},
+		{
+			name:                 "LongFunctionName",
+			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
+			projectName:          "my-project",
+			volumeName:           "my-volume",
+			expectedResultSuffix: "my-project-my-function-with-a-very--my-volume",
+		},
+		{
+			name:                 "LongVolumeName",
+			functionName:         "my-function",
+			projectName:          "my-project",
+			volumeName:           "my-volume-name-which-is-more-than-63-characters-long",
+			expectedResultSuffix: "my-volume-name-which-is-more-than-63-characte",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			secretName := suite.scrubber.GenerateFlexVolumeSecretName(testCase.functionName, testCase.projectName, testCase.volumeName)
+			expectedSecretName := fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, testCase.expectedResultSuffix)
+			suite.Require().Equal(expectedSecretName, secretName)
+		})
+	}
 }
 
 func TestScrubberTestSuite(t *testing.T) {

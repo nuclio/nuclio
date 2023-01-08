@@ -2273,8 +2273,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
 				SecretName: scrubber.GenerateFunctionSecretName(function.Name,
-					function.Labels[common.NuclioResourceLabelKeyProjectName],
-					false),
+					function.Labels[common.NuclioResourceLabelKeyProjectName]),
 				Optional: &trueVal,
 			},
 		},

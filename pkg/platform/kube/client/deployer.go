@@ -31,7 +31,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/rs/xid"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -220,7 +219,7 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 
 	secretConfig := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: d.scrubber.GenerateFunctionSecretName(name, projectName, false),
+			Name: d.scrubber.GenerateFunctionSecretName(name, projectName),
 			Labels: map[string]string{
 				common.NuclioResourceLabelKeyFunctionName: name,
 				common.NuclioResourceLabelKeyProjectName:  projectName,
@@ -306,9 +305,7 @@ func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
 	}
 
 	// create secret name with unique suffix
-	flexVolumeSecretName := d.scrubber.GenerateFunctionSecretName(fmt.Sprintf("%s-%s", functionName, xid.New().String()),
-		projectName,
-		true)
+	flexVolumeSecretName := d.scrubber.GenerateFlexVolumeSecretName(functionName, projectName, volumeName)
 
 	// check if a secret with the same access key reference already exists
 	existingFlexVolumeSecrets, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
