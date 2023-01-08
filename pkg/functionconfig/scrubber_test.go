@@ -345,32 +345,6 @@ func (suite *ScrubberTestSuite) TestHasScrubbedConfig() {
 	}
 }
 
-// getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
-// this is implemented here to avoid a circular dependency between platformconfig and functionconfig
-func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
-	var regexpList []*regexp.Regexp
-	for _, sensitiveFieldPath := range []string{
-
-		// Path nested in a map
-		"^/Spec/Build/CodeEntryAttributes/password$",
-		"^/spec/build/codeentryattributes/password$",
-		"^/spec/build/codeentryattributes/s3secretaccesskey$",
-		"^/spec/build/codeentryattributes/s3sessiontoken$",
-		"^/spec/build/codeentryattributes/headers/authorization$",
-		"^/spec/build/codeentryattributes/headers/x-v3io-session-key$",
-		// Path nested in an array
-		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey$",
-		"^/Spec/Volumes\\[\\d+\\]/Volume/FlexVolume/Options/accesskey$",
-		// Path for any map element
-		"^/Spec/Triggers/.+/Password$",
-		// Nested path in any map element
-		"^/Spec/Triggers/.+/Attributes/password$",
-	} {
-		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
-	}
-	return regexpList
-}
-
 func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 
 	for _, testCase := range []struct {
@@ -450,6 +424,32 @@ func (suite *ScrubberTestSuite) TestGenerateFlexVolumeSecretName() {
 			suite.Require().Equal(expectedSecretName, secretName)
 		})
 	}
+}
+
+// getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths
+// this is implemented here to avoid a circular dependency between platformconfig and functionconfig
+func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp {
+	var regexpList []*regexp.Regexp
+	for _, sensitiveFieldPath := range []string{
+
+		// Path nested in a map
+		"^/Spec/Build/CodeEntryAttributes/password$",
+		"^/spec/build/codeentryattributes/password$",
+		"^/spec/build/codeentryattributes/s3secretaccesskey$",
+		"^/spec/build/codeentryattributes/s3sessiontoken$",
+		"^/spec/build/codeentryattributes/headers/authorization$",
+		"^/spec/build/codeentryattributes/headers/x-v3io-session-key$",
+		// Path nested in an array
+		"^/Spec/Volumes\\[\\d+\\]/Volume/VolumeSource/FlexVolume/Options/accesskey$",
+		"^/Spec/Volumes\\[\\d+\\]/Volume/FlexVolume/Options/accesskey$",
+		// Path for any map element
+		"^/Spec/Triggers/.+/Password$",
+		// Nested path in any map element
+		"^/Spec/Triggers/.+/Attributes/password$",
+	} {
+		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
+	}
+	return regexpList
 }
 
 func TestScrubberTestSuite(t *testing.T) {
