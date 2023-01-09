@@ -234,44 +234,40 @@ func (s *Scrubber) DecodeSecretData(secretData map[string][]byte) (map[string]st
 // `nuclio-secret-<project-name>-<function-name>`
 func (s *Scrubber) GenerateFunctionSecretName(functionName, projectName string) string {
 	secretName := fmt.Sprintf("%s-%s-%s", NuclioSecretNamePrefix, projectName, functionName)
-	if len(secretName) > common.KubernetesDomainLevelMaxLength {
-		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
+	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength-8]
 	}
 
 	// remove trailing non-alphanumeric characters
 	secretName = strings.TrimRight(secretName, "-_")
+
+	// add a unique id to the end of the name
+	secretName = fmt.Sprintf("%s-%s", secretName, common.GenerateRandomString(8, common.SmallLettersAndNumbers))
 
 	return secretName
 }
 
 // GenerateFlexVolumeSecretName generates a secret name for a flex volume, in the form of:
-// `nuclio-flex-volume-<project-name>-<function-name>-<volume-name>`
+// `nuclio-flex-volume-<volume-name>-<unique-id>`
 func (s *Scrubber) GenerateFlexVolumeSecretName(functionName, projectName, volumeName string) string {
-	projectAndFunction := fmt.Sprintf("%s-%s", projectName, functionName)
-	secretName := fmt.Sprintf("%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, projectAndFunction, volumeName)
+	secretName := fmt.Sprintf("%s-%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, projectName, functionName, volumeName)
 
-	// if the secret name is too long, trim the project and function name, so volume name will be preserved
-	for len(secretName) > common.KubernetesDomainLevelMaxLength {
-		diff := len(secretName) - common.KubernetesDomainLevelMaxLength
-		if len(projectAndFunction) > 0 {
-			if len(projectAndFunction) > diff {
-				projectAndFunction = projectAndFunction[:len(projectAndFunction)-diff]
-			} else {
-				projectAndFunction = ""
-			}
-		} else {
+	// if the secret name is too long, drop the function and project name
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, volumeName)
 
-			// the project and function name are already completely trimmed and the name is still too long,
-			// so we can trim the volume name
-			secretName = fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, volumeName)
-			secretName = secretName[:common.KubernetesDomainLevelMaxLength]
-			break
-		}
-		secretName = fmt.Sprintf("%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, projectAndFunction, volumeName)
+	}
+
+	// if the secret name is still too long, trim it and keep space for the unique id
+	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength-8]
 	}
 
 	// remove trailing non-alphanumeric characters
 	secretName = strings.TrimRight(secretName, "-_")
+
+	// add a unique id to the end of the name
+	secretName = fmt.Sprintf("%s-%s", secretName, common.GenerateRandomString(8, common.SmallLettersAndNumbers))
 
 	return secretName
 }

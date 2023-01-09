@@ -2267,14 +2267,19 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 
 	// volume the function secret as optional
 	secretVolumeName := "function-secret"
-	scrubber := functionconfig.NewScrubber(nil, nil)
+	secretName, err := lc.getFunctionSecretName(ctx, function)
+	if err != nil {
+		lc.logger.WarnWithCtx(ctx,
+			"Failed to get function secret name",
+			"err", err.Error(),
+			"functionName", function.Name)
+	}
 	volumeNameToVolume[secretVolumeName] = v1.Volume{
 		Name: secretVolumeName,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName: scrubber.GenerateFunctionSecretName(function.Name,
-					function.Labels[common.NuclioResourceLabelKeyProjectName]),
-				Optional: &trueVal,
+				SecretName: secretName,
+				Optional:   &trueVal,
 			},
 		},
 	}
@@ -2305,28 +2310,55 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	return volumes, volumeMounts, nil
 }
 
+// getFlexVolumeSecretName returns the secret name for a given flex volume
 func (lc *lazyClient) getFlexVolumeSecretName(ctx context.Context, function *nuclioio.NuclioFunction, volumeName string) (string, error) {
+	secrets, err := lc.getFunctionSecrets(ctx, function)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get secrets")
+	}
 
-	// get the secret with the volume name label
+	for _, secret := range secrets {
+		if secret.Labels[common.NuclioResourceLabelKeyVolumeName] == volumeName {
+			return secret.Name, nil
+		}
+	}
+	return "", errors.New("No secret found for volume")
+}
+
+// getSecretName returns the function secret name
+func (lc *lazyClient) getFunctionSecretName(ctx context.Context, function *nuclioio.NuclioFunction) (string, error) {
+	secrets, err := lc.getFunctionSecrets(ctx, function)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get secrets")
+	}
+
+	// find the function secret
+	for _, secret := range secrets {
+		if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
+			return secret.Name, nil
+		}
+	}
+
+	return "", errors.New("Failed to find function secret")
+}
+
+// getSecretName returns the secret name for either a function or a flex volume
+func (lc *lazyClient) getFunctionSecrets(ctx context.Context, function *nuclioio.NuclioFunction) ([]v1.Secret, error) {
+
+	// get the function secrets
 	secretList, err := lc.kubeClientSet.CoreV1().Secrets(function.Namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, function.Name),
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to list flex volume secrets")
+		return nil, errors.Wrap(err, "Failed to list function secrets")
 	}
 
 	// if there are no secrets with the label selector, return error
 	if len(secretList.Items) == 0 {
-		return "", errors.New("No flex volume secrets found")
+		return nil, errors.New("No function secrets found")
 	}
 
-	// if there is more than one secret with the label selector, return error
-	if len(secretList.Items) > 1 {
-		return "", errors.New("More than one flex volume secret found")
-	}
-
-	// return the secret name
-	return secretList.Items[0].Name, nil
+	return secretList.Items, nil
 }
 
 // deleteFunctionSecrets deletes the function's secrets

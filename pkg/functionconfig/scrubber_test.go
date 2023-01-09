@@ -20,8 +20,8 @@ package functionconfig
 
 import (
 	"context"
-	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/logger"
@@ -351,77 +351,68 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 		name                 string
 		functionName         string
 		projectName          string
-		expectedResultSuffix string
+		volumeName           string
+		expectedResultPrefix string
 	}{
+		// Function secret names
 		{
-			name:                 "Sanity",
+			name:                 "FunctionSecret-Sanity",
 			functionName:         "my-function",
 			projectName:          "my-project",
-			expectedResultSuffix: "my-project-my-function",
+			expectedResultPrefix: "nuclio-secret-my-project-my-function",
 		},
 		{
-			name:                 "FunctionNameWithTrailingDashes",
+			name:                 "FunctionSecret-FunctionNameWithTrailingDashes",
 			functionName:         "my-function-_",
 			projectName:          "my-project",
-			expectedResultSuffix: "my-project-my-function",
+			expectedResultPrefix: "nuclio-secret-my-project-my-function",
 		},
 		{
-			name:                 "LongFunctionName",
+			name:                 "FunctionSecret-LongFunctionName",
 			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
 			projectName:          "my-project",
-			expectedResultSuffix: "my-project-my-function-with-a-very-long-name-whic", // nolint: misspell
+			expectedResultPrefix: "nuclio-secret-my-project-my-function-with-a-very-long-n", // nolint: misspell
 		},
-	} {
-		suite.Run(testCase.name, func() {
-			secretName := suite.scrubber.GenerateFunctionSecretName(testCase.functionName, testCase.projectName)
-			expectedSecretName := fmt.Sprintf("%s-%s", NuclioSecretNamePrefix, testCase.expectedResultSuffix)
-			suite.Require().Equal(expectedSecretName, secretName)
-		})
-	}
-}
 
-func (suite *ScrubberTestSuite) TestGenerateFlexVolumeSecretName() {
-
-	for _, testCase := range []struct {
-		name                 string
-		functionName         string
-		projectName          string
-		volumeName           string
-		expectedResultSuffix string
-	}{
+		// Flex volume secret names
 		{
-			name:                 "Sanity",
+			name:                 "VolumeSecret-Sanity",
 			functionName:         "my-function",
 			projectName:          "my-project",
 			volumeName:           "my-volume",
-			expectedResultSuffix: "my-project-my-function-my-volume",
+			expectedResultPrefix: "nuclio-flexvolume-my-project-my-function-my-volume",
 		},
 		{
-			name:                 "VolumeNameWithTrailingDashes",
+			name:                 "VolumeSecret-VolumeNameWithTrailingDashes",
 			functionName:         "my-function",
 			projectName:          "my-project",
 			volumeName:           "my-volume----",
-			expectedResultSuffix: "my-project-my-function-my-volume",
+			expectedResultPrefix: "nuclio-flexvolume-my-project-my-function-my-volume",
 		},
 		{
-			name:                 "LongFunctionName",
+			name:                 "VolumeSecret-LongFunctionName",
 			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
 			projectName:          "my-project",
 			volumeName:           "my-volume",
-			expectedResultSuffix: "my-project-my-function-with-a-very--my-volume",
+			expectedResultPrefix: "nuclio-flexvolume-my-volume",
 		},
 		{
-			name:                 "LongVolumeName",
+			name:                 "VolumeSecret-LongVolumeName",
 			functionName:         "my-function",
 			projectName:          "my-project",
 			volumeName:           "my-volume-name-which-is-more-than-63-characters-long",
-			expectedResultSuffix: "my-volume-name-which-is-more-than-63-characte",
+			expectedResultPrefix: "nuclio-flexvolume-my-volume-name-which-is-more-than-63",
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			secretName := suite.scrubber.GenerateFlexVolumeSecretName(testCase.functionName, testCase.projectName, testCase.volumeName)
-			expectedSecretName := fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, testCase.expectedResultSuffix)
-			suite.Require().Equal(expectedSecretName, secretName)
+			var secretName string
+			if testCase.volumeName == "" {
+				secretName = suite.scrubber.GenerateFunctionSecretName(testCase.functionName, testCase.projectName)
+			} else {
+				secretName = suite.scrubber.GenerateFlexVolumeSecretName(testCase.functionName, testCase.projectName, testCase.volumeName)
+			}
+			suite.logger.DebugWith("Generated secret name", "secretName", secretName)
+			suite.Require().True(strings.HasPrefix(secretName, testCase.expectedResultPrefix))
 		})
 	}
 }
