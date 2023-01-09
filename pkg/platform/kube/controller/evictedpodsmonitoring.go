@@ -92,7 +92,6 @@ func (epm *EvictedPodsMonitoring) cleanupEvictedPods(ctx context.Context) {
 			return
 
 		case <-time.After(*epm.evictedPodsCleanupInterval):
-			epm.logger.DebugWithCtx(ctx, "Cleaning up evicted pods")
 
 			// get all failed function pods
 			stalePodsFieldSelector := common.CompileStalePodsFieldSelector()
