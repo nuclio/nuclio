@@ -2269,26 +2269,33 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	secretVolumeName := "function-secret"
 	secretName, err := lc.getFunctionSecretName(ctx, function)
 	if err != nil {
-		lc.logger.WarnWithCtx(ctx,
-			"Failed to get function secret name",
-			"err", err.Error(),
-			"functionName", function.Name)
-		return nil, nil, errors.Wrap(err, "Failed to get function secret name")
+
+		// if the function doesn't have a secret, it's ok
+		if strings.Contains(err.Error(), "not found") ||
+			strings.Contains(errors.Cause(err).Error(), "not found") {
+			lc.logger.DebugWithCtx(ctx,
+				"Function secret not found, continuing",
+				"functionName", function.Name)
+		} else {
+			return nil, nil, errors.Wrap(err, "Failed to get function secret name")
+		}
 	}
-	volumeNameToVolume[secretVolumeName] = v1.Volume{
-		Name: secretVolumeName,
-		VolumeSource: v1.VolumeSource{
-			Secret: &v1.SecretVolumeSource{
-				SecretName: secretName,
-				Optional:   &trueVal,
+	if secretName != "" {
+		volumeNameToVolume[secretVolumeName] = v1.Volume{
+			Name: secretVolumeName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: secretName,
+					Optional:   &trueVal,
+				},
 			},
-		},
+		}
+		volumeNameToVolumeMounts[secretVolumeName] = append(volumeNameToVolumeMounts[secretVolumeName], v1.VolumeMount{
+			Name:      secretVolumeName,
+			MountPath: functionconfig.FunctionSecretMountPath,
+			ReadOnly:  true,
+		})
 	}
-	volumeNameToVolumeMounts[secretVolumeName] = append(volumeNameToVolumeMounts[secretVolumeName], v1.VolumeMount{
-		Name:      secretVolumeName,
-		MountPath: functionconfig.FunctionSecretMountPath,
-		ReadOnly:  true,
-	})
 
 	for _, volume := range volumeNameToVolume {
 		volumes = append(volumes, volume)
@@ -2340,7 +2347,7 @@ func (lc *lazyClient) getFunctionSecretName(ctx context.Context, function *nucli
 		}
 	}
 
-	return "", errors.New("Failed to find function secret")
+	return "", errors.New("Function secret not found")
 }
 
 // getSecretName returns the secret name for either a function or a flex volume
@@ -2356,7 +2363,7 @@ func (lc *lazyClient) getFunctionSecrets(ctx context.Context, function *nuclioio
 
 	// if there are no secrets with the label selector, return error
 	if len(secretList.Items) == 0 {
-		return nil, errors.New("No function secrets found")
+		return nil, errors.New("Function secrets not found")
 	}
 
 	return secretList.Items, nil
