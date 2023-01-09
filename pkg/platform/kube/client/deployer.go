@@ -191,7 +191,7 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		secretsMap)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to handle v3io fuse secret")
+		return nil, errors.Wrap(err, "Failed to create flex volume secrets")
 	}
 
 	// encode secrets map
@@ -207,14 +207,15 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		functionConfig.Meta.Namespace,
 		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create function secret")
+		return nil, errors.Wrap(err, "Failed to create or update function secret")
 	}
 
+	// if the secret map is empty, secret name will be empty (no secret was created)
 	if secretName != "" {
 		createdSecrets = append(createdSecrets, secretName)
 	}
 
-	// delete stale secrets
+	// delete older function/volume secrets that are no longer needed
 	if err := d.deleteStaleSecrets(ctx, createdSecrets, functionConfig.Meta.Name, functionConfig.Meta.Namespace); err != nil {
 		return nil, errors.Wrap(err, "Failed to delete stale flex volume secrets")
 	}
@@ -257,6 +258,7 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 		"Function has no sensitive data",
 		"functionName", name)
 
+	// no secret needs to be created, return empty secret name
 	return "", nil
 }
 

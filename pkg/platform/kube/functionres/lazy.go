@@ -2273,6 +2273,7 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			"Failed to get function secret name",
 			"err", err.Error(),
 			"functionName", function.Name)
+		return nil, nil, errors.Wrap(err, "Failed to get function secret name")
 	}
 	volumeNameToVolume[secretVolumeName] = v1.Volume{
 		Name: secretVolumeName,
