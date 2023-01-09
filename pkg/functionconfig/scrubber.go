@@ -231,7 +231,7 @@ func (s *Scrubber) DecodeSecretData(secretData map[string][]byte) (map[string]st
 }
 
 // GenerateFunctionSecretName generates a secret name for a function, in the form of:
-// `nuclio-secret-<project-name>-<function-name>`
+// `nuclio-secret-<project-name>-<function-name>-<unique-id>`
 func (s *Scrubber) GenerateFunctionSecretName(functionName, projectName string) string {
 	secretName := fmt.Sprintf("%s-%s-%s", NuclioSecretNamePrefix, projectName, functionName)
 	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
