@@ -230,18 +230,44 @@ func (s *Scrubber) DecodeSecretData(secretData map[string][]byte) (map[string]st
 	return decodedSecretsMap, nil
 }
 
-func (s *Scrubber) GenerateFunctionSecretName(functionName, projectName string, flexVolumeSecret bool) string {
-	secretPrefix := NuclioSecretNamePrefix
-	if flexVolumeSecret {
-		secretPrefix = NuclioFlexVolumeSecretNamePrefix
-	}
-	secretName := fmt.Sprintf("%s-%s-%s", secretPrefix, projectName, functionName)
-	if len(secretName) > common.KubernetesDomainLevelMaxLength {
-		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
+// GenerateFunctionSecretName generates a secret name for a function, in the form of:
+// `nuclio-secret-<project-name>-<function-name>-<unique-id>`
+func (s *Scrubber) GenerateFunctionSecretName(functionName, projectName string) string {
+	secretName := fmt.Sprintf("%s-%s-%s", NuclioSecretNamePrefix, projectName, functionName)
+	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength-8]
 	}
 
 	// remove trailing non-alphanumeric characters
 	secretName = strings.TrimRight(secretName, "-_")
+
+	// add a unique id to the end of the name
+	secretName = fmt.Sprintf("%s-%s", secretName, common.GenerateRandomString(8, common.SmallLettersAndNumbers))
+
+	return secretName
+}
+
+// GenerateFlexVolumeSecretName generates a secret name for a flex volume, in the form of:
+// `nuclio-flex-volume-<volume-name>-<unique-id>`
+func (s *Scrubber) GenerateFlexVolumeSecretName(functionName, projectName, volumeName string) string {
+	secretName := fmt.Sprintf("%s-%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, projectName, functionName, volumeName)
+
+	// if the secret name is too long, drop the function and project name
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, volumeName)
+
+	}
+
+	// if the secret name is still too long, trim it and keep space for the unique id
+	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength-8]
+	}
+
+	// remove trailing non-alphanumeric characters
+	secretName = strings.TrimRight(secretName, "-_")
+
+	// add a unique id to the end of the name
+	secretName = fmt.Sprintf("%s-%s", secretName, common.GenerateRandomString(8, common.SmallLettersAndNumbers))
 
 	return secretName
 }
@@ -351,4 +377,13 @@ func (s *Scrubber) validateReference(functionConfig *Config,
 	}
 
 	return errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
+}
+
+func (s *Scrubber) validateSecretName(secretName string) string {
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
+	}
+
+	// remove trailing non-alphanumeric characters
+	return strings.TrimRight(secretName, "-_")
 }

@@ -31,7 +31,6 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/rs/xid"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -185,13 +184,14 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	}
 
 	// create flex volume secrets if needed
-	if err := d.createFlexVolumeSecrets(ctx,
+	createdSecrets, err := d.createFlexVolumeSecrets(ctx,
 		functionConfig.Spec.Volumes,
 		functionConfig.Meta.Name,
 		functionConfig.Meta.Namespace,
 		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
-		secretsMap); err != nil {
-		return nil, errors.Wrap(err, "Failed to handle v3io fuse secret")
+		secretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create flex volume secrets")
 	}
 
 	// encode secrets map
@@ -201,12 +201,23 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	}
 
 	// create or update a secret for the function
-	if err := d.createOrUpdateFunctionSecret(ctx,
+	secretName, err := d.createOrUpdateFunctionSecret(ctx,
 		encodedSecretsMap,
 		functionConfig.Meta.Name,
 		functionConfig.Meta.Namespace,
-		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]); err != nil {
-		return nil, errors.Wrap(err, "Failed to create function secret")
+		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create or update function secret")
+	}
+
+	// if the secret map is empty, secret name will be empty (no secret was created)
+	if secretName != "" {
+		createdSecrets = append(createdSecrets, secretName)
+	}
+
+	// delete older function/volume secrets that are no longer needed
+	if err := d.deleteStaleSecrets(ctx, createdSecrets, functionConfig.Meta.Name, functionConfig.Meta.Namespace); err != nil {
+		return nil, errors.Wrap(err, "Failed to delete stale flex volume secrets")
 	}
 
 	return scrubbedFunctionConfig, nil
@@ -216,11 +227,13 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 	encodedSecretsMap map[string]string,
 	name,
 	namespace,
-	projectName string) error {
+	projectName string) (string, error) {
+
+	secretName := d.scrubber.GenerateFunctionSecretName(name, projectName)
 
 	secretConfig := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: d.scrubber.GenerateFunctionSecretName(name, projectName, false),
+			Name: secretName,
 			Labels: map[string]string{
 				common.NuclioResourceLabelKeyFunctionName: name,
 				common.NuclioResourceLabelKeyProjectName:  projectName,
@@ -236,20 +249,20 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 			"functionName", name,
 			"functionNamespace", namespace)
 		if err := d.createOrUpdateSecret(ctx, namespace, secretConfig); err != nil {
-			return errors.Wrap(err, "Failed to create function secret")
+			return "", errors.Wrap(err, "Failed to create function secret")
 		}
-		return nil
+		return secretName, nil
 	}
 
 	d.logger.DebugWithCtx(ctx,
-		"Function has no sensitive data, not deleting previously created secrets (if they exists)",
+		"Function has no sensitive data",
 		"functionName", name)
 
-	// if secret exists and there are no secrets to set, delete the secret
-	return d.deleteExistingSecret(ctx, namespace, secretConfig.Name)
+	// no secret needs to be created, return empty secret name
+	return "", nil
 }
 
-func (d *Deployer) createFlexVolumeSecrets(ctx context.Context, volumes []functionconfig.Volume, functionName, functionNamespace, projectName string, secretsMap map[string]string) error {
+func (d *Deployer) createFlexVolumeSecrets(ctx context.Context, volumes []functionconfig.Volume, functionName, functionNamespace, projectName string, secretsMap map[string]string) ([]string, error) {
 
 	var createdVolumeSecretNames []string
 
@@ -269,18 +282,13 @@ func (d *Deployer) createFlexVolumeSecrets(ctx context.Context, volumes []functi
 				projectName,
 				secretsMap)
 			if err != nil {
-				return errors.Wrap(err, "Failed to create flex volume secret")
+				return createdVolumeSecretNames, errors.Wrap(err, "Failed to create flex volume secret")
 			}
 			createdVolumeSecretNames = append(createdVolumeSecretNames, flexVolumeSecretName)
 		}
 	}
 
-	// delete stale flex volume secrets
-	if err := d.deleteStaleFlexVolumeSecrets(ctx, createdVolumeSecretNames, functionName, functionNamespace); err != nil {
-		return errors.Wrap(err, "Failed to delete stale flex volume secrets")
-	}
-
-	return nil
+	return createdVolumeSecretNames, nil
 }
 
 func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
@@ -306,9 +314,7 @@ func (d *Deployer) createOrUpdateFlexVolumeSecret(ctx context.Context,
 	}
 
 	// create secret name with unique suffix
-	flexVolumeSecretName := d.scrubber.GenerateFunctionSecretName(fmt.Sprintf("%s-%s", functionName, xid.New().String()),
-		projectName,
-		true)
+	flexVolumeSecretName := d.scrubber.GenerateFlexVolumeSecretName(functionName, projectName, volumeName)
 
 	// check if a secret with the same access key reference already exists
 	existingFlexVolumeSecrets, err := d.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
@@ -388,8 +394,9 @@ func (d *Deployer) createOrUpdateSecret(ctx context.Context, namespace string, s
 	return nil
 }
 
-func (d *Deployer) deleteStaleFlexVolumeSecrets(ctx context.Context,
-	createdVolumeSecretNames []string,
+// deleteStaleSecrets deletes secrets that are no longer needed by the function
+func (d *Deployer) deleteStaleSecrets(ctx context.Context,
+	createdSecrets []string,
 	functionName,
 	namespace string) error {
 
@@ -398,55 +405,31 @@ func (d *Deployer) deleteStaleFlexVolumeSecrets(ctx context.Context,
 	// get all secrets for the function
 	secrets, err := d.platform.GetFunctionSecrets(ctx, functionName, namespace)
 	if err != nil {
-		return errors.Wrap(err, "Failed to list function flex volume secrets")
+		return errors.Wrap(err, "Failed to list function secrets")
 	}
 
-	// delete stale flex volume secrets
+	// delete stale secrets
 	for _, secret := range secrets {
 		secret := secret.Kubernetes
-		if secret.Type == functionconfig.SecretTypeV3ioFuse {
 
-			// if the secret is not in the created volume secret names list, delete it
-			if !common.StringSliceContainsString(createdVolumeSecretNames, secret.Name) {
-				d.logger.DebugWithCtx(ctx,
-					"Deleting stale flex volume secret",
+		// if the secret is not in the created secret names list, delete it
+		if !common.StringSliceContainsString(createdSecrets, secret.Name) {
+			d.logger.DebugWithCtx(ctx,
+				"Deleting stale secret",
+				"secretName", secret.Name,
+				"functionName", functionName)
+
+			if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
+				d.logger.WarnWithCtx(ctx, "Failed to delete stale secret",
 					"secretName", secret.Name,
-					"functionName", functionName)
-
-				if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
-					d.logger.WarnWithCtx(ctx, "Failed to delete stale flex volume secret",
-						"secretName", secret.Name,
-						"err", err)
-					failedToDeleteSecrets = append(failedToDeleteSecrets, secret.Name)
-				}
+					"err", err)
+				failedToDeleteSecrets = append(failedToDeleteSecrets, secret.Name)
 			}
 		}
 	}
 
 	if len(failedToDeleteSecrets) > 0 {
-		return errors.Errorf("Failed to delete stale flex volume secrets: %v", failedToDeleteSecrets)
-	}
-
-	return nil
-}
-
-func (d *Deployer) deleteExistingSecret(ctx context.Context, namespace, secretName string) error {
-
-	// check if secret exists
-	if _, err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx,
-		secretName,
-		metav1.GetOptions{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return errors.Wrapf(err, "Failed to get secret %s", secretName)
-		}
-		return nil
-	}
-
-	// delete secret
-	if err := d.consumer.KubeClientSet.CoreV1().Secrets(namespace).Delete(ctx,
-		secretName,
-		metav1.DeleteOptions{}); err != nil {
-		return errors.Wrapf(err, "Failed to delete secret %s", secretName)
+		return errors.Errorf("Failed to delete stale secrets: %v", failedToDeleteSecrets)
 	}
 
 	return nil
