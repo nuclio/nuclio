@@ -1020,14 +1020,16 @@ func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithScrubbedField() {
 	firstPassword := "1234"
 	secondPassword := "abcd"
 	passwordPath := "$ref:/spec/build/codeentryattributes/password"
-	secretName := scrubber.GenerateFunctionSecretName(functionName, "default")
 
 	validateSecretPasswordFunc := func(password string) {
-		secret, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Get(suite.Ctx, secretName, metav1.GetOptions{})
+
+		// get function secret
+		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
 		suite.Require().NoError(err)
+		suite.Require().Len(secrets, 1)
 
 		// decode secret data
-		decodedContents, err := scrubber.DecodeSecretData(secret.Data)
+		decodedContents, err := scrubber.DecodeSecretData(secrets[0].Kubernetes.Data)
 		suite.Require().NoError(err)
 
 		// make sure first password is in secret
