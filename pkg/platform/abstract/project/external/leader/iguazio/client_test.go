@@ -20,6 +20,7 @@ package iguazio
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -318,14 +319,15 @@ func (suite *ClientTestSuite) TestCreate() {
 				panic(fmt.Sprintf("Unexpected request %s", r.RequestURI))
 			})
 
-			err := suite.client.Create(&platform.CreateProjectOptions{
-				ProjectConfig: &platform.ProjectConfig{
-					Meta: platform.ProjectMeta{
-						Name: "dummy-project",
+			err := suite.client.Create(context.TODO(),
+				&platform.CreateProjectOptions{
+					ProjectConfig: &platform.ProjectConfig{
+						Meta: platform.ProjectMeta{
+							Name: "dummy-project",
+						},
 					},
-				},
-				WaitForCreateCompletion: true,
-			})
+					WaitForCreateCompletion: true,
+				})
 			if testCase.expectedFailure {
 				suite.Require().Error(err)
 				return
@@ -378,7 +380,7 @@ func (suite *ClientTestSuite) TestGetUpdatedAfter() {
 				suite.Require().LessOrEqual(strings.Count(r.URL.RawQuery, "updated_at"), 1)
 				return testCase.response(r)
 			})
-			projects, err := suite.client.GetUpdatedAfter(testCase.updatedAfterTime)
+			projects, err := suite.client.GetUpdatedAfter(context.TODO(), testCase.updatedAfterTime)
 			suite.Require().NoError(err)
 			suite.Require().Len(projects, 1)
 			suite.Require().Equal(projects[0].GetConfig().Spec.Owner, "admin")
@@ -414,7 +416,7 @@ func (suite *ClientTestSuite) TestGet() {
 					Name: "some-project",
 				}
 			}
-			projects, err := suite.client.Get(getProjectOptions)
+			projects, err := suite.client.Get(context.TODO(), getProjectOptions)
 			suite.Require().NoError(err)
 			suite.Require().Len(projects, 1)
 			suite.Require().Equal(projects[0].GetConfig().Spec.Owner, "admin")

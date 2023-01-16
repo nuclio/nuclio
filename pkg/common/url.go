@@ -18,6 +18,7 @@ package common
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -87,7 +88,7 @@ func IsLocalFileURL(s string) bool {
 	return strings.HasPrefix(s, LocalFilePrefix)
 }
 
-// extracts absolute path to file from local file URL
+// GetPathFromLocalFileURL extracts absolute path to file from local file URL
 // example: "file://path/to/file" -> "/path/to/file"
 func GetPathFromLocalFileURL(s string) string {
 	if IsLocalFileURL(s) {
@@ -96,7 +97,7 @@ func GetPathFromLocalFileURL(s string) string {
 	return ""
 }
 
-// Normalizes URL Path
+// NormalizeURLPath normalizes URL Path
 // examples:
 // "" -> "/"
 // "a" -> "/a/"
@@ -123,6 +124,43 @@ func SendHTTPRequest(httpClient *http.Client,
 	headers map[string]string,
 	cookies []*http.Cookie,
 	expectedStatusCode int) ([]byte, *http.Response, error) {
+	return sendHTTPRequest(context.Background(),
+		httpClient,
+		method,
+		requestURL,
+		body,
+		headers,
+		cookies,
+		expectedStatusCode)
+}
+
+// SendHTTPRequestWithContext is like SendHTTPRequest but with context
+func SendHTTPRequestWithContext(ctx context.Context,
+	httpClient *http.Client,
+	method string,
+	requestURL string,
+	body []byte,
+	headers map[string]string,
+	cookies []*http.Cookie,
+	expectedStatusCode int) ([]byte, *http.Response, error) {
+	return sendHTTPRequest(ctx,
+		httpClient,
+		method,
+		requestURL,
+		body,
+		headers,
+		cookies,
+		expectedStatusCode)
+}
+
+func sendHTTPRequest(ctx context.Context,
+	httpClient *http.Client,
+	method string,
+	requestURL string,
+	body []byte,
+	headers map[string]string,
+	cookies []*http.Cookie,
+	expectedStatusCode int) ([]byte, *http.Response, error) {
 
 	if httpClient == nil {
 		httpClient = &http.Client{
@@ -134,7 +172,7 @@ func SendHTTPRequest(httpClient *http.Client,
 	}
 
 	// create request object
-	req, err := http.NewRequest(method, requestURL, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, method, requestURL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to create http request")
 	}

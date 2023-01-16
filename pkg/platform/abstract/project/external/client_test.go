@@ -141,7 +141,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderCreate() {
 	}
 
 	suite.mockLeaderProjectsClient.
-		On("Create", &createProjectOptions).
+		On("Create", suite.ctx, &createProjectOptions).
 		Return(nil, nil).
 		Once()
 
@@ -161,7 +161,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderUpdate() {
 	}
 
 	suite.mockLeaderProjectsClient.
-		On("Update", &updateProjectOptions).
+		On("Update", suite.ctx, &updateProjectOptions).
 		Return(nil, nil).
 		Once()
 
@@ -179,7 +179,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderDelete() {
 	}
 
 	suite.mockLeaderProjectsClient.
-		On("Delete", &deleteProjectOptions).
+		On("Delete", suite.ctx, &deleteProjectOptions).
 		Return(nil).
 		Once()
 

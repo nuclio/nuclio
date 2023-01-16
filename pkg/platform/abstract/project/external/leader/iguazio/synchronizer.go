@@ -44,7 +44,6 @@ func NewSynchronizer(parentLogger logger.Logger,
 	leaderClient leader.Client,
 	internalProjectsClient project.Client) (*Synchronizer, error) {
 
-	parentLogger.DebugWith("Creating project synchronizer")
 	newSynchronizer := Synchronizer{
 		logger:                     parentLogger.GetChild("leader-synchronizer-iguazio"),
 		synchronizationIntervalStr: synchronizationIntervalStr,
@@ -62,19 +61,23 @@ func (c *Synchronizer) Start() error {
 		return errors.Wrap(err, "Failed to parse synchronization interval")
 	}
 
+	ctx := context.WithValue(context.Background(), "RequestID", "leader-synchronizer") // nolint: staticcheck
+
 	// don't synchronize when set to 0
 	if synchronizationInterval == 0 {
-		c.logger.InfoWith("Synchronization interval set to 0. Projects will not synchronize with leader")
+		c.logger.InfoWithCtx(ctx,
+			"Synchronization interval set to 0. Projects will not synchronize with leader")
 		return nil
 	}
 
 	// start synchronization loop in the background
-	go c.startSynchronizationLoop(synchronizationInterval, c.managedNamespaces)
+	go c.startSynchronizationLoop(ctx, synchronizationInterval, c.managedNamespaces)
 
 	return nil
 }
 
-func (c *Synchronizer) startSynchronizationLoop(interval time.Duration, namespaces []string) {
+func (c *Synchronizer) startSynchronizationLoop(ctx context.Context,
+	interval time.Duration, namespaces []string) {
 	namespaceToMostRecentUpdatedProjectTimeMap := map[string]*time.Time{}
 
 	// fil it up with default
@@ -82,17 +85,20 @@ func (c *Synchronizer) startSynchronizationLoop(interval time.Duration, namespac
 		namespaceToMostRecentUpdatedProjectTimeMap[namespace] = nil
 	}
 
-	c.logger.InfoWith("Starting synchronization loop",
+	c.logger.InfoWithCtx(ctx,
+		"Starting synchronization loop",
 		"namespaces", namespaces,
 		"interval", interval)
 
 	ticker := time.NewTicker(interval)
 	for range ticker.C {
 		for _, namespace := range namespaces {
-			newMostRecentUpdatedProjectTime, err := c.synchronizeProjectsFromLeader(namespace,
+			newMostRecentUpdatedProjectTime, err := c.synchronizeProjectsFromLeader(ctx,
+				namespace,
 				namespaceToMostRecentUpdatedProjectTimeMap[namespace])
 			if err != nil {
-				c.logger.WarnWith("Failed to synchronize projects according to leader",
+				c.logger.WarnWithCtx(ctx,
+					"Failed to synchronize projects according to leader",
 					"err", errors.GetErrorStackString(err, 10))
 			}
 
@@ -157,17 +163,18 @@ func (c *Synchronizer) getModifiedProjects(leaderProjects []platform.Project, in
 	return
 }
 
-func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
+func (c *Synchronizer) synchronizeProjectsFromLeader(ctx context.Context,
+	namespace string,
 	mostRecentUpdatedProjectTime *time.Time) (*time.Time, error) {
 
 	// fetch updated projects from leader
-	leaderProjects, err := c.leaderClient.GetUpdatedAfter(mostRecentUpdatedProjectTime)
+	leaderProjects, err := c.leaderClient.GetUpdatedAfter(ctx, mostRecentUpdatedProjectTime)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get projects from leader")
 	}
 
 	// fetch all internal projects
-	internalProjects, err := c.internalProjectsClient.Get(context.Background(), &platform.GetProjectsOptions{
+	internalProjects, err := c.internalProjectsClient.Get(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Namespace: namespace,
 		},
@@ -177,7 +184,8 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 	}
 
 	// filter modified projects
-	projectsToCreate, projectsToUpdate, newMostRecentUpdatedProjectTime := c.getModifiedProjects(leaderProjects, internalProjects)
+	projectsToCreate, projectsToUpdate, newMostRecentUpdatedProjectTime := c.getModifiedProjects(leaderProjects,
+		internalProjects)
 
 	if len(projectsToCreate) == 0 && len(projectsToUpdate) == 0 {
 
@@ -185,12 +193,13 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 		return newMostRecentUpdatedProjectTime, nil
 	}
 
-	c.logger.DebugWith("Synchronization loop modified projects",
+	c.logger.DebugWithCtx(ctx,
+		"Synchronization loop modified projects",
 		"projectsToCreateNum", len(projectsToCreate),
 		"projectsToUpdateNum", len(projectsToUpdate))
 
 	// create projects that exist on the leader but weren't created internally
-	createProjectErrGroup, _ := errgroup.WithContextSemaphore(context.Background(), c.logger, errgroup.DefaultErrgroupConcurrency)
+	createProjectErrGroup, _ := errgroup.WithContextSemaphore(ctx, c.logger, errgroup.DefaultErrgroupConcurrency)
 	for _, projectInstance := range projectsToCreate {
 		projectInstance := projectInstance
 		createProjectErrGroup.Go("create projects", func() error {
@@ -200,7 +209,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 			//   and must start and end with an alphanumeric character (e.g. 'MyValue',  or 'my_value',  or '12345',
 			//   regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
 
-			c.logger.DebugWith("Creating project from leader sync", "projectInstance", *projectInstance)
+			c.logger.DebugWithCtx(ctx, "Creating project from leader sync", "projectInstance", *projectInstance)
 			createProjectConfig := &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta:   projectInstance.Meta,
@@ -208,14 +217,14 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(namespace string,
 					Status: projectInstance.Status,
 				},
 			}
-			if _, err := c.internalProjectsClient.Create(context.Background(), createProjectConfig); err != nil {
-				c.logger.WarnWith("Failed to create project from leader sync",
+			if _, err := c.internalProjectsClient.Create(ctx, createProjectConfig); err != nil {
+				c.logger.WarnWithCtx(ctx, "Failed to create project from leader sync",
 					"name", createProjectConfig.ProjectConfig.Meta.Name,
 					"namespace", createProjectConfig.ProjectConfig.Meta.Namespace,
 					"err", err)
 				return err
 			}
-			c.logger.DebugWith("Successfully created project from leader sync",
+			c.logger.DebugWithCtx(ctx, "Successfully created project from leader sync",
 				"name", createProjectConfig.ProjectConfig.Meta.Name,
 				"namespace", createProjectConfig.ProjectConfig.Meta.Namespace)
 			return nil

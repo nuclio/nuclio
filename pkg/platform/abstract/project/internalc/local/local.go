@@ -52,17 +52,23 @@ func (c *Client) Get(ctx context.Context, getProjectsOptions *platform.GetProjec
 }
 
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) (platform.Project, error) {
-	c.Logger.DebugWith("Creating a project", "projectName", createProjectOptions.ProjectConfig.Meta.Name)
+	c.Logger.DebugWithCtx(ctx,
+		"Creating a project",
+		"projectName", createProjectOptions.ProjectConfig.Meta.Name)
 	return nil, c.localStore.CreateOrUpdateProject(createProjectOptions.ProjectConfig)
 }
 
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) (platform.Project, error) {
-	c.Logger.DebugWith("Updating a project", "projectName", updateProjectOptions.ProjectConfig.Meta.Name)
+	c.Logger.DebugWithCtx(ctx,
+		"Updating a project",
+		"projectName", updateProjectOptions.ProjectConfig.Meta.Name)
 	return nil, c.localStore.CreateOrUpdateProject(&updateProjectOptions.ProjectConfig)
 }
 
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
-	c.Logger.DebugWith("Deleting a project", "projectMeta", deleteProjectOptions.Meta)
+	c.Logger.DebugWithCtx(ctx,
+		"Deleting a project",
+		"projectMeta", deleteProjectOptions.Meta)
 	if err := c.localStore.DeleteProject(ctx, &deleteProjectOptions.Meta); err != nil {
 		return errors.Wrapf(err,
 			"Failed to delete project %s from namespace %s",
