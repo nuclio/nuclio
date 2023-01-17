@@ -1051,7 +1051,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 		}
 	}
 
-	processorDockerfileInfo, err := b.createProcessorDockerfile(baseImageRegistry, onbuildImageRegistry)
+	processorDockerfileInfo, err := b.createProcessorDockerfile(ctx, baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
@@ -1059,11 +1059,12 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	taggedImageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
-	b.logger.InfoWith("Building processor image",
+	b.logger.InfoWithCtx(ctx,
+		"Building processor image",
 		"registryURL", registryURL,
 		"taggedImageName", taggedImageName)
 
-	err = b.platform.BuildAndPushContainerImage(context.Background(),
+	err = b.platform.BuildAndPushContainerImage(ctx,
 		&containerimagebuilderpusher.BuildOptions{
 			ContextDir:     b.stagingDir,
 			Image:          taggedImageName,
@@ -1111,7 +1112,9 @@ func (b *Builder) resolveRepoName(registryURL string) string {
 	return repoName
 }
 
-func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildImageRegistry string) (
+func (b *Builder) createProcessorDockerfile(ctx context.Context,
+	baseImageRegistry string,
+	onbuildImageRegistry string) (
 	*runtime.ProcessorDockerfileInfo, error) {
 
 	// get the contents of the processor dockerfile from the runtime
@@ -1121,7 +1124,8 @@ func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildIma
 	}
 
 	// log the resulting dockerfile
-	b.logger.DebugWith("Created processor Dockerfile",
+	b.logger.DebugWithCtx(ctx,
+		"Created processor Dockerfile",
 		"dockerfileInfo", processorDockerfileInfo.DockerfileContents,
 		"baseImageRegistry", baseImageRegistry,
 		"onbuildImageRegistry", onbuildImageRegistry)
