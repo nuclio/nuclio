@@ -18,6 +18,7 @@ package opa
 
 import (
 	"context"
+
 	"github.com/nuclio/logger"
 )
 
