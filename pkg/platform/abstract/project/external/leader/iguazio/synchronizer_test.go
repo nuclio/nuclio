@@ -37,6 +37,7 @@ limitations under the License.
 package iguazio
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -224,7 +225,9 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(namespace 
 			Once()
 	}
 
-	newMostRecentUpdatedProjectTime, err := suite.synchronizer.synchronizeProjectsFromLeader(namespace, uninitializedTime)
+	newMostRecentUpdatedProjectTime, err := suite.synchronizer.synchronizeProjectsFromLeader(
+		context.TODO(),
+		namespace, uninitializedTime)
 	suite.Require().NoError(err)
 
 	suite.Require().Equal(expectedNewMostRecentUpdatedProjectTime, newMostRecentUpdatedProjectTime)

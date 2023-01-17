@@ -499,7 +499,9 @@ func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
+	return p.Platform.FilterProjectsByPermissions(ctx,
+		&getProjectsOptions.PermissionOptions,
+		projects)
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from

@@ -51,7 +51,7 @@ type Platform interface {
 	//
 
 	// CreateFunctionBuild Build will locally build a processor image and return its name (or the error)
-	CreateFunctionBuild(createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
+	CreateFunctionBuild(ctx context.Context, createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
 
 	// CreateFunction Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 	CreateFunction(ctx context.Context, createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)

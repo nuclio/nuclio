@@ -148,21 +148,24 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 }
 
 // Build builds the handler
-func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
+func (b *Builder) Build(ctx context.Context, options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 	var inferredCodeEntryType string
 	var configurationRead bool
 
 	b.options = options
 
-	b.logger.InfoWith("Building",
+	b.logger.InfoWithCtx(ctx,
+		"Building",
 		"builderKind", b.platform.GetContainerBuilderKind(),
 		"versionInfo", b.versionInfo,
 		"name", b.options.FunctionConfig.Meta.Name)
 
 	// TODO: delete b.providedFunctionConfigFilePath call from here, as it is called again from b.readConfiguration
 	configFilePath := b.providedFunctionConfigFilePath()
-	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
+	b.logger.DebugWithCtx(ctx,
+		"Function configuration found in directory",
+		"configFilePath", configFilePath)
 	if common.IsFile(configFilePath) {
 		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
@@ -258,7 +261,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	// build the processor image
-	processorImage, err := b.buildProcessorImage()
+	processorImage, err := b.buildProcessorImage(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build processor image")
 	}
@@ -273,8 +276,8 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	// info log only the image name, so that the un-scrubbed function config won't be logged to the user
-	b.logger.InfoWith("Build complete", "image", buildResult.Image)
-	b.logger.DebugWith("Build complete", "result", buildResult)
+	b.logger.InfoWithCtx(ctx, "Build complete", "image", buildResult.Image)
+	b.logger.DebugWithCtx(ctx, "Build complete", "result", buildResult)
 
 	return buildResult, nil
 }
@@ -1019,7 +1022,7 @@ func (b *Builder) cleanupTempDir() error {
 	return nil
 }
 
-func (b *Builder) buildProcessorImage() (string, error) {
+func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	buildArgs := b.getBuildArgs()
 
 	// get override base and onbuild image registries from the platform configuration
@@ -1048,7 +1051,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		}
 	}
 
-	processorDockerfileInfo, err := b.createProcessorDockerfile(baseImageRegistry, onbuildImageRegistry)
+	processorDockerfileInfo, err := b.createProcessorDockerfile(ctx, baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
@@ -1056,11 +1059,12 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	taggedImageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
-	b.logger.InfoWith("Building processor image",
+	b.logger.InfoWithCtx(ctx,
+		"Building processor image",
 		"registryURL", registryURL,
 		"taggedImageName", taggedImageName)
 
-	err = b.platform.BuildAndPushContainerImage(context.Background(),
+	err = b.platform.BuildAndPushContainerImage(ctx,
 		&containerimagebuilderpusher.BuildOptions{
 			ContextDir:     b.stagingDir,
 			Image:          taggedImageName,
@@ -1108,7 +1112,9 @@ func (b *Builder) resolveRepoName(registryURL string) string {
 	return repoName
 }
 
-func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildImageRegistry string) (
+func (b *Builder) createProcessorDockerfile(ctx context.Context,
+	baseImageRegistry string,
+	onbuildImageRegistry string) (
 	*runtime.ProcessorDockerfileInfo, error) {
 
 	// get the contents of the processor dockerfile from the runtime
@@ -1118,7 +1124,8 @@ func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildIma
 	}
 
 	// log the resulting dockerfile
-	b.logger.DebugWith("Created processor Dockerfile",
+	b.logger.DebugWithCtx(ctx,
+		"Created processor Dockerfile",
 		"dockerfileInfo", processorDockerfileInfo.DockerfileContents,
 		"baseImageRegistry", baseImageRegistry,
 		"onbuildImageRegistry", onbuildImageRegistry)

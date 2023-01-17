@@ -90,12 +90,13 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	suite.Require().NoError(err)
 
 	// build function
-	buildFunctionResults, err := suite.Platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-		Logger:              suite.Logger,
-		FunctionConfig:      createFunctionOptions.FunctionConfig,
-		PlatformName:        suite.Platform.GetName(),
-		OnAfterConfigUpdate: nil,
-	})
+	buildFunctionResults, err := suite.Platform.CreateFunctionBuild(suite.Ctx,
+		&platform.CreateFunctionBuildOptions{
+			Logger:              suite.Logger,
+			FunctionConfig:      createFunctionOptions.FunctionConfig,
+			PlatformName:        suite.Platform.GetName(),
+			OnAfterConfigUpdate: nil,
+		})
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(buildFunctionResults.Image)
 

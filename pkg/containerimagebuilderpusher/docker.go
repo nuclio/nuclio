@@ -63,19 +63,19 @@ func (d *Docker) GetKind() string {
 
 func (d *Docker) BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error {
 
-	if err := d.gatherArtifactsForSingleStageDockerfile(buildOptions); err != nil {
+	if err := d.gatherArtifactsForSingleStageDockerfile(ctx, buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to build image artifacts")
 	}
 
-	if err := d.buildContainerImage(buildOptions); err != nil {
+	if err := d.buildContainerImage(ctx, buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to build docker image")
 	}
 
-	if err := d.pushContainerImage(buildOptions.Image, buildOptions.RegistryURL); err != nil {
+	if err := d.pushContainerImage(ctx, buildOptions.Image, buildOptions.RegistryURL); err != nil {
 		return errors.Wrap(err, "Failed to push docker image into registry")
 	}
 
-	if err := d.saveContainerImage(buildOptions); err != nil {
+	if err := d.saveContainerImage(ctx, buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to save docker image")
 	}
 
@@ -118,9 +118,9 @@ func (d *Docker) GetOnbuildImageRegistry(registry string) string {
 	return d.builderConfiguration.DefaultOnbuildRegistryURL
 }
 
-func (d *Docker) buildContainerImage(buildOptions *BuildOptions) error {
+func (d *Docker) buildContainerImage(ctx context.Context, buildOptions *BuildOptions) error {
 
-	d.logger.InfoWith("Building docker image", "image", buildOptions.Image)
+	d.logger.InfoWithCtx(ctx, "Building docker image", "image", buildOptions.Image)
 
 	return d.dockerClient.Build(&dockerclient.BuildOptions{
 		ContextDir:     buildOptions.ContextDir,
@@ -133,8 +133,9 @@ func (d *Docker) buildContainerImage(buildOptions *BuildOptions) error {
 
 }
 
-func (d *Docker) pushContainerImage(image string, registryURL string) error {
-	d.logger.InfoWith("Pushing docker image into registry",
+func (d *Docker) pushContainerImage(ctx context.Context, image string, registryURL string) error {
+	d.logger.InfoWithCtx(ctx,
+		"Pushing docker image into registry",
 		"image", image,
 		"registry", registryURL)
 
@@ -145,17 +146,19 @@ func (d *Docker) pushContainerImage(image string, registryURL string) error {
 	return nil
 }
 
-func (d *Docker) saveContainerImage(buildOptions *BuildOptions) error {
+func (d *Docker) saveContainerImage(ctx context.Context, buildOptions *BuildOptions) error {
 	if buildOptions.OutputImageFile != "" {
-		d.logger.InfoWith("Archiving built docker image", "OutputImageFile", buildOptions.OutputImageFile)
+		d.logger.InfoWithCtx(ctx, "Archiving built docker image", "OutputImageFile", buildOptions.OutputImageFile)
 		return d.dockerClient.Save(buildOptions.Image, buildOptions.OutputImageFile)
 	}
 	return nil
 }
 
-func (d *Docker) ensureImagesExist(buildOptions *BuildOptions, images []string) error {
+func (d *Docker) ensureImagesExist(ctx context.Context,
+	buildOptions *BuildOptions, images []string) error {
 	if buildOptions.NoBaseImagePull {
-		d.logger.DebugWith("Skipping base images pull", "images", images)
+		d.logger.DebugWithCtx(ctx,
+			"Skipping base images pull", "images", images)
 		return nil
 	}
 
@@ -168,7 +171,8 @@ func (d *Docker) ensureImagesExist(buildOptions *BuildOptions, images []string) 
 	return nil
 }
 
-func (d *Docker) gatherArtifactsForSingleStageDockerfile(buildOptions *BuildOptions) error {
+func (d *Docker) gatherArtifactsForSingleStageDockerfile(ctx context.Context,
+	buildOptions *BuildOptions) error {
 	artifactsDir := path.Join(buildOptions.ContextDir, artifactDirNameInStaging)
 
 	// create an artifacts directory to which we'll copy all of our stuff
@@ -181,7 +185,7 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(buildOptions *BuildOpti
 
 		// to facilitate good ux, pull images that we're going to need (and log it) before copying
 		// objects from them. this also prevents docker spewing out errors about an image not existing
-		if err := d.ensureImagesExist(buildOptions, []string{onbuildArtifact.Image}); err != nil {
+		if err := d.ensureImagesExist(ctx, buildOptions, []string{onbuildArtifact.Image}); err != nil {
 			return errors.Wrap(err, "Failed to ensure required images exist")
 		}
 
@@ -201,7 +205,8 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(buildOptions *BuildOpti
 		}
 
 		// build an image to trigger the onbuild stuff. then extract the artifacts
-		if err := d.buildFromAndCopyObjectsFromContainer(onbuildArtifact.Image,
+		if err := d.buildFromAndCopyObjectsFromContainer(ctx,
+			onbuildArtifact.Image,
 			buildOptions.ContextDir,
 			onbuildArtifactPaths,
 			buildOptions.BuildArgs); err != nil {
@@ -212,7 +217,8 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(buildOptions *BuildOpti
 	return nil
 }
 
-func (d *Docker) buildFromAndCopyObjectsFromContainer(onbuildImage string,
+func (d *Docker) buildFromAndCopyObjectsFromContainer(ctx context.Context,
+	onbuildImage string,
 	contextDir string,
 	artifactPaths map[string]string,
 	buildArgs map[string]string) error {
@@ -230,7 +236,9 @@ ARG NUCLIO_ARCH
 	}
 
 	// log
-	d.logger.DebugWith("Generated onbuild Dockerfile", "contents", onbuildDockerfileContents)
+	d.logger.DebugWithCtx(ctx,
+		"Generated onbuild Dockerfile",
+		"contents", onbuildDockerfileContents)
 
 	// generate an image name
 	onbuildImageName := fmt.Sprintf("nuclio-onbuild-%s", xid.New().String())

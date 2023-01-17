@@ -94,8 +94,7 @@ func (s *Store) GetProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 		return nil
 	}
 
-	err := s.getResources(projectsDir, projectMeta.Namespace, projectMeta.Name, rowHandler)
-	if err != nil {
+	if err := s.getResources(projectsDir, projectMeta.Namespace, projectMeta.Name, rowHandler); err != nil {
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
 

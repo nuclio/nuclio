@@ -110,7 +110,8 @@ func (ap *Platform) GetConfig() *platformconfig.Config {
 	return ap.Config
 }
 
-func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (
+func (ap *Platform) CreateFunctionBuild(ctx context.Context,
+	createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (
 	*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
@@ -120,7 +121,7 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 	}
 
 	// convert types
-	return builder.Build(createFunctionBuildOptions)
+	return builder.Build(ctx, createFunctionBuildOptions)
 }
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
@@ -132,7 +133,8 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (
 	*platform.CreateFunctionResult, error) {
 
-	createFunctionOptions.Logger.InfoWithCtx(ctx, "Deploying function",
+	createFunctionOptions.Logger.InfoWithCtx(ctx,
+		"Deploying function",
 		"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 	var buildResult *platform.CreateFunctionBuildResult
@@ -167,13 +169,14 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 		}
 		createFunctionOptions.FunctionConfig = *restoredFunctionConfig
 
-		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-			Logger:                     createFunctionOptions.Logger,
-			FunctionConfig:             createFunctionOptions.FunctionConfig,
-			PlatformName:               ap.platform.GetName(),
-			OnAfterConfigUpdate:        onAfterConfigUpdatedWrapper,
-			DependantImagesRegistryURL: createFunctionOptions.DependantImagesRegistryURL,
-		})
+		buildResult, buildErr = ap.platform.CreateFunctionBuild(ctx,
+			&platform.CreateFunctionBuildOptions{
+				Logger:                     createFunctionOptions.Logger,
+				FunctionConfig:             createFunctionOptions.FunctionConfig,
+				PlatformName:               ap.platform.GetName(),
+				OnAfterConfigUpdate:        onAfterConfigUpdatedWrapper,
+				DependantImagesRegistryURL: createFunctionOptions.DependantImagesRegistryURL,
+			})
 
 		if buildErr == nil {
 
@@ -190,7 +193,8 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
-		createFunctionOptions.Logger.InfoWithCtx(ctx, "Skipping build",
+		createFunctionOptions.Logger.InfoWithCtx(ctx,
+			"Skipping build",
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// verify user passed runtime
@@ -226,7 +230,8 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 	}
 
 	// indicate that we're done
-	createFunctionOptions.Logger.InfoWithCtx(ctx, "Function deploy complete",
+	createFunctionOptions.Logger.InfoWithCtx(ctx,
+		"Function deploy complete",
 		"functionName", deployResult.UpdatedFunctionConfig.Meta.Name,
 		"httpPort", deployResult.Port,
 		"internalInvocationURLs", deployResult.FunctionStatus.InternalInvocationURLs,
@@ -554,7 +559,8 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 }
 
 // FilterProjectsByPermissions will filter out some projects
-func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.PermissionOptions,
+func (ap *Platform) FilterProjectsByPermissions(ctx context.Context,
+	permissionOptions *opa.PermissionOptions,
 	projects []platform.Project) ([]platform.Project, error) {
 
 	// no cleansing is mandated
@@ -569,7 +575,7 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.Permissio
 		resources[idx] = opa.GenerateProjectResourceString(projectName)
 	}
 
-	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for projects permissions")
 	}
@@ -586,7 +592,9 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.Permissio
 	}
 
 	if len(filteredProjectNames) > 0 {
-		ap.Logger.DebugWith("Some projects were filtered out", "projectNames", filteredProjectNames)
+		ap.Logger.DebugWithCtx(ctx,
+			"Some projects were filtered out",
+			"projectNames", filteredProjectNames)
 	}
 	return permittedProjects, nil
 }
@@ -609,7 +617,7 @@ func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
 		resources[idx] = opa.GenerateFunctionResourceString(projectName, functionName)
 	}
 
-	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for function permissions")
 	}
@@ -626,7 +634,9 @@ func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
 	}
 
 	if len(filteredFunctionNames) > 0 {
-		ap.Logger.DebugWithCtx(ctx, "Some functions were filtered out", "functionNames", filteredFunctionNames)
+		ap.Logger.DebugWithCtx(ctx,
+			"Some functions were filtered out",
+			"functionNames", filteredFunctionNames)
 	}
 	return permittedFunctions, nil
 }
@@ -650,7 +660,7 @@ func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
 			functionName,
 			functionEventName))
 	}
-	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for function events permissions")
 	}
@@ -835,7 +845,8 @@ func (ap *Platform) EnrichFunctionEvent(ctx context.Context, functionEventConfig
 
 	projectName, projectNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 	if !projectNameFound {
-		ap.Logger.DebugWithCtx(ctx, "Enriching function event project name",
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching function event project name",
 			"functionEventName", functionEventConfig.Meta.Name,
 			"functionEventNamespace", functionEventConfig.Meta.Namespace,
 			"functionName", functionName)
@@ -1032,12 +1043,14 @@ func (ap *Platform) WaitForProjectResourcesDeletion(ctx context.Context, project
 		func() bool {
 			functions, APIGateways, err := ap.GetProjectResources(ctx, projectMeta)
 			if err != nil {
-				ap.Logger.WarnWithCtx(ctx, "Failed to get project resources",
+				ap.Logger.WarnWithCtx(ctx,
+					"Failed to get project resources",
 					"err", err)
 				return false
 			}
 			if len(functions) > 0 || len(APIGateways) > 0 {
-				ap.Logger.DebugWithCtx(ctx, "Waiting for project resources to be deleted",
+				ap.Logger.DebugWithCtx(ctx,
+					"Waiting for project resources to be deleted",
 					"functionsLen", len(functions),
 					"apiGatewayLen", len(APIGateways))
 				return false
@@ -1210,10 +1223,11 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 		permissionOptions)
 }
 
-func (ap *Platform) QueryOPAMultipleResources(resources []string,
+func (ap *Platform) QueryOPAMultipleResources(ctx context.Context,
+	resources []string,
 	action opa.Action,
 	permissionOptions *opa.PermissionOptions) ([]bool, error) {
-	return ap.queryOPAPermissionsMultiResources(resources, action, permissionOptions)
+	return ap.queryOPAPermissionsMultiResources(ctx, resources, action, permissionOptions)
 }
 
 // GetFunctionSecrets returns all the function's secrets
@@ -1225,7 +1239,9 @@ func (ap *Platform) GetFunctionSecrets(ctx context.Context, functionName, functi
 func (ap *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
 
 	// get existing function secret
-	ap.Logger.DebugWithCtx(ctx, "Getting function secret", "functionName", functionName, "functionNamespace", functionNamespace)
+	ap.Logger.DebugWithCtx(ctx,
+		"Getting function secret", "functionName",
+		functionName, "functionNamespace", functionNamespace)
 	functionSecretData, err := ap.platform.GetFunctionSecretData(ctx, functionName, functionNamespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function secret")
@@ -1241,7 +1257,10 @@ func (ap *Platform) GetFunctionSecretMap(ctx context.Context, functionName, func
 	}
 
 	// secret doesn't exist
-	ap.Logger.DebugWithCtx(ctx, "Function secret doesn't exist", "functionName", functionName, "functionNamespace", functionNamespace)
+	ap.Logger.DebugWithCtx(ctx,
+		"Function secret doesn't exist",
+		"functionName", functionName,
+		"functionNamespace", functionNamespace)
 	return nil, nil
 }
 
@@ -1466,7 +1485,8 @@ func (ap *Platform) validateVolumes(ctx context.Context, functionConfig *functio
 		firstVolume := volumes[0]
 		for _, volume := range volumes[1:] {
 			if volumeDiff := cmp.Diff(firstVolume, volume); volumeDiff != "" {
-				ap.Logger.WarnWithCtx(ctx, "Invalid volumes configuration found",
+				ap.Logger.WarnWithCtx(ctx,
+					"Invalid volumes configuration found",
 					"volumeMountName", volumeMountName,
 					"volumeDiff", volumeDiff)
 				return nuclio.NewErrBadRequest(
@@ -1674,7 +1694,8 @@ func (ap *Platform) validateDockerImageFields(ctx context.Context, functionConfi
 			// HACK: cleanup possible trailing /
 			valueToValidate := strings.TrimSuffix(*fieldValue, "/")
 			if _, err := reference.Parse(valueToValidate); err != nil {
-				ap.Logger.WarnWithCtx(ctx, "Invalid docker image ref passed in spec field - this may be malicious",
+				ap.Logger.WarnWithCtx(ctx,
+					"Invalid docker image ref passed in spec field - this may be malicious",
 					"err", err,
 					"fieldName", fieldName,
 					"fieldValue", fieldValue)
@@ -1692,11 +1713,12 @@ func (ap *Platform) validateDockerImageFields(ctx context.Context, functionConfi
 	return nil
 }
 
-func (ap *Platform) queryOPAPermissionsMultiResources(resources []string,
+func (ap *Platform) queryOPAPermissionsMultiResources(ctx context.Context,
+	resources []string,
 	action opa.Action,
 	permissionOptions *opa.PermissionOptions) ([]bool, error) {
 
-	allowedList, err := ap.OpaClient.QueryPermissionsMultiResources(resources, action, permissionOptions)
+	allowedList, err := ap.OpaClient.QueryPermissionsMultiResources(ctx, resources, action, permissionOptions)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(err)
 	}

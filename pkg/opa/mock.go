@@ -17,6 +17,8 @@ limitations under the License.
 package opa
 
 import (
+	"context"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -31,10 +33,11 @@ func (mc *MockClient) QueryPermissions(resource string,
 	return args.Get(0).(bool), args.Error(1)
 }
 
-func (mc *MockClient) QueryPermissionsMultiResources(resources []string,
+func (mc *MockClient) QueryPermissionsMultiResources(ctx context.Context,
+	resources []string,
 	action Action,
 	permissionOptions *PermissionOptions) ([]bool, error) {
 
-	args := mc.Called(resources, action, permissionOptions)
+	args := mc.Called(ctx, resources, action, permissionOptions)
 	return args.Get(0).([]bool), args.Error(1)
 }

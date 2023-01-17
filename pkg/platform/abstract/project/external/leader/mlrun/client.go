@@ -17,6 +17,7 @@ limitations under the License.
 package mlrun
 
 import (
+	"context"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -40,22 +41,22 @@ func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig
 	return &newClient, nil
 }
 
-func (c *Client) Get(getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	return nil, nuclio.ErrNotImplemented
 }
 
-func (c *Client) Create(createProjectOptions *platform.CreateProjectOptions) error {
+func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 	return nuclio.ErrNotImplemented
 }
 
-func (c *Client) Update(updateProjectOptions *platform.UpdateProjectOptions) error {
+func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	return nuclio.ErrNotImplemented
 }
 
-func (c *Client) Delete(deleteProjectOptions *platform.DeleteProjectOptions) error {
+func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	return nuclio.ErrNotImplemented
 }
 
-func (c *Client) GetUpdatedAfter(updatedAfterTime *time.Time) ([]platform.Project, error) {
+func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Time) ([]platform.Project, error) {
 	return nil, nuclio.ErrNotImplemented
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package opa
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -26,7 +27,7 @@ import (
 
 type Client interface {
 	QueryPermissions(string, Action, *PermissionOptions) (bool, error)
-	QueryPermissionsMultiResources([]string, Action, *PermissionOptions) ([]bool, error)
+	QueryPermissionsMultiResources(context.Context, []string, Action, *PermissionOptions) ([]bool, error)
 }
 
 func GetUserAndGroupIdsFromAuthSession(session auth.Session) []string {

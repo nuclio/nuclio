@@ -676,11 +676,15 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 
 	// check only, do not delete
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCheck {
-		p.Logger.DebugWithCtx(ctx, "Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
+		p.Logger.DebugWithCtx(ctx,
+			"Project is ready for deletion",
+			"projectMeta", deleteProjectOptions.Meta)
 		return nil
 	}
 
-	p.Logger.DebugWithCtx(ctx, "Deleting project", "projectMeta", deleteProjectOptions.Meta)
+	p.Logger.DebugWithCtx(ctx,
+		"Deleting project",
+		"projectMeta", deleteProjectOptions.Meta)
 	if err := p.projectsClient.Delete(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to delete project")
 	}
@@ -713,7 +717,10 @@ func (p *Platform) GetProjects(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	filteredProjectList, err := p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
+	filteredProjectList, err := p.Platform.FilterProjectsByPermissions(
+		ctx,
+		&getProjectsOptions.PermissionOptions,
+		projects)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter projects by permission")
 	}
@@ -742,9 +749,8 @@ func (p *Platform) GetProjects(ctx context.Context,
 
 			// re-add project instance to filtered out as it has been cached
 			if !found {
-
 				p.Logger.DebugWithCtx(ctx,
-					"Project is readded from cache",
+					"Project is read from cache",
 					"projectName", projectInstance.GetConfig().Meta.Name)
 				filteredProjectList = append(filteredProjectList, projectInstance)
 			}

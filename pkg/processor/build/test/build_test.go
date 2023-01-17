@@ -264,11 +264,12 @@ func (suite *testSuite) TestBuildInvalidFunctionPath() {
 
 	createFunctionOptions := suite.GetDeployOptions("invalid", "invalidpath")
 
-	_, err = suite.Platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-		Logger:         createFunctionOptions.Logger,
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-		PlatformName:   suite.Platform.GetName(),
-	})
+	_, err = suite.Platform.CreateFunctionBuild(suite.Ctx,
+		&platform.CreateFunctionBuildOptions{
+			Logger:         createFunctionOptions.Logger,
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+			PlatformName:   suite.Platform.GetName(),
+		})
 
 	suite.Require().Contains(errors.Cause(err).Error(), "invalidpath")
 }
