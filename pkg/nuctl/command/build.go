@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 
@@ -85,12 +86,14 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.Wrap(err, "Failed to decode code entry attributes")
 			}
 
-			_, err := rootCommandeer.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-				Logger:          rootCommandeer.loggerInstance,
-				FunctionConfig:  commandeer.functionConfig,
-				PlatformName:    rootCommandeer.platform.GetName(),
-				OutputImageFile: commandeer.outputImageFile,
-			})
+			_, err := rootCommandeer.platform.CreateFunctionBuild(
+				context.Background(),
+				&platform.CreateFunctionBuildOptions{
+					Logger:          rootCommandeer.loggerInstance,
+					FunctionConfig:  commandeer.functionConfig,
+					PlatformName:    rootCommandeer.platform.GetName(),
+					OutputImageFile: commandeer.outputImageFile,
+				})
 			return err
 		},
 	}

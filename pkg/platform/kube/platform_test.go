@@ -185,6 +185,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 	// that have been created long time ago is returned
 	suite.mockedOpaClient.
 		On("QueryPermissionsMultiResources",
+			suite.ctx,
 			[]string{
 				fmt.Sprintf("/projects/%s", "some-name"),
 				fmt.Sprintf("/projects/%s", "other-name"),
@@ -729,6 +730,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 
 				suite.mockedOpaClient.
 					On("QueryPermissionsMultiResources",
+						suite.ctx,
 						[]string{fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName)},
 						opa.ActionRead,
 						&opa.PermissionOptions{
@@ -1455,6 +1457,7 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 				memberIds = []string{"id1", "id2"}
 				suite.mockedOpaClient.
 					On("QueryPermissionsMultiResources",
+						suite.ctx,
 						[]string{fmt.Sprintf("/projects/%s/functions/%s/function-events/%s",
 							projectName,
 							functionName,

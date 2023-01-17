@@ -61,8 +61,9 @@ func (mp *Platform) GetContainerBuilderKind() string {
 }
 
 // CreateFunctionBuild will locally build a processor image and return its name (or the error)
-func (mp *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
-	args := mp.Called(createFunctionBuildOptions)
+func (mp *Platform) CreateFunctionBuild(ctx context.Context,
+	createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
+	args := mp.Called(ctx, createFunctionBuildOptions)
 	return args.Get(0).(*platform.CreateFunctionBuildResult), args.Error(1)
 }
 

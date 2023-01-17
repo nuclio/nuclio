@@ -17,6 +17,7 @@ limitations under the License.
 package opa
 
 import (
+	"context"
 	"github.com/nuclio/logger"
 )
 
@@ -33,9 +34,11 @@ func NewNopClient(parentLogger logger.Logger, logLevel int) *NopClient {
 	return &newClient
 }
 
-func (c *NopClient) QueryPermissionsMultiResources(resources []string, action Action, permissionOptions *PermissionOptions) ([]bool, error) {
+func (c *NopClient) QueryPermissionsMultiResources(ctx context.Context,
+	resources []string, action Action, permissionOptions *PermissionOptions) ([]bool, error) {
 	if c.logLevel > 5 {
-		c.logger.InfoWith("Skipping permission query for multi resources",
+		c.logger.InfoWithCtx(ctx,
+			"Skipping permission query for multi resources",
 			"resources", resources,
 			"action", action,
 			"permissionOptions", permissionOptions)

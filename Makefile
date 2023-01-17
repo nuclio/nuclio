@@ -36,7 +36,7 @@ ifeq ($(GOARCH), arm)
 else ifeq ($(GOARCH), arm64)
 	NUCLIO_DEFAULT_ARCH := arm64
 else
-	NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+	NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH || echo amd64)
 endif
 
 ifeq ($(OS_NAME), Linux)
@@ -57,6 +57,10 @@ NUCLIO_CACHE_LABEL := $(if $(NUCLIO_CACHE_LABEL),$(NUCLIO_CACHE_LABEL),unstable)
 NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 NUCLIO_PATH ?= $(shell pwd)
+
+.PHONY: add
+add:
+	@echo $(NUCLIO_DEFAULT_ARCH)
 
 NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\", \"label\": \"$(NUCLIO_LABEL)\"}
 

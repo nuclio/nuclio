@@ -17,6 +17,7 @@ limitations under the License.
 package opa
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -70,7 +71,8 @@ func NewHTTPClient(parentLogger logger.Logger,
 // is allowed or not.
 // Therefore, it is guaranteed that len(resources) and len(results) are equal and
 // resources[i] query permission is at results[i]
-func (c *HTTPClient) QueryPermissionsMultiResources(resources []string,
+func (c *HTTPClient) QueryPermissionsMultiResources(ctx context.Context,
+	resources []string,
 	action Action,
 	permissionOptions *PermissionOptions) ([]bool, error) {
 
