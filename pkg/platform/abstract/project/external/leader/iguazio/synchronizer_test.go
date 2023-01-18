@@ -89,6 +89,7 @@ func (suite *SynchronizerTestSuite) TestNoLeaderProjects() {
 		[]platform.Project{},
 		[]platform.Project{
 			suite.compileProject("test-internal-project",
+				"some-namespace",
 				"",
 				"online",
 				testBeginningTime.Format(ProjectTimeLayout)),
@@ -105,11 +106,13 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsDoesntExistInternally() {
 	namespace := "some-namespace"
 	leaderProjectMostUpdated := suite.compileProject(
 		"leader-project-most-updated",
+		namespace,
 		"",
 		"online",
 		testBeginningTimePlusOneHour.Format(ProjectTimeLayout))
 	leaderProjectLessUpdated := suite.compileProject(
 		"leader-project-less-updated",
+		namespace,
 		"",
 		"online",
 		testBeginningTime.Format(ProjectTimeLayout))
@@ -143,11 +146,13 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsNotUpdatedInternally() {
 
 	namespace := "some-namespace"
 	updatedProject := suite.compileProject("leader-project",
+		namespace,
 		"updated",
 		"online",
 		testBeginningTime.Format(ProjectTimeLayout))
 	updatedProject.(*Project).Data.Attributes.Namespace = "some-namespace"
 	notUpdatedProject := suite.compileProject("leader-project",
+		namespace,
 		"not-updated",
 		"online",
 		testBeginningTime.Format(ProjectTimeLayout))
@@ -171,6 +176,7 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsThatExistInternally() {
 	testBeginningTime := time.Now().UTC()
 
 	projectInstance := suite.compileProject("leader-project",
+		"some-namespace",
 		"updated",
 		"online",
 		testBeginningTime.Format(ProjectTimeLayout))
@@ -185,6 +191,33 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsThatExistInternally() {
 		&testBeginningTime)
 }
 
+func (suite *SynchronizerTestSuite) TestFilterInvalidLabels() {
+	invalidLabels := map[string]string{
+		"my@weird/label": "value",
+		"my.wierd/label": "value@",
+		"%weird+/label":  "v8$alue",
+	}
+
+	labels := map[string]string{
+		"valid":          "label",
+		"another-valid":  "label-value",
+		"also_123_valid": "label_456_value",
+	}
+
+	// add invalid labels to labels
+	for key, value := range invalidLabels {
+		labels[key] = value
+	}
+
+	filteredLabels := suite.synchronizer.filterInvalidLabels(labels)
+
+	suite.Require().Equal(len(filteredLabels), len(labels)-len(invalidLabels))
+	for key := range invalidLabels {
+		_, ok := filteredLabels[key]
+		suite.Require().False(ok, "invalid label %s should not be in filtered labels", key)
+	}
+}
+
 func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(namespace string,
 	leaderProjects []platform.Project,
 	internalProjects []platform.Project,
@@ -195,24 +228,26 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(namespace 
 
 	// mock leader client get projects
 	suite.mockLeaderProjectsClient.
-		On("GetUpdatedAfter", uninitializedTime).
+		On("GetUpdatedAfter", mock.Anything, uninitializedTime).
 		Return(leaderProjects, nil).
 		Once()
 
 	// mock internal client get projects
 	suite.mockInternalProjectsClient.
-		On("Get", &platform.GetProjectsOptions{
-			Meta: platform.ProjectMeta{
-				Namespace: namespace,
-			},
-		}).
+		On("Get",
+			mock.Anything,
+			&platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Namespace: namespace,
+				},
+			}).
 		Return(internalProjects, nil).
 		Once()
 
 	// mock internal client create project for each expected project to create
 	for _, createProjectOptions := range projectsToCreate {
 		suite.mockInternalProjectsClient.
-			On("Create", createProjectOptions).
+			On("Create", mock.Anything, createProjectOptions).
 			Return(&platform.AbstractProject{}, nil).
 			Once()
 	}
@@ -220,7 +255,7 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(namespace 
 	// mock internal client update project for each expected project to update
 	for _, updateProjectOptions := range projectsToUpdate {
 		suite.mockInternalProjectsClient.
-			On("Update", updateProjectOptions).
+			On("Update", mock.Anything, updateProjectOptions).
 			Return(&platform.AbstractProject{}, nil).
 			Once()
 	}
@@ -237,24 +272,25 @@ func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(namespace 
 
 	// assert that it created all expected projects
 	for _, createProjectOptions := range projectsToCreate {
-		suite.mockInternalProjectsClient.AssertCalled(suite.T(), "Create", createProjectOptions)
+		suite.mockInternalProjectsClient.AssertCalled(suite.T(), "Create", mock.Anything, createProjectOptions)
 	}
 	if len(projectsToCreate) == 0 {
-		suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Create", mock.Anything)
+		suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Create", mock.Anything, mock.Anything)
 	}
 
 	// assert that it updated all expected projects
 	for _, updateProjectOptions := range projectsToUpdate {
-		suite.mockInternalProjectsClient.AssertCalled(suite.T(), "Update", updateProjectOptions)
+		suite.mockInternalProjectsClient.AssertCalled(suite.T(), "Update", mock.Anything, updateProjectOptions)
 	}
 	if len(projectsToUpdate) == 0 {
-		suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Update", mock.Anything)
+		suite.mockInternalProjectsClient.AssertNotCalled(suite.T(), "Update", mock.Anything, mock.Anything)
 	}
 
 	suite.mockInternalProjectsClient.AssertExpectations(suite.T())
 }
 
 func (suite *SynchronizerTestSuite) compileProject(name string,
+	namespace string,
 	description string,
 	status string,
 	updatedAt string) platform.Project {
@@ -263,6 +299,7 @@ func (suite *SynchronizerTestSuite) compileProject(name string,
 		Data: ProjectData{
 			Attributes: ProjectAttributes{
 				Name:              name,
+				Namespace:         namespace,
 				Description:       description,
 				OperationalStatus: status,
 				AdminStatus:       status,
