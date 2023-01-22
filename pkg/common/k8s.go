@@ -24,10 +24,12 @@ import (
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 func IsInKubernetesCluster() bool {
@@ -51,20 +53,55 @@ func GetKubeconfigPath(kubeconfigPath string) string {
 	return kubeconfigPath
 }
 
+func GetKubeConfigClientCmdByKubeconfigPath(kubeconfigPath string) (*clientcmdapi.Config, error) {
+	configLoadRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	configLoadRules.ExplicitPath = GetKubeconfigPath(kubeconfigPath)
+	clientCmd, err := configLoadRules.Load()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to load kubeconfig")
+	}
+	return clientCmd, nil
+}
+
+// ResolveNamespace returns the namespace by the following order:
+// 1. If namespace is passed as an argument, use that
+// 2. If namespace is passed as an environment variable, use that
+// 3. Alternatively, use "this" namespace (where the pod is running)
+func ResolveNamespace(namespaceArgument string, defaultEnvVarKey string) string {
+	// if the namespace was passed in the arguments, use that
+	if namespaceArgument != "" {
+		return namespaceArgument
+	}
+
+	// if the namespace exists in env, use that, else, assume "this" namespace
+	return ResolveDefaultNamespace(GetEnvOrDefaultString(defaultEnvVarKey, "@nuclio.selfNamespace"))
+}
+
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func ResolveDefaultNamespace(defaultNamespace string) string {
-	switch defaultNamespace {
+func ResolveDefaultNamespace(namespace string) string {
+
+	defaultNamespace := "default"
+	switch namespace {
 	case "@nuclio.selfNamespace":
 
-		// get namespace from within the pod. if found, return that
-		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-			return string(namespacePod)
+		// for k8s
+		if IsInKubernetesCluster() {
+			// get namespace from within the pod. if found, return that
+			if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+				return string(namespacePod)
+			}
+			return defaultNamespace
+		} else if RunningInContainer() {
+			// for local platform
+			return "nuclio"
 		}
-		return "default"
-	case "":
-		return "default"
-	default:
+
+		// for development
 		return defaultNamespace
+	case "":
+		return defaultNamespace
+	default:
+		return namespace
 	}
 }
 

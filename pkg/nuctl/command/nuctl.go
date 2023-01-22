@@ -136,10 +136,23 @@ func (rc *RootCommandeer) initialize() error {
 
 	// use default namespace by platform if specified
 	if rc.namespace == "" {
-		rc.namespace = rc.platform.ResolveDefaultNamespace(rc.namespace)
+		switch rc.platform.GetName() {
+		case common.KubePlatformName:
+			clientCmd, err := common.GetKubeConfigClientCmdByKubeconfigPath(common.GetKubeconfigPath(rc.KubeconfigPath))
+			if err != nil {
+				return errors.Wrap(err, "Failed to load kubeconfig")
+			}
+			rc.namespace = clientCmd.Contexts[clientCmd.CurrentContext].Namespace
+		case common.LocalPlatformName:
+			rc.namespace = "nuclio"
+		default:
+			rc.namespace = "nuclio"
+		}
 	}
 
-	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
+	rc.loggerInstance.DebugWith("Created platform",
+		"name", rc.platform.GetName(),
+		"namespace", rc.namespace)
 	return nil
 }
 

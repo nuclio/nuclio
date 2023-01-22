@@ -66,7 +66,6 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	path := request.Header.Get("x-nuclio-path")
 	functionName := request.Header.Get("x-nuclio-function-name")
 	invokeURL := request.Header.Get("x-nuclio-invoke-url")
-	invokeVia := tr.getInvokeVia(request.Header.Get("x-nuclio-invoke-via"))
 
 	// get namespace from request or use the provided default
 	functionNamespace := tr.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-namespace"))
@@ -101,7 +100,6 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Method:    request.Method,
 		Headers:   request.Header,
 		Body:      requestBody,
-		Via:       invokeVia,
 		URL:       invokeURL,
 		Timeout:   invokeTimeout,
 
@@ -132,21 +130,6 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	responseWriter.WriteHeader(invocationResult.StatusCode)
 	responseWriter.Write(invocationResult.Body) // nolint: errcheck
-}
-
-func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.InvokeViaType {
-	switch invokeViaName {
-	// erd: For now, if the UI asked for external IP, force using "via any". "Any" should try external IP
-	// and then domain name, which is better
-	// case "external-ip":
-	// 	 return platform.InvokeViaExternalIP
-	case "loadbalancer":
-		return platform.InvokeViaLoadBalancer
-	case "domain-name":
-		return platform.InvokeViaDomainName
-	default:
-		return platform.InvokeViaAny
-	}
 }
 
 func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWriter, statusCode int) {

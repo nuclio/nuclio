@@ -32,10 +32,10 @@ import (
 type HealthCheckMode string
 
 const (
-	// health check should be performed by an internal client
+	// HealthCheckModeInternalClient health check is performed by an internal client
 	HealthCheckModeInternalClient HealthCheckMode = "internalClient"
 
-	// health check should be performed by an outside entity
+	// HealthCheckModeExternal health check is performed by an outside entity
 	HealthCheckModeExternal = "external"
 )
 
@@ -176,12 +176,6 @@ type Platform interface {
 
 	// GetName returns the platform name
 	GetName() string
-
-	// GetNodes returns a slice of nodes currently in the cluster
-	GetNodes() ([]Node, error)
-
-	// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-	ResolveDefaultNamespace(string) string
 
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error

@@ -27,22 +27,6 @@ import (
 	"github.com/nuclio/errors"
 )
 
-func getNamespace(namespaceArgument string) string {
-
-	// if the namespace was passed in the arguments, use that
-	if namespaceArgument != "" {
-		return namespaceArgument
-	}
-
-	// if the namespace exists in env, use that
-	if namespaceEnv := os.Getenv("NUCLIO_DASHBOARD_NAMESPACE"); namespaceEnv != "" {
-		return namespaceEnv
-	}
-
-	// if nothing was passed, assume "this" namespace
-	return "@nuclio.selfNamespace"
-}
-
 func main() {
 	defaultOffline := os.Getenv("NUCLIO_DASHBOARD_OFFLINE") == "true"
 
@@ -89,11 +73,12 @@ func main() {
 	authConfigIguazioCacheTimeout := flag.String("auth-config-iguazio-cache-expiration-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_CACHE_EXPIRATION_TIMEOUT", "30s"), "Iguazio authentication cache expiration timeout (golang duration string)")
 
 	// get the namespace from args -> env -> default
-	*namespace = getNamespace(*namespace)
+	*namespace = common.ResolveNamespace(*namespace, "NUCLIO_DASHBOARD_NAMESPACE")
 
 	flag.Parse()
 
-	if err := app.Run(*listenAddress,
+	if err := app.Run(
+		*listenAddress,
 		*dockerKeyDir,
 		*defaultRegistryURL,
 		*defaultRunRegistryURL,

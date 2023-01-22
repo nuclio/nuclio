@@ -223,9 +223,8 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 * Headers:
     * `x-nuclio-function-name`: Function name (required)
     * `x-nuclio-function-namespace`: Namespace (required)
+    * `x-nuclio-invoke-url`: Function invocation url to use (required)
     * `x-nuclio-path`: The path to invoke the function with (can be empty to invoke with `/`)
-    * `x-nuclio-invoke-via`: One of `external-ip`, `loadbalancer` and `domain-name`
-    * `x-nuclio-invoke-url`: Function invocation url to use (if provided, overrides `x-nuclio-invoke-via` header)
     * `x-nuclio-invoke-timeout`: Function invocation request timeout (e.g.: `1s`)
     * Any other header is passed transparently to the function
 * Body: Raw body passed as is to the function

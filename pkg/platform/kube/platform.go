@@ -596,25 +596,6 @@ func (p *Platform) GetName() string {
 	return common.KubePlatformName
 }
 
-// GetNodes returns a slice of nodes currently in the cluster
-func (p *Platform) GetNodes() ([]platform.Node, error) {
-	var platformNodes []platform.Node
-
-	kubeNodes, err := p.consumer.KubeClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get nodes")
-	}
-
-	// iterate over nodes and convert to platform nodes
-	for _, kubeNode := range kubeNodes.Items {
-		platformNodes = append(platformNodes, &node{
-			Node: kubeNode,
-		})
-	}
-
-	return platformNodes, nil
-}
-
 // CreateProject creates a new project
 func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 
@@ -1118,32 +1099,6 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 		return externalIPAddress, nil
 	}
 
-	nodes, err := p.GetNodes()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get nodes")
-	}
-
-	// try to get an external IP address from one of the nodes. if that doesn't work,
-	// try to get an internal IP
-	for _, addressType := range []platform.AddressType{
-		platform.AddressTypeExternalIP,
-		platform.AddressTypeInternalIP,
-	} {
-
-		for _, node := range nodes {
-			for _, address := range node.GetAddresses() {
-				if address.Type == addressType {
-					externalIPAddress = append(externalIPAddress, address.Address)
-				}
-			}
-		}
-
-		// if we found addresses of a given type, return them
-		if len(externalIPAddress) != 0 {
-			return externalIPAddress, nil
-		}
-	}
-
 	// try to take from kube host as configured
 	kubeURL, err := url.Parse(p.consumer.KubeHost)
 	if err != nil {
@@ -1156,16 +1111,8 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 		}, nil
 	}
 
-	return nil, errors.New("No external addresses found")
-}
-
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-	if defaultNamespace == "" {
-		defaultNamespace = p.DefaultNamespace
-	}
-
-	return common.ResolveDefaultNamespace(defaultNamespace)
+	// return an empty string to maintain backwards compatibility
+	return []string{""}, nil
 }
 
 // GetNamespaces returns all the namespaces in the platform
@@ -1177,7 +1124,10 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			return nil, nuclio.WrapErrForbidden(err)
+
+			// if we're not allowed to list namespaces (e.g.: when nuclio is namespaced), return our
+			// default namespace (aka the namespace we're running in)
+			return []string{common.ResolveDefaultNamespace(p.DefaultNamespace)}, nil
 		}
 		return nil, errors.Wrap(err, "Failed to list namespaces")
 	}
@@ -1185,11 +1135,10 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	var namespaceNames []string
 
 	// put default namespace first in namespace list
-	defaultNamespace := p.ResolveDefaultNamespace("@nuclio.selfNamespace")
-	namespaceNames = append(namespaceNames, defaultNamespace)
+	namespaceNames = append(namespaceNames, p.DefaultNamespace)
 
 	for _, namespace := range namespaces.Items {
-		if namespace.Name != defaultNamespace {
+		if namespace.Name != p.DefaultNamespace {
 			namespaceNames = append(namespaceNames, namespace.Name)
 		}
 	}

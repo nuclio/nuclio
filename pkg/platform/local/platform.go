@@ -433,12 +433,6 @@ func (p *Platform) GetName() string {
 	return common.LocalPlatformName
 }
 
-func (p *Platform) GetNodes() ([]platform.Node, error) {
-
-	// just create a single node
-	return []platform.Node{&node{}}, nil
-}
-
 // CreateProject will create a new project
 func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 
@@ -631,17 +625,6 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
 	// return an empty string to maintain backwards compatibility
 	return []string{""}, nil
-}
-
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-
-	// if no default namespace is chosen, use "nuclio"
-	if defaultNamespace == "@nuclio.selfNamespace" || defaultNamespace == "" {
-		return "nuclio"
-	}
-
-	return defaultNamespace
 }
 
 // GetNamespaces returns all the namespaces in the platform
@@ -1269,7 +1252,7 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 
 	externalIPAddresses, err := p.GetExternalIPAddresses()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to get external IP addresses")
 	}
 
 	addresses, err := p.dockerClient.GetContainerIPAddresses(createFunctionResults.ContainerID)

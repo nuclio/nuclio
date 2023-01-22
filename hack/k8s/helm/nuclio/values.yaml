@@ -28,6 +28,11 @@ controller:
     pullPolicy: IfNotPresent
   resources: {}
 
+  # override the namespace in which the controller will be listening
+  # setting the value to a different namespace to where the controller is deployed to
+  # require deploying the entire helm chart while setting `rbac.crdAccessMode` to `cluster`
+  namespace: ""
+
   ## Node labels for pod assignment
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
   ##
@@ -429,7 +434,7 @@ rbac:
   # than the one in which it is installed
   # Likewise, for "namespaced", the controller won't be able to act on these nuclio resources in any
   # namespace other than the one in which it is installed
-  crdAccessMode: cluster
+  crdAccessMode: namespaced
 
 crd:
 

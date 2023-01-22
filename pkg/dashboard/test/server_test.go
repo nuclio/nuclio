@@ -711,7 +711,6 @@ func (suite *functionTestSuite) TestInvokeUnSuccessful() {
 		suite.Require().Equal(functionNamespace, createFunctionInvocationOptions.Namespace)
 		suite.Require().Equal(requestBody, createFunctionInvocationOptions.Body)
 		suite.Require().Equal(requestMethod, createFunctionInvocationOptions.Method)
-		suite.Require().Equal(platform.InvokeViaAny, createFunctionInvocationOptions.Via)
 		suite.Require().Equal("something-bad", createFunctionInvocationOptions.URL)
 
 		// dashboard will trim the first "/"
@@ -794,7 +793,6 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 		suite.Require().Equal(functionNamespace, createFunctionInvocationOptions.Namespace)
 		suite.Require().Equal(requestBody, createFunctionInvocationOptions.Body)
 		suite.Require().Equal(requestMethod, createFunctionInvocationOptions.Method)
-		suite.Require().Equal(platform.InvokeViaAny, createFunctionInvocationOptions.Via)
 		suite.Require().Equal("something", createFunctionInvocationOptions.URL)
 		suite.Require().Equal(5*time.Minute, createFunctionInvocationOptions.Timeout)
 

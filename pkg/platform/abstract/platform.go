@@ -692,33 +692,7 @@ func (ap *Platform) CreateFunctionInvocation(ctx context.Context,
 		createFunctionInvocationOptions.Headers = http.Header{}
 	}
 
-	// get the function
-	functions, err := ap.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
-		Name:              createFunctionInvocationOptions.Name,
-		Namespace:         createFunctionInvocationOptions.Namespace,
-		AuthSession:       createFunctionInvocationOptions.AuthSession,
-		PermissionOptions: createFunctionInvocationOptions.PermissionOptions,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get functions")
-	}
-
-	if len(functions) == 0 {
-		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Function not found: %s @ %s",
-			createFunctionInvocationOptions.Name,
-			createFunctionInvocationOptions.Namespace))
-	}
-
-	// use the first function found (should always be one, but if there's more just use first)
-	function := functions[0]
-
-	// make sure to initialize the function (some underlying functions are lazy load)
-	if err := function.Initialize(ctx, nil); err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize function")
-	}
-
-	return ap.invoker.invoke(ctx, function, createFunctionInvocationOptions)
+	return ap.invoker.invoke(ctx, createFunctionInvocationOptions)
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires
@@ -926,16 +900,11 @@ func (ap *Platform) GetAllowedAuthenticationModes() []string {
 	return nil
 }
 
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-	return ""
-}
-
 // BuildAndPushContainerImage builds container image and pushes it into docker registry
 func (ap *Platform) BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return ap.ContainerBuilder.BuildAndPushContainerImage(ctx,
 		buildOptions,
-		ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
+		ap.DefaultNamespace)
 }
 
 // GetOnbuildStages get onbuild multistage builds
@@ -1102,12 +1071,10 @@ func (ap *Platform) GetProjectResources(ctx context.Context,
 }
 
 func (ap *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
-	resolvedNamespace := ap.platform.ResolveDefaultNamespace(ap.DefaultNamespace)
-
 	projects, err := ap.platform.GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      platform.DefaultProjectName,
-			Namespace: resolvedNamespace,
+			Namespace: ap.DefaultNamespace,
 		},
 	})
 	if err != nil {
@@ -1120,7 +1087,7 @@ func (ap *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
 		projectConfig := platform.ProjectConfig{
 			Meta: platform.ProjectMeta{
 				Name:      platform.DefaultProjectName,
-				Namespace: resolvedNamespace,
+				Namespace: ap.DefaultNamespace,
 			},
 			Spec: platform.ProjectSpec{},
 		}
@@ -1143,7 +1110,7 @@ func (ap *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
 
 		ap.Logger.DebugWithCtx(ctx, "Default project was successfully created",
 			"name", platform.DefaultProjectName,
-			"namespace", resolvedNamespace)
+			"namespace", ap.DefaultNamespace)
 	}
 
 	return nil
