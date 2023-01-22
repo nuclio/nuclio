@@ -48,7 +48,7 @@ func main() {
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the dashboard listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
-	platformType := flag.String("platform", "auto", "One of kube/local/auto")
+	platformType := flag.String("platform", common.AutoPlatformName, "One of kube/local/auto")
 	defaultRegistryURL := flag.String("registry", os.Getenv("NUCLIO_DASHBOARD_REGISTRY_URL"), "Default registry URL")
 	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_DASHBOARD_RUN_REGISTRY_URL"), "Default run registry URL")
 	noPullBaseImages := flag.Bool("no-pull", common.GetEnvOrDefaultBool("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES", false), "Whether to pull base images (Default: false)")

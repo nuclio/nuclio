@@ -47,6 +47,10 @@ func CreatePlatform(ctx context.Context,
 		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
 	}
 
+	platformType, err = GetPlatformByType(platformType, platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
+	}
 	switch platformType {
 	case common.LocalPlatformName:
 		newPlatform, err = local.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace)
@@ -54,36 +58,47 @@ func CreatePlatform(ctx context.Context,
 	case common.KubePlatformName:
 		newPlatform, err = kube.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace)
 
-	case "auto":
-
-		// kubeconfig path is set, or running in kubernetes cluster
-		if common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath) != "" ||
-			common.IsInKubernetesCluster() {
-
-			// call again, but force kube
-			newPlatform, err = CreatePlatform(ctx, parentLogger, common.KubePlatformName, platformConfiguration, defaultNamespace)
-		} else {
-
-			// call again, force local
-			newPlatform, err = CreatePlatform(ctx, parentLogger, common.LocalPlatformName, platformConfiguration, defaultNamespace)
-		}
-
 	default:
+
+		// should not get here. see how GetPlatformByType ensures platformType can be only one of the above
 		return nil, errors.Errorf("Can't create platform - unsupported: %s", platformType)
 	}
 
+	// check platform creation error
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create %s platform", platformType)
 	}
 
-	// under this section, add actions to be performed only after platform type had been resolved
-	// (so it won't be performed more than once)
-	if platformType != "auto" {
-		parentLogger.DebugWithCtx(ctx, "Initializing platform", "platformType", platformType)
-		if err = newPlatform.Initialize(ctx); err != nil {
-			return nil, errors.Wrap(err, "Failed to initialize platform")
-		}
+	parentLogger.DebugWithCtx(ctx,
+		"Initializing platform",
+		"platformName", newPlatform.GetName())
+	if err = newPlatform.Initialize(ctx); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize platform")
 	}
 
 	return newPlatform, nil
+}
+
+func GetPlatformByType(platformType string,
+	platformConfiguration *platformconfig.Config) (string, error) {
+
+	switch platformType {
+	case common.LocalPlatformName:
+		return common.LocalPlatformName, nil
+
+	case common.KubePlatformName:
+		return common.KubePlatformName, nil
+
+	case common.AutoPlatformName:
+
+		// kubeconfig path is set, or running in kubernetes cluster
+		if common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath) != "" ||
+			common.IsInKubernetesCluster() {
+			return common.KubePlatformName, nil
+		}
+		return common.LocalPlatformName, nil
+
+	default:
+		return "", errors.Errorf("Can't create platform - unsupported: %s", platformType)
+	}
 }

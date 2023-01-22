@@ -89,8 +89,11 @@ func NewPlatform(parentLogger logger.Logger,
 		platform:         platform,
 		Config:           platformConfiguration,
 		DeployLogStreams: &sync.Map{},
-		Scrubber: functionconfig.NewScrubber(platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
-			nil),
+		Scrubber: functionconfig.NewScrubber(
+			platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
+			nil, /* kubeClientSet */
+		),
+		DefaultNamespace: defaultNamespace,
 	}
 
 	// create invoker
@@ -98,8 +101,6 @@ func NewPlatform(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
-
-	newPlatform.DefaultNamespace = defaultNamespace
 
 	newPlatform.OpaClient = opa.CreateOpaClient(newPlatform.Logger, &platformConfiguration.Opa)
 
@@ -1477,7 +1478,7 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 
 	// NOTE: This is a temporary hack
 	// we perform a validation for project existence only, we want to make sure
-	// that the project exists so we set up the request origin as it came from a leader
+	// that the project exists, so we set up the request origin as it came from a leader
 	if ap.Config.ProjectsLeader != nil {
 		getProjectsOptions.RequestOrigin = ap.Config.ProjectsLeader.Kind
 	}
