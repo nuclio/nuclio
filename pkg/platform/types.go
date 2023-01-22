@@ -136,7 +136,7 @@ type CreateFunctionInvocationOptions struct {
 	// the function instance to invoke
 	FunctionInstance Function
 
-	// used from nuctl, to avoid validating the input url, which might be overriden when
+	// used from nuctl, to avoid validating the input url, which might be overridden when
 	// user provides explicit external ip address
 	SkipURLValidation bool
 }
