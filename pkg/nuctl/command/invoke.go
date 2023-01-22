@@ -203,7 +203,7 @@ func (i *invokeCommandeer) enrichOptionsForExternalIP(invocationURLs []string) e
 
 	// use last invocation url
 	// implementation detail: first url is the intra-cluster url, following urls are external urls
-	// the last url is the one that is most likely to be an in gress.
+	// the last url is the one that is most likely to be an ingress, if not, node port
 	i.createFunctionInvocationOptions.URL = invocationURLs[len(invocationURLs)-1]
 	return nil
 }

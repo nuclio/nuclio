@@ -29,8 +29,8 @@ controller:
   resources: {}
 
   # override the namespace in which the controller will be listening
-  # setting the value to a different namespace to where the controller is deployed to
-  # require deploying the entire helm chart while setting `rbac.crdAccessMode` to `cluster`
+  # use this value to make the controller work in a different namespace than the one it's deployed in.
+  # in addition, you'll need to set the `rbac.crdAccessMode` to `cluster`
   namespace: ""
 
   ## Node labels for pod assignment

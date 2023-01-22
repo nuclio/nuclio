@@ -1084,7 +1084,7 @@ func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptio
 		platformFunctionEvents)
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
