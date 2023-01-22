@@ -20,12 +20,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/platform"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
