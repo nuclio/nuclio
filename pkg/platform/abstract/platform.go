@@ -862,7 +862,7 @@ func (ap *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOpti
 	return nil, platform.ErrUnsupportedMethod
 }
 
-// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
+// SetExternalIPAddresses configures the IP addresses invocations will use.
 // If this is not invoked, each platform will try to discover these addresses automatically
 func (ap *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
 	ap.ExternalIPAddresses = externalIPAddresses
@@ -885,7 +885,7 @@ func (ap *Platform) RenderImageNamePrefixTemplate(projectName string, functionNa
 	})
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 	return ap.ExternalIPAddresses, nil

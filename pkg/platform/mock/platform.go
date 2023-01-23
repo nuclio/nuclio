@@ -250,15 +250,13 @@ func (mp *Platform) RenderImageNamePrefixTemplate(projectName string, functionNa
 	return args.Get(0).(string), args.Error(1)
 }
 
-// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
-// If this is not invoked, each platform will try to discover these addresses automatically
+// SetExternalIPAddresses configures the IP addresses invocations will use.
 func (mp *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
 	args := mp.Called(externalIPAddresses)
 	return args.Error(0)
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
-// These addresses are either set through SetExternalIPAddresses or automatically discovered
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 func (mp *Platform) GetExternalIPAddresses() ([]string, error) {
 	args := mp.Called()
 	return args.Get(0).([]string), args.Error(1)

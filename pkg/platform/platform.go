@@ -148,11 +148,11 @@ type Platform interface {
 	// Misc
 	//
 
-	// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
+	// SetExternalIPAddresses configures the IP addresses invocations will use.
 	// If this is not invoked, each platform will try to discover these addresses automatically
 	SetExternalIPAddresses(externalIPAddresses []string) error
 
-	// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+	// GetExternalIPAddresses returns the external IP addresses invocations will use.
 	// These addresses are either set through SetExternalIPAddresses or automatically discovered
 	GetExternalIPAddresses() ([]string, error)
 

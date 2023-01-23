@@ -599,7 +599,7 @@ func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *pl
 	return nil, nil
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
@@ -633,13 +633,14 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 }
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
-	addresses := []string{
-
-		// default internal docker network
-		"172.17.0.1",
-	}
+	var addresses []string
 
 	if common.RunningInContainer() {
+
+		// default internal docker network
+		addresses = append(addresses,
+			"172.17.0.1",
+		)
 
 		// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
 		dockerHostAddresses, err := net.LookupIP("host.docker.internal")
@@ -659,7 +660,7 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 			return nil, errors.Wrap(err, "Failed to get container network settings")
 		}
 
-		// docker gateway, usually 172.17.0.1
+		// docker gateway, possibly 172.17.0.1
 		addresses = append(addresses, networkSettings.Gateway)
 
 		// attach each network driver gateway
@@ -1280,6 +1281,15 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 				fmt.Sprintf("%s:%d", externalIPAddress, createFunctionResults.Port))
 		}
 	}
+
+	// when deploying and no external ip address was give, default to "unknown" destination 0.0.0.0
+	if createFunctionResults.Port != 0 && len(functionInvocation.ExternalInvocationURLs) == 0 {
+		functionInvocation.ExternalInvocationURLs = append(
+			functionInvocation.ExternalInvocationURLs,
+			fmt.Sprintf("0.0.0.0:%d", createFunctionResults.Port),
+		)
+	}
+
 	return nil
 }
 
