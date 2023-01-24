@@ -24,6 +24,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -205,6 +206,28 @@ func (i *invokeCommandeer) enrichOptionsForExternalIP(invocationURLs []string) e
 	// implementation detail: first url is the intra-cluster url, following urls are external urls
 	// the last url is the one that is most likely to be an ingress, if not, node port
 	i.createFunctionInvocationOptions.URL = invocationURLs[len(invocationURLs)-1]
+
+	// replace the host with the external ip address in case running from a container / cluster
+	// in which case that host's ip address is not accessible within the docker network / k8s cluster
+	if common.RunningInContainer() || common.IsInKubernetesCluster() {
+		parsedURL, err := url.Parse(i.createFunctionInvocationOptions.URL)
+		if err != nil {
+			return errors.Wrap(err, "Failed to parse invocation URL")
+		}
+
+		if common.StringSliceContainsString(
+			[]string{"localhost", "0.0.0.0", "127.0.0.1"}, parsedURL.Hostname()) {
+			externalIPAddress, err := i.rootCommandeer.platform.GetExternalIPAddresses()
+			if err != nil {
+				return errors.Wrap(err, "Failed to get external IP addresses")
+			}
+			i.rootCommandeer.loggerInstance.DebugWith("Overriding external IP address",
+				"currentExternalIPAddress", parsedURL.Hostname(),
+				"overridingExternalIPAddress", externalIPAddress)
+			parsedURL.Host = fmt.Sprintf("%s:%s", externalIPAddress[0], parsedURL.Port())
+
+		}
+	}
 	return nil
 }
 
