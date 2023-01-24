@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	detachcontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
@@ -143,7 +144,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	// imported functions have skip deploy annotation, set its state and bail
 	if functionconfig.ShouldSkipDeploy(function.Annotations) {
-		fo.logger.InfoWithCtx(ctx, "Skipping function deploy",
+		fo.logger.InfoWithCtx(ctx,
+			"Skipping function deploy",
 			"name", function.Name,
 			"state", function.Status.State,
 			"namespace", function.Namespace)
@@ -310,20 +312,25 @@ func (fo *functionOperator) setFunctionError(ctx context.Context,
 	functionErrorState functionconfig.FunctionState,
 	err error) error {
 
+	// context might timed out, but we still want to set the error,
+	// so we'll use a detached background context
+	detachedContext := detachcontext.NewDetached(ctx)
+
 	// whatever the error, try to update the function CR
-	fo.logger.WarnWithCtx(ctx, "Setting function error",
+	fo.logger.WarnWithCtx(detachedContext,
+		"Setting function error",
 		"functionErrorState", functionErrorState,
 		"functionName", function.Name,
 		"err", err)
 
-	if setStatusErr := fo.setFunctionStatus(ctx, function, &functionconfig.Status{
+	if setStatusErr := fo.setFunctionStatus(detachedContext, function, &functionconfig.Status{
 		Logs:                   function.Status.Logs,
 		State:                  functionErrorState,
 		Message:                errors.GetErrorStackString(err, 10),
 		InternalInvocationURLs: []string{},
 		ExternalInvocationURLs: []string{},
 	}); setStatusErr != nil {
-		fo.logger.WarnWithCtx(ctx,
+		fo.logger.WarnWithCtx(detachedContext,
 			"Failed to update function on error",
 			"setStatusErr", errors.Cause(setStatusErr))
 	}

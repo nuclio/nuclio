@@ -24,6 +24,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -110,19 +111,41 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 				return errors.New("Invalid logger level name. Must be one of none / debug / info / warn / error")
 			}
 
+			// enrich request with function
+			if err := commandeer.createFunctionInvocationOptions.EnrichFunction(ctx, rootCommandeer.platform); err != nil {
+				return errors.Wrap(err, "Failed to enrich function invocation options")
+			}
+
+			// Implementation detail: first url is the intra-cluster url, following urls are external urls
+			invocationURLs := commandeer.createFunctionInvocationOptions.FunctionInstance.GetStatus().InvocationURLs()
+			if len(invocationURLs) == 0 {
+				return errors.New("Function has no invocation URLs")
+			}
+
 			// convert via
 			switch commandeer.invokeVia {
 			case "any":
-				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaAny
-				if commandeer.externalIPAddresses != "" {
-					commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaExternalIP
+
+				// if running with platform, invoke internally
+				if common.RunningInContainer() || common.IsInKubernetesCluster() {
+					commandeer.createFunctionInvocationOptions.URL = invocationURLs[0]
+					break
 				}
-			case "external-ip":
-				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaExternalIP
-			case "loadbalancer":
-				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaLoadBalancer
+
+				// default to external ip
+				if err := commandeer.enrichOptionsForExternalIP(invocationURLs); err != nil {
+					return errors.Wrap(err, "Failed to invoke via external IP")
+				}
+
+			case "external-ip", "loadbalancer":
+
+				// unified behavior for BC.
+				if err := commandeer.enrichOptionsForExternalIP(invocationURLs); err != nil {
+					return errors.Wrap(err, "Failed to invoke via external IP")
+				}
 			default:
-				return errors.New("Invalid via type - must be ingress / nodePort")
+				return errors.Errorf(`Unknown invocation method %s. Must be one of "any", "external-ip", "loadbalancer"`,
+					commandeer.invokeVia)
 			}
 
 			commandeer.createFunctionInvocationOptions.Timeout = commandeer.timeout
@@ -149,6 +172,72 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 	commandeer.cmd = cmd
 
 	return commandeer
+}
+
+func (i *invokeCommandeer) enrichOptionsForExternalIP(invocationURLs []string) error {
+	i.createFunctionInvocationOptions.SkipURLValidation = true
+
+	// provided external ip address,
+	if i.externalIPAddresses != "" {
+
+		// function has node port
+		if functionNodePort := i.createFunctionInvocationOptions.
+			FunctionInstance.
+			GetStatus().
+			HTTPPort; functionNodePort != 0 {
+			externalIPAddresses, err := i.rootCommandeer.platform.GetExternalIPAddresses()
+			if err != nil {
+				return errors.Wrap(err, "Failed to get external IP addresses")
+			}
+			i.createFunctionInvocationOptions.URL = fmt.Sprintf("%s:%d", externalIPAddresses[0],
+				functionNodePort)
+		} else {
+			return errors.New("Function has no node port and thus cannot be invoked externally " +
+				"while providing external ip addresses")
+		}
+		return nil
+	}
+
+	if len(invocationURLs) < 2 {
+		return errors.New("Function has no external invocation url")
+	}
+
+	// use last invocation url
+	// implementation detail: first url is the intra-cluster url, following urls are external urls
+	// the last url is the one that is most likely to be an ingress, if not, node port
+	i.createFunctionInvocationOptions.URL = invocationURLs[len(invocationURLs)-1]
+
+	// replace the host with the external ip address in case running from a container / cluster
+	// in which case that host's ip address is not accessible within the docker network / k8s cluster
+	if common.RunningInContainer() || common.IsInKubernetesCluster() {
+
+		// parsing url requires us to add a scheme, adding one (it doesn't change the results)
+		urlToParse := i.createFunctionInvocationOptions.URL
+		if !strings.HasPrefix(urlToParse, "http") {
+			urlToParse = "https://" + urlToParse
+		}
+		parsedURL, err := url.Parse(urlToParse)
+		if err != nil {
+			return errors.Wrap(err, "Failed to parse invocation URL")
+		}
+
+		if common.StringSliceContainsString(
+			[]string{"localhost", "0.0.0.0", "127.0.0.1"}, parsedURL.Hostname()) {
+			externalIPAddress, err := i.rootCommandeer.platform.GetExternalIPAddresses()
+			if err != nil {
+				return errors.Wrap(err, "Failed to get external IP addresses")
+			}
+			i.rootCommandeer.loggerInstance.DebugWith("Overriding external IP address",
+				"currentExternalIPAddress", parsedURL.Hostname(),
+				"overridingExternalIPAddress", externalIPAddress)
+			i.createFunctionInvocationOptions.URL = fmt.Sprintf("%s:%s",
+				externalIPAddress[0],
+				parsedURL.Port(),
+			)
+
+		}
+	}
+	return nil
 }
 
 func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions,

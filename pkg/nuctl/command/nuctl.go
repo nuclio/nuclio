@@ -57,7 +57,7 @@ func NewRootCommandeer() *RootCommandeer {
 		SilenceErrors: true,
 	}
 
-	defaultPlatformType := common.GetEnvOrDefaultString("NUCTL_PLATFORM", "auto")
+	defaultPlatformType := common.GetEnvOrDefaultString("NUCTL_PLATFORM", common.AutoPlatformName)
 	defaultNamespace := os.Getenv("NUCTL_NAMESPACE")
 	ctx := context.Background()
 
@@ -122,6 +122,11 @@ func (rc *RootCommandeer) initialize() error {
 	// nuctl is a CLI tool, to enable function container healthiness, use Nuclio dashboard
 	rc.platformConfiguration.Local.FunctionContainersHealthinessEnabled = false
 
+	// resolve namespace
+	if err := rc.resolveDefaultNamespace(); err != nil {
+		return errors.Wrap(err, "Failed to resolve default namespace")
+	}
+
 	// ask the factory to create the appropriate platform
 	// TODO: as more platforms are supported, i imagine the last argument will be to some
 	// sort of configuration provider interface
@@ -134,12 +139,9 @@ func (rc *RootCommandeer) initialize() error {
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	// use default namespace by platform if specified
-	if rc.namespace == "" {
-		rc.namespace = rc.platform.ResolveDefaultNamespace(rc.namespace)
-	}
-
-	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
+	rc.loggerInstance.DebugWith("Created platform",
+		"name", rc.platform.GetName(),
+		"namespace", rc.namespace)
 	return nil
 }
 
@@ -160,4 +162,28 @@ func (rc *RootCommandeer) createLogger() (logger.Logger, error) {
 	}
 
 	return loggerInstance, nil
+}
+
+func (rc *RootCommandeer) resolveDefaultNamespace() error {
+
+	// if namespace is already set, use it
+	if rc.namespace != "" {
+		return nil
+	}
+	platformType, err := factory.GetPlatformByType(rc.platformName, rc.platformConfiguration)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get platform by type")
+	}
+
+	switch platformType {
+	case common.KubePlatformName:
+		clientCmd, err := common.GetKubeConfigClientCmdByKubeconfigPath(common.GetKubeconfigPath(rc.KubeconfigPath))
+		if err != nil {
+			return errors.Wrap(err, "Failed to load kubeconfig")
+		}
+		rc.namespace = clientCmd.Contexts[clientCmd.CurrentContext].Namespace
+	default:
+		rc.namespace = "nuclio"
+	}
+	return nil
 }

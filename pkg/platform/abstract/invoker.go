@@ -23,6 +23,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -33,29 +34,29 @@ import (
 )
 
 type invoker struct {
-	logger                          logger.Logger
-	platform                        platform.Platform
-	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions
+	logger   logger.Logger
+	platform platform.Platform
 }
 
 func newInvoker(parentLogger logger.Logger, platform platform.Platform) (*invoker, error) {
-	newinvoker := &invoker{
+	return &invoker{
 		logger:   parentLogger.GetChild("invoker"),
 		platform: platform,
-	}
-
-	return newinvoker, nil
+	}, nil
 }
 
 func (i *invoker) invoke(ctx context.Context,
-	function platform.Function,
 	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (
 	*platform.CreateFunctionInvocationResult, error) {
 
-	// save options
-	i.createFunctionInvocationOptions = createFunctionInvocationOptions
+	// enrich function instance
+	if createFunctionInvocationOptions.FunctionInstance == nil {
+		if err := createFunctionInvocationOptions.EnrichFunction(ctx, i.platform); err != nil {
+			return nil, errors.Wrap(err, "Failed to resolve function")
+		}
+	}
 
-	invokeURL, err := i.resolveInvokeURL(ctx, function, createFunctionInvocationOptions)
+	invokeURL, err := i.resolveInvokeURL(ctx, createFunctionInvocationOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve invocation url")
 	}
@@ -84,7 +85,7 @@ func (i *invoker) invoke(ctx context.Context,
 
 	// set headers
 	req.Header = createFunctionInvocationOptions.Headers
-	req.Header.Set("x-nuclio-target", function.GetConfig().Meta.Name)
+	req.Header.Set("x-nuclio-target", createFunctionInvocationOptions.FunctionInstance.GetConfig().Meta.Name)
 
 	// request logs from a given verbosity unless we're specified no logs should be returned
 	if createFunctionInvocationOptions.LogLevelName != "none" && req.Header.Get("x-nuclio-log-level") == "" {
@@ -98,7 +99,7 @@ func (i *invoker) invoke(ctx context.Context,
 		"bodyLength", len(createFunctionInvocationOptions.Body),
 		"headers", req.Header)
 
-	response, err := client.Do(req)
+	response, err := client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to send HTTP request")
 	}
@@ -121,22 +122,25 @@ func (i *invoker) invoke(ctx context.Context,
 }
 
 func (i *invoker) resolveInvokeURL(ctx context.Context,
-	function platform.Function,
 	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (string, error) {
-	if createFunctionInvocationOptions.URL != "" {
 
-		// validate given url, must matching one of the function status invocation urls
+	if createFunctionInvocationOptions.URL == "" {
+		return "", errors.New("Invocation URL is required")
+	}
+	function := createFunctionInvocationOptions.FunctionInstance
+
+	// validate given url, must match one of the function status invocation urls
+	if !createFunctionInvocationOptions.SkipURLValidation {
 		if !common.StringSliceContainsString(function.GetStatus().InvocationURLs(),
 			createFunctionInvocationOptions.URL) {
-			i.logger.WarnWithCtx(ctx, "Invocation URL does not match any of function status invocation urls",
+			i.logger.WarnWithCtx(ctx,
+				"Invocation URL does not match any of function status invocation urls",
 				"url", createFunctionInvocationOptions.URL,
 				"invocationURLs", function.GetStatus().InvocationURLs())
 			return "", nuclio.NewErrBadRequest(fmt.Sprintf("Invalid function url %s",
 				createFunctionInvocationOptions.URL))
 		}
-		return createFunctionInvocationOptions.URL, nil
 	}
 
-	// get where the function resides
-	return function.GetInvokeURL(ctx, createFunctionInvocationOptions.Via)
+	return strings.TrimRight(createFunctionInvocationOptions.URL, "/"), nil
 }

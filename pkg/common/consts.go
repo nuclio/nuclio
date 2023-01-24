@@ -44,6 +44,7 @@ const NuclioResourceLabelKeyVolumeName = "nuclio.io/volume-name"
 const KubernetesDomainLevelMaxLength = 63
 
 const (
+	AutoPlatformName  = "auto"
 	KubePlatformName  = "kube"
 	LocalPlatformName = "local"
 )

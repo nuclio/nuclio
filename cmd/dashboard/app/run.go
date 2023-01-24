@@ -351,7 +351,7 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 		webServerConfiguration,
 		getDefaultCredRefreshInterval(rootLogger, createDashboardServerOptions.defaultCredRefreshIntervalString),
 		splitExternalIPAddresses,
-		platformInstance.ResolveDefaultNamespace(createDashboardServerOptions.defaultNamespace),
+		createDashboardServerOptions.defaultNamespace,
 		createDashboardServerOptions.offline,
 		functionTemplatesRepository,
 		createDashboardServerOptions.platformConfiguration,

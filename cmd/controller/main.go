@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/controller/app"
@@ -62,17 +61,8 @@ func main() {
 
 	flag.Parse()
 
-	// get the namespace from args -> env -> default (*)
-	resolvedNamespace := getNamespace(*namespace)
-
-	// if the namespace is set to @nuclio.selfNamespace, use the namespace we're in right now
-	if resolvedNamespace == "@nuclio.selfNamespace" {
-
-		// get namespace from within the pod. if found, return that
-		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-			resolvedNamespace = string(namespacePod)
-		}
-	}
+	// get the namespace from args -> env -> default to self
+	resolvedNamespace := common.ResolveNamespace(*namespace, "NUCLIO_CONTROLLER_NAMESPACE")
 
 	if err := app.Run(*kubeconfigPath,
 		resolvedNamespace,
@@ -91,20 +81,4 @@ func main() {
 
 		os.Exit(1)
 	}
-}
-
-func getNamespace(namespaceArgument string) string {
-
-	// if the namespace was passed in the arguments, use that
-	if namespaceArgument != "" {
-		return namespaceArgument
-	}
-
-	// if the namespace exists in env, use that
-	if namespaceEnv := os.Getenv("NUCLIO_CONTROLLER_NAMESPACE"); namespaceEnv != "" {
-		return namespaceEnv
-	}
-
-	// if nothing was passed, listen on all namespaces
-	return "*"
 }

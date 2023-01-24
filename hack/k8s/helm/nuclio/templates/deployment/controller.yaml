@@ -62,9 +62,13 @@ spec:
         - name: NUCLIO_CONTROLLER_PLATFORM_CONFIGURATION_NAME
           value: {{ template "nuclio.platformConfigName" . }}
         {{- end}}
-        {{- if .Values.controller.namespace }}
         - name: NUCLIO_CONTROLLER_NAMESPACE
+        {{- if .Values.controller.namespace }}
           value: {{ .Values.controller.namespace | quote }}
+        {{- else if eq .Values.rbac.crdAccessMode "cluster" }}
+          value: "*"
+        {{- else }}
+          value: ""
         {{- end }}
         - name: NUCLIO_CONTROLLER_FUNCTION_MONITOR_INTERVAL
           value: {{ .Values.controller.monitoring.function.interval | quote }}

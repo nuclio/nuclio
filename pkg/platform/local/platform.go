@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -433,12 +434,6 @@ func (p *Platform) GetName() string {
 	return common.LocalPlatformName
 }
 
-func (p *Platform) GetNodes() ([]platform.Node, error) {
-
-	// just create a single node
-	return []platform.Node{&node{}}, nil
-}
-
 // CreateProject will create a new project
 func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
 
@@ -605,7 +600,7 @@ func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *pl
 	return nil, nil
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
@@ -622,7 +617,9 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
 	// If the testing environment variable is set - use that
 	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		return []string{os.Getenv("NUCLIO_TEST_HOST")}, nil
+
+		// remove quotes from the string
+		return []string{strings.Trim(os.Getenv("NUCLIO_TEST_HOST"), "\"")}, nil
 	}
 
 	if common.RunningInContainer() {
@@ -633,30 +630,20 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	return []string{""}, nil
 }
 
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-
-	// if no default namespace is chosen, use "nuclio"
-	if defaultNamespace == "@nuclio.selfNamespace" || defaultNamespace == "" {
-		return "nuclio"
-	}
-
-	return defaultNamespace
-}
-
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	return []string{"nuclio"}, nil
 }
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
-	addresses := []string{
-
-		// default internal docker network
-		"172.17.0.1",
-	}
+	var addresses []string
 
 	if common.RunningInContainer() {
+
+		// default internal docker network
+		addresses = append(addresses,
+			"172.17.0.1",
+		)
 
 		// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
 		dockerHostAddresses, err := net.LookupIP("host.docker.internal")
@@ -676,7 +663,7 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 			return nil, errors.Wrap(err, "Failed to get container network settings")
 		}
 
-		// docker gateway, usually 172.17.0.1
+		// docker gateway, possibly 172.17.0.1
 		addresses = append(addresses, networkSettings.Gateway)
 
 		// attach each network driver gateway
@@ -1269,7 +1256,7 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 
 	externalIPAddresses, err := p.GetExternalIPAddresses()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to get external IP addresses")
 	}
 
 	addresses, err := p.dockerClient.GetContainerIPAddresses(createFunctionResults.ContainerID)
@@ -1297,6 +1284,15 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 				fmt.Sprintf("%s:%d", externalIPAddress, createFunctionResults.Port))
 		}
 	}
+
+	// when deploying and no external ip address was give, default to "unknown" destination 0.0.0.0
+	if createFunctionResults.Port != 0 && len(functionInvocation.ExternalInvocationURLs) == 0 {
+		functionInvocation.ExternalInvocationURLs = append(
+			functionInvocation.ExternalInvocationURLs,
+			fmt.Sprintf("0.0.0.0:%d", createFunctionResults.Port),
+		)
+	}
+
 	return nil
 }
 
