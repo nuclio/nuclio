@@ -175,6 +175,7 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 }
 
 func (i *invokeCommandeer) enrichOptionsForExternalIP(invocationURLs []string) error {
+	i.createFunctionInvocationOptions.SkipURLValidation = true
 
 	// provided external ip address,
 	if i.externalIPAddresses != "" {
@@ -190,7 +191,6 @@ func (i *invokeCommandeer) enrichOptionsForExternalIP(invocationURLs []string) e
 			}
 			i.createFunctionInvocationOptions.URL = fmt.Sprintf("%s:%d", externalIPAddresses[0],
 				functionNodePort)
-			i.createFunctionInvocationOptions.SkipURLValidation = true
 		} else {
 			return errors.New("Function has no node port and thus cannot be invoked externally " +
 				"while providing external ip addresses")
@@ -210,7 +210,13 @@ func (i *invokeCommandeer) enrichOptionsForExternalIP(invocationURLs []string) e
 	// replace the host with the external ip address in case running from a container / cluster
 	// in which case that host's ip address is not accessible within the docker network / k8s cluster
 	if common.RunningInContainer() || common.IsInKubernetesCluster() {
-		parsedURL, err := url.Parse(i.createFunctionInvocationOptions.URL)
+
+		// parsing url requires us to add a scheme, adding one (it doesn't change the results)
+		urlToParse := i.createFunctionInvocationOptions.URL
+		if !strings.HasPrefix(urlToParse, "http") {
+			urlToParse = "https://" + urlToParse
+		}
+		parsedURL, err := url.Parse(urlToParse)
 		if err != nil {
 			return errors.Wrap(err, "Failed to parse invocation URL")
 		}
@@ -224,7 +230,10 @@ func (i *invokeCommandeer) enrichOptionsForExternalIP(invocationURLs []string) e
 			i.rootCommandeer.loggerInstance.DebugWith("Overriding external IP address",
 				"currentExternalIPAddress", parsedURL.Hostname(),
 				"overridingExternalIPAddress", externalIPAddress)
-			parsedURL.Host = fmt.Sprintf("%s:%s", externalIPAddress[0], parsedURL.Port())
+			i.createFunctionInvocationOptions.URL = fmt.Sprintf("%s:%s",
+				externalIPAddress[0],
+				parsedURL.Port(),
+			)
 
 		}
 	}

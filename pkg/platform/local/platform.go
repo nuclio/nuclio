@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -616,7 +617,9 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
 	// If the testing environment variable is set - use that
 	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		return []string{os.Getenv("NUCLIO_TEST_HOST")}, nil
+
+		// remove quotes from the string
+		return []string{strings.Trim(os.Getenv("NUCLIO_TEST_HOST"), "\"")}, nil
 	}
 
 	if common.RunningInContainer() {
