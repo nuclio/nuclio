@@ -51,7 +51,7 @@ RUN pip download \
         --requirement /requirements/python3_8.txt
 
 # Supplies python 3.9 & common wheels
-FROM python:3.9 as python39-builder
+FROM gcr.io/iguazio/python:3.9 as python39-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 

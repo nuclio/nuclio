@@ -476,7 +476,7 @@ platform: {}
 #       ingressAnnotationKey: ingressAnnotationValue
 #   imageRegistryOverrides:
 #     baseImageRegistries:
-#       "python:3.7": "myregistry"
+#       "python:3.9": "myregistry"
 #     onbuildImageRegistries:
 #       "golang": "myregistry"
 #   functionReadinessTimeout: 120s

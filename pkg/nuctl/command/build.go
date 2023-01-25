@@ -112,7 +112,7 @@ func addBuildFlags(cmd *cobra.Command, functionBuild *functionconfig.Build, func
 	cmd.Flags().StringVarP(functionConfigPath, "file", "f", "", "Path to a function-configuration file")
 	cmd.Flags().StringVarP(&functionBuild.Image, "image", "i", "", "Name of a container image (default - the function name)")
 	cmd.Flags().StringVarP(&functionBuild.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of a container registry (env: NUCTL_REGISTRY)")
-	cmd.Flags().StringVarP(runtime, "runtime", "", "", "Runtime (for example, \"golang\", \"python:3.7\")")
+	cmd.Flags().StringVarP(runtime, "runtime", "", "", "Runtime (for example, \"golang\", \"python:3.9\")")
 	cmd.Flags().StringVarP(handler, "handler", "", "", "Name of a function handler")
 	cmd.Flags().BoolVarP(&functionBuild.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
 	cmd.Flags().BoolVarP(&functionBuild.NoCleanup, "no-cleanup", "", false, "Don't clean up temporary directories")
