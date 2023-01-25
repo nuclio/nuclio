@@ -67,9 +67,6 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	functionName := request.Header.Get("x-nuclio-function-name")
 	invokeURL := request.Header.Get("x-nuclio-invoke-url")
 
-	// for API backwards compatibility
-	invokeVia := request.Header.Get("x-nuclio-invoke-via")
-
 	// get namespace from request or use the provided default
 	functionNamespace := tr.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-namespace"))
 
@@ -105,7 +102,6 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Body:      requestBody,
 		URL:       invokeURL,
 		Timeout:   invokeTimeout,
-		Via:       invokeVia,
 
 		// auth & permissions
 		AuthSession: tr.getCtxSession(ctx),

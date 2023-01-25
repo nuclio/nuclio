@@ -130,10 +130,6 @@ type CreateFunctionInvocationOptions struct {
 	Timeout      time.Duration
 	URL          string
 
-	// Deprecated: Use URL instead.
-	// Remaining for backwards compatibility, if not empty, url will be enriched and used.
-	Via string
-
 	PermissionOptions opa.PermissionOptions
 	AuthSession       auth.Session
 

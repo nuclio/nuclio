@@ -538,7 +538,7 @@ lint: modules ensure-test-files-annotated
 		&& chmod +x $(GOPATH)/bin/impi)
 
 	@test -e $(GOPATH)/bin/golangci-lint || \
-	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.50.0)
+	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.50.1)
 
 	@echo Verifying imports...
 	$(GOPATH)/bin/impi \
