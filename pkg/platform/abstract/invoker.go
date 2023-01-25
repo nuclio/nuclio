@@ -57,8 +57,8 @@ func (i *invoker) invoke(ctx context.Context,
 	}
 
 	// for API backwards compatibility - enrich url in case it's not given
-	if createFunctionInvocationOptions.Via != "" && // nolint: staticcheck
-		createFunctionInvocationOptions.URL == "" {
+	if createFunctionInvocationOptions.URL == "" &&
+		len(createFunctionInvocationOptions.FunctionInstance.GetStatus().InvocationURLs()) > 0 {
 		invocationURL := createFunctionInvocationOptions.FunctionInstance.GetStatus().InvocationURLs()[0]
 		i.logger.DebugWithCtx(ctx,
 			"Using default invocation URL",
