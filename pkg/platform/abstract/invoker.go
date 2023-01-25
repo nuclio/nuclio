@@ -56,6 +56,16 @@ func (i *invoker) invoke(ctx context.Context,
 		}
 	}
 
+	// for API backwards compatibility - enrich url in case it's not given
+	if createFunctionInvocationOptions.Via != "" && // nolint: staticcheck
+		createFunctionInvocationOptions.URL == "" {
+		invocationURL := createFunctionInvocationOptions.FunctionInstance.GetStatus().InvocationURLs()[0]
+		i.logger.DebugWithCtx(ctx,
+			"Using default invocation URL",
+			"url", invocationURL)
+		createFunctionInvocationOptions.URL = invocationURL
+	}
+
 	invokeURL, err := i.resolveInvokeURL(ctx, createFunctionInvocationOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve invocation url")
