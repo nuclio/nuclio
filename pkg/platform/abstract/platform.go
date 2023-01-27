@@ -263,7 +263,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	// `python` is just an alias
 	if functionConfig.Spec.Runtime == "python" {
-		functionConfig.Spec.Runtime = "python:3.7"
+		functionConfig.Spec.Runtime = "python:3.9"
 	}
 
 	// enrich triggers
