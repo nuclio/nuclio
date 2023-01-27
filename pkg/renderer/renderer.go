@@ -24,7 +24,7 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nuclio/errors"
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 type Renderer struct {
