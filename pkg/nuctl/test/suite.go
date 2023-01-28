@@ -281,7 +281,7 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 	err = yaml.Unmarshal(functionBodyBytes, &function)
 	suite.Require().NoError(err)
 
-	suite.Assert().Equal(functionName, function.Meta.Name)
+	suite.Require().Equal(functionName, function.Meta.Name)
 	if imported {
 
 		// get imported functions

@@ -835,6 +835,6 @@ func (s *Status) DeepCopyInto(out *Status) {
 
 // ConfigWithStatus holds the config and status of a function
 type ConfigWithStatus struct {
-	Config
+	Config `json:",inline" yaml:",inline"`
 	Status Status `json:"status,omitempty"`
 }

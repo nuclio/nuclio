@@ -47,8 +47,8 @@ var restrictedNameRegex = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
 var containerIDRegex = regexp.MustCompile(`^[\w+-\.]+$`)
 
 // loose regexes, today just prohibit whitespaces
-var restrictedBuildArgRegex = regexp.MustCompile(`^[\S]+$`)
-var volumeNameRegex = regexp.MustCompile(`^[\S]+$`)
+var restrictedBuildArgRegex = regexp.MustCompile(`^\S+$`)
+var volumeNameRegex = regexp.MustCompile(`^\S+$`)
 
 // this is an open issue https://github.com/kubernetes/kubernetes/issues/53201#issuecomment-534647130
 // taking the loose approach,
@@ -82,8 +82,8 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 		}
 	}
 
-	// verify
-	if _, err := newClient.GetVersion(false); err != nil {
+	// verify docker client is available
+	if _, err := newClient.GetVersion(true); err != nil {
 		return nil, errors.Wrap(err, "No docker client found")
 	}
 
@@ -138,8 +138,11 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string,
 
 	// copy objects
 	for objectImagePath, objectLocalPath := range objectsToCopy {
-		_, err = c.runCommand(nil, "docker cp %s:%s %s", containerID, objectImagePath, objectLocalPath)
-		if err != nil && !allowCopyErrors {
+		if _, err := c.runCommand(nil,
+			"docker cp %s:%s %s",
+			containerID,
+			objectImagePath,
+			objectLocalPath); err != nil && !allowCopyErrors {
 			return errors.Wrapf(err, "Can't copy %s:%s -> %s", containerID, objectImagePath, objectLocalPath)
 		}
 	}

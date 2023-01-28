@@ -181,6 +181,9 @@ func (rc *RootCommandeer) resolveDefaultNamespace() error {
 		if err != nil {
 			return errors.Wrap(err, "Failed to load kubeconfig")
 		}
+		if clientCmd.CurrentContext == "" {
+			return errors.New("Failed to get current context - is your kubeconfig points to a valid cluster?")
+		}
 		rc.namespace = clientCmd.Contexts[clientCmd.CurrentContext].Namespace
 	default:
 		rc.namespace = "nuclio"
