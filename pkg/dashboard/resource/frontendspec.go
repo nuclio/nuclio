@@ -247,6 +247,7 @@ func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []stri
 func (fsr *frontendSpecResource) resolveAutoScaleMetrics(inactivityWindowPresets []string) map[string]interface{} {
 	var supportedAutoScaleMetrics []functionconfig.AutoScaleMetric
 	windowSizePresets := inactivityWindowPresets
+	customMetricsEnabled := false
 	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
 		supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().SupportedAutoScaleMetrics
 		if len(supportedAutoScaleMetrics) == 0 {
@@ -255,11 +256,14 @@ func (fsr *frontendSpecResource) resolveAutoScaleMetrics(inactivityWindowPresets
 		if len(windowSizePresets) == 0 {
 			windowSizePresets = dashboardServer.GetPlatformConfiguration().GetDefaultWindowSizePresets()
 		}
+		autoScaleMetricsMode := dashboardServer.GetPlatformConfiguration().AutoScaleMetricsMode
+		customMetricsEnabled = autoScaleMetricsMode == platformconfig.AutoScaleMetricsModeCustom
 	}
 
 	return map[string]interface{}{
-		"metricPresets":     supportedAutoScaleMetrics,
-		"windowSizePresets": windowSizePresets,
+		"customMetricsEnabled": customMetricsEnabled,
+		"metricPresets":        supportedAutoScaleMetrics,
+		"windowSizePresets":    windowSizePresets,
 	}
 }
 

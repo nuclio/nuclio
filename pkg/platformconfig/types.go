@@ -105,6 +105,29 @@ const (
 	DisabledScaleToZeroMode ScaleToZeroMode = "disabled"
 )
 
+type AutoScaleMetricsMode string
+
+const (
+
+	// AutoScaleMetricsModeLegacy is the legacy mode, where CPU usage is used for scaling
+	AutoScaleMetricsModeLegacy AutoScaleMetricsMode = "legacy"
+
+	// AutoScaleMetricsModeCustom uses custom metrics for scaling
+	AutoScaleMetricsModeCustom AutoScaleMetricsMode = "custom"
+)
+
+func AutoScaleMetricsModeIsValid(autoScaleMode AutoScaleMetricsMode) bool {
+	for _, mode := range []AutoScaleMetricsMode{
+		AutoScaleMetricsModeLegacy,
+		AutoScaleMetricsModeCustom,
+	} {
+		if autoScaleMode == mode {
+			return true
+		}
+	}
+	return false
+}
+
 type AutoScale struct {
 	MetricName  string `json:"metricName,omitempty"`
 	TargetValue string `json:"targetValue,omitempty"`

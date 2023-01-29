@@ -2426,12 +2426,18 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 
 func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) ([]autosv2.MetricSpec, error) {
 
-	metricSpecs, err := lc.resolveMetricSpecs(function)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve metric specs")
-	}
-	if len(metricSpecs) > 0 {
-		return metricSpecs, nil
+	var metricSpecs []autosv2.MetricSpec
+
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().AutoScaleMetricsMode ==
+		platformconfig.AutoScaleMetricsModeCustom {
+
+		metricSpecs, err := lc.resolveMetricSpecs(function)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to resolve metric specs")
+		}
+		if len(metricSpecs) > 0 {
+			return metricSpecs, nil
+		}
 	}
 
 	// for backwards compatibility, if no custom metrics are specified, use targetCPU and default metric
