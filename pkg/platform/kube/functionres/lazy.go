@@ -2286,7 +2286,6 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
 					SecretName: secretName,
-					Optional:   &trueVal,
 				},
 			},
 		}
@@ -2325,12 +2324,23 @@ func (lc *lazyClient) getFlexVolumeSecretName(ctx context.Context, function *nuc
 		return "", errors.Wrap(err, "Failed to get secrets")
 	}
 
+	mostRecentSecretCreationTime := metav1.Time{}
+	secretName := ""
+
 	for _, secret := range secrets {
 		if secret.Labels[common.NuclioResourceLabelKeyVolumeName] == volumeName {
-			return secret.Name, nil
+			if secret.CreationTimestamp.After(mostRecentSecretCreationTime.Time) {
+				mostRecentSecretCreationTime = secret.CreationTimestamp
+				secretName = secret.Name
+			}
 		}
 	}
-	return "", errors.New("No secret found for volume")
+
+	if secretName == "" {
+		return "", errors.New("No secret found for volume")
+	}
+
+	return secretName, nil
 }
 
 // getSecretName returns the function secret name
@@ -2340,14 +2350,25 @@ func (lc *lazyClient) getFunctionSecretName(ctx context.Context, function *nucli
 		return "", errors.Wrap(err, "Failed to get secrets")
 	}
 
-	// find the function secret
+	mostRecentSecretCreationTime := metav1.Time{}
+	secretName := ""
+
+	// find the most recent function secret
 	for _, secret := range secrets {
-		if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
-			return secret.Name, nil
+		if !strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
+			if secret.CreationTimestamp.After(mostRecentSecretCreationTime.Time) {
+				mostRecentSecretCreationTime = secret.CreationTimestamp
+				secretName = secret.Name
+			}
 		}
 	}
 
-	return "", errors.New("Function secret not found")
+	if secretName == "" {
+		return "", errors.New("Function secret not found")
+	}
+
+	return secretName, nil
+
 }
 
 // getSecretName returns the secret name for either a function or a flex volume
@@ -2375,7 +2396,7 @@ func (lc *lazyClient) deleteFunctionSecrets(ctx context.Context, functionName, n
 	// function can have multiple secrets, in case a flex volume exists
 	// delete all of them
 	if err := lc.kubeClientSet.CoreV1().Secrets(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
 	}); err != nil {
 		lc.logger.WarnWithCtx(ctx,
 			"Failed to delete function secrets",

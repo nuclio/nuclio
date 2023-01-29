@@ -163,7 +163,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			functionconfig.FunctionStateScaledToZero,
 		}) {
 
-		// make sure this cycle isnt happening after a long run. we want to avoid another "create or update"
+		// make sure this cycle isn't happening after a long run. we want to avoid another "create or update"
 		// that happen as a side effect for updating the function status
 		if function.Status.ScaleToZero != nil &&
 			function.Status.ScaleToZero.LastScaleEventTime != nil &&

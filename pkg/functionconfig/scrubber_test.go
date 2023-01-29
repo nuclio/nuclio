@@ -350,7 +350,6 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 	for _, testCase := range []struct {
 		name                 string
 		functionName         string
-		projectName          string
 		volumeName           string
 		expectedResultPrefix string
 	}{
@@ -358,48 +357,41 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 		{
 			name:                 "FunctionSecret-Sanity",
 			functionName:         "my-function",
-			projectName:          "my-project",
-			expectedResultPrefix: "nuclio-secret-my-project-my-function",
+			expectedResultPrefix: "nuclio-my-function",
 		},
 		{
 			name:                 "FunctionSecret-FunctionNameWithTrailingDashes",
 			functionName:         "my-function-_",
-			projectName:          "my-project",
-			expectedResultPrefix: "nuclio-secret-my-project-my-function",
+			expectedResultPrefix: "nuclio-my-function",
 		},
 		{
 			name:                 "FunctionSecret-LongFunctionName",
 			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
-			projectName:          "my-project",
-			expectedResultPrefix: "nuclio-secret-my-project-my-function-with-a-very-long-n", // nolint: misspell
+			expectedResultPrefix: "nuclio-my-function-with-a-very-long-name-which-is-more", // nolint: misspell
 		},
 
 		// Flex volume secret names
 		{
 			name:                 "VolumeSecret-Sanity",
 			functionName:         "my-function",
-			projectName:          "my-project",
 			volumeName:           "my-volume",
-			expectedResultPrefix: "nuclio-flexvolume-my-project-my-function-my-volume",
+			expectedResultPrefix: "nuclio-flexvolume-my-function-my-volume",
 		},
 		{
 			name:                 "VolumeSecret-VolumeNameWithTrailingDashes",
 			functionName:         "my-function",
-			projectName:          "my-project",
 			volumeName:           "my-volume----",
-			expectedResultPrefix: "nuclio-flexvolume-my-project-my-function-my-volume",
+			expectedResultPrefix: "nuclio-flexvolume-my-function-my-volume",
 		},
 		{
 			name:                 "VolumeSecret-LongFunctionName",
 			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
-			projectName:          "my-project",
 			volumeName:           "my-volume",
 			expectedResultPrefix: "nuclio-flexvolume-my-volume",
 		},
 		{
 			name:                 "VolumeSecret-LongVolumeName",
 			functionName:         "my-function",
-			projectName:          "my-project",
 			volumeName:           "my-volume-name-which-is-more-than-63-characters-long",
 			expectedResultPrefix: "nuclio-flexvolume-my-volume-name-which-is-more-than-63",
 		},
@@ -407,9 +399,9 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 		suite.Run(testCase.name, func() {
 			var secretName string
 			if testCase.volumeName == "" {
-				secretName = suite.scrubber.GenerateFunctionSecretName(testCase.functionName, testCase.projectName)
+				secretName = suite.scrubber.GenerateFunctionSecretName(testCase.functionName)
 			} else {
-				secretName = suite.scrubber.GenerateFlexVolumeSecretName(testCase.functionName, testCase.projectName, testCase.volumeName)
+				secretName = suite.scrubber.GenerateFlexVolumeSecretName(testCase.functionName, testCase.volumeName)
 			}
 			suite.logger.DebugWith("Generated secret name", "secretName", secretName)
 			suite.Require().True(strings.HasPrefix(secretName, testCase.expectedResultPrefix))

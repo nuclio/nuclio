@@ -38,7 +38,6 @@ import (
 const (
 	ReferencePrefix                  = "$ref:"
 	ReferenceToEnvVarPrefix          = "NUCLIO_B64_"
-	NuclioSecretNamePrefix           = "nuclio-secret"
 	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume"
 	SecretTypeFunctionConfig         = "nuclio.io/functionconfig"
 	SecretTypeV3ioFuse               = "v3io/fuse"
@@ -232,8 +231,8 @@ func (s *Scrubber) DecodeSecretData(secretData map[string][]byte) (map[string]st
 
 // GenerateFunctionSecretName generates a secret name for a function, in the form of:
 // `nuclio-secret-<project-name>-<function-name>-<unique-id>`
-func (s *Scrubber) GenerateFunctionSecretName(functionName, projectName string) string {
-	secretName := fmt.Sprintf("%s-%s-%s", NuclioSecretNamePrefix, projectName, functionName)
+func (s *Scrubber) GenerateFunctionSecretName(functionName string) string {
+	secretName := fmt.Sprintf("%s-%s", "nuclio", functionName)
 	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
 		secretName = secretName[:common.KubernetesDomainLevelMaxLength-8]
 	}
@@ -249,8 +248,8 @@ func (s *Scrubber) GenerateFunctionSecretName(functionName, projectName string) 
 
 // GenerateFlexVolumeSecretName generates a secret name for a flex volume, in the form of:
 // `nuclio-flex-volume-<volume-name>-<unique-id>`
-func (s *Scrubber) GenerateFlexVolumeSecretName(functionName, projectName, volumeName string) string {
-	secretName := fmt.Sprintf("%s-%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, projectName, functionName, volumeName)
+func (s *Scrubber) GenerateFlexVolumeSecretName(functionName, volumeName string) string {
+	secretName := fmt.Sprintf("%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, functionName, volumeName)
 
 	// if the secret name is too long, drop the function and project name
 	if len(secretName) > common.KubernetesDomainLevelMaxLength {
