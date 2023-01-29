@@ -120,13 +120,6 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
-	// restore function configuration from secret
-	restoredFunctionConfig, err := newProcessor.restoreFunctionConfig(&processorConfiguration.Config)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to restore function configuration")
-	}
-	processorConfiguration.Config = *restoredFunctionConfig
-
 	// for now, use the same logger for both the processor and user handler
 	newProcessor.functionLogger = newProcessor.logger
 	newProcessor.logger.InfoWith("Starting processor", "version", version.Get())
@@ -135,6 +128,13 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	newProcessor.logger.DebugWith("Read configuration",
 		"config", string(indentedProcessorConfiguration))
+
+	// restore function configuration from secret
+	restoredFunctionConfig, err := newProcessor.restoreFunctionConfig(&processorConfiguration.Config)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to restore function configuration")
+	}
+	processorConfiguration.Config = *restoredFunctionConfig
 
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration

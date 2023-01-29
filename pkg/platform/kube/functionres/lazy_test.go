@@ -278,6 +278,9 @@ func (suite *lazyTestSuite) TestNoChanges() {
 				common.NuclioResourceLabelKeyProjectName:  function.Labels["nuclio.io/project-name"],
 				common.NuclioResourceLabelKeyVolumeName:   volumeName,
 			},
+			CreationTimestamp: metav1.Time{
+				Time: time.Now(),
+			},
 		},
 	}, metav1.CreateOptions{})
 	suite.Require().NoError(err)

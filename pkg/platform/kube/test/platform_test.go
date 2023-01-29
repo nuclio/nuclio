@@ -847,7 +847,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 
 		for _, secret := range secrets {
 			secret := secret.Kubernetes
-			if strings.HasPrefix(secret.Name, functionconfig.NuclioSecretNamePrefix) {
+			if !strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
 
 				// decode data from secret
 				decodedSecretData, err := scrubber.DecodeSecretData(secret.Data)
@@ -878,7 +878,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 					"Got unknown secret",
 					"secretName", secret.Name,
 					"secretData", secret.Data)
-				suite.Failf("Got unknown secret. Secret name: %s\n", secret.Name)
+				suite.Failf("Got unknown secret", "Secret name: %s", secret.Name)
 			}
 
 		}
@@ -955,7 +955,7 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 		for _, secret := range secrets {
 			kubeSecret := secret.Kubernetes
 			switch {
-			case strings.HasPrefix(kubeSecret.Name, functionconfig.NuclioSecretNamePrefix):
+			case !strings.HasPrefix(kubeSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix):
 				functionSecretCounter++
 
 				// decode data from secret
@@ -992,7 +992,7 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 					"Got unknown secret",
 					"secretName", kubeSecret.Name,
 					"secretData", kubeSecret.Data)
-				suite.Failf("Got unknown secret. Secret name: %s\n", kubeSecret.Name)
+				suite.Failf("Got unknown secret.", "Secret name: %s", kubeSecret.Name)
 			}
 
 		}
