@@ -573,6 +573,10 @@ func (c *Config) PrepareFunctionForExport(noScrub bool) {
 	if !noScrub {
 		c.scrubFunctionData()
 	}
+
+	// resource version should not be exported anyway, as it's a k8s thing
+	c.Meta.ResourceVersion = ""
+
 	c.AddSkipAnnotations()
 }
 
@@ -592,9 +596,6 @@ func (c *Config) scrubFunctionData() {
 
 	// scrub namespace from function meta
 	c.Meta.Namespace = ""
-
-	// scrub resource version
-	c.Meta.ResourceVersion = ""
 
 	// remove secrets and passwords from triggers
 	newTriggers := c.Spec.Triggers
