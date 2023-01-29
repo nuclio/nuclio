@@ -3488,6 +3488,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		"basicAuth"
 	],
 	"autoScaleMetrics": {
+        "customMetricsEnabled": false,
 		"metricPresets": [
 			{
 				"metricName": "cpu",

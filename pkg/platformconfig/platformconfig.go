@@ -44,6 +44,7 @@ type Config struct {
 	ScaleToZero               ScaleToZero                      `json:"scaleToZero,omitempty"`
 	AutoScale                 AutoScale                        `json:"autoScale,omitempty"`
 	SupportedAutoScaleMetrics []functionconfig.AutoScaleMetric `json:"supportedAutoScaleMetrics,omitempty"`
+	AutoScaleMetricsMode      AutoScaleMetricsMode             `json:"autoScaleMetricsMode,omitempty"`
 	CronTriggerCreationMode   CronTriggerCreationMode          `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs  []LabelSelectorAndConfig         `json:"functionAugmentedConfigs,omitempty"`
 	FunctionReadinessTimeout  *string                          `json:"functionReadinessTimeout,omitempty"`
@@ -124,6 +125,11 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 
 	if config.ScaleToZero.MultiTargetStrategy == "" {
 		config.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
+	}
+
+	// fall back to legacy default
+	if !AutoScaleMetricsModeIsValid(config.AutoScaleMetricsMode) {
+		config.AutoScaleMetricsMode = AutoScaleMetricsModeLegacy
 	}
 
 	if config.StreamMonitoring.WebapiURL == "" {
