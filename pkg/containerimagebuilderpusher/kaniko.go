@@ -307,8 +307,9 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 					},
 					InitContainers: []v1.Container{
 						{
-							Name:  "fetch-bundle",
-							Image: k.builderConfiguration.BusyBoxImage,
+							Name:            "fetch-bundle",
+							Image:           k.builderConfiguration.BusyBoxImage,
+							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
 							Command: []string{
 								"/bin/sh",
 							},
@@ -403,8 +404,9 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 		createCacheRepo)
 
 	initContainer := v1.Container{
-		Name:  "create-repos",
-		Image: k.builderConfiguration.AWSCLIImage,
+		Name:            "create-repos",
+		Image:           k.builderConfiguration.AWSCLIImage,
+		ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
 		Command: []string{
 			"/bin/sh",
 		},
