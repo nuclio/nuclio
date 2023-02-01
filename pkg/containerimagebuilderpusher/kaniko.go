@@ -320,8 +320,9 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 						{
-							Name:  "extract-bundle",
-							Image: k.builderConfiguration.BusyBoxImage,
+							Name:            "extract-bundle",
+							Image:           k.builderConfiguration.BusyBoxImage,
+							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
 							Command: []string{
 								"tar",
 								"-xvf",
