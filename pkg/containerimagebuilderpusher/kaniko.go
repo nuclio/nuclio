@@ -520,7 +520,7 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context,
 		}
 
 		if runningJob.Status.Succeeded > 0 {
-			jobLogs, err := k.getJobPodLogs(ctx, namespace, jobName)
+			jobLogs, err := k.getJobPodLogs(ctx, jobName, namespace)
 			if err != nil {
 				k.logger.DebugWithCtx(ctx,
 					"Job was completed successfully but failed to retrieve job logs",
