@@ -33,7 +33,7 @@ env:
   NUCLIO_ARCH: amd64
 
 jobs:
-  build_and_scan_docker_images:
+  build_docker_images:
     name: Build docker images
     runs-on: ubuntu-latest
     steps:
@@ -58,6 +58,26 @@ jobs:
 
       - name: Save
         run: make save-docker-images
+
+      - name: Upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: nuclio-docker-images
+          path: nuclio-docker-images-*.tar.gz
+
+  scan_docker_images:
+    name: Scan docker images
+    runs-on: ubuntu-latest
+    needs: build_and_scan_docker_images
+    steps:
+      - name: Freeing up disk space
+        run: |
+          "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+
+      - name: Fetch nuclio docker images
+        uses: actions/download-artifact@v3
+        with:
+          name: nuclio-docker-images
 
       - name: Run Trivy vulnerability scanner in tarball mode
         uses: aquasecurity/trivy-action@master
