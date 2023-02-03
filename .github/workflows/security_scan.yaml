@@ -54,12 +54,7 @@ jobs:
           "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
       - name: Build
-        run: |
-          make docker-images
-
-      # Clean build leftovers
-      - name: Post build cleanup
-        run: docker system prune --force
+        run: make docker-images
 
       - name: Save
         run: make save-docker-images

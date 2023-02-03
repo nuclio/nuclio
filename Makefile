@@ -163,7 +163,7 @@ DOCKER_IMAGES_CACHE ?= \
 
 
 .PHONY: docker-images
-docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
+docker-images: $(DOCKER_IMAGES_RULES)
 	@echo Done.
 
 .PHONY: pull-image-cache
@@ -244,7 +244,7 @@ nuctl-bin: ensure-gopath
 	CGO_ENABLED=0 $(GO_BUILD_NUCTL) -o $(NUCLIO_PATH)/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 
 .PHONY: processor
-processor: ensure-gopath build-base
+processor: build-base
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
@@ -265,7 +265,7 @@ endif
 NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 .PHONY: controller
-controller: ensure-gopath build-base
+controller: build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
@@ -293,7 +293,7 @@ else
 endif
 
 .PHONY: dashboard
-dashboard: ensure-gopath build-base
+dashboard: build-base
 	docker build \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
 		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
@@ -316,7 +316,7 @@ endif
 NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 .PHONY: autoscaler
-autoscaler: ensure-gopath build-base
+autoscaler: build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
@@ -335,7 +335,7 @@ endif
 NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 .PHONY: dlx
-dlx: ensure-gopath build-base
+dlx: build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg GOARCH=$(NUCLIO_ARCH) \
@@ -693,7 +693,7 @@ test-k8s-functional:
 
 
 .PHONY: build-test
-build-test: ensure-gopath build-base
+build-test: build-base
 	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.23.8)
 	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
