@@ -82,7 +82,7 @@ jobs:
       - name: Run Trivy vulnerability scanner in tarball mode
         uses: aquasecurity/trivy-action@master
         with:
-          input: $${{ }}/nuclio-docker-images-$${{ env.NUCLIO_LABEL }}-${{ env.NUCLIO_ARCH }}.tar.gz
+          input: ${{ GITHUB_WORKSPACE }}/nuclio-docker-images-${{ env.NUCLIO_LABEL }}-${{ env.NUCLIO_ARCH }}.tar.gz
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
           ignore-unfixed: true
           output: 'trivy-results.sarif'
