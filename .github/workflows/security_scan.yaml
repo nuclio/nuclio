@@ -70,10 +70,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build_docker_images
     steps:
-      - name: Freeing up disk space
-        run: |
-          "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
-
       - name: Fetch nuclio docker images
         uses: actions/download-artifact@v3
         with:
