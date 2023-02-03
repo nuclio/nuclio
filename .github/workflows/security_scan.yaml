@@ -1,0 +1,94 @@
+# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Security Scan
+
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to scan'
+        required: false
+        default: ''
+      upload_sarif:
+        description: 'Upload SARIF (change to true to upload)'
+        required: false
+        default: 'false'
+
+env:
+  NUCLIO_LABEL: latest
+  NUCLIO_ARCH: amd64
+
+jobs:
+  build_and_scan_docker_images:
+    name: Build docker images
+    runs-on: ubuntu-latest
+    steps:
+
+      # checkout from development
+      - uses: actions/checkout@v3
+        if: github.event.inputs.pr_number == ''
+
+      # checkout from PR
+      - uses: actions/checkout@v3
+        if: github.event.inputs.pr_number != ''
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+
+      - name: Freeing up disk space
+        run: |
+          "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+
+      - name: Extract git branch
+        id: git_info
+        run: |
+          echo "name=branch::$(echo ${GITHUB_BASE_REF#refs/heads/})" >> $GITHUB_OUTPUT
+
+      - name: Resolve docker cache tag
+        id: docker_cache
+        run: |
+          export version_suffix=$(echo "${{ steps.git_info.outputs.branch }}" | grep -E "^[0-9]+\.[0-9]+\.x$" | tr -d '.')
+          export unstable_tag=$(if [ -z "$version_suffix" ]; then echo "unstable-cache"; else echo "unstable-cache-$version_suffix";fi)
+          echo "name=tag::$(echo $unstable_tag)" >> $GITHUB_OUTPUT
+
+      - name: Build
+        run: |
+          make docker-images
+        env:
+          NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
+          NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
+
+      # Clean build leftovers
+      - name: Post build cleanup
+        run: docker system prune --force
+
+      - name: Save
+        run: make save-docker-images
+
+      - name: Run Trivy vulnerability scanner in tarball mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          input: $${{ }}/nuclio-docker-images-$${{ env.NUCLIO_LABEL }}-${{ env.NUCLIO_ARCH }}.tar.gz
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          ignore-unfixed: true
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: github.event.inputs.upload_sarif != 'false'
+        with:
+          sarif_file: 'trivy-results.sarif'
