@@ -19,6 +19,7 @@ KUBECONFIG := $(if $(KUBECONFIG),$(KUBECONFIG),$(HOME)/.kube/config)
 
 # upstream repo
 NUCLIO_DOCKER_REPO ?= quay.io/nuclio
+NUCLIO_CACHE_REPO ?= ghcr.io/nuclio
 
 # dockerfile base image
 NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
@@ -54,6 +55,7 @@ NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
 NUCLIO_LABEL := $(if $(NUCLIO_LABEL),$(NUCLIO_LABEL),latest)
 NUCLIO_CACHE_LABEL := $(if $(NUCLIO_CACHE_LABEL),$(NUCLIO_CACHE_LABEL),unstable)
+
 NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 NUCLIO_PATH ?= $(shell pwd)
@@ -166,16 +168,16 @@ DOCKER_IMAGES_CACHE ?= \
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.
 
-.PHONY: pull-image-cache
-pull-image-cache:
-	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker pull $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
-	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_LABEL)
+.PHONY: pull-docker-images-cache
+pull-docker-images-cache:
+	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker pull $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_LABEL)
 	@echo Done
 
-.PHONY: push-image-cache
-push-image-cache:
-	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_LABEL) $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
-	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker push $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+.PHONY: push-docker-images-cache
+push-docker-images-cache:
+	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_LABEL) $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker push $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 	@echo Done
 
 .PHONY: tools
@@ -492,6 +494,7 @@ build-base: build-builder
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_CACHE_REPO)/nuclio/nuclio-base:$(NUCLIO_LABEL) \
 		--file hack/docker/build/base/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_LABEL) .
 	docker build \
@@ -501,6 +504,7 @@ build-base: build-builder
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_CACHE_REPO)/nuclio/nuclio-base-alpine:$(NUCLIO_LABEL) \
 		--file hack/docker/build/base-alpine/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/nuclio-base-alpine:$(NUCLIO_LABEL) .
 
@@ -512,6 +516,7 @@ build-builder:
 		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--build-arg NUCLIO_GO_PROXY=$(NUCLIO_GO_PROXY) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_CACHE_REPO)/nuclio/nuclio-builder:$(NUCLIO_LABEL) \
 		--file hack/docker/build/builder/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_LABEL) .
 

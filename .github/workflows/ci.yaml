@@ -27,6 +27,7 @@ on:
 
 env:
   REPO: quay.io
+  CACHE_REPO: ghcr.io
   REPO_NAME: nuclio
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
@@ -157,7 +158,7 @@ jobs:
       - name: Extract git branch
         id: git_info
         run: |
-          echo "name=branch::$(echo ${GITHUB_BASE_REF#refs/heads/})" >> $GITHUB_OUTPUT
+          echo "branch=$(echo ${GITHUB_BASE_REF#refs/heads/})" >> $GITHUB_OUTPUT
 
       - name: Resolve docker cache tag
         id: docker_cache
@@ -172,6 +173,7 @@ jobs:
         env:
           NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
           NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
+          NUCLIO_CACHE_REPO: ${{ env.CACHE_REPO }}/${{ env.REPO_NAME }}
 
       # Clean build leftovers
       - name: Post build cleanup
