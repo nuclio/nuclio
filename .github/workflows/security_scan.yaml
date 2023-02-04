@@ -114,3 +114,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
+          category: ${{ matrix.image_rule }}
