@@ -148,12 +148,11 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      # since github-actions gives us 14G only, and fills it up with some garbage
-      # we will free up some space for us (~2GB)
-      - name: Freeing up disk space
-        run: |
-          chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
-          "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+#      # since github-actions gives us 14G only, and fills it up with some garbage
+#      # we will free up some space for us (~2GB)
+#      - name: Freeing up disk space
+#        run: |
+#          "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
       - name: Extract git branch
         id: git_info

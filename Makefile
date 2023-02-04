@@ -170,15 +170,13 @@ docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 
 .PHONY: pull-docker-images-cache
 pull-docker-images-cache:
-	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker pull $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
-	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_LABEL)
-	@echo Done
+	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker pull $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_LABEL)
 
 .PHONY: push-docker-images-cache
 push-docker-images-cache:
-	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_LABEL) $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
-	@echo $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker push $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
-	@echo Done
+	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_LABEL) $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker push $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: tools
 tools: ensure-gopath nuctl
