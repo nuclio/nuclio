@@ -26,10 +26,6 @@ on:
         description: 'Image rules override (comma separated)'
         required: false
         default: ''
-      upload_sarif:
-        description: 'Upload SARIF (change to true to upload)'
-        required: false
-        default: 'false'
 
 env:
   NUCLIO_LABEL: latest
@@ -104,6 +100,5 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
-        if: github.event.inputs.upload_sarif != 'false'
         with:
           sarif_file: 'trivy-results.sarif'
