@@ -213,7 +213,6 @@ retag-docker-images: print-docker-images
 
 .PHONY: print-docker-images
 print-docker-images:
-	@echo "Nuclio Docker images:"
 	@for image in $(IMAGES_TO_PUSH); do \
 		echo $$image ; \
 	done

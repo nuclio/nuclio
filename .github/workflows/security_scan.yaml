@@ -91,7 +91,7 @@ jobs:
       - name: Get image name for ${{ matrix.image_rule }}
         id: get_image_name
         run: |
-          echo "image_name=$(make print-docker-images" >> $GITHUB_ENV
+          echo "image_name=$(make print-docker-images)" >> $GITHUB_ENV
         env:
           DOCKER_IMAGES_RULES: ${{ matrix.image_rule }}
 
