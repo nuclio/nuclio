@@ -213,13 +213,18 @@ retag-docker-images: print-docker-images
 
 .PHONY: print-docker-images
 print-docker-images:
+	@# env to determine whether to print only first image
+	$(eval PRINT_FIRST_IMAGE ?= false)
 	@for image in $(IMAGES_TO_PUSH); do \
 		echo $$image ; \
+		if [ "$(PRINT_FIRST_IMAGE)" = "true" ]; then \
+			break ; \
+		fi ; \
 	done
 
 
-.PHONY: print-docker-image-rules
-print-docker-image-rules:
+.PHONY: print-docker-image-rules-json
+print-docker-image-rules-json:
 	@/bin/echo -n "["
 	@for image in $(DOCKER_IMAGES_RULES); do \
 		/bin/echo -n "{\"image_rule\": \"$$image\"}" ; \
@@ -420,6 +425,10 @@ handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 
 ifneq ($(filter handler-builder-golang-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME))
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
+endif
+
+ifneq ($(filter handler-builder-golang-onbuild-alpine,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
 endif
 
