@@ -63,7 +63,7 @@ jobs:
           # then ensure "handler-builder-golang-onbuild-alpine" is there too.
           docker_image_rules_json=$(echo $docker_image_rules_json | \
             jq -c 'select(.[].image_rule=="handler-builder-golang-onbuild") += [{"image_rule":"handler-builder-golang-onbuild-alpine"}]')
-          echo "matrix={\"include\":$(echo docker_image_rules_json)}" >> $GITHUB_OUTPUT
+          echo "matrix={\"include\":$(echo $docker_image_rules_json)}" >> $GITHUB_OUTPUT
 
   build_and_scan_docker_images:
     name: Build & Scan
