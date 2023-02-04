@@ -218,6 +218,18 @@ print-docker-images:
 		echo $$image ; \
 	done
 
+
+.PHONY: print-docker-image-rules
+print-docker-image-rules:
+	@/bin/echo -n "["
+	@for image in $(DOCKER_IMAGES_RULES); do \
+		/bin/echo -n "{\"image_rule\": \"$$image\"}" ; \
+		if [ "$$image" != "$(lastword $(DOCKER_IMAGES_RULES))" ]; then \
+			/bin/echo -n "," ; \
+		fi ; \
+	done
+	@/bin/echo -n "]"
+
 #
 # Tools
 #

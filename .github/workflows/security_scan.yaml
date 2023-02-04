@@ -15,12 +15,15 @@
 
 name: Security Scan
 
-
 on:
   workflow_dispatch:
     inputs:
       pr_number:
         description: 'PR number to scan'
+        required: false
+        default: ''
+      image_rules_override:
+        description: 'Image rules override (comma separated)'
         required: false
         default: ''
       upload_sarif:
@@ -33,9 +36,40 @@ env:
   NUCLIO_ARCH: amd64
 
 jobs:
-  build_docker_images:
+  matrix_prep:
+    name: Prepare image list
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      # checkout from development
+      - uses: actions/checkout@v3
+        if: github.event.inputs.pr_number == ''
+
+      # checkout from PR
+      - uses: actions/checkout@v3
+        if: github.event.inputs.pr_number != ''
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+
+      - name: Overriding image rules
+        if: github.event.inputs.image_rules_override != ''
+        run:
+          echo "DOCKER_IMAGES_RULES=$(echo ${{ github.event.inputs.image_rules_override }} | tr ',' ' ')" >> $GITHUB_ENV
+
+      - name: print targets
+        id: set-matrix
+        run: |
+          echo "matrix={\"include\":$(make print-docker-image-rules | jq -c)}" >> $GITHUB_OUTPUT
+
+  build_and_scan_docker_images:
     name: Build docker images
     runs-on: ubuntu-latest
+    needs: matrix_prep
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix_prep.outputs.matrix) }}
     steps:
 
       # checkout from development
@@ -49,36 +83,22 @@ jobs:
           fetch-depth: 0
           ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
 
-      - name: Freeing up disk space
-        run: |
-          "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
-
-      - name: Build
+      - name: Build ${{ matrix.image_rule }} image
         run: make docker-images
+        env:
+          DOCKER_IMAGES_RULES: ${{ matrix.image_rule }}
 
-      - name: Save
-        run: make save-docker-images
-
-      - name: Upload
-        uses: actions/upload-artifact@v3
-        with:
-          name: nuclio-docker-images
-          path: nuclio-docker-images-*.tar.gz
-
-  scan_docker_images:
-    name: Scan docker images
-    runs-on: ubuntu-latest
-    needs: build_docker_images
-    steps:
-      - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v3
-        with:
-          name: nuclio-docker-images
+      - name: Get image name for ${{ matrix.image_rule }}
+        id: get_image_name
+        run: |
+          echo "image_name=$(make print-docker-images" >> $GITHUB_ENV
+        env:
+          DOCKER_IMAGES_RULES: ${{ matrix.image_rule }}
 
       - name: Run Trivy vulnerability scanner in tarball mode
         uses: aquasecurity/trivy-action@master
         with:
-          input: nuclio-docker-images-${{ env.NUCLIO_LABEL }}-${{ env.NUCLIO_ARCH }}.tar.gz
+          image-ref: ${{ steps.get_image_name.outputs.image_name }}
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
           ignore-unfixed: true
           output: 'trivy-results.sarif'
