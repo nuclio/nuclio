@@ -290,6 +290,9 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	commonIngressSpec.Name = kube.IngressNameFromAPIGatewayName(apiGateway.Name, canaryDeployment)
 
 	commonIngressSpec.Annotations = lc.resolveCommonAnnotations(canaryDeployment, upstream.Percentage)
+	for annotationKey, annotationValue := range apiGateway.Annotations {
+		commonIngressSpec.Annotations[annotationKey] = annotationValue
+	}
 	for annotationKey, annotationValue := range upstream.ExtraAnnotations {
 		commonIngressSpec.Annotations[annotationKey] = annotationValue
 	}

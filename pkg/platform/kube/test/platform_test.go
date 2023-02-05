@@ -1385,6 +1385,9 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		beforeUpdateHostValue := "before-update-host.com"
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = beforeUpdateHostValue
 		createAPIGatewayOptions.APIGatewayConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = map[string]string{
+			"some/annotation": "some-value",
+		}
 
 		// create
 		err := suite.Platform.CreateAPIGateway(suite.Ctx, createAPIGatewayOptions)
@@ -1408,6 +1411,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		suite.Require().Equal("ingress-manager", ingressInstance.Labels["nuclio.io/app"])
 		suite.Require().Equal(apiGatewayName, ingressInstance.Labels["nuclio.io/apigateway-name"])
 		suite.Require().Equal(projectName, ingressInstance.Labels["nuclio.io/project-name"])
+		suite.Require().Equal("some-value", ingressInstance.Annotations["some/annotation"])
 
 		// change host, update
 		afterUpdateHostValue := "after-update-host.com"
