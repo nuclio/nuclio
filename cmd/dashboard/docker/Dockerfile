@@ -37,14 +37,11 @@ RUN npm install -g gulp \
 #
 # Build binary stage: builds the dashboard binary
 #
-FROM $NUCLIO_DOCKER_REPO/nuclio-base:$NUCLIO_LABEL as build-binary
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_LABEL as build-binary
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
-ARG GOOS=linux
-ARG GOARCH=amd64
 
-# build the dashboard
-RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
+RUN go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
