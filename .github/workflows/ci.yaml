@@ -29,6 +29,7 @@ env:
   REPO: quay.io
   CACHE_REPO: ghcr.io
   REPO_NAME: nuclio
+  CACHE_REPO_NAME: ${{ github.event.repository.owner.login }}
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
   NUCLIO_GO_TEST_TIMEOUT: "30m"
@@ -173,7 +174,7 @@ jobs:
         env:
           NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
           NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
-          NUCLIO_CACHE_REPO: ${{ env.CACHE_REPO }}/${{ env.REPO_NAME }}
+          NUCLIO_CACHE_REPO: ${{ env.CACHE_REPO }}/${{ env.CACHE_REPO_NAME }}
 
       # Clean build leftovers
       - name: Post build cleanup
