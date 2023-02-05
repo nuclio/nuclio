@@ -33,6 +33,7 @@ env:
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
   NUCLIO_GO_TEST_TIMEOUT: "30m"
+  DOCKER_BUILDKIT: 1
 
 jobs:
 
