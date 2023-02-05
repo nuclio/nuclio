@@ -57,10 +57,6 @@ NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAUL
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 NUCLIO_PATH ?= $(shell pwd)
 
-.PHONY: add
-add:
-	@echo $(NUCLIO_DEFAULT_ARCH)
-
 NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\", \"label\": \"$(NUCLIO_LABEL)\"}
 
 # Dockerized tests variables - not available for changes
