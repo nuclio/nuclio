@@ -156,9 +156,7 @@ DOCKER_IMAGES_RULES ?= \
 	handler-builder-nodejs-onbuild
 
 DOCKER_IMAGES_CACHE ?= \
-	nuclio-builder \
-	nuclio-base \
-	nuclio-base-alpine
+	nuclio-builder
 
 
 .PHONY: docker-images
@@ -215,6 +213,13 @@ print-docker-images:
 		echo $$image ; \
 	done
 
+.PHONY: print-docker-images-cache
+print-docker-images-cache:
+	@echo "Nuclio Docker images cache:"
+	@for image in $(DOCKER_IMAGES_CACHE); do \
+		echo $(NUCLIO_CACHE_REPO)/$$image:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) ; \
+	done
+
 #
 # Tools
 #
@@ -253,6 +258,7 @@ processor: ensure-gopath build-base
 
 ifneq ($(filter processor,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG))
+$(eval DOCKER_IMAGES_CACHE += processor)
 endif
 
 #
@@ -277,6 +283,7 @@ controller: ensure-gopath build-base
 
 ifneq ($(filter controller,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += controller)
 endif
 
 # Dashboard
@@ -309,6 +316,7 @@ dashboard: ensure-gopath build-base
 
 ifneq ($(filter dashboard,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += dashboard)
 endif
 
 # Scaler
@@ -329,6 +337,7 @@ autoscaler: ensure-gopath build-base
 
 ifneq ($(filter autoscaler,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_SCALER_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += autoscaler)
 endif
 
 # Dlx
@@ -349,6 +358,7 @@ dlx: ensure-gopath build-base
 
 ifneq ($(filter dlx,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DLX_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += dlx)
 endif
 
 #
@@ -373,6 +383,7 @@ handler-builder-python-onbuild:
 
 ifneq ($(filter handler-builder-python-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += handler-builder-python-onbuild)
 endif
 
 # Go
@@ -409,6 +420,8 @@ handler-builder-golang-onbuild: build-base handler-builder-golang-onbuild-alpine
 ifneq ($(filter handler-builder-golang-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME))
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += handler-builder-golang-onbuild)
+$(eval DOCKER_IMAGES_CACHE += handler-builder-golang-onbuild-alpine)
 endif
 
 # NodeJS
@@ -426,6 +439,7 @@ handler-builder-nodejs-onbuild:
 
 ifneq ($(filter handler-builder-nodejs-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += handler-builder-nodejs-onbuild)
 endif
 
 # Ruby
@@ -443,6 +457,7 @@ handler-builder-ruby-onbuild:
 
 ifneq ($(filter handler-builder-ruby-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += handler-builder-ruby-onbuild)
 endif
 
 
@@ -462,6 +477,7 @@ handler-builder-dotnetcore-onbuild: processor
 
 ifneq ($(filter handler-builder-dotnetcore-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += handler-builder-dotnetcore-onbuild)
 endif
 
 # Java
@@ -479,6 +495,7 @@ handler-builder-java-onbuild:
 
 ifneq ($(filter handler-builder-java-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += handler-builder-java-onbuild)
 endif
 
 
