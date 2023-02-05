@@ -291,8 +291,6 @@ jobs:
         run: |
           make load-docker-images
           rm nuclio-docker-images*.tar.gz
-      
-      
 
       - name: Run nuctl docker tests
         run: |
