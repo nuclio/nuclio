@@ -160,7 +160,7 @@ DOCKER_IMAGES_CACHE ?= \
 
 
 .PHONY: docker-images
-docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
+docker-images: $(DOCKER_IMAGES_RULES)
 	@echo Done.
 
 .PHONY: pull-docker-images-cache
@@ -208,10 +208,15 @@ retag-docker-images: print-docker-images
 
 .PHONY: print-docker-images
 print-docker-images:
-	@echo "Nuclio Docker images:"
+	@# env to determine whether to print only first image
+	$(eval PRINT_FIRST_IMAGE ?= false)
 	@for image in $(IMAGES_TO_PUSH); do \
 		echo $$image ; \
+		if [ "$(PRINT_FIRST_IMAGE)" = "true" ]; then \
+			break ; \
+		fi ; \
 	done
+
 
 .PHONY: print-docker-images-cache
 print-docker-images-cache:
@@ -219,6 +224,19 @@ print-docker-images-cache:
 	@for image in $(DOCKER_IMAGES_CACHE); do \
 		echo $(NUCLIO_CACHE_REPO)/$$image:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) ; \
 	done
+
+
+.PHONY: print-docker-image-rules-json
+print-docker-image-rules-json:
+	@/bin/echo -n "["
+	@for image in $(DOCKER_IMAGES_RULES); do \
+		/bin/echo -n "{\"image_rule\": \"$$image\"}" ; \
+		if [ "$$image" != "$(lastword $(DOCKER_IMAGES_RULES))" ]; then \
+			/bin/echo -n "," ; \
+		fi ; \
+	done
+	@/bin/echo -n "]"
+
 
 #
 # Tools
@@ -246,7 +264,7 @@ nuctl-bin: ensure-gopath
 	CGO_ENABLED=0 $(GO_BUILD_NUCTL) -o $(NUCLIO_PATH)/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 
 .PHONY: processor
-processor: ensure-gopath build-base
+processor: build-base
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
@@ -269,7 +287,7 @@ endif
 NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 .PHONY: controller
-controller: ensure-gopath build-base
+controller: build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
@@ -299,7 +317,7 @@ else
 endif
 
 .PHONY: dashboard
-dashboard: ensure-gopath build-base
+dashboard: build-base
 	docker build \
 		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
 		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
@@ -323,7 +341,7 @@ endif
 NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 .PHONY: autoscaler
-autoscaler: ensure-gopath build-base
+autoscaler: build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
@@ -344,7 +362,7 @@ endif
 NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 .PHONY: dlx
-dlx: ensure-gopath build-base
+dlx: build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
@@ -422,6 +440,10 @@ $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NA
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
 $(eval DOCKER_IMAGES_CACHE += handler-builder-golang-onbuild)
 $(eval DOCKER_IMAGES_CACHE += handler-builder-golang-onbuild-alpine)
+endif
+
+ifneq ($(filter handler-builder-golang-onbuild-alpine,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
 endif
 
 # NodeJS
@@ -690,7 +712,7 @@ test-k8s-functional:
 
 
 .PHONY: build-test
-build-test: ensure-gopath build-base
+build-test: build-base
 	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.23.8)
 	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
