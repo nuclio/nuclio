@@ -16,11 +16,11 @@
 # Build stage: builds the dlx binary
 #
 
-ARG NUCLIO_LABEL
 ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.15
 ARG NUCLIO_DOCKER_REPO
+ARG NUCLIO_DOCKER_IMAGE_TAG
 
-FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_LABEL as build-dlx
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-dlx
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 

@@ -16,11 +16,11 @@
 # Build stage: builds the autoscaler binary
 #
 
-ARG NUCLIO_LABEL
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO
 ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.15
 
-FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_LABEL as build-autoscaler
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-autoscaler
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 

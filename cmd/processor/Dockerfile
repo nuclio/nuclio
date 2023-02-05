@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_LABEL
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO
 
-FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_LABEL as build-processor
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-processor
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 

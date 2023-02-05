@@ -16,7 +16,7 @@
 # Build assets stage: builds the dashboard assets (js, html, css, etc)
 #
 ARG NGINX_IMAGE=nginx
-ARG NUCLIO_LABEL
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG UHTTPC_ARCH=amd64
 ARG NUCLIO_DOCKER_ALPINE_IMAGE
 ARG NUCLIO_DOCKER_REPO
@@ -37,7 +37,7 @@ RUN npm install -g gulp \
 #
 # Build binary stage: builds the dashboard binary
 #
-FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_LABEL as build-binary
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-binary
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 

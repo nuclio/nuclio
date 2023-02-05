@@ -234,7 +234,7 @@ nuctl: ensure-gopath build-base
 		--volume $(GOPATH)/bin:/go/bin \
 		--env GOOS=$(NUCLIO_OS) \
 		--env GOARCH=$(NUCLIO_ARCH) \
-		$(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_LABEL) \
+		$(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_TAG) \
 		$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
 	@rm -f $(NUCTL_TARGET)
@@ -249,7 +249,7 @@ nuctl-bin: ensure-gopath
 processor: ensure-gopath build-base
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_CACHE_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
@@ -273,7 +273,7 @@ controller: ensure-gopath build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_CACHE_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
@@ -307,7 +307,7 @@ dashboard: ensure-gopath build-base
 		--build-arg NUCLIO_DOCKER_ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_CACHE_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file cmd/dashboard/docker/Dockerfile \
@@ -327,7 +327,7 @@ autoscaler: ensure-gopath build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_CACHE_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
@@ -348,7 +348,7 @@ dlx: ensure-gopath build-base
 	docker build \
 		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_CACHE_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
@@ -510,7 +510,7 @@ build-builder:
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_CACHE_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file hack/docker/build/builder/Dockerfile \
-		--tag $(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_LABEL) .
+		--tag $(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_TAG) .
 
 
 #
@@ -695,7 +695,7 @@ build-test: ensure-gopath build-base
 	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
         --build-arg GOARCH=$(NUCLIO_ARCH) \
-		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg DOCKER_CLI_ARCH=$(NUCLIO_DOCKER_CLIENT_ARCH) \
 		--build-arg DOCKER_CLI_VERSION=$(NUCLIO_DOCKER_CLIENT_VERSION) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
