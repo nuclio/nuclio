@@ -229,7 +229,7 @@ nuctl: ensure-gopath build-base
 		--volume $(GOPATH)/bin:/go/bin \
 		--env GOOS=$(NUCLIO_OS) \
 		--env GOARCH=$(NUCLIO_ARCH) \
-		$(NUCLIO_DOCKER_REPO)/nuclio-base:$(NUCLIO_LABEL) \
+		$(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_LABEL) \
 		$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
 	@rm -f $(NUCTL_TARGET)
@@ -247,6 +247,7 @@ processor: ensure-gopath build-base
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_CACHE_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file cmd/processor/Dockerfile \
 		--tag $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
 
@@ -269,6 +270,7 @@ controller: ensure-gopath build-base
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_CACHE_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file cmd/controller/Dockerfile \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -300,6 +302,7 @@ dashboard: ensure-gopath build-base
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_CACHE_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -319,6 +322,7 @@ autoscaler: ensure-gopath build-base
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_CACHE_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file cmd/autoscaler/Dockerfile \
 		--tag $(NUCLIO_DOCKER_SCALER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -338,6 +342,7 @@ dlx: ensure-gopath build-base
 		--build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--cache-from $(NUCLIO_CACHE_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file cmd/dlx/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DLX_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
