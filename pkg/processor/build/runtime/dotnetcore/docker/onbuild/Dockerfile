@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_LABEL=latest
-ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 
 # Supplies processor
-FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
+FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
 # Supplies wrapper and nuclio-sdk-dotnetcore
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 as builder

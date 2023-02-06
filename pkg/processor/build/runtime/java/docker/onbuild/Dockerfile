@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_LABEL=latest
-ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 
 # Supplies processor
-FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
+FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
 FROM gcr.io/iguazio/openjdk:11-slim as user-handler-builder
 
