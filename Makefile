@@ -51,7 +51,6 @@ endif
 NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
 NUCLIO_LABEL := $(if $(NUCLIO_LABEL),$(NUCLIO_LABEL),latest)
-NUCLIO_CACHE_LABEL := $(if $(NUCLIO_CACHE_LABEL),$(NUCLIO_CACHE_LABEL),unstable)
 
 NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
@@ -67,7 +66,8 @@ NUCLIO_DOCKER_TEST_TAG := nuclio/tester
 NUCLIO_DOCKER_LABELS = --label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
 
 NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
-NUCLIO_DOCKER_IMAGE_CACHE_TAG=$(NUCLIO_CACHE_LABEL)-$(NUCLIO_ARCH)
+NUCLIO_DOCKER_IMAGE_CACHE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG)-cache
+NUCLIO_DOCKER_IMAGE_CACHE_ALPINE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG)-alpine-cache
 
 # Link flags
 GO_LINK_FLAGS ?= -s -w
@@ -151,8 +151,7 @@ DOCKER_IMAGES_RULES ?= \
 	handler-builder-dotnetcore-onbuild \
 	handler-builder-nodejs-onbuild
 
-DOCKER_IMAGES_CACHE ?= \
-	nuclio-builder
+DOCKER_IMAGES_CACHE ?=
 
 
 .PHONY: docker-images
@@ -161,13 +160,11 @@ docker-images: $(DOCKER_IMAGES_RULES)
 
 .PHONY: pull-docker-images-cache
 pull-docker-images-cache:
-	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker pull $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
-	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_TAG)
+	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} echo docker pull {}
 
 .PHONY: push-docker-images-cache
 push-docker-images-cache:
-	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker tag $(NUCLIO_DOCKER_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_TAG) $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
-	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker push $(NUCLIO_CACHE_REPO)/{}:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker push {}
 
 .PHONY: tools
 tools: ensure-gopath nuctl
@@ -218,7 +215,7 @@ print-docker-images:
 print-docker-images-cache:
 	@echo "Nuclio Docker images cache:"
 	@for image in $(DOCKER_IMAGES_CACHE); do \
-		echo $(NUCLIO_CACHE_REPO)/$$image:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) ; \
+		echo $$image; \
 	done
 
 
@@ -272,7 +269,7 @@ processor: build-builder
 
 ifneq ($(filter processor,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG))
-$(eval DOCKER_IMAGES_CACHE += processor)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_CACHE_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG))
 endif
 
 #
@@ -281,6 +278,7 @@ endif
 
 # Controller
 NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME_CACHE=$(NUCLIO_CACHE_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: controller
 controller: build-builder
@@ -296,13 +294,14 @@ controller: build-builder
 		$(NUCLIO_DOCKER_LABELS) .
 
 ifneq ($(filter controller,$(DOCKER_IMAGES_RULES)),)
-$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += controller)
+$(eval IMAGES_TO_PUSH 		+= $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE 	+= $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME_CACHE))
 endif
 
 # Dashboard
-NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME    = $(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
-NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  ?= $(NUCLIO_ARCH)
+NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME    		= $(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE    = $(NUCLIO_CACHE_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  		?= $(NUCLIO_ARCH)
 
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.21.5-alpine
@@ -329,12 +328,13 @@ dashboard: build-builder
 		$(NUCLIO_DOCKER_LABELS) .
 
 ifneq ($(filter dashboard,$(DOCKER_IMAGES_RULES)),)
-$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += dashboard)
+$(eval IMAGES_TO_PUSH 		+= $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE 	+= $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE))
 endif
 
 # Scaler
 NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_SCALER_IMAGE_NAME_CACHE=$(NUCLIO_CACHE_REPO)/autoscaler:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: autoscaler
 autoscaler: build-builder
@@ -351,11 +351,12 @@ autoscaler: build-builder
 
 ifneq ($(filter autoscaler,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_SCALER_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += autoscaler)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_SCALER_IMAGE_NAME_CACHE))
 endif
 
 # Dlx
 NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_DLX_IMAGE_NAME_CACHE=$(NUCLIO_CACHE_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: dlx
 dlx: build-builder
@@ -372,7 +373,7 @@ dlx: build-builder
 
 ifneq ($(filter dlx,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DLX_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += dlx)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_DLX_IMAGE_NAME_CACHE))
 endif
 
 #
@@ -382,6 +383,8 @@ endif
 # Python
 NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
  $(NUCLIO_DOCKER_REPO)/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME_CACHE=\
+ $(NUCLIO_CACHE_REPO)/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 PIP_REQUIRE_VIRTUALENV=false
 
@@ -395,7 +398,7 @@ handler-builder-python-onbuild:
 
 ifneq ($(filter handler-builder-python-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += handler-builder-python-onbuild)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME_CACHE))
 endif
 
 # Go
@@ -404,6 +407,12 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
 
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
  $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
+
+NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME_CACHE=\
+ $(NUCLIO_CACHE_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
+
+NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME_CACHE=\
+ $(NUCLIO_CACHE_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_ALPINE_TAG)
 
 .PHONY: handler-builder-golang-onbuild-alpine
 handler-builder-golang-onbuild-alpine: build-builder
@@ -430,17 +439,21 @@ handler-builder-golang-onbuild: build-builder handler-builder-golang-onbuild-alp
 ifneq ($(filter handler-builder-golang-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME))
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += handler-builder-golang-onbuild)
-$(eval DOCKER_IMAGES_CACHE += handler-builder-golang-onbuild-alpine)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME_CACHE))
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME_CACHE))
 endif
 
 ifneq ($(filter handler-builder-golang-onbuild-alpine,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME_CACHE))
 endif
 
 # NodeJS
 NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME=\
  $(NUCLIO_DOCKER_REPO)/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+
+NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME_CACHE=\
+ $(NUCLIO_CACHE_REPO)/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: handler-builder-nodejs-onbuild
 handler-builder-nodejs-onbuild:
@@ -452,12 +465,15 @@ handler-builder-nodejs-onbuild:
 
 ifneq ($(filter handler-builder-nodejs-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += handler-builder-nodejs-onbuild)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME_CACHE))
 endif
 
 # Ruby
 NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME=\
  $(NUCLIO_DOCKER_REPO)/handler-builder-ruby-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+
+NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME_CACHE=\
+ $(NUCLIO_CACHE_REPO)/handler-builder-ruby-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: handler-builder-ruby-onbuild
 handler-builder-ruby-onbuild:
@@ -469,13 +485,15 @@ handler-builder-ruby-onbuild:
 
 ifneq ($(filter handler-builder-ruby-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += handler-builder-ruby-onbuild)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME_CACHE))
 endif
 
 
 # .NetCore
 NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=\
  $(NUCLIO_DOCKER_REPO)/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME_CACHE=\
+ $(NUCLIO_CACHE_REPO)/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
 
 .PHONY: handler-builder-dotnetcore-onbuild
@@ -488,12 +506,14 @@ handler-builder-dotnetcore-onbuild: processor
 
 ifneq ($(filter handler-builder-dotnetcore-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += handler-builder-dotnetcore-onbuild)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME_CACHE))
 endif
 
 # Java
 NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME=\
  $(NUCLIO_DOCKER_REPO)/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME_CACHE=\
+ $(NUCLIO_CACHE_REPO)/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: handler-builder-java-onbuild
 handler-builder-java-onbuild:
@@ -505,8 +525,13 @@ handler-builder-java-onbuild:
 
 ifneq ($(filter handler-builder-java-onbuild,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME))
-$(eval DOCKER_IMAGES_CACHE += handler-builder-java-onbuild)
+$(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME_CACHE))
 endif
+
+NUCLIO_DOCKER_BUILDER_IMAGE_NAME=\
+ $(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_TAG)
+NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE=\
+ $(NUCLIO_CACHE_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: build-builder
 build-builder:
@@ -514,9 +539,11 @@ build-builder:
 		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
 		--build-arg NUCLIO_BASE_IMAGE_TAG=$(NUCLIO_BASE_IMAGE_TAG) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
-		--cache-from $(NUCLIO_CACHE_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
+		--cache-from $(NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE) \
 		--file hack/docker/build/builder/Dockerfile \
-		--tag $(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_TAG) .
+		--tag $(NUCLIO_DOCKER_BUILDER_IMAGE_NAME) .
+
+$(eval DOCKER_IMAGES_CACHE += $(filter-out $(DOCKER_IMAGES_CACHE),$(NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE)))
 
 
 #
