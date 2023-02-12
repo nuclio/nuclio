@@ -23,8 +23,7 @@ FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-proces
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
 # Build the processor
-RUN CGO_ENABLED=0 \
-    go build \
+RUN go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
@@ -72,8 +71,7 @@ ONBUILD ARG NUCLIO_BUILD_OFFLINE
 ONBUILD RUN mv /moduler.sh . && sync && ./moduler.sh
 
 # Compile handler as plugin
-ONBUILD RUN CGO_ENABLED=0 \
-    go build \
+ONBUILD RUN go build \
     -mod=mod \
     -buildmode=plugin \
     -o /home/nuclio/bin/handler.so .
