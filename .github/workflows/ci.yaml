@@ -30,7 +30,6 @@ env:
   CACHE_REPO: ghcr.io
   REPO_NAME: nuclio
   CACHE_REPO_NAME: ${{ github.event.repository.owner.login }}
-  NUCLIO_CACHE_LABEL: unstable
   NUCLIO_LABEL: ${{ github.run_number }}
   NAMESPACE: nuclio
   NUCLIO_GO_TEST_TIMEOUT: "30m"
