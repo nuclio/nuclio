@@ -70,6 +70,7 @@ ONBUILD RUN mv /moduler.sh . && sync && ./moduler.sh
 # Compile handler as plugin
 ONBUILD RUN CGO_ENABLED=0 \
     go build \
+    -installsuffix cgo \
     -mod=mod \
     -buildmode=plugin \
     -o /home/nuclio/bin/handler.so .
