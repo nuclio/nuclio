@@ -15,13 +15,22 @@
 # Build the processor
 ARG NUCLIO_BASE_ALPINE_IMAGE_NAME
 ARG NUCLIO_BASE_ALPINE_IMAGE_TAG
-ARG NUCLIO_DOCKER_IMAGE_TAG
-ARG NUCLIO_DOCKER_REPO
 
-# Build the processor
-FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-processor
+# Build the plugin
+FROM ${NUCLIO_BASE_ALPINE_IMAGE_NAME}:${NUCLIO_BASE_ALPINE_IMAGE_TAG} as build-processor
+
+# Download required packages for plugin compilation
+RUN apk add --no-cache git gcc musl-dev file
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
+
+WORKDIR /processor-nuclio
+
+COPY go.* ./
+
+RUN go mod download
+
+COPY . .
 
 # Build the processor
 RUN CGO_ENABLED=0 \
@@ -29,9 +38,11 @@ RUN CGO_ENABLED=0 \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
-    -o /home/nuclio/bin/processor cmd/processor/main.go
+    -o /tmp/processor cmd/processor/main.go
 
 # Build the plugin
+ARG NUCLIO_BASE_ALPINE_IMAGE_NAME
+ARG NUCLIO_BASE_ALPINE_IMAGE_TAG
 FROM ${NUCLIO_BASE_ALPINE_IMAGE_NAME}:${NUCLIO_BASE_ALPINE_IMAGE_TAG}
 
 # Download required packages for plugin compilation
@@ -39,11 +50,11 @@ RUN apk upgrade --no-cache \
     && apk add --no-cache git gcc musl-dev file
 
 # Store processor binary
-COPY --from=build-processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+COPY --from=build-processor /tmp/processor /home/nuclio/bin/processor
 
 # Store processor go build artifacts
-COPY --from=build-processor /nuclio/go.mod /processor_go.mod
-COPY --from=build-processor /nuclio/go.sum /processor_go.sum
+COPY --from=build-processor /processor-nuclio/go.mod /processor_go.mod
+COPY --from=build-processor /processor-nuclio/go.sum /processor_go.sum
 
 # Copy the script that builds the plugin
 COPY pkg/processor/build/runtime/golang/docker/onbuild/moduler.sh /
@@ -68,9 +79,7 @@ ONBUILD ARG NUCLIO_BUILD_OFFLINE
 ONBUILD RUN mv /moduler.sh . && sync && ./moduler.sh
 
 # Compile handler as plugin
-ONBUILD RUN CGO_ENABLED=0 \
-    go build \
-    -installsuffix cgo \
+ONBUILD RUN go build \
     -mod=mod \
     -buildmode=plugin \
     -o /home/nuclio/bin/handler.so .
