@@ -68,7 +68,7 @@ ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} ./
 ONBUILD ARG NUCLIO_BUILD_OFFLINE
 
 # Run moduler to ensure go modules exists and downloaded
-ONBUILD RUN mv /moduler.sh . && chmod +x moduler.sh && sync && ./moduler.sh
+ONBUILD RUN mv /moduler.sh . && sync && ./moduler.sh
 
 # Compile handler as plugin
 ONBUILD RUN GOOS=linux GOARCH=amd64 go build -mod=mod -buildmode=plugin -o /home/nuclio/bin/handler.so .
