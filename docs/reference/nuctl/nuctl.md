@@ -19,7 +19,7 @@
 
 To install `nuctl`, simply visit the Nuclio [releases page](https://github.com/nuclio/nuclio/releases) and download the appropriate CLI binary for your environment (for example, **nuctl-&lt;version&gt;-darwin-amd64** for a machine running macOS).
 
-You can use the following command to download the latest `nuctl` release:
+You can use the following script to download the latest `nuctl` release:
 ```sh
 mkdir -p $HOME/bin
 cd $HOME/bin
