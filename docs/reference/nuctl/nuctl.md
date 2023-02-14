@@ -21,11 +21,14 @@ To install `nuctl`, simply visit the Nuclio [releases page](https://github.com/n
 
 You can use the following command to download the latest `nuctl` release:
 ```sh
+mkdir -p $HOME/bin
+cd $HOME/bin
 curl -s https://api.github.com/repos/nuclio/nuclio/releases/latest \
 			| grep -i "browser_download_url.*nuctl.*$(uname)" \
 			| cut -d : -f 2,3 \
 			| tr -d \" \
 			| wget -O nuctl -qi - && chmod +x nuctl
+cd -
 ```
 
 <a id="usage"></a>
