@@ -48,6 +48,7 @@ type Config struct {
 	CronTriggerCreationMode   CronTriggerCreationMode          `json:"cronTriggerCreationMode,omitempty"`
 	FunctionAugmentedConfigs  []LabelSelectorAndConfig         `json:"functionAugmentedConfigs,omitempty"`
 	FunctionReadinessTimeout  *string                          `json:"functionReadinessTimeout,omitempty"`
+	FunctionInvocationTimeout *string                          `json:"functionInvocationTimeout,omitempty"`
 	IngressConfig             IngressConfig                    `json:"ingressConfig,omitempty"`
 	Kube                      PlatformKubeConfig               `json:"kube,omitempty"`
 	Local                     PlatformLocalConfig              `json:"local,omitempty"`
@@ -64,6 +65,9 @@ type Config struct {
 
 	// stores the encoded FunctionReadinessTimeout as time.Duration
 	functionReadinessTimeout *time.Duration
+
+	// stores the encoded FunctionInvocationTimeout as time.Duration
+	functionInvocationTimeout *time.Duration
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {
@@ -123,6 +127,11 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.FunctionReadinessTimeout = &encodedReadinessTimeoutDuration
 	}
 
+	if config.FunctionInvocationTimeout == nil {
+		encodedInvocationTimeoutDuration := (DefaultFunctionInvocationTimeoutSeconds * time.Second).String()
+		config.FunctionInvocationTimeout = &encodedInvocationTimeoutDuration
+	}
+
 	if config.ScaleToZero.MultiTargetStrategy == "" {
 		config.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
 	}
@@ -145,6 +154,12 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		return nil, errors.Wrap(err, "Failed to parse function readiness timeout")
 	}
 	config.functionReadinessTimeout = &functionReadinessTimeout
+
+	functionInvocationTimeout, err := time.ParseDuration(*config.FunctionInvocationTimeout)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse function readiness timeout")
+	}
+	config.functionInvocationTimeout = &functionInvocationTimeout
 
 	config.SensitiveFields.CompileSensitiveFieldsRegex()
 
@@ -193,6 +208,17 @@ func (c *Config) GetDefaultFunctionReadinessTimeout() time.Duration {
 
 	// no configuration were explicitly given, return default
 	return DefaultFunctionReadinessTimeoutSeconds * time.Second
+}
+
+func (c *Config) GetDefaultFunctionInvocationTimeout() time.Duration {
+
+	// provided by the platform-c
+	if c.functionInvocationTimeout != nil {
+		return *c.functionInvocationTimeout
+	}
+
+	// no configuration were explicitly given, return default
+	return DefaultFunctionInvocationTimeoutSeconds * time.Second
 }
 
 func (c *Config) GetFunctionReadinessTimeoutOrDefault(functionReadinessTimeoutSeconds int) int {

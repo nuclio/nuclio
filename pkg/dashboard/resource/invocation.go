@@ -144,7 +144,7 @@ func (tr *invocationResource) writeErrorMessage(responseWriter io.Writer, messag
 
 func (tr *invocationResource) resolveInvokeTimeout(invokeTimeout string) (time.Duration, error) {
 	if invokeTimeout == "" {
-		return platform.FunctionInvocationDefaultTimeout, nil
+		return tr.getPlatform().GetConfig().GetDefaultFunctionInvocationTimeout(), nil
 	}
 	parsedDuration, err := time.ParseDuration(invokeTimeout)
 	if err != nil {

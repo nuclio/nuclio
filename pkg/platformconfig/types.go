@@ -31,7 +31,10 @@ import (
 	machinarymetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const DefaultFunctionReadinessTimeoutSeconds = 120
+const (
+	DefaultFunctionReadinessTimeoutSeconds  = 120
+	DefaultFunctionInvocationTimeoutSeconds = 60
+)
 
 type LoggerSinkKind string
 
