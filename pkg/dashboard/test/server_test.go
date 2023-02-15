@@ -734,6 +734,11 @@ func (suite *functionTestSuite) TestInvokeUnSuccessful() {
 		Return(&expectedInvokeResult, nuclio.NewErrBadRequest(errMessage)).
 		Once()
 
+	suite.mockPlatform.
+		On("GetConfig").
+		Return(&platformconfig.Config{}).
+		Once()
+
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{errMessage})
 
