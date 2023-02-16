@@ -20,7 +20,6 @@ package test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -627,7 +626,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 
 func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configPath, uniqueSuffix string,
 	functionNames, functionEventNames []string, apiGatewayNames []string) string {
-	file, err := ioutil.ReadFile(configPath)
+	file, err := os.ReadFile(configPath)
 	suite.Require().NoError(err)
 
 	projectImportConfig := &command.ProjectImportConfig{}
@@ -677,7 +676,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
-	tempFile, err := ioutil.TempFile("", "project-import.*.json")
+	tempFile, err := os.CreateTemp("", "project-import.*.json")
 	suite.Require().NoError(err)
 
 	_, err = tempFile.Write(projectConfigYaml)

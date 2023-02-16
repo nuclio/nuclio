@@ -19,7 +19,6 @@ package functionconfig
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/common"
 
@@ -46,7 +45,7 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 	var codeEntryConfigAsMap, configAsMap map[string]interface{}
 	var codeEntryConfig Config
 
-	bodyBytes, err := ioutil.ReadAll(reader)
+	bodyBytes, err := io.ReadAll(reader)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to read configuration file")

@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
@@ -630,7 +629,7 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	sourceFilePath := path.Join(tempDir, moduleFileName)
 
 	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
-	if err := ioutil.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644)); err != nil {
+	if err := os.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644)); err != nil {
 		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFilePath)
 	}
 
@@ -814,7 +813,7 @@ func (b *Builder) resolveUserSpecifiedWorkdir(mainDir string) (string, error) {
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 	// read the file once for logging
-	functionConfigContents, err := ioutil.ReadFile(functionConfigPath)
+	functionConfigContents, err := os.ReadFile(functionConfigPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read function configuration file")
 	}
@@ -910,7 +909,7 @@ func (b *Builder) createTempDir() error {
 		err = os.MkdirAll(b.tempDir, 0744)
 
 	} else {
-		b.tempDir, err = ioutil.TempDir("", "nuclio-build-")
+		b.tempDir, err = os.MkdirTemp("", "nuclio-build-")
 	}
 
 	if err != nil {
@@ -1131,7 +1130,7 @@ func (b *Builder) createProcessorDockerfile(ctx context.Context,
 		"onbuildImageRegistry", onbuildImageRegistry)
 
 	// write the contents to the path
-	if err := ioutil.WriteFile(processorDockerfileInfo.DockerfilePath,
+	if err := os.WriteFile(processorDockerfileInfo.DockerfilePath,
 		[]byte(processorDockerfileInfo.DockerfileContents),
 		0644); err != nil {
 		return nil, errors.Wrap(err, "Failed to write processor Dockerfile")
@@ -1183,7 +1182,7 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 	tempFileName := path.Join(os.TempDir(), fileName)
 
 	// write the temporary file
-	if err := ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0744)); err != nil {
+	if err := os.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0744)); err != nil {
 		return "", errors.Wrap(err, "Failed to write temporary file")
 	}
 
@@ -1549,7 +1548,7 @@ func (b *Builder) getSourceCodeFromFilePath() (string, error) {
 
 	// if user supplied a file containing printable only characters (i.e. not a zip, jar, etc) - copy the contents
 	// to functionSourceCode so that the dashboard may display it
-	functionContents, err := ioutil.ReadFile(b.options.FunctionConfig.Spec.Build.Path)
+	functionContents, err := os.ReadFile(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to read file contents to source code")
 	}
@@ -1795,7 +1794,7 @@ func (b *Builder) getFunctionTempFile(tempDir string,
 		} else {
 			fileExtension = fmt.Sprint(fileArchiver)
 		}
-		return ioutil.TempFile(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
+		return os.CreateTemp(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
 	}
 
 	// for non-archives, must retain file name

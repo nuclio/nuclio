@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -152,7 +151,7 @@ func (r *Release) prepareRepository() error {
 		r.logger.Debug("Creating a temp dir")
 
 		// create a temp dir & clone to it
-		workDir, err := ioutil.TempDir("", "nuclio-releaser-*")
+		workDir, err := os.MkdirTemp("", "nuclio-releaser-*")
 		if err != nil {
 			return errors.Wrap(err, "Failed to create work dir")
 		}
@@ -210,7 +209,7 @@ func (r *Release) prepareRepository() error {
 func (r *Release) populateHelmChartConfig() error {
 
 	// read
-	yamlFile, err := ioutil.ReadFile(r.resolveHelmChartFullPath())
+	yamlFile, err := os.ReadFile(r.resolveHelmChartFullPath())
 	if err != nil {
 		return errors.Wrap(err, "Failed to read chart file")
 	}
@@ -356,7 +355,7 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 		return "", errors.Wrap(err, "Failed to perform request")
 	}
 
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to read all response body")
 	}
@@ -403,7 +402,7 @@ func (r *Release) getTravisReleaseStatus() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to perform request")
 	}
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to read all response body")
 	}
@@ -484,7 +483,7 @@ func (r *Release) populateReleaseWorkflowID() error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to make a GET request")
 	}
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read all response body")
 	}

@@ -19,8 +19,9 @@ package functiontemplates
 import (
 	"archive/zip"
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -54,7 +55,7 @@ func (zftf *ZipFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 
 	if common.IsLocalFileURL(zftf.fileAddress) {
 		localFilePath := common.GetPathFromLocalFileURL(zftf.fileAddress)
-		zipFileBody, err = ioutil.ReadFile(localFilePath)
+		zipFileBody, err = os.ReadFile(localFilePath)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to read local file")
 		}
@@ -67,7 +68,7 @@ func (zftf *ZipFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 		}
 		defer response.Body.Close() // nolint: errcheck
 
-		zipFileBody, err = ioutil.ReadAll(response.Body)
+		zipFileBody, err = io.ReadAll(response.Body)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to read response body")
 		}

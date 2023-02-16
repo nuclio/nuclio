@@ -17,7 +17,7 @@ limitations under the License.
 package runtimeconfig
 
 import (
-	"io/ioutil"
+	"os"
 
 	"github.com/nuclio/errors"
 )
@@ -49,7 +49,7 @@ func (p *Python) GetPipCAContents() ([]byte, error) {
 		return p.pipCAContents, nil
 	}
 
-	pipCaContents, err := ioutil.ReadFile(p.PipCAPath)
+	pipCaContents, err := os.ReadFile(p.PipCAPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read pip ca file contents")
 	}

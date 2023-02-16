@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
@@ -122,7 +122,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 					return errors.Wrap(err, "Failed opening function config file")
 				}
 
-				functionBody, err := ioutil.ReadAll(functionConfigFile)
+				functionBody, err := io.ReadAll(functionConfigFile)
 				if err != nil {
 					return errors.Wrap(err, "Failed reading function config file")
 				}

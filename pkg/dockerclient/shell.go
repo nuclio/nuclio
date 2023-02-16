@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -824,7 +823,7 @@ func (c *ShellClient) GetContainerLogStream(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to get container log stream")
 	}
 
-	return ioutil.NopCloser(strings.NewReader(output.Output)), nil
+	return io.NopCloser(strings.NewReader(output.Output)), nil
 }
 
 func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions,

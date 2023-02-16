@@ -17,7 +17,6 @@ limitations under the License.
 package common
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -102,18 +101,18 @@ type MockS3Client struct {
 }
 
 func (msc *MockS3Client) Download(file *os.File, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken string) error {
-	functionArchiveFileBytes, _ := ioutil.ReadFile(msc.FilePath)
+	functionArchiveFileBytes, _ := os.ReadFile(msc.FilePath)
 
-	_ = ioutil.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
+	_ = os.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
 
 	args := msc.Called(file, bucket, itemKey, region, accessKeyID, secretAccessKey, sessionToken)
 	return args.Error(0)
 }
 
 func (msc *MockS3Client) DownloadWithinEC2Instance(file *os.File, bucket, itemKey string) error {
-	functionArchiveFileBytes, _ := ioutil.ReadFile(msc.FilePath)
+	functionArchiveFileBytes, _ := os.ReadFile(msc.FilePath)
 
-	_ = ioutil.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
+	_ = os.WriteFile(file.Name(), functionArchiveFileBytes, os.FileMode(os.O_RDWR))
 
 	args := msc.Called(file, bucket, itemKey)
 	return args.Error(0)

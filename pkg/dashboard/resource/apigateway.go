@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -198,7 +198,7 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 		"Please use /api/apigateways/<apigateway-name>")
 
 	// get api gateway id from body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}
@@ -211,7 +211,7 @@ func (agr *apiGatewayResource) updateAPIGateway(request *http.Request) (*restful
 
 	// retrieve request body so next handler can read it
 	request.Body.Close() // nolint: errcheck
-	request.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+	request.Body = io.NopCloser(bytes.NewBuffer(body))
 
 	// update api gateway
 	_, err = agr.Update(request, apiGatewayId)
@@ -363,7 +363,7 @@ func (agr *apiGatewayResource) getNamespaceFromRequest(request *http.Request) st
 func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Request) (*apiGatewayInfo, error) {
 
 	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}

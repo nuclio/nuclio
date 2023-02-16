@@ -18,7 +18,6 @@ package processorconfig
 
 import (
 	"io"
-	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/processor"
 
@@ -37,7 +36,7 @@ func NewReader() (*Reader, error) {
 
 // Read read configuration from reader into processorConfiguration
 func (r *Reader) Read(reader io.Reader, processorConfiguration *processor.Configuration) error {
-	bodyBytes, err := ioutil.ReadAll(reader)
+	bodyBytes, err := io.ReadAll(reader)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to read processor configuration")

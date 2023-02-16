@@ -19,7 +19,7 @@ package middleware
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -94,10 +94,10 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 			requestStartTime := time.Now()
 
 			// get request body
-			requestBody, _ := ioutil.ReadAll(request.Body)
+			requestBody, _ := io.ReadAll(request.Body)
 
 			// restore body for further processing
-			request.Body = ioutil.NopCloser(bytes.NewBuffer(requestBody))
+			request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 
 			requestHeaders := request.Header.Clone() // for logging purposes
 			for _, headerToRedact := range []string{

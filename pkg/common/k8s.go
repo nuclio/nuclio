@@ -18,7 +18,6 @@ package common
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,7 +86,7 @@ func ResolveDefaultNamespace(namespace string) string {
 		// for k8s
 		if IsInKubernetesCluster() {
 			// get namespace from within the pod. if found, return that
-			if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+			if namespacePod, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
 				return string(namespacePod)
 			}
 			return defaultNamespace

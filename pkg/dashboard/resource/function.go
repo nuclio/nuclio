@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -482,7 +482,7 @@ func (fr *functionResource) getNamespaceFromRequest(request *http.Request) strin
 func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {
 
 	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read body")
 	}

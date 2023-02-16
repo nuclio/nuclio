@@ -21,7 +21,6 @@ package processorsuite
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -494,7 +493,7 @@ func (suite *TestSuite) GetRuntimeDir() string {
 }
 
 func (suite *TestSuite) CreateTempDir() string {
-	tempDir, err := ioutil.TempDir("", "build-test-*")
+	tempDir, err := os.MkdirTemp("", "build-test-*")
 	suite.Require().NoError(err, "Failed to create temporary dir")
 	suite.createdTempDirs = append(suite.createdTempDirs, tempDir)
 	return tempDir

@@ -21,7 +21,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path"
 	"testing"
@@ -146,7 +146,7 @@ func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 		httpResponse, err := http.Get(url)
 		suite.Require().NoError(err, "Failed to read events from function: %s; err: %v", url, err)
 
-		marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+		marshalledResponseBody, err := io.ReadAll(httpResponse.Body)
 		suite.Require().NoError(err, "Failed to read response body")
 
 		// unmarshal the body into a list
