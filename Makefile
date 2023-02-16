@@ -24,7 +24,7 @@ NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
 NUCLIO_BASE_IMAGE_TAG ?= 1.19
 NUCLIO_BASE_ALPINE_IMAGE_NAME ?= gcr.io/iguazio/golang
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.19-alpine3.15
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.19-alpine3.17
 
 # add go proxy
 NUCLIO_GO_PROXY ?= https://proxy.golang.org,direct
