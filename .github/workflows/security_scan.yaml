@@ -58,7 +58,6 @@ jobs:
         id: set-matrix
         run: |
           docker_image_rules_json=$(make print-docker-image-rules-json)
-          
           # if "handler-builder-golang-onbuild" is in the matrix
           # then ensure "handler-builder-golang-onbuild-alpine" is there too.
           docker_image_rules_json=$(echo $docker_image_rules_json | \
@@ -66,7 +65,7 @@ jobs:
           echo "matrix={\"include\":$(echo $docker_image_rules_json)}" >> $GITHUB_OUTPUT
 
   build_and_scan_docker_images:
-    name: Build & Scan
+    name: Build & scan docker images
     runs-on: ubuntu-latest
     needs: matrix_prep
     strategy:
@@ -90,6 +89,7 @@ jobs:
           DOCKER_IMAGES_RULES=()
 
           # if "onbuild-" in "matrix.image_rule", then add "processor" to DOCKER_IMAGES_RULES
+          # this is because onbuild images requires processor image
           if [[ "${{ matrix.image_rule }}" == *"-onbuild"* ]]; then \
               DOCKER_IMAGES_RULES+=("processor"); \
           fi
@@ -110,17 +110,78 @@ jobs:
           # for image rules that yields multiple images (e.g.: golang + golang-alpine)
           PRINT_FIRST_IMAGE: true
 
+      - name: Define output format
+        id: trivy-output-format
+        run: |
+          if [[ -z "${{ github.event.inputs.pr_number }}" ]]; then \
+            echo "format=sarif" >> $GITHUB_OUTPUT; \
+            echo "output=trivy-results.sarif" >> $GITHUB_OUTPUT; \
+          else \
+            echo "format=table" >> $GITHUB_OUTPUT; \
+            echo "output=" >> $GITHUB_OUTPUT; \
+          fi
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
+          scan-type: image
           image-ref: ${{ env.image_name }}
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
           ignore-unfixed: true
-          output: 'trivy-results.sarif'
-          format: 'sarif'
+          output: ${{ steps.trivy-output-format.outputs.output }}
+          format: ${{ steps.trivy-output-format.outputs.format }}
 
       - name: Upload Trivy scan results to GitHub Security tab
+        # upload results if not running against pr.
+        # we do not want to manipulate our security reports
+        # with work-in-progress.
+        if: github.event.inputs.pr_number == ''
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
           category: ${{ matrix.image_rule }}
+
+  scale_fs:
+    name: Scan file system
+    runs-on: ubuntu-latest
+    steps:
+
+      # checkout from development
+      - uses: actions/checkout@v3
+        if: github.event.inputs.pr_number == ''
+
+      # checkout from PR
+      - uses: actions/checkout@v3
+        if: github.event.inputs.pr_number != ''
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+
+      - name: Define output format
+        id: trivy-output-format
+        run: |
+          if [[ -z "${{ github.event.inputs.pr_number }}" ]]; then \
+            echo "format=sarif" >> $GITHUB_OUTPUT; \
+            echo "output=trivy-results.sarif" >> $GITHUB_OUTPUT; \
+          else \
+            echo "format=table" >> $GITHUB_OUTPUT; \
+            echo "output=" >> $GITHUB_OUTPUT; \
+          fi
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: ${{ env.GITHUB_WORKSPACE }}
+          output: ${{ steps.trivy-output-format.outputs.output }}
+          format: ${{ steps.trivy-output-format.outputs.format }}
+
+      - name: Upload Trivy scan results
+        # upload results if not running against pr.
+        # we do not want to manipulate our security reports
+        # with work-in-progress.
+        if: github.event.inputs.pr_number == ''
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: filesystem
