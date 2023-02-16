@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -188,7 +187,7 @@ func (suite *TestSuite) TestBuildFuncFromFunctionSourceCode() {
 	}
 
 	createFunctionOptions := suite.getDeployOptions("reverser")
-	functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
+	functionSourceCode, err := os.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 	suite.Assert().NoError(err)
 
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionSourceCode)
@@ -462,7 +461,7 @@ func (suite *TestSuite) createFunctionArchive(functionDir string,
 	compressor func([]string, string) error) string {
 
 	// create a temp directory that will hold the archive
-	archiveDir, err := ioutil.TempDir("", "build-zip-*")
+	archiveDir, err := os.MkdirTemp("", "build-zip-*")
 	suite.Require().NoError(err)
 
 	// use the reverse function

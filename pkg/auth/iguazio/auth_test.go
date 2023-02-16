@@ -20,7 +20,7 @@ package iguazio
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -61,7 +61,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 				"X-User-Id":          {"some-user-id"},
 				"X-V3io-Session-Key": {"some-password"},
 			},
-			Body: ioutil.NopCloser(bytes.NewBufferString(`
+			Body: io.NopCloser(bytes.NewBufferString(`
 {
     "data": {
         "type": "session_verification",
@@ -252,7 +252,7 @@ func (suite *AuthTestSuite) resolveMockHttpClientHandler(includeResponseBody boo
 	}
 
 	if includeResponseBody {
-		response.Body = ioutil.NopCloser(bytes.NewBufferString(`
+		response.Body = io.NopCloser(bytes.NewBufferString(`
 {
     "data": {
         "type": "session_verification",

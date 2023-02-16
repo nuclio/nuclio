@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -349,7 +348,7 @@ func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig
 	tempFilePattern string) string {
 
 	// create a temp function yaml to be used with test modified values
-	functionConfigPath, err := ioutil.TempFile("", tempFilePattern)
+	functionConfigPath, err := os.CreateTemp("", tempFilePattern)
 	suite.Require().NoError(err)
 
 	// close when done writing

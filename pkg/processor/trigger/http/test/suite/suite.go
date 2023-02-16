@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -189,7 +189,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	suite.Require().NoError(err, "Failed to send request")
 
-	body, err := ioutil.ReadAll(httpResponse.Body)
+	body, err := io.ReadAll(httpResponse.Body)
 	suite.Require().NoError(err)
 
 	if request.ExpectedResponseStatusCode != nil {

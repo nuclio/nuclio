@@ -19,7 +19,6 @@ package common
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/ghodss/yaml"
@@ -36,10 +35,10 @@ func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
 
 		// ensuring input piped or file
 		if info.Mode()&os.ModeNamedPipe != 0 || info.Mode().IsRegular() {
-			return ioutil.ReadAll(r)
+			return io.ReadAll(r)
 		}
 	case io.Reader:
-		return ioutil.ReadAll(r)
+		return io.ReadAll(r)
 	}
 	return nil, nil
 }

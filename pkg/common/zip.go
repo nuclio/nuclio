@@ -18,7 +18,7 @@ package common
 
 import (
 	"archive/zip"
-	"io/ioutil"
+	"io"
 )
 
 func GetZipFileContents(zf *zip.File) (string, error) {
@@ -36,5 +36,5 @@ func readZipFile(zf *zip.File) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close() // nolint: errcheck
-	return ioutil.ReadAll(f)
+	return io.ReadAll(f)
 }

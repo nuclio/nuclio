@@ -21,7 +21,6 @@ package test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"testing"
@@ -248,11 +247,11 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 }
 
 func (suite *TestSuite) writeFile(filenamePattern string, contents []byte) *os.File {
-	tmpFile, err := ioutil.TempFile("", filenamePattern)
+	tmpFile, err := os.CreateTemp("", filenamePattern)
 	suite.Require().NoError(err)
 	suite.Require().NoError(tmpFile.Close())
 
-	err = ioutil.WriteFile(tmpFile.Name(), contents, 0644)
+	err = os.WriteFile(tmpFile.Name(), contents, 0644)
 	suite.Require().NoError(err)
 	return tmpFile
 }

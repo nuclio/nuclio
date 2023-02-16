@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -1680,11 +1679,11 @@ func (suite *AbstractPlatformTestSuite) testGetProcessorLogsTestFromFile(functio
 
 	formattedPodLogs, briefErrorsMessage := suite.Platform.GetProcessorLogsAndBriefError(functionLogsScanner)
 
-	expectedFormattedFunctionLogsFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, FormattedFunctionLogsFile))
+	expectedFormattedFunctionLogsFileBytes, err := os.ReadFile(path.Join(functionLogsFilePath, FormattedFunctionLogsFile))
 	suite.Require().NoError(err, "Failed to read formatted function logs file")
 	suite.Assert().Equal(string(expectedFormattedFunctionLogsFileBytes), formattedPodLogs)
 
-	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
+	expectedBriefErrorsMessageFileBytes, err := os.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
 	suite.Require().NoError(err, "Failed to read brief errors message file")
 	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
 }

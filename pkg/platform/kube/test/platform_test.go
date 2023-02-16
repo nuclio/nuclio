@@ -22,7 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -64,7 +64,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 
 	// get function source code
-	functionSourceCode, err := ioutil.ReadFile(functionPath)
+	functionSourceCode, err := os.ReadFile(functionPath)
 	suite.Require().NoError(err)
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"

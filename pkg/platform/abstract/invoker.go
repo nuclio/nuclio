@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -119,7 +118,7 @@ func (i *invoker) invoke(ctx context.Context,
 	i.logger.InfoWithCtx(ctx, "Got response", "status", response.Status)
 
 	// read the body
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read response body")
 	}

@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -210,7 +209,7 @@ func RunningContainerHostname() (string, error) {
 	if containerHostname != "" {
 		return containerHostname, nil
 	}
-	containerID, err := ioutil.ReadFile("/etc/hostname")
+	containerID, err := os.ReadFile("/etc/hostname")
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to open docker daemon config file")
 	}

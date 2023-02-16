@@ -21,7 +21,7 @@ package test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path"
 	"testing"
@@ -269,7 +269,7 @@ func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request)
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		suite.logger.WarnWith("Failed while reading response body",
 			"requestURL", request.URL,

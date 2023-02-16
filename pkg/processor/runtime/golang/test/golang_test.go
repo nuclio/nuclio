@@ -21,7 +21,6 @@ package test
 import (
 	"encoding/base64"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -252,7 +251,7 @@ func (suite *TestSuite) TestFileStream() {
 		},
 	} {
 		// generate a random file
-		tempFile, err := ioutil.TempFile(tempDir, "")
+		tempFile, err := os.CreateTemp(tempDir, "")
 		suite.Require().NoError(err)
 
 		responseBody := common.GenerateRandomString(testRequest.responseSize, common.LettersAndNumbers)

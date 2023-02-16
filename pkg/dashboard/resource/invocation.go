@@ -19,7 +19,6 @@ package resource
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -79,7 +78,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		return
 	}
 
-	requestBody, err := ioutil.ReadAll(request.Body)
+	requestBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		tr.writeErrorHeader(responseWriter, http.StatusInternalServerError)
 		tr.writeErrorMessage(responseWriter, "Failed to read request body")

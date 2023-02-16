@@ -18,7 +18,7 @@ package dockercreds
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -61,7 +61,7 @@ func (dc *dockerCred) initialize() error {
 
 	fileName := path.Base(dc.path)
 
-	contents, err := ioutil.ReadFile(dc.path)
+	contents, err := os.ReadFile(dc.path)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to read docker key file @ %s", dc.path)
 	}

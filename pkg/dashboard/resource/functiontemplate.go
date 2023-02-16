@@ -18,7 +18,7 @@ package resource
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -109,7 +109,7 @@ func (ftr *functionTemplateResource) render(request *http.Request) (*restful.Cus
 	statusCode := http.StatusOK
 
 	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}

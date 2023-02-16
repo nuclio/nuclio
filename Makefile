@@ -22,9 +22,9 @@ NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 
 # dockerfile base image
 NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
-NUCLIO_BASE_IMAGE_TAG ?= 1.17
+NUCLIO_BASE_IMAGE_TAG ?= 1.19
 NUCLIO_BASE_ALPINE_IMAGE_NAME ?= gcr.io/iguazio/golang
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.17-alpine3.15
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.19-alpine3.15
 
 # add go proxy
 NUCLIO_GO_PROXY ?= https://proxy.golang.org,direct

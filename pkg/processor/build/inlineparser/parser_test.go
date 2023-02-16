@@ -19,7 +19,6 @@ limitations under the License.
 package inlineparser
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -64,13 +63,13 @@ def handler(context, event):
     body = simplejson.loads(event.body.decode('utf-8'))
     return body['return_this']
 `
-	tmpFile, err := ioutil.TempFile("", "nuclio-parser-test")
+	tmpFile, err := os.CreateTemp("", "nuclio-parser-test")
 	suite.Require().NoError(err)
 	suite.Require().NoError(tmpFile.Close())
 
 	defer os.Remove(tmpFile.Name()) // nolint: errcheck
 
-	err = ioutil.WriteFile(tmpFile.Name(), []byte(content), 0600)
+	err = os.WriteFile(tmpFile.Name(), []byte(content), 0600)
 	suite.Require().NoError(err)
 
 	blocks, err := suite.parser.Parse(tmpFile.Name())
@@ -105,13 +104,13 @@ def handler(context, event):
     body = simplejson.loads(event.body.decode('utf-8'))
     return body['return_this']
 `
-	tmpFile, err := ioutil.TempFile("", "nuclio-parser-test")
+	tmpFile, err := os.CreateTemp("", "nuclio-parser-test")
 	suite.Require().NoError(err)
 	suite.Require().NoError(tmpFile.Close())
 
 	defer os.Remove(tmpFile.Name()) // nolint: errcheck
 
-	err = ioutil.WriteFile(tmpFile.Name(), []byte(content), 0600)
+	err = os.WriteFile(tmpFile.Name(), []byte(content), 0600)
 	suite.Require().NoError(err)
 
 	blocks, err := suite.parser.Parse(tmpFile.Name())
@@ -139,13 +138,13 @@ func (suite *InlineParserTestSuite) TestBlockWithError() {
 def handler(context, event):
 	pass
 `
-	tmpFile, err := ioutil.TempFile("", "nuclio-parser-test")
+	tmpFile, err := os.CreateTemp("", "nuclio-parser-test")
 	suite.Require().NoError(err)
 	suite.Require().NoError(tmpFile.Close())
 
 	defer os.Remove(tmpFile.Name()) // nolint: errcheck
 
-	err = ioutil.WriteFile(tmpFile.Name(), []byte(content), 0600)
+	err = os.WriteFile(tmpFile.Name(), []byte(content), 0600)
 	suite.Require().NoError(err)
 
 	blocks, err := suite.parser.Parse(tmpFile.Name())
