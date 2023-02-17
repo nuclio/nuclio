@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -34,9 +33,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/ghodss/yaml"
@@ -250,7 +249,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithTimeout() {
 		map[string]string{
 			"method":  "POST",
 			"via":     "external-ip",
-			"timeout": platform.FunctionInvocationDefaultTimeout.String(),
+			"timeout": (platformconfig.DefaultFunctionInvocationTimeoutSeconds * time.Second).String(),
 		},
 		false)
 	suite.Require().NoError(err)
@@ -307,7 +306,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -673,7 +672,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -742,7 +741,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -820,7 +819,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	functionConfig := functionconfig.Config{}
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
-	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -1623,7 +1622,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
-	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
+	exportTempFile, err := os.CreateTemp("", "reverser.*.json")
 	suite.Require().NoError(err)
 	defer os.Remove(exportTempFile.Name()) // nolint: errcheck
 
@@ -1713,7 +1712,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
-	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
+	exportTempFile, err := os.CreateTemp("", "reverser.*.json")
 	suite.Require().NoError(err)
 	defer os.Remove(exportTempFile.Name()) // nolint: errcheck
 

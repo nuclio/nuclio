@@ -32,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/fatih/color"
 	"github.com/nuclio/errors"
@@ -168,7 +169,7 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
 	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
-	cmd.Flags().DurationVarP(&commandeer.timeout, "timeout", "t", platform.FunctionInvocationDefaultTimeout, "Invocation request timeout")
+	cmd.Flags().DurationVarP(&commandeer.timeout, "timeout", "t", platformconfig.DefaultFunctionInvocationTimeoutSeconds*time.Second, "Invocation request timeout")
 	commandeer.cmd = cmd
 
 	return commandeer

@@ -22,7 +22,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -198,7 +197,7 @@ func sendHTTPRequest(ctx context.Context,
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close() // nolint: errcheck
 
-		responseBody, err = ioutil.ReadAll(resp.Body)
+		responseBody, err = io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to read response body")
 		}

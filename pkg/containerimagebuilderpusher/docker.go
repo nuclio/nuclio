@@ -19,7 +19,6 @@ package containerimagebuilderpusher
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -231,7 +230,7 @@ ARG NUCLIO_ARCH
 `, onbuildImage)
 
 	// generate a simple Dockerfile from the onbuild image
-	if err := ioutil.WriteFile(dockerfilePath, []byte(onbuildDockerfileContents), 0644); err != nil {
+	if err := os.WriteFile(dockerfilePath, []byte(onbuildDockerfileContents), 0644); err != nil {
 		return errors.Wrapf(err, "Failed to write onbuild Dockerfile to %s", dockerfilePath)
 	}
 

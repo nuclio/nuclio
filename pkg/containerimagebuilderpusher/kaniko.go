@@ -20,7 +20,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"regexp"
@@ -200,7 +200,7 @@ func (k *Kaniko) createContainerBuildBundle(ctx context.Context,
 
 	tarFilename := fmt.Sprintf("%s.tar.gz", strings.ReplaceAll(image, "/", "_"))
 	tarFilename = strings.ReplaceAll(tarFilename, ":", "_")
-	tarFile, err := ioutil.TempFile(buildContainerBundleDir, fmt.Sprintf("*-%s", tarFilename))
+	tarFile, err := os.CreateTemp(buildContainerBundleDir, fmt.Sprintf("*-%s", tarFilename))
 	if err != nil {
 		return "", "", errors.Wrap(err, "Failed to create tar bundle")
 	}
@@ -654,7 +654,7 @@ func (k *Kaniko) getPodLogs(ctx context.Context, jobPod *v1.Pod) (string, error)
 
 	defer restReadCloser.Close() // nolint: errcheck
 
-	logContents, err := ioutil.ReadAll(restReadCloser)
+	logContents, err := io.ReadAll(restReadCloser)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to read logs")
 	}

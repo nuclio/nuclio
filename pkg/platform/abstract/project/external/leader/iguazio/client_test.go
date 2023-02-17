@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -73,7 +72,7 @@ func (suite *ClientTestSuite) TestCreate() {
 			name: "create-ok-job-success",
 			createProjectResponse: &http.Response{
 				StatusCode: http.StatusCreated,
-				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+				Body: io.NopCloser(bytes.NewBufferString(`{
     "data": {
         "type": "project",
         "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
@@ -122,7 +121,7 @@ func (suite *ClientTestSuite) TestCreate() {
 			},
 			getProjectCreationJobResults: &http.Response{
 				StatusCode: http.StatusOK,
-				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+				Body: io.NopCloser(bytes.NewBufferString(`{
     "data": {
         "type": "job",
         "id": "4f4c834d-7cb5-4244-8ec4-8e21e88f4bc4",
@@ -147,7 +146,7 @@ func (suite *ClientTestSuite) TestCreate() {
 			expectedFailure: true,
 			createProjectResponse: &http.Response{
 				StatusCode: http.StatusBadRequest,
-				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+				Body: io.NopCloser(bytes.NewBufferString(`{
     "errors": [
 		{ "status": 400, "detail": "Failed to get user id for username" }
     ],
@@ -161,7 +160,7 @@ func (suite *ClientTestSuite) TestCreate() {
 			name: "create-ok-job-failed",
 			createProjectResponse: &http.Response{
 				StatusCode: http.StatusCreated,
-				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+				Body: io.NopCloser(bytes.NewBufferString(`{
     "data": {
         "type": "project",
         "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
@@ -210,7 +209,7 @@ func (suite *ClientTestSuite) TestCreate() {
 			},
 			getProjectCreationJobResults: &http.Response{
 				StatusCode: http.StatusOK,
-				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+				Body: io.NopCloser(bytes.NewBufferString(`{
     "data": {
         "type": "job",
         "id": "5e1db3b8-5870-4475-96c7-f858a3e1b198",
@@ -236,7 +235,7 @@ func (suite *ClientTestSuite) TestCreate() {
 			name: "create-ok-job-failed-b",
 			createProjectResponse: &http.Response{
 				StatusCode: http.StatusCreated,
-				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+				Body: io.NopCloser(bytes.NewBufferString(`{
     "data": {
         "type": "project",
         "id": "e0d2a03d-884b-44e3-aa78-9c7cea0c0cf1",
@@ -285,7 +284,7 @@ func (suite *ClientTestSuite) TestCreate() {
 			},
 			getProjectCreationJobResults: &http.Response{
 				StatusCode: http.StatusOK,
-				Body: ioutil.NopCloser(bytes.NewBufferString(`{
+				Body: io.NopCloser(bytes.NewBufferString(`{
     "data": {
         "type": "job",
         "id": "5e1db3b8-5870-4475-96c7-f858a3e1b198",
@@ -365,7 +364,7 @@ func (suite *ClientTestSuite) TestGetUpdatedAfter() {
 				} else if strings.Contains(r.URL.RawQuery, "1970-01-01T00:00:00Z") {
 					return &http.Response{
 						StatusCode: http.StatusInternalServerError,
-						Body:       ioutil.NopCloser(bytes.NewBufferString("")),
+						Body:       io.NopCloser(bytes.NewBufferString("")),
 					}
 				}
 				return &http.Response{
@@ -451,10 +450,10 @@ func (suite *ClientTestSuite) mockIgzAPIGetProject(detail bool) io.ReadCloser {
 	responseTemplate := `{"data": %s, "included": [], "meta": {"ctx": "11493070626596053818"}}`
 
 	if detail {
-		return ioutil.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, projectData)))
+		return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, projectData)))
 	}
 
-	return ioutil.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, "["+projectData+"]")))
+	return io.NopCloser(bytes.NewBufferString(fmt.Sprintf(responseTemplate, "["+projectData+"]")))
 }
 
 func TestClientTestSuite(t *testing.T) {

@@ -28,7 +28,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -135,7 +134,7 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 	response, err := http.DefaultClient.Do(request)
 	suite.Require().NoError(err)
 
-	encodedResponseBody, err := ioutil.ReadAll(response.Body)
+	encodedResponseBody, err := io.ReadAll(response.Body)
 	suite.Require().NoError(err)
 
 	defer response.Body.Close() // nolint: errcheck
@@ -732,6 +731,11 @@ func (suite *functionTestSuite) TestInvokeUnSuccessful() {
 	suite.mockPlatform.
 		On("CreateFunctionInvocation", mock.Anything, mock.MatchedBy(verifyCreateFunctionInvocation)).
 		Return(&expectedInvokeResult, nuclio.NewErrBadRequest(errMessage)).
+		Once()
+
+	suite.mockPlatform.
+		On("GetConfig").
+		Return(&platformconfig.Config{}).
 		Once()
 
 	expectedStatusCode := http.StatusBadRequest

@@ -23,9 +23,9 @@ NUCLIO_CACHE_REPO ?= ghcr.io/nuclio
 
 # dockerfile base image
 NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
-NUCLIO_BASE_IMAGE_TAG ?= 1.17
+NUCLIO_BASE_IMAGE_TAG ?= 1.19
 NUCLIO_BASE_ALPINE_IMAGE_NAME ?= gcr.io/iguazio/golang
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.17-alpine3.15
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.19-alpine3.17
 
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
@@ -231,6 +231,18 @@ print-docker-image-rules-json:
 	done
 	@/bin/echo -n "]"
 
+
+
+.PHONY: print-docker-image-rules-json
+print-docker-image-rules-json:
+	@/bin/echo -n "["
+	@for image in $(DOCKER_IMAGES_RULES); do \
+		/bin/echo -n "{\"image_rule\": \"$$image\"}" ; \
+		if [ "$$image" != "$(lastword $(DOCKER_IMAGES_RULES))" ]; then \
+			/bin/echo -n "," ; \
+		fi ; \
+	done
+	@/bin/echo -n "]"
 
 #
 # Tools
@@ -463,6 +475,10 @@ endif
 ifneq ($(filter handler-builder-golang-onbuild-alpine,$(DOCKER_IMAGES_RULES)),)
 $(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
 $(eval DOCKER_IMAGES_CACHE += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME_CACHE))
+endif
+
+ifneq ($(filter handler-builder-golang-onbuild-alpine,$(DOCKER_IMAGES_RULES)),)
+$(eval IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME))
 endif
 
 # NodeJS

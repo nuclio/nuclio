@@ -18,7 +18,7 @@ package inlineparser
 
 import (
 	"archive/zip"
-	"io/ioutil"
+	"io"
 	"strings"
 
 	"github.com/nuclio/errors"
@@ -59,7 +59,7 @@ func (j *JarParser) Parse(path string) (map[string]map[string]interface{}, error
 		}
 
 		defer file.Close() // nolint: errcheck
-		data, err := ioutil.ReadAll(file)
+		data, err := io.ReadAll(file)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Can't read zip entry (name=%s)", zipInfo.Name)
 		}

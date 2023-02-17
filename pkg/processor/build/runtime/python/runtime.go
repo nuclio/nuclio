@@ -18,7 +18,7 @@ package python
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -170,7 +170,7 @@ func (p *python) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, s
 
 		destPath := path.Join(stagingDir, path.Base(pipCAFileLocation))
 		p.Logger.DebugWith("Writing pip ca contents", "destPath", destPath)
-		if err := ioutil.WriteFile(destPath, PipCAContents, 0644); err != nil {
+		if err := os.WriteFile(destPath, PipCAContents, 0644); err != nil {
 			return errors.Wrap(err, "Failed to write pip ca contents to file")
 		}
 	}

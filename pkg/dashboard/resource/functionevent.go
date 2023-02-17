@@ -18,7 +18,7 @@ package resource
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -324,7 +324,7 @@ func (fer *functionEventResource) getFunctionNameFromRequest(request *http.Reque
 func (fer *functionEventResource) getFunctionEventInfoFromRequest(request *http.Request, nameRequired bool) (*functionEventInfo, error) {
 
 	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}

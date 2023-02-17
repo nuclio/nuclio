@@ -480,6 +480,7 @@ platform: {}
 #     onbuildImageRegistries:
 #       "golang": "myregistry"
 #   functionReadinessTimeout: 120s
+#   functionInvocationTimeout: 60s
 #   opa:
 #
 #     # set to 10 for extra verbosity on top of nuclio logger

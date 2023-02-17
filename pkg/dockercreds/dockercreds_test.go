@@ -20,7 +20,6 @@ package dockercreds
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -234,7 +233,7 @@ func (suite *LogInFromDirTestSuite) SetupTest() {
 	suite.DockerCredsTestSuite.SetupTest()
 
 	// create a temp directory
-	suite.tempDir, err = ioutil.TempDir("", "dockercreds-test")
+	suite.tempDir, err = os.MkdirTemp("", "dockercreds-test")
 	suite.Require().NoError(err)
 
 	// prepare some kubernetes secrets for the tests
@@ -421,7 +420,7 @@ func (suite *LogInFromDirTestSuite) createFilesInDir(baseDir string, nodes []int
 			filePath := path.Join(baseDir, typedNode.name)
 
 			// create the file
-			if err := ioutil.WriteFile(filePath, []byte(typedNode.contents), 0644); err != nil {
+			if err := os.WriteFile(filePath, []byte(typedNode.contents), 0644); err != nil {
 				return err
 			}
 
