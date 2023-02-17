@@ -65,7 +65,7 @@ jobs:
           echo "matrix={\"include\":$(echo $docker_image_rules_json)}" >> $GITHUB_OUTPUT
 
   build_and_scan_docker_images:
-    name: Build & scan docker images
+    name: Scan docker image
     runs-on: ubuntu-latest
     needs: matrix_prep
     strategy:
@@ -116,9 +116,11 @@ jobs:
           if [[ -z "${{ github.event.inputs.pr_number }}" ]]; then \
             echo "format=sarif" >> $GITHUB_OUTPUT; \
             echo "output=trivy-results.sarif" >> $GITHUB_OUTPUT; \
+            echo "exit_code=0" >> $GITHUB_OUTPUT; \
           else \
             echo "format=table" >> $GITHUB_OUTPUT; \
             echo "output=" >> $GITHUB_OUTPUT; \
+            echo "exit_code=1" >> $GITHUB_OUTPUT; \
           fi
 
       - name: Run Trivy vulnerability scanner
@@ -130,6 +132,7 @@ jobs:
           ignore-unfixed: true
           output: ${{ steps.trivy-output-format.outputs.output }}
           format: ${{ steps.trivy-output-format.outputs.format }}
+          exit-code: ${{ steps.trivy-output-format.outputs.exit_code }}
 
       - name: Upload Trivy scan results to GitHub Security tab
         # upload results if not running against pr.
