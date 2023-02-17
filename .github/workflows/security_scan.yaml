@@ -111,18 +111,6 @@ jobs:
           # for image rules that yields multiple images (e.g.: golang + golang-alpine)
           PRINT_FIRST_IMAGE: true
 
-<<<<<<< HEAD
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.image_name }}
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-          ignore-unfixed: true
-          output: 'trivy-results.sarif'
-          format: 'sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-=======
       - name: Define output format
         id: trivy-output-format
         run: |
