@@ -22,6 +22,14 @@ FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 # Supplies wrapper and nuclio-sdk-dotnetcore
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 as builder
 
+# Update packages
+RUN apt-get update && \
+    apt-get -s dist-upgrade | \
+    grep "^Inst" | \
+    awk -F " " {'print $2'} | \
+    xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
 # Copy processor
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
