@@ -174,7 +174,6 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
-          scan-ref: ${{ github.workspace }}
           output: ${{ steps.trivy-output-format.outputs.output }}
           format: ${{ steps.trivy-output-format.outputs.format }}
           exit-code: ${{ steps.trivy-output-format.outputs.exit_code }}
