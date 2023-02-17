@@ -29,6 +29,7 @@ env:
   REPO_NAME: nuclio
   CACHE_REPO: ghcr.io
   CACHE_REPO_NAME: ${{ github.repository_owner }}
+  DOCKER_BUILDKIT: 1
 
 jobs:
   release:
