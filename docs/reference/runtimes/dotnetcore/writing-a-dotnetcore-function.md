@@ -1,4 +1,4 @@
-# Writing a .NET Core 3.1 Function
+# Writing a .NET Core 6.0 Function
 
 This guide uses practical examples to guide you through the process of writing serverless .NET Core functions.
 
