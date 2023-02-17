@@ -42,7 +42,6 @@ ENV GOPROXY $NUCLIO_GO_PROXY
 RUN apt-get update && \
     apt-get -s dist-upgrade | \
     grep "^Inst" | \
-    grep -i securi | \
     awk -F " " {'print $2'} | \
     xargs apt-get install -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
