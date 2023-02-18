@@ -38,16 +38,6 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Dump github context
-        run: echo "$GITHUB_CONTEXT"
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-
-      - name: Dump runner context
-        run: echo "$RUNNER_CONTEXT"
-        env:
-          RUNNER_CONTEXT: ${{ toJson(runner) }}
-
       - uses: actions/checkout@v3
 
       - uses: actions/setup-go@v3
@@ -132,27 +122,10 @@ jobs:
     name: Build docker images
     runs-on: ubuntu-latest
     steps:
-      - name: Dump GitHub context
-        run: echo "$GITHUB_CONTEXT"
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-
-      - name: Dump runner context
-        run: echo "$RUNNER_CONTEXT"
-        env:
-          RUNNER_CONTEXT: ${{ toJson(runner) }}
-
-      - name: Dump github ref
-        run: echo "$GITHUB_REF"
-
       - uses: actions/checkout@v3
 
-      # since github-actions gives us 14G only, and fills it up with some garbage
-      # we will free up some space for us (~2GB)
       - name: Freeing up disk space
-        run: |
-          chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
-          "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
       - name: Extract git branch
         id: git_info

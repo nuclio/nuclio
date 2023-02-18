@@ -38,24 +38,11 @@ jobs:
       matrix:
         arch: [ arm64, amd64 ]
     steps:
-    - name: Dump github context
-      run: echo "$GITHUB_CONTEXT"
-      env:
-        GITHUB_CONTEXT: ${{ toJson(github) }}
-
-    - name: Dump runner context
-      run: echo "$RUNNER_CONTEXT"
-      env:
-        RUNNER_CONTEXT: ${{ toJson(runner) }}
-
-    - name: Dump github ref
-      run: echo "$GITHUB_REF"
-
     - name: Extract ref info
       id: release_info
       run: |
-        echo ::set-output name=REF_BRANCH::${GITHUB_REF#refs/heads/}
-        echo ::set-output name=REF_TAG::${GITHUB_REF#refs/tags/}
+        echo "REF_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+        echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
     - name: Set NUCLIO_LABEL to unstable
       if: github.event_name == 'push' && steps.release_info.outputs.REF_BRANCH == 'development'
@@ -66,6 +53,9 @@ jobs:
       if: github.event_name == 'release'
       run: |
         echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
+
+    - name: Freeing up disk space
+      run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
     - uses: actions/checkout@v3
 
@@ -84,13 +74,6 @@ jobs:
         export version_suffix=$(echo "${{ steps.git_info.outputs.branch }}" | grep -E "^[0-9]+\.[0-9]+\.x$" | tr -d '.')
         export unstable_tag=$(if [ -z "$version_suffix" ]; then echo "unstable-cache"; else echo "unstable-cache-$version_suffix";fi)
         echo "name=tag::$(echo $unstable_tag)" >> $GITHUB_OUTPUT
-
-    # since github-actions gives us 14G only, and fills it up with some garbage
-    # we will free up some space for us (~2GB)
-    - name: Freeing up disk space
-      run: |
-        chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
-        "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
     - uses: azure/docker-login@v1
       with:
