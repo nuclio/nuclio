@@ -54,10 +54,10 @@ jobs:
       run: |
         echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
+    - uses: actions/checkout@v3
+
     - name: Freeing up disk space
       run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
-
-    - uses: actions/checkout@v3
 
     - uses: actions/setup-go@v3
       with:
