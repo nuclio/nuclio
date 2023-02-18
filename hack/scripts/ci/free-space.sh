@@ -22,18 +22,14 @@ print_free_space() {
 print_free_space
 
 # clean unneeded os packages and misc
-sudo apt-get remove -y '^ghc-8.*'
 sudo apt-get remove -y '^dotnet-.*'
-sudo apt-get remove -y '^llvm-.*'
 sudo apt-get remove -y 'php.*'
 sudo apt-get remove -y \
   azure-cli \
   google-cloud-sdk \
   google-chrome-stable \
   firefox \
-  powershell \
-  monodoc-http \
-  mono-devel
+  powershell
 
 sudo apt-get autoremove --yes
 sudo apt clean
@@ -43,10 +39,7 @@ sudo rm --recursive --force \
     /usr/local/lib/android \
     /usr/share/dotnet \
     /usr/share/miniconda \
-    /usr/share/swift \
-    /opt/ghc \
-    /usr/local/share/boost \
-    "$AGENT_TOOLSDIRECTORY"
+    /usr/share/swift
 
 # clean unneeded docker images
 docker system prune --all --force
