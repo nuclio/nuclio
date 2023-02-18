@@ -231,19 +231,6 @@ print-docker-image-rules-json:
 	done
 	@/bin/echo -n "]"
 
-
-
-.PHONY: print-docker-image-rules-json
-print-docker-image-rules-json:
-	@/bin/echo -n "["
-	@for image in $(DOCKER_IMAGES_RULES); do \
-		/bin/echo -n "{\"image_rule\": \"$$image\"}" ; \
-		if [ "$$image" != "$(lastword $(DOCKER_IMAGES_RULES))" ]; then \
-			/bin/echo -n "," ; \
-		fi ; \
-	done
-	@/bin/echo -n "]"
-
 #
 # Tools
 #
