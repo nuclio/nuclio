@@ -74,6 +74,7 @@ jobs:
     - uses: actions/setup-go@v3
       with:
         cache: true
+        go-version-file: go.mod
 
     # for none x86_64 platforms
     - name: Install QEMU

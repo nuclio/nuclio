@@ -20,6 +20,7 @@ package test
 
 import (
 	"bytes"
+	"net/http"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -74,8 +75,7 @@ func (suite *testSuite) TestBuildWithContextInitializer() {
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "",
+			RequestMethod:        http.MethodPost,
 			ExpectedResponseBody: "User data initialized from context: 0",
 		})
 }

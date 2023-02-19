@@ -44,6 +44,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           cache: true
+          go-version-file: go.mod
 
       - name: Set labels
         uses: actions/github-script@v3

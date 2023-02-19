@@ -1188,7 +1188,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 	}
 
 	// dumping contents to volume's processor path
-	if _, err := p.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.15",
+	if _, err := p.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.17",
 		&dockerclient.RunOptions{
 			Remove:           true,
 			ImageMayNotExist: true,

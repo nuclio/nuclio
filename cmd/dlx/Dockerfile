@@ -16,7 +16,7 @@
 # Build stage: builds the dlx binary
 #
 
-ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.15
+ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.17
 ARG NUCLIO_DOCKER_REPO
 ARG NUCLIO_DOCKER_IMAGE_TAG
 

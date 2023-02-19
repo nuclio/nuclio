@@ -80,6 +80,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           cache: true
+          go-version-file: go.mod
 
       - name: Install vegeta
         run: |
