@@ -30,6 +30,7 @@ on:
 env:
   NUCLIO_LABEL: latest
   NUCLIO_ARCH: amd64
+  DOCKER_BUILDKIT: 1
 
 jobs:
   matrix_prep:
