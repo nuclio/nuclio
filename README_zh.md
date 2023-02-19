@@ -170,7 +170,7 @@ def handler(context, event):
   - [命令行工具 `nuctl`](/docs/reference/nuctl/nuctl.md)
   - [函数配置参考文档](/docs/reference/function-configuration/function-configuration-reference.md)
   - [触发器](/docs/reference/triggers)
-  - [运行时 - .NET Core 3.1](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
+  - [运行时 - .NET Core 6.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
   - [运行时 - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
 - [示例](hack/examples/README.md)
 - 沙箱环境

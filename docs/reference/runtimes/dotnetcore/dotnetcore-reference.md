@@ -36,14 +36,14 @@ To use or import external dependencies, create a **handler.csproj** file that li
 For example, the following file defines a dependency on the `Microsoft.NET.Sdk` package:
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <LangVersion>8.0</LangVersion>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-  </ItemGroup>
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <LangVersion>10.0</LangVersion>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="12.0.2"/>
+    </ItemGroup>
 </Project>
 ```
 
@@ -65,7 +65,7 @@ See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-do
 ```
 ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=microsoft/dotnet:2-runtime
+ARG NUCLIO_BASE_IMAGE=mcr.microsoft.com/dotnet/sdk:6.0
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
