@@ -62,6 +62,7 @@ jobs:
     - uses: actions/setup-go@v3
       with:
         cache: true
+        go-version-file: go.mod
 
     - name: Extract git branch
       id: git_info

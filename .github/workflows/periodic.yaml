@@ -35,6 +35,7 @@ jobs:
     - uses: actions/setup-go@v3
       with:
         cache: true
+        go-version-file: go.mod
 
     - name: Build
       run: make build

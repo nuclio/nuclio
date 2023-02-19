@@ -62,7 +62,7 @@ func (suite *timeoutSuite) TestTimeout() {
 	var oldPID int
 	okStatusCode := http.StatusOK
 	timeoutStatusCode := http.StatusRequestTimeout
-	sleepTime := 2 * time.Second
+	sleepTime := 5 * time.Second
 
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
