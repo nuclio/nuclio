@@ -25,7 +25,6 @@ ENV GRADLEVERSION=5.6.4
 RUN apt-get update -qqy \
     && apt-get -s dist-upgrade | \
         grep "^Inst" | \
-        grep -i securi | \
         awk -F " " {'print $2'} | \
         xargs apt-get install -y --no-install-recommends \
     && apt-get install -o APT::Immediate-Configure=false -qqy unzip curl \

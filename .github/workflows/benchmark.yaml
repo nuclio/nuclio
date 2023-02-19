@@ -35,15 +35,6 @@ jobs:
     name: Function HTTP Load Benchmarking
     runs-on: ubuntu-latest
     steps:
-      - name: Dump github context
-        run: echo "$GITHUB_CONTEXT"
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-
-      - name: Dump runner context
-        run: echo "$RUNNER_CONTEXT"
-        env:
-          RUNNER_CONTEXT: ${{ toJson(runner) }}
 
       # checkout from development
       - uses: actions/checkout@v3
@@ -85,6 +76,10 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+
+      - uses: actions/setup-go@v3
+        with:
+          cache: true
 
       - name: Install vegeta
         run: |
