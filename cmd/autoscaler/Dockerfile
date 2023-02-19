@@ -18,7 +18,7 @@
 
 ARG NUCLIO_LABEL
 ARG NUCLIO_DOCKER_REPO
-ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.15
+ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.17
 
 FROM $NUCLIO_DOCKER_REPO/nuclio-base:$NUCLIO_LABEL as build-autoscaler
 

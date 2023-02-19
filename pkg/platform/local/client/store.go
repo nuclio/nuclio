@@ -414,7 +414,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 
 		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
 		// using alpine mirrored to gcr.io/iguazio for stability
-		if _, err := s.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.15", &dockerclient.RunOptions{
+		if _, err := s.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.17", &dockerclient.RunOptions{
 			Volumes:          map[string]string{volumeName: baseDir},
 			Remove:           true,
 			Command:          `/bin/sh -c "/bin/sleep 6h"`,
