@@ -25,9 +25,10 @@ FROM mcr.microsoft.com/dotnet/sdk:6.0 as builder
 # Copy processor
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
+# Fetch Nuclio .NET SDK
 RUN git clone \
-     --branch dotnet6 \
-     https://github.com/liranbg/nuclio-sdk-dotnetcore.git \
+     --branch dotnet6.0 \
+     https://github.com/nuclio/nuclio-sdk-dotnetcore.git \
      /home/nuclio/src/nuclio-sdk-dotnetcore
 
 # Copy and build wrapper files
