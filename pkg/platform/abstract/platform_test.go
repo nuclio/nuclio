@@ -829,6 +829,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 	for idx, testCase := range []struct {
 		triggers                 map[string]functionconfig.Trigger
 		functionMetaAnnotations  map[string]string
+		supportAutoScale         bool
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
 		shouldFailValidation     bool
 	}{
@@ -939,6 +940,16 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			},
 			shouldFailValidation: false,
 		},
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"v3ioStream": {
+					Kind: "v3ioStream",
+					Name: "v3ioStream",
+				},
+			},
+			supportAutoScale:     true,
+			shouldFailValidation: true,
+		},
 	} {
 
 		suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
@@ -967,6 +978,12 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 
 		if testCase.functionMetaAnnotations != nil {
 			createFunctionOptions.FunctionConfig.Meta.Annotations = testCase.functionMetaAnnotations
+		}
+
+		if testCase.supportAutoScale {
+			one, five := 1, 5
+			createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+			createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &five
 		}
 
 		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
