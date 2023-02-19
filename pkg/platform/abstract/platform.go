@@ -1545,6 +1545,8 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 
 		// validate trigger supports autoscaling
 		if lo.Contains[string]([]string{"v3io-stream", "v3ioStream"}, triggerInstance.Kind) {
+
+			// V3IO stream trigger does not support autoscaling, so min and max replicas must be equal
 			if functionConfig.Spec.MinReplicas != functionConfig.Spec.MaxReplicas {
 				return nuclio.NewErrBadRequest("V3IO Stream trigger does not support autoscaling")
 			}
