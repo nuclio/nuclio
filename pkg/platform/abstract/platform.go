@@ -46,6 +46,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/samber/lo"
 	autosv2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -1539,6 +1540,13 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 					functionconfig.ExplicitAckEnabled(triggerInstance.ExplicitAckMode) {
 					return nuclio.NewErrBadRequest("Explicit ack mode is not allowed when using worker pool allocation mode")
 				}
+			}
+		}
+
+		// validate trigger supports autoscaling
+		if lo.Contains[string]([]string{"v3io-stream", "v3ioStream"}, triggerInstance.Kind) {
+			if functionConfig.Spec.MinReplicas != functionConfig.Spec.MaxReplicas {
+				return nuclio.NewErrBadRequest("V3IO Stream trigger does not support autoscaling")
 			}
 		}
 	}
