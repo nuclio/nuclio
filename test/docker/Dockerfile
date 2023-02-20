@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_LABEL
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO
 
 FROM alpine:latest as builder
@@ -43,7 +43,7 @@ RUN curl -LO $KUBECTL_CLI_DOWNLOAD_URL \
 # ensure both installed correctly
 RUN kubectl version --client && docker version | grep "Version: "
 
-FROM $NUCLIO_DOCKER_REPO/nuclio-base:$NUCLIO_LABEL
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG
 
 # copy docker and kubectl cli tools from builder
 COPY --from=builder /usr/local/bin/kubectl /usr/local/bin/kubectl

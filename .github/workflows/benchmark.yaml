@@ -29,6 +29,7 @@ on:
 env:
   FINISH_LABEL: benchmarked
   ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
+  DOCKER_BUILDKIT: 1
 
 jobs:
   benchmark:

@@ -30,6 +30,7 @@ on:
 env:
   NUCLIO_LABEL: latest
   NUCLIO_ARCH: amd64
+  DOCKER_BUILDKIT: 1
 
 jobs:
   matrix_prep:
@@ -58,6 +59,7 @@ jobs:
         id: set-matrix
         run: |
           docker_image_rules_json=$(make print-docker-image-rules-json)
+
           # if "handler-builder-golang-onbuild" is in the matrix
           # then ensure "handler-builder-golang-onbuild-alpine" is there too.
           docker_image_rules_json=$(echo $docker_image_rules_json | \
