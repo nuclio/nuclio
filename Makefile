@@ -161,11 +161,11 @@ docker-images: $(DOCKER_IMAGES_RULES)
 
 .PHONY: pull-docker-images-cache
 pull-docker-images-cache:
-	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker pull {}
+	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 docker pull
 
 .PHONY: push-docker-images-cache
 push-docker-images-cache:
-	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 -I{} docker push {}
+	@printf '%s\n' $(DOCKER_IMAGES_CACHE) | xargs -n 1 -P 5 docker push
 
 .PHONY: tools
 tools: ensure-gopath nuctl
@@ -197,7 +197,7 @@ retag-docker-images: print-docker-images
 	$(eval NUCLIO_NEW_LABEL ?= retagged)
 	$(eval NUCLIO_NEW_LABEL = ${NUCLIO_NEW_LABEL}-${NUCLIO_ARCH})
 	@echo "Retagging Nuclio docker images with ${NUCLIO_NEW_LABEL}"
-	echo $(IMAGES_TO_PUSH) | xargs -n 1 -P 5 -I{} sh -c 'image="{}"; docker tag $$image $$(echo $$image | cut -d : -f 1):$(NUCLIO_NEW_LABEL)'
+	echo $(IMAGES_TO_PUSH) | xargs -P 5 -I{} sh -c 'image="{}"; docker tag $$image $$(echo $$image | cut -d : -f 1):$(NUCLIO_NEW_LABEL)'
 	@echo "Done"
 
 .PHONY: print-docker-images
