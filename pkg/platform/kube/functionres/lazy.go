@@ -1911,10 +1911,9 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		function.Status.State != functionconfig.FunctionStateImported &&
 		function.GetComputedMinReplicas() == 0 &&
 		function.GetComputedMaxReplicas() > 0 {
-		platformConfiguration := lc.platformConfigurationProvider.GetPlatformConfiguration()
 
 		// enrich if not exists
-		for key, value := range platformConfiguration.ScaleToZero.HTTPTriggerIngressAnnotations {
+		for key, value := range platformConfig.ScaleToZero.HTTPTriggerIngressAnnotations {
 			if _, ok := meta.Annotations[key]; !ok {
 				meta.Annotations[key] = value
 			}
@@ -1930,12 +1929,21 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		}
 	}
 
+	if platformConfig.IngressConfig.EnableSSLRedirect {
+		meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
+	}
+
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []networkingv1.IngressRule{}
 	spec.TLS = []networkingv1.IngressTLS{}
 
 	ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
 	for _, ingress := range ingresses {
+
+		if err := lc.enrichIngressWithDefaultValues(&ingress); err != nil {
+			return errors.Wrap(err, "Failed to enrich ingress with default values")
+		}
+
 		if err := lc.addIngressToSpec(ctx, &ingress, functionLabels, function, spec); err != nil {
 			return errors.Wrap(err, "Failed to add ingress to spec")
 		}
@@ -2484,6 +2492,19 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 		}
 	}
 	return false, nil
+}
+
+func (lc *lazyClient) enrichIngressWithDefaultValues(ingress *functionconfig.Ingress) error {
+
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
+	// enrich with default ingress tls if exists
+	if ingress.TLS.SecretName == "" && platformConfig.IngressConfig.TLSSecret != "" {
+		ingress.TLS.Hosts = []string{ingress.Host}
+		ingress.TLS.SecretName = platformConfig.IngressConfig.TLSSecret
+	}
+
+	return nil
 }
 
 //
