@@ -141,6 +141,14 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.AutoScaleMetricsMode = AutoScaleMetricsModeLegacy
 	}
 
+	// if we're running on iguazio, set the default ingress config
+	if config.IngressConfig.IguazioAuthURL != "" {
+		if config.IngressConfig.TLSSecret == "" {
+			config.IngressConfig.TLSSecret = DefaultIguazioIngressTLSSecretName
+		}
+		config.IngressConfig.EnableSSLRedirect = true
+	}
+
 	if config.StreamMonitoring.WebapiURL == "" {
 		config.StreamMonitoring.WebapiURL = DefaultStreamMonitoringWebapiURL
 	}
