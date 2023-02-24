@@ -743,7 +743,7 @@ test-k8s: build-test
 		--env KUBECONFIG=/kubeconfig \
 		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make test-k8s-undockerized"
+		/bin/bash -c "git config --global --add safe.directory /nuclio && make test-k8s-undockerized"
 
 # Runs from host to allow full control over Kubernetes cluster
 .PHONY: test-k8s-functional
