@@ -18,7 +18,6 @@ package opa
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -57,9 +56,13 @@ func NewHTTPClient(parentLogger logger.Logger,
 		logLevel:             logLevel,
 		overrideHeaderValue:  overrideHeaderValue,
 		httpClient: &http.Client{
-			Timeout: requestTimeout,
+			Timeout:   requestTimeout,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				// Enable in case you need for development
+				//TLSClientConfig: &tls.Config{
+				//	MinVersion:         tls.VersionTLS13,
+				//	InsecureSkipVerify: true,
+				//},
 			},
 		},
 	}

@@ -19,6 +19,7 @@ limitations under the License.
 package test
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -51,6 +52,7 @@ type PlatformTestSuite struct {
 	minikubeProfile string
 	namespace       string
 	backendAPIURL   string
+	httpClient      *http.Client
 }
 
 func (suite *PlatformTestSuite) SetupSuite() {
@@ -69,6 +71,16 @@ func (suite *PlatformTestSuite) SetupSuite() {
 	// assumes that minikube exposed the backend API on port 30060
 	suite.backendAPIURL = common.GetEnvOrDefaultString("NUCLIO_TEST_BACKEND_API_URL", "http://localhost:30060/api")
 	suite.registryURL = suite.resolveInClusterRegistryURL()
+
+	suite.httpClient = &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: true,
+			},
+		},
+	}
 }
 
 func (suite *PlatformTestSuite) SetupTest() {
@@ -266,7 +278,7 @@ func (suite *PlatformTestSuite) createFunction(functionConfig *functionconfig.Co
 	encodedFunctionConfig, err := json.Marshal(functionConfig)
 	suite.Require().NoError(err)
 
-	_, _, err = common.SendHTTPRequest(nil,
+	_, _, err = common.SendHTTPRequest(suite.httpClient,
 		http.MethodPost,
 		suite.backendAPIURL+"/functions",
 		encodedFunctionConfig,
@@ -277,7 +289,7 @@ func (suite *PlatformTestSuite) createFunction(functionConfig *functionconfig.Co
 }
 
 func (suite *PlatformTestSuite) getFunction(functionName string) (*functionconfig.ConfigWithStatus, error) {
-	responseBody, response, err := common.SendHTTPRequest(nil,
+	responseBody, response, err := common.SendHTTPRequest(suite.httpClient,
 		http.MethodGet,
 		fmt.Sprintf("%s/functions/%s", suite.backendAPIURL, functionName),
 		nil,

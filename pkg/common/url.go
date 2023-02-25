@@ -19,13 +19,11 @@ package common
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -160,15 +158,6 @@ func sendHTTPRequest(ctx context.Context,
 	headers map[string]string,
 	cookies []*http.Cookie,
 	expectedStatusCode int) ([]byte, *http.Response, error) {
-
-	if httpClient == nil {
-		httpClient = &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
-	}
 
 	// create request object
 	req, err := http.NewRequestWithContext(ctx, method, requestURL, bytes.NewBuffer(body))

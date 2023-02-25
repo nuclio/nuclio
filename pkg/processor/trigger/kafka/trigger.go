@@ -387,11 +387,31 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Net.TLS.Enable = k.configuration.CACert != "" || k.configuration.TLS.Enable
 	if config.Net.TLS.Enable {
 		k.Logger.DebugWith("Enabling TLS",
+			"minimumVersion", k.configuration.TLS.MinimumVersion,
 			"calen", len(k.configuration.CACert))
-		config.Net.TLS.Config = &tls.Config{
-			InsecureSkipVerify: k.configuration.TLS.InsecureSkipVerify,
+		if k.configuration.TLS.MinimumVersion == "" {
+			k.configuration.TLS.MinimumVersion = "1.2"
 		}
 
+		getTLSMinimumVersion := func(version string) uint16 {
+			switch version {
+			case "1.0":
+				return tls.VersionTLS10
+			case "1.1":
+				return tls.VersionTLS11
+			case "1.2":
+				return tls.VersionTLS12
+			case "1.3":
+				return tls.VersionTLS13
+			default:
+				return tls.VersionTLS13
+			}
+		}
+
+		config.Net.TLS.Config = &tls.Config{
+			InsecureSkipVerify: k.configuration.TLS.InsecureSkipVerify,
+			MinVersion:         getTLSMinimumVersion(k.configuration.TLS.MinimumVersion),
+		}
 		if k.configuration.CACert != "" {
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM([]byte(k.configuration.CACert))

@@ -59,6 +59,7 @@ type Configuration struct {
 	TLS struct {
 		Enable             bool
 		InsecureSkipVerify bool
+		MinimumVersion     string
 	}
 
 	SessionTimeout                string
@@ -135,6 +136,7 @@ func NewConfiguration(id string,
 		// tls
 		{Key: "nuclio.io/kafka-tls-enabled", ValueBool: &newConfiguration.TLS.Enable},
 		{Key: "nuclio.io/kafka-tls-insecure-skip-verify", ValueBool: &newConfiguration.TLS.InsecureSkipVerify},
+		{Key: "nuclio.io/kafka-tls-minimum-version", ValueString: &newConfiguration.TLS.MinimumVersion},
 
 		// sasl
 		{Key: "nuclio.io/kafka-sasl-enabled", ValueBool: &newConfiguration.SASL.Enable},

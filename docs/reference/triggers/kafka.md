@@ -123,6 +123,7 @@ For more information on Nuclio function configuration, see the [function-configu
   **Type:** `object` with the following attributes -
   - **`enable`** (`bool`) - Enable TLS.
   - **`insecureSkipVerify`** (`bool`) - Allow insecure server connections when TLS enabled. (default to: `false`)
+  - **`minimumVersion`** (`string`) - The default minimum TLS version that is acceptable. (default to: `1.2`)
 
 - <a id="cacert"></a>**`caCert`** - The certificate authority (CA) certificate used for TLS authentication.
   <br/>
@@ -415,5 +416,6 @@ triggers:
       tls:
         enable: true
         insecureSkipVerify: true
+        minVersion: "1.2"
 ```
 

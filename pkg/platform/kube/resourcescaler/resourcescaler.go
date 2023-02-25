@@ -18,7 +18,6 @@ package resourcescaler
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
@@ -63,10 +62,7 @@ func New(logger logger.Logger,
 		nuclioClientSet:       nuclioClientSet,
 		platformConfiguration: platformConfiguration,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
+			Timeout: 45 * time.Second,
 		},
 	}, nil
 }

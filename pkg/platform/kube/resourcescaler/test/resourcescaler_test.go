@@ -195,7 +195,7 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 
 		// try invoke function without the target header
 		// expect DLX to fail on 400
-		_, _, _ = common.SendHTTPRequest(nil,
+		_, _, _ = common.SendHTTPRequest(suite.dlxHTTPClient,
 			http.MethodGet,
 			fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
 			[]byte{},
@@ -210,7 +210,7 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 		// it fails to resolve the internal (kubernetes) function host
 		// Background: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
 		//       see suite.KubectlInvokeFunctionViaCurl(functionName, "http://function-service-endpoint:8080")
-		responseBody, _, err := common.SendHTTPRequest(nil,
+		responseBody, _, err := common.SendHTTPRequest(suite.dlxHTTPClient,
 			http.MethodGet,
 			fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
 			[]byte{},
@@ -320,7 +320,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 				// it fails to resolve the internal (kubernetes) function host
 				// Background: make DLX work in "test" mode, where it invoke the function from within the k8s cluster
 				//       see suite.KubectlInvokeFunctionViaCurl(functionName, "http://function-service-endpoint:8080")
-				responseBody, _, err := common.SendHTTPRequest(nil,
+				responseBody, _, err := common.SendHTTPRequest(suite.dlxHTTPClient,
 					http.MethodGet,
 					fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
 					[]byte{},
