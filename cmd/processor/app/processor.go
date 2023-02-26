@@ -350,6 +350,13 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 	lock := sync.Mutex{}
 
 	platformKind := processorConfiguration.PlatformConfig.Kind
+	if processorConfiguration.Meta.Labels == nil {
+
+		// backwards compatibility, for function created before labels were introduced
+		processorConfiguration.Meta.Labels = map[string]string{
+			common.NuclioResourceLabelKeyProjectName: "",
+		}
+	}
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
