@@ -133,7 +133,7 @@ func (suite *TestSuite) TestBuildWithBuildArgsExtended() {
 }
 
 func (suite *TestSuite) TestBuildWithPipCAPath() {
-	caCertContents, _, err := common.SendHTTPRequest(nil,
+	caCertContents, _, err := common.SendHTTPRequest(&http.Client{},
 		http.MethodGet,
 		"http://curl.haxx.se/ca/cacert.pem",
 		nil,

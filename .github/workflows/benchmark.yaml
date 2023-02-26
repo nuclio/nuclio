@@ -53,15 +53,15 @@ jobs:
 
           # map runtimes to desired onbuild-targets
           # golang,python:3.7 -> golang python
-          if [ "${{ github.event.inputs.runtimes }}" == "all" ]; then\
+          if [ "$INPUT_RUNTIMES" == "all" ]; then\
             RUNTIMES=(golang java python dotnetcore nodejs);\
           else\
             RUNTIMES=();\
-            while IFS=',' read -ra INPUT_RUNTIMES; do\
-              for i in "${INPUT_RUNTIMES[@]}"; do\
+            while IFS=',' read -ra LOOP_INPUT_RUNTIMES; do\
+              for i in "${LOOP_INPUT_RUNTIMES[@]}"; do\
                 RUNTIMES+=("$(echo "$i" | cut -d":" -f1)");\
               done\
-            done <<<"${{ github.event.inputs.runtimes }}";\
+            done <<<"$INPUT_RUNTIMES";\
           fi;
 
           DOCKER_IMAGES_RULES=processor;\
@@ -72,6 +72,8 @@ jobs:
           # only build what is needed to make nuclio functions (processor + onbuilds)
           echo "DOCKER_IMAGES_RULES=$(printf "%s " "${DOCKER_IMAGES_RULES[@]}")" >> $GITHUB_ENV
           echo "NUCLIO_LABEL=bm-$GITHUB_RUN_ID" >> $GITHUB_ENV
+        env:
+          INPUT_RUNTIMES: ${{ github.event.inputs.runtimes }}
 
       - name: Install python
         uses: actions/setup-python@v4
