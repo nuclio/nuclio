@@ -250,8 +250,6 @@ type ImageRegistryOverridesConfig struct {
 	OnbuildImageRegistries map[string]string `json:"onbuildImageRegistries,omitempty"`
 }
 
-const DefaultIguazioIngressTLSSecretName = "ingress-tls"
-
 // IngressConfig holds the default values for created ingresses
 type IngressConfig struct {
 	EnableSSLRedirect          bool     `json:"enableSSLRedirect,omitempty"`

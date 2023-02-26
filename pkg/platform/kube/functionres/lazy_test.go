@@ -130,14 +130,10 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 	defaultIngressAnnotations := map[string]string{
 		"a": "b",
 	}
-	sslRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: &platformconfig.Config{
 			Kube: platformconfig.PlatformKubeConfig{
 				DefaultHTTPIngressAnnotations: defaultIngressAnnotations,
-			},
-			IngressConfig: platformconfig.IngressConfig{
-				EnableSSLRedirect: true,
 			},
 		},
 	})
@@ -152,8 +148,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 				"a": "c",
 			},
 			expectedFunctionIngressAnnotations: map[string]string{
-				"a":                   "c",
-				sslRedirectAnnotation: "true",
+				"a": "c",
 			},
 		},
 		{
@@ -162,8 +157,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 				"a": "",
 			},
 			expectedFunctionIngressAnnotations: map[string]string{
-				"a":                   "",
-				sslRedirectAnnotation: "true",
+				"a": "",
 			},
 		},
 		{
@@ -173,8 +167,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			},
 			expectedFunctionIngressAnnotations: func() map[string]string {
 				ingressAnnotations := map[string]string{
-					"x":                   "y",
-					sslRedirectAnnotation: "true",
+					"x": "y",
 				}
 				err := mergo.Merge(&ingressAnnotations, &defaultIngressAnnotations)
 				suite.Require().NoError(err)
@@ -219,6 +212,82 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			suite.Require().Equal(testCase.expectedFunctionIngressAnnotations,
 				ingressInstance.Annotations)
 
+		})
+	}
+}
+
+func (suite *lazyTestSuite) TestEnrichIngressTLS() {
+	sslRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
+
+	for _, testCase := range []struct {
+		name              string
+		enableSSLRedirect bool
+		tlsSecret         string
+	}{
+		{
+			name:              "no-tls-secret-no-ssl-redirect",
+			enableSSLRedirect: false,
+			tlsSecret:         "",
+		},
+		{
+			name:              "no-tls-secret-ssl-redirect",
+			enableSSLRedirect: true,
+			tlsSecret:         "",
+		},
+		{
+			name:              "tls-secret-no-ssl-redirect",
+			enableSSLRedirect: false,
+			tlsSecret:         "my-tls-secret",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					IngressConfig: platformconfig.IngressConfig{
+						TLSSecret:         testCase.tlsSecret,
+						EnableSSLRedirect: testCase.enableSSLRedirect,
+					},
+				},
+			})
+			host := "something.com"
+			one := 1
+			defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+			defaultHTTPTrigger.Attributes = map[string]interface{}{
+				"ingresses": map[string]interface{}{
+					"0": map[string]interface{}{
+						"host":  host,
+						"paths": []string{"/"},
+					},
+				},
+			}
+			function := nuclioio.NuclioFunction{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-function" + testCase.name,
+				},
+				Spec: functionconfig.Spec{
+					Replicas: &one,
+					Triggers: map[string]functionconfig.Trigger{
+						defaultHTTPTrigger.Name: defaultHTTPTrigger,
+					},
+				},
+			}
+			functionLabels := suite.client.getFunctionLabels(&function)
+
+			ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
+			suite.Require().NoError(err)
+			suite.Require().NotNil(ingressInstance)
+
+			if testCase.enableSSLRedirect {
+				suite.Require().Equal("true", ingressInstance.Annotations[sslRedirectAnnotation])
+			} else {
+				suite.Require().NotContains(ingressInstance.Annotations, sslRedirectAnnotation)
+			}
+			if testCase.tlsSecret != "" {
+				suite.Require().Equal(testCase.tlsSecret, ingressInstance.Spec.TLS[0].SecretName)
+				suite.Require().Equal(host, ingressInstance.Spec.TLS[0].Hosts[0])
+			} else {
+				suite.Require().Empty(ingressInstance.Spec.TLS)
+			}
 		})
 	}
 }
