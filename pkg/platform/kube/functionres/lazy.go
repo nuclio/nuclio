@@ -2090,9 +2090,10 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 				Path: http.InternalHealthPath,
 			},
 		},
-		InitialDelaySeconds: 1,
+		InitialDelaySeconds: 5,
 		TimeoutSeconds:      1,
 		PeriodSeconds:       1,
+		FailureThreshold:    10,
 	}
 
 	container.LivenessProbe = &v1.Probe{
