@@ -32,8 +32,13 @@ env:
   DOCKER_BUILDKIT: 1
 
 permissions:
-  contents: read
+
+  # Allow the action to upload artifact to releases
+  contents: write
+
+  # Allow the action to upload cache images
   packages: write
+
 
 jobs:
   release:
