@@ -122,14 +122,6 @@ func NewAbstractTrigger(logger logger.Logger,
 		configuration.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
 	}
 
-	if configuration.RuntimeConfiguration.Meta.Labels == nil {
-
-		// backwards compatibility
-		configuration.RuntimeConfiguration.Meta.Labels = map[string]string{
-			common.NuclioResourceLabelKeyProjectName: "",
-		}
-	}
-
 	return AbstractTrigger{
 		Logger:          logger,
 		ID:              configuration.ID,
