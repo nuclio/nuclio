@@ -224,7 +224,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	functionInfo *functionInfo,
 	authConfig *platform.AuthConfig,
 	waitForFunction bool) error {
-	creationStateUpdatedTimeout := 1 * time.Minute
+	creationStateUpdatedTimeout := fr.getCreationStateUpdatedTimeout(request)
 
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
@@ -623,6 +623,25 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 
 	return getFunctionReplicaLogsStreamOptions, nil
 
+}
+
+func (fr *functionResource) getCreationStateUpdatedTimeout(request *http.Request) time.Duration {
+	timeoutDuration := 1 * time.Minute
+
+	// get the timeout from the request header
+	timeout := request.Header.Get("x-nuclio-creation-state-updated-timeout")
+	if timeout != "" {
+
+		// parse the timeout
+		if parsedTimeoutDuration, err := time.ParseDuration(timeout); err != nil {
+			fr.Logger.WarnWith("Failed to parse timeout from header, using default",
+				"timeout", timeout,
+				"err", err)
+		} else {
+			timeoutDuration = parsedTimeoutDuration
+		}
+	}
+	return timeoutDuration
 }
 
 // register the resource
