@@ -222,6 +222,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 
 func (suite *lazyTestSuite) TestEnrichIngressWithDefaultTLSSecret() {
 	tlsSecretName := "my-secret"
+	hostName := "something.com"
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: &platformconfig.Config{
 			IngressConfig: platformconfig.IngressConfig{
@@ -235,7 +236,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultTLSSecret() {
 	defaultHTTPTrigger.Attributes = map[string]interface{}{
 		"ingresses": map[string]interface{}{
 			"0": map[string]interface{}{
-				"host":  "something.com",
+				"host":  hostName,
 				"paths": []string{"/"},
 			},
 		},
@@ -261,6 +262,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultTLSSecret() {
 	suite.Require().Equal(ingressInstance.Spec.TLS[0].SecretName, tlsSecretName)
 	suite.Require().Contains(ingressInstance.Annotations, sslRedirectAnnotation)
 	suite.Require().Equal("true", ingressInstance.Annotations[sslRedirectAnnotation])
+	suite.Require().Contains(ingressInstance.Spec.TLS[0].Hosts, hostName)
 }
 
 func (suite *lazyTestSuite) TestNoChanges() {
