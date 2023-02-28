@@ -1944,7 +1944,8 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		}
 	}
 
-	if platformConfig.IngressConfig.EnableSSLRedirect {
+	if _, exists := meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"]; !exists &&
+		platformConfig.IngressConfig.EnableSSLRedirect {
 		meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
 	}
 
