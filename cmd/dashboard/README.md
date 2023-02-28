@@ -139,6 +139,7 @@ body and not `404`.
 * URL: `POST /api/functions`
 * Headers:
     * `Content-Type`: Must be set to `application/json`
+    * `X-nuclio-creation-state-updated-timeout`: Set the timout for the function creation state to change (optional, defaults to `1m`)
 * Body:
 
 ```json
@@ -179,6 +180,7 @@ Updating a function is similar to creating a function. The only differences are:
 * URL: `PUT /api/functions/<function name>`
 * Headers:
     * `Content-Type`: Must be set to `application/json`
+    * `X-nuclio-creation-state-updated-timeout`: Set the timout for the function creation state to change (optional, defaults to `1m`)
 * Body:
 
 ```json
