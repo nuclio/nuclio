@@ -629,7 +629,7 @@ func (fr *functionResource) getCreationStateUpdatedTimeout(request *http.Request
 	timeoutDuration := 1 * time.Minute
 
 	// get the timeout from the request header
-	timeout := request.Header.Get("x-nuclio-creation-state-updated-timeout")
+	timeout := request.Header.Get("X-nuclio-creation-state-updated-timeout")
 	if timeout != "" {
 
 		// parse the timeout
