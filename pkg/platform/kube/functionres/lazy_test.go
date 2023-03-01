@@ -127,10 +127,14 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 	defaultIngressAnnotations := map[string]string{
 		"a": "b",
 	}
+	sslRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
 	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
 		platformConfiguration: &platformconfig.Config{
 			Kube: platformconfig.PlatformKubeConfig{
 				DefaultHTTPIngressAnnotations: defaultIngressAnnotations,
+			},
+			IngressConfig: platformconfig.IngressConfig{
+				EnableSSLRedirect: true,
 			},
 		},
 	})
@@ -145,7 +149,8 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 				"a": "c",
 			},
 			expectedFunctionIngressAnnotations: map[string]string{
-				"a": "c",
+				"a":                   "c",
+				sslRedirectAnnotation: "true",
 			},
 		},
 		{
@@ -154,7 +159,8 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 				"a": "",
 			},
 			expectedFunctionIngressAnnotations: map[string]string{
-				"a": "",
+				"a":                   "",
+				sslRedirectAnnotation: "true",
 			},
 		},
 		{
@@ -164,7 +170,8 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			},
 			expectedFunctionIngressAnnotations: func() map[string]string {
 				ingressAnnotations := map[string]string{
-					"x": "y",
+					"x":                   "y",
+					sslRedirectAnnotation: "true",
 				}
 				err := mergo.Merge(&ingressAnnotations, &defaultIngressAnnotations)
 				suite.Require().NoError(err)
@@ -211,6 +218,49 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 
 		})
 	}
+}
+
+func (suite *lazyTestSuite) TestEnrichIngressWithDefaultTLSSecret() {
+	tlsSecretName := "my-secret"
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			IngressConfig: platformconfig.IngressConfig{
+				TLSSecret:         tlsSecretName,
+				EnableSSLRedirect: true,
+			},
+		},
+	})
+	one := 1
+	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+	defaultHTTPTrigger.Attributes = map[string]interface{}{
+		"ingresses": map[string]interface{}{
+			"0": map[string]interface{}{
+				"host":  "something.com",
+				"paths": []string{"/"},
+			},
+		},
+	}
+	function := nuclioio.NuclioFunction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-function",
+		},
+		Spec: functionconfig.Spec{
+			Replicas: &one,
+			Triggers: map[string]functionconfig.Trigger{
+				defaultHTTPTrigger.Name: defaultHTTPTrigger,
+			},
+		},
+	}
+	// "create the ingress
+	ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, map[string]string{}, &function)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(ingressInstance)
+
+	// make sure default TLS secret exists
+	sslRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
+	suite.Require().Equal(ingressInstance.Spec.TLS[0].SecretName, tlsSecretName)
+	suite.Require().Contains(ingressInstance.Annotations, sslRedirectAnnotation)
+	suite.Require().Equal("true", ingressInstance.Annotations[sslRedirectAnnotation])
 }
 
 func (suite *lazyTestSuite) TestNoChanges() {
