@@ -43,7 +43,6 @@ limitations under the License.
                     .then(function (response) {
                         lodash.assign(ConfigService.nuclio, {
                             allowedAuthenticationModes: lodash.get(response, 'allowedAuthenticationModes', []),
-                            autoScaleMetrics: lodash.get(response, 'autoScaleMetrics', {}),
                             defaultFunctionConfig: lodash.get(response, 'defaultFunctionConfig', {}),
                             defaultFunctionPodResources: lodash.get(response, 'defaultFunctionPodResources', {}),
                             externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
@@ -89,7 +88,7 @@ limitations under the License.
                 backendOptions: [
                     {
                         expirationTime: ConfigService.i18nextExpirationTime,
-                        defaultVersion: 'v0.5'
+                        defaultVersion: 'v0.4'
                     },
                     {
                         loadPath: 'assets/i18n/{{lng}}/{{ns}}.json',
