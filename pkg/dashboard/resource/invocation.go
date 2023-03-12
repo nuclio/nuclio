@@ -93,17 +93,20 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		tr.writeErrorMessage(responseWriter, errors.RootCause(err).Error())
 	}
 
+	skipTLSVerification := strings.ToLower(request.Header.Get("x-nuclio-skip-tls-verification")) == "true"
+
 	// resolve the function host
 	invocationResult, err := tr.getPlatform().CreateFunctionInvocation(ctx, &platform.CreateFunctionInvocationOptions{
-		Name:      functionName,
-		Namespace: functionNamespace,
-		Path:      path,
-		Method:    request.Method,
-		Headers:   request.Header,
-		Body:      requestBody,
+		Name:                functionName,
+		Namespace:           functionNamespace,
+		Path:                path,
+		Method:              request.Method,
+		Headers:             request.Header,
+		Body:                requestBody,
 		Via:       invokeVia,
-		URL:       invokeURL,
-		Timeout:   invokeTimeout,
+		URL:                 invokeURL,
+		Timeout:             invokeTimeout,
+		SkipTLSVerification: skipTLSVerification,
 
 		// auth & permissions
 		AuthSession: tr.getCtxSession(ctx),
