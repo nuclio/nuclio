@@ -139,6 +139,9 @@ type CreateFunctionInvocationOptions struct {
 	// used from nuctl, to avoid validating the input url, which might be overridden when
 	// user provides explicit external ip address
 	SkipURLValidation bool
+
+	// skip tls verification when invoking a function
+	SkipTLSVerification bool
 }
 
 func (c *CreateFunctionInvocationOptions) EnrichFunction(ctx context.Context, p Platform) error {
