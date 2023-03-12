@@ -228,6 +228,7 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
     * `x-nuclio-invoke-url`: Function invocation url to use (required)
     * `x-nuclio-path`: The path to invoke the function with (can be empty to invoke with `/`)
     * `x-nuclio-invoke-timeout`: Function invocation request timeout (e.g.: `1s`)
+    * `x-nuclio-skip-tls-verification`: Skip TLS verification when invoking the function (e.g.: `true`)
     * Any other header is passed transparently to the function
 * Body: Raw body passed as is to the function
 
