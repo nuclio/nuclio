@@ -19,6 +19,7 @@ package abstract
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -78,6 +79,14 @@ func (i *invoker) invoke(ctx context.Context,
 	client := &http.Client{
 		Timeout: createFunctionInvocationOptions.Timeout,
 	}
+
+	// if tls verification is disabled, skip verification
+	if createFunctionInvocationOptions.SkipTLSVerification {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	}
+
 	var req *http.Request
 	var body io.Reader = http.NoBody
 
