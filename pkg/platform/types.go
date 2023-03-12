@@ -139,6 +139,9 @@ type CreateFunctionInvocationOptions struct {
 
 	PermissionOptions opa.PermissionOptions
 	AuthSession       auth.Session
+
+	// skip tls verification when invoking a function
+	SkipTLSVerification bool
 }
 
 const FunctionInvocationDefaultTimeout = time.Minute

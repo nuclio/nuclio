@@ -146,6 +146,7 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
 	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
 	cmd.Flags().DurationVarP(&commandeer.timeout, "timeout", "t", platform.FunctionInvocationDefaultTimeout, "Invocation request timeout")
+	cmd.Flags().BoolVarP(&commandeer.createFunctionInvocationOptions.SkipTLSVerification, "skip-tls", "", false, "Skip TLS verification")
 	commandeer.cmd = cmd
 
 	return commandeer
