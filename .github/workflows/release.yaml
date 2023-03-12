@@ -42,6 +42,7 @@ permissions:
 
 jobs:
   release:
+    if: github.repository == 'nuclio/nuclio'
     name: Release ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
