@@ -177,6 +177,9 @@ type Platform interface {
 	// GetName returns the platform name
 	GetName() string
 
+	// InitializeContainerBuilder initializes the container builder
+	InitializeContainerBuilder() error
+
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error
 

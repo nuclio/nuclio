@@ -139,23 +139,6 @@ func NewPlatform(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create projects client")
 	}
 
-	// create container builder
-	if platformConfiguration.ContainerBuilderConfiguration.Kind == "kaniko" {
-		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
-			newPlatform.consumer.KubeClientSet, platformConfiguration.ContainerBuilderConfiguration)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create a kaniko builder")
-		}
-	} else {
-
-		// Default container image builder
-		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
-			platformConfiguration.ContainerBuilderConfiguration)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create a Docker builder")
-		}
-	}
-
 	newPlatform.projectsCache = cache.NewExpiring()
 
 	return newPlatform, nil
@@ -183,6 +166,11 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	var err error
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
+
+	// make sure container builder is initialized
+	if err := p.InitializeContainerBuilder(); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize container builder")
+	}
 
 	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
@@ -1227,6 +1215,43 @@ func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, func
 	return nil, nil
 }
 
+func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.Platform.ValidateFunctionConfig(ctx, functionConfig); err != nil {
+		return err
+	}
+
+	if err := p.validateServiceType(functionConfig); err != nil {
+		return errors.Wrap(err, "Service type validation failed")
+	}
+
+	return p.validateFunctionIngresses(ctx, functionConfig)
+}
+
+func (p *Platform) InitializeContainerBuilder() error {
+	var err error
+
+	containerBuilderConfiguration := p.GetConfig().ContainerBuilderConfiguration
+
+	// create container builder
+	if containerBuilderConfiguration.Kind == "kaniko" {
+		p.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(p.Logger,
+			p.consumer.KubeClientSet, containerBuilderConfiguration)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create a kaniko builder")
+		}
+	} else {
+
+		// Default container image builder
+		p.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(p.Logger,
+			containerBuilderConfiguration)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create a Docker builder")
+		}
+	}
+
+	return nil
+}
+
 func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, namespace string) (map[string][]string, error) {
 	functionToAPIGateways := map[string][]string{}
 
@@ -1626,18 +1651,6 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 	}
 
 	return nil
-}
-
-func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
-	if err := p.Platform.ValidateFunctionConfig(ctx, functionConfig); err != nil {
-		return err
-	}
-
-	if err := p.validateServiceType(functionConfig); err != nil {
-		return errors.Wrap(err, "Service type validation failed")
-	}
-
-	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
 func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
