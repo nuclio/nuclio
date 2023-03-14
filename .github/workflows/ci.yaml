@@ -240,6 +240,25 @@ jobs:
           # run test
           make test-k8s-nuctl
 
+      - name: Output some logs in case of failure
+        if: ${{ failure() }}
+        # add set -x to print commands before executing to make logs reading easier
+        run: |
+          set -x
+          minikube ip
+          minikube logs
+          minikube kubectl -- --namespace ${NAMESPACE} logs -l app=nuclio,release=nuclio --tail=-1
+          minikube kubectl -- --namespace ${NAMESPACE} get all
+          minikube kubectl -- --namespace ${NAMESPACE} get all -o yaml
+          minikube kubectl -- --namespace ${NAMESPACE} describe pods
+          minikube kubectl -- --namespace ${NAMESPACE} get cm
+          minikube kubectl -- --namespace ${NAMESPACE} get cm -o yaml
+          minikube kubectl -- --namespace ${NAMESPACE} get secrets
+          minikube kubectl -- --namespace ${NAMESPACE} get secrets -o yaml
+          minikube kubectl -- --namespace ${NAMESPACE} get pvc
+          minikube kubectl -- --namespace ${NAMESPACE} get pv
+          set +x
+
   test_docker_nuctl:
     name: Test Docker nuctl
     runs-on: ubuntu-latest
