@@ -955,6 +955,9 @@ func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
 
 // GetContainerBuilderKind returns the container-builder kind
 func (ap *Platform) GetContainerBuilderKind() string {
+	if ap.ContainerBuilder == nil {
+		return ap.GetConfig().ContainerBuilderConfiguration.Kind
+	}
 	return ap.ContainerBuilder.GetKind()
 }
 
