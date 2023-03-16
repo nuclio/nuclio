@@ -27,6 +27,7 @@ env:
   CANCELL_LABEL: long-ci-cancelled
   FAILURE_LABEL: long-ci-failed
   ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
+  DOCKER_BUILDKIT: 1
 
 jobs:
   long_ci:
