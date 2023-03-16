@@ -1227,7 +1227,14 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
+// InitializeContainerBuilder initializes the container builder, if not already initialized
 func (p *Platform) InitializeContainerBuilder() error {
+
+	// if container builder is already initialized, return
+	if p.ContainerBuilder != nil {
+		return nil
+	}
+
 	var err error
 
 	containerBuilderConfiguration := p.GetConfig().ContainerBuilderConfiguration

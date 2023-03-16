@@ -177,7 +177,7 @@ type Platform interface {
 	// GetName returns the platform name
 	GetName() string
 
-	// InitializeContainerBuilder initializes the container builder
+	// InitializeContainerBuilder initializes the container builder, if not already initialized
 	InitializeContainerBuilder() error
 
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
