@@ -185,7 +185,14 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 				}
 				return createFunctionOptions
 			}(),
-			ExpectedBriefErrorsMessage: "0/1 nodes are available: 1 Insufficient nvidia.com/gpu.\n",
+
+			// on k8s <= 1.23, the error message is:
+			// 	0/1 nodes are available: 1 Insufficient nvidia.com/gpu.
+			// on k8s >= 1.24, the error message is:
+			// 0/1 nodes are available: 1 Insufficient nvidia.com/gpu. preemption: 0/1 nodes are available:
+			// 1 No preemption victims found for incoming pod.
+			ExpectedBriefErrorsMessage: "0/1 nodes are available: 1 Insufficient nvidia.com/gpu. " +
+				"preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.\n",
 		},
 	} {
 		suite.Run(testCase.Name, func() {
