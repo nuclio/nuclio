@@ -166,12 +166,22 @@ spec:
       - apk --update --no-cache add curl
       - pip install simplejson
   resources:
+
+    # Kubernetes Limits & Requests for the function's CPU and memory usage.
+    # For more information, see https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+    # Leave empty to use the default values.
+    # Note: This is mostly relevant for Kubernetes platform only.
+    # For local platform (Docker), only the `limits` section is relevant.
+    #   When nvidia gpu limit is set, the function will be deployed with "--gpus all"
+    #   When cpu limit set, the function will be deployed with "--cpus <cpu limit>"
+    #   When memory limit set, the function will be deployed with "--memory <memory limit>"
     requests:
       cpu: 1
       memory: 128M
     limits:
       cpu: 2
       memory: 256M
+      nvidia.com/gpu: 1
   securityContext:
     runAsUser: 1000
     runAsGroup: 2000
