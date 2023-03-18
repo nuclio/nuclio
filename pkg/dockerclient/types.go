@@ -69,6 +69,7 @@ type RunOptions struct {
 	RunAsUser        *int64
 	RunAsGroup       *int64
 	FSGroup          *int64
+	Devices          []string
 }
 
 // ExecOptions are options for executing a command in a container
