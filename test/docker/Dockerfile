@@ -19,12 +19,12 @@ FROM alpine:latest as builder
 
 # docker
 ARG DOCKER_CLI_ARCH=x86_64
-ARG DOCKER_CLI_VERSION="19.03.14"
+ARG DOCKER_CLI_VERSION="23.0.1"
 ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
 # kubectl
 ARG KUBECTL_CLI_ARCH=amd64
-ARG KUBECTL_CLI_VERSION="v1.20.11"
+ARG KUBECTL_CLI_VERSION="v1.24.11"
 ENV KUBECTL_CLI_DOWNLOAD_URL="https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_CLI_VERSION/bin/linux/$KUBECTL_CLI_ARCH/kubectl"
 
 RUN apk --update --no-cache add curl

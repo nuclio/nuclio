@@ -81,7 +81,7 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 NUCLIO_GO_TEST_TIMEOUT ?= "30m"
 
 # Docker client cli to be used
-NUCLIO_DOCKER_CLIENT_VERSION ?= 19.03.14
+NUCLIO_DOCKER_CLIENT_VERSION ?= 23.0.1
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_CLIENT_ARCH ?= armhf
 else ifeq ($(NUCLIO_ARCH), arm64)
@@ -758,7 +758,7 @@ test-k8s-functional:
 
 .PHONY: build-test
 build-test: build-builder
-	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.23.8)
+	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.24.11)
 	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
         --build-arg GOARCH=$(NUCLIO_ARCH) \

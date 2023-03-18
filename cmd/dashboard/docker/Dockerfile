@@ -58,7 +58,7 @@ FROM $NUCLIO_DOCKER_ALPINE_IMAGE as downloaddocker
 
 # docker client
 ARG DOCKER_CLI_ARCH=x86_64
-ARG DOCKER_CLI_VERSION="19.03.14"
+ARG DOCKER_CLI_VERSION="23.0.1"
 ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
 RUN apk --update --no-cache add curl \

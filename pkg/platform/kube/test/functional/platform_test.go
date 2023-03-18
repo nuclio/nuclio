@@ -42,7 +42,7 @@ import (
 
 // PlatformTestSuite requires
 //   - minikube >= 1.22.0 (https://minikube.sigs.k8s.io/docs/start/) with a preinstalled cluster. e.g.:
-//     > minikube start --profile nuclio-test --kubernetes-version v1.23.8 --driver docker --addons registry --ports=127.0.0.1:30060:30060
+//     > minikube start --profile nuclio-test --kubernetes-version v1.24.11 --driver docker --addons registry --ports=127.0.0.1:30060:30060
 //   - helm >= 3.3.0 (https://helm.sh/docs/intro/install/)
 type PlatformTestSuite struct {
 	suite.Suite

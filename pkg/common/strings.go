@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-// Uses Sørensen–Dice coefficient to check similarity
+// CompareTwoStrings uses Sørensen–Dice coefficient to check similarity
 func CompareTwoStrings(stringOne, stringTwo string) float32 {
 	removeSpaces(&stringOne, &stringTwo)
 
