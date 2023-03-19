@@ -65,6 +65,8 @@ type RunOptions struct {
 	Network          string
 	RestartPolicy    *RestartPolicy
 	GPUs             string
+	CPUs             string
+	Memory           string
 	MountPoints      []MountPoint
 	RunAsUser        *int64
 	RunAsGroup       *int64
@@ -87,7 +89,7 @@ type GetContainerOptions struct {
 	ID      string
 }
 
-// ContainerJSONBase contains response of Engine API:
+// Container contains response of Engine API:
 // GET "/containers/{name:.*}/json"
 type Container struct {
 	ID              string `json:"Id"`

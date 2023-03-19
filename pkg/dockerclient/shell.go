@@ -243,6 +243,14 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		dockerArguments = append(dockerArguments, fmt.Sprintf("--gpus %s", runOptions.GPUs))
 	}
 
+	if runOptions.Memory != "" {
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--memory %s", runOptions.Memory))
+	}
+
+	if runOptions.CPUs != "" {
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--cpus %s", runOptions.CPUs))
+	}
+
 	if runOptions.Remove {
 		dockerArguments = append(dockerArguments, "--rm")
 	}
