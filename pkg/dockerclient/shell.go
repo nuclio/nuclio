@@ -232,7 +232,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		if runOptions.RestartPolicy.Name == RestartPolicyNameOnFailure && restartMaxRetries >= 0 {
 			restartPolicy += fmt.Sprintf(":%d", restartMaxRetries)
 		}
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--restart '%s'", restartPolicy))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--restart %s", common.Quote(restartPolicy)))
 	}
 
 	if !runOptions.Attach {
@@ -240,7 +240,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	}
 
 	if runOptions.GPUs != "" {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--gpus '%s'", runOptions.GPUs))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--gpus %s", common.Quote(runOptions.GPUs)))
 	}
 
 	if runOptions.Remove {
@@ -248,11 +248,11 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	}
 
 	if runOptions.ContainerName != "" {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--name '%s'", runOptions.ContainerName))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--name %s", common.Quote(runOptions.ContainerName)))
 	}
 
 	if runOptions.Network != "" {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--net '%s'", runOptions.Network))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--net %s", common.Quote(runOptions.Network)))
 	}
 
 	if runOptions.Labels != nil {
@@ -287,17 +287,18 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 			if !mountPoint.RW {
 				readonly = ",readonly"
 			}
+			mount := fmt.Sprintf("%ssource=%s,destination=%s%s",
+				mountType,
+				mountPoint.Source,
+				mountPoint.Destination,
+				readonly)
 			dockerArguments = append(dockerArguments,
-				fmt.Sprintf("--mount '%ssource=%s,destination=%s%s'",
-					mountType,
-					mountPoint.Source,
-					mountPoint.Destination,
-					readonly))
+				fmt.Sprintf("--mount %s", common.Quote(mount)))
 		}
 	}
 
 	for _, device := range runOptions.Devices {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--device '%s'", device))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--device %s", common.Quote(device)))
 	}
 
 	if runOptions.RunAsUser != nil || runOptions.RunAsGroup != nil {
@@ -309,7 +310,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 			userStr += fmt.Sprintf(":%d", *runOptions.RunAsGroup)
 		}
 
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--user '%s'", userStr))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--user %s", common.Quote(userStr)))
 	}
 
 	if runOptions.FSGroup != nil {
