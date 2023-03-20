@@ -241,6 +241,13 @@ func (rmq *rabbitMq) createTopics() error {
 	// create exchange and queue only if user provided topics, else assuming the user did all the necessary configuration
 	// to support listening on the provided exchange and queue
 
+	if rmq.configuration.PrefetchCount != 0 {
+		err := rmq.brokerChannel.Qos(rmq.configuration.PrefetchCount, 0, true)
+		if err != nil {
+			return errors.Wrap(err, "Failed to setup prefetch on channel")
+		}
+	}
+
 	// create the exchange
 	if err := rmq.brokerChannel.ExchangeDeclare(rmq.configuration.ExchangeName,
 		"topic",

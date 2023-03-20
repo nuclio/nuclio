@@ -34,6 +34,7 @@ type Configuration struct {
 	Topics            []string
 	ReconnectDuration string
 	ReconnectInterval string
+	PrefetchCount     int
 
 	reconnectDuration time.Duration
 	reconnectInterval time.Duration
