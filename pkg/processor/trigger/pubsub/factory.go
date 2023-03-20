@@ -68,7 +68,9 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to initialize trigger")
 	}
 
-	triggerLogger.DebugWith("Created trigger", "config", configuration)
+	triggerLogger.DebugWith("Created trigger",
+		"triggerName", configuration.Name,
+		"triggerKind", configuration.Kind)
 	return triggerInstance, nil
 }
 

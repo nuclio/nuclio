@@ -2291,6 +2291,10 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 		}
 	}
 	if secretName != "" {
+		lc.logger.DebugWithCtx(ctx,
+			"Adding function secret volume",
+			"secretName", secretName,
+			"functionName", function.Name)
 		volumeNameToVolume[secretVolumeName] = v1.Volume{
 			Name: secretVolumeName,
 			VolumeSource: v1.VolumeSource{
