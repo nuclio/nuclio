@@ -11,6 +11,8 @@ Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 | topics            | list of strings    | If specified, the trigger creates a queue with a unique name and subscribes it to these topics |
 | reconnectDuration | string of duration | The duration to wait before reconnecting to RabbitMQ. Default is 5 minutes.                    |
 | reconnectInterval | string of duration | The interval to wait before reconnecting to RabbitMQ. Default is 11 seconds.                   |
+| durableExchange   | bool               | Define if the exchange is durable. Default is false.                                           |
+| durableQueue      | bool               | Define if the queue is durable. Default is false.                                              |
 
 > **Note:** `topics` and `queueName` are mutually exclusive.
 > The trigger can either create to an existing queue specified by `queueName` or create its own queue, subscribing it to `topics` 
@@ -30,5 +32,7 @@ triggers:
       exchangeName: "myExchangeName"
       queueName: "myQueueNameName"
       reconnectDuration: "10m"
-      reconnectInterval: "60s"  
+      reconnectInterval: "60s"
+      durableExchange: true
+      durableQueue: true
 ```

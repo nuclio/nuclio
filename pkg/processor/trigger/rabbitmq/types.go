@@ -34,6 +34,8 @@ type Configuration struct {
 	Topics            []string
 	ReconnectDuration string
 	ReconnectInterval string
+	DurableExchange   bool
+	DurableQueue      bool
 
 	reconnectDuration time.Duration
 	reconnectInterval time.Duration
