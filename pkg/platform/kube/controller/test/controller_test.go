@@ -85,8 +85,12 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	// create function options
 	createFunctionOptions := suite.CompileCreateFunctionOptions(fmt.Sprintf("test-%s", suite.TestID))
 
+	// ensure platform's container builder is initialized
+	err := suite.Platform.InitializeContainerBuilder()
+	suite.Require().NoError(err)
+
 	// enrich with defaults
-	err := suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig)
+	err = suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	// build function

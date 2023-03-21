@@ -35,6 +35,8 @@ type Configuration struct {
 	ReconnectDuration string
 	ReconnectInterval string
 	PrefetchCount     int
+	DurableExchange   bool
+	DurableQueue      bool
 
 	reconnectDuration time.Duration
 	reconnectInterval time.Duration
