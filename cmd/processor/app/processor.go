@@ -130,8 +130,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		"config", string(indentedProcessorConfiguration))
 
 	// restore function configuration from secret if needed
-	if processorConfiguration.PlatformConfig.SensitiveFields.MaskSensitiveFields &&
-		!processorConfiguration.Spec.DisableSensitiveFieldsMasking {
+	if !processorConfiguration.Spec.DisableSensitiveFieldsMasking {
 
 		// check if env var to restore is set
 		if restoreConfigFromSecret := common.GetEnvOrDefaultBool("NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET", false); restoreConfigFromSecret {
