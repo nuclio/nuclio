@@ -818,6 +818,10 @@ func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, func
 	return nil, nil
 }
 
+func (p *Platform) InitializeContainerBuilder() error {
+	return nil
+}
+
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
@@ -875,6 +879,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		RunAsUser:     functionSecurityContext.RunAsUser,
 		RunAsGroup:    functionSecurityContext.RunAsGroup,
 		FSGroup:       functionSecurityContext.FSGroup,
+		Devices:       createFunctionOptions.FunctionConfig.Spec.Devices,
 	}
 
 	containerID := p.GetFunctionContainerName(&createFunctionOptions.FunctionConfig)

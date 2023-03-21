@@ -83,7 +83,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
 	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
 	defaultFunctionPodResources := fsr.resolveDefaultFunctionPodResources()
-	AutoScaleMetrics := fsr.resolveAutoScaleMetrics(inactivityWindowPresets)
+	autoScaleMetrics := fsr.resolveAutoScaleMetrics(inactivityWindowPresets)
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
@@ -97,7 +97,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"allowedAuthenticationModes":      allowedAuthenticationModes,
 			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
 			"defaultFunctionPodResources":     defaultFunctionPodResources,
-			"autoScaleMetrics":                AutoScaleMetrics,
+			"autoScaleMetrics":                autoScaleMetrics,
 		},
 	}
 

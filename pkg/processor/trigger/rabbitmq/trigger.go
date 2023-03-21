@@ -240,11 +240,18 @@ func (rmq *rabbitMq) createTopics() error {
 
 	// create exchange and queue only if user provided topics, else assuming the user did all the necessary configuration
 	// to support listening on the provided exchange and queue
+	// TODO: move to ui and add feature flag
+
+	if rmq.configuration.PrefetchCount != 0 {
+		if err := rmq.brokerChannel.Qos(rmq.configuration.PrefetchCount, 0, true); err != nil {
+			return errors.Wrap(err, "Failed to setup prefetch on channel")
+		}
+	}
 
 	// create the exchange
 	if err := rmq.brokerChannel.ExchangeDeclare(rmq.configuration.ExchangeName,
 		"topic",
-		false,
+		rmq.configuration.DurableExchange,
 		false,
 		false,
 		false,
@@ -254,12 +261,12 @@ func (rmq *rabbitMq) createTopics() error {
 	rmq.Logger.DebugWith("Declared exchange", "exchangeName", rmq.configuration.ExchangeName)
 
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
-		rmq.configuration.QueueName, // queue name (account  + function name)
-		false,                       // durable  TBD: change to true if/when we bind to persistent storage
-		false,                       // delete when unused
-		false,                       // exclusive
-		false,                       // no-wait
-		nil,                         // arguments
+		rmq.configuration.QueueName,    // queue name (account  + function name)
+		rmq.configuration.DurableQueue, // durable  TBD: change to true if/when we bind to persistent storage
+		false,                          // delete when unused
+		false,                          // exclusive
+		false,                          // no-wait
+		nil,                            // arguments
 	)
 	if err != nil {
 		return errors.Wrap(err, "Failed to declare queue")

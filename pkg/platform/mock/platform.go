@@ -295,6 +295,10 @@ func (mp *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (mp *Platform) InitializeContainerBuilder() error {
+	return nil
+}
+
 func (mp *Platform) BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return nil
 }

@@ -320,39 +320,46 @@ type Build struct {
 
 // Spec holds all parameters related to a function's configuration
 type Spec struct {
-	Description                   string                  `json:"description,omitempty"`
-	Disable                       bool                    `json:"disable,omitempty"`
-	Publish                       bool                    `json:"publish,omitempty"`
-	Handler                       string                  `json:"handler,omitempty"`
-	Runtime                       string                  `json:"runtime,omitempty"`
-	Env                           []v1.EnvVar             `json:"env,omitempty"`
-	Resources                     v1.ResourceRequirements `json:"resources,omitempty"`
-	Image                         string                  `json:"image,omitempty"`
-	ImageHash                     string                  `json:"imageHash,omitempty"`
-	Replicas                      *int                    `json:"replicas,omitempty"`
-	MinReplicas                   *int                    `json:"minReplicas,omitempty"`
-	MaxReplicas                   *int                    `json:"maxReplicas,omitempty"`
-	TargetCPU                     int                     `json:"targetCPU,omitempty"`
-	DataBindings                  map[string]DataBinding  `json:"dataBindings,omitempty"`
-	Triggers                      map[string]Trigger      `json:"triggers,omitempty"`
-	Volumes                       []Volume                `json:"volumes,omitempty"`
-	Version                       int                     `json:"version,omitempty"`
-	Alias                         string                  `json:"alias,omitempty"`
-	Build                         Build                   `json:"build,omitempty"`
-	RunRegistry                   string                  `json:"runRegistry,omitempty"`
-	ImagePullSecrets              string                  `json:"imagePullSecrets,omitempty"`
-	RuntimeAttributes             map[string]interface{}  `json:"runtimeAttributes,omitempty"`
-	LoggerSinks                   []LoggerSink            `json:"loggerSinks,omitempty"`
-	DealerURI                     string                  `json:"dealerURI,omitempty"`
-	Platform                      Platform                `json:"platform,omitempty"`
-	ReadinessTimeoutSeconds       int                     `json:"readinessTimeoutSeconds,omitempty"`
-	Avatar                        string                  `json:"avatar,omitempty"`
-	ServiceType                   v1.ServiceType          `json:"serviceType,omitempty"`
-	ImagePullPolicy               v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
-	SecurityContext               *v1.PodSecurityContext  `json:"securityContext,omitempty"`
-	ServiceAccount                string                  `json:"serviceAccount,omitempty"`
-	ScaleToZero                   *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
-	DisableSensitiveFieldsMasking bool                    `json:"disableSensitiveFieldsMasking,omitempty"`
+	Description             string                  `json:"description,omitempty"`
+	Disable                 bool                    `json:"disable,omitempty"`
+	Publish                 bool                    `json:"publish,omitempty"`
+	Handler                 string                  `json:"handler,omitempty"`
+	Runtime                 string                  `json:"runtime,omitempty"`
+	Env                     []v1.EnvVar             `json:"env,omitempty"`
+	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
+	Image                   string                  `json:"image,omitempty"`
+	ImageHash               string                  `json:"imageHash,omitempty"`
+	Replicas                *int                    `json:"replicas,omitempty"`
+	MinReplicas             *int                    `json:"minReplicas,omitempty"`
+	MaxReplicas             *int                    `json:"maxReplicas,omitempty"`
+	TargetCPU               int                     `json:"targetCPU,omitempty"`
+	DataBindings            map[string]DataBinding  `json:"dataBindings,omitempty"`
+	Triggers                map[string]Trigger      `json:"triggers,omitempty"`
+	Volumes                 []Volume                `json:"volumes,omitempty"`
+	Version                 int                     `json:"version,omitempty"`
+	Alias                   string                  `json:"alias,omitempty"`
+	Build                   Build                   `json:"build,omitempty"`
+	RunRegistry             string                  `json:"runRegistry,omitempty"`
+	ImagePullSecrets        string                  `json:"imagePullSecrets,omitempty"`
+	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
+	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
+	DealerURI               string                  `json:"dealerURI,omitempty"`
+	Platform                Platform                `json:"platform,omitempty"`
+	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
+	Avatar                  string                  `json:"avatar,omitempty"`
+	ServiceType             v1.ServiceType          `json:"serviceType,omitempty"`
+	ImagePullPolicy         v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	SecurityContext         *v1.PodSecurityContext  `json:"securityContext,omitempty"`
+	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
+	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
+
+	// When set to true, the function spec would not be scrubbed
+	DisableSensitiveFieldsMasking bool `json:"disableSensitiveFieldsMasking,omitempty"`
+
+	// Used for local platform functions mounting specific devices
+	// https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+	// E.g.: /dev/video0:/dev/video0 or /dev/video0:/dev/video0:rwm or /dev/fuse
+	Devices []string `json:"devices,omitempty"`
 
 	// Run function on a particular set of node(s)
 	// https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
@@ -378,7 +385,7 @@ type Spec struct {
 	CustomScalingMetricSpecs []autosv2.MetricSpec `json:"customScalingMetricSpecs,omitempty"`
 	AutoScaleMetrics         []AutoScaleMetric    `json:"autoScaleMetrics,omitempty"`
 
-	// Currently relevant only for k8s platform
+	// WaitReadinessTimeoutBeforeFailure is relevant only for k8s platform
 	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
 	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
 	// loop, pod container exited with an error, pod is unschedulable).
