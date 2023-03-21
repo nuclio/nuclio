@@ -243,8 +243,7 @@ func (rmq *rabbitMq) createTopics() error {
 	// TODO: move to ui and add feature flag
 
 	if rmq.configuration.PrefetchCount != 0 {
-		err := rmq.brokerChannel.Qos(rmq.configuration.PrefetchCount, 0, true)
-		if err != nil {
+		if err := rmq.brokerChannel.Qos(rmq.configuration.PrefetchCount, 0, true); err != nil {
 			return errors.Wrap(err, "Failed to setup prefetch on channel")
 		}
 	}
