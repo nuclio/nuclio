@@ -1120,7 +1120,7 @@ func (suite *DeployFunctionTestSuite) TestCleanFlexVolumeSubPath() {
 
 func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndSecret() {
 	one := 1
-	eight := 8
+	four := 4
 
 	// set platform config to support scrubbing
 	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
@@ -1141,8 +1141,8 @@ func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndSecret() {
 		suite.Require().NotNil(deployResult)
 
 		// redeploy function with 8 replicas, and a sensitive field
-		createFunctionOptions.FunctionConfig.Spec.MinReplicas = &eight
-		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &eight
+		createFunctionOptions.FunctionConfig.Spec.MinReplicas = &four
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &four
 
 		// add sensitive field
 		createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
@@ -1164,13 +1164,13 @@ def handler(context, event):
 	}, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult)
 
-		// make sure function has 8 replicas
+		// make sure function has 4 replicas
 		function := suite.GetFunction(&platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
-		suite.Require().Equal(eight, *function.GetConfig().Spec.MinReplicas)
-		suite.Require().Equal(eight, *function.GetConfig().Spec.MaxReplicas)
+		suite.Require().Equal(four, *function.GetConfig().Spec.MinReplicas)
+		suite.Require().Equal(four, *function.GetConfig().Spec.MaxReplicas)
 
 		return true
 	})

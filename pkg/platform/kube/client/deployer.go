@@ -219,10 +219,21 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 	}
 
 	// set an env var to tell the processor to restore the function config from the mounted secret
-	scrubbedFunctionConfig.Spec.Env = append(scrubbedFunctionConfig.Spec.Env, v1.EnvVar{
+	restoreFunctionConfigFromSecretEnvVar := v1.EnvVar{
 		Name:  "NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET",
 		Value: "true",
-	})
+	}
+	if !common.EnvInSlice(restoreFunctionConfigFromSecretEnvVar, scrubbedFunctionConfig.Spec.Env) {
+		scrubbedFunctionConfig.Spec.Env = append(scrubbedFunctionConfig.Spec.Env, restoreFunctionConfigFromSecretEnvVar)
+	} else {
+
+		// set the value to true
+		for envIndex, envVar := range scrubbedFunctionConfig.Spec.Env {
+			if envVar.Name == restoreFunctionConfigFromSecretEnvVar.Name {
+				scrubbedFunctionConfig.Spec.Env[envIndex].Value = restoreFunctionConfigFromSecretEnvVar.Value
+			}
+		}
+	}
 
 	return scrubbedFunctionConfig, nil
 }
