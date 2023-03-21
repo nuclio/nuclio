@@ -242,6 +242,12 @@ func (rmq *rabbitMq) createTopics() error {
 	// to support listening on the provided exchange and queue
 	// TODO: move to ui and add feature flag
 
+	if rmq.configuration.PrefetchCount != 0 {
+		if err := rmq.brokerChannel.Qos(rmq.configuration.PrefetchCount, 0, true); err != nil {
+			return errors.Wrap(err, "Failed to setup prefetch on channel")
+		}
+	}
+
 	// create the exchange
 	if err := rmq.brokerChannel.ExchangeDeclare(rmq.configuration.ExchangeName,
 		"topic",
