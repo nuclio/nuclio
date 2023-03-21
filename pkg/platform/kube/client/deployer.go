@@ -244,22 +244,15 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 		StringData: encodedSecretsMap,
 	}
 
-	if len(encodedSecretsMap) > 0 {
-		d.logger.DebugWithCtx(ctx,
-			"Creating/updating function secret",
-			"functionName", name,
-			"functionNamespace", namespace)
-		if err := d.createOrUpdateSecret(ctx, namespace, secretConfig); err != nil {
-			return errors.Wrap(err, "Failed to create function secret")
-		}
-		return nil
-	}
-
+	// create or update the secret, even if the encoded secrets map is empty
+	// this is to ensure that if the function will be updated with new secrets, they will be mounted properly
 	d.logger.DebugWithCtx(ctx,
-		"Function has no sensitive data",
-		"functionName", name)
-
-	// no secret needs to be created, return empty secret name
+		"Creating/updating function secret",
+		"functionName", name,
+		"functionNamespace", namespace)
+	if err := d.createOrUpdateSecret(ctx, namespace, secretConfig); err != nil {
+		return errors.Wrap(err, "Failed to create function secret")
+	}
 	return nil
 }
 
