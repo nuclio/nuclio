@@ -218,6 +218,12 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create or update function secret")
 	}
 
+	// set an env var to tell the processor to restore the function config from the mounted secret
+	scrubbedFunctionConfig.Spec.Env = append(scrubbedFunctionConfig.Spec.Env, v1.EnvVar{
+		Name:  "NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET",
+		Value: "true",
+	})
+
 	return scrubbedFunctionConfig, nil
 }
 

@@ -1137,7 +1137,7 @@ func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndSecret() {
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &one
 
 	// use suite.DeployFunctionAndRedeploy
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult)
 
 		// redeploy function with 8 replicas, and a sensitive field
@@ -1160,19 +1160,17 @@ def handler(context, event):
     context.logger.info("Hello world")
 `, path.Join(functionconfig.FunctionSecretMountPath, functionconfig.SecretContentKey))))
 
-		suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-			suite.Require().NotNil(deployResult)
+		return true
+	}, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
 
-			// make sure function has 8 replicas
-			function := suite.GetFunction(&platform.GetFunctionsOptions{
-				Name:      createFunctionOptions.FunctionConfig.Meta.Name,
-				Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
-			})
-			suite.Require().Equal(eight, *function.GetConfig().Spec.MinReplicas)
-			suite.Require().Equal(eight, *function.GetConfig().Spec.MaxReplicas)
-
-			return true
+		// make sure function has 8 replicas
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
+		suite.Require().Equal(eight, *function.GetConfig().Spec.MinReplicas)
+		suite.Require().Equal(eight, *function.GetConfig().Spec.MaxReplicas)
 
 		return true
 	})
