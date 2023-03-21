@@ -326,10 +326,13 @@ func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string
 
 	// check if a secret is mounted
 	if _, err := os.Stat(contentPath); err != nil {
+		p.logger.WarnWith("Failed to check if secret file exists",
+			"path", contentPath,
+			"err", err)
 		if os.IsNotExist(err) {
 			return nil, errors.New("Secret is not mounted to function pod")
 		}
-		p.logger.WarnWith("Failed to check if secret file exists", "err", err, "filePath", filePath)
+		return nil, errors.Wrap(err, "Failed to check if secret file exists")
 	}
 
 	p.logger.Debug("Secret is mounted to function pod, restoring function config")
