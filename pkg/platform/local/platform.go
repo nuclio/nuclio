@@ -879,6 +879,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		RunAsUser:     functionSecurityContext.RunAsUser,
 		RunAsGroup:    functionSecurityContext.RunAsGroup,
 		FSGroup:       functionSecurityContext.FSGroup,
+		Devices:       createFunctionOptions.FunctionConfig.Spec.Devices,
 	}
 
 	containerID := p.GetFunctionContainerName(&createFunctionOptions.FunctionConfig)
