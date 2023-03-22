@@ -180,6 +180,11 @@ func (s *Scrubber) EncodeSecretsMap(secretsMap map[string]string) (map[string]st
 			return nil, errors.Wrap(err, "Failed to marshal secrets map")
 		}
 		encodedSecretsMap[SecretContentKey] = base64.StdEncoding.EncodeToString(secretsMapContent)
+	} else {
+
+		// if the map is empty, set the content to an empty string anyway,
+		// so that the secret will be created and mounted
+		encodedSecretsMap[SecretContentKey] = ""
 	}
 
 	return encodedSecretsMap, nil

@@ -129,12 +129,19 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor.logger.DebugWith("Read configuration",
 		"config", string(indentedProcessorConfiguration))
 
-	// restore function configuration from secret
-	restoredFunctionConfig, err := newProcessor.restoreFunctionConfig(&processorConfiguration.Config)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to restore function configuration")
+	// restore function configuration from secret if needed
+	if !processorConfiguration.Spec.DisableSensitiveFieldsMasking {
+
+		// check if env var to restore is set
+		if restoreConfigFromSecret := common.GetEnvOrDefaultBool(common.RestoreConfigFromSecretEnvVar,
+			false); restoreConfigFromSecret {
+			restoredFunctionConfig, err := newProcessor.restoreFunctionConfig(&processorConfiguration.Config)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to restore function configuration")
+			}
+			processorConfiguration.Config = *restoredFunctionConfig
+		}
 	}
-	processorConfiguration.Config = *restoredFunctionConfig
 
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration
@@ -303,6 +310,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 
 	// if there are no secrets, return
 	if len(secretsMap) == 0 {
+		p.logger.Debug("Secret is empty, skipping config restoration")
 		return config, nil
 	}
 
@@ -325,9 +333,14 @@ func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string
 	contentPath := path.Join(filePath, functionconfig.SecretContentKey)
 
 	// check if a secret is mounted
-	if !common.FileExists(contentPath) {
-		p.logger.Debug("No secret is not mounted to function pod, continuing without restoring function config")
-		return map[string]string{}, nil
+	if _, err := os.Stat(contentPath); err != nil {
+		p.logger.WarnWith("Failed to check if secret file exists",
+			"path", contentPath,
+			"err", err)
+		if os.IsNotExist(err) {
+			return nil, errors.New("Secret is not mounted to function pod")
+		}
+		return nil, errors.Wrap(err, "Failed to check if secret file exists")
 	}
 
 	p.logger.Debug("Secret is mounted to function pod, restoring function config")
@@ -336,6 +349,10 @@ func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string
 	encodedSecret, err := os.ReadFile(contentPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read function secret")
+	}
+
+	if string(encodedSecret) == "" {
+		return map[string]string{}, nil
 	}
 
 	return scrubber.DecodeSecretsMapContent(string(encodedSecret))

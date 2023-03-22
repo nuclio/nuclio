@@ -218,6 +218,23 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create or update function secret")
 	}
 
+	// set an env var to tell the processor to restore the function config from the mounted secret
+	restoreFunctionConfigFromSecretEnvVar := v1.EnvVar{
+		Name:  common.RestoreConfigFromSecretEnvVar,
+		Value: "true",
+	}
+	if !common.EnvInSlice(restoreFunctionConfigFromSecretEnvVar, scrubbedFunctionConfig.Spec.Env) {
+		scrubbedFunctionConfig.Spec.Env = append(scrubbedFunctionConfig.Spec.Env, restoreFunctionConfigFromSecretEnvVar)
+	} else {
+
+		// set the value to true
+		for envIndex, envVar := range scrubbedFunctionConfig.Spec.Env {
+			if envVar.Name == restoreFunctionConfigFromSecretEnvVar.Name {
+				scrubbedFunctionConfig.Spec.Env[envIndex].Value = restoreFunctionConfigFromSecretEnvVar.Value
+			}
+		}
+	}
+
 	return scrubbedFunctionConfig, nil
 }
 
@@ -244,22 +261,15 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 		StringData: encodedSecretsMap,
 	}
 
-	if len(encodedSecretsMap) > 0 {
-		d.logger.DebugWithCtx(ctx,
-			"Creating/updating function secret",
-			"functionName", name,
-			"functionNamespace", namespace)
-		if err := d.createOrUpdateSecret(ctx, namespace, secretConfig); err != nil {
-			return errors.Wrap(err, "Failed to create function secret")
-		}
-		return nil
-	}
-
+	// create or update the secret, even if the encoded secrets map is empty
+	// this is to ensure that if the function will be updated with new secrets, they will be mounted properly
 	d.logger.DebugWithCtx(ctx,
-		"Function has no sensitive data",
-		"functionName", name)
-
-	// no secret needs to be created, return empty secret name
+		"Creating/updating function secret",
+		"functionName", name,
+		"functionNamespace", namespace)
+	if err := d.createOrUpdateSecret(ctx, namespace, secretConfig); err != nil {
+		return errors.Wrap(err, "Failed to create function secret")
+	}
 	return nil
 }
 

@@ -48,3 +48,5 @@ const (
 	KubePlatformName  = "kube"
 	LocalPlatformName = "local"
 )
+
+const RestoreConfigFromSecretEnvVar = "NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET"

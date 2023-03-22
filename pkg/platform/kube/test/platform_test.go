@@ -1118,6 +1118,72 @@ func (suite *DeployFunctionTestSuite) TestCleanFlexVolumeSubPath() {
 	suite.Require().Error(err)
 }
 
+func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndSecret() {
+	one := 1
+	four := 4
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	// create function with 1 replica
+	functionName := "my-function"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &one
+
+	suite.Logger.InfoWith("Deploying function without sensitive data",
+		"functionName", functionName,
+		"replicas", one)
+
+	// use suite.DeployFunctionAndRedeploy
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// redeploy function with 4 replicas, and a sensitive field
+		createFunctionOptions.FunctionConfig.Spec.MinReplicas = &four
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &four
+
+		// add sensitive field
+		createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+			"password": "my-password",
+		}
+
+		// function will try to read the secret, and will fail if the secret is not mounted
+		createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.
+			EncodeToString([]byte(fmt.Sprintf(`
+def init_context(context):
+    context.logger.info("Init context - reading secret")
+    secret_content = open("%s", "r").read()
+
+def handler(context, event):
+    context.logger.info("Hello world")
+`, path.Join(functionconfig.FunctionSecretMountPath, functionconfig.SecretContentKey))))
+
+		suite.Logger.InfoWith("Redeploying function with sensitive data",
+			"functionName", functionName,
+			"replicas", four)
+
+		return true
+	}, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// make sure function has 4 replicas
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+		suite.Require().Equal(four, *function.GetConfig().Spec.MinReplicas)
+		suite.Require().Equal(four, *function.GetConfig().Spec.MaxReplicas)
+
+		return true
+	})
+}
+
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }
