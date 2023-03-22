@@ -1144,7 +1144,7 @@ func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndSecret() {
 	suite.DeployFunctionAndRedeploy(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult)
 
-		// redeploy function with 8 replicas, and a sensitive field
+		// redeploy function with 4 replicas, and a sensitive field
 		createFunctionOptions.FunctionConfig.Spec.MinReplicas = &four
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &four
 
