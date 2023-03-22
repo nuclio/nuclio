@@ -1136,6 +1136,10 @@ func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndSecret() {
 	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &one
 
+	suite.Logger.InfoWith("Deploying function without sensitive data",
+		"functionName", functionName,
+		"replicas", one)
+
 	// use suite.DeployFunctionAndRedeploy
 	suite.DeployFunctionAndRedeploy(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult)
@@ -1159,6 +1163,10 @@ def init_context(context):
 def handler(context, event):
     context.logger.info("Hello world")
 `, path.Join(functionconfig.FunctionSecretMountPath, functionconfig.SecretContentKey))))
+
+		suite.Logger.InfoWith("Redeploying function with sensitive data",
+			"functionName", functionName,
+			"replicas", four)
 
 		return true
 	}, func(deployResult *platform.CreateFunctionResult) bool {

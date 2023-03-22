@@ -133,7 +133,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	if !processorConfiguration.Spec.DisableSensitiveFieldsMasking {
 
 		// check if env var to restore is set
-		if restoreConfigFromSecret := common.GetEnvOrDefaultBool("NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET", false); restoreConfigFromSecret {
+		if restoreConfigFromSecret := common.GetEnvOrDefaultBool("NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET",
+			false); restoreConfigFromSecret {
 			restoredFunctionConfig, err := newProcessor.restoreFunctionConfig(&processorConfiguration.Config)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to restore function configuration")
@@ -309,6 +310,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 
 	// if there are no secrets, return
 	if len(secretsMap) == 0 {
+		p.logger.Debug("Secret is empty, skipping config restoration")
 		return config, nil
 	}
 
@@ -347,6 +349,10 @@ func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string
 	encodedSecret, err := os.ReadFile(contentPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read function secret")
+	}
+
+	if string(encodedSecret) == "" {
+		return map[string]string{}, nil
 	}
 
 	return scrubber.DecodeSecretsMapContent(string(encodedSecret))
