@@ -40,13 +40,18 @@ limitations under the License.
          * @param {Object} functionDetails
          * @param {string} projectName - the name of the project containing the function
          * @param {boolean} [importProcess] - `true` if importing process
+         * @param {boolean} withTimeoutHeader - `true` if additional header should be added
          * @returns {Promise}
          */
-        function createFunction(functionDetails, projectName, importProcess) {
+        function createFunction(functionDetails, projectName, importProcess, withTimeoutHeader) {
             var headers = {
                 'Content-Type': 'application/json',
                 'x-nuclio-project-name': projectName
             };
+
+            if (withTimeoutHeader) {
+                lodash.set(headers, 'x-nuclio-creation-state-updated-timeout', '5m');
+            }
 
             lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));
 
@@ -155,13 +160,18 @@ limitations under the License.
          * Update existing function with new data
          * @param {Object} functionDetails
          * @param {string} projectName - the name of the project containing the function
+         * @param {boolean} withTimeoutHeader - `true` if additional header should be added
          * @returns {Promise}
          */
-        function updateFunction(functionDetails, projectName) {
+        function updateFunction(functionDetails, projectName, withTimeoutHeader) {
             var headers = {
                 'Content-Type': 'application/json',
                 'x-nuclio-project-name': projectName
             };
+
+            if (withTimeoutHeader) {
+                lodash.set(headers, 'x-nuclio-creation-state-updated-timeout', '5m');
+            }
 
             lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));
 
