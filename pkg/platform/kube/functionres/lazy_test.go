@@ -37,7 +37,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
-	autosv2 "k8s.io/api/autoscaling/v2beta1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
@@ -888,8 +888,13 @@ func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
 			CustomScalingMetricSpecs: []autosv2.MetricSpec{
 				{
 					Pods: &autosv2.PodsMetricSource{
-						MetricName:         "another-custom-metric",
-						TargetAverageValue: podTargetValue,
+						Metric: autosv2.MetricIdentifier{
+							Name: "another-custom-metric",
+						},
+						Target: autosv2.MetricTarget{
+							Type:         autosv2.AverageValueMetricType,
+							AverageValue: &podTargetValue,
+						},
 					},
 				},
 			},
@@ -905,13 +910,15 @@ func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
 	for _, metricSpec := range resolvedMetricSpec {
 		switch metricSpec.Type {
 		case autosv2.ResourceMetricSourceType:
-			suite.Require().Equal(*metricSpec.Resource.TargetAverageUtilization, int32(resourceTargetValue))
+
+			// TargetAverageUtilization
+			suite.Require().Equal(*metricSpec.Resource.Target.AverageUtilization, int32(resourceTargetValue))
 
 		case autosv2.ExternalMetricSourceType:
-			suite.Require().True(metricSpec.External.TargetValue.Equal(externalQuantity))
+			suite.Require().True(metricSpec.External.Target.Value.Equal(externalQuantity))
 
 		case autosv2.PodsMetricSourceType:
-			suite.Require().True(metricSpec.Pods.TargetAverageValue.Equal(podTargetValue))
+			suite.Require().True(metricSpec.Pods.Target.AverageValue.Equal(podTargetValue))
 		}
 	}
 }
