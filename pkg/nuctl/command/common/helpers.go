@@ -21,8 +21,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"sigs.k8s.io/yaml"
 )
 
 func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
@@ -71,7 +71,9 @@ func GetUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, err
 	}
 
 	if err = yaml.Unmarshal(bytes, &obj); err == nil {
-		return yaml.Unmarshal, nil
+		return func(data []byte, v interface{}) error {
+			return yaml.Unmarshal(data, v)
+		}, nil
 	}
 
 	return nil, errors.New("Input is neither json nor yaml")

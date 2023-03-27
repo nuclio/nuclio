@@ -21,8 +21,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"sigs.k8s.io/yaml"
 )
 
 // Reader is processor configuration reader

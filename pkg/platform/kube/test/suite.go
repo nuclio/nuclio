@@ -44,7 +44,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	appsv1 "k8s.io/api/apps/v1"
@@ -54,6 +53,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/yaml"
 )
 
 type OnAfterIngressCreated func(*networkingv1.Ingress)

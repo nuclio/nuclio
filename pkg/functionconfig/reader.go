@@ -22,10 +22,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 
-	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"sigs.k8s.io/yaml"
 )
 
 type Reader struct {

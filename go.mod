@@ -14,7 +14,6 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/fatih/color v1.13.0
 	github.com/fatih/structs v1.1.0
-	github.com/ghodss/yaml v1.0.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-chi/cors v1.2.1
 	github.com/go-git/go-git/v5 v5.4.2
