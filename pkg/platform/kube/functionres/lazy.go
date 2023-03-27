@@ -1608,6 +1608,16 @@ func (lc *lazyClient) getFunctionEnvironment(functionLabels labels.Set,
 		},
 	})
 
+	// remove internal env vars from the function spec env
+	for _, internalEnvVar := range []v1.EnvVar{
+		{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		},
+	} {
+		function.Spec.Env = common.RemoveEnvFromSlice(internalEnvVar, function.Spec.Env)
+	}
+
 	return env
 }
 

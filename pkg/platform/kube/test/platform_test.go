@@ -893,6 +893,40 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestSecretEnvVarNotPresent() {
+	functionName := "regulart-func"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		suite.Require().NotNil(deployResult)
+
+		// get the function
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		// validate secret restoration env var is not in spec
+		restoreSecretEnvVar := v1.EnvVar{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		}
+		suite.Require().False(common.EnvInSlice(restoreSecretEnvVar, function.GetConfig().Spec.Env))
+
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 	scrubber := functionconfig.NewScrubber(nil, nil)
 
