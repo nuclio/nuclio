@@ -218,23 +218,6 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create or update function secret")
 	}
 
-	// set an env var to tell the processor to restore the function config from the mounted secret
-	restoreFunctionConfigFromSecretEnvVar := v1.EnvVar{
-		Name:  common.RestoreConfigFromSecretEnvVar,
-		Value: "true",
-	}
-	if !common.EnvInSlice(restoreFunctionConfigFromSecretEnvVar, scrubbedFunctionConfig.Spec.Env) {
-		scrubbedFunctionConfig.Spec.Env = append(scrubbedFunctionConfig.Spec.Env, restoreFunctionConfigFromSecretEnvVar)
-	} else {
-
-		// set the value to true
-		for envIndex, envVar := range scrubbedFunctionConfig.Spec.Env {
-			if envVar.Name == restoreFunctionConfigFromSecretEnvVar.Name {
-				scrubbedFunctionConfig.Spec.Env[envIndex].Value = restoreFunctionConfigFromSecretEnvVar.Value
-			}
-		}
-	}
-
 	return scrubbedFunctionConfig, nil
 }
 
