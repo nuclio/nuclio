@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	appsv1 "k8s.io/api/apps/v1"
-	autosv2 "k8s.io/api/autoscaling/v2beta1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"

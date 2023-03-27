@@ -51,7 +51,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	appsv1 "k8s.io/api/apps/v1"
-	autosv2 "k8s.io/api/autoscaling/v2beta1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -407,7 +407,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 
 	// Delete HPA if exists
 	hpaName := kube.HPANameFromFunctionName(name)
-	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(ctx, hpaName, deleteOptions)
+	err = lc.kubeClientSet.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, hpaName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")
@@ -1197,7 +1197,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
-		return lc.kubeClientSet.AutoscalingV2beta1().
+		return lc.kubeClientSet.AutoscalingV2().
 			HorizontalPodAutoscalers(function.Namespace).
 			Get(ctx, kube.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
@@ -1227,14 +1227,17 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 				MaxReplicas: maxReplicas,
 				Metrics:     metricSpecs,
 				ScaleTargetRef: autosv2.CrossVersionObjectReference{
-					APIVersion: "apps/apps_v1",
+					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       kube.DeploymentNameFromFunctionName(function.Name),
 				},
 			},
 		}
 
-		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Create(ctx, &hpa, metav1.CreateOptions{})
+		return lc.kubeClientSet.
+			AutoscalingV2().
+			HorizontalPodAutoscalers(function.Namespace).
+			Create(ctx, &hpa, metav1.CreateOptions{})
 	}
 
 	updateHorizontalPodAutoscaler := func(resourceToUpdate interface{}) (interface{}, error) {
@@ -1262,13 +1265,13 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 				"functionName", function.Name,
 				"name", hpa.Name)
 
-			err := lc.kubeClientSet.AutoscalingV2beta1().
+			err := lc.kubeClientSet.AutoscalingV2().
 				HorizontalPodAutoscalers(function.Namespace).
 				Delete(ctx, hpa.Name, *deleteOptions)
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Update(ctx, hpa, metav1.UpdateOptions{})
+		return lc.kubeClientSet.AutoscalingV2().HorizontalPodAutoscalers(function.Namespace).Update(ctx, hpa, metav1.UpdateOptions{})
 	}
 
 	resource, err := lc.createOrUpdateResource(ctx,
@@ -2521,8 +2524,11 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 				{
 					Type: "Resource",
 					Resource: &autosv2.ResourceMetricSource{
-						Name:               lc.getMetricResourceByName(platformConfig.AutoScale.MetricName),
-						TargetAverageValue: &targetValue,
+						Name: lc.getMetricResourceByName(platformConfig.AutoScale.MetricName),
+						Target: autosv2.MetricTarget{
+							Type:         autosv2.AverageValueMetricType,
+							AverageValue: &targetValue,
+						},
 					},
 				},
 			}
@@ -2531,8 +2537,13 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 				{
 					Type: "Pods",
 					Pods: &autosv2.PodsMetricSource{
-						MetricName:         platformConfig.AutoScale.MetricName,
-						TargetAverageValue: targetValue,
+						Metric: autosv2.MetricIdentifier{
+							Name: platformConfig.AutoScale.MetricName,
+						},
+						Target: autosv2.MetricTarget{
+							Type:         autosv2.AverageValueMetricType,
+							AverageValue: &targetValue,
+						},
 					},
 				},
 			}
@@ -2545,8 +2556,11 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 		metricSpecs = append(metricSpecs, autosv2.MetricSpec{
 			Type: "Resource",
 			Resource: &autosv2.ResourceMetricSource{
-				Name:                     v1.ResourceCPU,
-				TargetAverageUtilization: &targetCPU,
+				Name: v1.ResourceCPU,
+				Target: autosv2.MetricTarget{
+					Type:               autosv2.UtilizationMetricType,
+					AverageUtilization: &targetCPU,
+				},
 			},
 		})
 	}
@@ -2579,8 +2593,11 @@ func (lc *lazyClient) generateMetricSpecFromAutoScaleMetrics(autoScaleMetrics []
 			metricSpec = autosv2.MetricSpec{
 				Type: autoscaleMetric.SourceType,
 				Resource: &autosv2.ResourceMetricSource{
-					Name:                     v1.ResourceName(autoscaleMetric.MetricName),
-					TargetAverageUtilization: &targetAverageUtilization,
+					Name: v1.ResourceName(autoscaleMetric.MetricName),
+					Target: autosv2.MetricTarget{
+						Type:               autosv2.UtilizationMetricType,
+						AverageUtilization: &targetAverageUtilization,
+					},
 				},
 			}
 		case autosv2.PodsMetricSourceType:
@@ -2591,8 +2608,13 @@ func (lc *lazyClient) generateMetricSpecFromAutoScaleMetrics(autoScaleMetrics []
 			metricSpec = autosv2.MetricSpec{
 				Type: autoscaleMetric.SourceType,
 				Pods: &autosv2.PodsMetricSource{
-					MetricName:         fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
-					TargetAverageValue: quantity,
+					Metric: autosv2.MetricIdentifier{
+						Name: fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
+					},
+					Target: autosv2.MetricTarget{
+						Type:         autosv2.AverageValueMetricType,
+						AverageValue: &quantity,
+					},
 				},
 			}
 
@@ -2604,8 +2626,13 @@ func (lc *lazyClient) generateMetricSpecFromAutoScaleMetrics(autoScaleMetrics []
 			metricSpec = autosv2.MetricSpec{
 				Type: autoscaleMetric.SourceType,
 				External: &autosv2.ExternalMetricSource{
-					MetricName:  fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
-					TargetValue: &quantity,
+					Metric: autosv2.MetricIdentifier{
+						Name: fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
+					},
+					Target: autosv2.MetricTarget{
+						Type:  autosv2.ValueMetricType,
+						Value: &quantity,
+					},
 				},
 			}
 		default:

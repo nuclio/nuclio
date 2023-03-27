@@ -30,7 +30,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/scaler/pkg/scalertypes"
-	autosv2 "k8s.io/api/autoscaling/v2beta1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 )
