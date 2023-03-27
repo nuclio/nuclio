@@ -1227,7 +1227,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 				MaxReplicas: maxReplicas,
 				Metrics:     metricSpecs,
 				ScaleTargetRef: autosv2.CrossVersionObjectReference{
-					APIVersion: "apps/apps_v1",
+					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       kube.DeploymentNameFromFunctionName(function.Name),
 				},
