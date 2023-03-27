@@ -137,10 +137,7 @@ func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platf
 		}
 		return nil
 	}
-	items := map[string]interface{}{
-		"functions": configsWithStatus,
-	}
-	if err := renderer(items); err != nil {
+	if err := renderer(configsWithStatus); err != nil {
 		return errors.Wrap(err, "Failed to render function config with status")
 	}
 
@@ -220,10 +217,7 @@ func (g *getProjectCommandeer) renderProjectConfig(ctx context.Context, projects
 	for _, project := range projects {
 		projectConfigs = append(projectConfigs, *project.GetConfig())
 	}
-	items := map[string]interface{}{
-		"projects": projectConfigs,
-	}
-	if err := renderer(items); err != nil {
+	if err := renderer(projectConfigs); err != nil {
 		return errors.Wrap(err, "Failed to render project config")
 	}
 	return nil
@@ -297,10 +291,7 @@ func (g *getAPIGatewayCommandeer) renderAPIGatewayConfig(apiGateways []platform.
 	for _, apiGateway := range apiGateways {
 		apiGatewayConfigs = append(apiGatewayConfigs, *apiGateway.GetConfig())
 	}
-	items := map[string]interface{}{
-		"apiGateways": apiGatewayConfigs,
-	}
-	if err := renderer(items); err != nil {
+	if err := renderer(apiGatewayConfigs); err != nil {
 		return errors.Wrap(err, "Failed to render api gateway config")
 	}
 
@@ -384,10 +375,7 @@ func (g *getFunctionEventCommandeer) renderFunctionEventConfig(functionEvents []
 	for _, functionEvent := range functionEvents {
 		functionEventConfigs = append(functionEventConfigs, *functionEvent.GetConfig())
 	}
-	items := map[string]interface{}{
-		"functionEvents": functionEventConfigs,
-	}
-	if err := renderer(items); err != nil {
+	if err := renderer(functionEventConfigs); err != nil {
 		return errors.Wrap(err, "Failed to render function event config")
 	}
 
