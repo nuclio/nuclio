@@ -1608,6 +1608,16 @@ func (lc *lazyClient) getFunctionEnvironment(functionLabels labels.Set,
 		},
 	})
 
+	// remove internal env vars from the function spec env
+	for _, internalEnvVar := range []v1.EnvVar{
+		{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		},
+	} {
+		function.Spec.Env = common.RemoveEnvFromSlice(internalEnvVar, function.Spec.Env)
+	}
+
 	return env
 }
 
@@ -2308,6 +2318,23 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 			MountPath: functionconfig.FunctionSecretMountPath,
 			ReadOnly:  true,
 		})
+
+		// set an env var to tell the processor to restore the function config from the mounted secret
+		restoreFunctionConfigFromSecretEnvVar := v1.EnvVar{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		}
+		if !common.EnvInSlice(restoreFunctionConfigFromSecretEnvVar, function.Spec.Env) {
+			function.Spec.Env = append(function.Spec.Env, restoreFunctionConfigFromSecretEnvVar)
+		} else {
+
+			// set the value to true
+			for envIndex, envVar := range function.Spec.Env {
+				if envVar.Name == restoreFunctionConfigFromSecretEnvVar.Name {
+					function.Spec.Env[envIndex].Value = restoreFunctionConfigFromSecretEnvVar.Value
+				}
+			}
+		}
 	}
 
 	for _, volume := range volumeNameToVolume {

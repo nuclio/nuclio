@@ -26,3 +26,12 @@ func EnvInSlice(env v1.EnvVar, slice []v1.EnvVar) bool {
 	}
 	return false
 }
+
+func RemoveEnvFromSlice(env v1.EnvVar, slice []v1.EnvVar) []v1.EnvVar {
+	for i, envVar := range slice {
+		if envVar.Name == env.Name {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
+}
