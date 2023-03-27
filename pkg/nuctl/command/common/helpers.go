@@ -21,8 +21,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"sigs.k8s.io/yaml"
 )
 
 func ReadFromInOrStdin(r io.Reader) ([]byte, error) {

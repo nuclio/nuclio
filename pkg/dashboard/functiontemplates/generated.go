@@ -17,7 +17,7 @@ package functiontemplates
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 var GeneratedFunctionTemplates = []*generatedFunctionTemplate{

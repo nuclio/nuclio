@@ -35,12 +35,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 
-	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/flect"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	yamlv3 "gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 var funcMap = template.FuncMap{
@@ -82,7 +82,7 @@ package functiontemplates
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 var GeneratedFunctionTemplates = []*generatedFunctionTemplate{

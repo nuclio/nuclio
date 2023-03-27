@@ -45,11 +45,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
+	"sigs.k8s.io/yaml"
 )
 
 type Platform struct {
