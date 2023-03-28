@@ -1218,6 +1218,55 @@ def handler(context, event):
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndValidateResources() {
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	one := 1
+	two := 2
+	createFunctionOptions := suite.CompileCreateFunctionOptions("my-function")
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+
+	suite.Logger.InfoWith("Deploying function with 1 replica",
+		"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
+
+	// deploy function with 1 replica
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, func(firstDeployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(firstDeployResult)
+
+		suite.Logger.InfoWith("Redeploying function with 2 replica",
+			"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
+
+		// change replicas to 2
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &two
+
+		return true
+	}, func(secondDeployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(secondDeployResult)
+
+		// validate function resources are not zero (meaning they were updated with defaults)
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		functionSpec := function.GetConfig().Spec
+
+		// only resource requests are enriched by default
+		suite.Require().NotNil(functionSpec.Resources)
+		suite.Require().NotNil(functionSpec.Resources.Requests)
+		suite.Require().NotZero(functionSpec.Resources.Requests.Cpu().MilliValue())
+		suite.Require().NotZero(functionSpec.Resources.Requests.Memory().Value())
+
+		return true
+	})
+}
+
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }
