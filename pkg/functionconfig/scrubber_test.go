@@ -28,6 +28,7 @@ import (
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -407,6 +408,33 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 			suite.Require().True(strings.HasPrefix(secretName, testCase.expectedResultPrefix))
 		})
 	}
+}
+
+func (suite *ScrubberTestSuite) TestRestoreConfigWithResources() {
+
+	config := &Config{
+		Spec: Spec{
+			Resources: v1.ResourceRequirements{
+				Limits: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("200m"),
+					v1.ResourceMemory: resource.MustParse("200Mi"),
+				},
+				Requests: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("100m"),
+					v1.ResourceMemory: resource.MustParse("100Mi"),
+				},
+			},
+		},
+	}
+
+	secretMap := map[string]string{}
+
+	// restore the config
+	restoredFunctionConfig, err := suite.scrubber.Restore(config, secretMap)
+	suite.Require().NoError(err)
+
+	// check that the restored config has the same resources
+	suite.Require().Equal(config.Spec.Resources, restoredFunctionConfig.Spec.Resources)
 }
 
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths

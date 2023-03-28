@@ -420,7 +420,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		return createFunctionResult, nil
 	}
 
-	// do the deploy in the abstract base class
+	// do the deploying in the abstract base class
 	return p.HandleDeployFunction(ctx, existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 

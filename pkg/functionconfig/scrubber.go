@@ -114,14 +114,9 @@ func (s *Scrubber) Scrub(functionConfig *Config,
 		secretsMap = labels.Merge(existingSecretMap, secretsMap)
 	}
 
-	// marshal and unmarshal the scrubbed object back to function config
-	scrubbedFunctionConfig := &Config{}
-	masrhalledScrubbedFunctionConfig, err := json.Marshal(scrubbedFunctionConfigAsMap.(map[string]interface{}))
+	scrubbedFunctionConfig, err := s.convertMapToConfig(scrubbedFunctionConfigAsMap)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to marshal scrubbed function config")
-	}
-	if err := json.Unmarshal(masrhalledScrubbedFunctionConfig, scrubbedFunctionConfig); err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to unmarshal scrubbed function config")
+		return nil, nil, errors.Wrap(err, "Failed to convert scrubbed function config map to function config")
 	}
 
 	return scrubbedFunctionConfig, secretsMap, scrubErr
@@ -129,8 +124,22 @@ func (s *Scrubber) Scrub(functionConfig *Config,
 
 // Restore restores sensitive data in a function config from a secrets map
 func (s *Scrubber) Restore(scrubbedFunctionConfig *Config, secretsMap map[string]string) (*Config, error) {
-	restored := gosecretive.Restore(scrubbedFunctionConfig, secretsMap)
-	return restored.(*Config), nil
+
+	// hack to avoid changing complex objects in the function config.
+	// convert the function config to map[string]interface{} and revert it back to a function config later
+	scrubbedFunctionConfigAsMap := common.StructureToMap(scrubbedFunctionConfig)
+	if len(scrubbedFunctionConfigAsMap) == 0 {
+		return nil, errors.New("Failed to convert function config to map")
+	}
+
+	restoredFunctionConfigMap := gosecretive.Restore(scrubbedFunctionConfigAsMap, secretsMap)
+
+	restoredFunctionConfig, err := s.convertMapToConfig(restoredFunctionConfigMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to convert restored function config map to function config")
+	}
+
+	return restoredFunctionConfig, nil
 }
 
 // RestoreFunctionConfig restores a function config from a secret, in case we're running in a kube platform
@@ -148,7 +157,7 @@ func (s *Scrubber) RestoreFunctionConfig(ctx context.Context,
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get function secret")
 		}
-		if secretMap != nil {
+		if len(secretMap) > 0 {
 
 			// restore the function config
 			restoredFunctionConfig, err := s.Restore(functionConfig, secretMap)
@@ -197,6 +206,11 @@ func (s *Scrubber) DecodeSecretsMapContent(secretsMapContent string) (map[string
 	secretContentStr, err := base64.StdEncoding.DecodeString(secretsMapContent)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to decode function secret")
+	}
+	if len(secretContentStr) == 0 {
+
+		// secret is empty, return empty map
+		return map[string]string{}, nil
 	}
 
 	// unmarshal secret into map
@@ -390,4 +404,19 @@ func (s *Scrubber) validateSecretName(secretName string) string {
 
 	// remove trailing non-alphanumeric characters
 	return strings.TrimRight(secretName, "-_")
+}
+
+func (s *Scrubber) convertMapToConfig(mapConfig interface{}) (*Config, error) {
+
+	// marshal and unmarshal the map object back to function config
+	functionConfig := &Config{}
+	masrhalledFunctionConfig, err := json.Marshal(mapConfig.(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to marshal scrubbed function config")
+	}
+	if err := json.Unmarshal(masrhalledFunctionConfig, functionConfig); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal scrubbed function config")
+	}
+
+	return functionConfig, nil
 }
