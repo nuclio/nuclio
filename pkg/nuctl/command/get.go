@@ -123,15 +123,24 @@ func newGetFunctionCommandeer(ctx context.Context, getCommandeer *getCommandeer)
 
 func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platform.Function,
 	renderer func(interface{}) error) error {
+	configsWithStatus := make([]functionconfig.ConfigWithStatus, 0, len(functions))
 	for _, function := range functions {
 		functionConfigWithStatus := functionconfig.ConfigWithStatus{
 			Config: *function.GetConfig(),
 			Status: *function.GetStatus(),
 		}
-		if err := renderer(functionConfigWithStatus); err != nil {
+		configsWithStatus = append(configsWithStatus, functionConfigWithStatus)
+	}
+	if len(configsWithStatus) == 1 {
+		if err := renderer(configsWithStatus[0]); err != nil {
 			return errors.Wrap(err, "Failed to render function config with status")
 		}
+		return nil
 	}
+	if err := renderer(configsWithStatus); err != nil {
+		return errors.Wrap(err, "Failed to render function config with status")
+	}
+
 	return nil
 }
 
@@ -197,12 +206,20 @@ func newGetProjectCommandeer(ctx context.Context, getCommandeer *getCommandeer) 
 }
 
 func (g *getProjectCommandeer) renderProjectConfig(ctx context.Context, projects []platform.Project, renderer func(interface{}) error) error {
-	for _, project := range projects {
-		if err := renderer(project.GetConfig()); err != nil {
+	if len(projects) == 1 {
+		if err := renderer(projects[0].GetConfig()); err != nil {
 			return errors.Wrap(err, "Failed to render project config")
 		}
+		return nil
 	}
 
+	projectConfigs := make([]platform.ProjectConfig, 0, len(projects))
+	for _, project := range projects {
+		projectConfigs = append(projectConfigs, *project.GetConfig())
+	}
+	if err := renderer(projectConfigs); err != nil {
+		return errors.Wrap(err, "Failed to render project config")
+	}
 	return nil
 }
 
@@ -263,10 +280,19 @@ func newGetAPIGatewayCommandeer(ctx context.Context, getCommandeer *getCommandee
 }
 
 func (g *getAPIGatewayCommandeer) renderAPIGatewayConfig(apiGateways []platform.APIGateway, renderer func(interface{}) error) error {
-	for _, apiGateway := range apiGateways {
-		if err := renderer(apiGateway.GetConfig()); err != nil {
+	if len(apiGateways) == 1 {
+		if err := renderer(apiGateways[0].GetConfig()); err != nil {
 			return errors.Wrap(err, "Failed to render api gateway config")
 		}
+		return nil
+	}
+
+	apiGatewayConfigs := make([]platform.APIGatewayConfig, 0, len(apiGateways))
+	for _, apiGateway := range apiGateways {
+		apiGatewayConfigs = append(apiGatewayConfigs, *apiGateway.GetConfig())
+	}
+	if err := renderer(apiGatewayConfigs); err != nil {
+		return errors.Wrap(err, "Failed to render api gateway config")
 	}
 
 	return nil
@@ -338,10 +364,19 @@ func newGetFunctionEventCommandeer(ctx context.Context, getCommandeer *getComman
 }
 
 func (g *getFunctionEventCommandeer) renderFunctionEventConfig(functionEvents []platform.FunctionEvent, renderer func(interface{}) error) error {
-	for _, functionEvent := range functionEvents {
-		if err := renderer(functionEvent.GetConfig()); err != nil {
+	if len(functionEvents) == 1 {
+		if err := renderer(functionEvents[0].GetConfig()); err != nil {
 			return errors.Wrap(err, "Failed to render function event config")
 		}
+		return nil
+	}
+
+	functionEventConfigs := make([]platform.FunctionEventConfig, 0, len(functionEvents))
+	for _, functionEvent := range functionEvents {
+		functionEventConfigs = append(functionEventConfigs, *functionEvent.GetConfig())
+	}
+	if err := renderer(functionEventConfigs); err != nil {
+		return errors.Wrap(err, "Failed to render function event config")
 	}
 
 	return nil
