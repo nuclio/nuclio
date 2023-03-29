@@ -226,11 +226,6 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			StreamRouteFunc: fr.getFunctionLogs,
 			Stream:          true,
 		},
-		//{
-		//	Pattern:   "/{id}",
-		//	Method:    http.MethodPatch,
-		//	RouteFunc: fr.patch,
-		//},
 	}, nil
 }
 
