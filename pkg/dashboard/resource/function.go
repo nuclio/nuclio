@@ -50,6 +50,10 @@ type functionInfo struct {
 	Status *functionconfig.Status `json:"status,omitempty"`
 }
 
+type patchOptions struct {
+	DesiredState *functionconfig.FunctionState `json:"desiredState,omitempty"`
+}
+
 func (fr *functionResource) ExtendMiddlewares() error {
 	fr.resource.addAuthMiddleware(nil)
 	return nil
@@ -178,6 +182,28 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	return nil, nuclio.ErrAccepted
 }
 
+// Patch applies partial modifications to a function
+func (fr *functionResource) Patch(request *http.Request, id string) error {
+
+	// get the desired state of the function from the request body
+	patchOptionsInstance, err := fr.getPatchFunctionOptionsFromRequest(request)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get patch options")
+	}
+
+	// get the authentication configuration for the request
+	authConfig, err := fr.getRequestAuthConfig(request)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get auth config")
+	}
+
+	if patchOptionsInstance.DesiredState != nil {
+		return fr.patchFunctionDesiredState(request, id, patchOptionsInstance, authConfig)
+	}
+
+	return nil
+}
+
 // GetCustomRoutes returns a list of custom routes for the resource
 func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
@@ -200,6 +226,11 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			StreamRouteFunc: fr.getFunctionLogs,
 			Stream:          true,
 		},
+		//{
+		//	Pattern:   "/{id}",
+		//	Method:    http.MethodPatch,
+		//	RouteFunc: fr.patch,
+		//},
 	}, nil
 }
 
@@ -457,6 +488,51 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	}, nil
 }
 
+func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
+	id string,
+	options *patchOptions,
+	authConfig *platform.AuthConfig) error {
+
+	switch *options.DesiredState {
+	case functionconfig.FunctionStateReady:
+		return fr.redeployFunction(request, id, authConfig)
+	default:
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported desired state in patch request: %s",
+			*options.DesiredState))
+	}
+}
+
+func (fr *functionResource) redeployFunction(request *http.Request,
+	id string,
+	authConfig *platform.AuthConfig) error {
+
+	// get function
+	function, err := fr.getFunction(request, id)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get get function")
+	}
+
+	// if function is already in ready state, return
+	if function.GetStatus().State == functionconfig.FunctionStateReady {
+		return nil
+	}
+
+	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
+
+	// Deploy function
+	functionInfoInstance := &functionInfo{
+		Meta:   &function.GetConfig().Meta,
+		Spec:   &function.GetConfig().Spec,
+		Status: function.GetStatus(),
+	}
+
+	if responseErr := fr.storeAndDeployFunction(request, functionInfoInstance, authConfig, waitForFunction); responseErr != nil {
+		return responseErr
+	}
+
+	return nuclio.ErrNoContent
+}
+
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
 	functionConfig := function.GetConfig()
 	functionConfig.CleanFunctionSpec()
@@ -492,6 +568,21 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
+}
+
+func (fr *functionResource) getPatchFunctionOptionsFromRequest(request *http.Request) (*patchOptions, error) {
+
+	// read body
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read body")
+	}
+
+	patchOptionsInstance := patchOptions{}
+	if err := json.Unmarshal(body, &patchOptionsInstance); err != nil {
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+	return &patchOptionsInstance, nil
 }
 
 func (fr *functionResource) resolveNamespace(request *http.Request, function *functionInfo) string {
@@ -651,6 +742,7 @@ var functionResourceInstance = &functionResource{
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,
 		restful.ResourceMethodUpdate,
+		restful.ResourceMethodPatch,
 	}),
 }
 

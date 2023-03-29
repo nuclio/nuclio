@@ -87,20 +87,23 @@ type Resource interface {
 	// GetCustomRoutes returns a list of custom routes for the resource
 	GetCustomRoutes() ([]CustomRoute, error)
 
-	// GetAll return all instances for resources with multiple instances
+	// GetAll returns all instances for resources with multiple instances
 	GetAll(request *http.Request) (map[string]Attributes, error)
 
-	// GetByID return specific instance by ID
+	// GetByID returns a specific instance by ID
 	GetByID(request *http.Request, id string) (Attributes, error)
 
-	// Create returns resource ID, attributes
+	// Create returns a resource ID, attributes
 	Create(request *http.Request) (string, Attributes, error)
 
 	// Update returns attributes (optionally)
 	Update(request *http.Request, id string) (Attributes, error)
 
-	// Delete delete an entity
+	// Delete deletes an entity
 	Delete(request *http.Request, id string) error
+
+	// Patch delete an entity
+	Patch(request *http.Request, id string) error
 }
 
 // ResourceMethod is the method of the resource
@@ -113,6 +116,7 @@ const (
 	ResourceMethodCreate
 	ResourceMethodUpdate
 	ResourceMethodDelete
+	ResourceMethodPatch
 )
 
 const (
@@ -208,6 +212,11 @@ func (ar *AbstractResource) Update(request *http.Request, id string) (Attributes
 
 // Delete a resource
 func (ar *AbstractResource) Delete(request *http.Request, id string) error {
+	return nuclio.ErrNotImplemented
+}
+
+// Patch a resource
+func (ar *AbstractResource) Patch(request *http.Request, id string) error {
 	return nuclio.ErrNotImplemented
 }
 
@@ -336,6 +345,8 @@ func (ar *AbstractResource) registerRoutes() error {
 			ar.router.Put("/{id}", ar.handleUpdate)
 		case ResourceMethodDelete:
 			ar.router.Delete("/{id}", ar.handleDelete)
+		case ResourceMethodPatch:
+			ar.router.Patch("/{id}", ar.handlePatch)
 		}
 	}
 
@@ -363,6 +374,8 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 			routerFunc = ar.router.Put
 		case http.MethodDelete:
 			routerFunc = ar.router.Delete
+		case http.MethodPatch:
+			routerFunc = ar.router.Patch
 		default:
 			return errors.Errorf("Invalid method %s used in custom route", customRoute.Method)
 		}
@@ -480,6 +493,18 @@ func (ar *AbstractResource) handleDelete(responseWriter http.ResponseWriter, req
 
 	// delegate to child
 	err := ar.Resource.Delete(request, resourceID)
+
+	// get the status code from the error
+	ar.writeStatusCodeAndErrorReason(responseWriter, err, http.StatusNoContent)
+}
+
+func (ar *AbstractResource) handlePatch(responseWriter http.ResponseWriter, request *http.Request) {
+
+	// registered as "/:id/"
+	resourceID := ar.GetRouterURLParam(request, "id")
+
+	// delegate to child
+	err := ar.Resource.Patch(request, resourceID)
 
 	// get the status code from the error
 	ar.writeStatusCodeAndErrorReason(responseWriter, err, http.StatusNoContent)
