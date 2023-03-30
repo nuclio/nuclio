@@ -80,6 +80,7 @@ func NewRootCommandeer() *RootCommandeer {
 		newCreateCommandeer(ctx, commandeer).cmd,
 		newExportCommandeer(ctx, commandeer).cmd,
 		newImportCommandeer(ctx, commandeer).cmd,
+		newRedeployCommandeer(ctx, commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
