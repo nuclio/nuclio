@@ -60,6 +60,7 @@ func NewCORS() *CORS {
 			fasthttp.MethodPut,
 			fasthttp.MethodDelete,
 			fasthttp.MethodOptions,
+			fasthttp.MethodPatch,
 		},
 		AllowHeaders: []string{
 			fasthttp.HeaderAccept,

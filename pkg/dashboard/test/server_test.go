@@ -1015,6 +1015,116 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *functionTestSuite) TestPatchSuccessful() {
+	functionName := "my-func"
+	namespace := "some-namespace"
+
+	returnedFunction := platform.AbstractFunction{}
+	returnedFunction.Config.Meta.Name = functionName
+	returnedFunction.Config.Meta.Namespace = namespace
+	returnedFunction.Status.State = functionconfig.FunctionStateImported
+
+	// verify
+	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal(functionName, getFunctionsOptions.Name)
+		suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
+		return true
+	}
+	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+		suite.Require().Equal(functionName, createFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Require().Equal(namespace, createFunctionOptions.FunctionConfig.Meta.Namespace)
+		return true
+	}
+
+	// mock
+	suite.mockPlatform.
+		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctionsOptions)).
+		Return([]platform.Function{&returnedFunction}, nil).
+		Once()
+
+	suite.mockPlatform.
+		On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunction)).
+		Return(&platform.CreateFunctionResult{}, nil).
+		Once()
+
+	// send request
+	expectedStatusCode := http.StatusNoContent
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-function-namespace":   namespace,
+	}
+
+	requestBody := `{
+	"desiredState": "ready"
+}`
+
+	suite.sendRequest("PATCH",
+		fmt.Sprintf("/api/functions/%s", functionName),
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+}
+
+func (suite *functionTestSuite) TestPatchFunctionNotFound() {
+	functionName := "my-func"
+	namespace := "some-namespace"
+
+	// verify
+	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal(functionName, getFunctionsOptions.Name)
+		suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
+		return true
+	}
+
+	// mock
+	suite.mockPlatform.
+		On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctionsOptions)).
+		Return([]platform.Function{}, nil).
+		Once()
+
+	// send request
+	expectedStatusCode := http.StatusNotFound
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-function-namespace":   namespace,
+	}
+
+	requestBody := `{
+	"desiredState": "ready"
+}`
+
+	suite.sendRequest("PATCH",
+		fmt.Sprintf("/api/functions/%s", functionName),
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+}
+
+func (suite *functionTestSuite) TestPatchFunctionInvalidDesiredState() {
+	functionName := "my-func"
+	namespace := "some-namespace"
+
+	// send request
+	expectedStatusCode := http.StatusBadRequest
+	headers := map[string]string{
+		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-function-namespace":   namespace,
+	}
+
+	requestBody := `{
+	"desiredState": "unhealthy"
+}`
+
+	suite.sendRequest("PATCH",
+		fmt.Sprintf("/api/functions/%s", functionName),
+		headers,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+}
+
 func (suite *functionTestSuite) sendRequestNoMetadata(method string) {
 	suite.sendRequestWithInvalidBody(method, `{
 	"spec": {

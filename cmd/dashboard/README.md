@@ -214,6 +214,29 @@ Updating a function is similar to creating a function. The only differences are:
 
 * Status code: 202
 
+### Patching a function
+
+Patching a function allows you to change the function's state.
+Currently, the only supported state is `ready`, which allows redeploying functions (e.g, after importing functions).
+
+#### Request
+
+* URL: `PATCH /api/functions/<function name>`
+* Headers:
+    * `X-nuclio-wait-function-action`: Set to true to wait for the function to be ready (optional, defaults to `false`)
+    * `X-nuclio-function-namespace`: Namespace (required)
+* Body:
+
+```json
+{
+  "desiredState": "ready"
+}
+```
+
+#### Response
+
+* Status code: 204
+
 ### Invoking a function
 
 #### Request

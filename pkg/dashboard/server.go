@@ -217,7 +217,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 
 	corsOptions := cors.Options{
 		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders: []string{
 			"Accept",
 			"Authorization",
