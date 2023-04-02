@@ -21,6 +21,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -53,7 +54,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 	// create filter
 	filter := functiontemplates.Filter{
-		Contains: request.Header.Get("x-nuclio-filter-contains"),
+		Contains: request.Header.Get(headers.FilterContains),
 	}
 
 	// get all templates that pass a certain filter

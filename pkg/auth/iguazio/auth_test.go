@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
 
 	"github.com/nuclio/logger"
@@ -56,10 +57,10 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header: map[string][]string{
-				"X-Remote-User":      {"admin"},
-				"X-User-Group-Ids":   {"1,2", "3"},
-				"X-User-Id":          {"some-user-id"},
-				"X-V3io-Session-Key": {"some-password"},
+				headers.RemoteUser:     {"admin"},
+				headers.UserGroupIds:   {"1,2", "3"},
+				headers.UserID:         {"some-user-id"},
+				headers.V3IOSessionKey: {"some-password"},
 			},
 			Body: io.NopCloser(bytes.NewBufferString(`
 {
@@ -244,10 +245,10 @@ func (suite *AuthTestSuite) resolveMockHttpClientHandler(includeResponseBody boo
 	response := &http.Response{
 		StatusCode: http.StatusOK,
 		Header: map[string][]string{
-			"X-Remote-User":      {"admin"},
-			"X-User-Group-Ids":   {"1", "2"},
-			"X-User-Id":          {"3"},
-			"X-V3io-Session-Key": {"4"},
+			headers.RemoteUser:     {"admin"},
+			headers.UserGroupIds:   {"1", "2"},
+			headers.UserID:         {"3"},
+			headers.V3IOSessionKey: {"4"},
 		},
 	}
 

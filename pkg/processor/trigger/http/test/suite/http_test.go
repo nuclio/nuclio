@@ -25,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -68,7 +69,7 @@ func (suite *HTTPTestSuite) TestCORS() {
 				RequestHeaders: map[string]interface{}{
 					"Origin":                         origin,
 					"Access-Control-Request-Method":  http.MethodPost,
-					"Access-Control-Request-Headers": "X-nuclio-log-level",
+					"Access-Control-Request-Headers": headers.LogLevel,
 				},
 				ExpectedResponseStatusCode: &validPreflightResponseStatusCode,
 				ExpectedResponseHeadersValues: map[string][]string{

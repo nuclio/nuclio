@@ -24,6 +24,7 @@ import (
 	nethttp "net/http"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
@@ -78,7 +79,7 @@ func (suite *TestSuite) TestCORS() {
 			RequestOrigin:    "foo.bar",
 			RequestMethod:    "GET",
 			RequestHeaders: []string{
-				"X-Nuclio-log-level",
+				headers.LogLevel,
 			},
 			ExpectedResponseStatusCode: fasthttp.StatusOK,
 			ExpectedResponseHeaders: map[string]string{

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -226,7 +227,7 @@ func (s *shell) getCommand() (string, error) {
 }
 
 func (s *shell) getCommandArguments(event nuclio.Event) []string {
-	arguments := event.GetHeaderString("x-nuclio-arguments")
+	arguments := event.GetHeaderString(headers.Arguments)
 
 	if arguments == "" {
 		arguments = s.configuration.Arguments

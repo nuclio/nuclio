@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
@@ -217,10 +218,10 @@ func (suite *functionTestSuite) TestCreateDeploymentError() {
 		Return([]platform.Function{}, nil).
 		Once()
 
-	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
-		"x-nuclio-project-name":         "proj",
-		"x-nuclio-function-namespace":   "f1-namespace",
+	requestHeaders := map[string]string{
+		headers.WaitFunctionAction: "true",
+		headers.ProjectName:        "proj",
+		headers.FunctionNamespace:  "f1-namespace",
 	}
 
 	requestBody := `{
@@ -241,7 +242,7 @@ func (suite *functionTestSuite) TestCreateDeploymentError() {
 
 	suite.sendRequest("POST",
 		"/api/functions",
-		headers,
+		requestHeaders,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		ecv.Verify)
@@ -280,10 +281,10 @@ func (suite *functionTestSuite) TestCreateDeploymentErrorWithStatus() {
 		Return([]platform.Function{}, nil).
 		Once()
 
-	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
-		"x-nuclio-project-name":         "proj",
-		"x-nuclio-function-namespace":   "f1-namespace",
+	requestHeaders := map[string]string{
+		headers.WaitFunctionAction: "true",
+		headers.ProjectName:        "proj",
+		headers.FunctionNamespace:  "f1-namespace",
 	}
 
 	requestBody := `{
@@ -304,7 +305,7 @@ func (suite *functionTestSuite) TestCreateDeploymentErrorWithStatus() {
 
 	suite.sendRequest("POST",
 		"/api/functions",
-		headers,
+		requestHeaders,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		ecv.Verify)
@@ -332,8 +333,8 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 		Return([]platform.Function{&returnedFunction}, nil).
 		Once()
 
-	headers := map[string]string{
-		"x-nuclio-function-namespace": "f1-namespace",
+	requestHeaders := map[string]string{
+		headers.FunctionNamespace: "f1-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -354,7 +355,7 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 
 	suite.sendRequest("GET",
 		"/api/functions/f1",
-		headers,
+		requestHeaders,
 		nil,
 		&expectedStatusCode,
 		expectedResponseBody)
@@ -400,7 +401,7 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-function-namespace": "f-namespace",
+		headers.FunctionNamespace: "f-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -486,9 +487,9 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
-		"x-nuclio-project-name":         "proj",
-		"x-nuclio-function-namespace":   "f1-namespace",
+		headers.WaitFunctionAction: "true",
+		headers.ProjectName:        "proj",
+		headers.FunctionNamespace:  "f1-namespace",
 	}
 
 	expectedStatusCode := http.StatusAccepted
@@ -545,7 +546,7 @@ func (suite *functionTestSuite) TestCreateFunctionWithInvalidName() {
 	}
 }`
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
+		headers.WaitFunctionAction: "true",
 	}
 
 	expectedStatusCode := http.StatusBadRequest
@@ -579,7 +580,7 @@ func (suite *functionTestSuite) TestUpdateSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
+		headers.WaitFunctionAction: "true",
 	}
 
 	expectedStatusCode := http.StatusAccepted
@@ -640,7 +641,7 @@ func (suite *functionTestSuite) TestDeleteSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
+		headers.WaitFunctionAction: "true",
 	}
 
 	expectedStatusCode := http.StatusNoContent
@@ -690,10 +691,10 @@ func (suite *functionTestSuite) TestInvokeUnSuccessful() {
 
 	// headers we need to pass to dashboard for invocation
 	requestHeaders := map[string]string{
-		"x-nuclio-path":               requestPath,
-		"x-nuclio-function-name":      functionName,
-		"x-nuclio-function-namespace": functionNamespace,
-		"x-nuclio-invoke-url":         "something-bad",
+		headers.Path:              requestPath,
+		headers.FunctionName:      functionName,
+		headers.FunctionNamespace: functionNamespace,
+		headers.InvokeURL:         "something-bad",
 	}
 
 	// add functionRequestHeaders to requestHeaders so that dashboard will invoke the functions with them
@@ -717,7 +718,7 @@ func (suite *functionTestSuite) TestInvokeUnSuccessful() {
 
 		// expect only to receive the function headers (those that don't start with x-nuclio
 		for headerKey := range createFunctionInvocationOptions.Headers {
-			suite.Require().False(strings.HasPrefix(headerKey, "x-nuclio"))
+			suite.Require().False(strings.HasPrefix(headerKey, headers.HeaderPrefix))
 		}
 
 		// expect all the function headers to be there
@@ -768,12 +769,12 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 
 	// headers we need to pass to dashboard for invocation
 	requestHeaders := map[string]string{
-		"x-nuclio-path":               requestPath,
-		"x-nuclio-function-name":      functionName,
-		"x-nuclio-function-namespace": functionNamespace,
-		"x-nuclio-invoke-via":         "external-ip",
-		"x-nuclio-invoke-url":         "something",
-		"x-nuclio-invoke-timeout":     "5m",
+		headers.Path:              requestPath,
+		headers.FunctionName:      functionName,
+		headers.FunctionNamespace: functionNamespace,
+		headers.InvokeVia:         "external-ip",
+		headers.InvokeURL:         "something",
+		headers.InvokeTimeout:     "5m",
 	}
 
 	// add functionRequestHeaders to requestHeaders so that dashboard will invoke the functions with them
@@ -805,7 +806,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 
 		// expect only to receive the function headers (those that don't start with x-nuclio
 		for headerKey := range createFunctionInvocationOptions.Headers {
-			suite.Require().False(strings.HasPrefix(headerKey, "x-nuclio"))
+			suite.Require().False(headers.IsNuclioHeader(headerKey))
 		}
 
 		// expect all the function headers to be there
@@ -837,9 +838,9 @@ func (suite *functionTestSuite) TestInvokeNoName() {
 
 	// headers we need to pass to dashboard for invocation
 	requestHeaders := map[string]string{
-		"x-nuclio-path":               "p",
-		"x-nuclio-function-namespace": "ns",
-		"x-nuclio-invoke-via":         "external-ip",
+		headers.Path:              "p",
+		headers.FunctionNamespace: "ns",
+		headers.InvokeVia:         "external-ip",
 	}
 
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name must be provided"})
@@ -859,9 +860,9 @@ func (suite *functionTestSuite) TestInvokeNoNamespace() {
 
 	// headers we need to pass to dashboard for invocation
 	requestHeaders := map[string]string{
-		"x-nuclio-path":          "p",
-		"x-nuclio-function-name": "n",
-		"x-nuclio-invoke-via":    "external-ip",
+		headers.Path:         "p",
+		headers.FunctionName: "n",
+		headers.InvokeVia:    "external-ip",
 	}
 
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name must be provided"})
@@ -905,7 +906,7 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-function-namespace": "f1-namespace",
+		headers.FunctionNamespace: "f1-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -966,7 +967,7 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-function-namespace": "f-namespace",
+		headers.FunctionNamespace: "f-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -1050,8 +1051,8 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 	// send request
 	expectedStatusCode := http.StatusNoContent
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
-		"x-nuclio-function-namespace":   namespace,
+		headers.WaitFunctionAction: "true",
+		headers.FunctionNamespace:  namespace,
 	}
 
 	requestBody := `{
@@ -1086,8 +1087,8 @@ func (suite *functionTestSuite) TestPatchFunctionNotFound() {
 	// send request
 	expectedStatusCode := http.StatusNotFound
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
-		"x-nuclio-function-namespace":   namespace,
+		headers.WaitFunctionAction: "true",
+		headers.FunctionNamespace:  namespace,
 	}
 
 	requestBody := `{
@@ -1109,8 +1110,8 @@ func (suite *functionTestSuite) TestPatchFunctionInvalidDesiredState() {
 	// send request
 	expectedStatusCode := http.StatusBadRequest
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
-		"x-nuclio-function-namespace":   namespace,
+		headers.WaitFunctionAction: "true",
+		headers.FunctionNamespace:  namespace,
 	}
 
 	requestBody := `{
@@ -1168,8 +1169,8 @@ func (suite *functionTestSuite) sendRequestWithExistingName(method string) {
 	expectedStatusCode := http.StatusConflict
 
 	headers := map[string]string{
-		"x-nuclio-project-name":       "proj",
-		"x-nuclio-function-namespace": "f1-namespace",
+		headers.ProjectName:       "proj",
+		headers.FunctionNamespace: "f1-namespace",
 	}
 
 	requestBody := `{
@@ -1209,7 +1210,7 @@ func (suite *functionTestSuite) sendRequestNoName(method string) {
 
 func (suite *functionTestSuite) sendRequestWithInvalidBody(method string, body string) {
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
+		headers.WaitFunctionAction: "true",
 	}
 
 	expectedStatusCode := http.StatusBadRequest
@@ -1257,7 +1258,7 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-project-namespace": "p1-namespace",
+		headers.ProjectNamespace: "p1-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -1320,7 +1321,7 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-project-namespace": "p-namespace",
+		headers.ProjectNamespace: "p-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -1455,8 +1456,8 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-project-namespace":  "f-namespace",
-		"x-nuclio-function-namespace": "f-namespace",
+		headers.ProjectNamespace:  "f-namespace",
+		headers.FunctionNamespace: "f-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -1621,8 +1622,8 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 		Return([]platform.FunctionEvent{}, nil).Twice()
 
 	headers := map[string]string{
-		"x-nuclio-project-namespace":  "f-namespace",
-		"x-nuclio-function-namespace": "f-namespace",
+		headers.ProjectNamespace:  "f-namespace",
+		headers.FunctionNamespace: "f-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -1913,7 +1914,7 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 			},
 			deleteProjectReturnedError: nil,
 			requestHeaders: map[string]string{
-				"x-nuclio-delete-project-strategy": string(platform.DeleteProjectStrategyCascading),
+				headers.DeleteProjectStrategy: string(platform.DeleteProjectStrategyCascading),
 			},
 			expectedStatusCode: http.StatusNoContent,
 		},
@@ -1927,7 +1928,7 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 				Strategy: platform.DeleteProjectStrategyRestricted,
 			},
 			requestHeaders: map[string]string{
-				"x-nuclio-delete-project-strategy": string(platform.DeleteProjectStrategyRestricted),
+				headers.DeleteProjectStrategy: string(platform.DeleteProjectStrategyRestricted),
 			},
 			deleteProjectReturnedError: nuclio.NewErrPreconditionFailed("functions exists"),
 			expectedStatusCode:         http.StatusPreconditionFailed,
@@ -2067,7 +2068,7 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-wait-function-action": "true",
+		headers.WaitFunctionAction: "true",
 	}
 
 	expectedStatusCode := http.StatusCreated
@@ -2429,7 +2430,7 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-function-event-namespace": "fe1-namespace",
+		headers.FunctionEventNamespace: "fe1-namespace",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -2516,9 +2517,9 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 		Return([]platform.FunctionEvent{&returnedFunctionEvent1, &returnedFunctionEvent2}, nil).
 		Once()
 
-	headers := map[string]string{
-		"x-nuclio-function-event-namespace": "fe-namespace",
-		"x-nuclio-function-name":            "feFunc",
+	requestHeaders := map[string]string{
+		headers.FunctionEventNamespace: "fe-namespace",
+		headers.FunctionName:           "feFunc",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -2565,7 +2566,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 
 	suite.sendRequest("GET",
 		"/api/function_events",
-		headers,
+		requestHeaders,
 		nil,
 		&expectedStatusCode,
 		expectedResponseBody)
@@ -2919,7 +2920,7 @@ func (suite *apiGatewayTestSuite) TestGetDetailSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-api-gateway-namespace": namespace,
+		headers.ApiGatewayNamespace: namespace,
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -3049,7 +3050,7 @@ func (suite *apiGatewayTestSuite) TestGetListSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-api-gateway-namespace": namespace,
+		headers.ApiGatewayNamespace: namespace,
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -3386,9 +3387,9 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsSuccessful() {
 		Once()
 
 	headers := map[string]string{
-		"x-nuclio-function-namespace": "some-namespace",
-		"x-nuclio-project-namespace":  "some-namespace",
-		"x-nuclio-project-name":       "p1",
+		headers.FunctionNamespace: "some-namespace",
+		headers.ProjectNamespace:  "some-namespace",
+		headers.ProjectName:       "p1",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -3418,7 +3419,7 @@ func (suite *v3ioStreamTestSuite) TestGetStreamsSuccessful() {
 func (suite *v3ioStreamTestSuite) TestGetStreamsNoProjectName() {
 
 	headers := map[string]string{
-		"x-nuclio-project-namespace": "some-namespace",
+		headers.ProjectNamespace: "some-namespace",
 	}
 
 	expectedStatusCode := http.StatusBadRequest
