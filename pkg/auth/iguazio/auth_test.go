@@ -290,6 +290,7 @@ func (suite *AuthTestSuite) resolveMockHttpClientHandler(includeResponseBody boo
 		return response
 	}
 }
+
 func TestAuthTestSuite(t *testing.T) {
 	suite.Run(t, new(AuthTestSuite))
 }

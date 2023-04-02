@@ -84,7 +84,7 @@ func (suite *TestSuite) TestCORS() {
 			ExpectedResponseStatusCode: fasthttp.StatusOK,
 			ExpectedResponseHeaders: map[string]string{
 				"Access-Control-Allow-Origin":  "foo.bar",
-				"Access-Control-Allow-Methods": "HEAD, GET, POST, PUT, DELETE, OPTIONS",
+				"Access-Control-Allow-Methods": "HEAD, GET, POST, PUT, DELETE, OPTIONS, PATCH",
 				"Access-Control-Max-Age":       "5",
 				"Access-Control-Allow-Headers": "Accept, Content-Length, Content-Type, Authorization, X-nuclio-log-level",
 			},

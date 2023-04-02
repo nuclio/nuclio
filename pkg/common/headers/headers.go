@@ -20,50 +20,50 @@ import "strings"
 
 // Nuclio Headers
 const (
-	HeaderPrefix = "x-nuclio"
+	HeaderPrefix = "X-Nuclio"
 
 	// Function headers
-	FunctionName                        = "x-nuclio-function-name"
-	FunctionNamespace                   = "x-nuclio-function-namespace"
-	WaitFunctionAction                  = "x-nuclio-wait-function-action"
-	DeleteFunctionIgnoreStateValidation = "x-nuclio-delete-function-ignore-state-validation"
-	CreationStateUpdatedTimeout         = "X-nuclio-creation-state-updated-timeout"
-	FunctionEnrichApiGateways           = "X-nuclio-function-enrich-apigateways"
+	FunctionName                        = "X-Nuclio-Function-Name"
+	FunctionNamespace                   = "X-Nuclio-Function-Namespace"
+	WaitFunctionAction                  = "X-Nuclio-Wait-Function-Action"
+	DeleteFunctionIgnoreStateValidation = "X-Nuclio-Delete-Function-Ignore-State-Validation"
+	CreationStateUpdatedTimeout         = "X-Nuclio-Creation-State-Updated-Timeout"
+	FunctionEnrichApiGateways           = "X-Nuclio-Function-Enrich-Apigateways"
 
 	// Project headers
-	ProjectName           = "x-nuclio-project-name"
-	ProjectNamespace      = "X-nuclio-project-namespace"
-	DeleteProjectStrategy = "X-nuclio-delete-project-strategy"
+	ProjectName           = "X-Nuclio-Project-Name"
+	ProjectNamespace      = "X-Nuclio-Project-Namespace"
+	DeleteProjectStrategy = "X-Nuclio-Delete-Project-Strategy"
 
 	// Invocation headers
-	TargetName          = "x-nuclio-target"
-	InvokeURL           = "x-nuclio-invoke-url"
-	InvokeTimeout       = "X-nuclio-invoke-timeout"
-	InvokeVia           = "X-nuclio-invoke-via"
-	SkipTLSVerification = "x-nuclio-skip-tls-verification"
-	Path                = "x-nuclio-path"
-	LogLevel            = "X-nuclio-log-level"
+	TargetName          = "X-Nuclio-Target"
+	InvokeURL           = "X-Nuclio-Invoke-Url"
+	InvokeTimeout       = "X-Nuclio-Invoke-Timeout"
+	InvokeVia           = "X-Nuclio-Invoke-Via"
+	SkipTLSVerification = "X-Nuclio-Skip-Tls-Verification"
+	Path                = "X-Nuclio-Path"
+	LogLevel            = "X-Nuclio-Log-Level"
 
 	// ApiGateway headers
-	ApiGatewayName                      = "X-nuclio-api-gateway-name"
-	ApiGatewayNamespace                 = "x-nuclio-api-gateway-namespace"
-	ApiGatewayValidateFunctionExistence = "x-nuclio-agw-validate-functions-existence"
+	ApiGatewayName                      = "X-Nuclio-Api-Gateway-Name"
+	ApiGatewayNamespace                 = "X-Nuclio-Api-Gateway-Namespace"
+	ApiGatewayValidateFunctionExistence = "X-Nuclio-Agw-Validate-Functions-Existence"
 
 	// Function event headers
-	FunctionEventName      = "X-nuclio-function-event-name"
-	FunctionEventNamespace = "X-nuclio-function-event-namespace"
+	FunctionEventName      = "X-Nuclio-Function-Event-Name"
+	FunctionEventNamespace = "X-Nuclio-Function-Event-Namespace"
 
 	// Auth headers
-	RemoteUser     = "x-remote-user"
-	V3IOSessionKey = "x-v3io-session-key"
-	UserID         = "x-user-id"
-	UserGroupIds   = "x-user-group-ids"
+	RemoteUser     = "X-Remote-User"
+	V3IOSessionKey = "X-V3io-Session-Key"
+	UserID         = "X-User-Id"
+	UserGroupIds   = "X-User-Group-Ids"
 
 	// Others
-	Logs           = "X-nuclio-logs"
-	FilterContains = "x-nuclio-filter-contains"
-	StreamNoAck    = "x-nuclio-stream-no-ack"
-	Arguments      = "x-nuclio-arguments"
+	Logs           = "X-Nuclio-Logs"
+	FilterContains = "X-Nuclio-Filter-Contains"
+	StreamNoAck    = "X-Nuclio-Stream-No-Ack"
+	Arguments      = "X-Nuclio-Arguments"
 )
 
 func IsNuclioHeader(headerName string) bool {
