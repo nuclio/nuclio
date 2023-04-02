@@ -50,7 +50,7 @@ type functionInfo struct {
 	Status *functionconfig.Status `json:"status,omitempty"`
 }
 
-type patchOptions struct {
+type PatchOptions struct {
 	DesiredState *functionconfig.FunctionState `json:"desiredState,omitempty"`
 }
 
@@ -485,7 +485,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 
 func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 	id string,
-	options *patchOptions,
+	options *PatchOptions,
 	authConfig *platform.AuthConfig) error {
 
 	switch *options.DesiredState {
@@ -509,8 +509,11 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 
 	// if function is already in ready state, return
 	if function.GetStatus().State == functionconfig.FunctionStateReady {
+		fr.Logger.DebugWith("Function is already in ready state, skipping redeploy", "functionName", id)
 		return nil
 	}
+
+	fr.Logger.DebugWith("Redeploying function", "functionName", id)
 
 	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
 
@@ -565,7 +568,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
 }
 
-func (fr *functionResource) getPatchFunctionOptionsFromRequest(request *http.Request) (*patchOptions, error) {
+func (fr *functionResource) getPatchFunctionOptionsFromRequest(request *http.Request) (*PatchOptions, error) {
 
 	// read body
 	body, err := io.ReadAll(request.Body)
@@ -573,7 +576,7 @@ func (fr *functionResource) getPatchFunctionOptionsFromRequest(request *http.Req
 		return nil, errors.Wrap(err, "Failed to read body")
 	}
 
-	patchOptionsInstance := patchOptions{}
+	patchOptionsInstance := PatchOptions{}
 	if err := json.Unmarshal(body, &patchOptionsInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
