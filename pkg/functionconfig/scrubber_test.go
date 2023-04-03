@@ -24,6 +24,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
+
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -58,8 +60,8 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 					"s3SecretAccessKey": "some-s3-secret",
 					"s3SessionToken":    "some-s3-session-token",
 					"headers": map[string]interface{}{
-						"Authorization":      "token 1234abcd5678",
-						"X-V3io-Session-Key": "some-session-key",
+						"Authorization":        "token 1234abcd5678",
+						headers.V3IOSessionKey: "some-session-key",
 					},
 
 					// should not be scrubbed

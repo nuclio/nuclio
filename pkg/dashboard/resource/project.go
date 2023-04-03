@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -81,7 +82,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 	projects, err := pr.getPlatform().GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
-			Name:      request.Header.Get("x-nuclio-project-name"),
+			Name:      request.Header.Get(headers.ProjectName),
 			Namespace: namespace,
 		},
 		PermissionOptions: opa.PermissionOptions{
@@ -671,7 +672,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		}, err
 	}
 
-	projectDeletionStrategy := request.Header.Get("x-nuclio-delete-project-strategy")
+	projectDeletionStrategy := request.Header.Get(headers.DeleteProjectStrategy)
 	requestOrigin, sessionCookie := pr.getRequestOriginAndSessionCookie(request)
 
 	if err := pr.getPlatform().DeleteProject(ctx, &platform.DeleteProjectOptions{
@@ -715,7 +716,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 		return nil, errors.Wrap(err, "Failed to parse JSON body")
 	}
 
-	projectId := request.Header.Get("x-nuclio-project-name")
+	projectId := request.Header.Get(headers.ProjectName)
 	if projectInfoInstance.Meta != nil && projectInfoInstance.Meta.Name != "" {
 		projectId = projectInfoInstance.Meta.Name
 	}
@@ -749,7 +750,7 @@ func (pr *projectResource) projectToAttributes(project platform.Project) restful
 }
 
 func (pr *projectResource) getNamespaceFromRequest(request *http.Request) string {
-	return pr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
+	return pr.getNamespaceOrDefault(request.Header.Get(headers.ProjectNamespace))
 }
 
 func (pr *projectResource) getProjectInfoFromRequest(request *http.Request) (*projectInfo, error) {
