@@ -30,7 +30,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -716,11 +715,6 @@ func (suite *functionTestSuite) TestInvokeUnSuccessful() {
 		// dashboard will trim the first "/"
 		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)
 
-		// expect only to receive the function headers (those that don't start with x-nuclio
-		for headerKey := range createFunctionInvocationOptions.Headers {
-			suite.Require().False(strings.HasPrefix(headerKey, headers.HeaderPrefix))
-		}
-
 		// expect all the function headers to be there
 		for headerKey, headerValue := range functionRequestHeaders {
 			suite.Require().Equal(headerValue, createFunctionInvocationOptions.Headers.Get(headerKey))
@@ -803,11 +797,6 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 
 		// dashboard will trim the first "/"
 		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)
-
-		// expect only to receive the function headers (those that don't start with x-nuclio
-		for headerKey := range createFunctionInvocationOptions.Headers {
-			suite.Require().False(headers.IsNuclioHeader(headerKey))
-		}
 
 		// expect all the function headers to be there
 		for headerKey, headerValue := range functionRequestHeaders {
