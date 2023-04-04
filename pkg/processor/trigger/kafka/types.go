@@ -108,6 +108,7 @@ func NewConfiguration(id string,
 	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 
 	workerAllocationModeValue := ""
+	explicitAckModeValue := ""
 
 	err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "nuclio.io/kafka-session-timeout", ValueString: &newConfiguration.SessionTimeout},
@@ -156,6 +157,9 @@ func NewConfiguration(id string,
 
 		// for backwards-compatibility
 		{Key: "custom.nuclio.io/kafka-window-size", ValueInt: &newConfiguration.ackWindowSize},
+
+		// allow changing explicit ack mode via annotation
+		{Key: "nuclio.io/kafka-explicit-ack-mode", ValueString: &explicitAckModeValue},
 	})
 
 	if err != nil {
@@ -164,9 +168,9 @@ func NewConfiguration(id string,
 
 	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
 
-	// default explicit ack mode to 'disable'
-	if triggerConfiguration.ExplicitAckMode == "" {
-		newConfiguration.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+	if err := newConfiguration.PopulateExplicitAckMode(explicitAckModeValue,
+		triggerConfiguration.ExplicitAckMode); err != nil {
+		return nil, errors.Wrap(err, "Failed to populate explicit ack mode")
 	}
 
 	// explicit ack is only allowed for Static Allocation mode
