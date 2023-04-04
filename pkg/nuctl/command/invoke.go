@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -339,7 +340,7 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 	functionLogs := []map[string]interface{}{}
 
 	// wrap the contents in [] so that it appears as a JSON array
-	encodedFunctionLogs := invokeResult.Headers.Get("x-nuclio-logs")
+	encodedFunctionLogs := invokeResult.Headers.Get(headers.Logs)
 
 	// parse the JSON into function logs
 	err := json.Unmarshal([]byte(encodedFunctionLogs), &functionLogs)
@@ -420,7 +421,7 @@ func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.CreateFu
 	for headerName, headerValue := range invokeResult.Headers {
 
 		// skip the log headers
-		if strings.EqualFold(headerName, "X-Nuclio-Logs") {
+		if strings.EqualFold(headerName, headers.Logs) {
 			continue
 		}
 
