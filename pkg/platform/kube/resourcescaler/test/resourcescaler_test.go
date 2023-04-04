@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -215,7 +216,7 @@ func (suite *ResourceScalerTestSuite) TestSanity() {
 			fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
 			[]byte{},
 			map[string]string{
-				"X-Nuclio-Target": functionName,
+				headers.TargetName: functionName,
 			},
 			nil,
 			0)
@@ -325,7 +326,7 @@ func (suite *ResourceScalerTestSuite) TestMultiTargetScaleFromZero() {
 					fmt.Sprintf("http://%s:8080", suite.GetTestHost()),
 					[]byte{},
 					map[string]string{
-						"X-Nuclio-Target": fmt.Sprintf("%s,%s", functionName1, functionName2),
+						headers.TargetName: fmt.Sprintf("%s,%s", functionName1, functionName2),
 					},
 					nil,
 					0)

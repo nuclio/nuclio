@@ -24,6 +24,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -94,7 +95,7 @@ func (suite *TestSuite) TestOutputs() {
 		{
 			Name: "return overridden arguments",
 			RequestHeaders: map[string]interface{}{
-				"x-nuclio-arguments": "overridefirst overridesecond",
+				headers.Arguments: "overridefirst overridesecond",
 			},
 			RequestBody:                "return_arguments",
 			ExpectedResponseHeaders:    expectedResponseHeaders,

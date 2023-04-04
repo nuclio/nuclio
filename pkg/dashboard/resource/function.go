@@ -28,6 +28,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -70,7 +71,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	functionName := request.Header.Get("x-nuclio-function-name")
+	functionName := request.Header.Get(headers.FunctionName)
 	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, functionName, false)
 	functions, err := fr.getPlatform().GetFunctions(ctx, getFunctionOptions)
 	if err != nil {
@@ -149,7 +150,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
+	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
 
 	// validation finished successfully - store and deploy the given function
 	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
@@ -173,7 +174,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
+	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
 
 	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
@@ -464,7 +465,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 		IgnoreFunctionStateValidation: fr.headerValueIsTrue(request,
-			"x-nuclio-delete-function-ignore-state-validation"),
+			headers.DeleteFunctionIgnoreStateValidation),
 	}
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
@@ -515,7 +516,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 
 	fr.Logger.DebugWith("Redeploying function", "functionName", id)
 
-	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
+	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
 
 	// Deploy function
 	functionInfoInstance := &functionInfo{
@@ -550,7 +551,7 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 func (fr *functionResource) getNamespaceFromRequest(request *http.Request) string {
 
 	// get the namespace provided by the user or the default namespace
-	return fr.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-namespace"))
+	return fr.getNamespaceOrDefault(request.Header.Get(headers.FunctionNamespace))
 }
 
 func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {
@@ -565,7 +566,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	if err := json.Unmarshal(body, &functionInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
-	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
+	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get(headers.ProjectName))
 }
 
 func (fr *functionResource) getPatchFunctionOptionsFromRequest(request *http.Request) (*PatchOptions, error) {
@@ -614,7 +615,7 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  functionName,
-		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
+		EnrichWithAPIGateways: fr.headerValueIsTrue(request, headers.FunctionEnrichApiGateways),
 		AuthSession:           fr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
@@ -624,7 +625,7 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 	}
 
 	// if the user wants to filter by project, do that
-	projectNameFilter := request.Header.Get("x-nuclio-project-name")
+	projectNameFilter := request.Header.Get(headers.ProjectName)
 	if projectNameFilter != "" {
 		getFunctionsOptions.Labels = fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName,
 			projectNameFilter)
@@ -718,7 +719,7 @@ func (fr *functionResource) getCreationStateUpdatedTimeout(request *http.Request
 	timeoutDuration := 1 * time.Minute
 
 	// get the timeout from the request header
-	timeout := request.Header.Get("X-nuclio-creation-state-updated-timeout")
+	timeout := request.Header.Get(headers.CreationStateUpdatedTimeout)
 	if timeout != "" {
 
 		// parse the timeout

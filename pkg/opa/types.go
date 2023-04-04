@@ -88,9 +88,7 @@ type PermissionFilterResponse struct {
 }
 
 const (
-	UserIDHeader       string = "x-user-id"
-	UserGroupIdsHeader string = "x-user-group-ids"
-	OverrideHeader     string = "x-projects-role"
+	OverrideHeader string = "x-projects-role"
 )
 
 type Action string

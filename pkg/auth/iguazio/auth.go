@@ -28,6 +28,7 @@ import (
 
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -147,15 +148,15 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 			"err", err.Error())
 
 		// for backwards compatibility
-		userID = response.Header.Get("x-user-id")
+		userID = response.Header.Get(headers.UserID)
 		if groupIDs == nil {
-			groupIDs = response.Header.Values("x-user-group-ids")
+			groupIDs = response.Header.Values(headers.UserGroupIds)
 		}
 	}
 
 	authInfo := &authpkg.IguazioSession{
-		Username:   response.Header.Get("x-remote-user"),
-		SessionKey: response.Header.Get("x-v3io-session-key"),
+		Username:   response.Header.Get(headers.RemoteUser),
+		SessionKey: response.Header.Get(headers.V3IOSessionKey),
 		UserID:     userID,
 	}
 

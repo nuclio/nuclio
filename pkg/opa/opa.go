@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 )
 
 type Client interface {
@@ -44,8 +45,8 @@ func GetUserAndGroupIdsFromAuthSession(session auth.Session) []string {
 func GetUserAndGroupIdsFromHeaders(request *http.Request) []string {
 	var ids []string
 
-	userID := request.Header.Get(UserIDHeader)
-	userGroupIdsStr := request.Header.Get(UserGroupIdsHeader)
+	userID := request.Header.Get(headers.UserID)
+	userGroupIdsStr := request.Header.Get(headers.UserGroupIds)
 
 	if userID != "" {
 		ids = append(ids, userID)

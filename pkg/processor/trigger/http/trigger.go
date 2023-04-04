@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -405,7 +406,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 	// attach the context to the event
 	// get the log level required
-	responseLogLevel := ctx.Request.Header.Peek("X-nuclio-log-level")
+	responseLogLevel := ctx.Request.Header.Peek(headers.LogLevel)
 
 	// check if we need to return the logs as part of the response in the header
 	if responseLogLevel != nil {
@@ -457,7 +458,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 		// there's a limit on the amount of logs that can be passed in a header
 		if len(logContents) < 4096 {
-			ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents)
+			ctx.Response.Header.SetBytesV(headers.Logs, logContents)
 		} else {
 			h.Logger.Warn("Skipped setting logs in header cause of size limit")
 		}

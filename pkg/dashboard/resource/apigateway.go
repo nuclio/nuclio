@@ -27,6 +27,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -62,7 +63,7 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 	}
 
 	exportFunction := agr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
-	projectName := request.Header.Get("x-nuclio-project-name")
+	projectName := request.Header.Get(headers.ProjectName)
 
 	// filter by project name (when it's specified)
 	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{
@@ -181,7 +182,7 @@ func (agr *apiGatewayResource) Update(request *http.Request, id string) (restful
 	if err = agr.getPlatform().UpdateAPIGateway(ctx, &platform.UpdateAPIGatewayOptions{
 		APIGatewayConfig:           apiGatewayConfig,
 		AuthSession:                agr.getCtxSession(ctx),
-		ValidateFunctionsExistence: agr.headerValueIsTrue(request, "x-nuclio-agw-validate-functions-existence"),
+		ValidateFunctionsExistence: agr.headerValueIsTrue(request, headers.ApiGatewayValidateFunctionExistence),
 	}); err != nil {
 		agr.Logger.WarnWithCtx(ctx, "Failed to update api gateway", "err", err)
 		return nil, errors.Wrap(err, "Failed to update api gateway")
@@ -296,7 +297,7 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 	if err = agr.getPlatform().CreateAPIGateway(ctx, &platform.CreateAPIGatewayOptions{
 		AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 		APIGatewayConfig:           newAPIGateway.GetConfig(),
-		ValidateFunctionsExistence: agr.headerValueIsTrue(request, "x-nuclio-agw-validate-functions-existence"),
+		ValidateFunctionsExistence: agr.headerValueIsTrue(request, headers.ApiGatewayValidateFunctionExistence),
 	}); err != nil {
 		if strings.Contains(errors.Cause(err).Error(), "already exists") {
 			err = nuclio.WrapErrConflict(err)
@@ -357,7 +358,7 @@ func (agr *apiGatewayResource) apiGatewayToAttributes(apiGateway platform.APIGat
 }
 
 func (agr *apiGatewayResource) getNamespaceFromRequest(request *http.Request) string {
-	return agr.getNamespaceOrDefault(request.Header.Get("x-nuclio-api-gateway-namespace"))
+	return agr.getNamespaceOrDefault(request.Header.Get(headers.ApiGatewayNamespace))
 }
 
 func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Request) (*apiGatewayInfo, error) {
@@ -374,7 +375,7 @@ func (agr *apiGatewayResource) getAPIGatewayInfoFromRequest(request *http.Reques
 	}
 
 	// enrichment
-	agr.enrichAPIGatewayInfo(&apiGatewayInfoInstance, request.Header.Get("x-nuclio-project-name"))
+	agr.enrichAPIGatewayInfo(&apiGatewayInfoInstance, request.Header.Get(headers.ProjectName))
 
 	return &apiGatewayInfoInstance, nil
 }

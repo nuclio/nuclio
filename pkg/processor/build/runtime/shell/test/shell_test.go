@@ -21,6 +21,7 @@ package test
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -81,7 +82,7 @@ func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
 		&httpsuite.Request{
 			RequestMethod: "GET",
 			RequestHeaders: map[string]interface{}{
-				"x-nuclio-arguments": "123456",
+				headers.Arguments: "123456",
 			},
 			ExpectedResponseBody: "123456\n",
 		})
@@ -108,7 +109,7 @@ func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
 		&httpsuite.Request{
 			RequestMethod: "GET",
 			RequestHeaders: map[string]interface{}{
-				"x-nuclio-arguments": "123456",
+				headers.Arguments: "123456",
 			},
 			ExpectedResponseBody:    "123456\n",
 			ExpectedResponseHeaders: expectedResponseHeaders,

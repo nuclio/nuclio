@@ -24,6 +24,7 @@ import (
 	nethttp "net/http"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
@@ -78,14 +79,14 @@ func (suite *TestSuite) TestCORS() {
 			RequestOrigin:    "foo.bar",
 			RequestMethod:    "GET",
 			RequestHeaders: []string{
-				"X-Nuclio-log-level",
+				headers.LogLevel,
 			},
 			ExpectedResponseStatusCode: fasthttp.StatusOK,
 			ExpectedResponseHeaders: map[string]string{
 				"Access-Control-Allow-Origin":  "foo.bar",
 				"Access-Control-Allow-Methods": "HEAD, GET, POST, PUT, DELETE, OPTIONS, PATCH",
 				"Access-Control-Max-Age":       "5",
-				"Access-Control-Allow-Headers": "Accept, Content-Length, Content-Type, Authorization, X-nuclio-log-level",
+				"Access-Control-Allow-Headers": "Accept, Content-Length, Content-Type, Authorization, X-Nuclio-Log-Level",
 			},
 			ExpectedEventsHandledSuccessTotal: 1,
 			ExpectedEventsHandledFailureTotal: 0,

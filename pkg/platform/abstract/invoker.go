@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
@@ -103,11 +104,11 @@ func (i *invoker) invoke(ctx context.Context,
 
 	// set headers
 	req.Header = createFunctionInvocationOptions.Headers
-	req.Header.Set("x-nuclio-target", createFunctionInvocationOptions.FunctionInstance.GetConfig().Meta.Name)
+	req.Header.Set(headers.TargetName, createFunctionInvocationOptions.FunctionInstance.GetConfig().Meta.Name)
 
 	// request logs from a given verbosity unless we're specified no logs should be returned
-	if createFunctionInvocationOptions.LogLevelName != "none" && req.Header.Get("x-nuclio-log-level") == "" {
-		req.Header.Set("x-nuclio-log-level", createFunctionInvocationOptions.LogLevelName)
+	if createFunctionInvocationOptions.LogLevelName != "none" && req.Header.Get(headers.LogLevel) == "" {
+		req.Header.Set(headers.LogLevel, createFunctionInvocationOptions.LogLevelName)
 	}
 
 	i.logger.InfoWithCtx(ctx,
