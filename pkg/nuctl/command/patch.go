@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -281,7 +282,7 @@ func (c *patchFunctionsCommandeer) patchFunction(ctx context.Context, function s
 	if c.waitForFunction {
 
 		// add a header that will cause the API to wait for the function to be ready after patching
-		req.Header.Set("x-nuclio-wait-function-action", "true")
+		req.Header.Set(headers.WaitFunctionAction, "true")
 	}
 
 	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Sending patch request",
