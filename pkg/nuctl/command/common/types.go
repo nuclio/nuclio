@@ -18,15 +18,15 @@ package common
 
 import "sync"
 
-type OutputManifest struct {
+type PatchOutputManifest struct {
 	lock    sync.Mutex
 	success []string
 	skipped []string
 	failed  map[string]error
 }
 
-func NewOutputManifest() *OutputManifest {
-	return &OutputManifest{
+func NewOutputManifest() *PatchOutputManifest {
+	return &PatchOutputManifest{
 		lock:    sync.Mutex{},
 		success: []string{},
 		skipped: []string{},
@@ -34,42 +34,42 @@ func NewOutputManifest() *OutputManifest {
 	}
 }
 
-func (om *OutputManifest) AddSuccess(name string) {
+func (om *PatchOutputManifest) AddSuccess(name string) {
 	om.lock.Lock()
 	defer om.lock.Unlock()
 
 	om.success = append(om.success, name)
 }
 
-func (om *OutputManifest) AddSkipped(name string) {
+func (om *PatchOutputManifest) AddSkipped(name string) {
 	om.lock.Lock()
 	defer om.lock.Unlock()
 
 	om.skipped = append(om.skipped, name)
 }
 
-func (om *OutputManifest) AddFailure(name string, err error) {
+func (om *PatchOutputManifest) AddFailure(name string, err error) {
 	om.lock.Lock()
 	defer om.lock.Unlock()
 
 	om.failed[name] = err
 }
 
-func (om *OutputManifest) GetSuccess() []string {
+func (om *PatchOutputManifest) GetSuccess() []string {
 	om.lock.Lock()
 	defer om.lock.Unlock()
 
 	return om.success
 }
 
-func (om *OutputManifest) GetSkipped() []string {
+func (om *PatchOutputManifest) GetSkipped() []string {
 	om.lock.Lock()
 	defer om.lock.Unlock()
 
 	return om.skipped
 }
 
-func (om *OutputManifest) GetFailed() map[string]error {
+func (om *PatchOutputManifest) GetFailed() map[string]error {
 	om.lock.Lock()
 	defer om.lock.Unlock()
 

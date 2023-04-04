@@ -23,6 +23,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -31,12 +32,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/errgroup"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
-	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -56,6 +58,7 @@ type patchCommandeer struct {
 	password        string
 	requestTimeout  string
 	skipTLSVerify   bool
+	authHeaders     map[string]string
 }
 
 func newPatchCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *patchCommandeer {
@@ -90,6 +93,7 @@ func newPatchCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *pa
 	return commandeer
 }
 
+// initialize will initialize the patch commandeer
 func (c *patchCommandeer) initialize(ctx context.Context) error {
 
 	// parse the request timeout
@@ -121,6 +125,7 @@ func (c *patchCommandeer) initialize(ctx context.Context) error {
 	return nil
 }
 
+// initializePatchOptions transforms the given patch options map into a struct
 func (c *patchCommandeer) initializePatchOptions() error {
 	if len(c.patchOptionsMap) == 0 {
 		return nil
@@ -136,15 +141,95 @@ func (c *patchCommandeer) initializePatchOptions() error {
 	return nil
 }
 
+// sendAPIRequest sends an API request to the nuclio API
+func (c *patchCommandeer) sendAPIRequest(ctx context.Context,
+	method,
+	url string,
+	requestBody []byte,
+	requestHeaders map[string]string,
+	expectedStatusCode int,
+	returnResponseBody bool) (*http.Response, map[string]interface{}, error) {
+	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+		"Sending API request",
+		"method", method,
+		"url", url,
+		"headers", requestHeaders)
+
+	// create authorization headers
+	authHeaders, err := c.createAuthorizationHeaders(ctx)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to create session")
+	}
+
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to create request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	for key, value := range labels.Merge(requestHeaders, authHeaders) {
+		req.Header.Set(key, value)
+	}
+
+	response, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to send request")
+	}
+
+	if response.StatusCode != expectedStatusCode {
+		return nil, nil, errors.Errorf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode)
+	}
+
+	if !returnResponseBody {
+		return response, nil, nil
+	}
+
+	encodedResponseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to read response body")
+	}
+
+	defer response.Body.Close() // nolint: errcheck
+
+	decodedResponseBody := map[string]interface{}{}
+	if err := json.Unmarshal(encodedResponseBody, &decodedResponseBody); err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to decode response body")
+	}
+
+	return response, decodedResponseBody, nil
+}
+
+// createAuthorizationHeaders creates authorization headers for the nuclio API
+func (c *patchCommandeer) createAuthorizationHeaders(ctx context.Context) (map[string]string, error) {
+	if c.authHeaders != nil {
+		return c.authHeaders, nil
+	}
+
+	// resolve username and password from env vars if not provided
+	if c.username == "" {
+		c.username = common.GetEnvOrDefaultString("NUCLIO_USERNAME", "")
+	}
+	if c.password == "" {
+		c.password = common.GetEnvOrDefaultString("NUCLIO_PASSWORD", "")
+	}
+
+	// cache the auth headers
+	c.authHeaders = map[string]string{
+		"x-v3io-username": c.username,
+		"Authorization":   "Basic " + base64.StdEncoding.EncodeToString([]byte(c.username+":"+c.password)),
+	}
+
+	return c.authHeaders, nil
+}
+
 type patchFunctionsCommandeer struct {
 	*patchCommandeer
-
-	excludedProjects    []string
-	excludedFunctions   []string
-	concurrency         int
-	waitForFunction     bool
-	skipFunctionWithGPU bool
-	outputManifest      *nuctlcommon.OutputManifest
+	excludedProjects       []string
+	excludedFunctions      []string
+	concurrency            int
+	waitForFunction        bool
+	excludeFunctionWithGPU bool
+	outputManifest         *nuctlcommon.PatchOutputManifest
 }
 
 func newPatchFunctionsCommandeer(ctx context.Context, patchCommandeer *patchCommandeer) *patchFunctionsCommandeer {
@@ -180,18 +265,15 @@ func newPatchFunctionsCommandeer(ctx context.Context, patchCommandeer *patchComm
 	cmd.PersistentFlags().StringSliceVarP(&commandeer.excludedProjects, "exclude-projects", "", []string{}, "Exclude projects to patch")
 	cmd.PersistentFlags().StringSliceVarP(&commandeer.excludedFunctions, "exclude-functions", "", []string{}, "Exclude functions to patch")
 	cmd.PersistentFlags().IntVarP(&commandeer.concurrency, "concurrency", "c", DefaultConcurrency, "Max number of parallel patches")
-	cmd.PersistentFlags().StringVarP(&commandeer.apiURL, "api-url", "", "", "URL of the nuclio API (e.g. https://nuclio.io:8070/api)")
-	cmd.PersistentFlags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function to be ready after patching")
-	cmd.PersistentFlags().BoolVarP(&commandeer.skipFunctionWithGPU, "skip-gpu", "", false, "Skip functions with GPU")
-
-	// mark required flags
-	cmd.MarkPersistentFlagRequired("api-url") // nolint: errcheck
+	cmd.PersistentFlags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
+	cmd.PersistentFlags().BoolVarP(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", "", false, "Skip functions with GPU")
 
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
+// patchFunctions patches functions
 func (c *patchFunctionsCommandeer) patchFunctions(ctx context.Context) error {
 
 	functionNames, err := c.getFunctionNames(ctx)
@@ -201,17 +283,11 @@ func (c *patchFunctionsCommandeer) patchFunctions(ctx context.Context) error {
 
 	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Got function names", "functionNames", functionNames)
 
-	// create authorization headers
-	authHeaders, err := c.createAuthorizationHeaders(ctx)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create session")
-	}
-
 	patchErrGroup, _ := errgroup.WithContextSemaphore(ctx, c.rootCommandeer.loggerInstance, uint(c.concurrency))
 	for _, function := range functionNames {
 		function := function
 		patchErrGroup.Go("patch function", func() error {
-			if err := c.patchFunction(ctx, function, authHeaders); err != nil {
+			if err := c.patchFunction(ctx, function); err != nil {
 				c.outputManifest.AddFailure(function, err)
 				return errors.Wrap(err, "Failed to patch function")
 			}
@@ -232,23 +308,20 @@ func (c *patchFunctionsCommandeer) patchFunctions(ctx context.Context) error {
 	return nil
 }
 
+// getFunctionNames returns a list of function names
 func (c *patchFunctionsCommandeer) getFunctionNames(ctx context.Context) ([]string, error) {
 	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Getting function names")
 
-	// get all functions in the namespace
-	functions, err := c.rootCommandeer.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
-		Namespace: c.rootCommandeer.namespace,
-	})
+	functionConfigs, err := c.getFunctions(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
 	functionNames := make([]string, 0)
-	for _, function := range functions {
-		functionName := function.GetConfig().Meta.Name
+	for functionName, functionConfig := range functionConfigs {
 
 		// filter excluded functions
-		if c.shouldSkipFunction(function) {
+		if c.shouldSkipFunction(functionConfig) {
 			c.outputManifest.AddSkipped(functionName)
 			c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Excluding function", "function", functionName)
 			continue
@@ -259,7 +332,41 @@ func (c *patchFunctionsCommandeer) getFunctionNames(ctx context.Context) ([]stri
 	return functionNames, nil
 }
 
-func (c *patchFunctionsCommandeer) patchFunction(ctx context.Context, function string, sessionCookieHeader map[string]string) error {
+// getFunctions returns a map of function name to function config
+func (c *patchFunctionsCommandeer) getFunctions(ctx context.Context) (map[string]functionconfig.Config, error) {
+	url := fmt.Sprintf("%s/%s", c.apiURL, FunctionsEndpoint)
+	requestHeaders := map[string]string{
+		headers.FunctionNamespace: c.rootCommandeer.namespace,
+	}
+	_, responseBody, err := c.sendAPIRequest(ctx,
+		http.MethodGet, // method
+		url,            // url
+		nil,            // body
+		requestHeaders, // headers
+		http.StatusOK,  // expectedStatusCode
+		true)           // returnResponseBody
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Got functions", "numOfFunctions", len(responseBody))
+
+	functions := map[string]functionconfig.Config{}
+
+	for functionName, functionConfigMap := range responseBody {
+		functionConfig, err := nuctlcommon.ConvertToFunctionConfig(functionConfigMap.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to convert function config")
+		}
+
+		functions[functionName] = functionConfig
+	}
+
+	return functions, nil
+}
+
+// patchFunction patches a single function
+func (c *patchFunctionsCommandeer) patchFunction(ctx context.Context, function string) error {
 
 	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Patching function", "function", function)
 
@@ -270,57 +377,26 @@ func (c *patchFunctionsCommandeer) patchFunction(ctx context.Context, function s
 	}
 	url := fmt.Sprintf("%s/%s/%s", c.apiURL, FunctionsEndpoint, function)
 
-	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer(payload))
-	if err != nil {
-		return errors.Wrapf(err, "Failed to create patch request for function %s", function)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	for key, value := range sessionCookieHeader {
-		req.Header.Set(key, value)
-	}
-
+	requestHeaders := map[string]string{}
 	if c.waitForFunction {
-
 		// add a header that will cause the API to wait for the function to be ready after patching
-		req.Header.Set(headers.WaitFunctionAction, "true")
+		requestHeaders[headers.WaitFunctionAction] = "true"
 	}
 
-	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Sending patch request",
-		"url", url,
-		"payload", string(payload),
-		"headers", req.Header)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to send patch request for function %s", function)
-	}
-
-	defer resp.Body.Close() // nolint: errcheck
-
-	if resp.StatusCode != http.StatusNoContent {
-		return errors.Errorf("Failed to patch function %s. Status code: %d", function, resp.StatusCode)
+	if _, _, err = c.sendAPIRequest(ctx,
+		http.MethodPatch,
+		url,
+		payload,
+		requestHeaders,
+		http.StatusNoContent,
+		false); err != nil {
+		return errors.Wrap(err, "Failed to send patch API request")
 	}
 
 	return nil
 }
 
-func (c *patchFunctionsCommandeer) createAuthorizationHeaders(ctx context.Context) (map[string]string, error) {
-
-	// resolve username and password from env vars if not provided
-	if c.username == "" {
-		c.username = common.GetEnvOrDefaultString("NUCLIO_USERNAME", "")
-	}
-	if c.password == "" {
-		c.password = common.GetEnvOrDefaultString("NUCLIO_PASSWORD", "")
-	}
-
-	// create authorization headers
-	return map[string]string{
-		"x-v3io-username": c.username,
-		"Authorization":   "Basic " + base64.StdEncoding.EncodeToString([]byte(c.username+":"+c.password)),
-	}, nil
-}
-
+// createPatchPayload creates and enriches a patch payload, including patch options
 func (c *patchFunctionsCommandeer) createPatchPayload(ctx context.Context, function string) ([]byte, error) {
 	if len(c.patchOptionsMap) == 0 {
 
@@ -338,6 +414,7 @@ func (c *patchFunctionsCommandeer) createPatchPayload(ctx context.Context, funct
 	return payload, nil
 }
 
+// logOutput outputs the output manifest to the logger
 func (c *patchFunctionsCommandeer) logOutput(ctx context.Context) {
 	if len(c.outputManifest.GetSuccess()) > 0 {
 		c.rootCommandeer.loggerInstance.InfoWithCtx(ctx, "Patched functions successfully",
@@ -356,20 +433,22 @@ func (c *patchFunctionsCommandeer) logOutput(ctx context.Context) {
 	}
 }
 
-func (c *patchFunctionsCommandeer) shouldSkipFunction(function platform.Function) bool {
-	functionName := function.GetConfig().Meta.Name
-	projectName := function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+// shouldSkipFunction returns true if the function patch should be skipped
+func (c *patchFunctionsCommandeer) shouldSkipFunction(functionConfig functionconfig.Config) bool {
+	functionName := functionConfig.Meta.Name
+	projectName := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 
 	// skip if function is excluded or if it has a positive GPU resource limit
 	if common.StringSliceContainsString(c.excludedFunctions, functionName) ||
 		common.StringSliceContainsString(c.excludedProjects, projectName) ||
-		function.GetConfig().Spec.PositiveGPUResourceLimit() {
+		functionConfig.Spec.PositiveGPUResourceLimit() {
 		return true
 	}
 
 	return false
 }
 
+// validateAndEnrichFlags validates and enriches flags
 func (c *patchFunctionsCommandeer) validateAndEnrichFlags() error {
 
 	// validate api url
