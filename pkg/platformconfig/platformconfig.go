@@ -322,12 +322,12 @@ func (c *Config) EnrichContainerResources(ctx context.Context,
 		resources.Requests = make(v1.ResourceList)
 	}
 
-	if _, exists := resources.Requests["cpu"]; !exists {
+	if cpuRequest, exists := resources.Requests["cpu"]; !exists || cpuRequest.IsZero() {
 		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
 			"25m",
 			logger)
 	}
-	if _, exists := resources.Requests["memory"]; !exists {
+	if memoryRequest, exists := resources.Requests["memory"]; !exists || memoryRequest.IsZero() {
 		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
 			"1Mi",
 			logger)
@@ -336,13 +336,13 @@ func (c *Config) EnrichContainerResources(ctx context.Context,
 	if resources.Limits == nil {
 		resources.Limits = make(v1.ResourceList)
 	}
-	if _, exists := resources.Limits["cpu"]; !exists {
+	if cpuLimit, exists := resources.Limits["cpu"]; !exists || cpuLimit.IsZero() {
 		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
 		if err == nil {
 			resources.Limits["cpu"] = cpuQuantity
 		}
 	}
-	if _, exists := resources.Limits["memory"]; !exists {
+	if memoryLimit, exists := resources.Limits["memory"]; !exists || memoryLimit.IsZero() {
 		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
 		if err == nil {
 			resources.Limits["memory"] = memoryQuantity

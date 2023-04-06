@@ -140,8 +140,8 @@ limitations under the License.
 
             function parseResult(result) {
                 return lodash.isError(result) ? {
-                    status: -1,
-                    statusText: 'Invalid response',
+                    status: result.status ? result.status : -1,
+                    statusText: result.error ? result.error : 'Invalid response',
                     headers: { 'Content-Type': 'text/plain' },
                     body: result.message
                 } : {
