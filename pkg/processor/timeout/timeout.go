@@ -115,10 +115,8 @@ func (w EventTimeoutWatcher) watch() {
 						return nil
 					})
 
-					return workerErrGroup.Wait()
 				}
-
-				return nil
+				return workerErrGroup.Wait()
 			})
 		}
 
