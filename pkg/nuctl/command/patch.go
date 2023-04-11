@@ -213,6 +213,11 @@ func (c *patchCommandeer) createAuthorizationHeaders(ctx context.Context) (map[s
 		c.password = common.GetEnvOrDefaultString("NUCLIO_PASSWORD", "")
 	}
 
+	// if username and password are still empty, fail
+	if c.username == "" || c.password == "" {
+		return nil, errors.New("Username and password must be provided")
+	}
+
 	// cache the auth headers
 	c.authHeaders = map[string]string{
 		"x-v3io-username": c.username,
