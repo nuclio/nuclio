@@ -81,8 +81,8 @@ func GetUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, err
 	return nil, errors.New("Input is neither json nor yaml")
 }
 
-// ConvertToFunctionConfig converts a map to a function config
-func ConvertToFunctionConfig(functionMap map[string]interface{}) (functionconfig.Config, error) {
+// ConvertMapToFunctionConfig converts a map to a function config
+func ConvertMapToFunctionConfig(functionMap map[string]interface{}) (functionconfig.Config, error) {
 	var functionConfig functionconfig.Config
 
 	// convert to json

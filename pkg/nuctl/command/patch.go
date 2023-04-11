@@ -17,34 +17,28 @@ limitations under the License.
 package command
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/nuctl/client"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
-	FunctionsEndpoint     = "functions"
-	DefaultRequestTimeout = "60s"
-	DefaultConcurrency    = 10
+	FunctionsEndpoint  = "functions"
+	DefaultConcurrency = 10
 )
 
 type patchCommandeer struct {
@@ -52,13 +46,12 @@ type patchCommandeer struct {
 	rootCommandeer  *RootCommandeer
 	patchOptionsMap map[string]string
 	patchOptions    *resource.PatchOptions
-	httpClient      *http.Client
+	apiClient       client.APIClient
 	apiURL          string
 	username        string
 	password        string
 	requestTimeout  string
 	skipTLSVerify   bool
-	authHeaders     map[string]string
 }
 
 func newPatchCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *patchCommandeer {
@@ -95,24 +88,15 @@ func newPatchCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *pa
 
 // initialize will initialize the patch commandeer
 func (c *patchCommandeer) initialize(ctx context.Context) error {
-
-	// parse the request timeout
-	if c.requestTimeout == "" {
-		c.requestTimeout = DefaultRequestTimeout
-	}
-	requestTimeoutDuration, err := time.ParseDuration(c.requestTimeout)
+	var err error
+	c.apiClient, err = client.NewNuclioAPIClient(c.rootCommandeer.loggerInstance,
+		c.apiURL,
+		c.requestTimeout,
+		c.username,
+		c.password,
+		c.skipTLSVerify)
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse request timeout")
-	}
-
-	// initialize http client
-	c.httpClient = &http.Client{
-		Timeout: requestTimeoutDuration,
-	}
-	if c.skipTLSVerify {
-		c.httpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
+		return errors.Wrap(err, "Failed to create API client")
 	}
 
 	if err := c.initializePatchOptions(); err != nil {
@@ -139,92 +123,6 @@ func (c *patchCommandeer) initializePatchOptions() error {
 	}
 
 	return nil
-}
-
-// sendAPIRequest sends an API request to the nuclio API
-func (c *patchCommandeer) sendAPIRequest(ctx context.Context,
-	method,
-	url string,
-	requestBody []byte,
-	requestHeaders map[string]string,
-	expectedStatusCode int,
-	returnResponseBody bool) (*http.Response, map[string]interface{}, error) {
-	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
-		"Sending API request",
-		"method", method,
-		"url", url,
-		"headers", requestHeaders)
-
-	// create authorization headers
-	authHeaders, err := c.createAuthorizationHeaders(ctx)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to create session")
-	}
-
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to create request")
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	for key, value := range labels.Merge(requestHeaders, authHeaders) {
-		req.Header.Set(key, value)
-	}
-
-	response, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to send request")
-	}
-
-	if response.StatusCode != expectedStatusCode {
-		return nil, nil, errors.Errorf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode)
-	}
-
-	if !returnResponseBody {
-		return response, nil, nil
-	}
-
-	encodedResponseBody, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to read response body")
-	}
-
-	defer response.Body.Close() // nolint: errcheck
-
-	decodedResponseBody := map[string]interface{}{}
-	if err := json.Unmarshal(encodedResponseBody, &decodedResponseBody); err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to decode response body")
-	}
-
-	return response, decodedResponseBody, nil
-}
-
-// createAuthorizationHeaders creates authorization headers for the nuclio API
-func (c *patchCommandeer) createAuthorizationHeaders(ctx context.Context) (map[string]string, error) {
-	if c.authHeaders != nil {
-		return c.authHeaders, nil
-	}
-
-	// resolve username and password from env vars if not provided
-	if c.username == "" {
-		c.username = common.GetEnvOrDefaultString("NUCLIO_USERNAME", "")
-	}
-	if c.password == "" {
-		c.password = common.GetEnvOrDefaultString("NUCLIO_PASSWORD", "")
-	}
-
-	// if username and password are still empty, fail
-	if c.username == "" || c.password == "" {
-		return nil, errors.New("Username and password must be provided")
-	}
-
-	// cache the auth headers
-	c.authHeaders = map[string]string{
-		"x-v3io-username": c.username,
-		"Authorization":   "Basic " + base64.StdEncoding.EncodeToString([]byte(c.username+":"+c.password)),
-	}
-
-	return c.authHeaders, nil
 }
 
 type patchFunctionsCommandeer struct {
@@ -343,7 +241,7 @@ func (c *patchFunctionsCommandeer) getFunctions(ctx context.Context) (map[string
 	requestHeaders := map[string]string{
 		headers.FunctionNamespace: c.rootCommandeer.namespace,
 	}
-	_, responseBody, err := c.sendAPIRequest(ctx,
+	_, responseBody, err := c.apiClient.SendRequest(ctx,
 		http.MethodGet, // method
 		url,            // url
 		nil,            // body
@@ -359,7 +257,7 @@ func (c *patchFunctionsCommandeer) getFunctions(ctx context.Context) (map[string
 	functions := map[string]functionconfig.Config{}
 
 	for functionName, functionConfigMap := range responseBody {
-		functionConfig, err := nuctlcommon.ConvertToFunctionConfig(functionConfigMap.(map[string]interface{}))
+		functionConfig, err := nuctlcommon.ConvertMapToFunctionConfig(functionConfigMap.(map[string]interface{}))
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to convert function config")
 		}
@@ -388,7 +286,7 @@ func (c *patchFunctionsCommandeer) patchFunction(ctx context.Context, function s
 		requestHeaders[headers.WaitFunctionAction] = "true"
 	}
 
-	if _, _, err = c.sendAPIRequest(ctx,
+	if _, _, err = c.apiClient.SendRequest(ctx,
 		http.MethodPatch,
 		url,
 		payload,
