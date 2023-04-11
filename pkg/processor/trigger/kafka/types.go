@@ -17,10 +17,13 @@ limitations under the License.
 package kafka
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -61,6 +64,8 @@ type Configuration struct {
 		InsecureSkipVerify bool
 		MinimumVersion     string
 	}
+
+	SecretPath string
 
 	SessionTimeout                string
 	HeartbeatInterval             string
@@ -130,6 +135,7 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-access-cert", ValueString: &newConfiguration.AccessCertificate},
 		{Key: "nuclio.io/kafka-ca-cert", ValueString: &newConfiguration.CACert},
 		{Key: "nuclio.io/kafka-version", ValueString: &newConfiguration.Version},
+		{Key: "nuclio.io/kafka-secret-path", ValueString: &newConfiguration.SecretPath},
 
 		// deprecated. not in use anymore.
 		{Key: "nuclio.io/kafka-log-level", ValueInt: &newConfiguration.LogLevel},
@@ -164,6 +170,10 @@ func NewConfiguration(id string,
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
+	}
+
+	if err := newConfiguration.populateValuesFromMountedSecrets(logger); err != nil {
+		return nil, errors.Wrap(err, "Failed to populate configuration from secrets")
 	}
 
 	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
@@ -429,4 +439,42 @@ func (c *Configuration) unflattenCertificate(certificate string) string {
 	}
 
 	return certificate
+}
+
+// populateValuesFromMountedSecrets will populate sensitive configuration fields from mounted secrets, if the field is a path
+func (c *Configuration) populateValuesFromMountedSecrets(logger logger.Logger) error {
+	basePath := ""
+
+	// if secret path is set, use it as the base path for all secrets
+	if c.SecretPath != "" {
+		basePath = c.SecretPath
+	}
+
+	logger.DebugWith("TOMER - Populating sensitive fields from mounted secrets", "basePath", basePath)
+
+	// for each of the sensitive fields, check if it is a path to a file.
+	// if it is, read the file and populate the field with its contents
+	for _, sensitiveField := range []*string{
+		&c.AccessKey,
+		&c.AccessCertificate,
+		&c.CACert,
+		&c.SASL.Password,
+		&c.SASL.OAuth.ClientSecret,
+	} {
+		filePath := filepath.Join(basePath, *sensitiveField)
+
+		// we check if the file exists, because if it doesn't, we assume it's a string and not a path
+		if *sensitiveField != "" && common.FileExists(filePath) {
+			logger.DebugWith("TOMER - Found a secret!", "filePath", filePath)
+
+			contents, err := os.ReadFile(filePath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to read file %s", filePath)
+			}
+			logger.DebugWith("TOMER - Found a content", "filePath", filePath, "content", string(contents))
+			*sensitiveField = string(contents)
+		}
+	}
+
+	return nil
 }
