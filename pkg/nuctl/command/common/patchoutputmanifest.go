@@ -16,7 +16,12 @@ limitations under the License.
 
 package common
 
-import "sync"
+import (
+	"context"
+	"sync"
+
+	"github.com/nuclio/logger"
+)
 
 type PatchOutputManifest struct {
 	lock    sync.Mutex
@@ -74,4 +79,22 @@ func (om *PatchOutputManifest) GetFailed() map[string]error {
 	defer om.lock.Unlock()
 
 	return om.failed
+}
+
+func (om *PatchOutputManifest) LogOutput(ctx context.Context, loggerInstance logger.Logger) {
+	if len(om.GetSuccess()) > 0 {
+		loggerInstance.InfoWithCtx(ctx, "Patched functions successfully",
+			"functions", om.GetSuccess())
+	}
+	if len(om.GetSkipped()) > 0 {
+		loggerInstance.InfoWithCtx(ctx, "Skipped functions",
+			"functions", om.GetSkipped())
+	}
+	if len(om.GetFailed()) > 0 {
+		for function, err := range om.GetFailed() {
+			loggerInstance.ErrorWithCtx(ctx, "Failed to patch function",
+				"function", function,
+				"err", err)
+		}
+	}
 }
