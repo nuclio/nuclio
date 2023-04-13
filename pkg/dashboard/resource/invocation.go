@@ -141,7 +141,9 @@ func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWrite
 }
 
 func (tr *invocationResource) writeErrorMessage(responseWriter io.Writer, message string) {
-	formattedMessage := fmt.Sprintf(`{"error": "%s"}`, message)
+
+	// replace " with ' so that the error message will be valid json
+	formattedMessage := fmt.Sprintf(`{"error": "%s"}`, strings.ReplaceAll(message, `"`, `'`))
 	responseWriter.Write([]byte(formattedMessage)) // nolint: errcheck
 }
 

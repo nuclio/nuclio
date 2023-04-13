@@ -30,6 +30,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -674,7 +675,7 @@ func (suite *functionTestSuite) TestDeleteNoNamespace() {
 }
 
 func (suite *functionTestSuite) TestInvokeUnSuccessful() {
-	errMessage := "something-bad-happened"
+	errMessage := `something-bad""-happened`
 	functionName := "f1"
 	functionNamespace := "f1-namespace"
 
@@ -734,7 +735,7 @@ func (suite *functionTestSuite) TestInvokeUnSuccessful() {
 		Once()
 
 	expectedStatusCode := http.StatusBadRequest
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{errMessage})
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{strings.ReplaceAll(errMessage, `"`, `'`)})
 
 	suite.sendRequest(requestMethod,
 		"/api/function_invocations",
