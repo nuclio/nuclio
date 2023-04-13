@@ -22,11 +22,15 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -83,8 +87,66 @@ func NewNuclioAPIClient(parentLogger logger.Logger,
 	return newAPIClient, nil
 }
 
-// SendRequest sends an API request to the nuclio API
-func (c *NuclioAPIClient) SendRequest(ctx context.Context,
+// GetFunctions returns a map of function name to function config for all functions in the given namespace
+func (c *NuclioAPIClient) GetFunctions(ctx context.Context, namespace string) (map[string]functionconfig.Config, error) {
+
+	url := fmt.Sprintf("%s/%s", c.apiURL, FunctionsEndpoint)
+	requestHeaders := map[string]string{
+		headers.FunctionNamespace: namespace,
+	}
+	_, responseBody, err := c.sendRequest(ctx,
+		http.MethodGet, // method
+		url,            // url
+		nil,            // body
+		requestHeaders, // headers
+		http.StatusOK,  // expectedStatusCode
+		true)           // returnResponseBody
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	c.logger.DebugWithCtx(ctx, "Got functions", "numOfFunctions", len(responseBody))
+
+	functions := map[string]functionconfig.Config{}
+
+	for functionName, functionConfigMap := range responseBody {
+		functionConfig, err := nuctlcommon.ConvertMapToFunctionConfig(functionConfigMap.(map[string]interface{}))
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to convert function config")
+		}
+
+		functions[functionName] = functionConfig
+	}
+
+	return functions, nil
+}
+
+// PatchFunction patches a single function with the given options
+func (c *NuclioAPIClient) PatchFunction(ctx context.Context,
+	functionName,
+	namespace string,
+	optionsPayload []byte,
+	patchHeaders map[string]string) error {
+
+	c.logger.DebugWithCtx(ctx, "Patching function", "function", functionName)
+
+	url := fmt.Sprintf("%s/%s/%s", c.apiURL, FunctionsEndpoint, functionName)
+
+	if _, _, err := c.sendRequest(ctx,
+		http.MethodPatch,
+		url,
+		optionsPayload,
+		patchHeaders,
+		http.StatusNoContent,
+		false); err != nil {
+		return errors.Wrap(err, "Failed to send patch API request")
+	}
+
+	return nil
+}
+
+// sendRequest sends an API request to the nuclio API
+func (c *NuclioAPIClient) sendRequest(ctx context.Context,
 	method,
 	url string,
 	requestBody []byte,

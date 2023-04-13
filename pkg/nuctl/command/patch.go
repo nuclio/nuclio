@@ -19,8 +19,6 @@ package command
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -215,7 +213,7 @@ func (c *patchFunctionsCommandeer) patchFunctions(ctx context.Context) error {
 func (c *patchFunctionsCommandeer) getFunctionNames(ctx context.Context) ([]string, error) {
 	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Getting function names")
 
-	functionConfigs, err := c.getFunctions(ctx)
+	functionConfigs, err := c.apiClient.GetFunctions(ctx, c.rootCommandeer.namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
@@ -235,39 +233,6 @@ func (c *patchFunctionsCommandeer) getFunctionNames(ctx context.Context) ([]stri
 	return functionNames, nil
 }
 
-// getFunctions returns a map of function name to function config
-func (c *patchFunctionsCommandeer) getFunctions(ctx context.Context) (map[string]functionconfig.Config, error) {
-	url := fmt.Sprintf("%s/%s", c.apiURL, FunctionsEndpoint)
-	requestHeaders := map[string]string{
-		headers.FunctionNamespace: c.rootCommandeer.namespace,
-	}
-	_, responseBody, err := c.apiClient.SendRequest(ctx,
-		http.MethodGet, // method
-		url,            // url
-		nil,            // body
-		requestHeaders, // headers
-		http.StatusOK,  // expectedStatusCode
-		true)           // returnResponseBody
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get functions")
-	}
-
-	c.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Got functions", "numOfFunctions", len(responseBody))
-
-	functions := map[string]functionconfig.Config{}
-
-	for functionName, functionConfigMap := range responseBody {
-		functionConfig, err := nuctlcommon.ConvertMapToFunctionConfig(functionConfigMap.(map[string]interface{}))
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to convert function config")
-		}
-
-		functions[functionName] = functionConfig
-	}
-
-	return functions, nil
-}
-
 // patchFunction patches a single function
 func (c *patchFunctionsCommandeer) patchFunction(ctx context.Context, function string) error {
 
@@ -278,7 +243,6 @@ func (c *patchFunctionsCommandeer) patchFunction(ctx context.Context, function s
 	if err != nil {
 		return errors.Wrap(err, "Failed to create patch payload")
 	}
-	url := fmt.Sprintf("%s/%s/%s", c.apiURL, FunctionsEndpoint, function)
 
 	requestHeaders := map[string]string{}
 	if c.waitForFunction {
@@ -286,14 +250,8 @@ func (c *patchFunctionsCommandeer) patchFunction(ctx context.Context, function s
 		requestHeaders[headers.WaitFunctionAction] = "true"
 	}
 
-	if _, _, err = c.apiClient.SendRequest(ctx,
-		http.MethodPatch,
-		url,
-		payload,
-		requestHeaders,
-		http.StatusNoContent,
-		false); err != nil {
-		return errors.Wrap(err, "Failed to send patch API request")
+	if err := c.apiClient.PatchFunction(ctx, function, c.rootCommandeer.namespace, payload, requestHeaders); err != nil {
+		return errors.Wrap(err, "Failed to patch function")
 	}
 
 	return nil

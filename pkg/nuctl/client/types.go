@@ -18,15 +18,23 @@ package client
 
 import (
 	"context"
-	"net/http"
+
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 type APIClient interface {
-	SendRequest(ctx context.Context,
-		method,
-		url string,
-		requestBody []byte,
-		requestHeaders map[string]string,
-		expectedStatusCode int,
-		returnResponseBody bool) (*http.Response, map[string]interface{}, error)
+
+	// GetFunctions returns a map of function name to function config for all functions in the given namespace
+	GetFunctions(ctx context.Context, namespace string) (map[string]functionconfig.Config, error)
+
+	// PatchFunction patches a single function with the given options
+	PatchFunction(ctx context.Context,
+		functionName,
+		namespace string,
+		optionsPayload []byte,
+		patchHeaders map[string]string) error
 }
+
+const (
+	FunctionsEndpoint = "functions"
+)
