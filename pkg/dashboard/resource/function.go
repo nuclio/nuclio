@@ -508,15 +508,9 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return errors.Wrap(err, "Failed to get get function")
 	}
 
-	// if function is already in ready state, return
-	if function.GetStatus().State == functionconfig.FunctionStateReady {
-		fr.Logger.DebugWith("Function is already in ready state, skipping redeploy", "functionName", id)
-		return nil
-	}
+	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
 
 	fr.Logger.DebugWith("Redeploying function", "functionName", id)
-
-	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
 
 	// Deploy function
 	functionInfoInstance := &functionInfo{
