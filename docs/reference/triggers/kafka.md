@@ -5,6 +5,7 @@
   - [Workers and Worker Allocation modes](#workers)
   - [Multiple topics](#multiple-topics)
 - [Configuration parameters](#config-params)
+  - [Passing configuration via secrets](#configuration-via-secret)
 - [How a message travels through Nuclio to the handler](#message-course)
   - [Configuration parameters](#message-course-config-params)
 - [Offset management](#offset-management)
@@ -162,6 +163,24 @@ For more information on Nuclio function configuration, see the [function-configu
   **Valid Values:** `"pool" | "static"`
   <br/>
   **Default Value:** `"pool"`
+
+<a id="configuration-via-secret"></a>
+### Passing configuration via secrets
+
+Nuclio allows passing sensitive configuration values (such as Kafka credentials) via secrets.
+To do that, follow the following steps:
+1. Create a secret with the sensitive data (e.g. `access-key`)
+2. Mount the secret as a volume to the function (in `spec.Volumes`)
+3. Specify the path to the mounted values, either in the function's spec or in the function's annotations, with:
+    1. Either specify the full path in the spec/annotation (e.g. `nuclio.io/kafka-access-key = /path/to/secret/access-key`)
+    2. Or, add the secret mount path to the secretPath filed (or the nuclio.io/kafka-secret-path annotation), and the sub paths to the other annotations. Nuclio will resolve the full paths according to the existing annotations.
+e.g:
+```
+nuclio.io/kafka-secret-path = /etc/nuclio/kafka-secret
+nuclio.io/kafka-access-key = accessKey
+```
+
+The current configurations supported via secrets are: `accessKey`, `accessCertificate`, `caCert`, `SASL.OAuth.clientSecret`, `SASL.password`.
 
 <a id="message-course"></a>
 ## How a message travels through Nuclio to the handler
