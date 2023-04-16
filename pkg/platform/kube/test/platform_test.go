@@ -1267,68 +1267,6 @@ func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndValidateResourc
 	})
 }
 
-func (suite *DeployFunctionTestSuite) TestKafkaSecret() {
-	functionName := "my-kafka-function"
-	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"kafka-trigger": {
-			Kind:                     "kafka-cluster",
-			MaxWorkers:               1,
-			WorkerTerminationTimeout: "5s",
-			Attributes: map[string]interface{}{
-				"brokers": []string{
-					"192.168.50.113:9092",
-				},
-				"consumerGroup":                 "cg0",
-				"fetchDefault":                  1048576,
-				"heartbeatInterval":             "3s",
-				"initialOffset":                 "earliest",
-				"maxWaitHandlerDuringRebalance": "5s",
-				"rebalanceTimeout":              "60s",
-				"sasl": map[string]interface{}{
-					"enable":   false,
-					"password": "",
-					"user":     "",
-				},
-				"sessionTimeout": "10s",
-				"topics": []string{
-					"test-8p-10k-1",
-				},
-				"workerAllocationMode": "pool",
-			},
-		},
-	}
-	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
-		{
-			Volume: v1.Volume{
-				Name: "my-secret",
-				VolumeSource: v1.VolumeSource{
-					Secret: &v1.SecretVolumeSource{
-						SecretName: "mysecret",
-					},
-				},
-			},
-			VolumeMount: v1.VolumeMount{
-				Name:      "my-secret",
-				MountPath: "/etc/nuclio/my-secret",
-			},
-		},
-	}
-
-	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
-		"nuclio.io/kafka-access-key":  "kafka-access-key",
-		"nuclio.io/kafka-secret-path": "/etc/nuclio/my-secret",
-	}
-
-	createFunctionOptions.FunctionConfig.Spec.Build.OnbuildImage = "docker.io/tomershor/nuclio-processor:kafka-secret-4"
-
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		suite.Require().NotNil(deployResult)
-
-		return true
-	})
-}
-
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }

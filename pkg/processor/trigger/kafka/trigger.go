@@ -126,11 +126,6 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 
 	k.shutdownSignal = make(chan struct{}, 1)
 
-	k.Logger.DebugWith("TOMER - Starting trigger",
-		"name", k.configuration.Name,
-		"configuration", k.configuration,
-		"accessKey", k.configuration.AccessKey)
-
 	// start consumption in the background
 	go func() {
 		for {

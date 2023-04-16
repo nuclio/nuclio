@@ -70,8 +70,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 	triggerLogger.DebugWith("Created trigger",
 		"triggerName", configuration.Name,
-		"triggerKind", configuration.Kind,
-		"TOMER-Configuration", configuration)
+		"triggerKind", configuration.Kind)
 	return triggerInstance, nil
 }
 

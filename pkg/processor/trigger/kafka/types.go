@@ -450,8 +450,6 @@ func (c *Configuration) populateValuesFromMountedSecrets(logger logger.Logger) e
 		basePath = c.SecretPath
 	}
 
-	logger.DebugWith("TOMER - Populating sensitive fields from mounted secrets", "basePath", basePath)
-
 	// for each of the sensitive fields, check if it is a path to a file.
 	// if it is, read the file and populate the field with its contents
 	for _, sensitiveField := range []*string{
@@ -465,14 +463,11 @@ func (c *Configuration) populateValuesFromMountedSecrets(logger logger.Logger) e
 
 		// we check if the file exists, because if it doesn't, we assume it's a string and not a path
 		if *sensitiveField != "" && common.FileExists(filePath) {
-			logger.DebugWith("TOMER - Found a secret!", "filePath", filePath)
-
 			contents, err := os.ReadFile(filePath)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to read file %s", filePath)
 			}
-			logger.DebugWith("TOMER - Found a content", "filePath", filePath, "content", string(contents))
-			*sensitiveField = string(contents)
+			*sensitiveField = strings.TrimSpace(string(contents))
 		}
 	}
 

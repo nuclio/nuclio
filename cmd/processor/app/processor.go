@@ -391,10 +391,6 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 		}
 
 		errGroup.Go("Creating trigger", func() error {
-			p.logger.DebugWith("TOMER - Creating trigger",
-				"triggerName", triggerName,
-				"triggerKind", triggerConfiguration.Kind,
-				"triggerConfiguration", triggerConfiguration)
 
 			// create an event source based on event source configuration and runtime configuration
 			triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
