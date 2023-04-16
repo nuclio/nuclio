@@ -71,7 +71,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	triggerLogger.DebugWith("Created trigger",
 		"triggerName", configuration.Name,
 		"triggerKind", configuration.Kind,
-		"TOMERConfiguration", configuration)
+		"TOMER-Configuration", configuration)
 	return triggerInstance, nil
 }
 
