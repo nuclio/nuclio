@@ -26,7 +26,7 @@ import (
 
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
-	autosv2 "k8s.io/api/autoscaling/v2beta1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -269,6 +269,19 @@ type Metric struct {
 	WindowSize     string `json:"windowSize,omitempty"`
 }
 
+type AutoScaleDisplayType string
+
+const (
+	AutoScaleMetricTypeInt        AutoScaleDisplayType = "int"
+	AutoScaleMetricTypePercentage AutoScaleDisplayType = "percentage"
+)
+
+type AutoScaleMetric struct {
+	ScaleResource `json:",inline"`
+	SourceType    autosv2.MetricSourceType `json:"sourceType,omitempty"`
+	DisplayType   AutoScaleDisplayType     `json:"displayType,omitempty"`
+}
+
 type BuildMode string
 
 const (
@@ -340,6 +353,14 @@ type Spec struct {
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 
+	// When set to true, the function spec would not be scrubbed
+	DisableSensitiveFieldsMasking bool `json:"disableSensitiveFieldsMasking,omitempty"`
+
+	// Used for local platform functions mounting specific devices
+	// https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+	// E.g.: /dev/video0:/dev/video0 or /dev/video0:/dev/video0:rwm or /dev/fuse
+	Devices []string `json:"devices,omitempty"`
+
 	// Run function on a particular set of node(s)
 	// https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
 	Affinity     *v1.Affinity      `json:"affinity,omitempty"`
@@ -362,8 +383,9 @@ type Spec struct {
 
 	// Scale function's replica (when min < max replicas) based on given custom metric specs
 	CustomScalingMetricSpecs []autosv2.MetricSpec `json:"customScalingMetricSpecs,omitempty"`
+	AutoScaleMetrics         []AutoScaleMetric    `json:"autoScaleMetrics,omitempty"`
 
-	// Currently relevant only for k8s platform
+	// WaitReadinessTimeoutBeforeFailure is relevant only for k8s platform
 	// if true - wait the whole ReadinessTimeoutSeconds before marking this function as unhealthy
 	// otherwise, fail the function instantly when there is indication of deployment failure (e.g. pod stuck on crash
 	// loop, pod container exited with an error, pod is unschedulable).
@@ -407,7 +429,7 @@ type ScaleResource struct {
 	Threshold  int    `json:"threshold"`
 }
 
-// to appease k8s
+// DeepCopyInto to appease k8s
 func (s *Spec) DeepCopyInto(out *Spec) {
 
 	// TODO: proper deep copy
@@ -558,6 +580,10 @@ func (c *Config) PrepareFunctionForExport(noScrub bool) {
 	if !noScrub {
 		c.scrubFunctionData()
 	}
+
+	// resource version should not be exported anyway, as it's a k8s thing
+	c.Meta.ResourceVersion = ""
+
 	c.AddSkipAnnotations()
 }
 
@@ -577,9 +603,6 @@ func (c *Config) scrubFunctionData() {
 
 	// scrub namespace from function meta
 	c.Meta.Namespace = ""
-
-	// scrub resource version
-	c.Meta.ResourceVersion = ""
 
 	// remove secrets and passwords from triggers
 	newTriggers := c.Spec.Triggers
@@ -788,6 +811,9 @@ type Status struct {
 	APIGateways []string                 `json:"apiGateways,omitempty"`
 	HTTPPort    int                      `json:"httpPort,omitempty"`
 
+	// the built and pushed image name, populated by the function operator after the function has been deployed
+	ContainerImage string `json:"containerImage,omitempty"`
+
 	// list of internal urls
 	// e.g.:
 	//		Kubernetes 	-	[ my-namespace.my-function.svc.cluster.local:8080 ]
@@ -817,6 +843,6 @@ func (s *Status) DeepCopyInto(out *Status) {
 
 // ConfigWithStatus holds the config and status of a function
 type ConfigWithStatus struct {
-	Config
+	Config `json:",inline" yaml:",inline"`
 	Status Status `json:"status,omitempty"`
 }

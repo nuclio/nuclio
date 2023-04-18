@@ -4,38 +4,21 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#	 http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-ARG NUCLIO_BASE_ALPINE_IMAGE_NAME
-ARG NUCLIO_BASE_ALPINE_IMAGE_TAG
 ARG NUCLIO_LABEL
 ARG NUCLIO_DOCKER_REPO
 
-FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_LABEL as builder
+FROM $NUCLIO_DOCKER_REPO/nuclio-base:$NUCLIO_LABEL
 
-FROM $NUCLIO_BASE_ALPINE_IMAGE_NAME:$NUCLIO_BASE_ALPINE_IMAGE_TAG
+RUN apt update -qqy && apt install rsync -y
 
-ARG GOOS=linux
-ARG GOARCH=amd64
+RUN git clone --branch release-1.23 https://github.com/kubernetes/code-generator.git /code-generator
 
-ENV GOOS $GOOS
-ENV GOARCH $GOARCH
-
-COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
-
-RUN apk --update --no-cache add \
-    git \
-    gcc \
-    musl-dev \
-    file
-
-WORKDIR /nuclio
-
-COPY . .
+CMD [ "./hack/scripts/generate-crds/update-codegen.sh" ]

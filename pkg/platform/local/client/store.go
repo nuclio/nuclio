@@ -94,8 +94,7 @@ func (s *Store) GetProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 		return nil
 	}
 
-	err := s.getResources(projectsDir, projectMeta.Namespace, projectMeta.Name, rowHandler)
-	if err != nil {
+	if err := s.getResources(projectsDir, projectMeta.Namespace, projectMeta.Name, rowHandler); err != nil {
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
 
@@ -331,7 +330,7 @@ func (s *Store) getResources(resourceDir string,
 	commandStdout, _, err := s.runCommand(nil, `/bin/sh -c "/bin/cat %s"`, resourcePath)
 	if err != nil {
 
-		// if there error indicates that there's no such file - that means nothing was created yet
+		// if the error indicates that there's no such file that means nothing was created yet
 		cause := errors.Cause(err)
 		if cause != nil && strings.Contains(cause.Error(), "No such file") {
 			return nil
@@ -408,25 +407,25 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 			break
 		}
 
-		// if ontainer doesn't exist return the error
+		// if container doesn't exist return the error
 		if !strings.Contains(err.Error(), "No such container") {
 			return "", "", errors.Wrapf(err, "Failed to execute command: %s", command)
 		}
 
 		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
 		// using alpine mirrored to gcr.io/iguazio for stability
-		_, err = s.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.15", &dockerclient.RunOptions{
+		if _, err := s.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.17", &dockerclient.RunOptions{
 			Volumes:          map[string]string{volumeName: baseDir},
 			Remove:           true,
 			Command:          `/bin/sh -c "/bin/sleep 6h"`,
 			Stdout:           &commandStdout,
 			ImageMayNotExist: true,
 			ContainerName:    containerName,
-		})
-
-		// if we failed and the error is not that it already exists, return the error
-		if err != nil &&
+		}); err != nil &&
 			!strings.Contains(err.Error(), "is already in use by container") {
+
+			// if we failed and the error is not that it already exists, return the error
+
 			return "", "", errors.Wrap(err, "Failed to run container with storage volume")
 		}
 	}
@@ -438,17 +437,15 @@ func (s *Store) deleteResource(resourceDir string, resourceNamespace string, res
 	resourcePath := s.getResourcePath(resourceDir, resourceNamespace, resourceName)
 
 	// stat the file
-	_, _, err := s.runCommand(nil, "/bin/stat %s", resourcePath)
-	if err != nil {
+	if _, _, err := s.runCommand(nil, "/bin/stat %s", resourcePath); err != nil {
 		return nuclio.ErrNotFound
 	}
 
 	// remove the file
-	_, _, err = s.runCommand(nil, "/bin/rm %s", resourcePath)
+	_, _, err := s.runCommand(nil, "/bin/rm %s", resourcePath)
 
-	// if there error indicates that there's no such file - that means nothing was created yet
-	cause := errors.Cause(err)
-	if cause != nil && strings.Contains(cause.Error(), "No such file") {
+	// if the error indicates that there's no such file - that means nothing was created yet
+	if cause := errors.Cause(err); cause != nil && strings.Contains(cause.Error(), "No such file") {
 		return nuclio.NewErrNotFound(fmt.Sprintf("Could not find resource %s", resourceName))
 	}
 

@@ -24,9 +24,14 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.10.5-amd64
+    tag: 1.11.16-amd64
     pullPolicy: IfNotPresent
   resources: {}
+
+  # override the namespace in which the controller will be listening
+  # use this value to make the controller work in a different namespace than the one it's deployed in.
+  # in addition, you'll need to set the `rbac.crdAccessMode` to `cluster`
+  namespace: ""
 
   ## Node labels for pod assignment
   ## Ref: https://kubernetes.io/docs/user-guide/node-selection/
@@ -62,6 +67,10 @@ controller:
   # Note: 0 means cancelling resync mechanism. any other value (e.g.: 10m) would turn it on.
   resyncInterval: 0
 
+  # evicted pods cleanup interval defines how often the Controller goes through all evicted pods and deletes them
+  # Note: 0 means cancelling cleanup mechanism. any other value (e.g.: 10m) would turn it on.
+  evictedPodsCleanupInterval: 30m
+
   operator:
     function:
       numWorkers: 4
@@ -88,7 +97,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.10.5-amd64
+    tag: 1.11.16-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -159,6 +168,9 @@ dashboard:
 
     # How many times to retry pushing images to registry
     pushImagesRetries: 3
+
+    # The number of retries that should happen for the extracting an image filesystem
+    imageFSExtractionRetries: 3
 
     # auth secret to attach to kaniko pod for off cluster registries
     # for example: aws-secret in https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
@@ -279,7 +291,7 @@ autoscaler:
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.10.5-amd64
+    tag: 1.11.16-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -313,7 +325,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.10.5-amd64
+    tag: 1.11.16-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -422,7 +434,7 @@ rbac:
   # than the one in which it is installed
   # Likewise, for "namespaced", the controller won't be able to act on these nuclio resources in any
   # namespace other than the one in which it is installed
-  crdAccessMode: cluster
+  crdAccessMode: namespaced
 
 crd:
 
@@ -464,15 +476,16 @@ platform: {}
 #       ingressAnnotationKey: ingressAnnotationValue
 #   imageRegistryOverrides:
 #     baseImageRegistries:
-#       "python:3.7": "myregistry"
+#       "python:3.9": "myregistry"
 #     onbuildImageRegistries:
 #       "golang": "myregistry"
 #   functionReadinessTimeout: 120s
+#   functionInvocationTimeout: 60s
 #   opa:
 #
 #     # set to 10 for extra verbosity on top of nuclio logger
 #     logLevel: 0
-#     address: http://1.10.5.0.1.10.51
+#     address: http://1.11.16.0.1.11.161
 #     clientKind: nop
 #     requestTimeout: 10
 #     permissionQueryPath: /v1/data/somewhere/authz/allow
@@ -488,6 +501,9 @@ platform: {}
 #   streamMonitoring:
 #     webapiURL: ""
 #     getStreamShardsConcurrentRequests: 64
+#
+#   sensitiveFields:
+#     maskSensitiveFields: true
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

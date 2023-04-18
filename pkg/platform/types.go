@@ -16,8 +16,9 @@ limitations under the License.
 
 package platform
 
-// use k8s structure definitions for now. In the future, duplicate them for cleanliness
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"reflect"
 	"time"
@@ -29,7 +30,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -92,7 +96,7 @@ type CreateFunctionBuildResult struct {
 	UpdatedFunctionConfig functionconfig.Config
 }
 
-// CreateFunctionResult holds the results of a deploy
+// CreateFunctionResult holds the results of a deployment
 type CreateFunctionResult struct {
 	CreateFunctionBuildResult
 	FunctionStatus functionconfig.Status
@@ -114,16 +118,6 @@ type GetFunctionsOptions struct {
 	EnrichWithAPIGateways bool
 }
 
-// InvokeViaType defines via which mechanism the function will be invoked
-type InvokeViaType int
-
-const (
-	InvokeViaAny InvokeViaType = iota
-	InvokeViaExternalIP
-	InvokeViaLoadBalancer
-	InvokeViaDomainName
-)
-
 // CreateFunctionInvocationOptions is the base for all platform invoke options
 type CreateFunctionInvocationOptions struct {
 	Name         string
@@ -134,11 +128,48 @@ type CreateFunctionInvocationOptions struct {
 	Headers      http.Header
 	LogLevelName string
 	Timeout      time.Duration
-	Via          InvokeViaType
 	URL          string
 
 	PermissionOptions opa.PermissionOptions
 	AuthSession       auth.Session
+
+	// the function instance to invoke
+	FunctionInstance Function
+
+	// used from nuctl, to avoid validating the input url, which might be overridden when
+	// user provides explicit external ip address
+	SkipURLValidation bool
+
+	// skip tls verification when invoking a function
+	SkipTLSVerification bool
+}
+
+func (c *CreateFunctionInvocationOptions) EnrichFunction(ctx context.Context, p Platform) error {
+	functions, err := p.GetFunctions(ctx, &GetFunctionsOptions{
+		Name:              c.Name,
+		Namespace:         c.Namespace,
+		AuthSession:       c.AuthSession,
+		PermissionOptions: c.PermissionOptions,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) == 0 {
+		return nuclio.NewErrNotFound(fmt.Sprintf("Function not found: %s @ %s",
+			c.Name,
+			c.Namespace))
+	}
+
+	// use the first function found (should always be one, but if there's more just use first)
+	c.FunctionInstance = functions[0]
+
+	// make sure to initialize the function (some underlying functions are lazy load)
+	if err := c.FunctionInstance.Initialize(ctx, nil); err != nil {
+		return errors.Wrap(err, "Failed to initialize function")
+	}
+	return nil
 }
 
 const FunctionInvocationDefaultTimeout = time.Minute
@@ -148,20 +179,6 @@ type CreateFunctionInvocationResult struct {
 	Headers    http.Header
 	Body       []byte
 	StatusCode int
-}
-
-// AddressType
-type AddressType int
-
-const (
-	AddressTypeInternalIP AddressType = iota
-	AddressTypeExternalIP
-)
-
-// Address
-type Address struct {
-	Address string
-	Type    AddressType
 }
 
 //
@@ -420,6 +437,7 @@ type APIGatewayUpstreamSpec struct {
 	Percentage       int                           `json:"percentage,omitempty"`
 	RewriteTarget    string                        `json:"rewriteTarget,omitempty"`
 	ExtraAnnotations map[string]string             `json:"extraAnnotations,omitempty"`
+	ExtraLabels      map[string]string             `json:"extraLabels,omitempty"`
 }
 
 type APIGatewaySpec struct {
@@ -503,4 +521,9 @@ type GetFunctionReplicaLogsStreamOptions struct {
 
 	// Number of lines to show from the end of the logs
 	TailLines *int64
+}
+
+type FunctionSecret struct {
+	Kubernetes *v1.Secret
+	Local      *string
 }

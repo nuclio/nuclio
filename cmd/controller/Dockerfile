@@ -16,19 +16,15 @@
 # Build stage: builds the controller binary
 #
 
-ARG NUCLIO_LABEL
-ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.15
+ARG NUCLIO_DOCKER_IMAGE_TAG
+ARG ALPINE_IMAGE=gcr.io/iguazio/alpine:3.17
 ARG NUCLIO_DOCKER_REPO
 
-FROM $NUCLIO_DOCKER_REPO/nuclio-base:$NUCLIO_LABEL as build-controller
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-controller
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
-ARG GOOS=linux
-ARG GOARCH=amd64
-
-# build the controller
-RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
+RUN go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \

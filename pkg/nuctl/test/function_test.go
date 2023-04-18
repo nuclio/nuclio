@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -34,18 +33,18 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
-	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/flect"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 )
 
 type functionBuildTestSuite struct {
@@ -250,7 +249,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithTimeout() {
 		map[string]string{
 			"method":  "POST",
 			"via":     "external-ip",
-			"timeout": platform.FunctionInvocationDefaultTimeout.String(),
+			"timeout": (platformconfig.DefaultFunctionInvocationTimeoutSeconds * time.Second).String(),
 		},
 		false)
 	suite.Require().NoError(err)
@@ -307,7 +306,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -673,7 +672,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -742,7 +741,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -814,13 +813,13 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 
 	// TODO: when we enable some sort of resource validation on other platforms, allow this to run on those as well
-	suite.ensureRunningOnPlatform("kube")
+	suite.ensureRunningOnPlatform(common.KubePlatformName)
 
 	// read and parse the function we're gonna test
 	functionConfig := functionconfig.Config{}
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
-	functionBody, err := ioutil.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -1203,7 +1202,7 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocation() {
 
 	// TODO: remove this if we ever implement "ServiceType" for local platform
-	suite.ensureRunningOnPlatform("kube")
+	suite.ensureRunningOnPlatform(common.KubePlatformName)
 
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "deploy-reverser" + uniqueSuffix
@@ -1280,7 +1279,7 @@ wget -O - --post-data "$body" $url 2> /dev/null
 func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 
 	// TODO: remove this if we ever implement "ServiceType" for local platform
-	suite.ensureRunningOnPlatform("kube")
+	suite.ensureRunningOnPlatform(common.KubePlatformName)
 
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "reverser-cluster-ip" + uniqueSuffix
@@ -1623,7 +1622,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
-	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
+	exportTempFile, err := os.CreateTemp("", "reverser.*.json")
 	suite.Require().NoError(err)
 	defer os.Remove(exportTempFile.Name()) // nolint: errcheck
 
@@ -1713,7 +1712,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
-	exportTempFile, err := ioutil.TempFile("", "reverser.*.json")
+	exportTempFile, err := os.CreateTemp("", "reverser.*.json")
 	suite.Require().NoError(err)
 	defer os.Remove(exportTempFile.Name()) // nolint: errcheck
 

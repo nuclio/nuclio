@@ -20,21 +20,21 @@ package test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+	nuctlCommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	"sigs.k8s.io/yaml"
 )
 
 type projectGetTestSuite struct {
@@ -278,7 +278,7 @@ type projectExportImportTestSuite struct {
 }
 
 func (suite *projectExportImportTestSuite) TestExportProject() {
-	apiGatewaysEnabled := suite.origPlatformKind == "kube"
+	apiGatewaysEnabled := suite.origPlatformKind == common.KubePlatformName
 
 	uniqueSuffix := "-" + xid.New().String()
 	projectName := "test-project" + uniqueSuffix
@@ -460,7 +460,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 }
 
 func (suite *projectExportImportTestSuite) TestImportProjects() {
-	apiGatewaysEnabled := suite.origPlatformKind == "kube"
+	apiGatewaysEnabled := suite.origPlatformKind == common.KubePlatformName
 
 	projectConfigPath := path.Join(suite.GetImportsDir(), "projects.yaml")
 
@@ -517,7 +517,7 @@ func (suite *projectExportImportTestSuite) TestImportProjects() {
 }
 
 func (suite *projectExportImportTestSuite) TestImportProject() {
-	apiGatewaysEnabled := suite.origPlatformKind == "kube"
+	apiGatewaysEnabled := suite.origPlatformKind == common.KubePlatformName
 
 	uniqueSuffix := "-" + xid.New().String()
 	projectConfigPath := path.Join(suite.GetImportsDir(), "project.yaml")
@@ -626,7 +626,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectWithExistingFunction
 
 func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configPath, uniqueSuffix string,
 	functionNames, functionEventNames []string, apiGatewayNames []string) string {
-	file, err := ioutil.ReadFile(configPath)
+	file, err := os.ReadFile(configPath)
 	suite.Require().NoError(err)
 
 	projectImportConfig := &command.ProjectImportConfig{}
@@ -676,7 +676,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 	suite.Require().NoError(err)
 
 	// write exported function config to temp file
-	tempFile, err := ioutil.TempFile("", "project-import.*.json")
+	tempFile, err := os.CreateTemp("", "project-import.*.json")
 	suite.Require().NoError(err)
 
 	_, err = tempFile.Write(projectConfigYaml)
@@ -758,7 +758,7 @@ func (suite *projectExportImportTestSuite) assertProjectImported(projectName str
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "project", projectName}, map[string]string{
-		"output": common.OutputFormatYAML,
+		"output": nuctlCommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
@@ -775,7 +775,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	// reset output buffer for reading the nex output cleanly
 	suite.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent"}, map[string]string{
-		"output":   common.OutputFormatYAML,
+		"output":   nuctlCommon.OutputFormatYAML,
 		"function": functionName,
 	}, false)
 	suite.Require().NoError(err)

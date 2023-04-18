@@ -19,7 +19,7 @@ package triggertest
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sort"
 	"time"
@@ -132,7 +132,7 @@ func GetEventRecorderReceivedEvents(logger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to get events")
 	}
 
-	marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+	marshalledResponseBody, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read response body")
 	}

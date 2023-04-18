@@ -19,12 +19,13 @@ package resource
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	v3io "github.com/nuclio/nuclio/pkg/common/v3io"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -85,7 +86,7 @@ func (vsr *v3ioStreamResource) getFunctions(request *http.Request) ([]platform.F
 	}
 
 	// ensure project name
-	projectName := request.Header.Get("x-nuclio-project-name")
+	projectName := request.Header.Get(headers.ProjectName)
 	if projectName == "" {
 		return nil, nuclio.NewErrBadRequest("Project name must not be empty")
 	}
@@ -117,7 +118,7 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 	}
 
 	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}
@@ -157,7 +158,7 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 }
 
 func (vsr *v3ioStreamResource) getNamespaceFromRequest(request *http.Request) string {
-	return vsr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
+	return vsr.getNamespaceOrDefault(request.Header.Get(headers.ProjectNamespace))
 }
 
 func (vsr *v3ioStreamResource) validateRequest(request *http.Request) error {
@@ -170,7 +171,7 @@ func (vsr *v3ioStreamResource) validateRequest(request *http.Request) error {
 		return nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	projectName := request.Header.Get("x-nuclio-project-name")
+	projectName := request.Header.Get(headers.ProjectName)
 	if projectName == "" {
 		return errors.New("Project name must not be empty")
 	}

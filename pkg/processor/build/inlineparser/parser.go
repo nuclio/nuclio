@@ -60,20 +60,19 @@ func NewParser(parentLogger logger.Logger, commentChar string) *InlineParser {
 }
 
 // Parse looks for a block starting with a comment character and "@nuclio.". It then adds this
-// to the list of inline configuration blocks. For example
+// to the list of inline configuration blocks. For example:
 //
-// @nuclio.configure
+//	@nuclio.configure
 //
-// function.yaml:
-//   apiVersion: "nuclio.io/v1"
-//   kind: "NuclioFunction"
-//   spec:
-//     runtime: "golang"
-//     triggers:
-//       http:
-//         maxWorkers: 8
-//         kind: http
-//
+//	function.yaml:
+//	  apiVersion: "nuclio.io/v1"
+//	  kind: "NuclioFunction"
+//	  spec:
+//	    runtime: "golang"
+//	    triggers:
+//	      http:
+//	        maxWorkers: 8
+//	        kind: http
 func (p *InlineParser) Parse(path string) (map[string]Block, error) {
 	reader, err := os.OpenFile(path, os.O_RDONLY, os.FileMode(0644))
 	if err != nil {

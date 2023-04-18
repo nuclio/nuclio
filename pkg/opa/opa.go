@@ -17,16 +17,18 @@ limitations under the License.
 package opa
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 )
 
 type Client interface {
 	QueryPermissions(string, Action, *PermissionOptions) (bool, error)
-	QueryPermissionsMultiResources([]string, Action, *PermissionOptions) ([]bool, error)
+	QueryPermissionsMultiResources(context.Context, []string, Action, *PermissionOptions) ([]bool, error)
 }
 
 func GetUserAndGroupIdsFromAuthSession(session auth.Session) []string {
@@ -43,8 +45,8 @@ func GetUserAndGroupIdsFromAuthSession(session auth.Session) []string {
 func GetUserAndGroupIdsFromHeaders(request *http.Request) []string {
 	var ids []string
 
-	userID := request.Header.Get(UserIDHeader)
-	userGroupIdsStr := request.Header.Get(UserGroupIdsHeader)
+	userID := request.Header.Get(headers.UserID)
+	userGroupIdsStr := request.Header.Get(headers.UserGroupIds)
 
 	if userID != "" {
 		ids = append(ids, userID)

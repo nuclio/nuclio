@@ -16,8 +16,8 @@ Ensure that your setup includes the following prerequisite components:
 - Linux or OSX
 - Git
 - Docker version 19.03+
-- The Go toolchain (CI tests with 1.17, best use that)
-- Kubernetes version 1.20+ (mostly for testing) - `minikube` recommended; (you can follow
+- The Go toolchain (CI tests with 1.19, best use that)
+- Kubernetes version 1.23+ (mostly for testing) - `minikube` recommended; (you can follow
   the [Minikube getting-started guide](/docs/setup/minikube/getting-started-minikube.md))
 - Node version 10.x
 - Goland IDE
@@ -59,7 +59,8 @@ docker run --rm -d -p 5000:5000 registry:2
 4. Run Dashboard:
    1. In Goland - open the `dashboard-kube` run configuration. Make sure the program arguments are as follows:
    ```sh
-   --platform kube --platform-config hack/env/platform_config.yaml --namespace default --registry localhost:5000 --run-registry localhost:5000
+   --platform kube --platform-config hack/env/platform_config.yaml --namespace default --registry localhost:5000 --run-registry localhost:5000 --templates-archive-address "" --templates-git-repository "https://github.com/nuclio/nuclio-templates.git"
+--templates-git-ref "refs/heads/master"
    ```
    
    2. If you want to run a specific Nuclio version, you can add the following flags to `Go tool aruments` in the run configuration:
@@ -83,7 +84,7 @@ docker run --rm -d -p 5000:5000 registry:2
    2. Run:
    ```sh
    npm install
-   gulp --dev
+   gulp watch --dev
    ```
    And make sure it's listening on port `8000`
    

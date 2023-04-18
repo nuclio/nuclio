@@ -20,6 +20,7 @@ package test
 
 import (
 	"bytes"
+	"net/http"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -50,11 +51,12 @@ func (suite *testSuite) TestBuildWithCompilationError() {
 
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
-	_, err = suite.Platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-		Logger:         createFunctionOptions.Logger,
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-		PlatformName:   suite.Platform.GetName(),
-	})
+	_, err = suite.Platform.CreateFunctionBuild(suite.Ctx,
+		&platform.CreateFunctionBuildOptions{
+			Logger:         createFunctionOptions.Logger,
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+			PlatformName:   suite.Platform.GetName(),
+		})
 
 	suite.Require().Error(err)
 
@@ -73,8 +75,7 @@ func (suite *testSuite) TestBuildWithContextInitializer() {
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "",
+			RequestMethod:        http.MethodPost,
 			ExpectedResponseBody: "User data initialized from context: 0",
 		})
 }

@@ -17,7 +17,7 @@ package functiontemplates
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 var GeneratedFunctionTemplates = []*generatedFunctionTemplate{
@@ -397,7 +397,7 @@ limitations under the License.
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 
@@ -444,7 +444,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	defer eventLogFile.Close()
 
 	// read the entire file
-	eventLogFileContents, err := ioutil.ReadAll(eventLogFile)
+	eventLogFileContents, err := io.ReadAll(eventLogFile)
 	if err != nil {
 		return nil, err
 	}

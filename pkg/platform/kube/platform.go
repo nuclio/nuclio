@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -138,23 +139,6 @@ func NewPlatform(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create projects client")
 	}
 
-	// create container builder
-	if platformConfiguration.ContainerBuilderConfiguration.Kind == "kaniko" {
-		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(newPlatform.Logger,
-			newPlatform.consumer.KubeClientSet, platformConfiguration.ContainerBuilderConfiguration)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create a kaniko builder")
-		}
-	} else {
-
-		// Default container image builder
-		newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
-			platformConfiguration.ContainerBuilderConfiguration)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create a Docker builder")
-		}
-	}
-
 	newPlatform.projectsCache = cache.NewExpiring()
 
 	return newPlatform, nil
@@ -182,6 +166,11 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	var err error
 	var existingFunctionInstance *nuclioio.NuclioFunction
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
+
+	// make sure container builder is initialized
+	if err := p.InitializeContainerBuilder(); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize container builder")
+	}
 
 	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
@@ -383,7 +372,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		}
 
 		if skipDeploy {
-			p.Logger.InfoWithCtx(ctx, "Skipping function deployment",
+			p.Logger.InfoWithCtx(ctx,
+				"Skipping function deployment",
 				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
 				"functionNamespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
 
@@ -430,11 +420,11 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		return createFunctionResult, nil
 	}
 
-	// do the deploy in the abstract base class
+	// do the deploying in the abstract base class
 	return p.HandleDeployFunction(ctx, existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
-func (p Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 	if err := p.Platform.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return err
 	}
@@ -591,26 +581,7 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 
 // GetName returns the platform name
 func (p *Platform) GetName() string {
-	return "kube"
-}
-
-// GetNodes returns a slice of nodes currently in the cluster
-func (p *Platform) GetNodes() ([]platform.Node, error) {
-	var platformNodes []platform.Node
-
-	kubeNodes, err := p.consumer.KubeClientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get nodes")
-	}
-
-	// iterate over nodes and convert to platform nodes
-	for _, kubeNode := range kubeNodes.Items {
-		platformNodes = append(platformNodes, &node{
-			Node: kubeNode,
-		})
-	}
-
-	return platformNodes, nil
+	return common.KubePlatformName
 }
 
 // CreateProject creates a new project
@@ -674,11 +645,15 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 
 	// check only, do not delete
 	if deleteProjectOptions.Strategy == platform.DeleteProjectStrategyCheck {
-		p.Logger.DebugWithCtx(ctx, "Project is ready for deletion", "projectMeta", deleteProjectOptions.Meta)
+		p.Logger.DebugWithCtx(ctx,
+			"Project is ready for deletion",
+			"projectMeta", deleteProjectOptions.Meta)
 		return nil
 	}
 
-	p.Logger.DebugWithCtx(ctx, "Deleting project", "projectMeta", deleteProjectOptions.Meta)
+	p.Logger.DebugWithCtx(ctx,
+		"Deleting project",
+		"projectMeta", deleteProjectOptions.Meta)
 	if err := p.projectsClient.Delete(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to delete project")
 	}
@@ -711,7 +686,10 @@ func (p *Platform) GetProjects(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	filteredProjectList, err := p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
+	filteredProjectList, err := p.Platform.FilterProjectsByPermissions(
+		ctx,
+		&getProjectsOptions.PermissionOptions,
+		projects)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter projects by permission")
 	}
@@ -740,9 +718,8 @@ func (p *Platform) GetProjects(ctx context.Context,
 
 			// re-add project instance to filtered out as it has been cached
 			if !found {
-
 				p.Logger.DebugWithCtx(ctx,
-					"Project is readded from cache",
+					"Project is read from cache",
 					"projectName", projectInstance.GetConfig().Meta.Name)
 				filteredProjectList = append(filteredProjectList, projectInstance)
 			}
@@ -1095,7 +1072,7 @@ func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptio
 		platformFunctionEvents)
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
@@ -1110,32 +1087,6 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 		return externalIPAddress, nil
 	}
 
-	nodes, err := p.GetNodes()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get nodes")
-	}
-
-	// try to get an external IP address from one of the nodes. if that doesn't work,
-	// try to get an internal IP
-	for _, addressType := range []platform.AddressType{
-		platform.AddressTypeExternalIP,
-		platform.AddressTypeInternalIP,
-	} {
-
-		for _, node := range nodes {
-			for _, address := range node.GetAddresses() {
-				if address.Type == addressType {
-					externalIPAddress = append(externalIPAddress, address.Address)
-				}
-			}
-		}
-
-		// if we found addresses of a given type, return them
-		if len(externalIPAddress) != 0 {
-			return externalIPAddress, nil
-		}
-	}
-
 	// try to take from kube host as configured
 	kubeURL, err := url.Parse(p.consumer.KubeHost)
 	if err != nil {
@@ -1148,16 +1099,8 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 		}, nil
 	}
 
-	return nil, errors.New("No external addresses found")
-}
-
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-	if defaultNamespace == "" {
-		defaultNamespace = p.DefaultNamespace
-	}
-
-	return common.ResolveDefaultNamespace(defaultNamespace)
+	// return an empty string to maintain backwards compatibility
+	return []string{""}, nil
 }
 
 // GetNamespaces returns all the namespaces in the platform
@@ -1169,7 +1112,10 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			return nil, nuclio.WrapErrForbidden(err)
+
+			// if we're not allowed to list namespaces (e.g.: when nuclio is namespaced), return our
+			// default namespace (aka the namespace we're running in)
+			return []string{common.ResolveDefaultNamespace(p.DefaultNamespace)}, nil
 		}
 		return nil, errors.Wrap(err, "Failed to list namespaces")
 	}
@@ -1177,11 +1123,10 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	var namespaceNames []string
 
 	// put default namespace first in namespace list
-	defaultNamespace := p.ResolveDefaultNamespace("@nuclio.selfNamespace")
-	namespaceNames = append(namespaceNames, defaultNamespace)
+	namespaceNames = append(namespaceNames, p.DefaultNamespace)
 
 	for _, namespace := range namespaces.Items {
-		if namespace.Name != defaultNamespace {
+		if namespace.Name != p.DefaultNamespace {
 			namespaceNames = append(namespaceNames, namespace.Name)
 		}
 	}
@@ -1223,6 +1168,95 @@ func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, nam
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})
+}
+
+// GetFunctionSecrets returns all the function's secrets
+func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
+	var functionSecrets []platform.FunctionSecret
+
+	secrets, err := p.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to list secrets for function - %s", functionName)
+	}
+
+	for _, secret := range secrets.Items {
+		secret := secret
+		functionSecrets = append(functionSecrets, platform.FunctionSecret{
+			Kubernetes: &secret,
+		})
+	}
+
+	return functionSecrets, nil
+}
+
+// GetFunctionSecretData returns the function's secret data
+func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
+
+	// get existing function secret
+	functionSecrets, err := p.GetFunctionSecrets(ctx, functionName, functionNamespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// if secret exists, get the data
+	for _, functionSecret := range functionSecrets {
+		functionSecret := functionSecret.Kubernetes
+
+		// if it is a flex volume secret, skip it
+		if strings.HasPrefix(functionSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
+			continue
+		}
+
+		return functionSecret.Data, nil
+	}
+
+	return nil, nil
+}
+
+func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if err := p.Platform.ValidateFunctionConfig(ctx, functionConfig); err != nil {
+		return err
+	}
+
+	if err := p.validateServiceType(functionConfig); err != nil {
+		return errors.Wrap(err, "Service type validation failed")
+	}
+
+	return p.validateFunctionIngresses(ctx, functionConfig)
+}
+
+// InitializeContainerBuilder initializes the container builder, if not already initialized
+func (p *Platform) InitializeContainerBuilder() error {
+
+	// if container builder is already initialized, return
+	if p.ContainerBuilder != nil {
+		return nil
+	}
+
+	var err error
+
+	containerBuilderConfiguration := p.GetConfig().ContainerBuilderConfiguration
+
+	// create container builder
+	if containerBuilderConfiguration.Kind == "kaniko" {
+		p.ContainerBuilder, err = containerimagebuilderpusher.NewKaniko(p.Logger,
+			p.consumer.KubeClientSet, containerBuilderConfiguration)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create a kaniko builder")
+		}
+	} else {
+
+		// Default container image builder
+		p.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(p.Logger,
+			containerBuilderConfiguration)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create a Docker builder")
+		}
+	}
+
+	return nil
 }
 
 func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, namespace string) (map[string][]string, error) {
@@ -1275,15 +1309,16 @@ func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions
 
 // enrichFunctionPreemptionSpec - Enriches function pod with the below described spec. if no platformConfiguration related
 // configuration is given, do nothing.
-// 	`Allow` 	- Adds Tolerations / GPU Tolerations if taints were given. otherwise, assume pods can be scheduled on preemptible nodes.
-//                > Purges any `affinity` / `anti-affinity` preemption related configuration
-// 	`Constrain` - Uses node-affinity to make sure pods are assigned using OR on the given node label selectors.
-//                > Uses `Allow` configuration as well.
-//                > Purges any `anti-affinity` preemption related configuration
-// 	`Prevent`	- Prevention is done either using taints (if Tolerations were given) or anti-affinity.
-//                > Purges any `tolerations` / `gpuTolerations` preemption related configuration
-//                > Purges any `affinity` preemption related configuration
-//                > Adds anti-affinity IF no tolerations were given
+//
+//		`Allow` 	- Adds Tolerations / GPU Tolerations if taints were given. otherwise, assume pods can be scheduled on preemptible nodes.
+//	               > Purges any `affinity` / `anti-affinity` preemption related configuration
+//		`Constrain` - Uses node-affinity to make sure pods are assigned using OR on the given node label selectors.
+//	               > Uses `Allow` configuration as well.
+//	               > Purges any `anti-affinity` preemption related configuration
+//		`Prevent`	- Prevention is done either using taints (if Tolerations were given) or anti-affinity.
+//	               > Purges any `tolerations` / `gpuTolerations` preemption related configuration
+//	               > Purges any `affinity` preemption related configuration
+//	               > Adds anti-affinity IF no tolerations were given
 func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 	preemptibleNodes *platformconfig.PreemptibleNodes,
 	functionConfig *functionconfig.Config) {
@@ -1612,19 +1647,9 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 		}
 	}
 
-	upstreamFunctions, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence)
-	if err != nil {
+	// get upstream functions for validating functions existence
+	if _, err := p.getAPIGatewayUpstreamFunctions(ctx, apiGateway, validateFunctionsExistence); err != nil {
 		return errors.Wrap(err, "Failed to get api gateway upstream functions")
-	}
-
-	// validate APIGateway functions have no ingresses
-	for _, upstreamFunction := range upstreamFunctions {
-		ingresses := functionconfig.GetFunctionIngresses(upstreamFunction.GetConfig())
-		if len(ingresses) > 0 {
-			return nuclio.NewErrPreconditionFailed(
-				fmt.Sprintf("Api gateway upstream function: %s must not have an ingress",
-					upstreamFunction.GetConfig().Meta.Name))
-		}
 	}
 
 	// ingresses
@@ -1633,18 +1658,6 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 	}
 
 	return nil
-}
-
-func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
-	if err := p.Platform.ValidateFunctionConfig(ctx, functionConfig); err != nil {
-		return err
-	}
-
-	if err := p.validateServiceType(functionConfig); err != nil {
-		return errors.Wrap(err, "Service type validation failed")
-	}
-
-	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
 func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
@@ -1713,7 +1726,9 @@ func (p *Platform) enrichTriggerWithServiceType(ctx context.Context,
 		trigger.Attributes = map[string]interface{}{}
 	}
 
-	if triggerServiceType, serviceTypeExists := trigger.Attributes["serviceType"]; !serviceTypeExists || triggerServiceType == "" {
+	if triggerServiceType, serviceTypeExists := trigger.Attributes["serviceType"]; !serviceTypeExists ||
+		triggerServiceType == "" ||
+		triggerServiceType == nil {
 
 		p.Logger.DebugWithCtx(ctx, "Enriching function HTTP trigger with service type",
 			"functionName", functionConfig.Meta.Name,
@@ -1752,9 +1767,6 @@ func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayCo
 }
 
 func (p *Platform) validateFunctionIngresses(ctx context.Context, functionConfig *functionconfig.Config) error {
-	if err := p.validateFunctionNoIngressAndAPIGateway(ctx, functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate: the function isn't exposed by an internal ingresses or an API gateway")
-	}
 
 	listIngressesOptions := metav1.ListOptions{
 
@@ -1824,27 +1836,6 @@ func (p *Platform) validateIngressHostAndPathAvailability(ctx context.Context,
 					}
 				}
 			}
-		}
-	}
-
-	return nil
-}
-
-// validate that a function is not exposed inside http triggers, while it is also exposed by an api gateway
-// this is done to prevent the nginx bug, where it is not working properly when the same service is exposed more than once
-// (e.g. when a service is exposed by an ingress with host-1.com without canary ingress, and on another api gateway with host-2.com
-// with canary ingress, when sending requests to host-1.com we may get directed to the canary ingress defined by the api gateway)
-func (p *Platform) validateFunctionNoIngressAndAPIGateway(ctx context.Context, functionConfig *functionconfig.Config) error {
-	ingresses := functionconfig.GetFunctionIngresses(functionConfig)
-	if len(ingresses) > 0 {
-
-		// TODO: when we'll add upstream labels to api gateway, use get api gateways by label to replace this line
-		functionToAPIGateways, err := p.generateFunctionToAPIGatewaysMapping(ctx, functionConfig.Meta.Namespace)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
-		}
-		if _, found := functionToAPIGateways[functionConfig.Meta.Name]; found {
-			return nuclio.NewErrBadRequest("Function can't expose ingresses while it is being exposed by an API gateway")
 		}
 	}
 
@@ -1939,6 +1930,8 @@ func (p *Platform) alignIngressHostSubdomainLevel(host string, randomCharsLength
 func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 	apiGateway *platform.APIGatewayConfig,
 	validateFunctionExistence bool) ([]platform.Function, error) {
+
+	var upstreamFunctionLock sync.Mutex
 	var upstreamFunctions []platform.Function
 
 	// get upstream functions
@@ -1956,7 +1949,7 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 			}
 			if function == nil {
 				if validateFunctionExistence {
-					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exists",
+					return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function %s does not exist",
 						upstream.NuclioFunction.Name))
 				}
 				return nil
@@ -1967,7 +1960,9 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 				return errors.Wrap(err, "Failed to initialize function")
 			}
 
+			upstreamFunctionLock.Lock()
 			upstreamFunctions = append(upstreamFunctions, functionInstance)
+			upstreamFunctionLock.Unlock()
 			return nil
 		})
 	}

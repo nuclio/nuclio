@@ -100,6 +100,8 @@ spec:
           value: {{ .Values.dashboard.kaniko.initContainerImage.awscli.repository }}:{{ .Values.dashboard.kaniko.initContainerImage.awscli.tag}}
         - name: NUCLIO_KANIKO_PUSH_IMAGES_RETRIES
           value: {{ .Values.dashboard.kaniko.pushImagesRetries | quote }}
+        - name: NUCLIO_KANIKO_IMAGE_FS_EXTRACTION_RETRIES
+          value: {{ .Values.dashboard.kaniko.imageFSExtractionRetries | quote }}
         - name: NUCLIO_AUTH_KIND
           value: {{ .Values.dashboard.authConfig.kind }}
         - name: NUCLIO_AUTH_OPTIONS_IGUAZIO_TIMEOUT

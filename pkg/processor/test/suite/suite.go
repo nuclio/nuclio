@@ -21,7 +21,6 @@ package processorsuite
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -100,7 +99,7 @@ func (suite *TestSuite) SetupSuite() {
 	}
 
 	if suite.PlatformType == "" {
-		suite.PlatformType = "local"
+		suite.PlatformType = common.LocalPlatformName
 	}
 
 	if suite.Namespace == "" {
@@ -494,7 +493,7 @@ func (suite *TestSuite) GetRuntimeDir() string {
 }
 
 func (suite *TestSuite) CreateTempDir() string {
-	tempDir, err := ioutil.TempDir("", "build-test-*")
+	tempDir, err := os.MkdirTemp("", "build-test-*")
 	suite.Require().NoError(err, "Failed to create temporary dir")
 	suite.createdTempDirs = append(suite.createdTempDirs, tempDir)
 	return tempDir
@@ -603,7 +602,6 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 		// if deployed successfully, used deployed func configuration
 		if deployResult != nil {
 			functionConfig = deployResult.UpdatedFunctionConfig
-
 		}
 
 		suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck

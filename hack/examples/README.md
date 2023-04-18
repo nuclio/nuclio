@@ -34,7 +34,7 @@ To help you make the most of Nuclio, the following function examples are provide
 - [Reverser](nodejs/reverser) (`reverser`): Returns the reverse of the body received in the event.
 - [Dates](nodejs/dates) (`dates`): Uses **moment.js** (which is installed as part of the build) to add a specified amount of time to `"now"`, and returns this amount as a string.
 
-## .NET Core 3.1 examples
+## .NET Core 6.0 examples
 
 - [Reverser](dotnetcore/reverser) (`reverser`): Returns the reverse of the body received in the event.
 - [Hello World](dotnetcore/helloworld):  (`helloworld`): A simple function that showcases structured logging, unstructured logging and a structured response.

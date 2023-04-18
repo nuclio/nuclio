@@ -20,7 +20,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"regexp"
@@ -56,7 +56,7 @@ func NewKaniko(logger logger.Logger,
 		return nil, errors.New("Missing kaniko builder configuration")
 	}
 
-	// Valid job name is composed from a DNS-1123 subdomains which in turn must contain only lower case
+	// Valid job name is composed of a DNS-1123 subdomains which in turn must contain only lower case
 	// alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com')
 	jobNameRegex := regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
 
@@ -80,8 +80,11 @@ func (k *Kaniko) GetKind() string {
 	return "kaniko"
 }
 
-func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context, buildOptions *BuildOptions, namespace string) error {
-	bundleFilename, assetPath, err := k.createContainerBuildBundle(buildOptions.Image,
+func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
+	buildOptions *BuildOptions,
+	namespace string) error {
+	bundleFilename, assetPath, err := k.createContainerBuildBundle(ctx,
+		buildOptions.Image,
 		buildOptions.ContextDir,
 		buildOptions.TempDir)
 	if err != nil {
@@ -92,7 +95,7 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context, buildOptions *B
 	defer os.Remove(assetPath) // nolint: errcheck
 
 	// Generate job spec
-	jobSpec := k.compileJobSpec(namespace, buildOptions, bundleFilename)
+	jobSpec := k.compileJobSpec(ctx, namespace, buildOptions, bundleFilename)
 
 	// create job
 	k.logger.DebugWithCtx(ctx,
@@ -111,13 +114,17 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context, buildOptions *B
 
 	// Cleanup after 30 minutes, allowing to dev to inspect job / pod information before getting deleted
 	defer time.AfterFunc(k.builderConfiguration.JobDeletionTimeout, func() {
-		if err := k.deleteJob(namespace, job.Name); err != nil {
-			k.logger.WarnWith("Failed to delete job", "err", err.Error())
+		if err := k.deleteJob(ctx, namespace, job.Name); err != nil {
+			k.logger.WarnWithCtx(ctx, "Failed to delete job", "err", err.Error())
 		}
 	})
 
 	// Wait for kaniko to finish
-	return k.waitForJobCompletion(namespace, job.Name, buildOptions.BuildTimeoutSeconds, buildOptions.ReadinessTimeoutSeconds)
+	return k.waitForJobCompletion(ctx,
+		namespace,
+		job.Name,
+		buildOptions.BuildTimeoutSeconds,
+		buildOptions.ReadinessTimeoutSeconds)
 }
 
 func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
@@ -151,7 +158,6 @@ func (k *Kaniko) GetDefaultRegistryCredentialsSecretName() string {
 }
 
 func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
-
 	stagedArtifactPaths := make(map[string]string)
 	for _, artifact := range onbuildArtifacts {
 		for source, destination := range artifact.Paths {
@@ -180,18 +186,21 @@ func (k *Kaniko) GetOnbuildImageRegistry(registry string) string {
 	return k.builderConfiguration.DefaultOnbuildRegistryURL
 }
 
-func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tempDir string) (string, string, error) {
+func (k *Kaniko) createContainerBuildBundle(ctx context.Context,
+	image string,
+	contextDir string,
+	tempDir string) (string, string, error) {
 
 	// Create temp directory to store compressed container build bundle
 	buildContainerBundleDir := path.Join(tempDir, "tar")
 	if err := os.Mkdir(buildContainerBundleDir, 0744); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to create tar dir: %s", buildContainerBundleDir)
 	}
-	k.logger.DebugWith("Created tar dir", "dir", buildContainerBundleDir)
+	k.logger.DebugWithCtx(ctx, "Created tar dir", "dir", buildContainerBundleDir)
 
 	tarFilename := fmt.Sprintf("%s.tar.gz", strings.ReplaceAll(image, "/", "_"))
 	tarFilename = strings.ReplaceAll(tarFilename, ":", "_")
-	tarFile, err := ioutil.TempFile(buildContainerBundleDir, fmt.Sprintf("*-%s", tarFilename))
+	tarFile, err := os.CreateTemp(buildContainerBundleDir, fmt.Sprintf("*-%s", tarFilename))
 	if err != nil {
 		return "", "", errors.Wrap(err, "Failed to create tar bundle")
 	}
@@ -199,10 +208,10 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 	// allow read on group
 	tarFile.Chmod(0744) // nolint: errcheck
 
-	// we dont use its fd
+	// we do not use its fd
 	tarFile.Close() // nolint: errcheck
 
-	k.logger.DebugWith("Compressing build bundle", "tarFilePath", tarFile.Name())
+	k.logger.DebugWithCtx(ctx, "Compressing build bundle", "tarFilePath", tarFile.Name())
 	if _, err := k.cmdRunner.Run(&cmdrunner.RunOptions{
 		WorkingDir: &buildContainerBundleDir,
 	}, "tar -zcvf %s %s", path.Base(tarFile.Name()), contextDir); err != nil {
@@ -216,7 +225,8 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 
 	// Create symlink to bundle tar file in nginx serving directory
 	assetPath := path.Join(buildDir, path.Base(tarFile.Name()))
-	k.logger.DebugWith("Creating symlink to bundle tar",
+	k.logger.DebugWithCtx(ctx,
+		"Creating symlink to bundle tar",
 		"tarFileName", tarFile.Name(),
 		"assetPath", assetPath)
 
@@ -227,7 +237,8 @@ func (k *Kaniko) createContainerBuildBundle(image string, contextDir string, tem
 	return path.Base(tarFile.Name()), assetPath, nil
 }
 
-func (k *Kaniko) compileJobSpec(namespace string,
+func (k *Kaniko) compileJobSpec(ctx context.Context,
+	namespace string,
 	buildOptions *BuildOptions,
 	bundleFilename string) *batchv1.Job {
 
@@ -238,6 +249,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		fmt.Sprintf("--context=%s", buildOptions.ContextDir),
 		fmt.Sprintf("--destination=%s", common.CompileImageName(buildOptions.RegistryURL, buildOptions.Image)),
 		fmt.Sprintf("--push-retry=%d", k.builderConfiguration.PushImagesRetries),
+		fmt.Sprintf("--image-fs-extract-retry=%d", k.builderConfiguration.ImageFSExtractionRetries),
 	}
 
 	if !buildOptions.NoCache {
@@ -264,7 +276,7 @@ func (k *Kaniko) compileJobSpec(namespace string,
 		Name:      "tmp",
 		MountPath: "/tmp",
 	}
-	jobName := k.compileJobName(buildOptions.Image)
+	jobName := k.compileJobName(ctx, buildOptions.Image)
 
 	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
 	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
@@ -295,8 +307,9 @@ func (k *Kaniko) compileJobSpec(namespace string,
 					},
 					InitContainers: []v1.Container{
 						{
-							Name:  "fetch-bundle",
-							Image: k.builderConfiguration.BusyBoxImage,
+							Name:            "fetch-bundle",
+							Image:           k.builderConfiguration.BusyBoxImage,
+							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
 							Command: []string{
 								"/bin/sh",
 							},
@@ -307,8 +320,9 @@ func (k *Kaniko) compileJobSpec(namespace string,
 							VolumeMounts: []v1.VolumeMount{tmpFolderVolumeMount},
 						},
 						{
-							Name:  "extract-bundle",
-							Image: k.builderConfiguration.BusyBoxImage,
+							Name:            "extract-bundle",
+							Image:           k.builderConfiguration.BusyBoxImage,
+							ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
 							Command: []string{
 								"tar",
 								"-xvf",
@@ -391,8 +405,9 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 		createCacheRepo)
 
 	initContainer := v1.Container{
-		Name:  "create-repos",
-		Image: k.builderConfiguration.AWSCLIImage,
+		Name:            "create-repos",
+		Image:           k.builderConfiguration.AWSCLIImage,
+		ImagePullPolicy: v1.PullPolicy(k.builderConfiguration.KanikoImagePullPolicy),
 		Command: []string{
 			"/bin/sh",
 		},
@@ -447,7 +462,7 @@ func (k *Kaniko) configureECRInitContainerAndMount(buildOptions *BuildOptions, k
 	kanikoJobSpec.Spec.Template.Spec.InitContainers = append(kanikoJobSpec.Spec.Template.Spec.InitContainers, initContainer)
 }
 
-func (k *Kaniko) compileJobName(image string) string {
+func (k *Kaniko) compileJobName(ctx context.Context, image string) string {
 
 	functionName := strings.ReplaceAll(image, "/", "")
 	functionName = strings.ReplaceAll(functionName, ":", "")
@@ -465,23 +480,27 @@ func (k *Kaniko) compileJobName(image string) string {
 
 	// Fallback
 	if !k.jobNameRegex.MatchString(jobName) {
-		k.logger.DebugWith("Job name does not match k8s regex. Won't use function name", "jobName", jobName)
+		k.logger.DebugWithCtx(ctx,
+			"Job name does not match k8s regex. Won't use function name",
+			"jobName", jobName)
 		jobName = fmt.Sprintf("%s.%s", k.builderConfiguration.JobPrefix, randomSuffix)
 	}
 
 	return jobName
 }
 
-func (k *Kaniko) waitForJobCompletion(namespace string,
+func (k *Kaniko) waitForJobCompletion(ctx context.Context,
+	namespace string,
 	jobName string,
 	buildTimeoutSeconds int64,
 	readinessTimoutSeconds int) error {
-	k.logger.DebugWith("Waiting for job completion",
+	k.logger.DebugWithCtx(ctx,
+		"Waiting for job completion",
 		"buildTimeoutSeconds", buildTimeoutSeconds,
 		"readinessTimeoutSeconds", readinessTimoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
 
-	if err := k.resolveFailFast(namespace, jobName, time.Duration(readinessTimoutSeconds)*time.Second); err != nil {
+	if err := k.resolveFailFast(ctx, namespace, jobName, time.Duration(readinessTimoutSeconds)*time.Second); err != nil {
 		return errors.Wrap(err, "Kaniko job failed to run")
 	}
 
@@ -492,29 +511,35 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 			Get(context.Background(), jobName, metav1.GetOptions{})
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
-				k.logger.WarnWith("Failed to pull kaniko job status", "err", err.Error())
+				k.logger.WarnWithCtx(ctx,
+					"Failed to pull kaniko job status",
+					"err", err.Error())
 			}
 			time.Sleep(1 * time.Second)
 			continue
 		}
 
 		if runningJob.Status.Succeeded > 0 {
-			jobLogs, err := k.getJobPodLogs(namespace, jobName)
+			jobLogs, err := k.getJobPodLogs(ctx, jobName, namespace)
 			if err != nil {
-				k.logger.Debug("Job was completed successfully but failed to retrieve job logs",
+				k.logger.DebugWithCtx(ctx,
+					"Job was completed successfully but failed to retrieve job logs",
 					"err", err.Error())
 				return nil
 			}
 
-			k.logger.DebugWith("Job was completed successfully", "jobLogs", jobLogs)
+			k.logger.DebugWithCtx(ctx,
+				"Job was completed successfully",
+				"jobLogs", jobLogs)
 			return nil
 		}
 		if runningJob.Status.Failed > 0 {
-			jobPod, err := k.getJobPod(jobName, namespace, false)
+			jobPod, err := k.getJobPod(ctx, jobName, namespace, false)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get job pod")
 			}
-			k.logger.WarnWith("Build container image job has failed",
+			k.logger.WarnWithCtx(ctx,
+				"Build container image job has failed",
 				"initContainerStatuses", jobPod.Status.InitContainerStatuses,
 				"containerStatuses", jobPod.Status.ContainerStatuses,
 				"conditions", jobPod.Status.Conditions,
@@ -523,26 +548,29 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 				"phase", jobPod.Status.Phase,
 				"jobName", jobName)
 
-			jobLogs, err := k.getPodLogs(jobPod)
+			jobLogs, err := k.getPodLogs(ctx, jobPod)
 			if err != nil {
-				k.logger.WarnWith("Failed to get job logs", "err", err.Error())
+				k.logger.WarnWithCtx(ctx,
+					"Failed to get job logs", "err", err.Error())
 				return errors.Wrap(err, "Failed to retrieve kaniko job logs")
 			}
 			return fmt.Errorf("Job failed. Job logs:\n%s", jobLogs)
 		}
 
-		k.logger.DebugWith("Waiting for job completion",
+		k.logger.DebugWithCtx(ctx,
+			"Waiting for job completion",
 			"ttl", time.Until(timeout).String(),
 			"jobName", jobName)
 		time.Sleep(10 * time.Second)
 	}
 
-	jobPod, err := k.getJobPod(jobName, namespace, false)
+	jobPod, err := k.getJobPod(ctx, jobName, namespace, false)
 	if err != nil {
 		return errors.Wrap(err, "Job failed and was unable to get job pod")
 	}
 
-	k.logger.WarnWith("Build container image job has timed out",
+	k.logger.WarnWithCtx(ctx,
+		"Build container image job has timed out",
 		"initContainerStatuses", jobPod.Status.InitContainerStatuses,
 		"containerStatuses", jobPod.Status.ContainerStatuses,
 		"conditions", jobPod.Status.Conditions,
@@ -551,14 +579,17 @@ func (k *Kaniko) waitForJobCompletion(namespace string,
 		"phase", jobPod.Status.Phase,
 		"jobName", jobName)
 
-	jobLogs, err := k.getPodLogs(jobPod)
+	jobLogs, err := k.getPodLogs(ctx, jobPod)
 	if err != nil {
 		return errors.Wrap(err, "Job failed and was unable to retrieve job logs")
 	}
 	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
 }
 
-func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimout time.Duration) error {
+func (k *Kaniko) resolveFailFast(ctx context.Context,
+	namespace,
+	jobName string,
+	readinessTimout time.Duration) error {
 
 	// fail fast timeout is max(readinessTimeout, 5 minutes)
 	if readinessTimout < 5*time.Minute {
@@ -570,15 +601,18 @@ func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimout time
 	for {
 		select {
 		case <-failFastTimeout:
-			k.logger.WarnWith("Kaniko job was not completed in time",
+			k.logger.WarnWithCtx(ctx,
+				"Kaniko job was not completed in time",
 				"jobName", jobName,
 				"failFastTimeoutDuration", readinessTimout.String())
 
 			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
 		default:
-			jobPod, err := k.getJobPod(jobName, namespace, true)
+			jobPod, err := k.getJobPod(ctx, jobName, namespace, true)
 			if err != nil {
-				k.logger.WarnWith("Failed to get kaniko job pod", "jobName", jobName)
+				k.logger.WarnWithCtx(ctx,
+					"Failed to get kaniko job pod",
+					"jobName", jobName)
 				time.Sleep(5 * time.Second)
 
 				// skip in case job hasn't started yet. it will fail on timeout if getJobPod keeps failing.
@@ -593,16 +627,17 @@ func (k *Kaniko) resolveFailFast(namespace, jobName string, readinessTimout time
 	}
 }
 
-func (k *Kaniko) getJobPodLogs(jobName string, namespace string) (string, error) {
-	jobPod, err := k.getJobPod(jobName, namespace, false)
+func (k *Kaniko) getJobPodLogs(ctx context.Context, jobName string, namespace string) (string, error) {
+	jobPod, err := k.getJobPod(ctx, jobName, namespace, false)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get job pod")
 	}
-	return k.getPodLogs(jobPod)
+	return k.getPodLogs(ctx, jobPod)
 }
 
-func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
-	k.logger.DebugWith("Fetching pod logs",
+func (k *Kaniko) getPodLogs(ctx context.Context, jobPod *v1.Pod) (string, error) {
+	k.logger.DebugWithCtx(ctx,
+		"Fetching pod logs",
 		"name", jobPod.Name,
 		"namespace", jobPod.Namespace)
 
@@ -612,14 +647,14 @@ func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
 		Pods(jobPod.Namespace).
 		GetLogs(jobPod.Name, &v1.PodLogOptions{})
 
-	restReadCloser, err := restClientRequest.Stream(context.Background())
+	restReadCloser, err := restClientRequest.Stream(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get log read/closer")
 	}
 
 	defer restReadCloser.Close() // nolint: errcheck
 
-	logContents, err := ioutil.ReadAll(restReadCloser)
+	logContents, err := io.ReadAll(restReadCloser)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to read logs")
 	}
@@ -629,11 +664,11 @@ func (k *Kaniko) getPodLogs(jobPod *v1.Pod) (string, error) {
 	return formattedLogContents, nil
 }
 
-func (k *Kaniko) getJobPod(jobName, namespace string, quiet bool) (*v1.Pod, error) {
+func (k *Kaniko) getJobPod(ctx context.Context, jobName, namespace string, quiet bool) (*v1.Pod, error) {
 	if !quiet {
-		k.logger.DebugWith("Getting job pods", "jobName", jobName)
+		k.logger.DebugWithCtx(ctx, "Getting job pods", "jobName", jobName)
 	}
-	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
+	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
 
@@ -667,22 +702,22 @@ func (k *Kaniko) prettifyLogContents(logContents string) string {
 
 func (k *Kaniko) prettifyLogLine(logLine string) string {
 
-	// remove ansi color characters generated automatically by kaniko - so the log will be human readable on the UI
+	// remove ansi color characters generated automatically by kaniko - so the log will be human-readable on the UI
 	logLine = common.RemoveANSIColorsFromString(logLine)
 
 	return logLine
 }
 
-func (k *Kaniko) deleteJob(namespace string, jobName string) error {
-	k.logger.DebugWith("Deleting job", "namespace", namespace, "job", jobName)
+func (k *Kaniko) deleteJob(ctx context.Context, namespace string, jobName string) error {
+	k.logger.DebugWithCtx(ctx, "Deleting job", "namespace", namespace, "job", jobName)
 
 	propagationPolicy := metav1.DeletePropagationBackground
-	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(context.Background(), jobName, metav1.DeleteOptions{
+	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to delete job")
 	}
-	k.logger.DebugWith("Successfully deleted job", "namespace", namespace, "job", jobName)
+	k.logger.DebugWithCtx(ctx, "Successfully deleted job", "namespace", namespace, "job", jobName)
 	return nil
 }
 

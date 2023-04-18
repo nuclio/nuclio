@@ -19,7 +19,6 @@ limitations under the License.
 package common
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,7 +37,7 @@ func (suite *IsFileTestSuite) SetupSuite() {
 	var err error
 
 	// Create temp dir for IsFileTestSuite
-	suite.tempDir, err = ioutil.TempDir("", "isfile-test")
+	suite.tempDir, err = os.MkdirTemp("", "isfile-test")
 	suite.Require().NoError(err)
 }
 
@@ -49,7 +48,7 @@ func (suite *IsDirTestSuite) TearDownSuite() {
 func (suite *IsFileTestSuite) TestPositive() {
 
 	// Create temp file
-	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
+	tempFile, err := os.CreateTemp(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
 	defer os.Remove(tempFile.Name())
 
@@ -80,7 +79,7 @@ func (suite *IsDirTestSuite) SetupSuite() {
 	var err error
 
 	// Create temp dir for IsDirTestSuite
-	suite.tempDir, err = ioutil.TempDir("", "isdir-test")
+	suite.tempDir, err = os.MkdirTemp("", "isdir-test")
 	suite.Require().NoError(err)
 }
 
@@ -97,7 +96,7 @@ func (suite *IsDirTestSuite) TestPositive() {
 func (suite *IsDirTestSuite) TestNegative() {
 
 	// Create temp file
-	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
+	tempFile, err := os.CreateTemp(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
 	defer os.Remove(tempFile.Name())
 
@@ -114,7 +113,7 @@ func (suite *FileExistTestSuite) SetupSuite() {
 	var err error
 
 	// Create temp dir for FileExistTestSuite
-	suite.tempDir, err = ioutil.TempDir("", "file_exists-test")
+	suite.tempDir, err = os.MkdirTemp("", "file_exists-test")
 	suite.Require().NoError(err)
 }
 
@@ -125,7 +124,7 @@ func (suite *FileExistTestSuite) TearDownSuite() {
 func (suite *FileExistTestSuite) TestPositive() {
 
 	// Create temp file
-	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
+	tempFile, err := os.CreateTemp(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
 	defer os.Remove(tempFile.Name())
 

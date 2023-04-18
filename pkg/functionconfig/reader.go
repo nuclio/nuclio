@@ -19,14 +19,13 @@ package functionconfig
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/common"
 
-	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"sigs.k8s.io/yaml"
 )
 
 type Reader struct {
@@ -46,7 +45,7 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 	var codeEntryConfigAsMap, configAsMap map[string]interface{}
 	var codeEntryConfig Config
 
-	bodyBytes, err := ioutil.ReadAll(reader)
+	bodyBytes, err := io.ReadAll(reader)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to read configuration file")

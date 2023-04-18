@@ -21,7 +21,6 @@ package main
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"runtime"
 	"strings"
@@ -205,7 +204,7 @@ func (suite *ReleaserTestSuite) mockHTTPClientResponses(responses []string) {
 			Body: func() io.ReadCloser {
 				responseBody := responses[0]
 				responses = responses[1:]
-				return ioutil.NopCloser(bytes.NewBufferString(responseBody))
+				return io.NopCloser(bytes.NewBufferString(responseBody))
 			}(),
 			Header: make(http.Header),
 		}

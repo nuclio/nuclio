@@ -32,10 +32,10 @@ import (
 type HealthCheckMode string
 
 const (
-	// health check should be performed by an internal client
+	// HealthCheckModeInternalClient health check is performed by an internal client
 	HealthCheckModeInternalClient HealthCheckMode = "internalClient"
 
-	// health check should be performed by an outside entity
+	// HealthCheckModeExternal health check is performed by an outside entity
 	HealthCheckModeExternal = "external"
 )
 
@@ -51,7 +51,7 @@ type Platform interface {
 	//
 
 	// CreateFunctionBuild Build will locally build a processor image and return its name (or the error)
-	CreateFunctionBuild(createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
+	CreateFunctionBuild(ctx context.Context, createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
 
 	// CreateFunction Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 	CreateFunction(ctx context.Context, createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
@@ -105,7 +105,7 @@ type Platform interface {
 	// EnsureDefaultProjectExistence ensure default project exists, creates it otherwise
 	EnsureDefaultProjectExistence(ctx context.Context) error
 
-	// WaitForProjectResourcesDeletion waits for all of the project's resources to be deleted
+	// WaitForProjectResourcesDeletion waits for all the project's resources to be deleted
 	WaitForProjectResourcesDeletion(ctx context.Context, projectMeta *ProjectMeta, duration time.Duration) error
 
 	//
@@ -148,11 +148,11 @@ type Platform interface {
 	// Misc
 	//
 
-	// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
+	// SetExternalIPAddresses configures the IP addresses invocations will use.
 	// If this is not invoked, each platform will try to discover these addresses automatically
 	SetExternalIPAddresses(externalIPAddresses []string) error
 
-	// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+	// GetExternalIPAddresses returns the external IP addresses invocations will use.
 	// These addresses are either set through SetExternalIPAddresses or automatically discovered
 	GetExternalIPAddresses() ([]string, error)
 
@@ -177,11 +177,8 @@ type Platform interface {
 	// GetName returns the platform name
 	GetName() string
 
-	// GetNodes returns a slice of nodes currently in the cluster
-	GetNodes() ([]Node, error)
-
-	// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-	ResolveDefaultNamespace(string) string
+	// InitializeContainerBuilder initializes the container builder, if not already initialized
+	InitializeContainerBuilder() error
 
 	// BuildAndPushContainerImage builds container image and pushes it into container registry
 	BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error
@@ -200,6 +197,15 @@ type Platform interface {
 
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string
+
+	// GetFunctionSecrets returns all the function's secrets
+	GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]FunctionSecret, error)
+
+	// GetFunctionSecretMap returns a map of function's sensitive data
+	GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error)
+
+	// GetFunctionSecretData returns the function's secret data
+	GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error)
 
 	// SaveFunctionDeployLogs Save build logs from platform logger to function store or k8s
 	SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error

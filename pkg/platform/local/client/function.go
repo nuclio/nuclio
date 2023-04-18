@@ -18,12 +18,10 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -52,16 +50,6 @@ func (f *function) Initialize(context.Context, []string) error {
 	var err error
 
 	return err
-}
-
-// GetInvokeURL gets the IP of the cluster hosting the function
-func (f *function) GetInvokeURL(ctx context.Context, invokeViaType platform.InvokeViaType) (string, error) {
-	host, port, err := f.GetExternalIPInvocationURL()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get external IP invocation URL")
-	}
-
-	return fmt.Sprintf("%s:%d", host, port), nil
 }
 
 // GetReplicas returns the current # of replicas and the configured # of replicas

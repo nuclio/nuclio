@@ -19,12 +19,12 @@ package resource
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -43,7 +43,7 @@ func (tr *invocationResource) ExtendMiddlewares() error {
 	return nil
 }
 
-// called after initialization
+// OnAfterInitialize is called after initialization
 func (tr *invocationResource) OnAfterInitialize() error {
 
 	// all methods
@@ -63,13 +63,12 @@ func (tr *invocationResource) OnAfterInitialize() error {
 
 func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	path := request.Header.Get("x-nuclio-path")
-	functionName := request.Header.Get("x-nuclio-function-name")
-	invokeURL := request.Header.Get("x-nuclio-invoke-url")
-	invokeVia := tr.getInvokeVia(request.Header.Get("x-nuclio-invoke-via"))
+	path := request.Header.Get(headers.Path)
+	functionName := request.Header.Get(headers.FunctionName)
+	invokeURL := request.Header.Get(headers.InvokeURL)
 
 	// get namespace from request or use the provided default
-	functionNamespace := tr.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-namespace"))
+	functionNamespace := tr.getNamespaceOrDefault(request.Header.Get(headers.FunctionNamespace))
 
 	// if user prefixed path with "/", remove it
 	path = strings.TrimLeft(path, "/")
@@ -80,30 +79,32 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		return
 	}
 
-	requestBody, err := ioutil.ReadAll(request.Body)
+	requestBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		tr.writeErrorHeader(responseWriter, http.StatusInternalServerError)
 		tr.writeErrorMessage(responseWriter, "Failed to read request body")
 		return
 	}
 
-	invokeTimeout, err := tr.resolveInvokeTimeout(request.Header.Get("x-nuclio-invoke-timeout"))
+	invokeTimeout, err := tr.resolveInvokeTimeout(request.Header.Get(headers.InvokeTimeout))
 	if err != nil {
 		tr.writeErrorHeader(responseWriter, http.StatusBadRequest)
 		tr.writeErrorMessage(responseWriter, errors.RootCause(err).Error())
 	}
 
+	skipTLSVerification := strings.ToLower(request.Header.Get(headers.SkipTLSVerification)) == "true"
+
 	// resolve the function host
 	invocationResult, err := tr.getPlatform().CreateFunctionInvocation(ctx, &platform.CreateFunctionInvocationOptions{
-		Name:      functionName,
-		Namespace: functionNamespace,
-		Path:      path,
-		Method:    request.Method,
-		Headers:   request.Header,
-		Body:      requestBody,
-		Via:       invokeVia,
-		URL:       invokeURL,
-		Timeout:   invokeTimeout,
+		Name:                functionName,
+		Namespace:           functionNamespace,
+		Path:                path,
+		Method:              request.Method,
+		Headers:             request.Header,
+		Body:                requestBody,
+		URL:                 invokeURL,
+		Timeout:             invokeTimeout,
+		SkipTLSVerification: skipTLSVerification,
 
 		// auth & permissions
 		AuthSession: tr.getCtxSession(ctx),
@@ -125,7 +126,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	for headerName, headerValue := range invocationResult.Headers {
 
 		// don't send nuclio headers to the actual function
-		if !strings.HasPrefix(headerName, "x-nuclio") {
+		if !headers.IsNuclioHeader(headerName) {
 			responseWriter.Header().Set(headerName, headerValue[0])
 		}
 	}
@@ -134,34 +135,21 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	responseWriter.Write(invocationResult.Body) // nolint: errcheck
 }
 
-func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.InvokeViaType {
-	switch invokeViaName {
-	// erd: For now, if the UI asked for external IP, force using "via any". "Any" should try external IP
-	// and then domain name, which is better
-	// case "external-ip":
-	// 	 return platform.InvokeViaExternalIP
-	case "loadbalancer":
-		return platform.InvokeViaLoadBalancer
-	case "domain-name":
-		return platform.InvokeViaDomainName
-	default:
-		return platform.InvokeViaAny
-	}
-}
-
 func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWriter, statusCode int) {
 	responseWriter.Header().Set("Content-Type", "application/json")
 	responseWriter.WriteHeader(statusCode)
 }
 
 func (tr *invocationResource) writeErrorMessage(responseWriter io.Writer, message string) {
-	formattedMessage := fmt.Sprintf(`{"error": "%s"}`, message)
+
+	// replace " with ' so that the error message will be valid json
+	formattedMessage := fmt.Sprintf(`{"error": "%s"}`, strings.ReplaceAll(message, `"`, `'`))
 	responseWriter.Write([]byte(formattedMessage)) // nolint: errcheck
 }
 
 func (tr *invocationResource) resolveInvokeTimeout(invokeTimeout string) (time.Duration, error) {
 	if invokeTimeout == "" {
-		return platform.FunctionInvocationDefaultTimeout, nil
+		return tr.getPlatform().GetConfig().GetDefaultFunctionInvocationTimeout(), nil
 	}
 	parsedDuration, err := time.ParseDuration(invokeTimeout)
 	if err != nil {

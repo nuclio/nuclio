@@ -100,7 +100,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 	// request came from user / non-leader client
 	// ask leader to create
 	default:
-		if err := c.leaderClient.Create(createProjectOptions); err != nil {
+		if err := c.leaderClient.Create(ctx, createProjectOptions); err != nil {
 			return nil, errors.Wrap(err, "Failed while requesting from the leader to create the project")
 		}
 
@@ -113,7 +113,7 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 	case c.platformConfiguration.ProjectsLeader.Kind:
 		return c.internalClient.Update(ctx, updateProjectOptions)
 	default:
-		if err := c.leaderClient.Update(updateProjectOptions); err != nil {
+		if err := c.leaderClient.Update(ctx, updateProjectOptions); err != nil {
 			return nil, errors.Wrap(err, "Failed while requesting from the leader to update the project")
 		}
 
@@ -124,9 +124,13 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
 	switch deleteProjectOptions.RequestOrigin {
 	case c.platformConfiguration.ProjectsLeader.Kind:
+
+		// request came from leader, delete it internally
 		return c.internalClient.Delete(ctx, deleteProjectOptions)
 	default:
-		if err := c.leaderClient.Delete(deleteProjectOptions); err != nil {
+
+		// request came from user / non-leader client. ask leader to delete
+		if err := c.leaderClient.Delete(ctx, deleteProjectOptions); err != nil {
 			return errors.Wrap(err, "Failed while requesting from the leader to delete the project")
 		}
 

@@ -85,17 +85,22 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	// create function options
 	createFunctionOptions := suite.CompileCreateFunctionOptions(fmt.Sprintf("test-%s", suite.TestID))
 
+	// ensure platform's container builder is initialized
+	err := suite.Platform.InitializeContainerBuilder()
+	suite.Require().NoError(err)
+
 	// enrich with defaults
-	err := suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig)
+	err = suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	// build function
-	buildFunctionResults, err := suite.Platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-		Logger:              suite.Logger,
-		FunctionConfig:      createFunctionOptions.FunctionConfig,
-		PlatformName:        suite.Platform.GetName(),
-		OnAfterConfigUpdate: nil,
-	})
+	buildFunctionResults, err := suite.Platform.CreateFunctionBuild(suite.Ctx,
+		&platform.CreateFunctionBuildOptions{
+			Logger:              suite.Logger,
+			FunctionConfig:      createFunctionOptions.FunctionConfig,
+			PlatformName:        suite.Platform.GetName(),
+			OnAfterConfigUpdate: nil,
+		})
 	suite.Require().NoError(err)
 	suite.Require().NotEmpty(buildFunctionResults.Image)
 

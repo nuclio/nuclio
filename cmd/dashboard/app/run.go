@@ -87,11 +87,7 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	dashboardInstance := &Dashboard{
-		logger: rootLogger,
-		status: status.Initializing,
-	}
-
+	dashboardInstance := NewDashboard(rootLogger)
 	dashboardInstance.healthCheckServer, err = createAndStartHealthCheckServer(platformConfiguration,
 		rootLogger,
 		dashboardInstance)
@@ -182,7 +178,7 @@ func Run(listenAddress string,
 		defer cancel()
 	}
 
-	if platformInstance.GetName() == "kube" {
+	if platformInstance.GetName() == common.KubePlatformName {
 		rest.SetDefaultWarningHandler(common.NewKubernetesClientWarningHandler(rootLogger.GetChild("kube_warnings")))
 	}
 
@@ -190,7 +186,7 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to start server")
 	}
 
-	dashboardInstance.status = status.Ready
+	dashboardInstance.SetStatus(status.Ready)
 	select {}
 }
 
@@ -355,7 +351,7 @@ func newDashboardServer(createDashboardServerOptions *CreateDashboardServerOptio
 		webServerConfiguration,
 		getDefaultCredRefreshInterval(rootLogger, createDashboardServerOptions.defaultCredRefreshIntervalString),
 		splitExternalIPAddresses,
-		platformInstance.ResolveDefaultNamespace(createDashboardServerOptions.defaultNamespace),
+		createDashboardServerOptions.defaultNamespace,
 		createDashboardServerOptions.offline,
 		functionTemplatesRepository,
 		createDashboardServerOptions.platformConfiguration,

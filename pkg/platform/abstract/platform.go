@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -45,6 +46,8 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/samber/lo"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -73,6 +76,7 @@ type Platform struct {
 	ImageNamePrefixTemplate string
 	DefaultNamespace        string
 	OpaClient               opa.Client
+	Scrubber                *functionconfig.Scrubber
 }
 
 func NewPlatform(parentLogger logger.Logger,
@@ -86,6 +90,11 @@ func NewPlatform(parentLogger logger.Logger,
 		platform:         platform,
 		Config:           platformConfiguration,
 		DeployLogStreams: &sync.Map{},
+		Scrubber: functionconfig.NewScrubber(
+			platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
+			nil, /* kubeClientSet */
+		),
+		DefaultNamespace: defaultNamespace,
 	}
 
 	// create invoker
@@ -93,8 +102,6 @@ func NewPlatform(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
-
-	newPlatform.DefaultNamespace = defaultNamespace
 
 	newPlatform.OpaClient = opa.CreateOpaClient(newPlatform.Logger, &platformConfiguration.Opa)
 
@@ -105,8 +112,15 @@ func (ap *Platform) GetConfig() *platformconfig.Config {
 	return ap.Config
 }
 
-func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (
+func (ap *Platform) CreateFunctionBuild(ctx context.Context,
+	createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (
 	*platform.CreateFunctionBuildResult, error) {
+
+	// ensure container builder is initialized (idempotent).
+	// it is called here as well for cases where this function was not called from the dashboard
+	if err := ap.platform.InitializeContainerBuilder(); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize container builder")
+	}
 
 	// execute a build
 	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform, &common.AbstractS3Client{})
@@ -115,7 +129,7 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 	}
 
 	// convert types
-	return builder.Build(createFunctionBuildOptions)
+	return builder.Build(ctx, createFunctionBuildOptions)
 }
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
@@ -127,7 +141,8 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (
 	*platform.CreateFunctionResult, error) {
 
-	createFunctionOptions.Logger.InfoWithCtx(ctx, "Deploying function",
+	createFunctionOptions.Logger.InfoWithCtx(ctx,
+		"Deploying function",
 		"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 	var buildResult *platform.CreateFunctionBuildResult
@@ -150,13 +165,26 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 
 	// check if we need to build the image
 	if functionBuildRequired && !functionconfig.ShouldSkipBuild(createFunctionOptions.FunctionConfig.Meta.Annotations) {
-		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-			Logger:                     createFunctionOptions.Logger,
-			FunctionConfig:             createFunctionOptions.FunctionConfig,
-			PlatformName:               ap.platform.GetName(),
-			OnAfterConfigUpdate:        onAfterConfigUpdatedWrapper,
-			DependantImagesRegistryURL: createFunctionOptions.DependantImagesRegistryURL,
-		})
+
+		// if the function is updated, it might have scrubbed data in the spec that the builder requires,
+		// so we need to restore it before building
+		restoredFunctionConfig, err := ap.Scrubber.RestoreFunctionConfig(ctx,
+			&createFunctionOptions.FunctionConfig,
+			ap.platform.GetName(),
+			ap.GetFunctionSecretMap)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to restore function config")
+		}
+		createFunctionOptions.FunctionConfig = *restoredFunctionConfig
+
+		buildResult, buildErr = ap.platform.CreateFunctionBuild(ctx,
+			&platform.CreateFunctionBuildOptions{
+				Logger:                     createFunctionOptions.Logger,
+				FunctionConfig:             createFunctionOptions.FunctionConfig,
+				PlatformName:               ap.platform.GetName(),
+				OnAfterConfigUpdate:        onAfterConfigUpdatedWrapper,
+				DependantImagesRegistryURL: createFunctionOptions.DependantImagesRegistryURL,
+			})
 
 		if buildErr == nil {
 
@@ -173,7 +201,8 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
-		createFunctionOptions.Logger.InfoWithCtx(ctx, "Skipping build",
+		createFunctionOptions.Logger.InfoWithCtx(ctx,
+			"Skipping build",
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// verify user passed runtime
@@ -209,7 +238,8 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 	}
 
 	// indicate that we're done
-	createFunctionOptions.Logger.InfoWithCtx(ctx, "Function deploy complete",
+	createFunctionOptions.Logger.InfoWithCtx(ctx,
+		"Function deploy complete",
 		"functionName", deployResult.UpdatedFunctionConfig.Meta.Name,
 		"httpPort", deployResult.Port,
 		"internalInvocationURLs", deployResult.FunctionStatus.InternalInvocationURLs,
@@ -240,7 +270,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	// `python` is just an alias
 	if functionConfig.Spec.Runtime == "python" {
-		functionConfig.Spec.Runtime = "python:3.7"
+		functionConfig.Spec.Runtime = "python:3.9"
 	}
 
 	// enrich triggers
@@ -375,7 +405,7 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 	}
 }
 
-// ValidateFunctionConfig validaets and enforces of required function creation logic
+// ValidateFunctionConfig validates and enforces of required function creation logic
 func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
@@ -410,6 +440,10 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 
 	if err := ap.validatePriorityClassName(functionConfig); err != nil {
 		return errors.Wrap(err, "Priority class name validation failed")
+	}
+
+	if err := ap.validateAutoScaleMetrics(functionConfig); err != nil {
+		return errors.Wrap(err, "Auto scale metrics validation failed")
 	}
 
 	return nil
@@ -533,7 +567,8 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 }
 
 // FilterProjectsByPermissions will filter out some projects
-func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.PermissionOptions,
+func (ap *Platform) FilterProjectsByPermissions(ctx context.Context,
+	permissionOptions *opa.PermissionOptions,
 	projects []platform.Project) ([]platform.Project, error) {
 
 	// no cleansing is mandated
@@ -548,7 +583,7 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.Permissio
 		resources[idx] = opa.GenerateProjectResourceString(projectName)
 	}
 
-	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for projects permissions")
 	}
@@ -565,7 +600,9 @@ func (ap *Platform) FilterProjectsByPermissions(permissionOptions *opa.Permissio
 	}
 
 	if len(filteredProjectNames) > 0 {
-		ap.Logger.DebugWith("Some projects were filtered out", "projectNames", filteredProjectNames)
+		ap.Logger.DebugWithCtx(ctx,
+			"Some projects were filtered out",
+			"projectNames", filteredProjectNames)
 	}
 	return permittedProjects, nil
 }
@@ -588,7 +625,7 @@ func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
 		resources[idx] = opa.GenerateFunctionResourceString(projectName, functionName)
 	}
 
-	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for function permissions")
 	}
@@ -605,7 +642,9 @@ func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
 	}
 
 	if len(filteredFunctionNames) > 0 {
-		ap.Logger.DebugWithCtx(ctx, "Some functions were filtered out", "functionNames", filteredFunctionNames)
+		ap.Logger.DebugWithCtx(ctx,
+			"Some functions were filtered out",
+			"functionNames", filteredFunctionNames)
 	}
 	return permittedFunctions, nil
 }
@@ -629,7 +668,7 @@ func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
 			functionName,
 			functionEventName))
 	}
-	allowedList, err := ap.QueryOPAMultipleResources(resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for function events permissions")
 	}
@@ -661,33 +700,7 @@ func (ap *Platform) CreateFunctionInvocation(ctx context.Context,
 		createFunctionInvocationOptions.Headers = http.Header{}
 	}
 
-	// get the function
-	functions, err := ap.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
-		Name:              createFunctionInvocationOptions.Name,
-		Namespace:         createFunctionInvocationOptions.Namespace,
-		AuthSession:       createFunctionInvocationOptions.AuthSession,
-		PermissionOptions: createFunctionInvocationOptions.PermissionOptions,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get functions")
-	}
-
-	if len(functions) == 0 {
-		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Function not found: %s @ %s",
-			createFunctionInvocationOptions.Name,
-			createFunctionInvocationOptions.Namespace))
-	}
-
-	// use the first function found (should always be one, but if there's more just use first)
-	function := functions[0]
-
-	// make sure to initialize the function (some underlying functions are lazy load)
-	if err := function.Initialize(ctx, nil); err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize function")
-	}
-
-	return ap.invoker.invoke(ctx, function, createFunctionInvocationOptions)
+	return ap.invoker.invoke(ctx, createFunctionInvocationOptions)
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires
@@ -814,7 +827,8 @@ func (ap *Platform) EnrichFunctionEvent(ctx context.Context, functionEventConfig
 
 	projectName, projectNameFound := functionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 	if !projectNameFound {
-		ap.Logger.DebugWithCtx(ctx, "Enriching function event project name",
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching function event project name",
 			"functionEventName", functionEventConfig.Meta.Name,
 			"functionEventNamespace", functionEventConfig.Meta.Namespace,
 			"functionName", functionName)
@@ -855,7 +869,7 @@ func (ap *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOpti
 	return nil, platform.ErrUnsupportedMethod
 }
 
-// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
+// SetExternalIPAddresses configures the IP addresses invocations will use.
 // If this is not invoked, each platform will try to discover these addresses automatically
 func (ap *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
 	ap.ExternalIPAddresses = externalIPAddresses
@@ -878,7 +892,7 @@ func (ap *Platform) RenderImageNamePrefixTemplate(projectName string, functionNa
 	})
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 	return ap.ExternalIPAddresses, nil
@@ -894,16 +908,11 @@ func (ap *Platform) GetAllowedAuthenticationModes() []string {
 	return nil
 }
 
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-	return ""
-}
-
 // BuildAndPushContainerImage builds container image and pushes it into docker registry
 func (ap *Platform) BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error {
 	return ap.ContainerBuilder.BuildAndPushContainerImage(ctx,
 		buildOptions,
-		ap.platform.ResolveDefaultNamespace("@nuclio.selfNamespace"))
+		ap.DefaultNamespace)
 }
 
 // GetOnbuildStages get onbuild multistage builds
@@ -952,7 +961,10 @@ func (ap *Platform) GetDefaultRegistryCredentialsSecretName() string {
 
 // GetContainerBuilderKind returns the container-builder kind
 func (ap *Platform) GetContainerBuilderKind() string {
-	return ap.ContainerBuilder.GetKind()
+	if ap.ContainerBuilder != nil {
+		return ap.ContainerBuilder.GetKind()
+	}
+	return ap.GetConfig().ContainerBuilderConfiguration.Kind
 }
 
 // GetRuntimeBuildArgs returns the runtime specific build arguments
@@ -1011,12 +1023,14 @@ func (ap *Platform) WaitForProjectResourcesDeletion(ctx context.Context, project
 		func() bool {
 			functions, APIGateways, err := ap.GetProjectResources(ctx, projectMeta)
 			if err != nil {
-				ap.Logger.WarnWithCtx(ctx, "Failed to get project resources",
+				ap.Logger.WarnWithCtx(ctx,
+					"Failed to get project resources",
 					"err", err)
 				return false
 			}
 			if len(functions) > 0 || len(APIGateways) > 0 {
-				ap.Logger.DebugWithCtx(ctx, "Waiting for project resources to be deleted",
+				ap.Logger.DebugWithCtx(ctx,
+					"Waiting for project resources to be deleted",
 					"functionsLen", len(functions),
 					"apiGatewayLen", len(APIGateways))
 				return false
@@ -1028,17 +1042,16 @@ func (ap *Platform) WaitForProjectResourcesDeletion(ctx context.Context, project
 	return nil
 }
 
-func (ap *Platform) GetProjectResources(ctx context.Context, projectMeta *platform.ProjectMeta) ([]platform.Function,
-	[]platform.APIGateway,
-	error) {
+func (ap *Platform) GetProjectResources(ctx context.Context,
+	projectMeta *platform.ProjectMeta) ([]platform.Function, []platform.APIGateway, error) {
 
-	var err error
 	var functions []platform.Function
 	var apiGateways []platform.APIGateway
 	errGroup, _ := errgroup.WithContext(ctx, ap.Logger)
 
 	// get api gateways
 	errGroup.Go("GetAPIGateways", func() error {
+		var err error
 		apiGateways, err = ap.platform.GetAPIGateways(ctx, &platform.GetAPIGatewaysOptions{
 			Namespace: projectMeta.Namespace,
 			Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
@@ -1051,6 +1064,7 @@ func (ap *Platform) GetProjectResources(ctx context.Context, projectMeta *platfo
 
 	// get functions
 	errGroup.Go("GetFunctions", func() error {
+		var err error
 		functions, err = ap.platform.GetFunctions(ctx, &platform.GetFunctionsOptions{
 			Namespace: projectMeta.Namespace,
 			Labels:    fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName, projectMeta.Name),
@@ -1068,12 +1082,10 @@ func (ap *Platform) GetProjectResources(ctx context.Context, projectMeta *platfo
 }
 
 func (ap *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
-	resolvedNamespace := ap.platform.ResolveDefaultNamespace(ap.DefaultNamespace)
-
 	projects, err := ap.platform.GetProjects(ctx, &platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      platform.DefaultProjectName,
-			Namespace: resolvedNamespace,
+			Namespace: ap.DefaultNamespace,
 		},
 	})
 	if err != nil {
@@ -1086,7 +1098,7 @@ func (ap *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
 		projectConfig := platform.ProjectConfig{
 			Meta: platform.ProjectMeta{
 				Name:      platform.DefaultProjectName,
-				Namespace: resolvedNamespace,
+				Namespace: ap.DefaultNamespace,
 			},
 			Spec: platform.ProjectSpec{},
 		}
@@ -1109,7 +1121,7 @@ func (ap *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
 
 		ap.Logger.DebugWithCtx(ctx, "Default project was successfully created",
 			"name", platform.DefaultProjectName,
-			"namespace", resolvedNamespace)
+			"namespace", ap.DefaultNamespace)
 	}
 
 	return nil
@@ -1189,10 +1201,45 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 		permissionOptions)
 }
 
-func (ap *Platform) QueryOPAMultipleResources(resources []string,
+func (ap *Platform) QueryOPAMultipleResources(ctx context.Context,
+	resources []string,
 	action opa.Action,
 	permissionOptions *opa.PermissionOptions) ([]bool, error) {
-	return ap.queryOPAPermissionsMultiResources(resources, action, permissionOptions)
+	return ap.queryOPAPermissionsMultiResources(ctx, resources, action, permissionOptions)
+}
+
+// GetFunctionSecrets returns all the function's secrets
+func (ap *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
+	return nil, nil
+}
+
+// GetFunctionSecretMap returns a map of function sensitive data
+func (ap *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
+
+	// get existing function secret
+	ap.Logger.DebugWithCtx(ctx,
+		"Getting function secret", "functionName",
+		functionName, "functionNamespace", functionNamespace)
+	functionSecretData, err := ap.platform.GetFunctionSecretData(ctx, functionName, functionNamespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function secret")
+	}
+
+	// if secret exists, get the data
+	if functionSecretData != nil {
+		functionSecretMap, err := ap.Scrubber.DecodeSecretData(functionSecretData)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode function secret data")
+		}
+		return functionSecretMap, nil
+	}
+
+	// secret doesn't exist
+	ap.Logger.DebugWithCtx(ctx,
+		"Function secret doesn't exist",
+		"functionName", functionName,
+		"functionNamespace", functionNamespace)
+	return nil, nil
 }
 
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {
@@ -1342,6 +1389,45 @@ func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Con
 	return nil
 }
 
+func (ap *Platform) validateAutoScaleMetrics(functionConfig *functionconfig.Config) error {
+
+	// validate each autoscale metric has a valid name, kind and value
+	for _, metric := range functionConfig.Spec.AutoScaleMetrics {
+
+		// validate metric name
+		if metric.MetricName == "" {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric name is missing - %+v", metric))
+		}
+
+		// validate metric kind
+		if metric.SourceType == "" {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric kind is missing - %+v", metric))
+		}
+
+		if !common.StringSliceContainsString([]string{
+			string(autosv2.ResourceMetricSourceType),
+			string(autosv2.PodsMetricSourceType),
+			string(autosv2.ExternalMetricSourceType),
+			string(autosv2.ObjectMetricSourceType),
+			string(autosv2.ContainerResourceMetricSourceType),
+		}, string(metric.SourceType)) {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric kind is invalid - %+v", metric))
+		}
+
+		// validate metric value
+		if metric.Threshold == 0 {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric value is missing - %+v", metric))
+		}
+
+		// validate metric value is positive
+		if metric.Threshold < 0 {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric value must be positive - %+v", metric))
+		}
+	}
+
+	return nil
+}
+
 func (ap *Platform) validateVolumes(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	// volume mount can be shared by many volumes (e.g.: mount volume X in /here and /there)
@@ -1377,7 +1463,8 @@ func (ap *Platform) validateVolumes(ctx context.Context, functionConfig *functio
 		firstVolume := volumes[0]
 		for _, volume := range volumes[1:] {
 			if volumeDiff := cmp.Diff(firstVolume, volume); volumeDiff != "" {
-				ap.Logger.WarnWithCtx(ctx, "Invalid volumes configuration found",
+				ap.Logger.WarnWithCtx(ctx,
+					"Invalid volumes configuration found",
 					"volumeMountName", volumeMountName,
 					"volumeDiff", volumeDiff)
 				return nuclio.NewErrBadRequest(
@@ -1401,7 +1488,7 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 
 	// NOTE: This is a temporary hack
 	// we perform a validation for project existence only, we want to make sure
-	// that the project exists so we set up the request origin as it came from a leader
+	// that the project exists, so we set up the request origin as it came from a leader
 	if ap.Config.ProjectsLeader != nil {
 		getProjectsOptions.RequestOrigin = ap.Config.ProjectsLeader.Kind
 	}
@@ -1461,6 +1548,19 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 				if partitionworker.AllocationMode(workerAllocationMode) != partitionworker.AllocationModeStatic &&
 					functionconfig.ExplicitAckEnabled(triggerInstance.ExplicitAckMode) {
 					return nuclio.NewErrBadRequest("Explicit ack mode is not allowed when using worker pool allocation mode")
+				}
+			}
+		}
+
+		// validate trigger supports autoscaling
+		if lo.Contains[string]([]string{"v3io-stream", "v3ioStream"}, triggerInstance.Kind) {
+
+			// V3IO stream trigger does not support autoscaling, so min and max replicas must be equal
+			minReplicas := functionConfig.Spec.MinReplicas
+			maxReplicas := functionConfig.Spec.MaxReplicas
+			if minReplicas != nil {
+				if maxReplicas != nil && *minReplicas != *maxReplicas {
+					return nuclio.NewErrBadRequest("V3IO Stream trigger does not support autoscaling")
 				}
 			}
 		}
@@ -1585,7 +1685,8 @@ func (ap *Platform) validateDockerImageFields(ctx context.Context, functionConfi
 			// HACK: cleanup possible trailing /
 			valueToValidate := strings.TrimSuffix(*fieldValue, "/")
 			if _, err := reference.Parse(valueToValidate); err != nil {
-				ap.Logger.WarnWithCtx(ctx, "Invalid docker image ref passed in spec field - this may be malicious",
+				ap.Logger.WarnWithCtx(ctx,
+					"Invalid docker image ref passed in spec field - this may be malicious",
 					"err", err,
 					"fieldName", fieldName,
 					"fieldValue", fieldValue)
@@ -1603,11 +1704,12 @@ func (ap *Platform) validateDockerImageFields(ctx context.Context, functionConfi
 	return nil
 }
 
-func (ap *Platform) queryOPAPermissionsMultiResources(resources []string,
+func (ap *Platform) queryOPAPermissionsMultiResources(ctx context.Context,
+	resources []string,
 	action opa.Action,
 	permissionOptions *opa.PermissionOptions) ([]bool, error) {
 
-	allowedList, err := ap.OpaClient.QueryPermissionsMultiResources(resources, action, permissionOptions)
+	allowedList, err := ap.OpaClient.QueryPermissionsMultiResources(ctx, resources, action, permissionOptions)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(err)
 	}
@@ -1648,6 +1750,27 @@ func (ap *Platform) enrichVolumes(functionConfig *functionconfig.Config) error {
 		// fill volume name from its volume mount
 		if configVolume.Volume.Name == "" {
 			configVolume.Volume.Name = configVolume.VolumeMount.Name
+		}
+
+		// clean flex volume's sub path
+		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == functionconfig.SecretTypeV3ioFuse {
+
+			// make sure the given sub path matches the needed structure. fix in case it doesn't
+			subPath, subPathExists := configVolume.Volume.FlexVolume.Options["subPath"]
+			if subPathExists && len(subPath) != 0 {
+
+				// insert slash in the beginning in case it wasn't given (example: "my/path" -> "/my/path")
+				if !filepath.IsAbs(subPath) {
+					subPath = "/" + subPath
+				}
+
+				subPath = filepath.Clean(subPath)
+				if subPath == "/" {
+					subPath = ""
+				}
+
+				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
+			}
 		}
 	}
 	return nil

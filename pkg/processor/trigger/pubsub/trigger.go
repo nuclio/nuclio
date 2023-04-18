@@ -19,7 +19,6 @@ package pubsub
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -219,7 +218,7 @@ func (p *pubsub) setAndValidateGoogleApplicationCredentials() error {
 		// dump contents to a file and use
 		serviceAccountFilePath := "/tmp/service-account.json"
 
-		if err := ioutil.WriteFile(serviceAccountFilePath,
+		if err := os.WriteFile(serviceAccountFilePath,
 			[]byte(p.configuration.Credentials.Contents),
 			0600); err != nil {
 			return errors.Wrap(err, "Failed to write temporary service account")

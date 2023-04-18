@@ -18,11 +18,10 @@ package platformconfig
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
+	"sigs.k8s.io/yaml"
 )
 
 type Reader struct{}
@@ -32,7 +31,7 @@ func NewReader() (*Reader, error) {
 }
 
 func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
-	configBytes, err := ioutil.ReadAll(reader)
+	configBytes, err := io.ReadAll(reader)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read platform configuration")
 	}

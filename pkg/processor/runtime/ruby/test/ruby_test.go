@@ -60,6 +60,13 @@ func (suite *TestSuite) TestOutputs() {
 
 	testRequests := []*httpsuite.Request{
 		{
+			Name:                       "init context",
+			RequestBody:                "return_userdata",
+			ExpectedResponseHeaders:    headersContentTypeTextPlain,
+			ExpectedResponseBody:       "userdata",
+			ExpectedResponseStatusCode: &statusOK,
+		},
+		{
 			Name:                       "return string",
 			RequestBody:                "return_string",
 			ExpectedResponseHeaders:    headersContentTypeTextPlain,

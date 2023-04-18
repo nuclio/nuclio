@@ -23,29 +23,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
-
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
+	nucliozap "github.com/nuclio/zap"
 	cronlib "github.com/robfig/cron/v3"
 	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
-	processorsuite.TestSuite
+	suite.Suite
 	trigger cron
+	logger  logger.Logger
 }
 
 func (suite *TestSuite) SetupSuite() {
-	suite.TestSuite.SetupSuite()
-}
-
-func (suite *TestSuite) TearDownSuite() {
-	suite.TestSuite.TearDownTest()
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
 func (suite *TestSuite) SetupTest() {
 	suite.trigger = cron{}
-	suite.trigger.Logger = suite.Logger.GetChild("cron")
+	suite.trigger.Logger = suite.logger.GetChild("cron")
 }
 
 func (suite *TestSuite) TestScheduleBackwardsCompatibility() {

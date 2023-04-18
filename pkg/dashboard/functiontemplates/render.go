@@ -22,10 +22,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"sigs.k8s.io/yaml"
 )
 
 type FunctionTemplateRenderer struct {

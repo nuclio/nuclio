@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -127,6 +128,20 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	newProcessor.logger.DebugWith("Read configuration",
 		"config", string(indentedProcessorConfiguration))
+
+	// restore function configuration from secret if needed
+	if !processorConfiguration.Spec.DisableSensitiveFieldsMasking {
+
+		// check if env var to restore is set
+		if restoreConfigFromSecret := common.GetEnvOrDefaultBool(common.RestoreConfigFromSecretEnvVar,
+			false); restoreConfigFromSecret {
+			restoredFunctionConfig, err := newProcessor.restoreFunctionConfig(&processorConfiguration.Config)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to restore function configuration")
+			}
+			processorConfiguration.Config = *restoredFunctionConfig
+		}
+	}
 
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration
@@ -281,6 +296,68 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 	return &processorConfiguration, nil
 }
 
+// restoreFunctionConfig restores a scrubbed function configuration to the original values from the
+// mounted secret, if it exists
+func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*functionconfig.Config, error) {
+
+	// initialize scrubber, we don't care about sensitive fields and kubeClientSet
+	scrubber := functionconfig.NewScrubber(nil, nil)
+
+	secretsMap, err := p.getSecretsMap(scrubber)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get secrets map")
+	}
+
+	// if there are no secrets, return
+	if len(secretsMap) == 0 {
+		p.logger.Debug("Secret is empty, skipping config restoration")
+		return config, nil
+	}
+
+	restoredFunctionConfig, err := scrubber.Restore(config, secretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to restore function config")
+	}
+
+	return restoredFunctionConfig, nil
+}
+
+func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string]string, error) {
+
+	// the env var is mainly for testing
+	filePath := os.Getenv("NUCLIO_FUNCTION_SECRET_VOLUME_PATH")
+	if filePath == "" {
+		filePath = functionconfig.FunctionSecretMountPath
+	}
+
+	contentPath := path.Join(filePath, functionconfig.SecretContentKey)
+
+	// check if a secret is mounted
+	if _, err := os.Stat(contentPath); err != nil {
+		p.logger.WarnWith("Failed to check if secret file exists",
+			"path", contentPath,
+			"err", err)
+		if os.IsNotExist(err) {
+			return nil, errors.New("Secret is not mounted to function pod")
+		}
+		return nil, errors.Wrap(err, "Failed to check if secret file exists")
+	}
+
+	p.logger.Debug("Secret is mounted to function pod, restoring function config")
+
+	// read secret content from file
+	encodedSecret, err := os.ReadFile(contentPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read function secret")
+	}
+
+	if string(encodedSecret) == "" {
+		return map[string]string{}, nil
+	}
+
+	return scrubber.DecodeSecretsMapContent(string(encodedSecret))
+}
+
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
 	var triggers []trigger.Trigger
 	abstractControlMessageBroker := controlcommunication.NewAbstractControlMessageBroker()
@@ -290,13 +367,20 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 	lock := sync.Mutex{}
 
 	platformKind := processorConfiguration.PlatformConfig.Kind
+	if processorConfiguration.Meta.Labels == nil {
+
+		// backwards compatibility, for function created before labels were introduced
+		processorConfiguration.Meta.Labels = map[string]string{
+			common.NuclioResourceLabelKeyProjectName: "",
+		}
+	}
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 		triggerName, triggerConfiguration := triggerName, triggerConfiguration
 
 		// skipping cron triggers when platform kind is "kube" and k8s cron jobs are enabled- k8s cron jobs will be created instead
 		if triggerConfiguration.Kind == "cron" &&
-			platformKind == "kube" &&
+			platformKind == common.KubePlatformName &&
 			processorConfiguration.PlatformConfig.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
 
 			p.logger.DebugWith("Skipping cron trigger creation inside the processor",
@@ -542,7 +626,6 @@ func (p *Processor) hardRestartTriggerWorkers(triggerInstance trigger.Trigger) e
 
 	// iterate over the trigger's workers and force restart each of them
 	for _, workerInstance := range triggerInstance.GetWorkers() {
-
 		if err := workerInstance.Restart(); err != nil {
 			return errors.Wrap(err, "Failed to restart worker")
 		}

@@ -44,7 +44,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
 	appsv1 "k8s.io/api/apps/v1"
@@ -54,6 +53,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/yaml"
 )
 
 type OnAfterIngressCreated func(*networkingv1.Ingress)
@@ -84,7 +84,7 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 	common.SetVersionFromEnv()
 	suite.Namespace = common.GetEnvOrDefaultString("NUCLIO_TEST_NAMESPACE", "default")
-	suite.PlatformType = "kube"
+	suite.PlatformType = common.KubePlatformName
 
 	if suite.PlatformConfiguration == nil {
 		suite.PlatformConfiguration = &platformconfig.Config{}
@@ -629,8 +629,12 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	suite.FunctionClient, err = functionres.NewLazyClient(suite.Logger, suite.KubeClientSet, suite.FunctionClientSet)
 	suite.Require().NoError(err)
 
+	// create cmd runner
+	cmdRunner, err := cmdrunner.NewShellRunner(suite.Logger)
+	suite.Require().NoError(err)
+
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(suite.Logger, suite.KubeClientSet, suite.PlatformConfiguration)
+	ingressManager, err := ingress.NewManager(suite.Logger, suite.KubeClientSet, cmdRunner, suite.PlatformConfiguration)
 	suite.Require().NoError(err)
 
 	// create api-gateway provisioner
@@ -650,6 +654,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 		0,              // disable resync interval
 		time.Second*5,  // monitor interval
 		time.Second*30, // cronjob stale duration
+		time.Minute*30, // evicted pods cleanup duration
 		suite.PlatformConfiguration,
 		"nuclio-platform-config",
 		1,

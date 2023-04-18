@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -39,11 +38,11 @@ import (
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -100,7 +99,7 @@ func (suite *Suite) SetupSuite() {
 
 	// default to local platform if platform isn't set
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {
-		err = os.Setenv(nuctlPlatformEnvVarName, "local")
+		err = os.Setenv(nuctlPlatformEnvVarName, common.LocalPlatformName)
 		suite.Require().NoError(err)
 	}
 
@@ -281,7 +280,7 @@ func (suite *Suite) assertFunctionImported(functionName string, imported bool) {
 	err = yaml.Unmarshal(functionBodyBytes, &function)
 	suite.Require().NoError(err)
 
-	suite.Assert().Equal(functionName, function.Meta.Name)
+	suite.Require().Equal(functionName, function.Meta.Name)
 	if imported {
 
 		// get imported functions
@@ -349,7 +348,7 @@ func (suite *Suite) writeFunctionConfigToTempFile(functionConfig *functionconfig
 	tempFilePattern string) string {
 
 	// create a temp function yaml to be used with test modified values
-	functionConfigPath, err := ioutil.TempFile("", tempFilePattern)
+	functionConfigPath, err := os.CreateTemp("", tempFilePattern)
 	suite.Require().NoError(err)
 
 	// close when done writing

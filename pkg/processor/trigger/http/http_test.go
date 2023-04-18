@@ -24,29 +24,31 @@ import (
 	nethttp "net/http"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/status"
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/cors"
 
+	"github.com/nuclio/logger"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttputil"
 )
 
 type TestSuite struct {
-	processorsuite.TestSuite
-	trigger http
-
+	suite.Suite
+	trigger                    http
+	logger                     logger.Logger
 	fastDummyHTTPServer        *fasthttputil.InmemoryListener
 	fastDummyHTTPServerStarted bool
 }
 
 func (suite *TestSuite) SetupSuite() {
-	suite.TestSuite.SetupSuite()
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.trigger = http{
 		AbstractTrigger: trigger.AbstractTrigger{
-			Logger: suite.Logger,
+			Logger: suite.logger,
 		},
 		configuration: &Configuration{},
 	}
@@ -77,14 +79,14 @@ func (suite *TestSuite) TestCORS() {
 			RequestOrigin:    "foo.bar",
 			RequestMethod:    "GET",
 			RequestHeaders: []string{
-				"X-Nuclio-log-level",
+				headers.LogLevel,
 			},
 			ExpectedResponseStatusCode: fasthttp.StatusOK,
 			ExpectedResponseHeaders: map[string]string{
 				"Access-Control-Allow-Origin":  "foo.bar",
-				"Access-Control-Allow-Methods": "HEAD, GET, POST, PUT, DELETE, OPTIONS",
+				"Access-Control-Allow-Methods": "HEAD, GET, POST, PUT, DELETE, OPTIONS, PATCH",
 				"Access-Control-Max-Age":       "5",
-				"Access-Control-Allow-Headers": "Accept, Content-Length, Content-Type, Authorization, X-nuclio-log-level",
+				"Access-Control-Allow-Headers": "Accept, Content-Length, Content-Type, Authorization, X-Nuclio-Log-Level",
 			},
 			ExpectedEventsHandledSuccessTotal: 1,
 			ExpectedEventsHandledFailureTotal: 0,
@@ -121,7 +123,7 @@ func (suite *TestSuite) TestCORS() {
 			ExpectedEventsHandledFailureTotal: 1,
 		},
 	} {
-		suite.Logger.DebugWith("Testing CORS", "testCase", testCase)
+		suite.logger.DebugWith("Testing CORS", "testCase", testCase)
 
 		// set cors configuration
 		corsInstance := cors.NewCORS()
@@ -151,7 +153,7 @@ func (suite *TestSuite) TestCORS() {
 		// do request
 		response, err := client.Do(request)
 		suite.Require().NoError(err, "Failed to do request")
-		suite.Logger.DebugWith("Received response",
+		suite.logger.DebugWith("Received response",
 			"headers", response.Header,
 			"statusCode", response.StatusCode)
 
@@ -185,7 +187,7 @@ func (suite *TestSuite) TestInternalHealthiness() {
 	} {
 
 		suite.Run(testCase.name, func() {
-			suite.Logger.DebugWith("Testing internal healthiness endpoint", "testCase", testCase)
+			suite.logger.DebugWith("Testing internal healthiness endpoint", "testCase", testCase)
 
 			// ensure trigger is ready
 			suite.trigger.status = status.Ready
@@ -198,7 +200,7 @@ func (suite *TestSuite) TestInternalHealthiness() {
 			// do request
 			response, err := client.Do(request)
 			suite.Require().NoError(err, "Failed to do request")
-			suite.Logger.DebugWith("Received response",
+			suite.logger.DebugWith("Received response",
 				"headers", response.Header,
 				"statusCode", response.StatusCode)
 

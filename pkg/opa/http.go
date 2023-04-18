@@ -17,7 +17,7 @@ limitations under the License.
 package opa
 
 import (
-	"crypto/tls"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -56,9 +56,13 @@ func NewHTTPClient(parentLogger logger.Logger,
 		logLevel:             logLevel,
 		overrideHeaderValue:  overrideHeaderValue,
 		httpClient: &http.Client{
-			Timeout: requestTimeout,
+			Timeout:   requestTimeout,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				// Enable in case you need for development
+				//TLSClientConfig: &tls.Config{
+				//	MinVersion:         tls.VersionTLS13,
+				//	InsecureSkipVerify: true,
+				//},
 			},
 		},
 	}
@@ -70,7 +74,8 @@ func NewHTTPClient(parentLogger logger.Logger,
 // is allowed or not.
 // Therefore, it is guaranteed that len(resources) and len(results) are equal and
 // resources[i] query permission is at results[i]
-func (c *HTTPClient) QueryPermissionsMultiResources(resources []string,
+func (c *HTTPClient) QueryPermissionsMultiResources(ctx context.Context,
+	resources []string,
 	action Action,
 	permissionOptions *PermissionOptions) ([]bool, error) {
 

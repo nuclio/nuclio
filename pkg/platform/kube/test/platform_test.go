@@ -20,8 +20,9 @@ package test
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -40,7 +41,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
@@ -64,7 +64,7 @@ func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody(
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 
 	// get function source code
-	functionSourceCode, err := ioutil.ReadFile(functionPath)
+	functionSourceCode, err := os.ReadFile(functionPath)
 	suite.Require().NoError(err)
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
@@ -185,7 +185,14 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 				}
 				return createFunctionOptions
 			}(),
-			ExpectedBriefErrorsMessage: "0/1 nodes are available: 1 Insufficient nvidia.com/gpu.\n",
+
+			// on k8s <= 1.23, the error message is:
+			// 	0/1 nodes are available: 1 Insufficient nvidia.com/gpu.
+			// on k8s >= 1.24, the error message is:
+			// 0/1 nodes are available: 1 Insufficient nvidia.com/gpu. preemption: 0/1 nodes are available:
+			// 1 No preemption victims found for incoming pod.
+			ExpectedBriefErrorsMessage: "0/1 nodes are available: 1 Insufficient nvidia.com/gpu. " +
+				"preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.\n",
 		},
 	} {
 		suite.Run(testCase.Name, func() {
@@ -636,6 +643,30 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
 		return true
 	})
+
+	// create a function with a nil service type
+	nilServiceTypeFunctionName := "with-nil-service-type"
+	nilServiceTypeFunctionOptions := suite.CompileCreateFunctionOptions(nilServiceTypeFunctionName)
+	triggerAttributesJSON := `{ "serviceType": null }`
+	triggerAttributes := map[string]interface{}{}
+	err := json.Unmarshal([]byte(triggerAttributesJSON), &triggerAttributes)
+	suite.Require().NoError(err)
+	nilServiceTypeTrigger := functionconfig.Trigger{
+		Kind:       "http",
+		Name:       "nil-service-type-trigger",
+		MaxWorkers: 1,
+		Attributes: triggerAttributes,
+	}
+	nilServiceTypeFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		nilServiceTypeTrigger.Name: nilServiceTypeTrigger,
+	}
+	suite.DeployFunction(nilServiceTypeFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		serviceInstance := &v1.Service{}
+		suite.GetResourceAndUnmarshal("service", kube.ServiceNameFromFunctionName(nilServiceTypeFunctionName), serviceInstance)
+		suite.Require().Equal(v1.ServiceTypeNodePort, serviceInstance.Spec.Type)
+		return true
+	})
+
 }
 
 func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
@@ -761,6 +792,479 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
 			// sanity check, redeploy does break on certain ingress / apigateway ingress validations
 			return true
 		})
+}
+
+func (suite *DeployFunctionTestSuite) TestFunctionImageNameInStatus() {
+
+	functionName := "some-test-function"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		suite.Require().NotNil(deployResult)
+
+		// make sure deployment status contains image name
+		suite.Require().NotEmpty(deployResult.FunctionStatus.ContainerImage)
+
+		// get the function
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		status := function.GetStatus()
+
+		// make sure the image name exists in the function status
+		suite.Require().NotEmpty(status.ContainerImage)
+
+		suite.Require().Equal(deployResult.FunctionStatus.ContainerImage, status.ContainerImage)
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
+	scrubber := functionconfig.NewScrubber(nil, nil)
+
+	functionName := "func-with-secret"
+	password := "1234"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	// add sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"password": password,
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get function secrets
+		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
+		suite.Require().NoError(err)
+		suite.Require().Len(secrets, 1)
+
+		for _, secret := range secrets {
+			secret := secret.Kubernetes
+			if !strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
+
+				// decode data from secret
+				decodedSecretData, err := scrubber.DecodeSecretData(secret.Data)
+				suite.Require().NoError(err)
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got function secret",
+					"secretData", secret.Data,
+					"decodedSecretData", decodedSecretData)
+
+				// verify password is in secret data
+				secretKey := strings.ToLower("$ref:/spec/build/codeEntryAttributes/password")
+				suite.Require().Equal(password, decodedSecretData[secretKey])
+
+				// verify secret's "content" also contains the password
+				secretContent := string(secret.Data["content"])
+				decodedContents, err := scrubber.DecodeSecretsMapContent(secretContent)
+				suite.Require().NoError(err)
+
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Decoded secret data content",
+					"decodedSecretsDataContent", decodedContents)
+
+				suite.Require().Equal(password, decodedContents[secretKey])
+
+			} else {
+
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got unknown secret",
+					"secretName", secret.Name,
+					"secretData", secret.Data)
+				suite.Failf("Got unknown secret", "Secret name: %s", secret.Name)
+			}
+
+		}
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestSecretEnvVarNotPresent() {
+	functionName := "regulart-func"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		suite.Require().NotNil(deployResult)
+
+		// get the function
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		// validate secret restoration env var is not in spec
+		restoreSecretEnvVar := v1.EnvVar{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		}
+		suite.Require().False(common.EnvInSlice(restoreSecretEnvVar, function.GetConfig().Spec.Env))
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
+	scrubber := functionconfig.NewScrubber(nil, nil)
+
+	functionName := "func-with-multiple-volumes"
+	accessKey := "1234"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	functionSecretCounter, volumeSecretCounter := 0, 0
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	// add sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "volume1",
+				VolumeSource: v1.VolumeSource{
+					FlexVolume: &v1.FlexVolumeSource{
+						Driver: "v3io/fuse",
+						Options: map[string]string{
+							"accessKey": accessKey,
+							"subPath":   "/sub1",
+							"container": "some-container",
+						},
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "volume1",
+				MountPath: "/tmp/volume1",
+			},
+		},
+		{
+			Volume: v1.Volume{
+				Name: "volume2",
+				VolumeSource: v1.VolumeSource{
+					FlexVolume: &v1.FlexVolumeSource{
+						Driver: "v3io/fuse",
+						Options: map[string]string{
+							"accessKey": accessKey,
+							"subPath":   "/sub1",
+							"container": "some-container",
+						},
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "volume2",
+				MountPath: "/tmp/volume2",
+			},
+		},
+	}
+
+	// deploy function, we expect a failure due to the v3io access key being a dummy value
+	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
+
+		// get function secrets
+		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
+		suite.Require().NoError(err)
+		suite.Require().Len(secrets, 3)
+
+		for _, secret := range secrets {
+			kubeSecret := secret.Kubernetes
+			switch {
+			case !strings.HasPrefix(kubeSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix):
+				functionSecretCounter++
+
+				// decode data from secret
+				decodedSecretData, err := scrubber.DecodeSecretData(kubeSecret.Data)
+				suite.Require().NoError(err)
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got function secret",
+					"secretData", kubeSecret.Data,
+					"decodedSecretData", decodedSecretData)
+
+				// verify accessKey is in secret data
+				for key, value := range decodedSecretData {
+					if strings.Contains(key, "accesskey") {
+						suite.Require().Equal(accessKey, value)
+					}
+				}
+
+			case strings.HasPrefix(kubeSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix):
+				volumeSecretCounter++
+
+				// validate that the secret contains the volume label
+				volumeNameLabel, exists := kubeSecret.Labels[common.NuclioResourceLabelKeyVolumeName]
+				suite.Require().True(exists)
+				suite.Require().Contains([]string{"volume1", "volume2"}, volumeNameLabel)
+
+				// validate that the secret contains the access key
+				accessKeyData, exists := kubeSecret.Data["accessKey"]
+				suite.Require().True(exists)
+
+				suite.Require().Equal(accessKey, string(accessKeyData))
+
+			default:
+				suite.Logger.DebugWithCtx(suite.Ctx,
+					"Got unknown secret",
+					"secretName", kubeSecret.Name,
+					"secretData", kubeSecret.Data)
+				suite.Failf("Got unknown secret.", "Secret name: %s", kubeSecret.Name)
+			}
+
+		}
+		return true
+	})
+
+	suite.Require().Equal(1, functionSecretCounter)
+	suite.Require().Equal(2, volumeSecretCounter)
+}
+
+func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithScrubbedField() {
+	scrubber := functionconfig.NewScrubber(nil, nil)
+
+	functionName := "func-with-v3io-stream-trigger"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	firstPassword := "1234"
+	secondPassword := "abcd"
+	passwordPath := "$ref:/spec/build/codeentryattributes/password"
+
+	validateSecretPasswordFunc := func(password string) {
+
+		// get function secret
+		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
+		suite.Require().NoError(err)
+		suite.Require().Len(secrets, 1)
+
+		// decode secret data
+		decodedContents, err := scrubber.DecodeSecretData(secrets[0].Kubernetes.Data)
+		suite.Require().NoError(err)
+
+		// make sure first password is in secret
+		suite.Require().Equal(password, decodedContents[passwordPath])
+	}
+
+	// add sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"password": firstPassword,
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		suite.Require().NotNil(deployResult)
+
+		// validate first password
+		validateSecretPasswordFunc(firstPassword)
+
+		// change password
+		newCreateFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+		newCreateFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+			"password": secondPassword,
+		}
+
+		// redeploy function
+		suite.DeployFunction(newCreateFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+			// make sure deployment succeeded
+			suite.Require().NotNil(deployResult)
+
+			validateSecretPasswordFunc(secondPassword)
+
+			return true
+		})
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestCleanFlexVolumeSubPath() {
+	functionName := "func-with-v3io-fuse-volume"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "volume1",
+				VolumeSource: v1.VolumeSource{
+					FlexVolume: &v1.FlexVolumeSource{
+						Driver: "v3io/fuse",
+						Options: map[string]string{
+							"subPath":   "///some/bad/sub/path//",
+							"container": "some-container",
+							"accessKey": "some-access-key",
+						},
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "volume1",
+				MountPath: "/tmp/volume1",
+			},
+		},
+	}
+
+	// deploy function, we expect a failure due to the v3io access key being a dummy value
+	_, err := suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		suite.Require().Equal("/some/bad/sub/path",
+			function.GetConfig().Spec.Volumes[0].Volume.FlexVolume.Options["subPath"])
+		return true
+	})
+	suite.Require().Error(err)
+}
+
+func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndSecret() {
+	one := 1
+	four := 4
+
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	// create function with 1 replica
+	functionName := "my-function"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &one
+
+	suite.Logger.InfoWith("Deploying function without sensitive data",
+		"functionName", functionName,
+		"replicas", one)
+
+	// use suite.DeployFunctionAndRedeploy
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// redeploy function with 4 replicas, and a sensitive field
+		createFunctionOptions.FunctionConfig.Spec.MinReplicas = &four
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &four
+
+		// add sensitive field
+		createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+			"password": "my-password",
+		}
+
+		// function will try to read the secret, and will fail if the secret is not mounted
+		createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.
+			EncodeToString([]byte(fmt.Sprintf(`
+def init_context(context):
+    context.logger.info("Init context - reading secret")
+    secret_content = open("%s", "r").read()
+
+def handler(context, event):
+    context.logger.info("Hello world")
+`, path.Join(functionconfig.FunctionSecretMountPath, functionconfig.SecretContentKey))))
+
+		suite.Logger.InfoWith("Redeploying function with sensitive data",
+			"functionName", functionName,
+			"replicas", four)
+
+		return true
+	}, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// make sure function has 4 replicas
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+		suite.Require().Equal(four, *function.GetConfig().Spec.MinReplicas)
+		suite.Require().Equal(four, *function.GetConfig().Spec.MaxReplicas)
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndValidateResources() {
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
+	// reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
+	}()
+
+	one := 1
+	two := 2
+	createFunctionOptions := suite.CompileCreateFunctionOptions("my-function")
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+
+	suite.Logger.InfoWith("Deploying function with 1 replica",
+		"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
+
+	// deploy function with 1 replica
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, func(firstDeployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(firstDeployResult)
+
+		suite.Logger.InfoWith("Redeploying function with 2 replica",
+			"functionName", createFunctionOptions.FunctionConfig.Meta.Name)
+
+		// change replicas to 2
+		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &two
+
+		return true
+	}, func(secondDeployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(secondDeployResult)
+
+		// validate function resources are not zero (meaning they were updated with defaults)
+		function := suite.GetFunction(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		functionSpec := function.GetConfig().Spec
+
+		// only resource requests are enriched by default
+		suite.Require().NotNil(functionSpec.Resources)
+		suite.Require().NotNil(functionSpec.Resources.Requests)
+		suite.Require().NotZero(functionSpec.Resources.Requests.Cpu().MilliValue())
+		suite.Require().NotZero(functionSpec.Resources.Requests.Memory().Value())
+
+		return true
+	})
 }
 
 type DeleteFunctionTestSuite struct {
@@ -917,86 +1421,62 @@ func (suite *UpdateFunctionTestSuite) TestSanity() {
 		))
 }
 
-type DeployAPIGatewayTestSuite struct {
-	KubeTestSuite
-}
+func (suite *UpdateFunctionTestSuite) TestUpdateFunctionWithSecret() {
+	ctx := suite.Ctx
+	functionName := "update-with-secret"
+	password := "1234"
+	secretPasswordKey := fmt.Sprintf("%s%s",
+		functionconfig.ReferencePrefix,
+		"/spec/build/codeentryattributes/password")
 
-// test that api gateway cannot be created if one of its functions have ingresses
-func (suite *DeployAPIGatewayTestSuite) TestAPIGatewayFunctionsHaveNoIngress() {
-	functionName := "some-function-name"
-	apiGatewayName := "some-api-gateway-name"
+	// set platform config to support scrubbing
+	suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = true
+
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"some-http-trigger": {
-			Kind: "http",
-			Attributes: map[string]interface{}{
-				"ingresses": map[string]interface{}{
-					"1": map[string]interface{}{
-						"host": "some-host",
-						"paths": []string{
-							"/some-path",
-						},
-					},
-				},
-			},
-		},
+
+	// add sensitive fields
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"password": password,
 	}
 
-	// deploy a function with an ingress
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		expectedErrorMessage := fmt.Sprintf("Api gateway upstream function: %s must not have an ingress", functionName)
+	// create function
+	_, err := suite.Platform.CreateFunction(ctx, createFunctionOptions)
+	suite.Require().NoError(err, "Failed to create function")
 
-		// try to create api gateway with this function as upstream and expect it to fail
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, nil)
-		suite.Require().Error(err)
-		suite.Require().Equal(expectedErrorMessage, errors.RootCause(err).Error())
+	// delete leftovers and reset platform configuration when done
+	defer func() {
+		suite.PlatformConfiguration.SensitiveFields.MaskSensitiveFields = false
 
-		return true
-	})
+		err = suite.Platform.DeleteFunction(ctx, &platform.DeleteFunctionOptions{
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+		})
+		suite.Require().NoError(err, "Failed to delete function")
+	}()
+
+	// get function secret data
+	secretData, err := suite.Platform.GetFunctionSecretMap(ctx, functionName, suite.Namespace)
+	suite.Require().NoError(err, "Failed to get function secret data")
+
+	// ensure secret contains the password
+	suite.Require().Equal(password, secretData[secretPasswordKey])
+
+	// set the password to the reference, to mimic updating with an existing secret
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes["password"] = secretPasswordKey
+
+	// update function - use 'CreateFunction' since 'UpdateFunction' doesn't support updating secrets
+	_, err = suite.Platform.CreateFunction(ctx, createFunctionOptions)
+	suite.Require().NoError(err, "Failed to create function")
+
+	// get function secret data
+	secretData, err = suite.Platform.GetFunctionSecretMap(ctx, functionName, suite.Namespace)
+	suite.Require().NoError(err, "Failed to get function secret data")
+
+	// ensure secret still contains the same password
+	suite.Require().Equal(password, secretData[secretPasswordKey])
 }
 
-// test that a function cannot expose ingresses if it is already being exposed by an api gateway
-func (suite *DeployAPIGatewayTestSuite) TestUpdateFunctionWithIngressWhenHasAPIGateway() {
-	functionName := "some-function-name"
-	apiGatewayName := "some-api-gateway-name"
-	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-
-	// deploy a function
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
-		// create an api-gateway with that function as upstream
-		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
-		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(*networkingv1.Ingress) {
-
-			// update the function to have ingresses
-			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-				"some-http-trigger": {
-					Kind: "http",
-					Attributes: map[string]interface{}{
-						"ingresses": map[string]interface{}{
-							"1": map[string]interface{}{
-								"host": "some-host",
-								"paths": []string{
-									"/some-path",
-								},
-							},
-						},
-					},
-				},
-			}
-
-			// expect the function deployment to fail because it is already being exposed by an api gateway
-			_, err := suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-				return true
-			})
-			suite.Require().Error(err)
-			suite.Require().IsType(&nuclio.ErrBadRequest, errors.RootCause(err))
-		})
-		suite.Require().NoError(err)
-
-		return true
-	})
+type DeployAPIGatewayTestSuite struct {
+	KubeTestSuite
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
@@ -1061,6 +1541,9 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		beforeUpdateHostValue := "before-update-host.com"
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = beforeUpdateHostValue
 		createAPIGatewayOptions.APIGatewayConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = map[string]string{
+			"some/annotation": "some-value",
+		}
 
 		// create
 		err := suite.Platform.CreateAPIGateway(suite.Ctx, createAPIGatewayOptions)
@@ -1084,6 +1567,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		suite.Require().Equal("ingress-manager", ingressInstance.Labels["nuclio.io/app"])
 		suite.Require().Equal(apiGatewayName, ingressInstance.Labels["nuclio.io/apigateway-name"])
 		suite.Require().Equal(projectName, ingressInstance.Labels["nuclio.io/project-name"])
+		suite.Require().Equal("some-value", ingressInstance.Annotations["some/annotation"])
 
 		// change host, update
 		afterUpdateHostValue := "after-update-host.com"

@@ -29,28 +29,20 @@ on:
 env:
   FINISH_LABEL: benchmarked
   ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
+  DOCKER_BUILDKIT: 1
 
 jobs:
   benchmark:
     name: Function HTTP Load Benchmarking
     runs-on: ubuntu-latest
     steps:
-      - name: Dump github context
-        run: echo "$GITHUB_CONTEXT"
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-
-      - name: Dump runner context
-        run: echo "$RUNNER_CONTEXT"
-        env:
-          RUNNER_CONTEXT: ${{ toJson(runner) }}
 
       # checkout from development
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -61,15 +53,15 @@ jobs:
 
           # map runtimes to desired onbuild-targets
           # golang,python:3.7 -> golang python
-          if [ "${{ github.event.inputs.runtimes }}" == "all" ]; then\
+          if [ "$INPUT_RUNTIMES" == "all" ]; then\
             RUNTIMES=(golang java python dotnetcore nodejs);\
           else\
             RUNTIMES=();\
-            while IFS=',' read -ra INPUT_RUNTIMES; do\
-              for i in "${INPUT_RUNTIMES[@]}"; do\
+            while IFS=',' read -ra LOOP_INPUT_RUNTIMES; do\
+              for i in "${LOOP_INPUT_RUNTIMES[@]}"; do\
                 RUNTIMES+=("$(echo "$i" | cut -d":" -f1)");\
               done\
-            done <<<"${{ github.event.inputs.runtimes }}";\
+            done <<<"$INPUT_RUNTIMES";\
           fi;
 
           DOCKER_IMAGES_RULES=processor;\
@@ -80,11 +72,18 @@ jobs:
           # only build what is needed to make nuclio functions (processor + onbuilds)
           echo "DOCKER_IMAGES_RULES=$(printf "%s " "${DOCKER_IMAGES_RULES[@]}")" >> $GITHUB_ENV
           echo "NUCLIO_LABEL=bm-$GITHUB_RUN_ID" >> $GITHUB_ENV
+        env:
+          INPUT_RUNTIMES: ${{ github.event.inputs.runtimes }}
 
       - name: Install python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+
+      - uses: actions/setup-go@v3
+        with:
+          cache: true
+          go-version-file: go.mod
 
       - name: Install vegeta
         run: |
@@ -134,7 +133,7 @@ jobs:
             await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
 
       - name: Upload benchmarking results
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: benchmarking
           path: ./.benchmarking

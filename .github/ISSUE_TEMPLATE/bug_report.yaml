@@ -1,0 +1,69 @@
+# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+name: Bug Report
+description: Report incorrect behavior in Nuclio
+title: "[Bug]: "
+
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Nuclio Version checks
+      options:
+        - label: >
+            I have checked that this issue has not already been reported.
+          required: true
+        - label: >
+            I have confirmed this bug exists on the latest version of Nuclio.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Issue Description
+      description: >
+        Please provide a description of the issue you are experiencing.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: >
+        Please describe or show a code example of the expected behavior.
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment_method
+    attributes:
+      label: Deployment Method
+      options:
+        - Docker
+        - Kubernetes
+    validations:
+      required: true
+  - type: input
+    id: nuclio_version
+    attributes:
+      label: Nuclio Version
+      description: >
+        Please provide the Nuclio version you are using.
+    validations:
+      required: true
+  - type: textarea
+    id: additional_information
+    attributes:
+      label: Additional Information
+      description: >
+        Please add any aditional information you think may be relevant.

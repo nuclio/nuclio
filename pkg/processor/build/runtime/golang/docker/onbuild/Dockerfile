@@ -14,18 +14,16 @@
 
 ARG NUCLIO_BASE_IMAGE_NAME
 ARG NUCLIO_BASE_IMAGE_TAG
-ARG NUCLIO_LABEL
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO
 
 # Build the processor
-FROM $NUCLIO_DOCKER_REPO/nuclio-base:$NUCLIO_LABEL as build-processor
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-processor
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
-ARG GOOS=linux
-ARG GOARCH=amd64
 
 # Build the processor
-RUN GOOS=$GOOS GOARCH=$GOARCH go build \
+RUN go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
@@ -34,15 +32,10 @@ RUN GOOS=$GOOS GOARCH=$GOARCH go build \
 # Build the plugin
 FROM ${NUCLIO_BASE_IMAGE_NAME}:${NUCLIO_BASE_IMAGE_TAG}
 
-ARG NUCLIO_GO_PROXY=${NUCLIO_GO_PROXY}
-# Set go proxy env
-ENV GOPROXY $NUCLIO_GO_PROXY
-
 # Update packages
 RUN apt-get update && \
     apt-get -s dist-upgrade | \
     grep "^Inst" | \
-    grep -i securi | \
     awk -F " " {'print $2'} | \
     xargs apt-get install -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
@@ -60,6 +53,10 @@ COPY pkg/processor/build/runtime/golang/docker/onbuild/moduler.sh /
 # Set handler work dir
 WORKDIR /handler
 
+# Set go proxy env
+ARG NUCLIO_GO_PROXY=${NUCLIO_GO_PROXY}
+ENV GOPROXY $NUCLIO_GO_PROXY
+
 # Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
 ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
 
@@ -70,7 +67,10 @@ ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} ./
 ONBUILD ARG NUCLIO_BUILD_OFFLINE
 
 # Run moduler to ensure go modules exists and downloaded
-ONBUILD RUN mv /moduler.sh . && chmod +x moduler.sh && sync && ./moduler.sh
+ONBUILD RUN mv /moduler.sh . && sync && ./moduler.sh
 
 # Compile handler as plugin
-ONBUILD RUN GOOS=linux GOARCH=amd64 go build -mod=mod -buildmode=plugin -o /home/nuclio/bin/handler.so .
+ONBUILD RUN go build \
+    -mod=mod \
+    -buildmode=plugin \
+    -o /home/nuclio/bin/handler.so .

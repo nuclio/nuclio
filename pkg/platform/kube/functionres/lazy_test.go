@@ -20,6 +20,7 @@ package functionres
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -36,8 +37,10 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -81,7 +84,7 @@ func (suite *lazyTestSuite) SetupTest() {
 		platformConfiguration: defaultPlatformConfiguration,
 	})
 
-	// dont wait for too long
+	// don't wait for too long
 	suite.client.nodeScaleUpSleepTimeout = 100 * time.Millisecond
 }
 
@@ -213,8 +216,128 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 	}
 }
 
+func (suite *lazyTestSuite) TestEnrichIngressTLS() {
+	sslRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
+
+	for _, testCase := range []struct {
+		name              string
+		enableSSLRedirect bool
+		tlsSecret         string
+	}{
+		{
+			name:              "no-tls-secret-no-ssl-redirect",
+			enableSSLRedirect: false,
+			tlsSecret:         "",
+		},
+		{
+			name:              "no-tls-secret-ssl-redirect",
+			enableSSLRedirect: true,
+			tlsSecret:         "",
+		},
+		{
+			name:              "tls-secret-no-ssl-redirect",
+			enableSSLRedirect: false,
+			tlsSecret:         "my-tls-secret",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+				platformConfiguration: &platformconfig.Config{
+					IngressConfig: platformconfig.IngressConfig{
+						TLSSecret:         testCase.tlsSecret,
+						EnableSSLRedirect: testCase.enableSSLRedirect,
+					},
+				},
+			})
+			host := "something.com"
+			one := 1
+			defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+			defaultHTTPTrigger.Attributes = map[string]interface{}{
+				"ingresses": map[string]interface{}{
+					"0": map[string]interface{}{
+						"host":  host,
+						"paths": []string{"/"},
+					},
+				},
+			}
+			function := nuclioio.NuclioFunction{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-function" + testCase.name,
+				},
+				Spec: functionconfig.Spec{
+					Replicas: &one,
+					Triggers: map[string]functionconfig.Trigger{
+						defaultHTTPTrigger.Name: defaultHTTPTrigger,
+					},
+				},
+			}
+			functionLabels := suite.client.getFunctionLabels(&function)
+
+			ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
+			suite.Require().NoError(err)
+			suite.Require().NotNil(ingressInstance)
+
+			if testCase.enableSSLRedirect {
+				suite.Require().Equal("true", ingressInstance.Annotations[sslRedirectAnnotation])
+			} else {
+				suite.Require().NotContains(ingressInstance.Annotations, sslRedirectAnnotation)
+			}
+			if testCase.tlsSecret != "" {
+				suite.Require().Equal(testCase.tlsSecret, ingressInstance.Spec.TLS[0].SecretName)
+				suite.Require().Equal(host, ingressInstance.Spec.TLS[0].Hosts[0])
+			} else {
+				suite.Require().Empty(ingressInstance.Spec.TLS)
+			}
+		})
+	}
+}
+
+func (suite *lazyTestSuite) TestEnrichIngressWithDefaultTLSSecret() {
+	tlsSecretName := "my-secret"
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			IngressConfig: platformconfig.IngressConfig{
+				TLSSecret:         tlsSecretName,
+				EnableSSLRedirect: true,
+			},
+		},
+	})
+	one := 1
+	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+	defaultHTTPTrigger.Attributes = map[string]interface{}{
+		"ingresses": map[string]interface{}{
+			"0": map[string]interface{}{
+				"host":  "something.com",
+				"paths": []string{"/"},
+			},
+		},
+	}
+	function := nuclioio.NuclioFunction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-function",
+		},
+		Spec: functionconfig.Spec{
+			Replicas: &one,
+			Triggers: map[string]functionconfig.Trigger{
+				defaultHTTPTrigger.Name: defaultHTTPTrigger,
+			},
+		},
+	}
+	// "create the ingress
+	ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, map[string]string{}, &function)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(ingressInstance)
+
+	// make sure default TLS secret exists
+	sslRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
+	suite.Require().Equal(ingressInstance.Spec.TLS[0].SecretName, tlsSecretName)
+	suite.Require().Contains(ingressInstance.Annotations, sslRedirectAnnotation)
+	suite.Require().Equal("true", ingressInstance.Annotations[sslRedirectAnnotation])
+}
+
 func (suite *lazyTestSuite) TestNoChanges() {
 	one := 1
+	volumeName := "my-volume"
 	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
 	defaultHTTPTrigger.Attributes = map[string]interface{}{
 		"ingresses": map[string]interface{}{
@@ -230,7 +353,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			Namespace: "test-namespace",
 			Labels: map[string]string{
 
-				// we want the created ingress host to be exceed the length limitation
+				// we want the created ingress host to exceed the length limitation
 				"nuclio.io/project-name": common.GenerateRandomString(60, common.SmallLettersAndNumbers),
 			},
 		},
@@ -239,10 +362,47 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			Triggers: map[string]functionconfig.Trigger{
 				defaultHTTPTrigger.Name: defaultHTTPTrigger,
 			},
+			Volumes: []functionconfig.Volume{
+				{
+					Volume: v1.Volume{
+						Name: volumeName,
+						VolumeSource: v1.VolumeSource{
+							FlexVolume: &v1.FlexVolumeSource{
+								Driver: "v3io/fuse",
+								Options: map[string]string{
+									"container": "users",
+									"subPath":   "/",
+									"accessKey": "$ref:/spec/volumes/bla/bla",
+								},
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      volumeName,
+						MountPath: "/tmp/vol-1",
+					},
+				},
+			},
 		},
 	}
 	functionLabels := suite.client.getFunctionLabels(&function)
 	functionLabels["nuclio.io/function-name"] = function.Name
+
+	// mock volume secret creation
+	_, err := suite.client.kubeClientSet.CoreV1().Secrets("test-namespace").Create(suite.ctx, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-volume-secret",
+			Labels: map[string]string{
+				common.NuclioResourceLabelKeyFunctionName: function.Name,
+				common.NuclioResourceLabelKeyProjectName:  function.Labels["nuclio.io/project-name"],
+				common.NuclioResourceLabelKeyVolumeName:   volumeName,
+			},
+			CreationTimestamp: metav1.Time{
+				Time: time.Now(),
+			},
+		},
+	}, metav1.CreateOptions{})
+	suite.Require().NoError(err)
 
 	// logs are spammy, let them
 	prevLevel := suite.logger.(*nucliozap.NuclioZap).GetLevel()
@@ -257,7 +417,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 		},
 	})
 
-	// "create the ingress
+	// "create" the ingress
 	ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(ingressInstance)
@@ -288,6 +448,17 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			&function)
 		suite.Require().NoError(err)
 		suite.Require().NotNil(updatedDeploymentInstance)
+
+		// make sure access key is still present in the function spec volume options
+		suite.Require().Contains(function.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options, "accessKey")
+
+		// make sure flex volume doesn't contain access key
+		for _, volume := range updatedDeploymentInstance.Spec.Template.Spec.Volumes {
+			if volume.Name == volumeName {
+				suite.Require().NotContains(volume.FlexVolume.Options, "accessKey")
+				break
+			}
+		}
 
 		// ensure no changes
 		suite.Require().Empty(cmp.Diff(deploymentInstance, updatedDeploymentInstance))
@@ -678,6 +849,77 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 			err = suite.client.kubeClientSet.CoreV1().Events(namespace).Delete(suite.ctx, testCase.event.Name, metav1.DeleteOptions{})
 			suite.Require().NoError(err)
 		})
+	}
+}
+
+func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
+
+	resourceTargetValue := 60
+	externalTargetValue := 100
+	podTargetValue := *apiresource.NewQuantity(
+		200,
+		apiresource.DecimalSI,
+	)
+
+	functionInstance := &nuclioio.NuclioFunction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "func-name",
+			Namespace: "func-namespace",
+		},
+		Spec: functionconfig.Spec{
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: string(v1.ResourceMemory),
+						Threshold:  resourceTargetValue,
+					},
+					SourceType:  autosv2.ResourceMetricSourceType,
+					DisplayType: functionconfig.AutoScaleMetricTypePercentage,
+				},
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "custom-metric",
+						Threshold:  externalTargetValue,
+					},
+					SourceType:  autosv2.ExternalMetricSourceType,
+					DisplayType: functionconfig.AutoScaleMetricTypeInt,
+				},
+			},
+			CustomScalingMetricSpecs: []autosv2.MetricSpec{
+				{
+					Pods: &autosv2.PodsMetricSource{
+						Metric: autosv2.MetricIdentifier{
+							Name: "another-custom-metric",
+						},
+						Target: autosv2.MetricTarget{
+							Type:         autosv2.AverageValueMetricType,
+							AverageValue: &podTargetValue,
+						},
+					},
+				},
+			},
+		},
+	}
+	resolvedMetricSpec, err := suite.client.resolveMetricSpecs(functionInstance)
+	suite.Require().NoError(err)
+	suite.Require().Equal(len(resolvedMetricSpec), 3)
+
+	externalQuantity, err := apiresource.ParseQuantity(strconv.Itoa(externalTargetValue))
+	suite.Require().NoError(err)
+
+	for _, metricSpec := range resolvedMetricSpec {
+		switch metricSpec.Type {
+		case autosv2.ResourceMetricSourceType:
+
+			// TargetAverageUtilization
+			suite.Require().Equal(*metricSpec.Resource.Target.AverageUtilization, int32(resourceTargetValue))
+
+		case autosv2.ExternalMetricSourceType:
+			suite.Require().True(metricSpec.External.Target.Value.Equal(externalQuantity))
+
+		case autosv2.PodsMetricSourceType:
+			suite.Require().True(metricSpec.Pods.Target.AverageValue.Equal(podTargetValue))
+		}
 	}
 }
 

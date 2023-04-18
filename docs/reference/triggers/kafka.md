@@ -5,6 +5,7 @@
   - [Workers and Worker Allocation modes](#workers)
   - [Multiple topics](#multiple-topics)
 - [Configuration parameters](#config-params)
+  - [Passing configuration via secrets](#configuration-via-secret)
 - [How a message travels through Nuclio to the handler](#message-course)
   - [Configuration parameters](#message-course-config-params)
 - [Offset management](#offset-management)
@@ -104,8 +105,42 @@ For more information on Nuclio function configuration, see the [function-configu
   **Type:** `object` with the following attributes -
 
   - **`enable`** (`bool`) - Enable authentication.
+  - **`handshake`** (`bool`) - Whether to send Kafka SASL handshake first. (default to: `true`)
   - **`user`** (`string`) - Username to be used for authentication.
   - **`password`** (`string`) - Password to be used for authentication.
+  - **`mechanism`** (`string`) - Name of SASL mechanism to use for authentication. (default to: `plain`, see [here](https://github.com/Shopify/sarama/blob/f16c9d8fbe4866c970b20a08be14d57553b0b660/broker.go#L62) for options)
+    > `GSSAPI` is yet to be supported by Nuclio. (read: Kerberos)
+
+  - <a id="sasl.oauth"></a>**`sasl.oauth`** - SASL OAuth configuration object.
+    <br/>
+    **Type:** `object` with the following attributes -
+    - **`clientID`** (`string`) - The client ID to use for OAuth authentication.
+    - **`clientSecret`** (`string`) - The client secret to use for OAuth authentication.
+    - **`tokenURL`** (`string`) - The URL of the OAuth token endpoint.
+    - **`scopes`** (`[]string`) - A list of OAuth scopes to request.
+
+- <a id="tls"></a>**`tls`** - TLS configuration object.
+  <br/>
+  **Type:** `object` with the following attributes -
+  - **`enable`** (`bool`) - Enable TLS.
+  - **`insecureSkipVerify`** (`bool`) - Allow insecure server connections when TLS enabled. (default to: `false`)
+  - **`minimumVersion`** (`string`) - The default minimum TLS version that is acceptable. (default to: `1.2`)
+
+- <a id="cacert"></a>**`caCert`** - The certificate authority (CA) certificate used for TLS authentication.
+  <br/>
+  **Type:** `string`
+  > When filled, the certificate is used to authenticate the Kafka broker.
+  TLS Authentication is enabled by default when this field is filled.
+
+- <a id="accesskey"></a>**`accessKey`** - The private key used for TLS authentication.
+  <br/>
+  **Type:** `string`
+  > In conjunction with the `accessCertificate` & `caCert`, the certificate is used to authenticate the Kafka broker.
+
+- <a id="accesscertificate"></a>**`accessCertificate`** - The public key used for TLS authentication.
+  <br/>
+  **Type:** `string`
+  > In conjunction with the `accessKey` & `caCert`, the certificate is used to authenticate the Kafka broker.
 
 - <a id="sessionTimeout"></a>**`sessionTimeout`** (`kafka-session-timeout`) - The timeout used to detect consumer failures when using Kafka's group management facility. The consumer sends periodic heartbeats to indicate its liveness to the broker. If no heartbeats are received by the broker before the expiration of this session timeout, the broker removes this consumer from the group and initiates rebalancing. Note that the value must be in the allowable range, as configured in the `group.min.session.timeout.ms` and `group.max.session.timeout.ms` broker configuration parameters.
   <br/>
@@ -128,6 +163,24 @@ For more information on Nuclio function configuration, see the [function-configu
   **Valid Values:** `"pool" | "static"`
   <br/>
   **Default Value:** `"pool"`
+
+<a id="configuration-via-secret"></a>
+### Passing configuration via secrets
+
+Nuclio allows passing sensitive configuration values (such as Kafka credentials) via secrets.
+To do that, follow the following steps:
+1. Create a secret with the sensitive data (e.g. `access-key`)
+2. Mount the secret as a volume to the function (in `spec.Volumes`)
+3. Specify the path to the mounted values, either in the function's spec or in the function's annotations, with:
+    1. Either specify the full path in the spec/annotation (e.g. `nuclio.io/kafka-access-key = /path/to/secret/access-key`)
+    2. Or, add the secret mount path to the secretPath filed (or the nuclio.io/kafka-secret-path annotation), and the sub paths to the other annotations. Nuclio will resolve the full paths according to the existing annotations.
+e.g:
+```
+nuclio.io/kafka-secret-path = /etc/nuclio/kafka-secret
+nuclio.io/kafka-access-key = accessKey
+```
+
+The current configurations supported via secrets are: `accessKey`, `accessCertificate`, `caCert`, `SASL.OAuth.clientSecret`, `SASL.password`.
 
 <a id="message-course"></a>
 ## How a message travels through Nuclio to the handler
@@ -382,4 +435,6 @@ triggers:
       tls:
         enable: true
         insecureSkipVerify: true
+        minVersion: "1.2"
 ```
+

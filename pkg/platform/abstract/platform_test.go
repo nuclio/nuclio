@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -571,11 +570,13 @@ func (suite *AbstractPlatformTestSuite) TestGetProjectResources() {
 
 			suite.mockedPlatform.
 				On("GetAPIGateways", suite.ctx, mock.Anything).
-				Return(testCase.apiGateways, nil).Once()
+				Return(testCase.apiGateways, nil).
+				Once()
 
 			suite.mockedPlatform.
 				On("GetFunctions", suite.ctx, mock.Anything).
-				Return(testCase.functions, testCase.getFunctionsError).Once()
+				Return(testCase.functions, testCase.getFunctionsError).
+				Once()
 
 			projectFunctions, projectAPIGateways, err := suite.Platform.GetProjectResources(suite.ctx,
 				&platform.ProjectMeta{
@@ -828,6 +829,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 	for idx, testCase := range []struct {
 		triggers                 map[string]functionconfig.Trigger
 		functionMetaAnnotations  map[string]string
+		supportAutoScale         bool
 		expectedEnrichedTriggers map[string]functionconfig.Trigger
 		shouldFailValidation     bool
 	}{
@@ -938,6 +940,16 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			},
 			shouldFailValidation: false,
 		},
+		{
+			triggers: map[string]functionconfig.Trigger{
+				"v3ioStream": {
+					Kind: "v3ioStream",
+					Name: "v3ioStream",
+				},
+			},
+			supportAutoScale:     true,
+			shouldFailValidation: true,
+		},
 	} {
 
 		suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
@@ -966,6 +978,12 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 
 		if testCase.functionMetaAnnotations != nil {
 			createFunctionOptions.FunctionConfig.Meta.Annotations = testCase.functionMetaAnnotations
+		}
+
+		if testCase.supportAutoScale {
+			one, five := 1, 5
+			createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+			createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &five
 		}
 
 		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
@@ -1530,6 +1548,141 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetrics() {
+	for idx, testCase := range []struct {
+		name                 string
+		AutoScaleMetrics     []functionconfig.AutoScaleMetric
+		shouldFailValidation bool
+	}{
+
+		// happy flows
+		{
+			name:             "Sanity",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{},
+		},
+		{
+			name: "ValidMetrics",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "cpu",
+						Threshold:  50,
+					},
+					SourceType: "Resource",
+				},
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "nuclio_processor_stream_something",
+						Threshold:  150,
+					},
+					SourceType: "Pods",
+				},
+			},
+		},
+
+		// bad flows
+		{
+			name: "NoName",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						Threshold: 50,
+					},
+					SourceType: "Resource",
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NoKind",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "memory",
+						Threshold:  75,
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NonValidKind",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "memory",
+						Threshold:  75,
+					},
+					SourceType: "something",
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NoThreshold",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "memory",
+					},
+					SourceType: "Resource",
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "NonValidThreshold",
+			AutoScaleMetrics: []functionconfig.AutoScaleMetric{
+				{
+					ScaleResource: functionconfig.ScaleResource{
+						MetricName: "memory",
+						Threshold:  -13,
+					},
+					SourceType: "something",
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Name:      platform.DefaultProjectName,
+					Namespace: "default",
+				},
+			}).Return([]platform.Project{
+				&platform.AbstractProject{},
+			}, nil).Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			createFunctionOptions.FunctionConfig.Spec.AutoScaleMetrics = testCase.AutoScaleMetrics
+
+			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err, "Failed to enrich function")
+
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
 // Expects 3 files inside functionLogsFilePath: (kept in these constants)
 // - FunctionLogsFile
@@ -1543,11 +1696,11 @@ func (suite *AbstractPlatformTestSuite) testGetProcessorLogsTestFromFile(functio
 
 	formattedPodLogs, briefErrorsMessage := suite.Platform.GetProcessorLogsAndBriefError(functionLogsScanner)
 
-	expectedFormattedFunctionLogsFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, FormattedFunctionLogsFile))
+	expectedFormattedFunctionLogsFileBytes, err := os.ReadFile(path.Join(functionLogsFilePath, FormattedFunctionLogsFile))
 	suite.Require().NoError(err, "Failed to read formatted function logs file")
 	suite.Assert().Equal(string(expectedFormattedFunctionLogsFileBytes), formattedPodLogs)
 
-	expectedBriefErrorsMessageFileBytes, err := ioutil.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
+	expectedBriefErrorsMessageFileBytes, err := os.ReadFile(path.Join(functionLogsFilePath, BriefErrorsMessageFile))
 	suite.Require().NoError(err, "Failed to read brief errors message file")
 	suite.Assert().Equal(string(expectedBriefErrorsMessageFileBytes), briefErrorsMessage)
 }

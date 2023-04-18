@@ -17,7 +17,7 @@ limitations under the License.
 package timeout
 
 import (
-	ctx "context"
+	"context"
 	"fmt"
 	"time"
 
@@ -66,7 +66,7 @@ func (w EventTimeoutWatcher) watch() {
 		now := time.Now()
 
 		// create error group
-		triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx.Background(), w.logger)
+		triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(context.Background(), w.logger)
 
 		// TODO: Run in parallel
 		for triggerName, triggerInstance := range w.processor.GetTriggers() {
@@ -115,10 +115,8 @@ func (w EventTimeoutWatcher) watch() {
 						return nil
 					})
 
-					return workerErrGroup.Wait()
 				}
-
-				return nil
+				return workerErrGroup.Wait()
 			})
 		}
 
@@ -142,7 +140,7 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 	runningWorkers := make(map[string]*worker.Worker)
 
 	// create error group
-	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx.Background(), w.logger)
+	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(context.Background(), w.logger)
 
 	for triggerIdx, triggerInstance := range w.processor.GetTriggers() {
 		triggerIdx, triggerInstance := triggerIdx, triggerInstance
@@ -156,7 +154,10 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 				if checkpoint != nil {
 					checkpointValue = *checkpoint
 				}
-				w.logger.InfoWithCtx(triggerErrGroupCtx, "Trigger stopped", "triggerIdx", triggerIdx, "checkpoint", checkpointValue)
+				w.logger.InfoWithCtx(triggerErrGroupCtx,
+					"Trigger stopped",
+					"triggerIdx", triggerIdx,
+					"checkpoint", checkpointValue)
 			}
 
 			for _, workerInstance := range triggerInstance.GetWorkers() {

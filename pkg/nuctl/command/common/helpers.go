@@ -19,11 +19,12 @@ package common
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"os"
 
-	"github.com/ghodss/yaml"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+
 	"github.com/nuclio/errors"
+	"sigs.k8s.io/yaml"
 )
 
 func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
@@ -36,10 +37,10 @@ func ReadFromInOrStdin(r io.Reader) ([]byte, error) {
 
 		// ensuring input piped or file
 		if info.Mode()&os.ModeNamedPipe != 0 || info.Mode().IsRegular() {
-			return ioutil.ReadAll(r)
+			return io.ReadAll(r)
 		}
 	case io.Reader:
-		return ioutil.ReadAll(r)
+		return io.ReadAll(r)
 	}
 	return nil, nil
 }
@@ -72,8 +73,28 @@ func GetUnmarshalFunc(bytes []byte) (func(data []byte, v interface{}) error, err
 	}
 
 	if err = yaml.Unmarshal(bytes, &obj); err == nil {
-		return yaml.Unmarshal, nil
+		return func(data []byte, v interface{}) error {
+			return yaml.Unmarshal(data, v)
+		}, nil
 	}
 
 	return nil, errors.New("Input is neither json nor yaml")
+}
+
+// ConvertMapToFunctionConfig converts a map to a function config
+func ConvertMapToFunctionConfig(functionMap map[string]interface{}) (functionconfig.Config, error) {
+	var functionConfig functionconfig.Config
+
+	// convert to json
+	functionConfigJSON, err := json.Marshal(functionMap)
+	if err != nil {
+		return functionConfig, errors.Wrap(err, "Failed to marshal function config")
+	}
+
+	// convert to function config
+	if err := json.Unmarshal(functionConfigJSON, &functionConfig); err != nil {
+		return functionConfig, errors.Wrap(err, "Failed to unmarshal function config")
+	}
+
+	return functionConfig, nil
 }

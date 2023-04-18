@@ -20,7 +20,6 @@ package eventhandlerparser
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -103,7 +102,7 @@ func (suite *ParseSuite) TestBadCode() {
 }
 
 func (suite *ParseSuite) TestFindHandlersInDirectory() {
-	handlerDir, err := ioutil.TempDir("", "parse-test")
+	handlerDir, err := os.MkdirTemp("", "parse-test")
 	suite.Require().NoError(err, "Can't create temporary directory")
 	n := 3
 
@@ -118,7 +117,7 @@ func (suite *ParseSuite) TestFindHandlersInDirectory() {
 }
 
 func (suite *ParseSuite) TestFindHandlersInFile() {
-	handlerDir, err := ioutil.TempDir("", "parse-test")
+	handlerDir, err := os.MkdirTemp("", "parse-test")
 	suite.Require().NoError(err, "Can't create temporary directory")
 
 	handlerPath := suite.createHandler(handlerDir, 0)
@@ -130,7 +129,7 @@ func (suite *ParseSuite) TestFindHandlersInFile() {
 }
 
 func (suite *ParseSuite) parseCode(code string) ([]string, []string, error) {
-	tmp, err := ioutil.TempDir("", "test-parse")
+	tmp, err := os.MkdirTemp("", "test-parse")
 	suite.Require().NoError(err, "Can't create temporary directory file")
 	defer os.RemoveAll(tmp)
 

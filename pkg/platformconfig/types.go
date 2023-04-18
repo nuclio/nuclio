@@ -17,9 +17,11 @@ limitations under the License.
 package platformconfig
 
 import (
+	"regexp"
 	"sort"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	nucliozap "github.com/nuclio/zap"
@@ -29,7 +31,10 @@ import (
 	machinarymetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const DefaultFunctionReadinessTimeoutSeconds = 120
+const (
+	DefaultFunctionReadinessTimeoutSeconds  = 120
+	DefaultFunctionInvocationTimeoutSeconds = 60
+)
 
 type LoggerSinkKind string
 
@@ -102,6 +107,29 @@ const (
 	EnabledScaleToZeroMode  ScaleToZeroMode = "enabled"
 	DisabledScaleToZeroMode ScaleToZeroMode = "disabled"
 )
+
+type AutoScaleMetricsMode string
+
+const (
+
+	// AutoScaleMetricsModeLegacy is the legacy mode, where CPU usage is used for scaling
+	AutoScaleMetricsModeLegacy AutoScaleMetricsMode = "legacy"
+
+	// AutoScaleMetricsModeCustom uses custom metrics for scaling
+	AutoScaleMetricsModeCustom AutoScaleMetricsMode = "custom"
+)
+
+func AutoScaleMetricsModeIsValid(autoScaleMode AutoScaleMetricsMode) bool {
+	for _, mode := range []AutoScaleMetricsMode{
+		AutoScaleMetricsModeLegacy,
+		AutoScaleMetricsModeCustom,
+	} {
+		if autoScaleMode == mode {
+			return true
+		}
+	}
+	return false
+}
 
 type AutoScale struct {
 	MetricName  string `json:"metricName,omitempty"`
@@ -207,9 +235,12 @@ func (p *PreemptibleNodes) CompileAntiAffinityByLabelSelectorNoScheduleOnMatchin
 }
 
 type PlatformLocalConfig struct {
-	FunctionContainersHealthinessEnabled  bool
-	FunctionContainersHealthinessTimeout  time.Duration
-	FunctionContainersHealthinessInterval time.Duration
+	FunctionContainersHealthinessEnabled  bool                        `json:"functionContainersHealthinessEnabled"`
+	FunctionContainersHealthinessTimeout  time.Duration               `json:"functionContainersHealthinessTimeout,omitempty"`
+	FunctionContainersHealthinessInterval time.Duration               `json:"functionContainersHealthinessInterval,omitempty"`
+	DefaultFunctionContainerNetworkName   string                      `json:"defaultFunctionContainerNetworkName,omitempty"`
+	DefaultFunctionRestartPolicy          *dockerclient.RestartPolicy `json:"defaultFunctionRestartPolicy,omitempty"`
+	DefaultFunctionVolumes                []functionconfig.Volume     `json:"defaultFunctionVolumes,omitempty"`
 }
 
 type ImageRegistryOverridesConfig struct {
@@ -256,4 +287,68 @@ const (
 type StreamMonitoringConfig struct {
 	WebapiURL              string `json:"webapiURL,omitempty"`
 	V3ioRequestConcurrency uint   `json:"v3ioRequestConcurrency,omitempty"`
+}
+
+type SensitiveFieldPath string
+
+type SensitiveFieldsConfig struct {
+
+	// CustomSensitiveFields is a list of fields that should be masked in logs and function config
+	MaskSensitiveFields   bool             `json:"maskSensitiveFields,omitempty"`
+	CustomSensitiveFields []string         `json:"customSensitiveFields,omitempty"`
+	SensitiveFieldsRegex  []*regexp.Regexp `json:"sensitiveFieldsRegex,omitempty"`
+}
+
+func (sfc *SensitiveFieldsConfig) GetDefaultSensitiveFields() []string {
+	return []string{
+
+		// build
+		"^/spec/build/codeentryattributes/password$",
+		"^/spec/build/codeentryattributes/s3secretaccesskey$",
+		"^/spec/build/codeentryattributes/s3sessiontoken$",
+		"^/spec/build/codeentryattributes/headers/authorization$",
+		"^/spec/build/codeentryattributes/headers/x-v3io-session-key$",
+
+		// volumes
+		"^/spec/volumes\\[\\d+\\]/volume/volumesource/flexvolume/options/accesskey$",
+		"^/spec/volumes\\[\\d+\\]/volume/flexvolume/options/accesskey$",
+
+		// triggers - global
+		"^/spec/triggers/.+/password$",
+		"^/spec/triggers/.+/secret$",
+		// triggers - specific
+		// - v3io stream
+		"^/spec/triggers/.+/attributes/password$",
+		// - kinesis
+		"^/spec/triggers/.+/attributes/accesskeyid$",
+		"^/spec/triggers/.+/attributes/secretaccesskey$",
+		// - kafka
+		"^/spec/triggers/.+/attributes/cacert$",
+		"^/spec/triggers/.+/attributes/accesskey$",
+		"^/spec/triggers/.+/attributes/accesscertificate$",
+		"^/spec/triggers/.+/attributes/sasl/password$",
+		"^/spec/triggers/.+/attributes/sasl/oauth/clientsecret$",
+		// - kafka annotations
+		"^/metadata/annotations/nuclio.io/kafka-ca-cert$",
+		"^/metadata/annotations/nuclio.io/kafka-access-key$",
+		"^/metadata/annotations/nuclio.io/kafka-access-cert$",
+		"^/metadata/annotations/nuclio.io/kafka-sasl-password$",
+		"^/metadata/annotations/nuclio.io/kafka-sasl-oauth-client-secret$",
+		"^/metadata/annotations/nuclio.io/kafka-sasl-oauth-token-url$",
+	}
+}
+
+func (sfc *SensitiveFieldsConfig) GetSensitiveFields() []string {
+	return append(sfc.CustomSensitiveFields, sfc.GetDefaultSensitiveFields()...)
+}
+
+func (sfc *SensitiveFieldsConfig) CompileSensitiveFieldsRegex() []*regexp.Regexp {
+	if sfc.SensitiveFieldsRegex == nil {
+		for _, field := range sfc.GetSensitiveFields() {
+
+			// compile each regular expression as case-insensitive
+			sfc.SensitiveFieldsRegex = append(sfc.SensitiveFieldsRegex, regexp.MustCompile("(?i)"+field))
+		}
+	}
+	return sfc.SensitiveFieldsRegex
 }

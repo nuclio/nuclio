@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"net/url"
@@ -148,21 +147,24 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 }
 
 // Build builds the handler
-func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
+func (b *Builder) Build(ctx context.Context, options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 	var inferredCodeEntryType string
 	var configurationRead bool
 
 	b.options = options
 
-	b.logger.InfoWith("Building",
+	b.logger.InfoWithCtx(ctx,
+		"Building",
 		"builderKind", b.platform.GetContainerBuilderKind(),
 		"versionInfo", b.versionInfo,
 		"name", b.options.FunctionConfig.Meta.Name)
 
 	// TODO: delete b.providedFunctionConfigFilePath call from here, as it is called again from b.readConfiguration
 	configFilePath := b.providedFunctionConfigFilePath()
-	b.logger.DebugWith("Function configuration found in directory", "configFilePath", configFilePath)
+	b.logger.DebugWithCtx(ctx,
+		"Function configuration found in directory",
+		"configFilePath", configFilePath)
 	if common.IsFile(configFilePath) {
 		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
@@ -258,7 +260,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	// build the processor image
-	processorImage, err := b.buildProcessorImage()
+	processorImage, err := b.buildProcessorImage(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build processor image")
 	}
@@ -272,7 +274,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
-	b.logger.InfoWith("Build complete", "result", buildResult)
+	// info log only the image name, so that the un-scrubbed function config won't be logged to the user
+	b.logger.InfoWithCtx(ctx, "Build complete", "image", buildResult.Image)
+	b.logger.DebugWithCtx(ctx, "Build complete", "result", buildResult)
 
 	return buildResult, nil
 }
@@ -325,9 +329,10 @@ func (b *Builder) GenerateDockerfileContents(baseImage string,
 	imageArtifactPaths map[string]string,
 	directives map[string][]functionconfig.Directive,
 	healthCheckRequired bool,
+	healthCheckInterval time.Duration,
 	buildArgs map[string]string) (string, error) {
 
-	// now that all artifacts are in the artifacts directory, we can craft a Dockerfile
+	// now that all artifacts are in the artifacts' directory, we can craft a Dockerfile
 	dockerfileTemplateContents := `# Multistage builds
 
 {{ range $onbuildStage := .OnbuildStages }}
@@ -364,7 +369,7 @@ COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
 
 {{ if .HealthcheckRequired }}
 # Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+HEALTHCHECK --interval={{ .HealthcheckIntervalSeconds }} --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 {{ end }}
 
 # Run the post-copy directives
@@ -395,14 +400,15 @@ CMD [ "processor" ]
 
 	var dockerfileTemplateBuffer bytes.Buffer
 	if err := dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
-		"BaseImage":            baseImage,
-		"OnbuildStages":        onbuildStages,
-		"OnbuildArtifactPaths": onbuildArtifactPaths,
-		"ImageArtifactPaths":   imageArtifactPaths,
-		"PreCopyDirectives":    directives["preCopy"],
-		"PostCopyDirectives":   directives["postCopy"],
-		"HealthcheckRequired":  healthCheckRequired,
-		"BuildArgs":            buildArgs,
+		"BaseImage":                  baseImage,
+		"OnbuildStages":              onbuildStages,
+		"OnbuildArtifactPaths":       onbuildArtifactPaths,
+		"ImageArtifactPaths":         imageArtifactPaths,
+		"PreCopyDirectives":          directives["preCopy"],
+		"PostCopyDirectives":         directives["postCopy"],
+		"HealthcheckRequired":        healthCheckRequired,
+		"HealthcheckIntervalSeconds": fmt.Sprintf("%ds", int(healthCheckInterval.Seconds())),
+		"BuildArgs":                  buildArgs,
 	}); err != nil {
 		return "", errors.Wrap(err, "Failed to run template")
 	}
@@ -491,9 +497,9 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	// python is just a reference to python:3.7
+	// python is just a reference
 	if b.options.FunctionConfig.Spec.Runtime == "python" {
-		b.options.FunctionConfig.Spec.Runtime = "python:3.7"
+		b.options.FunctionConfig.Spec.Runtime = "python:3.9"
 	}
 
 	// if the function handler isn't set, ask runtime
@@ -623,7 +629,7 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	sourceFilePath := path.Join(tempDir, moduleFileName)
 
 	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
-	if err := ioutil.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644)); err != nil {
+	if err := os.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644)); err != nil {
 		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFilePath)
 	}
 
@@ -807,7 +813,7 @@ func (b *Builder) resolveUserSpecifiedWorkdir(mainDir string) (string, error) {
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 	// read the file once for logging
-	functionConfigContents, err := ioutil.ReadFile(functionConfigPath)
+	functionConfigContents, err := os.ReadFile(functionConfigPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read function configuration file")
 	}
@@ -903,7 +909,7 @@ func (b *Builder) createTempDir() error {
 		err = os.MkdirAll(b.tempDir, 0744)
 
 	} else {
-		b.tempDir, err = ioutil.TempDir("", "nuclio-build-")
+		b.tempDir, err = os.MkdirTemp("", "nuclio-build-")
 	}
 
 	if err != nil {
@@ -1015,7 +1021,7 @@ func (b *Builder) cleanupTempDir() error {
 	return nil
 }
 
-func (b *Builder) buildProcessorImage() (string, error) {
+func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	buildArgs := b.getBuildArgs()
 
 	// get override base and onbuild image registries from the platform configuration
@@ -1044,7 +1050,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		}
 	}
 
-	processorDockerfileInfo, err := b.createProcessorDockerfile(baseImageRegistry, onbuildImageRegistry)
+	processorDockerfileInfo, err := b.createProcessorDockerfile(ctx, baseImageRegistry, onbuildImageRegistry)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
@@ -1052,11 +1058,12 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	taggedImageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
-	b.logger.InfoWith("Building processor image",
+	b.logger.InfoWithCtx(ctx,
+		"Building processor image",
 		"registryURL", registryURL,
 		"taggedImageName", taggedImageName)
 
-	err = b.platform.BuildAndPushContainerImage(context.Background(),
+	err = b.platform.BuildAndPushContainerImage(ctx,
 		&containerimagebuilderpusher.BuildOptions{
 			ContextDir:     b.stagingDir,
 			Image:          taggedImageName,
@@ -1104,7 +1111,9 @@ func (b *Builder) resolveRepoName(registryURL string) string {
 	return repoName
 }
 
-func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildImageRegistry string) (
+func (b *Builder) createProcessorDockerfile(ctx context.Context,
+	baseImageRegistry string,
+	onbuildImageRegistry string) (
 	*runtime.ProcessorDockerfileInfo, error) {
 
 	// get the contents of the processor dockerfile from the runtime
@@ -1114,13 +1123,14 @@ func (b *Builder) createProcessorDockerfile(baseImageRegistry string, onbuildIma
 	}
 
 	// log the resulting dockerfile
-	b.logger.DebugWith("Created processor Dockerfile",
+	b.logger.DebugWithCtx(ctx,
+		"Created processor Dockerfile",
 		"dockerfileInfo", processorDockerfileInfo.DockerfileContents,
 		"baseImageRegistry", baseImageRegistry,
 		"onbuildImageRegistry", onbuildImageRegistry)
 
 	// write the contents to the path
-	if err := ioutil.WriteFile(processorDockerfileInfo.DockerfilePath,
+	if err := os.WriteFile(processorDockerfileInfo.DockerfilePath,
 		[]byte(processorDockerfileInfo.DockerfileContents),
 		0644); err != nil {
 		return nil, errors.Wrap(err, "Failed to write processor Dockerfile")
@@ -1172,7 +1182,7 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 	tempFileName := path.Join(os.TempDir(), fileName)
 
 	// write the temporary file
-	if err := ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0744)); err != nil {
+	if err := os.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0744)); err != nil {
 		return "", errors.Wrap(err, "Failed to write temporary file")
 	}
 
@@ -1268,12 +1278,18 @@ func (b *Builder) getRuntimeProcessorDockerfileInfo(baseImageRegistry string, on
 	// path where generated dockerfile should reside (staging)
 	processorDockerfileInfo.DockerfilePath = filepath.Join(b.stagingDir, "Dockerfile.processor")
 
+	healthCheckInterval, err := b.resolveFunctionHealthCheckInterval()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve function health check interval")
+	}
+
 	// generate dockerfile contents
 	processorDockerfileInfo.DockerfileContents, err = b.GenerateDockerfileContents(processorDockerfileInfo.BaseImage,
 		processorDockerfileInfo.OnbuildArtifacts,
 		processorDockerfileInfo.ImageArtifactPaths,
 		directives,
 		b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient,
+		healthCheckInterval,
 		processorDockerfileInfo.BuildArgs)
 
 	if err != nil {
@@ -1532,7 +1548,7 @@ func (b *Builder) getSourceCodeFromFilePath() (string, error) {
 
 	// if user supplied a file containing printable only characters (i.e. not a zip, jar, etc) - copy the contents
 	// to functionSourceCode so that the dashboard may display it
-	functionContents, err := ioutil.ReadFile(b.options.FunctionConfig.Spec.Build.Path)
+	functionContents, err := os.ReadFile(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to read file contents to source code")
 	}
@@ -1778,7 +1794,7 @@ func (b *Builder) getFunctionTempFile(tempDir string,
 		} else {
 			fileExtension = fmt.Sprint(fileArchiver)
 		}
-		return ioutil.TempFile(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
+		return os.CreateTemp(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
 	}
 
 	// for non-archives, must retain file name
@@ -1797,4 +1813,25 @@ func (b *Builder) resolveBuildTimeoutSeconds() int64 {
 
 	// default timeout in seconds
 	return 60 * 60
+}
+
+func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
+	var err error
+	var healthCheckInterval = time.Second
+	if b.options.FunctionConfig.Spec.Platform.Attributes != nil {
+		if healthCheckIntervalString, ok := b.options.FunctionConfig.Spec.Platform.Attributes["healthCheckInterval"]; ok {
+			switch healthCheckIntervalValue := healthCheckIntervalString.(type) {
+			case string:
+				healthCheckInterval, err = time.ParseDuration(healthCheckIntervalValue)
+				if err != nil {
+					return 0, errors.Wrap(err, "Failed to parse health check interval")
+				}
+			case int:
+				healthCheckInterval = time.Duration(healthCheckIntervalValue) * time.Second
+			default:
+				return 0, errors.New("Failed to parse health check interval")
+			}
+		}
+	}
+	return healthCheckInterval, nil
 }

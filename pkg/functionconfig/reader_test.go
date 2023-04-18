@@ -22,11 +22,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 )
 
 type ReaderTestSuite struct {

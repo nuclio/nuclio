@@ -21,7 +21,6 @@ package restful
 import (
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -36,9 +35,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-//
 // Base resource
-//
 type resource struct {
 	*AbstractResource
 }
@@ -54,6 +51,10 @@ func (r *resource) respondWithError(request *http.Request) (bool, error) {
 
 	if request.Header.Get("return") == "error-with-status-202" {
 		return true, nuclio.ErrAccepted
+	}
+
+	if request.Header.Get("return") == "error-with-status-204" {
+		return true, nuclio.ErrNoContent
 	}
 
 	if request.Header.Get("return") == "error-with-status-409" {
@@ -126,7 +127,7 @@ func (suite *resourceTestSuite) sendRequest(method string,
 	response, err := http.DefaultClient.Do(request)
 	suite.Require().NoError(err)
 
-	encodedResponseBody, err := ioutil.ReadAll(response.Body)
+	encodedResponseBody, err := io.ReadAll(response.Body)
 	suite.Require().NoError(err)
 
 	defer response.Body.Close()
@@ -276,6 +277,14 @@ func (r1 *r1Resource) Delete(request *http.Request, id string) error {
 	return nil
 }
 
+func (r1 *r1Resource) Patch(request *http.Request, id string) error {
+	if respondWithError, err := r1.respondWithError(request); respondWithError {
+		return err
+	}
+
+	return nil
+}
+
 func (r1 *r1Resource) getCustomSingle(request *http.Request) (*CustomRouteFuncResponse, error) {
 	resourceID := chi.URLParam(request, "id")
 
@@ -331,6 +340,7 @@ func (suite *r1TestSuite) SetupTest() {
 				ResourceMethodCreate,
 				ResourceMethodUpdate,
 				ResourceMethodDelete,
+				ResourceMethodPatch,
 			}),
 		},
 	}
@@ -443,6 +453,15 @@ func (suite *r1TestSuite) TestDeleteErrors() {
 	suite.sendErrorRequests("DELETE", "/r1/123")
 }
 
+func (suite *r1TestSuite) TestPatch() {
+	code := http.StatusNoContent
+	suite.sendRequest("PATCH", "/r1/123", nil, nil, &code, nil, nil)
+}
+
+func (suite *r1TestSuite) TestPatchErrors() {
+	suite.sendErrorRequests("PATCH", "/r1/123")
+}
+
 //
 // R2
 //
@@ -473,6 +492,10 @@ func (r2 *r2Resource) Delete(request *http.Request, id string) error {
 	return nuclio.ErrNotFound
 }
 
+func (r2 *r2Resource) Patch(request *http.Request, id string) error {
+	return nuclio.ErrNotFound
+}
+
 // test suite
 type r2TestSuite struct {
 	resourceTestSuite
@@ -488,6 +511,7 @@ func (suite *r2TestSuite) SetupTest() {
 			ResourceMethodCreate,
 			ResourceMethodUpdate,
 			ResourceMethodDelete,
+			ResourceMethodPatch,
 		}),
 	}
 	suite.r2Resource.Resource = suite.r2Resource
@@ -563,9 +587,7 @@ func (suite *r3TestSuite) TestUpdate() {
 	})
 }
 
-//
 // Run suites
-//
 func TestResourceTestSuite(t *testing.T) {
 	suite.Run(t, new(r1TestSuite))
 	suite.Run(t, new(r2TestSuite))

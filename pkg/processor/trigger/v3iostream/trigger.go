@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
@@ -179,11 +180,9 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 	// submit the events in a goroutine so that we can unblock immediately
 	go vs.eventSubmitter(claim, submittedEventChan)
 
-	if vs.configuration.AckWindowSize > 0 {
-		vs.Logger.DebugWith("Starting claim consumption with ack window",
-			"shardID", claim.GetShardID(),
-			"ackWindowSize", vs.configuration.AckWindowSize)
-	}
+	vs.Logger.DebugWith("Starting claim consumption",
+		"shardID", claim.GetShardID(),
+		"ackWindowSize", vs.configuration.AckWindowSize)
 
 	commitRecordFuncHandler := vs.resolveCommitRecordFuncHandler(session)
 
@@ -455,7 +454,7 @@ func (vs *v3iostream) resolveNoAckMessage(response interface{}, submittedEvent *
 	}
 
 	// check response header for no-ack
-	if noAckHeader, exists := responseHeaders["x-nuclio-stream-no-ack"]; exists {
+	if noAckHeader, exists := responseHeaders[headers.StreamNoAck]; exists {
 
 		// convert header to boolean
 		if noAckHeaderBool, ok := noAckHeader.(bool); ok && noAckHeaderBool {

@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -28,6 +28,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -50,6 +51,10 @@ type functionInfo struct {
 	Status *functionconfig.Status `json:"status,omitempty"`
 }
 
+type PatchOptions struct {
+	DesiredState *functionconfig.FunctionState `json:"desiredState,omitempty"`
+}
+
 func (fr *functionResource) ExtendMiddlewares() error {
 	fr.resource.addAuthMiddleware(nil)
 	return nil
@@ -66,7 +71,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	functionName := request.Header.Get("x-nuclio-function-name")
+	functionName := request.Header.Get(headers.FunctionName)
 	getFunctionOptions := fr.resolveGetFunctionOptionsFromRequest(request, functionName, false)
 	functions, err := fr.getPlatform().GetFunctions(ctx, getFunctionOptions)
 	if err != nil {
@@ -145,7 +150,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
+	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
 
 	// validation finished successfully - store and deploy the given function
 	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
@@ -169,13 +174,35 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 		return
 	}
 
-	waitForFunction := fr.headerValueIsTrue(request, "x-nuclio-wait-function-action")
+	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
 
 	if responseErr = fr.storeAndDeployFunction(request, functionInfo, authConfig, waitForFunction); responseErr != nil {
 		return
 	}
 
 	return nil, nuclio.ErrAccepted
+}
+
+// Patch applies partial modifications to a function
+func (fr *functionResource) Patch(request *http.Request, id string) error {
+
+	// get the desired state of the function from the request body
+	patchOptionsInstance, err := fr.getPatchFunctionOptionsFromRequest(request)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get patch options")
+	}
+
+	// get the authentication configuration for the request
+	authConfig, err := fr.getRequestAuthConfig(request)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get auth config")
+	}
+
+	if patchOptionsInstance.DesiredState != nil {
+		return fr.patchFunctionDesiredState(request, id, patchOptionsInstance, authConfig)
+	}
+
+	return nil
 }
 
 // GetCustomRoutes returns a list of custom routes for the resource
@@ -204,6 +231,7 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 }
 
 func (fr *functionResource) export(ctx context.Context, function platform.Function) restful.Attributes {
+
 	functionConfig := function.GetConfig()
 
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
@@ -223,7 +251,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	functionInfo *functionInfo,
 	authConfig *platform.AuthConfig,
 	waitForFunction bool) error {
-	creationStateUpdatedTimeout := 1 * time.Minute
+	creationStateUpdatedTimeout := fr.getCreationStateUpdatedTimeout(request)
 
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
@@ -437,7 +465,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 		IgnoreFunctionStateValidation: fr.headerValueIsTrue(request,
-			"x-nuclio-delete-function-ignore-state-validation"),
+			headers.DeleteFunctionIgnoreStateValidation),
 	}
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
@@ -454,6 +482,48 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 		Single:       true,
 		StatusCode:   http.StatusNoContent,
 	}, nil
+}
+
+func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
+	id string,
+	options *PatchOptions,
+	authConfig *platform.AuthConfig) error {
+
+	switch *options.DesiredState {
+	case functionconfig.FunctionStateReady:
+		return fr.redeployFunction(request, id, authConfig)
+	default:
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported desired state in patch request: %s",
+			*options.DesiredState))
+	}
+}
+
+func (fr *functionResource) redeployFunction(request *http.Request,
+	id string,
+	authConfig *platform.AuthConfig) error {
+
+	// get function
+	function, err := fr.getFunction(request, id)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get get function")
+	}
+
+	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
+
+	fr.Logger.DebugWith("Redeploying function", "functionName", id)
+
+	// Deploy function
+	functionInfoInstance := &functionInfo{
+		Meta:   &function.GetConfig().Meta,
+		Spec:   &function.GetConfig().Spec,
+		Status: function.GetStatus(),
+	}
+
+	if responseErr := fr.storeAndDeployFunction(request, functionInfoInstance, authConfig, waitForFunction); responseErr != nil {
+		return responseErr
+	}
+
+	return nuclio.ErrNoContent
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
@@ -475,13 +545,13 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 func (fr *functionResource) getNamespaceFromRequest(request *http.Request) string {
 
 	// get the namespace provided by the user or the default namespace
-	return fr.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-namespace"))
+	return fr.getNamespaceOrDefault(request.Header.Get(headers.FunctionNamespace))
 }
 
 func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {
 
 	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read body")
 	}
@@ -490,7 +560,22 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	if err := json.Unmarshal(body, &functionInfoInstance); err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
-	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get("x-nuclio-project-name"))
+	return fr.processFunctionInfo(&functionInfoInstance, request.Header.Get(headers.ProjectName))
+}
+
+func (fr *functionResource) getPatchFunctionOptionsFromRequest(request *http.Request) (*PatchOptions, error) {
+
+	// read body
+	body, err := io.ReadAll(request.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read body")
+	}
+
+	patchOptionsInstance := PatchOptions{}
+	if err := json.Unmarshal(body, &patchOptionsInstance); err != nil {
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+	return &patchOptionsInstance, nil
 }
 
 func (fr *functionResource) resolveNamespace(request *http.Request, function *functionInfo) string {
@@ -524,7 +609,7 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace:             fr.getNamespaceFromRequest(request),
 		Name:                  functionName,
-		EnrichWithAPIGateways: fr.headerValueIsTrue(request, "x-nuclio-function-enrich-apigateways"),
+		EnrichWithAPIGateways: fr.headerValueIsTrue(request, headers.FunctionEnrichApiGateways),
 		AuthSession:           fr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
@@ -534,7 +619,7 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 	}
 
 	// if the user wants to filter by project, do that
-	projectNameFilter := request.Header.Get("x-nuclio-project-name")
+	projectNameFilter := request.Header.Get(headers.ProjectName)
 	if projectNameFilter != "" {
 		getFunctionsOptions.Labels = fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName,
 			projectNameFilter)
@@ -624,6 +709,25 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 
 }
 
+func (fr *functionResource) getCreationStateUpdatedTimeout(request *http.Request) time.Duration {
+	timeoutDuration := 1 * time.Minute
+
+	// get the timeout from the request header
+	timeout := request.Header.Get(headers.CreationStateUpdatedTimeout)
+	if timeout != "" {
+
+		// parse the timeout
+		if parsedTimeoutDuration, err := time.ParseDuration(timeout); err != nil {
+			fr.Logger.WarnWith("Failed to parse timeout from header, using default",
+				"timeout", timeout,
+				"err", err)
+		} else {
+			timeoutDuration = parsedTimeoutDuration
+		}
+	}
+	return timeoutDuration
+}
+
 // register the resource
 var functionResourceInstance = &functionResource{
 	resource: newResource("api/functions", []restful.ResourceMethod{
@@ -631,6 +735,7 @@ var functionResourceInstance = &functionResource{
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,
 		restful.ResourceMethodUpdate,
+		restful.ResourceMethodPatch,
 	}),
 }
 

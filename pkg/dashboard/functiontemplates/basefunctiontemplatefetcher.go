@@ -23,10 +23,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/ghodss/yaml"
 	"github.com/icza/dyno"
 	"github.com/nuclio/errors"
 	"github.com/rs/xid"
+	"sigs.k8s.io/yaml"
 )
 
 type BaseFunctionTemplateFetcher struct {

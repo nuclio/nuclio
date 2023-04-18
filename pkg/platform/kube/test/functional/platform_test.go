@@ -19,6 +19,7 @@ limitations under the License.
 package test
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -40,9 +41,9 @@ import (
 )
 
 // PlatformTestSuite requires
-// - minikube >= 1.22.0 (https://minikube.sigs.k8s.io/docs/start/) with a preinstalled cluster. e.g.:
-//	  > minikube start --profile nuclio-test --kubernetes-version v1.23.8 --driver docker --addons registry --ports=127.0.0.1:30060:30060
-// - helm >= 3.3.0 (https://helm.sh/docs/intro/install/)
+//   - minikube >= 1.22.0 (https://minikube.sigs.k8s.io/docs/start/) with a preinstalled cluster. e.g.:
+//     > minikube start --profile nuclio-test --kubernetes-version v1.24.11 --driver docker --addons registry --ports=127.0.0.1:30060:30060
+//   - helm >= 3.3.0 (https://helm.sh/docs/intro/install/)
 type PlatformTestSuite struct {
 	suite.Suite
 	logger          logger.Logger
@@ -51,6 +52,7 @@ type PlatformTestSuite struct {
 	minikubeProfile string
 	namespace       string
 	backendAPIURL   string
+	httpClient      *http.Client
 }
 
 func (suite *PlatformTestSuite) SetupSuite() {
@@ -69,6 +71,16 @@ func (suite *PlatformTestSuite) SetupSuite() {
 	// assumes that minikube exposed the backend API on port 30060
 	suite.backendAPIURL = common.GetEnvOrDefaultString("NUCLIO_TEST_BACKEND_API_URL", "http://localhost:30060/api")
 	suite.registryURL = suite.resolveInClusterRegistryURL()
+
+	suite.httpClient = &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: true,
+			},
+		},
+	}
 }
 
 func (suite *PlatformTestSuite) SetupTest() {
@@ -97,7 +109,7 @@ func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 func (suite *PlatformTestSuite) compileFunctionConfig() *functionconfig.Config {
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Namespace = suite.namespace
-	functionConfig.Meta.Name = "test-func" + xid.New().String()
+	functionConfig.Meta.Name = "test-func-" + xid.New().String()
 	functionConfig.Spec.RunRegistry = suite.registryURL
 	functionConfig.Spec.Build.Registry = suite.registryURL
 	functionConfig.Spec.Handler = "main:handler"
@@ -266,7 +278,7 @@ func (suite *PlatformTestSuite) createFunction(functionConfig *functionconfig.Co
 	encodedFunctionConfig, err := json.Marshal(functionConfig)
 	suite.Require().NoError(err)
 
-	_, _, err = common.SendHTTPRequest(nil,
+	_, _, err = common.SendHTTPRequest(suite.httpClient,
 		http.MethodPost,
 		suite.backendAPIURL+"/functions",
 		encodedFunctionConfig,
@@ -277,7 +289,7 @@ func (suite *PlatformTestSuite) createFunction(functionConfig *functionconfig.Co
 }
 
 func (suite *PlatformTestSuite) getFunction(functionName string) (*functionconfig.ConfigWithStatus, error) {
-	responseBody, response, err := common.SendHTTPRequest(nil,
+	responseBody, response, err := common.SendHTTPRequest(suite.httpClient,
 		http.MethodGet,
 		fmt.Sprintf("%s/functions/%s", suite.backendAPIURL, functionName),
 		nil,

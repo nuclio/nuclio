@@ -18,12 +18,10 @@ package platform
 
 import (
 	"context"
-	"math/rand"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -39,9 +37,6 @@ type Function interface {
 
 	// GetStatus returns the state of the function
 	GetStatus() *functionconfig.Status
-
-	// GetInvokeURL returns the URL on which the function can be invoked
-	GetInvokeURL(context.Context, InvokeViaType) (string, error)
 
 	// GetReplicas returns the current # of replicas and the configured # of replicas
 	GetReplicas() (int, int)
@@ -97,11 +92,6 @@ func (af *AbstractFunction) GetVersion() string {
 	return strconv.Itoa(af.Config.Spec.Version)
 }
 
-// GetInvokeURL returns the URL on which the function can be invoked
-func (af *AbstractFunction) GetInvokeURL(context.Context, InvokeViaType) (string, error) {
-	return "", errors.New("Unsupported")
-}
-
 // GetReplicas returns the current # of replicas and the configured # of replicas
 func (af *AbstractFunction) GetReplicas() (int, int) {
 	return 0, 0
@@ -110,20 +100,6 @@ func (af *AbstractFunction) GetReplicas() (int, int) {
 // GetStatus returns the state of the function
 func (af *AbstractFunction) GetStatus() *functionconfig.Status {
 	return &af.Status
-}
-
-// GetExternalIPInvocationURL returns function external invocation url
-func (af *AbstractFunction) GetExternalIPInvocationURL() (string, int, error) {
-	externalIPAddresses, err := af.Platform.GetExternalIPAddresses()
-	if err != nil || len(externalIPAddresses) == 0 {
-		return "", 0, errors.New("No external IP addresses found")
-	}
-
-	// get a random external IP address
-	chosenExternalIPAddress := externalIPAddresses[rand.Intn(len(externalIPAddresses))]
-
-	// return it and the port
-	return chosenExternalIPAddress, af.function.GetStatus().HTTPPort, nil
 }
 
 // GetConfigWithStatus returns both function config and status

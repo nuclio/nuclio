@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 
 	"github.com/valyala/fasthttp"
 )
@@ -60,6 +61,7 @@ func NewCORS() *CORS {
 			fasthttp.MethodPut,
 			fasthttp.MethodDelete,
 			fasthttp.MethodOptions,
+			fasthttp.MethodPatch,
 		},
 		AllowHeaders: []string{
 			fasthttp.HeaderAccept,
@@ -68,7 +70,7 @@ func NewCORS() *CORS {
 			fasthttp.HeaderAuthorization,
 
 			// nuclio custom
-			"X-nuclio-log-level",
+			headers.LogLevel,
 		},
 		ExposeHeaders:          []string{},
 		AllowCredentials:       false,

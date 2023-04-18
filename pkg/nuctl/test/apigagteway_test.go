@@ -21,7 +21,7 @@ package test
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path"
 	"testing"
@@ -41,7 +41,7 @@ type apiGatewayCreateGetAndDeleteTestSuite struct {
 }
 
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) SetupSuite() {
-	suite.platformKindOverride = "kube"
+	suite.platformKindOverride = common.KubePlatformName
 	suite.Suite.SetupSuite()
 }
 
@@ -126,7 +126,7 @@ type apiGatewayInvokeTestSuite struct {
 }
 
 func (suite *apiGatewayInvokeTestSuite) SetupSuite() {
-	suite.platformKindOverride = "kube"
+	suite.platformKindOverride = common.KubePlatformName
 	suite.Suite.SetupSuite()
 }
 
@@ -189,7 +189,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 
 	// invoke the api-gateway URL to make sure it works (we get the expected function response)
 	// we retry as it takes some time for apigw resource create function ingress
-	err = common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+	err = common.RetryUntilSuccessful(90*time.Second, 1*time.Second, func() bool {
 		request := createHTTPRequest()
 		if authenticationMode == ingress.AuthenticationModeBasicAuth {
 			request.SetBasicAuth(basicAuthUsername, basicAuthPassword)
@@ -269,7 +269,7 @@ func (suite *apiGatewayInvokeTestSuite) invokeHTTPRequest(request *http.Request)
 	}
 
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		suite.logger.WarnWith("Failed while reading response body",
 			"requestURL", request.URL,

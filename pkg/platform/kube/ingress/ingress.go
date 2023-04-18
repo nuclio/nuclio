@@ -50,16 +50,8 @@ type Manager struct {
 
 func NewManager(parentLogger logger.Logger,
 	kubecClientSet kubernetes.Interface,
+	cmdRunner cmdrunner.CmdRunner,
 	platformConfiguration *platformconfig.Config) (*Manager, error) {
-
-	managerLogger := parentLogger.GetChild("manager")
-
-	// create cmd runner
-	cmdRunner, err := cmdrunner.NewShellRunner(managerLogger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create cmd runner")
-	}
-
 	return &Manager{
 		logger:                parentLogger.GetChild("manager"),
 		cmdRunner:             cmdRunner,
@@ -83,7 +75,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 			Name:        spec.Name,
 			Namespace:   spec.Namespace,
 			Annotations: ingressAnnotations,
-			Labels:      map[string]string{},
+			Labels:      spec.Labels,
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{

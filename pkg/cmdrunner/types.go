@@ -36,7 +36,11 @@ type RunOptions struct {
 	LogRedactions     []string
 	CaptureOutputMode CaptureOutputMode
 
+	// will log if command executed successfully
 	LogOnlyOnFailure bool
+
+	// skip logging when command execution fails
+	SkipLogOnFailure bool
 }
 
 // RunResult holds command execution returned values

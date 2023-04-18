@@ -27,22 +27,6 @@ import (
 	"github.com/nuclio/errors"
 )
 
-func getNamespace(namespaceArgument string) string {
-
-	// if the namespace was passed in the arguments, use that
-	if namespaceArgument != "" {
-		return namespaceArgument
-	}
-
-	// if the namespace exists in env, use that
-	if namespaceEnv := os.Getenv("NUCLIO_DASHBOARD_NAMESPACE"); namespaceEnv != "" {
-		return namespaceEnv
-	}
-
-	// if nothing was passed, assume "this" namespace
-	return "@nuclio.selfNamespace"
-}
-
 func main() {
 	defaultOffline := os.Getenv("NUCLIO_DASHBOARD_OFFLINE") == "true"
 
@@ -64,7 +48,7 @@ func main() {
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the dashboard listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
-	platformType := flag.String("platform", "auto", "One of kube/local/auto")
+	platformType := flag.String("platform", common.AutoPlatformName, "One of kube/local/auto")
 	defaultRegistryURL := flag.String("registry", os.Getenv("NUCLIO_DASHBOARD_REGISTRY_URL"), "Default registry URL")
 	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_DASHBOARD_RUN_REGISTRY_URL"), "Default run registry URL")
 	noPullBaseImages := flag.Bool("no-pull", common.GetEnvOrDefaultBool("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES", false), "Whether to pull base images (Default: false)")
@@ -89,11 +73,12 @@ func main() {
 	authConfigIguazioCacheTimeout := flag.String("auth-config-iguazio-cache-expiration-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_CACHE_EXPIRATION_TIMEOUT", "30s"), "Iguazio authentication cache expiration timeout (golang duration string)")
 
 	// get the namespace from args -> env -> default
-	*namespace = getNamespace(*namespace)
+	*namespace = common.ResolveNamespace(*namespace, "NUCLIO_DASHBOARD_NAMESPACE")
 
 	flag.Parse()
 
-	if err := app.Run(*listenAddress,
+	if err := app.Run(
+		*listenAddress,
 		*dockerKeyDir,
 		*defaultRegistryURL,
 		*defaultRunRegistryURL,

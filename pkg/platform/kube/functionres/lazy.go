@@ -21,7 +21,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,14 +42,15 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
-	"github.com/ghodss/yaml"
 	"github.com/imdario/mergo"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	appsv1 "k8s.io/api/apps/v1"
-	autosv2 "k8s.io/api/autoscaling/v2beta1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -61,6 +61,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -406,7 +407,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 
 	// Delete HPA if exists
 	hpaName := kube.HPANameFromFunctionName(name)
-	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(ctx, hpaName, deleteOptions)
+	err = lc.kubeClientSet.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, hpaName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")
@@ -426,6 +427,11 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		lc.logger.DebugWithCtx(ctx, "Deleted service", "namespace", namespace, "serviceName", serviceName)
 	}
 
+	// Delete Secrets if exist
+	if err := lc.deleteFunctionSecrets(ctx, name, namespace); err != nil {
+		return errors.Wrap(err, "Failed to delete function secrets")
+	}
+
 	// Delete Deployment if exists
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
 	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(ctx, deploymentName, deleteOptions)
@@ -434,7 +440,8 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 			return errors.Wrap(err, "Failed to delete deployment")
 		}
 	} else {
-		lc.logger.DebugWithCtx(ctx, "Deleted deployment",
+		lc.logger.DebugWithCtx(ctx,
+			"Deleted deployment",
 			"namespace", namespace,
 			"deploymentName", deploymentName)
 	}
@@ -669,7 +676,8 @@ func (lc *lazyClient) deleteRemovedCronTriggersCronJob(ctx context.Context,
 		return nil
 	}
 
-	lc.logger.DebugWithCtx(ctx, "Deleting removed cron trigger cron job",
+	lc.logger.DebugWithCtx(ctx,
+		"Deleting removed cron trigger cron job",
 		"cronJobsToDelete", cronJobsToDelete)
 
 	errGroup, _ := errgroup.WithContext(ctx, lc.logger)
@@ -908,7 +916,10 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	}
 
 	// get volumes and volumeMounts from configuration
-	volumes, volumeMounts := lc.getFunctionVolumeAndMounts(ctx, function)
+	volumes, volumeMounts, err := lc.getFunctionVolumeAndMounts(ctx, function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function volumes and mounts")
+	}
 
 	getDeployment := func() (interface{}, error) {
 		return lc.kubeClientSet.AppsV1().
@@ -994,7 +1005,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			minReplicas := function.GetComputedMinReplicas()
 			maxReplicas := function.GetComputedMaxReplicas()
 			deploymentReplicas := deployment.Status.Replicas
-			lc.logger.DebugWithCtx(ctx, "Verifying current replicas not lower than minReplicas or higher than max",
+			lc.logger.DebugWithCtx(ctx,
+				"Verifying current replicas not lower than minReplicas or higher than max",
 				"functionName", function.Name,
 				"maxReplicas", maxReplicas,
 				"minReplicas", minReplicas,
@@ -1168,7 +1180,8 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 
 	minReplicas := function.GetComputedMinReplicas()
 	maxReplicas := function.GetComputedMaxReplicas()
-	lc.logger.DebugWithCtx(ctx, "Create/Update hpa",
+	lc.logger.DebugWithCtx(ctx,
+		"Create/Update hpa",
 		"functionName", function.Name,
 		"minReplicas", minReplicas,
 		"maxReplicas", maxReplicas)
@@ -1184,7 +1197,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
-		return lc.kubeClientSet.AutoscalingV2beta1().
+		return lc.kubeClientSet.AutoscalingV2().
 			HorizontalPodAutoscalers(function.Namespace).
 			Get(ctx, kube.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
 	}
@@ -1214,14 +1227,17 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 				MaxReplicas: maxReplicas,
 				Metrics:     metricSpecs,
 				ScaleTargetRef: autosv2.CrossVersionObjectReference{
-					APIVersion: "apps/apps_v1",
+					APIVersion: "apps/v1",
 					Kind:       "Deployment",
 					Name:       kube.DeploymentNameFromFunctionName(function.Name),
 				},
 			},
 		}
 
-		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Create(ctx, &hpa, metav1.CreateOptions{})
+		return lc.kubeClientSet.
+			AutoscalingV2().
+			HorizontalPodAutoscalers(function.Namespace).
+			Create(ctx, &hpa, metav1.CreateOptions{})
 	}
 
 	updateHorizontalPodAutoscaler := func(resourceToUpdate interface{}) (interface{}, error) {
@@ -1244,17 +1260,18 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			lc.logger.DebugWithCtx(ctx, "Deleting hpa - min replicas and max replicas are equal",
+			lc.logger.DebugWithCtx(ctx,
+				"Deleting hpa - min replicas and max replicas are equal",
 				"functionName", function.Name,
 				"name", hpa.Name)
 
-			err := lc.kubeClientSet.AutoscalingV2beta1().
+			err := lc.kubeClientSet.AutoscalingV2().
 				HorizontalPodAutoscalers(function.Namespace).
 				Delete(ctx, hpa.Name, *deleteOptions)
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Update(ctx, hpa, metav1.UpdateOptions{})
+		return lc.kubeClientSet.AutoscalingV2().HorizontalPodAutoscalers(function.Namespace).Update(ctx, hpa, metav1.UpdateOptions{})
 	}
 
 	resource, err := lc.createOrUpdateResource(ctx,
@@ -1594,6 +1611,16 @@ func (lc *lazyClient) getFunctionEnvironment(functionLabels labels.Set,
 		},
 	})
 
+	// remove internal env vars from the function spec env
+	for _, internalEnvVar := range []v1.EnvVar{
+		{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		},
+	} {
+		function.Spec.Env = common.RemoveEnvFromSlice(internalEnvVar, function.Spec.Env)
+	}
+
 	return env
 }
 
@@ -1654,7 +1681,8 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 		} else {
 			spec.Ports[0].NodePort = 0
 		}
-		lc.logger.DebugWithCtx(ctx, "Updating service node port",
+		lc.logger.DebugWithCtx(ctx,
+			"Updating service node port",
 			"functionName", function.Name,
 			"ports", spec.Ports)
 	}
@@ -1848,7 +1876,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1.ForbidConcurrent
 	if attributes.ConcurrencyPolicy != "" {
-		concurrencyPolicy = batchv1.ConcurrencyPolicy(strings.Title(attributes.ConcurrencyPolicy))
+		concurrencyPolicy = batchv1.ConcurrencyPolicy(cases.Title(language.Und).String(attributes.ConcurrencyPolicy))
 	}
 	spec.ConcurrencyPolicy = concurrencyPolicy
 
@@ -1911,10 +1939,9 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		function.Status.State != functionconfig.FunctionStateImported &&
 		function.GetComputedMinReplicas() == 0 &&
 		function.GetComputedMaxReplicas() > 0 {
-		platformConfiguration := lc.platformConfigurationProvider.GetPlatformConfiguration()
 
 		// enrich if not exists
-		for key, value := range platformConfiguration.ScaleToZero.HTTPTriggerIngressAnnotations {
+		for key, value := range platformConfig.ScaleToZero.HTTPTriggerIngressAnnotations {
 			if _, ok := meta.Annotations[key]; !ok {
 				meta.Annotations[key] = value
 			}
@@ -1930,12 +1957,22 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 		}
 	}
 
+	if _, exists := meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"]; !exists &&
+		platformConfig.IngressConfig.EnableSSLRedirect {
+		meta.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
+	}
+
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []networkingv1.IngressRule{}
 	spec.TLS = []networkingv1.IngressTLS{}
 
 	ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
 	for _, ingress := range ingresses {
+
+		if err := lc.enrichIngressWithDefaultValues(&ingress); err != nil {
+			return errors.Wrap(err, "Failed to enrich ingress with default values")
+		}
+
 		if err := lc.addIngressToSpec(ctx, &ingress, functionLabels, function, spec); err != nil {
 			return errors.Wrap(err, "Failed to add ingress to spec")
 		}
@@ -2075,9 +2112,10 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 				Path: http.InternalHealthPath,
 			},
 		},
-		InitialDelaySeconds: 1,
+		InitialDelaySeconds: 5,
 		TimeoutSeconds:      1,
 		PeriodSeconds:       1,
+		FailureThreshold:    10,
 	}
 
 	container.LivenessProbe = &v1.Probe{
@@ -2145,7 +2183,7 @@ func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 }
 
 func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
-	function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount) {
+	function *nuclioio.NuclioFunction) ([]v1.Volume, []v1.VolumeMount, error) {
 	trueVal := true
 	var configVolumes []functionconfig.Volume
 	var filteredFunctionVolumes []functionconfig.Volume
@@ -2185,8 +2223,17 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	}
 	function.Spec.Volumes = filteredFunctionVolumes
 
-	// merge from functionconfig and injected configuration
-	configVolumes = append(configVolumes, function.Spec.Volumes...)
+	// merge volumes from function spec, use deep copy to avoid mutating the original
+	for _, volume := range function.Spec.Volumes {
+		configVolumeCopy := volume.Volume.DeepCopy()
+		configVolumeMountCopy := volume.VolumeMount.DeepCopy()
+		configVolumes = append(configVolumes, functionconfig.Volume{
+			Volume:      *configVolumeCopy,
+			VolumeMount: *configVolumeMountCopy,
+		})
+	}
+
+	// merge injected configuration
 	configVolumes = append(configVolumes, processorConfigVolume)
 	configVolumes = append(configVolumes, platformConfigVolume)
 
@@ -2199,27 +2246,37 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	volumeNameToVolumeMounts := map[string][]v1.VolumeMount{}
 
 	for _, configVolume := range configVolumes {
-		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == "v3io/fuse" {
+		if configVolume.Volume.FlexVolume != nil && configVolume.Volume.FlexVolume.Driver == functionconfig.SecretTypeV3ioFuse {
 
-			// make sure the given sub path matches the needed structure. fix in case it doesn't
-			subPath, subPathExists := configVolume.Volume.FlexVolume.Options["subPath"]
-			if subPathExists && len(subPath) != 0 {
+			// add secret ref to the volume if access key is scrubbed
+			accessKey, accessKeyExists := configVolume.Volume.FlexVolume.Options["accessKey"]
+			if accessKeyExists && strings.HasPrefix(accessKey, functionconfig.ReferencePrefix) {
 
-				// insert slash in the beginning in case it wasn't given (example: "my/path" -> "/my/path")
-				if !filepath.IsAbs(subPath) {
-					subPath = "/" + subPath
+				// get the flex volume secret name
+				volumeName := configVolume.Volume.Name
+				secretName, err := lc.getFlexVolumeSecretName(ctx, function, volumeName)
+				if err != nil {
+					lc.logger.WarnWithCtx(ctx,
+						"Failed to get flex volume secret name for access key value",
+						"err", err.Error(),
+						"volumeName", configVolume.Volume.Name,
+						"functionName", function.Name)
+					return nil, nil, errors.Wrap(err, "Failed to get flex volume secret name for access key value")
 				}
 
-				subPath = filepath.Clean(subPath)
-				if subPath == "/" {
-					subPath = ""
+				// add secret ref to the flex volume
+				configVolume.Volume.FlexVolume.SecretRef = &v1.LocalObjectReference{
+					Name: secretName,
 				}
 
-				configVolume.Volume.FlexVolume.Options["subPath"] = subPath
+				// remove access key from the flex volume options, so the volume will read it from the secret
+				// and not try to use the $ref from the options as the access key
+				delete(configVolume.Volume.FlexVolume.Options, "accessKey")
 			}
 		}
 
-		lc.logger.DebugWithCtx(ctx, "Adding volume",
+		lc.logger.DebugWithCtx(ctx,
+			"Adding volume",
 			"configVolume", configVolume,
 			"functionName", function.Name)
 
@@ -2229,6 +2286,58 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 		// same volume name can be shared by n volume mounts
 		volumeNameToVolumeMounts[configVolume.Volume.Name] = append(volumeNameToVolumeMounts[configVolume.Volume.Name],
 			configVolume.VolumeMount)
+	}
+
+	// volume the function secret as optional
+	secretVolumeName := "function-secret"
+	secretName, err := lc.getFunctionSecretName(ctx, function)
+	if err != nil {
+
+		// if the function doesn't have a secret, it's ok
+		if strings.Contains(err.Error(), "not found") ||
+			strings.Contains(errors.Cause(err).Error(), "not found") {
+			lc.logger.DebugWithCtx(ctx,
+				"Function secret not found, continuing",
+				"functionName", function.Name)
+		} else {
+			return nil, nil, errors.Wrap(err, "Failed to get function secret name")
+		}
+	}
+	if secretName != "" {
+		lc.logger.DebugWithCtx(ctx,
+			"Adding function secret volume",
+			"secretName", secretName,
+			"functionName", function.Name)
+		volumeNameToVolume[secretVolumeName] = v1.Volume{
+			Name: secretVolumeName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: secretName,
+				},
+			},
+		}
+		volumeNameToVolumeMounts[secretVolumeName] = append(volumeNameToVolumeMounts[secretVolumeName], v1.VolumeMount{
+			Name:      secretVolumeName,
+			MountPath: functionconfig.FunctionSecretMountPath,
+			ReadOnly:  true,
+		})
+
+		// set an env var to tell the processor to restore the function config from the mounted secret
+		restoreFunctionConfigFromSecretEnvVar := v1.EnvVar{
+			Name:  common.RestoreConfigFromSecretEnvVar,
+			Value: "true",
+		}
+		if !common.EnvInSlice(restoreFunctionConfigFromSecretEnvVar, function.Spec.Env) {
+			function.Spec.Env = append(function.Spec.Env, restoreFunctionConfigFromSecretEnvVar)
+		} else {
+
+			// set the value to true
+			for envIndex, envVar := range function.Spec.Env {
+				if envVar.Name == restoreFunctionConfigFromSecretEnvVar.Name {
+					function.Spec.Env[envIndex].Value = restoreFunctionConfigFromSecretEnvVar.Value
+				}
+			}
+		}
 	}
 
 	for _, volume := range volumeNameToVolume {
@@ -2249,7 +2358,98 @@ func (lc *lazyClient) getFunctionVolumeAndMounts(ctx context.Context,
 	})
 
 	// flatten and return as list of instances
-	return volumes, volumeMounts
+	return volumes, volumeMounts, nil
+}
+
+// getFlexVolumeSecretName returns the secret name for a given flex volume
+func (lc *lazyClient) getFlexVolumeSecretName(ctx context.Context, function *nuclioio.NuclioFunction, volumeName string) (string, error) {
+	secrets, err := lc.getFunctionSecrets(ctx, function)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get secrets")
+	}
+
+	mostRecentSecretCreationTime := metav1.Time{}
+	secretName := ""
+
+	for _, secret := range secrets {
+		if secret.Labels[common.NuclioResourceLabelKeyVolumeName] == volumeName {
+			if secret.CreationTimestamp.After(mostRecentSecretCreationTime.Time) {
+				mostRecentSecretCreationTime = secret.CreationTimestamp
+				secretName = secret.Name
+			}
+		}
+	}
+
+	if secretName == "" {
+		return "", errors.New("No secret found for volume")
+	}
+
+	return secretName, nil
+}
+
+// getSecretName returns the function secret name
+func (lc *lazyClient) getFunctionSecretName(ctx context.Context, function *nuclioio.NuclioFunction) (string, error) {
+	secrets, err := lc.getFunctionSecrets(ctx, function)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get secrets")
+	}
+
+	mostRecentSecretCreationTime := metav1.Time{}
+	secretName := ""
+
+	// find the most recent function secret
+	for _, secret := range secrets {
+		if !strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
+			if secret.CreationTimestamp.After(mostRecentSecretCreationTime.Time) {
+				mostRecentSecretCreationTime = secret.CreationTimestamp
+				secretName = secret.Name
+			}
+		}
+	}
+
+	if secretName == "" {
+		return "", errors.New("Function secret not found")
+	}
+
+	return secretName, nil
+
+}
+
+// getSecretName returns the secret name for either a function or a flex volume
+func (lc *lazyClient) getFunctionSecrets(ctx context.Context, function *nuclioio.NuclioFunction) ([]v1.Secret, error) {
+
+	// get the function secrets
+	secretList, err := lc.kubeClientSet.CoreV1().Secrets(function.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, function.Name),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list function secrets")
+	}
+
+	// if there are no secrets with the label selector, return error
+	if len(secretList.Items) == 0 {
+		return nil, errors.New("Function secrets not found")
+	}
+
+	return secretList.Items, nil
+}
+
+// deleteFunctionSecrets deletes the function's secrets
+func (lc *lazyClient) deleteFunctionSecrets(ctx context.Context, functionName, namespace string) error {
+
+	// function can have multiple secrets, in case a flex volume exists
+	// delete all of them
+	if err := lc.kubeClientSet.CoreV1().Secrets(namespace).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
+	}); err != nil {
+		lc.logger.WarnWithCtx(ctx,
+			"Failed to delete function secrets",
+			"functionName", functionName,
+			"err", err)
+		return errors.Wrapf(err, "Failed to delete secret collection for function %s", functionName)
+	}
+
+	return nil
 }
 
 func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName string, namespace string) error {
@@ -2290,16 +2490,27 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 }
 
 func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) ([]autosv2.MetricSpec, error) {
-	if function.Spec.CustomScalingMetricSpecs != nil {
-		return function.Spec.CustomScalingMetricSpecs, nil
+
+	var metricSpecs []autosv2.MetricSpec
+
+	if lc.platformConfigurationProvider.GetPlatformConfiguration().AutoScaleMetricsMode ==
+		platformconfig.AutoScaleMetricsModeCustom {
+
+		metricSpecs, err := lc.resolveMetricSpecs(function)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to resolve metric specs")
+		}
+		if len(metricSpecs) > 0 {
+			return metricSpecs, nil
+		}
 	}
 
+	// for backwards compatibility, if no custom metrics are specified, use targetCPU and default metric
 	targetCPU := int32(function.Spec.TargetCPU)
 	if targetCPU == 0 {
 		targetCPU = abstract.DefaultTargetCPU
 	}
 
-	var metricSpecs []autosv2.MetricSpec
 	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	if lc.functionsHaveAutoScaleMetrics(platformConfig) {
 		targetValue, err := apiresource.ParseQuantity(platformConfig.AutoScale.TargetValue)
@@ -2313,8 +2524,11 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 				{
 					Type: "Resource",
 					Resource: &autosv2.ResourceMetricSource{
-						Name:               lc.getMetricResourceByName(platformConfig.AutoScale.MetricName),
-						TargetAverageValue: &targetValue,
+						Name: lc.getMetricResourceByName(platformConfig.AutoScale.MetricName),
+						Target: autosv2.MetricTarget{
+							Type:         autosv2.AverageValueMetricType,
+							AverageValue: &targetValue,
+						},
 					},
 				},
 			}
@@ -2323,8 +2537,13 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 				{
 					Type: "Pods",
 					Pods: &autosv2.PodsMetricSource{
-						MetricName:         platformConfig.AutoScale.MetricName,
-						TargetAverageValue: targetValue,
+						Metric: autosv2.MetricIdentifier{
+							Name: platformConfig.AutoScale.MetricName,
+						},
+						Target: autosv2.MetricTarget{
+							Type:         autosv2.AverageValueMetricType,
+							AverageValue: &targetValue,
+						},
 					},
 				},
 			}
@@ -2337,10 +2556,91 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 		metricSpecs = append(metricSpecs, autosv2.MetricSpec{
 			Type: "Resource",
 			Resource: &autosv2.ResourceMetricSource{
-				Name:                     v1.ResourceCPU,
-				TargetAverageUtilization: &targetCPU,
+				Name: v1.ResourceCPU,
+				Target: autosv2.MetricTarget{
+					Type:               autosv2.UtilizationMetricType,
+					AverageUtilization: &targetCPU,
+				},
 			},
 		})
+	}
+
+	return metricSpecs, nil
+}
+
+func (lc *lazyClient) resolveMetricSpecs(function *nuclioio.NuclioFunction) ([]autosv2.MetricSpec, error) {
+
+	metricSpecs, err := lc.generateMetricSpecFromAutoScaleMetrics(function.Spec.AutoScaleMetrics)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to generate metric specs from autoscale metrics")
+	}
+
+	if function.Spec.CustomScalingMetricSpecs != nil {
+		metricSpecs = append(metricSpecs, function.Spec.CustomScalingMetricSpecs...)
+	}
+
+	return metricSpecs, nil
+}
+
+func (lc *lazyClient) generateMetricSpecFromAutoScaleMetrics(autoScaleMetrics []functionconfig.AutoScaleMetric) ([]autosv2.MetricSpec, error) {
+
+	var metricSpecs []autosv2.MetricSpec
+	var metricSpec autosv2.MetricSpec
+	for _, autoscaleMetric := range autoScaleMetrics {
+		switch autoscaleMetric.SourceType {
+		case autosv2.ResourceMetricSourceType:
+			targetAverageUtilization := int32(autoscaleMetric.Threshold)
+			metricSpec = autosv2.MetricSpec{
+				Type: autoscaleMetric.SourceType,
+				Resource: &autosv2.ResourceMetricSource{
+					Name: v1.ResourceName(autoscaleMetric.MetricName),
+					Target: autosv2.MetricTarget{
+						Type:               autosv2.UtilizationMetricType,
+						AverageUtilization: &targetAverageUtilization,
+					},
+				},
+			}
+		case autosv2.PodsMetricSourceType:
+			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.Threshold))
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to parse quantity")
+			}
+			metricSpec = autosv2.MetricSpec{
+				Type: autoscaleMetric.SourceType,
+				Pods: &autosv2.PodsMetricSource{
+					Metric: autosv2.MetricIdentifier{
+						Name: fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
+					},
+					Target: autosv2.MetricTarget{
+						Type:         autosv2.AverageValueMetricType,
+						AverageValue: &quantity,
+					},
+				},
+			}
+
+		case autosv2.ExternalMetricSourceType:
+			quantity, err := apiresource.ParseQuantity(strconv.Itoa(autoscaleMetric.Threshold))
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to parse quantity")
+			}
+			metricSpec = autosv2.MetricSpec{
+				Type: autoscaleMetric.SourceType,
+				External: &autosv2.ExternalMetricSource{
+					Metric: autosv2.MetricIdentifier{
+						Name: fmt.Sprintf("%s_per_%s", autoscaleMetric.MetricName, autoscaleMetric.WindowSize),
+					},
+					Target: autosv2.MetricTarget{
+						Type:  autosv2.ValueMetricType,
+						Value: &quantity,
+					},
+				},
+			}
+		default:
+			return nil, errors.Errorf("Unknown metric type: %s", autoscaleMetric.SourceType)
+		}
+
+		metricSpecs = append(metricSpecs, metricSpec)
+
 	}
 
 	return metricSpecs, nil
@@ -2455,7 +2755,8 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to list pod events")
 	}
-	lc.logger.DebugWithCtx(ctx, "Received pod events",
+	lc.logger.DebugWithCtx(ctx,
+		"Received pod events",
 		"podEventsLength", len(podEvents.Items))
 
 	for _, event := range podEvents.Items {
@@ -2484,6 +2785,19 @@ func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, 
 		}
 	}
 	return false, nil
+}
+
+func (lc *lazyClient) enrichIngressWithDefaultValues(ingress *functionconfig.Ingress) error {
+
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+
+	// enrich with default ingress tls if exists
+	if ingress.TLS.SecretName == "" && platformConfig.IngressConfig.TLSSecret != "" {
+		ingress.TLS.Hosts = []string{ingress.Host}
+		ingress.TLS.SecretName = platformConfig.IngressConfig.TLSSecret
+	}
+
+	return nil
 }
 
 //

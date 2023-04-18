@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_LABEL
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO
 
-FROM $NUCLIO_DOCKER_REPO/nuclio-base:$NUCLIO_LABEL as build-processor
+FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-processor
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
-ARG GOOS=linux
-ARG GOARCH=amd64
-
 # build the processor
-RUN GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build \
+RUN go build \
     -a \
     -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \

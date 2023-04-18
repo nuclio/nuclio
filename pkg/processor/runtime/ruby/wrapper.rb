@@ -54,9 +54,11 @@ end
 
 class Context
   attr_reader :logger
+  attr_accessor :user_data
 
   def initialize(logger)
     @logger = logger
+    @user_data = nil
   end
 end
 
@@ -141,9 +143,17 @@ if $PROGRAM_NAME == __FILE__
 
   socket = UNIXSocket.new(options[:socket_path])
   logger = Logger.new(socket)
+  context = Context.new(logger)
+
+  # check if init_context function is defined and execute it
+  if defined?(init_context)
+      send("init_context", context)
+  end
+  socket.puts "s#"
+
   while input = socket.gets
+    startTime = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     begin
-      context = Context.new(logger)
       event = parse_event(input)
       res = send(method_name, context, event)
       encoded = response_from_output(res)
@@ -151,8 +161,10 @@ if $PROGRAM_NAME == __FILE__
       res = "#{e.backtrace.first}: #{e.message} (#{e.class})\n#{e.backtrace.drop(1).join("\n")}"
       encoded = Response.new(res, status_code: 500)
     end
+    endTime = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     logger.debug('Response is', response: encoded.to_h)
     socket.puts "r#{encoded.to_h.to_json}"
+    socket.puts "m#{JSON.generate({'duration': (endTime - startTime) * 1000})}"
   end
   socket.close
 end

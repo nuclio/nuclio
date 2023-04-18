@@ -139,6 +139,7 @@ body and not `404`.
 * URL: `POST /api/functions`
 * Headers:
     * `Content-Type`: Must be set to `application/json`
+    * `X-nuclio-creation-state-updated-timeout`: Set the timout for the function creation state to change (optional, defaults to `1m`)
 * Body:
 
 ```json
@@ -179,6 +180,7 @@ Updating a function is similar to creating a function. The only differences are:
 * URL: `PUT /api/functions/<function name>`
 * Headers:
     * `Content-Type`: Must be set to `application/json`
+    * `X-nuclio-creation-state-updated-timeout`: Set the timout for the function creation state to change (optional, defaults to `1m`)
 * Body:
 
 ```json
@@ -212,6 +214,29 @@ Updating a function is similar to creating a function. The only differences are:
 
 * Status code: 202
 
+### Patching a function
+
+Patching a function allows you to change the function's state.
+Currently, the only supported state is `ready`, which allows redeploying functions (e.g, after importing functions).
+
+#### Request
+
+* URL: `PATCH /api/functions/<function name>`
+* Headers:
+    * `X-nuclio-wait-function-action`: Set to true to wait for the function to be ready (optional, defaults to `false`)
+    * `X-nuclio-function-namespace`: Namespace (required)
+* Body:
+
+```json
+{
+  "desiredState": "ready"
+}
+```
+
+#### Response
+
+* Status code: 204
+
 ### Invoking a function
 
 #### Request
@@ -223,10 +248,10 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 * Headers:
     * `x-nuclio-function-name`: Function name (required)
     * `x-nuclio-function-namespace`: Namespace (required)
+    * `x-nuclio-invoke-url`: Function invocation url to use (required)
     * `x-nuclio-path`: The path to invoke the function with (can be empty to invoke with `/`)
-    * `x-nuclio-invoke-via`: One of `external-ip`, `loadbalancer` and `domain-name`
-    * `x-nuclio-invoke-url`: Function invocation url to use (if provided, overrides `x-nuclio-invoke-via` header)
     * `x-nuclio-invoke-timeout`: Function invocation request timeout (e.g.: `1s`)
+    * `x-nuclio-skip-tls-verification`: Skip TLS verification when invoking the function (e.g.: `true`)
     * Any other header is passed transparently to the function
 * Body: Raw body passed as is to the function
 

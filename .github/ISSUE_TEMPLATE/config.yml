@@ -12,24 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-ARG NUCLIO_BASE_IMAGE_NAME
-ARG NUCLIO_BASE_IMAGE_TAG
-ARG NUCLIO_LABEL
-ARG NUCLIO_DOCKER_REPO
-
-FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_LABEL as builder
-
-FROM $NUCLIO_BASE_IMAGE_NAME:$NUCLIO_BASE_IMAGE_TAG
-
-ARG GOOS=linux
-ARG GOARCH=amd64
-
-ENV GOOS $GOOS
-ENV GOARCH $GOARCH
-
-COPY --from=builder $GOPATH/pkg/mod $GOPATH/pkg/mod
-
-WORKDIR /nuclio
-
-COPY . .
+blank_issues_enabled: true
+contact_links:
+  - name: Try Us @ Slack
+    url: https://go.iguazio.com/nuclio/joincommunity
+    about: "If you have any other questions, please join the Nuclio community on Slack."

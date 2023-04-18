@@ -205,16 +205,6 @@ func (f *Function) Initialize(ctx context.Context, str []string) error {
 	return nil
 }
 
-// GetInvokeURL returns the URL on which the function can be invoked
-func (f *Function) GetInvokeURL(ctx context.Context, invokeViaType platform.InvokeViaType) (string, error) {
-	host, port, path, err := f.getInvokeURLFields(ctx, invokeViaType)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get address")
-	}
-
-	return fmt.Sprintf("%s:%d%s", host, port, path), nil
-}
-
 // GetReplicas returns the current # of replicas and the configured # of replicas
 func (f *Function) GetReplicas() (int, int) {
 	return f.availableReplicas, f.configuredReplicas
@@ -231,94 +221,6 @@ func (f *Function) GetConfig() *functionconfig.Config {
 		},
 		Spec: f.function.Spec,
 	}
-}
-
-func (f *Function) getInvokeURLFields(ctx context.Context, invokeViaType platform.InvokeViaType) (string, int, string, error) {
-	var host, path string
-	var port int
-	var err error
-
-	// user wants a specific invoke via type
-	if invokeViaType != platform.InvokeViaAny {
-
-		// if there's an ingress address, use that. otherwise use
-		switch invokeViaType {
-		case platform.InvokeViaLoadBalancer:
-			host, port, path, err = f.getIngressInvokeURL()
-		case platform.InvokeViaExternalIP:
-			host, port, path, err = f.getExternalIPInvokeURL()
-		case platform.InvokeViaDomainName:
-			host, port, path, err = f.getDomainNameInvokeURL()
-		}
-
-		if err != nil {
-			return "", 0, "", errors.Wrap(err, "Failed to get invoke URL")
-		}
-
-		// if host is empty and we were configured to a specific via type, return an error
-		if host == "" {
-			return "", 0, "", errors.New("Couldn't find address for invoke via type")
-		}
-
-		return host, port, path, nil
-	}
-
-	// try to get host, port, and path in through ingress and then via external ip
-	for urlGetterIndex, urlGetter := range []func() (string, int, string, error){
-		f.getExternalIPInvokeURL,
-		f.getDomainNameInvokeURL,
-	} {
-
-		// get the info
-		host, port, path, err = urlGetter()
-
-		if err != nil {
-			f.Logger.DebugWithCtx(ctx, "Could not get invoke URL with method",
-				"index", urlGetterIndex,
-				"err", err)
-		}
-
-		// if we found something, return it
-		if host != "" {
-			f.Logger.DebugWithCtx(ctx, "Resolved invoke URL with method",
-				"index", urlGetterIndex,
-				"host", host,
-				"port", port,
-				"path", path)
-
-			return host, port, path, nil
-		}
-	}
-
-	return "", 0, "", errors.New("Could not resolve invoke URL")
-}
-
-func (f *Function) getIngressInvokeURL() (string, int, string, error) {
-	if f.ingressAddress != "" {
-
-		// 80 seems to be hardcoded in kubectl as well
-		return f.ingressAddress,
-			80,
-			fmt.Sprintf("/%s/%s", f.Config.Meta.Name, f.GetVersion()),
-			nil
-	}
-
-	return "", 0, "", nil
-}
-
-func (f *Function) getExternalIPInvokeURL() (string, int, string, error) {
-	host, port, err := f.GetExternalIPInvocationURL()
-	if err != nil {
-		return "", 0, "", errors.Wrap(err, "Failed to get external IP invocation URL")
-	}
-
-	// return it and the port
-	return host, port, "", nil
-}
-
-func (f *Function) getDomainNameInvokeURL() (string, int, string, error) {
-	host, port := GetDomainNameInvokeURL(f.service.Name, f.function.Namespace)
-	return host, port, "", nil
 }
 
 func GetDomainNameInvokeURL(serviceName, namespace string) (string, int) {

@@ -12,23 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_LABEL=latest
-ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 
 # Supplies processor
-FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
+FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
 # Supplies wrapper and nuclio-sdk-dotnetcore
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1 as builder
+FROM mcr.microsoft.com/dotnet/sdk:6.0 as builder
+
+# Update packages
+RUN apt-get update && \
+    apt-get -s dist-upgrade | \
+    grep "^Inst" | \
+    awk -F " " {'print $2'} | \
+    xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy processor
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
-# Get .NET core SDK to /home/nuclio/src/nuclio-sdk-dotnetcore
-RUN curl -L "https://github.com/nuclio/nuclio-sdk-dotnetcore/archive/dotnet3.1.tar.gz" -o nuclio-sdk-dotnetcore.tar.gz && \
-    mkdir -p /home/nuclio/src/nuclio-sdk-dotnetcore && \
-    tar -xvf nuclio-sdk-dotnetcore.tar.gz --strip-components=1 -C /home/nuclio/src/nuclio-sdk-dotnetcore
+# Fetch Nuclio .NET SDK
+RUN git clone \
+     --branch dotnet6.0 \
+     https://github.com/nuclio/nuclio-sdk-dotnetcore.git \
+     /home/nuclio/src/nuclio-sdk-dotnetcore
 
 # Copy and build wrapper files
 COPY pkg/processor/runtime/dotnetcore /home/nuclio/src/wrapper

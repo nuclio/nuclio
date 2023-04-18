@@ -22,7 +22,15 @@ print_free_space() {
 print_free_space
 
 # clean unneeded os packages and misc
-sudo apt-get remove --yes '^dotnet-.*' 'php.*' azure-cli google-cloud-sdk google-chrome-stable firefox powershell
+sudo apt-get remove -y '^dotnet-.*'
+sudo apt-get remove -y 'php.*'
+sudo apt-get remove -y \
+  azure-cli \
+  google-cloud-sdk \
+  google-chrome-stable \
+  firefox \
+  powershell
+
 sudo apt-get autoremove --yes
 sudo apt clean
 
@@ -31,7 +39,6 @@ sudo rm --recursive --force \
     /usr/local/lib/android \
     /usr/share/dotnet \
     /usr/share/miniconda \
-    /usr/share/dotnet \
     /usr/share/swift
 
 # clean unneeded docker images

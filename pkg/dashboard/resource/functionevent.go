@@ -18,10 +18,11 @@ package resource
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -59,7 +60,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 
 	getFunctionEventOptions := platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
-			Name:      request.Header.Get("x-nuclio-function-event-name"),
+			Name:      request.Header.Get(headers.FunctionEventName),
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
 		AuthSession: fer.getCtxSession(ctx),
@@ -314,17 +315,17 @@ func (fer *functionEventResource) functionEventToAttributes(functionEvent platfo
 }
 
 func (fer *functionEventResource) getNamespaceFromRequest(request *http.Request) string {
-	return fer.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-event-namespace"))
+	return fer.getNamespaceOrDefault(request.Header.Get(headers.FunctionEventNamespace))
 }
 
 func (fer *functionEventResource) getFunctionNameFromRequest(request *http.Request) string {
-	return request.Header.Get("x-nuclio-function-name")
+	return request.Header.Get(headers.FunctionName)
 }
 
 func (fer *functionEventResource) getFunctionEventInfoFromRequest(request *http.Request, nameRequired bool) (*functionEventInfo, error) {
 
 	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}

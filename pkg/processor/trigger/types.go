@@ -126,6 +126,23 @@ func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConf
 	return nil
 }
 
+func (c *Configuration) PopulateExplicitAckMode(explicitAckModeValue string,
+	triggerConfigurationExplicitAckMode functionconfig.ExplicitAckMode) error {
+	switch explicitAckModeValue {
+	case string(functionconfig.ExplicitAckModeEnable):
+		c.ExplicitAckMode = functionconfig.ExplicitAckModeEnable
+	case string(functionconfig.ExplicitAckModeExplicitOnly):
+		c.ExplicitAckMode = functionconfig.ExplicitAckModeExplicitOnly
+	default:
+
+		// default explicit ack mode to 'disable'
+		if triggerConfigurationExplicitAckMode == "" {
+			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+		}
+	}
+	return nil
+}
+
 type Statistics struct {
 	EventsHandledSuccessTotal uint64
 	EventsHandledFailureTotal uint64

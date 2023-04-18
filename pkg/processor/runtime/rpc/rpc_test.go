@@ -48,18 +48,18 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 
 	var sink bytes.Buffer
 	var errSink bytes.Buffer
-	logger, err := nucliozap.NewNuclioZap("RPCTest", "json", nil, &sink, &errSink, nucliozap.DebugLevel)
+	loggerInstance, err := nucliozap.NewNuclioZap("RPCTest", "json", nil, &sink, &errSink, nucliozap.DebugLevel)
 	suite.Require().NoError(err, "Can't create logger")
 
 	var conn net.Conn
 
-	_, err = NewAbstractRuntime(logger, suite.runtimeConfiguration(logger), nil)
+	_, err = NewAbstractRuntime(loggerInstance, suite.runtimeConfiguration(loggerInstance), nil)
 	suite.Require().NoError(err, "Can't create RPC runtime")
 
 	message := "testing log before"
 	suite.emitLog(message, conn)
 	time.Sleep(time.Millisecond) // Give TCP time to move bits around
-	logger.Flush()
+	loggerInstance.Flush()
 	suite.True(strings.Contains(sink.String(), message), "Didn't get log")
 }
 

@@ -40,6 +40,7 @@ Following is a quick example of how to use Helm charts to set up a specific stab
 
     unset mypassword
     ```
+   > **Note:** If you are using Amazon's ECR see [using kaniko with ECR](#Using kaniko with amazon elastic container registry (ECR)) section.
 
 3. Add and Install `nuclio` Helm chart:
 
@@ -51,7 +52,7 @@ Following is a quick example of how to use Helm charts to set up a specific stab
         nuclio/nuclio
     ```
 
-> NOTE: for a full list of configuration parameters, see the Helm values file ([**values.yaml**](/hack/k8s/helm/nuclio/values.yaml))
+> **Note:** For a full list of configuration parameters, see the Helm values file ([**values.yaml**](/hack/k8s/helm/nuclio/values.yaml))
 
 <a id="multi-tenancy"></a>
 ## Multi-Tenancy
@@ -136,20 +137,12 @@ This is rather straightforward; however, note the following:
 
 ### Using kaniko with amazon elastic container registry (ECR):
 
-ECR requires handling repository creations and time limited authorization tokens. To do so, provide nuclio with the following values.
-- Image with AWS CLI binary installed to create repositories of function images (defaults to `amazon/aws-cli:2.7.10`)
-- AWS credentials or EC2 IAM policy:
-  1. With AWS credentials specify:
-     1. AWS secret name generated from `.aws/credentials` file configured with access key id and secret access key.
-     2. ECR secret name to be used as `imagePullSecret` of function pods (since ECR tokens stale after 12 hours, the secret must be refreshed periodically - can be done with a cron job as described in [Sergey's blog](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
-  2. To use EC2 IAM policy when running from an EC2 instance do not specify `dashboard.kaniko.registryProviderSecretName` and `registry.secretName`.
-    ```sh
-    --set dashboard.kaniko.initContainerImage.awscli.repository=<repository> \
-    --set dashboard.kaniko.initContainerImage.awscli.tag=<tag> \
-    --set dashboard.kaniko.registryProviderSecretName=<aws-secret-name> \
-    --set registry.secretName=<ecr-secret-name>
-    ```
-The access keys or EC2 IAM policy must have the following permissions:
+To work with ECR, you must create a secret with your AWS credentials, and a secret with ECR Token while providing both secret names to the helm install command. 
+This is relevant for instances running without attached IAM roles. 
+To work with instances running with attached IAM roles, you can skip the AWS credentials and ECR Token secrets creation. 
+
+Before you begin, make sure you have the following IAM roles attached to your user:
+
 ```
 {
     "Version": "2012-10-17",
@@ -171,4 +164,40 @@ The access keys or EC2 IAM policy must have the following permissions:
         }
     ]
 }
+```
+Common environment variables:
+```shell
+export AWS_REGION=<Your AWS region>
+export AWS_ACCOUNT=<Your AWS account ID>
+export ECR_PASSWORD=$(aws ecr get-login-password --region ${AWS_REGION})
+```
+Create the AWS credentials secret generated from `.aws/credentials` file configured with access key id and secret access key using the following command:
+```shell
+cat << EOF | kubectl --namespace nuclio create secret generic aws-credentials --save-config \
+--dry-run=client --from-file=credentials=/dev/stdin -o yaml | kubectl apply -f -
+[default]
+aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+EOF
+```
+> **Note:** This is needed to allow Kaniko creating the image repository prior to pushing the function image. 
+> Otherwise, Kaniko will fail to push the image to ECR because the image name is being determined during the build process.
+
+Create the ECR token secret to be used as `imagePullSecret` of function pods.
+Since ECR tokens go stale after 12 hours, the secret must be refreshed periodically (can be done with a cron job as described in [this blogpost](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
+```shell
+kubectl -n nuclio create secret docker-registry ecr-registry-credentials \
+  --docker-server=${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com \
+  --docker-username=AWS \
+  --docker-password=${ECR_PASSWORD} 
+```
+
+Finally, install the chart with the following command:
+```shell
+helm repo add nuclio https://nuclio.github.io/nuclio/charts
+helm install nuclio \
+    --set dashboard.kaniko.registryProviderSecretName=<aws-secret-name> \
+    --set registry.secretName=<ecr-secret-name>
+    --set registry.pushPullUrl=<your registry URL> \
+    nuclio/nuclio
 ```

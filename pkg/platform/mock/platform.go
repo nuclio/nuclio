@@ -56,12 +56,14 @@ func (mp *Platform) GetConfig() *platformconfig.Config {
 }
 
 func (mp *Platform) GetContainerBuilderKind() string {
-	return "docker"
+	args := mp.Called()
+	return args.Get(0).(string)
 }
 
 // CreateFunctionBuild will locally build a processor image and return its name (or the error)
-func (mp *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
-	args := mp.Called(createFunctionBuildOptions)
+func (mp *Platform) CreateFunctionBuild(ctx context.Context,
+	createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
+	args := mp.Called(ctx, createFunctionBuildOptions)
 	return args.Get(0).(*platform.CreateFunctionBuildResult), args.Error(1)
 }
 
@@ -248,15 +250,13 @@ func (mp *Platform) RenderImageNamePrefixTemplate(projectName string, functionNa
 	return args.Get(0).(string), args.Error(1)
 }
 
-// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
-// If this is not invoked, each platform will try to discover these addresses automatically
+// SetExternalIPAddresses configures the IP addresses invocations will use.
 func (mp *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
 	args := mp.Called(externalIPAddresses)
 	return args.Error(0)
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
-// These addresses are either set through SetExternalIPAddresses or automatically discovered
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 func (mp *Platform) GetExternalIPAddresses() ([]string, error) {
 	args := mp.Called()
 	return args.Get(0).([]string), args.Error(1)
@@ -284,18 +284,6 @@ func (mp *Platform) GetName() string {
 	return args.String(0)
 }
 
-// GetNodes returns a slice of nodes currently in the cluster
-func (mp *Platform) GetNodes() ([]platform.Node, error) {
-	args := mp.Called()
-	return args.Get(0).([]platform.Node), args.Error(1)
-}
-
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (mp *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-	args := mp.Called()
-	return args.Get(0).(string)
-}
-
 // GetNamespaces returns the namespaces
 func (mp *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	args := mp.Called(ctx)
@@ -305,6 +293,10 @@ func (mp *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 func (mp *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	args := mp.Called()
 	return args.Get(0).([]string), args.Error(1)
+}
+
+func (mp *Platform) InitializeContainerBuilder() error {
+	return nil
 }
 
 func (mp *Platform) BuildAndPushContainerImage(ctx context.Context, buildOptions *containerimagebuilderpusher.BuildOptions) error {
@@ -366,4 +358,20 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 	permissionOptions *opa.PermissionOptions) (bool, error) {
 	args := mp.Called(projectName, functionName, functionEventName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
+}
+
+// GetFunctionSecrets returns all the function's secrets
+func (mp *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
+	args := mp.Called(ctx, functionName, functionNamespace)
+	return args.Get(0).([]platform.FunctionSecret), args.Error(1)
+}
+
+func (mp *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
+	args := mp.Called(ctx, functionName, functionNamespace)
+	return args.Get(0).(map[string]string), args.Error(1)
+}
+
+func (mp *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
+	args := mp.Called(ctx, functionName, functionNamespace)
+	return args.Get(0).(map[string][]byte), args.Error(1)
 }

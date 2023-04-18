@@ -21,7 +21,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path"
 	"strconv"
@@ -286,7 +286,6 @@ func (suite *testSuite) TestExplicitAck() {
 	})
 }
 
-//
 //func (suite *testSuite) TestEventRecorderRebalance() {
 //
 //	topic := "someTopic"
@@ -555,7 +554,7 @@ func (suite *testSuite) getLastCommitOffset(port int) int {
 	suite.Require().NoError(err, "Failed to send request")
 	suite.Require().Equal(http.StatusOK, response.StatusCode)
 
-	responseBodyBytes, err := ioutil.ReadAll(response.Body)
+	responseBodyBytes, err := io.ReadAll(response.Body)
 	suite.Require().NoError(err, "Failed to read response body")
 	suite.Logger.DebugWith("Got response", "response", response, "responseBody", string(responseBodyBytes))
 
@@ -592,7 +591,7 @@ func (suite *testSuite) getQueueSize(port int) int {
 	suite.Require().NoError(err, "Failed to send request")
 	suite.Require().Equal(http.StatusOK, response.StatusCode)
 
-	responseBodyBytes, err := ioutil.ReadAll(response.Body)
+	responseBodyBytes, err := io.ReadAll(response.Body)
 	suite.Require().NoError(err, "Failed to read response body")
 	suite.Logger.DebugWith("Got response", "response", response, "responseBody", string(responseBodyBytes))
 

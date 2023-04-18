@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -44,20 +45,19 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
+	"sigs.k8s.io/yaml"
 )
 
 type Platform struct {
 	*abstract.Platform
-	cmdRunner                cmdrunner.CmdRunner
-	dockerClient             dockerclient.Client
-	localStore               *client.Store
-	defaultFunctionMountMode FunctionMountMode
-	projectsClient           project.Client
+	cmdRunner      cmdrunner.CmdRunner
+	dockerClient   dockerclient.Client
+	localStore     *client.Store
+	projectsClient project.Client
 }
 
 const Mib = 1048576
@@ -127,16 +127,12 @@ func NewPlatform(ctx context.Context,
 		newPlatform.Logger.DebugWithCtx(ctx, "Igniting container healthiness validator")
 		go func(newPlatform *Platform) {
 			uptimeTicker := time.NewTicker(newPlatform.Config.Local.FunctionContainersHealthinessInterval)
+			defer uptimeTicker.Stop()
 			for range uptimeTicker.C {
 				newPlatform.ValidateFunctionContainersHealthiness(ctx)
 			}
 		}(newPlatform)
 	}
-
-	// Default to mount function configurations from docker volume
-	newPlatform.defaultFunctionMountMode = FunctionMountMode(
-		common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_DEFAULT_FUNCTION_MOUNT_MODE", string(FunctionMountModeVolume)),
-	)
 	return newPlatform, nil
 }
 
@@ -435,13 +431,7 @@ func (p *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 
 // GetName returns the platform name
 func (p *Platform) GetName() string {
-	return "local"
-}
-
-func (p *Platform) GetNodes() ([]platform.Node, error) {
-
-	// just create a single node
-	return []platform.Node{&node{}}, nil
+	return common.LocalPlatformName
 }
 
 // CreateProject will create a new project
@@ -504,7 +494,9 @@ func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	return p.Platform.FilterProjectsByPermissions(&getProjectsOptions.PermissionOptions, projects)
+	return p.Platform.FilterProjectsByPermissions(ctx,
+		&getProjectsOptions.PermissionOptions,
+		projects)
 }
 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
@@ -608,7 +600,7 @@ func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *pl
 	return nil, nil
 }
 
-// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// GetExternalIPAddresses returns the external IP addresses invocations will use.
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
@@ -625,7 +617,9 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
 	// If the testing environment variable is set - use that
 	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		return []string{os.Getenv("NUCLIO_TEST_HOST")}, nil
+
+		// remove quotes from the string
+		return []string{strings.Trim(os.Getenv("NUCLIO_TEST_HOST"), "\"")}, nil
 	}
 
 	if common.RunningInContainer() {
@@ -636,42 +630,50 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	return []string{""}, nil
 }
 
-// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-
-	// if no default namespace is chosen, use "nuclio"
-	if defaultNamespace == "@nuclio.selfNamespace" || defaultNamespace == "" {
-		return "nuclio"
-	}
-
-	return defaultNamespace
-}
-
 // GetNamespaces returns all the namespaces in the platform
 func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	return []string{"nuclio"}, nil
 }
 
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
-	addresses := []string{
-
-		// default internal docker network
-		"172.17.0.1",
-	}
+	var addresses []string
 
 	if common.RunningInContainer() {
 
+		// default internal docker network
+		addresses = append(addresses,
+			"172.17.0.1",
+		)
+
 		// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
 		dockerHostAddresses, err := net.LookupIP("host.docker.internal")
+		if err == nil {
+			for _, address := range dockerHostAddresses {
+				addresses = append(addresses, address.String())
+			}
+		}
+
+		containerID, err := common.RunningContainerHostname()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to lookup host.docker.internal")
+			return nil, errors.Wrap(err, "Failed to get running container ID")
 		}
-		for _, address := range dockerHostAddresses {
-			addresses = append(addresses, address.String())
+
+		networkSettings, err := p.dockerClient.GetContainerNetworkSettings(containerID)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get container network settings")
 		}
+
+		// docker gateway, possibly 172.17.0.1
+		addresses = append(addresses, networkSettings.Gateway)
+
+		// attach each network driver gateway
+		for _, network := range networkSettings.Networks {
+			addresses = append(addresses, network.Gateway)
+		}
+
 	}
 
-	return addresses, nil
+	return common.RemoveDuplicatesFromSliceString(addresses), nil
 }
 
 func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error {
@@ -709,7 +711,8 @@ func (p *Platform) ValidateFunctionContainersHealthiness(ctx context.Context) {
 			Namespace: namespace,
 		})
 		if err != nil {
-			p.Logger.WarnWithCtx(ctx, "Failed to get namespaced functions",
+			p.Logger.WarnWithCtx(ctx,
+				"Failed to get namespaced functions",
 				"namespace", namespace,
 				"err", err)
 			continue
@@ -804,18 +807,37 @@ func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Con
 		functionConfig.Meta.Name)
 }
 
+// GetFunctionSecrets returns all the function's secrets
+func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
+
+	// TODO: implement function secrets on local platform
+	return nil, nil
+}
+
+func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
+	return nil, nil
+}
+
+func (p *Platform) InitializeContainerBuilder() error {
+	return nil
+}
+
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
-	// get function platform-specific configuration
-	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&createFunctionOptions.FunctionConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create a function's platform configuration")
-	}
-
-	mountPoints, volumesMap, err := p.resolveAndCreateFunctionMounts(createFunctionOptions)
+	mountPoints, err := p.resolveAndCreateFunctionMounts(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve and create function mounts")
+	}
+
+	network, err := p.resolveFunctionNetwork(createFunctionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve function network")
+	}
+
+	restartPolicy, err := p.resolveFunctionRestartPolicy(createFunctionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve function network")
 	}
 
 	labels := p.compileDeployFunctionLabels(createFunctionOptions)
@@ -835,6 +857,9 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		gpus = "all"
 	}
 
+	cpus := p.resolveFunctionSpecRequestCPUs(createFunctionOptions.FunctionConfig.Spec)
+	memory := p.resolveFunctionSpecRequestMemory(createFunctionOptions.FunctionConfig.Spec)
+
 	functionSecurityContext := createFunctionOptions.FunctionConfig.Spec.SecurityContext
 
 	// run the docker image
@@ -845,14 +870,16 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		},
 		Env:           envMap,
 		Labels:        labels,
-		Volumes:       volumesMap,
-		Network:       functionPlatformConfiguration.Network,
-		RestartPolicy: functionPlatformConfiguration.RestartPolicy,
+		Network:       network,
+		RestartPolicy: restartPolicy,
 		GPUs:          gpus,
+		CPUs:          cpus,
+		Memory:        memory,
 		MountPoints:   mountPoints,
 		RunAsUser:     functionSecurityContext.RunAsUser,
 		RunAsGroup:    functionSecurityContext.RunAsGroup,
 		FSGroup:       functionSecurityContext.FSGroup,
+		Devices:       createFunctionOptions.FunctionConfig.Spec.Devices,
 	}
 
 	containerID := p.GetFunctionContainerName(&createFunctionOptions.FunctionConfig)
@@ -895,7 +922,7 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Stopped: true,
 		Labels: map[string]string{
-			"nuclio.io/platform":                      "local",
+			"nuclio.io/platform":                      common.LocalPlatformName,
 			"nuclio.io/namespace":                     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
 			common.NuclioResourceLabelKeyFunctionName: deleteFunctionOptions.FunctionConfig.Meta.Name,
 		},
@@ -929,24 +956,39 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 	return nil
 }
 
-func (p *Platform) resolveAndCreateFunctionMounts(createFunctionOptions *platform.CreateFunctionOptions) (
-	[]dockerclient.MountPoint, map[string]string, error) {
+func (p *Platform) resolveAndCreateFunctionMounts(
+	createFunctionOptions *platform.CreateFunctionOptions) ([]dockerclient.MountPoint, error) {
 
 	if err := p.prepareFunctionVolumeMount(createFunctionOptions); err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
-	}
-	volumesMap := p.compileDeployFunctionVolumesMap(createFunctionOptions)
-	processorMountPoint := dockerclient.MountPoint{
-		Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
-		Destination: FunctionProcessorContainerDirPath,
-
-		// read only mode
-		RW: false,
+		return nil, errors.Wrap(err, "Failed to prepare a function's volume mount")
 	}
 
-	return []dockerclient.MountPoint{
-		processorMountPoint,
-	}, volumesMap, nil
+	// add processor mount
+	mountPoints := []dockerclient.MountPoint{
+		{
+			Source:      p.GetFunctionVolumeMountName(&createFunctionOptions.FunctionConfig),
+			Destination: FunctionProcessorContainerDirPath,
+
+			// read only mode
+			RW:   false,
+			Type: "volume",
+		},
+	}
+
+	for _, functionVolume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
+
+		// add only host path
+		if functionVolume.Volume.HostPath != nil {
+			mountPoints = append(mountPoints, dockerclient.MountPoint{
+				Source:      functionVolume.Volume.HostPath.Path,
+				Destination: functionVolume.VolumeMount.MountPath,
+				RW:          !functionVolume.VolumeMount.ReadOnly,
+				Type:        "bind",
+			})
+		}
+	}
+
+	return mountPoints, nil
 }
 
 func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
@@ -1137,18 +1179,6 @@ func (p *Platform) waitForContainer(containerID string, timeout int) error {
 	return nil
 }
 
-func (p *Platform) compileDeployFunctionVolumesMap(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
-	volumesMap := map[string]string{}
-	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
-
-		// only add hostpath volumes
-		if volume.Volume.HostPath != nil {
-			volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
-		}
-	}
-	return volumesMap
-}
-
 func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.CreateFunctionOptions) error {
 
 	// create docker volume
@@ -1168,7 +1198,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 	}
 
 	// dumping contents to volume's processor path
-	if _, err := p.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.15",
+	if _, err := p.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.17",
 		&dockerclient.RunOptions{
 			Remove:           true,
 			ImageMayNotExist: true,
@@ -1198,7 +1228,7 @@ func (p *Platform) compileDeployFunctionEnvMap(createFunctionOptions *platform.C
 
 func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.CreateFunctionOptions) map[string]string {
 	labels := map[string]string{
-		"nuclio.io/platform":                      "local",
+		"nuclio.io/platform":                      common.LocalPlatformName,
 		"nuclio.io/namespace":                     createFunctionOptions.FunctionConfig.Meta.Namespace,
 		common.NuclioResourceLabelKeyFunctionName: createFunctionOptions.FunctionConfig.Meta.Name,
 		"nuclio.io/function-spec":                 p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),
@@ -1216,6 +1246,10 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 }
 
 func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+	if len(functionConfig.Spec.Volumes) == 0 {
+		functionConfig.Spec.Volumes = p.Config.Local.DefaultFunctionVolumes
+	}
+
 	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
@@ -1232,7 +1266,7 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 
 	externalIPAddresses, err := p.GetExternalIPAddresses()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to get external IP addresses")
 	}
 
 	addresses, err := p.dockerClient.GetContainerIPAddresses(createFunctionResults.ContainerID)
@@ -1260,5 +1294,66 @@ func (p *Platform) populateFunctionInvocationStatus(functionInvocation *function
 				fmt.Sprintf("%s:%d", externalIPAddress, createFunctionResults.Port))
 		}
 	}
+
+	// when deploying and no external ip address was give, default to "unknown" destination 0.0.0.0
+	if createFunctionResults.Port != 0 && len(functionInvocation.ExternalInvocationURLs) == 0 {
+		functionInvocation.ExternalInvocationURLs = append(
+			functionInvocation.ExternalInvocationURLs,
+			fmt.Sprintf("0.0.0.0:%d", createFunctionResults.Port),
+		)
+	}
+
 	return nil
+}
+
+func (p *Platform) resolveFunctionNetwork(createFunctionOptions *platform.CreateFunctionOptions) (string, error) {
+
+	// get function platform-specific configuration
+	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&createFunctionOptions.FunctionConfig)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create a function's platform configuration")
+	}
+	if functionPlatformConfiguration.Network != "" {
+		return functionPlatformConfiguration.Network, nil
+	}
+
+	return p.Config.Local.DefaultFunctionContainerNetworkName, nil
+}
+
+func (p *Platform) resolveFunctionRestartPolicy(createFunctionOptions *platform.CreateFunctionOptions) (*dockerclient.RestartPolicy, error) {
+
+	// get function platform-specific configuration
+	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&createFunctionOptions.FunctionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create a function's platform configuration")
+	}
+	if functionPlatformConfiguration.RestartPolicy != nil {
+		return functionPlatformConfiguration.RestartPolicy, nil
+	}
+
+	return p.Config.Local.DefaultFunctionRestartPolicy, nil
+}
+
+func (p *Platform) resolveFunctionSpecRequestCPUs(functionSpec functionconfig.Spec) string {
+	if functionSpec.Resources.Limits.Cpu().MilliValue() > 0 {
+
+		// format float to string, trim trailing zeros (e.g.: 0.100000 -> 0.1)
+		cpus := strings.TrimRight(
+			fmt.Sprintf("%f", functionSpec.Resources.Limits.Cpu().AsApproximateFloat64()),
+			"0")
+		if strings.HasSuffix(cpus, ".") {
+			cpus += "0"
+		}
+		return cpus
+	}
+	return ""
+}
+
+func (p *Platform) resolveFunctionSpecRequestMemory(functionSpec functionconfig.Spec) string {
+	if functionSpec.Resources.Limits.Memory().Value() > 0 {
+		return fmt.Sprintf("%db",
+			functionSpec.Resources.Limits.Memory().Value(),
+		)
+	}
+	return ""
 }

@@ -83,6 +83,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	defaultHTTPIngressHostTemplate := fsr.getDefaultHTTPIngressHostTemplate()
 	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
 	defaultFunctionPodResources := fsr.resolveDefaultFunctionPodResources()
+	autoScaleMetrics := fsr.resolveAutoScaleMetrics(inactivityWindowPresets)
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
@@ -96,6 +97,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"allowedAuthenticationModes":      allowedAuthenticationModes,
 			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
 			"defaultFunctionPodResources":     defaultFunctionPodResources,
+			"autoScaleMetrics":                autoScaleMetrics,
 		},
 	}
 
@@ -240,6 +242,29 @@ func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []stri
 		validFunctionPriorityClassNames = dashboardServer.GetPlatformConfiguration().Kube.ValidFunctionPriorityClassNames
 	}
 	return validFunctionPriorityClassNames
+}
+
+func (fsr *frontendSpecResource) resolveAutoScaleMetrics(inactivityWindowPresets []string) map[string]interface{} {
+	var supportedAutoScaleMetrics []functionconfig.AutoScaleMetric
+	windowSizePresets := inactivityWindowPresets
+	customMetricsEnabled := false
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().SupportedAutoScaleMetrics
+		if len(supportedAutoScaleMetrics) == 0 {
+			supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().GetDefaultSupportedAutoScaleMetrics()
+		}
+		if len(windowSizePresets) == 0 {
+			windowSizePresets = dashboardServer.GetPlatformConfiguration().GetDefaultWindowSizePresets()
+		}
+		autoScaleMetricsMode := dashboardServer.GetPlatformConfiguration().AutoScaleMetricsMode
+		customMetricsEnabled = autoScaleMetricsMode == platformconfig.AutoScaleMetricsModeCustom
+	}
+
+	return map[string]interface{}{
+		"customMetricsEnabled": customMetricsEnabled,
+		"metricPresets":        supportedAutoScaleMetrics,
+		"windowSizePresets":    windowSizePresets,
+	}
 }
 
 func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {

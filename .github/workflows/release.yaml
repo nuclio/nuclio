@@ -27,76 +27,60 @@ on:
 env:
   REPO: quay.io
   REPO_NAME: nuclio
+  CACHE_REPO: ghcr.io
+  CACHE_REPO_NAME: ${{ github.repository_owner }}
+  DOCKER_BUILDKIT: 1
+
+permissions:
+
+  # Allow the action to upload artifact to releases
+  contents: write
+
+  # Allow the action to upload cache images
+  packages: write
+
 
 jobs:
   release:
+    if: github.repository == 'nuclio/nuclio'
     name: Release ${{ matrix.arch }}
     runs-on: ubuntu-latest
-    if: github.repository == 'nuclio/nuclio'
     strategy:
       fail-fast: false
       matrix:
-        arch: [ arm64, amd64 ]
+        arch:
+        - arm64
+        - amd64
     steps:
-    - name: Dump github context
-      run: echo "$GITHUB_CONTEXT"
-      env:
-        GITHUB_CONTEXT: ${{ toJson(github) }}
+    - name: Prepare envs
+      run: |
+        echo "NUCLIO_DOCKER_REPO=${{ env.REPO }}/${{ env.REPO_NAME }}" >> $GITHUB_ENV
+        echo "NUCLIO_CACHE_REPO=${{ env.CACHE_REPO }}/${{ env.CACHE_REPO_NAME }}" >> $GITHUB_ENV
+        echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
 
-    - name: Dump runner context
-      run: echo "$RUNNER_CONTEXT"
-      env:
-        RUNNER_CONTEXT: ${{ toJson(runner) }}
-
-    - name: Dump github ref
-      run: echo "$GITHUB_REF"
-
-    - name: Extract ref info
+    - name: Prepare outputs
       id: release_info
       run: |
-        echo ::set-output name=REF_BRANCH::${GITHUB_REF#refs/heads/}
-        echo ::set-output name=REF_TAG::${GITHUB_REF#refs/tags/}
+        echo "REF_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+        echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
     - name: Set NUCLIO_LABEL to unstable
-      if: github.event_name == 'push' && steps.release_info.outputs.REF_BRANCH == 'development'
-      run: |
-        echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
+      if: github.event_name == 'push'
+      run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
 
     - name: Set NUCLIO_LABEL to release tag
       if: github.event_name == 'release'
-      run: |
-        echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
+      run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - uses: actions/setup-go@v2
-      with:
-        go-version: "1.17"
-
-    - name: Extract git branch
-      id: git_info
-      run: |
-        echo "::set-output name=branch::$(echo ${GITHUB_BASE_REF#refs/heads/})"
-
-    - name: Resolve docker cache tag
-      id: docker_cache
-      run: |
-        export version_suffix=$(echo "${{ steps.git_info.outputs.branch }}" | grep -E "^[0-9]+\.[0-9]+\.x$" | tr -d '.')
-        export unstable_tag=$(if [ -z "$version_suffix" ]; then echo "unstable-cache"; else echo "unstable-cache-$version_suffix";fi)
-        echo "::set-output name=tag::$(echo $unstable_tag)"      
-
-    # since github-actions gives us 14G only, and fills it up with some garbage
-    # we will free up some space for us (~2GB)
     - name: Freeing up disk space
-      run: |
-        chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
-        "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+      run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-    - uses: azure/docker-login@v1
+    - uses: actions/setup-go@v3
       with:
-        login-server: ${{ env.REPO }}
-        username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
-        password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
+        cache: true
+        go-version-file: go.mod
 
     # for none x86_64 platforms
     - name: Install QEMU
@@ -110,34 +94,83 @@ jobs:
         # mirrored to gcr.io/iguazio from multiarch/qemu-user-static:latest for availability reasons
         docker run --rm --privileged gcr.io/iguazio/multiarch/qemu-user-static:latest --reset -p yes
 
+    - name: Login to Quay.io
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REPO }}
+        username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
+        password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.CACHE_REPO }}
+        username: ${{ env.CACHE_REPO_NAME }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Build
       run: |
-        make pull-image-cache || true
+        make pull-docker-images-cache || true
         make docker-images
-      env:
-        NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
-        NUCLIO_ARCH: ${{ matrix.arch }}
-        NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
+
+    - name: Push cache images
+      if: env.NUCLIO_LABEL == 'unstable'
+      run: make push-docker-images-cache
 
     - name: Push images
-      run: |
-        make push-docker-images
-
-        # skip for now. will tackle in a different approach using buildkit.
-        #make push-image-cache
-      env:
-        NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
-        NUCLIO_ARCH: ${{ matrix.arch }}
-        NUCLIO_CACHE_LABEL: ${{ steps.docker_cache.outputs.tag }}
+      run: make push-docker-images
 
     - name: Tag and push stable images
-      if: env.NUCLIO_LABEL != 'unstable'
+      if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master'
       run: |
         docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
         docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
-      env:
-        NUCLIO_DOCKER_REPO: ${{ env.REPO }}/${{ env.REPO_NAME }}
-        NUCLIO_ARCH: ${{ matrix.arch }}
+
+  release_binary:
+    if: github.event_name == 'release'
+    name: Release Binary ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+        - arm64
+        - amd64
+    steps:
+    - name: Prepare envs
+      run: |
+        echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+
+    - name: Prepare outputs
+      id: release_info
+      run: |
+        echo "REF_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+        echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Set NUCLIO_LABEL to unstable
+      if: github.event_name == 'push'
+      run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
+
+    - name: Set NUCLIO_LABEL to release tag
+      if: github.event_name == 'release'
+      run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
+
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-go@v3
+      with:
+        cache: true
+
+    - name: Install QEMU
+      if: matrix.arch != 'amd64'
+      run: |
+
+        # install os packages
+        sudo apt update -qqy && sudo apt -qqy install qemu qemu-user-static
+
+        # enabled non arm64 docker containers executables
+        # mirrored to gcr.io/iguazio from multiarch/qemu-user-static:latest for availability reasons
+        docker run --rm --privileged gcr.io/iguazio/multiarch/qemu-user-static:latest --reset -p yes
 
     - name: Build binaries
       run: |
@@ -146,15 +179,12 @@ jobs:
           NUCLIO_OS=darwin make tools; \
           NUCLIO_OS=windows make tools; \
         fi;
-
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
         GOPATH: /home/runner/go
-        NUCLIO_ARCH: ${{ matrix.arch }}
 
     - name: Upload binaries
-      uses: AButler/upload-release-assets@v2.0
-      if: github.event_name == 'release'
+      uses: AButler/upload-release-assets@v2.0.2
       with:
         files: '/home/runner/go/bin/nuctl-*'
         repo-token: ${{ secrets.GITHUB_TOKEN }}

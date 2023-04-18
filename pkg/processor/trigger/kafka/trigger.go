@@ -21,10 +21,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -57,6 +57,7 @@ type kafka struct {
 	shutdownSignal           chan struct{}
 	stopConsumptionChan      chan struct{}
 	partitionWorkerAllocator partitionworker.Allocator
+	ctx                      context.Context
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -128,18 +129,18 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 	// start consumption in the background
 	go func() {
 		for {
+			k.ctx = context.Background()
 			k.Logger.DebugWith("Starting to consume from broker", "topics", k.configuration.Topics)
 
 			// start consuming. this will exit without error if a rebalancing occurs
-			err = k.consumerGroup.Consume(context.Background(), k.configuration.Topics, k)
-
-			if err != nil {
-				k.Logger.WarnWith("Failed to consume from group, waiting before retrying", "err", errors.GetErrorStackString(err, 10))
-
+			if err := k.consumerGroup.Consume(k.ctx, k.configuration.Topics, k); err != nil {
+				k.Logger.WarnWith("Failed to consume from group, waiting before retrying",
+					"err", errors.GetErrorStackString(err, 10))
 				time.Sleep(1 * time.Second)
-			} else {
-				k.Logger.DebugWith("Consumer session closed (possibly due to a rebalance), re-creating")
+				continue
 			}
+			k.Logger.DebugWith("Consumer session closed (possibly due to a rebalance), re-creating")
+
 		}
 	}()
 
@@ -150,8 +151,7 @@ func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
 	k.shutdownSignal <- struct{}{}
 	close(k.shutdownSignal)
 
-	err := k.consumerGroup.Close()
-	if err != nil {
+	if err := k.consumerGroup.Close(); err != nil {
 		return nil, errors.Wrap(err, "Failed to close consumer")
 	}
 	return nil, nil
@@ -178,8 +178,7 @@ func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
 }
 
 func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
-	err := k.partitionWorkerAllocator.Stop()
-	if err != nil {
+	if err := k.partitionWorkerAllocator.Stop(); err != nil {
 		return errors.Wrap(err, "Failed to stop partition worker allocator")
 	}
 
@@ -203,18 +202,11 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	submittedEventChan := make(chan *submittedEvent)
 	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
-	workerTerminationCompleteChan := make(chan bool)
-	readyForRebalanceChan := make(chan bool)
 
 	// submit the events in a goroutine so that we can unblock immediately
 	go k.eventSubmitter(claim, submittedEventChan)
 
 	ackWindowSize := int64(k.configuration.ackWindowSize)
-	if k.configuration.ackWindowSize > 0 {
-		k.Logger.DebugWith("Starting claim consumption with ack window",
-			"partition", claim.Partition(),
-			"ackWindowSize", ackWindowSize)
-	}
 
 	// listen for explicit ack messages if enabled
 	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
@@ -225,6 +217,10 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 		go k.explicitAckHandler(session, explicitAckControlMessageChan)
 	}
+
+	k.Logger.DebugWith("Starting claim consumption",
+		"partition", claim.Partition(),
+		"ackWindowSize", ackWindowSize)
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
 	// to stop consumption
@@ -263,7 +259,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				)
 			}
 
-		case <-claim.StopConsuming():
+		case <-session.Context().Done():
 			k.Logger.DebugWith("Got signal to stop consumption",
 				"wait", k.configuration.maxWaitHandlerDuringRebalance,
 				"partition", claim.Partition())
@@ -271,35 +267,18 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			go k.signalWorkerTermination(workerTerminationCompleteChan)
-
-			// trigger is ready for rebalance if both the handler is done and
-			// the workers are finished with the graceful termination
-			go func() {
-				var wg sync.WaitGroup
-				wg.Add(2)
-				go func() {
-					<-submittedEventInstance.done
-					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
-					wg.Done()
-				}()
-				go func() {
-					<-workerTerminationCompleteChan
-					k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
-					wg.Done()
-				}()
-
-				wg.Wait()
-				readyForRebalanceChan <- true
-			}()
+			// TODO: find a way to signal the workers on an imminent rebalance so they can stop gracefully
+			// since current implementation is not working (IG-21152)
+			// go k.signalWorkerTermination(workerTerminationCompleteChan)
 
 			//  wait a for rebalance readiness or max timeout
 			select {
-			case <-readyForRebalanceChan:
+			case <-submittedEventInstance.done:
 				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
-				k.Logger.DebugWith("Timed out waiting for handler to complete", "partition", claim.Partition())
+				k.Logger.DebugWith("Timed out waiting for handler to complete",
+					"partition", claim.Partition())
 
 				// mark this as a failure, metric-wise
 				k.UpdateStatistics(false)
@@ -316,8 +295,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		}
 
 		// release the worker from whence it came
-		err = k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance)
-		if err != nil {
+		if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
 			return errors.Wrap(err, "Failed to release worker")
 		}
 	}
@@ -327,8 +305,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// shut down goroutines and channels
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
-	close(workerTerminationCompleteChan)
-	close(readyForRebalanceChan)
 
 	return submitError
 }
@@ -376,7 +352,8 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 		"partition", claim.Partition())
 }
 
-func (k *kafka) cancelEventHandling(workerInstance *worker.Worker, claim sarama.ConsumerGroupClaim) error {
+func (k *kafka) cancelEventHandling(workerInstance *worker.Worker,
+	claim sarama.ConsumerGroupClaim) error {
 	if workerInstance.SupportsRestart() {
 		return workerInstance.Restart()
 	}
@@ -396,7 +373,9 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.Group.Rebalance.Timeout = k.configuration.rebalanceTimeout
 	config.Consumer.Group.Rebalance.Retry.Max = k.configuration.RebalanceRetryMax
 	config.Consumer.Group.Rebalance.Retry.Backoff = k.configuration.rebalanceRetryBackoff
-	config.Consumer.Group.Rebalance.Strategy = k.configuration.balanceStrategy
+	config.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
+		k.configuration.balanceStrategy,
+	}
 	config.Consumer.Retry.Backoff = k.configuration.retryBackoff
 	config.Consumer.Fetch.Min = int32(k.configuration.FetchMin)
 	config.Consumer.Fetch.Default = int32(k.configuration.FetchDefault)
@@ -404,17 +383,36 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.MaxWaitTime = k.configuration.maxWaitTime
 	config.Consumer.MaxProcessingTime = k.configuration.maxProcessingTime
 	config.ChannelBufferSize = k.configuration.ChannelBufferSize
-	config.LogLevel = k.configuration.LogLevel
 
 	// configure TLS if applicable
 	config.Net.TLS.Enable = k.configuration.CACert != "" || k.configuration.TLS.Enable
 	if config.Net.TLS.Enable {
 		k.Logger.DebugWith("Enabling TLS",
+			"minimumVersion", k.configuration.TLS.MinimumVersion,
 			"calen", len(k.configuration.CACert))
-		config.Net.TLS.Config = &tls.Config{
-			InsecureSkipVerify: k.configuration.TLS.InsecureSkipVerify,
+		if k.configuration.TLS.MinimumVersion == "" {
+			k.configuration.TLS.MinimumVersion = "1.2"
 		}
 
+		getTLSMinimumVersion := func(version string) uint16 {
+			switch version {
+			case "1.0":
+				return tls.VersionTLS10
+			case "1.1":
+				return tls.VersionTLS11
+			case "1.2":
+				return tls.VersionTLS12
+			case "1.3":
+				return tls.VersionTLS13
+			default:
+				return tls.VersionTLS13
+			}
+		}
+
+		config.Net.TLS.Config = &tls.Config{
+			InsecureSkipVerify: k.configuration.TLS.InsecureSkipVerify,
+			MinVersion:         getTLSMinimumVersion(k.configuration.TLS.MinimumVersion),
+		}
 		if k.configuration.CACert != "" {
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM([]byte(k.configuration.CACert))
@@ -422,8 +420,8 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
 			if k.configuration.AccessKey != "" && k.configuration.AccessCertificate != "" {
 				k.Logger.DebugWith("Configuring cert authentication",
-					"keylen", len(k.configuration.AccessKey),
-					"certlen", len(k.configuration.AccessCertificate))
+					"keyLen", len(k.configuration.AccessKey),
+					"certLen", len(k.configuration.AccessCertificate))
 
 				keypair, err := tls.X509KeyPair([]byte(k.configuration.AccessCertificate), []byte(k.configuration.AccessKey))
 				if err != nil {
@@ -484,7 +482,6 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 }
 
 func (k *kafka) newConsumerGroup() (sarama.ConsumerGroup, error) {
-
 	consumerGroup, err := sarama.NewConsumerGroup(k.configuration.brokers, k.configuration.ConsumerGroup, k.kafkaConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer")
@@ -535,13 +532,16 @@ func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool)
 	errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
 
 	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
-			if err := workerInstance.Terminate(); err != nil {
-				return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
-			}
+		workerInstance := workerInstance
+		if !workerInstance.IsTerminated() {
+			errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
+				if err := workerInstance.Terminate(); err != nil {
+					return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
+				}
 
-			return nil
-		})
+				return nil
+			})
+		}
 	}
 
 	if err := errGroup.Wait(); err != nil {
@@ -596,7 +596,7 @@ func (k *kafka) resolveNoAckMessage(response interface{}, submittedEvent *submit
 	}
 
 	// check response header for no-ack
-	if noAckHeader, exists := responseHeaders["x-nuclio-stream-no-ack"]; exists {
+	if noAckHeader, exists := responseHeaders[headers.StreamNoAck]; exists {
 
 		// convert header to boolean
 		if noAckHeaderBool, ok := noAckHeader.(bool); ok && noAckHeaderBool {

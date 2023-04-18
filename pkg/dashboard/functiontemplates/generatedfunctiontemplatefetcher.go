@@ -19,9 +19,9 @@ package functiontemplates
 import (
 	"encoding/base64"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"sigs.k8s.io/yaml"
 )
 
 type GeneratedFunctionTemplateFetcher struct {

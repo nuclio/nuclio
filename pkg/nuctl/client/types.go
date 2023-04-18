@@ -14,19 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package local
+package client
 
 import (
-	"github.com/nuclio/nuclio/pkg/platform"
+	"context"
+
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
-type node struct{}
+type APIClient interface {
 
-func (n *node) GetAddresses() []platform.Address {
-	return []platform.Address{
-		{
-			Type:    platform.AddressTypeExternalIP,
-			Address: "127.0.0.1",
-		},
-	}
+	// GetFunctions returns a map of function name to function config for all functions in the given namespace
+	GetFunctions(ctx context.Context, namespace string) (map[string]functionconfig.Config, error)
+
+	// PatchFunction patches a single function with the given options
+	PatchFunction(ctx context.Context,
+		functionName,
+		namespace string,
+		optionsPayload []byte,
+		patchHeaders map[string]string) error
 }
+
+const (
+	FunctionsEndpoint = "functions"
+)

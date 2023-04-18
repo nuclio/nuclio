@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -47,8 +46,8 @@ var restrictedNameRegex = regexp.MustCompile(`^/?` + restrictedNameChars + `+$`)
 var containerIDRegex = regexp.MustCompile(`^[\w+-\.]+$`)
 
 // loose regexes, today just prohibit whitespaces
-var restrictedBuildArgRegex = regexp.MustCompile(`^[\S]+$`)
-var volumeNameRegex = regexp.MustCompile(`^[\S]+$`)
+var restrictedBuildArgRegex = regexp.MustCompile(`^\S+$`)
+var volumeNameRegex = regexp.MustCompile(`^\S+$`)
 
 // this is an open issue https://github.com/kubernetes/kubernetes/issues/53201#issuecomment-534647130
 // taking the loose approach,
@@ -82,8 +81,8 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 		}
 	}
 
-	// verify
-	if _, err := newClient.GetVersion(false); err != nil {
+	// verify docker client is available
+	if _, err := newClient.GetVersion(true); err != nil {
 		return nil, errors.Wrap(err, "No docker client found")
 	}
 
@@ -138,8 +137,11 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string,
 
 	// copy objects
 	for objectImagePath, objectLocalPath := range objectsToCopy {
-		_, err = c.runCommand(nil, "docker cp %s:%s %s", containerID, objectImagePath, objectLocalPath)
-		if err != nil && !allowCopyErrors {
+		if _, err := c.runCommand(nil,
+			"docker cp %s:%s %s",
+			containerID,
+			objectImagePath,
+			objectLocalPath); err != nil && !allowCopyErrors {
 			return errors.Wrapf(err, "Can't copy %s:%s -> %s", containerID, objectImagePath, objectLocalPath)
 		}
 	}
@@ -211,9 +213,9 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 	for localPort, dockerPort := range runOptions.Ports {
 		if localPort == RunOptionsNoPort {
-			dockerArguments = append(dockerArguments, fmt.Sprintf("-p %d", dockerPort))
+			dockerArguments = append(dockerArguments, fmt.Sprintf("--publish '%d'", dockerPort))
 		} else {
-			dockerArguments = append(dockerArguments, fmt.Sprintf("-p %d:%d", localPort, dockerPort))
+			dockerArguments = append(dockerArguments, fmt.Sprintf("--publish '%d:%d'", localPort, dockerPort))
 		}
 	}
 
@@ -226,19 +228,27 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 			return "", errors.Errorf("Cannot combine restart policy with container removal")
 		}
 		restartMaxRetries := runOptions.RestartPolicy.MaximumRetryCount
-		restartPolicy := fmt.Sprintf("--restart %s", runOptions.RestartPolicy.Name)
+		restartPolicy := string(runOptions.RestartPolicy.Name)
 		if runOptions.RestartPolicy.Name == RestartPolicyNameOnFailure && restartMaxRetries >= 0 {
 			restartPolicy += fmt.Sprintf(":%d", restartMaxRetries)
 		}
-		dockerArguments = append(dockerArguments, restartPolicy)
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--restart %s", common.Quote(restartPolicy)))
 	}
 
 	if !runOptions.Attach {
-		dockerArguments = append(dockerArguments, "-d")
+		dockerArguments = append(dockerArguments, "--detach")
 	}
 
 	if runOptions.GPUs != "" {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--gpus %s", runOptions.GPUs))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--gpus %s", common.Quote(runOptions.GPUs)))
+	}
+
+	if runOptions.Memory != "" {
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--memory %s", runOptions.Memory))
+	}
+
+	if runOptions.CPUs != "" {
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--cpus %s", runOptions.CPUs))
 	}
 
 	if runOptions.Remove {
@@ -246,45 +256,57 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	}
 
 	if runOptions.ContainerName != "" {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--name %s", runOptions.ContainerName))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--name %s", common.Quote(runOptions.ContainerName)))
 	}
 
 	if runOptions.Network != "" {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--net %s", runOptions.Network))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--net %s", common.Quote(runOptions.Network)))
 	}
 
 	if runOptions.Labels != nil {
 		for labelName, labelValue := range runOptions.Labels {
 			dockerArguments = append(dockerArguments,
-				fmt.Sprintf("--label %s='%s'", labelName, c.replaceSingleQuotes(labelValue)))
+				fmt.Sprintf("--label '%s'='%s'", labelName, c.replaceSingleQuotes(labelValue)))
 		}
 	}
 
 	if runOptions.Env != nil {
 		for envName, envValue := range runOptions.Env {
-			dockerArguments = append(dockerArguments, fmt.Sprintf("--env %s='%s'", envName, envValue))
+			dockerArguments = append(dockerArguments, fmt.Sprintf("--env '%s'='%s'", envName, envValue))
 		}
 	}
 
 	if runOptions.Volumes != nil {
 		for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
 			dockerArguments = append(dockerArguments,
-				fmt.Sprintf("--volume %s:%s ", volumeHostPath, volumeContainerPath))
+				fmt.Sprintf("--volume '%s:%s'", volumeHostPath, volumeContainerPath))
 		}
 	}
 
 	if len(runOptions.MountPoints) > 0 {
 		for _, mountPoint := range runOptions.MountPoints {
+			mountType := ""
+			if mountPoint.Type != "" {
+
+				// e.g: type=bind,
+				mountType = fmt.Sprintf("type=%s,", mountPoint.Type)
+			}
 			readonly := ""
 			if !mountPoint.RW {
 				readonly = ",readonly"
 			}
+			mount := fmt.Sprintf("%ssource=%s,destination=%s%s",
+				mountType,
+				mountPoint.Source,
+				mountPoint.Destination,
+				readonly)
 			dockerArguments = append(dockerArguments,
-				fmt.Sprintf("--mount source=%s,destination=%s%s",
-					mountPoint.Source,
-					mountPoint.Destination,
-					readonly))
+				fmt.Sprintf("--mount %s", common.Quote(mount)))
 		}
+	}
+
+	for _, device := range runOptions.Devices {
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--device %s", common.Quote(device)))
 	}
 
 	if runOptions.RunAsUser != nil || runOptions.RunAsGroup != nil {
@@ -296,11 +318,11 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 			userStr += fmt.Sprintf(":%d", *runOptions.RunAsGroup)
 		}
 
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--user %s", userStr))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--user %s", common.Quote(userStr)))
 	}
 
 	if runOptions.FSGroup != nil {
-		dockerArguments = append(dockerArguments, fmt.Sprintf("--group-add %d", *runOptions.FSGroup))
+		dockerArguments = append(dockerArguments, fmt.Sprintf("--group-add '%d'", *runOptions.FSGroup))
 	}
 
 	runResult, err := c.cmdRunner.Run(
@@ -366,18 +388,18 @@ func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptio
 	}
 
 	runResult, err := c.cmdRunner.Run(
-		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
+		&cmdrunner.RunOptions{
+			LogRedactions: c.redactedValues,
+
+			// too spammy
+			LogOnlyOnFailure: true,
+			SkipLogOnFailure: true,
+		},
 		"docker exec %s %s %s",
 		envArgument,
 		containerID,
 		execOptions.Command)
-
 	if err != nil {
-		c.logger.DebugWith("Failed to execute command in container",
-			"err", err,
-			"stdout", runResult.Output,
-			"stderr", runResult.Stderr)
-
 		return err
 	}
 
@@ -676,6 +698,24 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 	return err
 }
 
+// GetContainerNetworkSettings returns container network settings
+func (c *ShellClient) GetContainerNetworkSettings(containerID string) (*NetworkSettings, error) {
+	c.logger.DebugWith("Getting container network setting docker network",
+		"containerID", containerID)
+
+	runResults, err := c.runCommand(nil, `docker inspect --format '{{ .NetworkSettings.Networks | json }}' %s`, containerID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get container ip addresses")
+	}
+
+	networkSettings := &NetworkSettings{}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(runResults.Output)), &networkSettings); err != nil {
+		return nil, errors.Wrap(err, "Failed to parse network settings")
+	}
+
+	return networkSettings, nil
+}
+
 // CreateNetwork creates a docker network
 func (c *ShellClient) CreateNetwork(options *CreateNetworkOptions) error {
 	c.logger.DebugWith("Creating docker network", "options", options)
@@ -796,7 +836,7 @@ func (c *ShellClient) GetContainerLogStream(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to get container log stream")
 	}
 
-	return ioutil.NopCloser(strings.NewReader(output.Output)), nil
+	return io.NopCloser(strings.NewReader(output.Output)), nil
 }
 
 func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions,
@@ -814,10 +854,19 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions,
 	runResult, err := c.cmdRunner.Run(runOptions, format, vars...)
 
 	if runOptions.CaptureOutputMode == cmdrunner.CaptureOutputModeStdout && runResult.Stderr != "" {
-		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
-			"workingDir", runOptions.WorkingDir,
-			"cmd", cmdrunner.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars...)),
-			"stderr", runResult.Stderr)
+
+		// Don't log with warning if the command succeeded
+		if runResult.ExitCode == 0 {
+			c.logger.DebugWith("Docker command outputted to stderr",
+				"workingDir", runOptions.WorkingDir,
+				"cmd", cmdrunner.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars...)),
+				"stderr", runResult.Stderr)
+		} else {
+			c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
+				"workingDir", runOptions.WorkingDir,
+				"cmd", cmdrunner.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars...)),
+				"stderr", runResult.Stderr)
+		}
 	}
 
 	return runResult, err

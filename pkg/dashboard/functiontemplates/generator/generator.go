@@ -24,7 +24,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,12 +35,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 
-	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/flect"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 	yamlv3 "gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 var funcMap = template.FuncMap{
@@ -83,7 +82,7 @@ package functiontemplates
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 var GeneratedFunctionTemplates = []*generatedFunctionTemplate{
@@ -323,7 +322,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 	if common.IsFile(configPath) {
 		configFileExists = true
 
-		configContents, err := ioutil.ReadFile(configPath)
+		configContents, err := os.ReadFile(configPath)
 		if err != nil {
 			return nil, "", errors.Wrapf(err, "Failed to read function configuration file at %s", configPath)
 		}
@@ -346,7 +345,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 			// we found our source code, read it
 			sourcePath := filepath.Join(functionDir, file.Name())
 
-			sourceBytes, err := ioutil.ReadFile(sourcePath)
+			sourceBytes, err := os.ReadFile(sourcePath)
 			if err != nil {
 				return nil, "", errors.Wrapf(err, "Failed to read function source code at %s", sourcePath)
 			}

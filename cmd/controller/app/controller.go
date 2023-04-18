@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
@@ -46,6 +47,7 @@ func Run(kubeconfigPath string,
 	resyncIntervalStr string,
 	functionMonitorIntervalStr,
 	cronJobStaleResourcesCleanupIntervalStr string,
+	evictedPodsCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
 	apiGatewayOperatorNumWorkersStr string) error {
@@ -59,6 +61,7 @@ func Run(kubeconfigPath string,
 		resyncIntervalStr,
 		functionMonitorIntervalStr,
 		cronJobStaleResourcesCleanupIntervalStr,
+		evictedPodsCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
 		projectOperatorNumWorkersStr,
 		apiGatewayOperatorNumWorkersStr)
@@ -84,6 +87,7 @@ func createController(kubeconfigPath string,
 	resyncIntervalStr string,
 	functionMonitorIntervalStr string,
 	cronJobStaleResourcesCleanupIntervalStr string,
+	evictedPodsCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
 	projectOperatorNumWorkersStr string,
 	apiGatewayOperatorNumWorkersStr string) (*controller.Controller, error) {
@@ -109,6 +113,11 @@ func createController(kubeconfigPath string,
 	}
 
 	cronJobStaleResourcesCleanupInterval, err := time.ParseDuration(cronJobStaleResourcesCleanupIntervalStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
+	}
+
+	evictedPodsCleanupInterval, err := time.ParseDuration(evictedPodsCleanupIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse cron job stale pods deletion interval")
 	}
@@ -156,8 +165,14 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
+	// create cmd runner
+	cmdRunner, err := cmdrunner.NewShellRunner(rootLogger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create cmd runner")
+	}
+
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(rootLogger, kubeClientSet, platformConfiguration)
+	ingressManager, err := ingress.NewManager(rootLogger, kubeClientSet, cmdRunner, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create ingress manager")
 	}
@@ -180,6 +195,7 @@ func createController(kubeconfigPath string,
 		resyncInterval,
 		functionMonitorInterval,
 		cronJobStaleResourcesCleanupInterval,
+		evictedPodsCleanupInterval,
 		platformConfiguration,
 		platformConfigurationName,
 		functionOperatorNumWorkers,

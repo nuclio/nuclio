@@ -21,11 +21,11 @@ package buildsuite
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -95,7 +95,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 
 	// simulate the case where the function path _and_ source code is provided. function source code
 	// should remain untouched
-	tempFile, err := ioutil.TempFile(os.TempDir(), "prefix")
+	tempFile, err := os.CreateTemp(os.TempDir(), "prefix")
 	suite.Require().NoError(err)
 	defer os.Remove(tempFile.Name()) // nolint: errcheck
 
@@ -248,7 +248,7 @@ func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
 		suite.Require().Len(functions, 1)
 
 		// read function source code
-		functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
+		functionSourceCode, err := os.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 		suite.Require().NoError(err)
 
 		suite.Require().Equal(base64.StdEncoding.EncodeToString(functionSourceCode),
@@ -263,11 +263,12 @@ func (suite *testSuite) TestBuildInvalidFunctionPath() {
 
 	createFunctionOptions := suite.GetDeployOptions("invalid", "invalidpath")
 
-	_, err = suite.Platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-		Logger:         createFunctionOptions.Logger,
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-		PlatformName:   suite.Platform.GetName(),
-	})
+	_, err = suite.Platform.CreateFunctionBuild(suite.Ctx,
+		&platform.CreateFunctionBuildOptions{
+			Logger:         createFunctionOptions.Logger,
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+			PlatformName:   suite.Platform.GetName(),
+		})
 
 	suite.Require().Contains(errors.Cause(err).Error(), "invalidpath")
 }
@@ -846,6 +847,7 @@ func (suite *testSuite) generateDockerfileAndVerify(builder *build.Builder,
 		dockerfileInfo.ImageArtifactPaths,
 		dockerfileInfo.Directives,
 		healthCheckRequired,
+		time.Second,
 		dockerfileInfo.BuildArgs)
 
 	dockerfileContents = common.RemoveEmptyLines(dockerfileContents)

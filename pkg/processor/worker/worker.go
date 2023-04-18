@@ -43,6 +43,7 @@ type Worker struct {
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time
+	isTerminated         bool
 }
 
 // NewWorker creates a new worker
@@ -148,7 +149,15 @@ func (w *Worker) SupportsRestart() bool {
 }
 
 func (w *Worker) Terminate() error {
-	return w.runtime.Terminate()
+	err := w.runtime.Terminate()
+	if err == nil {
+		w.isTerminated = true
+	}
+	return err
+}
+
+func (w *Worker) IsTerminated() bool {
+	return w.isTerminated
 }
 
 // Subscribe subscribes to a control message kind

@@ -20,6 +20,7 @@ package app
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -48,10 +49,7 @@ func (suite *DashboardTestSuite) SetupSuite() {
 
 func (suite *DashboardTestSuite) SetupTest() {
 	suite.ctx = context.Background()
-	suite.dashboard = &Dashboard{
-		logger: suite.logger,
-		status: status.Initializing,
-	}
+	suite.dashboard = NewDashboard(suite.logger)
 	suite.dockerClient = dockerclient.NewMockDockerClient()
 }
 
@@ -103,23 +101,33 @@ func (suite *DashboardTestSuite) TestStayReadyOnTransientFailures() {
 	interval := 100 * time.Millisecond
 
 	// return OK, error, error, OK, OK, OK, ...
+	var getVersionCounter int32
 	suite.dockerClient.
 		On("GetVersion", true).
+		Run(func(args mock.Arguments) {
+			atomic.AddInt32(&getVersionCounter, 1)
+		}).
 		Return("1", nil).
 		Once()
 	suite.dockerClient.
 		On("GetVersion", true).
+		Run(func(args mock.Arguments) {
+			atomic.AddInt32(&getVersionCounter, 2)
+		}).
 		Return("", errors.New("Something bad happened")).
 		Twice()
 	suite.dockerClient.
 		On("GetVersion", true).
+		Run(func(args mock.Arguments) {
+			atomic.AddInt32(&getVersionCounter, 1)
+		}).
 		Return("2", nil)
 
 	go func() {
 		err := common.RetryUntilSuccessful(3*time.Second,
 			interval,
 			func() bool {
-				return len(suite.dockerClient.Calls) >= 4
+				return atomic.LoadInt32(&getVersionCounter) >= 4
 			})
 		suite.Require().NoError(err, "Exhausted waiting for docker client to perform healthcheck validation")
 

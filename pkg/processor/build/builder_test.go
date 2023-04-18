@@ -21,8 +21,8 @@ package build
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -45,9 +45,7 @@ const (
 	FunctionsArchiveFilePath = "test/test_funcs.zip"
 )
 
-//
 // Test suite
-//
 type testSuite struct {
 	suite.Suite
 	logger       logger.Logger
@@ -165,7 +163,7 @@ func (suite *testSuite) TestWriteFunctionSourceCodeToTempFileWritesReturnsFilePa
 		tempPath, err := suite.builder.writeFunctionSourceCodeToTempFile(encodedFunctionSourceCode)
 		suite.Assert().NoError(err)
 		suite.NotNil(tempPath)
-		resultSourceCode, err := ioutil.ReadFile(tempPath)
+		resultSourceCode, err := os.ReadFile(tempPath)
 		suite.Assert().NoError(err)
 		suite.Assert().Equal(test.expectedSourceCode, string(resultSourceCode))
 		err = suite.builder.cleanupTempDir()
@@ -710,7 +708,7 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 			suite.Require().NoError(err)
 
 			// make sure our test file was downloaded correctly
-			handlerFileContents, err := ioutil.ReadFile(filepath.Join(path, "/main.go"))
+			handlerFileContents, err := os.ReadFile(filepath.Join(path, "/main.go"))
 			suite.Require().Equal(fmt.Sprintf(`package main
 
 import (
@@ -852,7 +850,7 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 	expectedFilePath := filepath.Join(suite.builder.tempDir, "/download/my-func."+fileExtension)
 	suite.Equal(expectedFilePath, path)
 
-	resultSourceCode, err := ioutil.ReadFile(expectedFilePath)
+	resultSourceCode, err := os.ReadFile(expectedFilePath)
 	suite.Assert().NoError(err)
 
 	suite.Assert().Equal(codeFileContent, string(resultSourceCode))
@@ -861,7 +859,7 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 func (suite *testSuite) mockArchiveFileURLEndpoint(buildConfiguration functionconfig.Build, archiveFileURL string) {
 	if buildConfiguration.CodeEntryType != S3EntryType {
 		httpmock.Activate()
-		functionArchiveFileBytes, err := ioutil.ReadFile(FunctionsArchiveFilePath)
+		functionArchiveFileBytes, err := os.ReadFile(FunctionsArchiveFilePath)
 
 		responder := func(req *http.Request) (*http.Response, error) {
 			response := &http.Response{
@@ -899,7 +897,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 	suite.Equal(suite.builder.tempDir+"/decompress"+destinationWorkDir, path)
 
 	// make sure our test python file is inside the decompress folder
-	decompressedPythonFileContent, err := ioutil.ReadFile(filepath.Join(path, "/main.py"))
+	decompressedPythonFileContent, err := os.ReadFile(filepath.Join(path, "/main.py"))
 	suite.Equal(`def handler(context, event):
 	return "hello world"
 `, string(decompressedPythonFileContent))

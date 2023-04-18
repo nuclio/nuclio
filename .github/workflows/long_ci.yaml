@@ -27,33 +27,25 @@ env:
   CANCELL_LABEL: long-ci-cancelled
   FAILURE_LABEL: long-ci-failed
   ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
+  DOCKER_BUILDKIT: 1
 
 jobs:
   long_ci:
     name: PR-${{ github.event.inputs.pr_number }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
 
-      - name: Dump github context
-        run: echo "$GITHUB_CONTEXT"
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-
-      - name: Dump runner context
-        run: echo "$RUNNER_CONTEXT"
-        env:
-          RUNNER_CONTEXT: ${{ toJson(runner) }}
-
-      # since github-actions gives us 14G only, and fills it up with some garbage
-      # we will free up some space for us (~2GB)
       - name: Freeing up disk space
-        run: |
-          chmod +x "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
-          "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+
+      - uses: actions/setup-go@v3
+        with:
+          cache: true
+          go-version-file: go.mod
 
       - name: Set labels
         uses: actions/github-script@v3

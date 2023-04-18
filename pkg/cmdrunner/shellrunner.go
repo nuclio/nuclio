@@ -103,12 +103,13 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 		}
 
 		runResult.ExitCode = exitCode
-
-		sr.logger.DebugWith("Failed to execute command",
-			"output", runResult.Output,
-			"stderr", runResult.Stderr,
-			"exitCode", runResult.ExitCode,
-			"err", err)
+		if !runOptions.SkipLogOnFailure {
+			sr.logger.DebugWith("Failed to execute command",
+				"output", runResult.Output,
+				"stderr", runResult.Stderr,
+				"exitCode", runResult.ExitCode,
+				"err", err)
+		}
 
 		return runResult, errors.Wrapf(err, "stdout:\n%s\nstderr:\n%s", runResult.Output, runResult.Stderr)
 	}
@@ -172,11 +173,13 @@ func (sr *ShellRunner) Stream(ctx context.Context,
 	}
 
 	go func() {
+		<-ctx.Done()
 		if err := cmd.Wait(); err != nil {
 			sr.logger.DebugWith("Stream command finished with an error", "err", err)
 			return
 		}
 		sr.logger.Debug("Stream command finished")
+
 	}()
 
 	return stdoutPipe, nil

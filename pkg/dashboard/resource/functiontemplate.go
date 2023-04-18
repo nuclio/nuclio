@@ -18,9 +18,10 @@ package resource
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -53,7 +54,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 	// create filter
 	filter := functiontemplates.Filter{
-		Contains: request.Header.Get("x-nuclio-filter-contains"),
+		Contains: request.Header.Get(headers.FilterContains),
 	}
 
 	// get all templates that pass a certain filter
@@ -84,7 +85,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 	return attributes, nil
 }
 
-// returns a list of custom routes for the resource
+// GetCustomRoutes returns a list of custom routes for the resource
 func (ftr *functionTemplateResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	return []restful.CustomRoute{
 		{
@@ -109,7 +110,7 @@ func (ftr *functionTemplateResource) render(request *http.Request) (*restful.Cus
 	statusCode := http.StatusOK
 
 	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}
