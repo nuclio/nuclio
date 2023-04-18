@@ -91,6 +91,7 @@ type deployCommandeer struct {
 	excludedProjects       []string
 	excludedFunctions      []string
 	excludeFunctionWithGPU bool
+	importedOnly           bool
 }
 
 func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, betaCommandeer *betaCommandeer) *deployCommandeer {
@@ -272,9 +273,10 @@ func addBetaDeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&commandeer.noBuild, "no-build", false, "Don't build the function, only deploy it")
 	cmd.Flags().BoolVar(&commandeer.deployAll, "deploy-all", false, "Deploy all functions in the namespace")
 	cmd.PersistentFlags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
-	cmd.PersistentFlags().StringSliceVarP(&commandeer.excludedProjects, "exclude-projects", "", []string{}, "Exclude projects to patch")
-	cmd.PersistentFlags().StringSliceVarP(&commandeer.excludedFunctions, "exclude-functions", "", []string{}, "Exclude functions to patch")
-	cmd.PersistentFlags().BoolVarP(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", "", false, "Skip functions with GPU")
+	cmd.PersistentFlags().StringSliceVar(&commandeer.excludedProjects, "exclude-projects", []string{}, "Exclude projects to patch")
+	cmd.PersistentFlags().StringSliceVar(&commandeer.excludedFunctions, "exclude-functions", []string{}, "Exclude functions to patch")
+	cmd.PersistentFlags().BoolVar(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", false, "Skip functions with GPU")
+	cmd.PersistentFlags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
 }
 
 func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList) error {
@@ -733,12 +735,7 @@ func (d *deployCommandeer) patchFunction(ctx context.Context, function string) e
 		return errors.Wrap(err, "Failed to marshal payload")
 	}
 
-	requestHeaders := map[string]string{}
-	if d.waitForFunction {
-
-		// add a header that will cause the API to wait for the function to be ready after patching
-		requestHeaders[headers.WaitFunctionAction] = "true"
-	}
+	requestHeaders := d.resolveRequestHeaders()
 
 	if err := d.betaCommandeer.apiClient.PatchFunction(ctx,
 		function,
@@ -764,4 +761,19 @@ func (d *deployCommandeer) shouldSkipFunction(functionConfig functionconfig.Conf
 	}
 
 	return false
+}
+
+func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
+	requestHeaders := map[string]string{}
+	if d.waitForFunction {
+
+		// add a header that will tell the API to wait for the function to be ready after patching
+		requestHeaders[headers.WaitFunctionAction] = "true"
+	}
+	if d.importedOnly {
+
+		// add a header that will tell the API to only deploy imported functions
+		requestHeaders[headers.ImportedFunctionOnly] = "true"
+	}
+	return requestHeaders
 }

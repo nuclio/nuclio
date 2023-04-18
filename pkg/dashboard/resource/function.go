@@ -509,6 +509,12 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 	}
 
 	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
+	importedOnly := fr.headerValueIsTrue(request, headers.ImportedFunctionOnly)
+
+	if importedOnly && function.GetStatus().State != functionconfig.FunctionStateImported {
+		fr.Logger.DebugWithCtx(request.Context(), "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
+		return nil
+	}
 
 	fr.Logger.DebugWith("Redeploying function", "functionName", id)
 
