@@ -69,12 +69,13 @@ limitations under the License.
         /**
          * Invoke function event
          * @param {Object} eventData
+         * @param {boolean} skipTlsVerification
          * @param {string} invokeUrl
          * @param {Promise} canceller
          * @returns {Promise}
          */
-        function invokeFunction(eventData, invokeUrl, canceller) {
-            return NuclioEventDataService.invokeFunction(eventData, invokeUrl, canceller);
+        function invokeFunction(eventData, skipTlsVerification, invokeUrl, canceller) {
+            return NuclioEventDataService.invokeFunction(eventData, skipTlsVerification, invokeUrl, canceller);
         }
     }
 }());
