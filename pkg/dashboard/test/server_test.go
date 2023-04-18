@@ -1105,7 +1105,7 @@ func (suite *functionTestSuite) TestPatchFunctionInvalidDesiredState() {
 	}
 
 	requestBody := `{
-	"desiredState": "ready"
+	"desiredState": "unhealthy"
 }`
 
 	suite.sendRequest("PATCH",
