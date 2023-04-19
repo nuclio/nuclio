@@ -1040,7 +1040,7 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 
 	// send request
 	expectedStatusCode := http.StatusNoContent
-	headers := map[string]string{
+	requestHeaders := map[string]string{
 		headers.WaitFunctionAction: "true",
 		headers.FunctionNamespace:  namespace,
 	}
@@ -1051,7 +1051,7 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 
 	suite.sendRequest("PATCH",
 		fmt.Sprintf("/api/functions/%s", functionName),
-		headers,
+		requestHeaders,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		nil)
@@ -1076,7 +1076,7 @@ func (suite *functionTestSuite) TestPatchFunctionNotFound() {
 
 	// send request
 	expectedStatusCode := http.StatusNotFound
-	headers := map[string]string{
+	requestHeaders := map[string]string{
 		headers.WaitFunctionAction: "true",
 		headers.FunctionNamespace:  namespace,
 	}
@@ -1087,7 +1087,7 @@ func (suite *functionTestSuite) TestPatchFunctionNotFound() {
 
 	suite.sendRequest("PATCH",
 		fmt.Sprintf("/api/functions/%s", functionName),
-		headers,
+		requestHeaders,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		nil)
@@ -1099,7 +1099,7 @@ func (suite *functionTestSuite) TestPatchFunctionInvalidDesiredState() {
 
 	// send request
 	expectedStatusCode := http.StatusBadRequest
-	headers := map[string]string{
+	requestHeaders := map[string]string{
 		headers.WaitFunctionAction: "true",
 		headers.FunctionNamespace:  namespace,
 	}
@@ -1110,10 +1110,85 @@ func (suite *functionTestSuite) TestPatchFunctionInvalidDesiredState() {
 
 	suite.sendRequest("PATCH",
 		fmt.Sprintf("/api/functions/%s", functionName),
-		headers,
+		requestHeaders,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		nil)
+}
+
+func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
+	namespace := "some-namespace"
+
+	for _, testCase := range []struct {
+		name                 string
+		functionName         string
+		functionState        functionconfig.FunctionState
+		expectedCreateCalled bool
+	}{
+		{
+			name:                 "importedFunction",
+			functionName:         "imported-func",
+			functionState:        functionconfig.FunctionStateImported,
+			expectedCreateCalled: true,
+		},
+		{
+			name:                 "readyFunction",
+			functionName:         "ready-func",
+			functionState:        functionconfig.FunctionStateReady,
+			expectedCreateCalled: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			function := platform.AbstractFunction{}
+			function.Config.Meta.Name = testCase.functionName
+			function.Config.Meta.Namespace = namespace
+			function.Status.State = testCase.functionState
+
+			// verifications
+			verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+				suite.Require().Equal(testCase.functionName, getFunctionsOptions.Name)
+				suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
+				return true
+			}
+			verifyCreateFunctionOptions := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+				suite.Require().Equal(testCase.functionName, createFunctionOptions.FunctionConfig.Meta.Name)
+				suite.Require().Equal(namespace, createFunctionOptions.FunctionConfig.Meta.Namespace)
+				return true
+			}
+
+			// mock
+			suite.mockPlatform.
+				On("GetFunctions", mock.Anything, mock.MatchedBy(verifyGetFunctionsOptions)).
+				Return([]platform.Function{&function}, nil).
+				Once()
+
+			if testCase.expectedCreateCalled {
+				suite.mockPlatform.
+					On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunctionOptions)).
+					Return(&platform.CreateFunctionResult{}, nil).
+					Once()
+			}
+
+			// send request
+			expectedStatusCode := http.StatusNoContent
+			requestHeaders := map[string]string{
+				headers.WaitFunctionAction:   "true",
+				headers.FunctionNamespace:    namespace,
+				headers.ImportedFunctionOnly: "true",
+			}
+
+			requestBody := `{
+	"desiredState": "ready"
+}`
+
+			suite.sendRequest("PATCH",
+				fmt.Sprintf("/api/functions/%s", testCase.functionName),
+				requestHeaders,
+				bytes.NewBufferString(requestBody),
+				&expectedStatusCode,
+				nil)
+		})
+	}
 }
 
 func (suite *functionTestSuite) sendRequestNoMetadata(method string) {
