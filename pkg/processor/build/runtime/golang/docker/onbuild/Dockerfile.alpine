@@ -13,14 +13,15 @@
 # limitations under the License.
 
 # Build the processor
-ARG NUCLIO_BASE_ALPINE_IMAGE_NAME
+ARG NUCLIO_BASE_IMAGE_NAME
 ARG NUCLIO_BASE_ALPINE_IMAGE_TAG
 
 # Build the plugin
-FROM ${NUCLIO_BASE_ALPINE_IMAGE_NAME}:${NUCLIO_BASE_ALPINE_IMAGE_TAG} as build-processor
+FROM ${NUCLIO_BASE_IMAGE_NAME}:${NUCLIO_BASE_ALPINE_IMAGE_TAG} as build-processor
 
 # Download required packages for plugin compilation
-RUN apk add --no-cache git gcc musl-dev file
+# binutils-gold for arm64 handling of "collect2: fatal error: cannot find 'ld'"
+RUN apk add --no-cache git gcc musl-dev file binutils-gold
 
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
@@ -40,9 +41,9 @@ RUN go build \
     -o /tmp/processor cmd/processor/main.go
 
 # Build the plugin
-ARG NUCLIO_BASE_ALPINE_IMAGE_NAME
+ARG NUCLIO_BASE_IMAGE_NAME
 ARG NUCLIO_BASE_ALPINE_IMAGE_TAG
-FROM ${NUCLIO_BASE_ALPINE_IMAGE_NAME}:${NUCLIO_BASE_ALPINE_IMAGE_TAG}
+FROM ${NUCLIO_BASE_IMAGE_NAME}:${NUCLIO_BASE_ALPINE_IMAGE_TAG}
 
 # Download required packages for plugin compilation
 RUN apk upgrade --no-cache \

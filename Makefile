@@ -21,12 +21,6 @@ KUBECONFIG := $(if $(KUBECONFIG),$(KUBECONFIG),$(HOME)/.kube/config)
 NUCLIO_DOCKER_REPO ?= quay.io/nuclio
 NUCLIO_CACHE_REPO ?= ghcr.io/nuclio
 
-# dockerfile base image
-NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
-NUCLIO_BASE_IMAGE_TAG ?= 1.19
-NUCLIO_BASE_ALPINE_IMAGE_NAME ?= gcr.io/iguazio/golang
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.19-alpine3.17
-
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 ifeq ($(GOARCH), arm)
@@ -93,11 +87,17 @@ endif
 # alpine is commonly used by controller / dlx / autoscaler
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE ?= gcr.io/iguazio/arm32v7/alpine:3.17
+	NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/arm32v7/golang
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE ?= gcr.io/iguazio/arm64v8/alpine:3.17
+	NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/arm64v8/golang
 else
 	NUCLIO_DOCKER_ALPINE_IMAGE ?= gcr.io/iguazio/alpine:3.17
+	NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
 endif
+
+NUCLIO_BASE_IMAGE_TAG ?= 1.19
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.19-alpine3.17
 
 #
 #  Must be first target
@@ -430,7 +430,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME_CACHE=\
 handler-builder-golang-onbuild-alpine: build-builder
 	docker build \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg NUCLIO_BASE_ALPINE_IMAGE_NAME=$(NUCLIO_BASE_ALPINE_IMAGE_NAME) \
+		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
 		--build-arg NUCLIO_BASE_ALPINE_IMAGE_TAG=$(NUCLIO_BASE_ALPINE_IMAGE_TAG) \
 		--cache-from $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME_CACHE) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
