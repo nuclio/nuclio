@@ -86,14 +86,17 @@ endif
 
 # alpine is commonly used by controller / dlx / autoscaler
 ifeq ($(NUCLIO_ARCH), armhf)
-	NUCLIO_DOCKER_ALPINE_IMAGE ?= gcr.io/iguazio/arm32v7/alpine:3.17
-	NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/arm32v7/golang
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm32v7/alpine:3.17
+	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm32v7/golang
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-slim
 else ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_ALPINE_IMAGE ?= gcr.io/iguazio/arm64v8/alpine:3.17
-	NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/arm64v8/golang
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm64v8/alpine:3.17
+	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm64v8/golang
+	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-slim
 else
-	NUCLIO_DOCKER_ALPINE_IMAGE ?= gcr.io/iguazio/alpine:3.17
-	NUCLIO_BASE_IMAGE_NAME ?= gcr.io/iguazio/golang
+	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/alpine:3.17
+	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/golang
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-slim
 endif
 
 NUCLIO_BASE_IMAGE_TAG ?= 1.19
@@ -549,6 +552,7 @@ handler-builder-java-onbuild:
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
+		--build-arg NUCLIO_DOCKER_JAVA_OPENJDK=$(NUCLIO_DOCKER_JAVA_OPENJDK) \
 		--cache-from $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME_CACHE) \
 		--file pkg/processor/build/runtime/java/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME) \

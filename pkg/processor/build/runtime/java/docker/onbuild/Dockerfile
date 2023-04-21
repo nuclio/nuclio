@@ -13,12 +13,13 @@
 # limitations under the License.
 
 ARG NUCLIO_DOCKER_IMAGE_TAG
+ARG NUCLIO_DOCKER_JAVA_OPENJDK
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 
 # Supplies processor
 FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
-FROM gcr.io/iguazio/openjdk:11-slim as user-handler-builder
+FROM ${NUCLIO_DOCKER_JAVA_OPENJDK} as user-handler-builder
 
 ENV GRADLEVERSION=5.6.4
 
