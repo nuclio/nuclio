@@ -41,16 +41,37 @@ permissions:
 
 
 jobs:
+  image_matrix_prep:
+    name: Prepare image list
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: print targets
+        id: set-matrix
+        run: |
+          docker_image_rules_json=$(make print-docker-image-rules-json)
+          
+          # if "handler-builder-golang-onbuild" is in the matrix
+          # then ensure "handler-builder-golang-onbuild-alpine" is there too.
+          docker_image_rules_json=$(echo $docker_image_rules_json | \
+            jq -c 'select(.[].image_rule=="handler-builder-golang-onbuild") += [{"image_rule":"handler-builder-golang-onbuild-alpine"}]')
+          
+          echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
+
   release:
     if: github.repository == 'nuclio/nuclio'
-    name: Release ${{ matrix.arch }}
+    name: Release image (${{ matrix.docker_image_rule }}-${{ matrix.arch }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         arch:
-        - arm64
-        - amd64
+          - arm64
+          - amd64
+        docker_image_rule: ${{ fromJson(needs.image_matrix_prep.outputs.matrix) }}
     steps:
     - name: Prepare envs
       run: |
@@ -102,7 +123,18 @@ jobs:
         username: ${{ env.CACHE_REPO_NAME }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build
+    - name: Extending image rules
+      run: |
+        DOCKER_IMAGES_RULES=()
+        
+        # if "onbuild-" in "matrix.docker_image_rule", then add "processor" to DOCKER_IMAGES_RULES
+        # this is because onbuild images requires processor image
+        if [[ "${{ matrix.docker_image_rule }}" == *"-onbuild"* ]]; then \
+         DOCKER_IMAGES_RULES+=("processor"); \
+        fi
+        DOCKER_IMAGES_RULES+=(${{ matrix.docker_image_rule }})
+
+    - name: Build ${{ matrix.docker_image_rule }} image
       run: |
         make pull-docker-images-cache || true
         make docker-images
