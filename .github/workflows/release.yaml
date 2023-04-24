@@ -24,6 +24,11 @@ on:
     branches:
     - development
 
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number'
+
 env:
   REPO: quay.io
   REPO_NAME: nuclio
@@ -65,12 +70,13 @@ jobs:
     if: github.repository == 'nuclio/nuclio'
     name: Release image (${{ matrix.docker_image_rule }}-${{ matrix.arch }})
     runs-on: ubuntu-latest
+    needs: image_matrix_prep
     strategy:
       fail-fast: false
       matrix:
         arch:
-          - arm64
-          - amd64
+        - arm64
+        - amd64
         docker_image_rule: ${{ fromJson(needs.image_matrix_prep.outputs.matrix) }}
     steps:
     - name: Prepare envs
@@ -93,7 +99,16 @@ jobs:
       if: github.event_name == 'release'
       run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
+      # checkout from development
     - uses: actions/checkout@v3
+      if: github.event.inputs.pr_number == ''
+
+      # checkout from PR
+    - uses: actions/checkout@v3
+      if: github.event.inputs.pr_number != ''
+      with:
+        fetch-depth: 0
+        ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
 
     - name: Freeing up disk space
       run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
@@ -133,6 +148,8 @@ jobs:
          DOCKER_IMAGES_RULES+=("processor"); \
         fi
         DOCKER_IMAGES_RULES+=(${{ matrix.docker_image_rule }})
+        
+        echo "DOCKER_IMAGES_RULES=$(printf "%s " "${DOCKER_IMAGES_RULES[@]}")" >> $GITHUB_ENV
 
     - name: Build ${{ matrix.docker_image_rule }} image
       run: |
@@ -140,19 +157,26 @@ jobs:
         make docker-images
       env:
         DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
+        DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
 
     - name: Push cache images
       if: env.NUCLIO_LABEL == 'unstable'
       run: make push-docker-images-cache
+      env:
+        DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
 
     - name: Push images
       run: make push-docker-images
+      env:
+        DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
 
     - name: Tag and push stable images
-      if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master'
+      if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master' && contains(env.DOCKER_IMAGES_RULES, 'dashboard')
       run: |
-        docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
-        docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
+        echo 'docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"'
+        echo 'docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"'
+      env:
+        DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
 
   release_binary:
     if: github.event_name == 'release'
