@@ -132,7 +132,7 @@ jobs:
         
         # if "onbuild-" in "matrix.docker_image_rule", then add "processor" to DOCKER_IMAGES_RULES
         # this is because onbuild images requires processor image
-        if [[ "${{ matrix.docker_image_rule }}" == *"-onbuild"* ]]; then \
+        if [ "${{ matrix.docker_image_rule }}" == *"-onbuild"* ] && [ "${{ matrix.docker_image_rule }}" != *"-golang-"* ]; then \
          DOCKER_IMAGES_RULES+=("processor"); \
         fi
         DOCKER_IMAGES_RULES+=(${{ matrix.docker_image_rule }})
