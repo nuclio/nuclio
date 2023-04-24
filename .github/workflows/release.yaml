@@ -126,45 +126,32 @@ jobs:
         username: ${{ env.CACHE_REPO_NAME }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extending image rules
-      run: |
-        DOCKER_IMAGES_RULES=()
-        
-        # if "onbuild-" in "matrix.docker_image_rule", then add "processor" to DOCKER_IMAGES_RULES
-        # this is because onbuild images requires processor image
-        if [ "${{ matrix.docker_image_rule }}" == *"-onbuild"* ] && [ "${{ matrix.docker_image_rule }}" != *"-golang-"* ]; then \
-         DOCKER_IMAGES_RULES+=("processor"); \
-        fi
-        DOCKER_IMAGES_RULES+=(${{ matrix.docker_image_rule }})
-        
-        echo "DOCKER_IMAGES_RULES=$(printf "%s " "${DOCKER_IMAGES_RULES[@]}")" >> $GITHUB_ENV
-
     - name: Build ${{ matrix.docker_image_rule }} image
       run: |
         make pull-docker-images-cache || true
         make docker-images
       env:
         DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
-        DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
+        DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
 
     - name: Push cache images
       if: env.NUCLIO_LABEL == 'unstable'
       run: make push-docker-images-cache
       env:
-        DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
+        DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
 
     - name: Push images
       run: make push-docker-images
       env:
-        DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
+        DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
 
     - name: Tag and push stable images
-      if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master' && contains(env.DOCKER_IMAGES_RULES, 'dashboard')
+      if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master' && contains(matrix.docker_image_rule, 'dashboard')
       run: |
         docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
         docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
       env:
-        DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
+        DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
 
   release_binary:
     if: github.event_name == 'release'
