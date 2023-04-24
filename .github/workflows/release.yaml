@@ -25,9 +25,6 @@ on:
     - development
 
   workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number'
 
 env:
   REPO: quay.io
@@ -99,16 +96,7 @@ jobs:
       if: github.event_name == 'release'
       run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
-      # checkout from development
     - uses: actions/checkout@v3
-      if: github.event.inputs.pr_number == ''
-
-      # checkout from PR
-    - uses: actions/checkout@v3
-      if: github.event.inputs.pr_number != ''
-      with:
-        fetch-depth: 0
-        ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
 
     - name: Freeing up disk space
       run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
