@@ -173,8 +173,8 @@ jobs:
     - name: Tag and push stable images
       if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master' && contains(env.DOCKER_IMAGES_RULES, 'dashboard')
       run: |
-        echo 'docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"'
-        echo 'docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"'
+        docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
+        docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
       env:
         DOCKER_IMAGES_RULES: ${{ env.DOCKER_IMAGES_RULES }}
 
