@@ -89,7 +89,7 @@ jobs:
         echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
     - name: Set NUCLIO_LABEL to unstable
-      if: github.event_name == 'push'
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
 
     - name: Set NUCLIO_LABEL to release tag
@@ -112,14 +112,14 @@ jobs:
       with:
         platforms: ${{ matrix.arch }}
 
-    - name: Login to Quay.io
+    - name: Login to registry
       uses: docker/login-action@v2
       with:
         registry: ${{ env.REPO }}
         username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
         password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
 
-    - name: Login to GitHub Container Registry
+    - name: Login to cache registry
       uses: docker/login-action@v2
       with:
         registry: ${{ env.CACHE_REPO }}
