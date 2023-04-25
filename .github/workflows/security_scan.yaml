@@ -86,27 +86,14 @@ jobs:
           fetch-depth: 0
           ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
 
-      - name: Extending image rules
-        run: |
-          DOCKER_IMAGES_RULES=()
-
-          # if "onbuild-" in "matrix.image_rule", then add "processor" to DOCKER_IMAGES_RULES
-          # this is because onbuild images requires processor image
-          if [[ "${{ matrix.image_rule }}" == *"-onbuild"* ]]; then \
-              DOCKER_IMAGES_RULES+=("processor"); \
-          fi
-          DOCKER_IMAGES_RULES+=(${{ matrix.image_rule }})
-
-          echo "DOCKER_IMAGES_RULES=$(printf "%s " "${DOCKER_IMAGES_RULES[@]}")" >> $GITHUB_ENV
-
       - name: Build ${{ matrix.image_rule }} image
         run: make docker-images
+        env:
+          DOCKER_IMAGES_RULES: ${{ matrix.image_rule }}
 
       - name: Get image name for ${{ matrix.image_rule }}
         run: echo "image_name=$(make print-docker-images)" >> $GITHUB_ENV
         env:
-
-          # we need the specific rule, not the extended.
           DOCKER_IMAGES_RULES: ${{ matrix.image_rule }}
 
           # for image rules that yields multiple images (e.g.: golang + golang-alpine)

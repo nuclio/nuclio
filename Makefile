@@ -401,7 +401,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME_CACHE=\
 PIP_REQUIRE_VIRTUALENV=false
 
 .PHONY: handler-builder-python-onbuild
-handler-builder-python-onbuild:
+handler-builder-python-onbuild: processor
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
@@ -479,7 +479,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME_CACHE=\
  $(NUCLIO_CACHE_REPO)/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: handler-builder-nodejs-onbuild
-handler-builder-nodejs-onbuild:
+handler-builder-nodejs-onbuild: processor
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
@@ -502,7 +502,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME_CACHE=\
  $(NUCLIO_CACHE_REPO)/handler-builder-ruby-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: handler-builder-ruby-onbuild
-handler-builder-ruby-onbuild:
+handler-builder-ruby-onbuild: processor
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
@@ -548,7 +548,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME_CACHE=\
  $(NUCLIO_CACHE_REPO)/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: handler-builder-java-onbuild
-handler-builder-java-onbuild:
+handler-builder-java-onbuild: processor
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
