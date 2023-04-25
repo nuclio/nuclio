@@ -263,11 +263,22 @@ NUCLIO_DOCKER_PROCESSOR_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCK
 NUCLIO_DOCKER_PROCESSOR_IMAGE_NAME_CACHE=$(NUCLIO_CACHE_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
 .PHONY: processor
-processor: build-builder
+processor: modules
+
+	@# build processor locally
+	@# build its image and copy from host to image
+	@# this is done to avoid trying compiling the processor binary on the image
+	@# while using virtualization / emulation to match the desired architecture
+	@mkdir -p ./.bin
+	GOARCH=$(NUCLIO_ARCH) CGO_ENABLED=0 go build \
+        -a \
+        -installsuffix cgo \
+        -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+        -o ./.bin/processor-$(NUCLIO_ARCH) \
+        cmd/processor/main.go
+
 	docker build \
-		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
-		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
-		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_DOCKER_PROCESSOR_IMAGE_NAME_CACHE) \
 		--file cmd/processor/Dockerfile \
@@ -814,7 +825,6 @@ endif
 
 .PHONY: modules
 modules: ensure-gopath
-	@echo Getting go modules
 	@go mod download
 
 .PHONY: targets

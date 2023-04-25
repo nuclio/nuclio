@@ -25,6 +25,11 @@ on:
     - development
 
   workflow_dispatch:
+    inputs:
+      docker_image_rule:
+        description: 'Docker image rule to build and release (space separated)'
+        required: false
+        default: ''
 
 env:
   REPO: quay.io
@@ -51,9 +56,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: print targets
+      - name: define targets
         id: set-matrix
         run: |
+
+          # if custom image is given, use it
+          if [[ -n "${{ github.event.inputs.docker_image_rule }}" ]]; then \
+            export DOCKER_IMAGES_RULES="${{ github.event.inputs.docker_image_rule }}"; \
+          fi;
+
           docker_image_rules_json=$(make print-docker-image-rules-json)
           
           # if "handler-builder-golang-onbuild" is in the matrix
@@ -61,7 +72,9 @@ jobs:
           docker_image_rules_json=$(echo $docker_image_rules_json | \
             jq -c 'select(.[].image_rule=="handler-builder-golang-onbuild") += [{"image_rule":"handler-builder-golang-onbuild-alpine"}]')
           
+          echo $docker_image_rules_json
           echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
+          
 
   release:
     if: github.repository == 'nuclio/nuclio' || github.event_name == 'workflow_dispatch'
@@ -97,9 +110,6 @@ jobs:
       run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
     - uses: actions/checkout@v3
-
-    - name: Freeing up disk space
-      run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
     - uses: actions/setup-go@v3
       with:

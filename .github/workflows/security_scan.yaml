@@ -86,6 +86,11 @@ jobs:
           fetch-depth: 0
           ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
 
+      - uses: actions/setup-go@v3
+        with:
+          cache: true
+          go-version-file: go.mod
+
       - name: Build ${{ matrix.image_rule }} image
         run: make docker-images
         env:

@@ -4,6 +4,9 @@ pkg/processor/runtime/python/py/whl
 # act files (https://github.com/nektos/act)
 .github/act
 
+# build artifacts
+.bin
+
 vendor
 
 # general
