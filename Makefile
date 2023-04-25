@@ -270,7 +270,7 @@ processor: modules
 	@# this is done to avoid trying compiling the processor binary on the image
 	@# while using virtualization / emulation to match the desired architecture
 	@mkdir -p ./.bin
-	GOARCH=$(NUCLIO_ARCH) go build \
+	GOARCH=$(NUCLIO_ARCH) CGO_ENABLED=0 go build \
         -a \
         -installsuffix cgo \
         -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)" \
