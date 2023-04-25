@@ -61,8 +61,8 @@ jobs:
         run: |
 
           # if custom image is given, use it
-          if [ -n "${{ github.event.inputs.docker_image_rule }}" ]; then \
-            export DOCKER_IMAGES_RULES="${{ github.event.inputs.docker_image_rule }}" \
+          if [[ -n "${{ github.event.inputs.docker_image_rule }}" ]]; then \
+            export DOCKER_IMAGES_RULES="${{ github.event.inputs.docker_image_rule }}"; \
           fi;
 
           docker_image_rules_json=$(make print-docker-image-rules-json)
@@ -108,9 +108,6 @@ jobs:
       run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
     - uses: actions/checkout@v3
-
-    - name: Freeing up disk space
-      run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
     - uses: actions/setup-go@v3
       with:
