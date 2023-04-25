@@ -3,6 +3,8 @@
 !cmd
 !test
 
+!.bin
+
 !go.mod
 !go.sum
 

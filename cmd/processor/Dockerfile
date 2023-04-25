@@ -12,20 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_DOCKER_IMAGE_TAG
-ARG NUCLIO_DOCKER_REPO
-
-FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-processor
-
-ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
-
-# build the processor
-RUN go build \
-    -a \
-    -installsuffix cgo \
-    -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
-    -o processor cmd/processor/main.go
-
 FROM scratch
 
-COPY --from=build-processor  /nuclio/processor /home/nuclio/bin/processor
+ARG NUCLIO_ARCH=amd64
+
+ADD .bin/processor-$NUCLIO_ARCH /home/nuclio/bin/processor
