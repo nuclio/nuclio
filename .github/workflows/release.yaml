@@ -63,7 +63,7 @@ jobs:
           # if custom image is given, use it
           if [ -n "${{ github.event.inputs.docker_image_rule }}" ]; then \
             export DOCKER_IMAGES_RULES="${{ github.event.inputs.docker_image_rule }}" \
-          fi
+          fi;
 
           docker_image_rules_json=$(make print-docker-image-rules-json)
           
