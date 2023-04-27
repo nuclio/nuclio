@@ -453,7 +453,11 @@ handler-builder-golang-onbuild-alpine: build-builder
 		.
 
 .PHONY: handler-builder-golang-onbuild
-handler-builder-golang-onbuild: build-builder handler-builder-golang-onbuild-alpine
+handler-builder-golang-onbuild: build-builder
+ifndef SKIP_BUILD_GOLANG_ONBUILD_ALPINE
+handler-builder-golang-onbuild: handler-builder-golang-onbuild-alpine
+endif
+handler-builder-golang-onbuild:
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
