@@ -144,6 +144,10 @@ jobs:
         DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
         DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
 
+        # this only applies when target is `handler-builder-golang-onbuild`
+        # not applied when target is `handler-builder-golang-onbuild-alpine`
+        SKIP_BUILD_GOLANG_ONBUILD_ALPINE: true
+
     - name: Push cache images
       if: env.NUCLIO_LABEL == 'unstable'
       run: make push-docker-images-cache
