@@ -153,11 +153,13 @@ jobs:
       run: make push-docker-images-cache
       env:
         DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
+        SKIP_BUILD_GOLANG_ONBUILD_ALPINE: true
 
     - name: Push images
       run: make push-docker-images
       env:
         DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
+        SKIP_BUILD_GOLANG_ONBUILD_ALPINE: true
 
     - name: Tag and push stable images
       if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master' && contains(matrix.docker_image_rule, 'dashboard')
