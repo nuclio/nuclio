@@ -132,7 +132,7 @@ helm-publish:
 
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL_WORKDIR = /nuclio
-GO_BUILD_NUCTL = go build -a -installsuffix cgo -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
+GO_BUILD_NUCTL = go build -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
 
 #
 # Rules
@@ -271,8 +271,6 @@ processor: modules
 	@# while using virtualization / emulation to match the desired architecture
 	@mkdir -p ./.bin
 	GOARCH=$(NUCLIO_ARCH) CGO_ENABLED=0 go build \
-        -a \
-        -installsuffix cgo \
         -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)" \
         -o ./.bin/processor-$(NUCLIO_ARCH) \
         cmd/processor/main.go
