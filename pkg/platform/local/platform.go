@@ -106,7 +106,7 @@ func NewPlatform(ctx context.Context,
 
 	newPlatform.storeImageName = "gcr.io/iguazio/alpine:3.17"
 	if version.Get().Arch == "arm64" {
-		newPlatform.storeImageName += fmt.Sprintf("-%s", version.Get().Arch)
+		newPlatform.storeImageName = "gcr.io/iguazio/arm64v8/alpine:3.17"
 	}
 
 	if newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,

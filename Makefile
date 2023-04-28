@@ -89,14 +89,17 @@ ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm32v7/alpine:3.17
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm32v7/golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-slim
+	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm32v7/node:14.21
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm64v8/alpine:3.17
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm64v8/golang
 	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-slim
+	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm64v8/node:14.21
 else
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/alpine:3.17
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/golang
 	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-slim
+	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:14.21
 endif
 
 NUCLIO_BASE_IMAGE_TAG ?= 1.19
@@ -336,6 +339,8 @@ dashboard: build-builder
 		--build-arg NGINX_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE) \
 		--build-arg NUCLIO_DOCKER_ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg UHTTPC_ARCH="$(NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH)" \
+		--build-arg NODE_IMAGE_NAME=$(NODE_IMAGE_NAME) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -438,8 +443,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME_CACHE=\
  $(NUCLIO_CACHE_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_ALPINE_TAG)
 
 .PHONY: handler-builder-golang-onbuild-alpine
-handler-builder-golang-onbuild-alpine: build-builder
+handler-builder-golang-onbuild-alpine: processor
 	docker build \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
 		--build-arg NUCLIO_BASE_ALPINE_IMAGE_TAG=$(NUCLIO_BASE_ALPINE_IMAGE_TAG) \
@@ -450,12 +456,13 @@ handler-builder-golang-onbuild-alpine: build-builder
 		.
 
 .PHONY: handler-builder-golang-onbuild
-handler-builder-golang-onbuild: build-builder
+handler-builder-golang-onbuild: processor
 ifndef SKIP_BUILD_GOLANG_ONBUILD_ALPINE
 handler-builder-golang-onbuild: handler-builder-golang-onbuild-alpine
 endif
 handler-builder-golang-onbuild:
 	docker build \
+		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
 		--build-arg NUCLIO_BASE_IMAGE_NAME=$(NUCLIO_BASE_IMAGE_NAME) \
