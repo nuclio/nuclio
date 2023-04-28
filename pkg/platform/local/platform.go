@@ -49,6 +49,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
+	"github.com/v3io/version-go"
 	"sigs.k8s.io/yaml"
 )
 
@@ -58,6 +59,8 @@ type Platform struct {
 	dockerClient   dockerclient.Client
 	localStore     *client.Store
 	projectsClient project.Client
+
+	storeImageName string
 }
 
 const Mib = 1048576
@@ -101,9 +104,14 @@ func NewPlatform(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create a command runner")
 	}
 
+	newPlatform.storeImageName = "gcr.io/iguazio/alpine:3.17"
+	if version.Get().Arch == "arm64" {
+		newPlatform.storeImageName += fmt.Sprintf("-%s", version.Get().Arch)
+	}
+
 	if newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
 		platformConfiguration.ContainerBuilderConfiguration); err != nil {
-		return nil, errors.Wrap(err, "Failed to create containerimagebuilderpusher")
+		return nil, errors.Wrap(err, "Failed to create container image builder pusher")
 	}
 
 	// create a docker client
@@ -112,7 +120,10 @@ func NewPlatform(ctx context.Context,
 	}
 
 	// create a local store for configs and stuff
-	if newPlatform.localStore, err = client.NewStore(parentLogger, newPlatform, newPlatform.dockerClient); err != nil {
+	if newPlatform.localStore, err = client.NewStore(parentLogger,
+		newPlatform,
+		newPlatform.dockerClient,
+		newPlatform.storeImageName); err != nil {
 		return nil, errors.Wrap(err, "Failed to create a local store")
 	}
 
@@ -1198,7 +1209,7 @@ func (p *Platform) prepareFunctionVolumeMount(createFunctionOptions *platform.Cr
 	}
 
 	// dumping contents to volume's processor path
-	if _, err := p.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.17",
+	if _, err := p.dockerClient.RunContainer(p.storeImageName,
 		&dockerclient.RunOptions{
 			Remove:           true,
 			ImageMayNotExist: true,
