@@ -26,6 +26,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -49,7 +50,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
-	"github.com/v3io/version-go"
 	"sigs.k8s.io/yaml"
 )
 
@@ -104,9 +104,13 @@ func NewPlatform(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create a command runner")
 	}
 
-	newPlatform.storeImageName = "gcr.io/iguazio/alpine:3.17"
-	if version.Get().Arch == "arm64" {
+	switch runtime.GOARCH {
+	case "arm64":
 		newPlatform.storeImageName = "gcr.io/iguazio/arm64v8/alpine:3.17"
+	case "arm":
+		newPlatform.storeImageName = "gcr.io/iguazio/arm32v7/alpine:3.17"
+	default:
+		newPlatform.storeImageName = "gcr.io/iguazio/alpine:3.17"
 	}
 
 	if newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
