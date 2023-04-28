@@ -132,7 +132,7 @@ helm-publish:
 
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL_WORKDIR = /nuclio
-GO_BUILD_NUCTL = go build -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
+GO_BUILD_CMD = go build -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
 
 #
 # Rules
@@ -249,7 +249,7 @@ nuctl: ensure-gopath build-builder
 		--env GOOS=$(NUCLIO_OS) \
 		--env GOARCH=$(NUCLIO_ARCH) \
 		$(NUCLIO_DOCKER_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_TAG) \
-		$(GO_BUILD_NUCTL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
+		$(GO_BUILD_CMD) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 ifeq ($(NUCLIO_NUCTL_CREATE_SYMLINK), true)
 	@rm -f $(NUCTL_TARGET)
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
@@ -257,7 +257,7 @@ endif
 
 .PHONY: nuctl-bin
 nuctl-bin: ensure-gopath
-	CGO_ENABLED=0 $(GO_BUILD_NUCTL) -o $(NUCLIO_PATH)/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
+	CGO_ENABLED=0 $(GO_BUILD_CMD) -o $(NUCLIO_PATH)/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 
 NUCLIO_DOCKER_PROCESSOR_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_TAG)
 NUCLIO_DOCKER_PROCESSOR_IMAGE_NAME_CACHE=$(NUCLIO_CACHE_REPO)/processor:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
@@ -270,8 +270,7 @@ processor: modules
 	@# this is done to avoid trying compiling the processor binary on the image
 	@# while using virtualization / emulation to match the desired architecture
 	@mkdir -p ./.bin
-	GOARCH=$(NUCLIO_ARCH) CGO_ENABLED=0 go build \
-        -ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+	GOARCH=$(NUCLIO_ARCH) CGO_ENABLED=0 $(GO_BUILD_CMD) \
         -o ./.bin/processor-$(NUCLIO_ARCH) \
         cmd/processor/main.go
 
