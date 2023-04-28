@@ -25,8 +25,6 @@ FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-contro
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
 RUN go build \
-    -a \
-    -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o controller cmd/controller/main.go
 

@@ -20,8 +20,9 @@ ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG UHTTPC_ARCH=amd64
 ARG NUCLIO_DOCKER_ALPINE_IMAGE
 ARG NUCLIO_DOCKER_REPO
+ARG NODE_IMAGE_NAME
 
-FROM gcr.io/iguazio/node:14.21 as build-static
+FROM $NODE_IMAGE_NAME as build-static
 
 # copy source tree
 COPY ./pkg/dashboard/ui /home/nuclio/dashboard/src
@@ -42,8 +43,6 @@ FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-binary
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
 RUN go build \
-    -a \
-    -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o dashboard cmd/dashboard/main.go
 

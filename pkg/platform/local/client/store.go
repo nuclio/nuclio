@@ -51,15 +51,18 @@ type Store struct {
 	logger       logger.Logger
 	dockerClient dockerclient.Client
 	platform     platform.Platform
+	imageName    string
 }
 
 func NewStore(parentLogger logger.Logger,
 	platform platform.Platform,
-	dockerClient dockerclient.Client) (*Store, error) {
+	dockerClient dockerclient.Client,
+	imageName string) (*Store, error) {
 	return &Store{
 		logger:       parentLogger.GetChild("store"),
 		dockerClient: dockerClient,
 		platform:     platform,
+		imageName:    imageName,
 	}, nil
 }
 
@@ -414,7 +417,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 
 		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
 		// using alpine mirrored to gcr.io/iguazio for stability
-		if _, err := s.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.17", &dockerclient.RunOptions{
+		if _, err := s.dockerClient.RunContainer(s.imageName, &dockerclient.RunOptions{
 			Volumes:          map[string]string{volumeName: baseDir},
 			Remove:           true,
 			Command:          `/bin/sh -c "/bin/sleep 6h"`,

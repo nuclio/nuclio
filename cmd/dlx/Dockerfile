@@ -26,8 +26,6 @@ ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
 # build dlx
 RUN go build \
-    -a \
-    -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o dlx cmd/dlx/main.go
 

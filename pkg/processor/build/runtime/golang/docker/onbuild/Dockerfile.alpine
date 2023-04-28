@@ -35,8 +35,6 @@ COPY . .
 
 # Build the processor
 RUN go build \
-    -a \
-    -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o /tmp/processor cmd/processor/main.go
 

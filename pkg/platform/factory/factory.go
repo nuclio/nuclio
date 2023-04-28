@@ -28,6 +28,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
 )
 
 // CreatePlatform creates a platform based on a requested type (platformType) and configuration it receives
@@ -71,6 +72,7 @@ func CreatePlatform(ctx context.Context,
 
 	parentLogger.DebugWithCtx(ctx,
 		"Initializing platform",
+		"version", version.Get().String(),
 		"platformName", newPlatform.GetName())
 	if err = newPlatform.Initialize(ctx); err != nil {
 		return nil, errors.Wrap(err, "Failed to initialize platform")

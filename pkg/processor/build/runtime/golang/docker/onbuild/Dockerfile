@@ -24,8 +24,6 @@ ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
 # Build the processor
 RUN go build \
-    -a \
-    -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o /home/nuclio/bin/processor cmd/processor/main.go
 

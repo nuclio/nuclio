@@ -25,8 +25,6 @@ FROM $NUCLIO_DOCKER_REPO/nuclio-builder:$NUCLIO_DOCKER_IMAGE_TAG as build-autosc
 ARG NUCLIO_GO_LINK_FLAGS_INJECT_VERSION
 
 RUN go build \
-    -a \
-    -installsuffix cgo \
     -ldflags="${NUCLIO_GO_LINK_FLAGS_INJECT_VERSION}" \
     -o autoscaler cmd/autoscaler/main.go
 
