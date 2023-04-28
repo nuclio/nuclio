@@ -273,7 +273,7 @@ processor: modules
 	@# this is done to avoid trying compiling the processor binary on the image
 	@# while using virtualization / emulation to match the desired architecture
 	@mkdir -p ./.bin
-	GOARCH=$(NUCLIO_ARCH) CGO_ENABLED=0 $(GO_BUILD_CMD) \
+	GOARCH=$(NUCLIO_ARCH) GOOS=linux CGO_ENABLED=0 $(GO_BUILD_CMD) \
         -o ./.bin/processor-$(NUCLIO_ARCH) \
         cmd/processor/main.go
 
