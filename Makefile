@@ -443,7 +443,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME_CACHE=\
  $(NUCLIO_CACHE_REPO)/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_CACHE_ALPINE_TAG)
 
 .PHONY: handler-builder-golang-onbuild-alpine
-handler-builder-golang-onbuild-alpine: processor
+handler-builder-golang-onbuild-alpine: build-builder
 	docker build \
 		--build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
@@ -456,7 +456,7 @@ handler-builder-golang-onbuild-alpine: processor
 		.
 
 .PHONY: handler-builder-golang-onbuild
-handler-builder-golang-onbuild: processor
+handler-builder-golang-onbuild: build-builder
 ifndef SKIP_BUILD_GOLANG_ONBUILD_ALPINE
 handler-builder-golang-onbuild: handler-builder-golang-onbuild-alpine
 endif
