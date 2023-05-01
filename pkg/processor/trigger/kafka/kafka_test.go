@@ -23,7 +23,11 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -87,6 +91,88 @@ func (suite *TestSuite) TestPopulateValuesFromMountedSecrets() {
 
 	for _, field := range sensitiveConfigFields {
 		suite.Require().Equal(field.value, *field.configField)
+	}
+}
+
+func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
+	for _, testCase := range []struct {
+		name                 string
+		explicitAckMode      functionconfig.ExplicitAckMode
+		workerAllocationMode partitionworker.AllocationMode
+		expectedFailure      bool
+	}{
+		{
+			name:                 "Disable-Static",
+			explicitAckMode:      functionconfig.ExplicitAckModeDisable,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			expectedFailure:      false,
+		},
+		{
+			name:                 "Disable-Pool",
+			explicitAckMode:      functionconfig.ExplicitAckModeDisable,
+			workerAllocationMode: partitionworker.AllocationModePool,
+			expectedFailure:      false,
+		},
+		{
+			name:                 "Enable-Static",
+			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			expectedFailure:      false,
+		},
+		{
+			name:                 "Enable-Pool",
+			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
+			workerAllocationMode: partitionworker.AllocationModePool,
+			expectedFailure:      true,
+		},
+		{
+			name:                 "ExplicitOnly-Static",
+			explicitAckMode:      functionconfig.ExplicitAckModeExplicitOnly,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			expectedFailure:      false,
+		},
+		{
+			name:                 "ExplicitOnly-Pool",
+			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
+			workerAllocationMode: partitionworker.AllocationModePool,
+			expectedFailure:      true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			_, err := NewConfiguration(testCase.name,
+				&functionconfig.Trigger{
+					// populate some dummy values
+					Attributes: map[string]interface{}{
+						"topics": []string{
+							"some-topic",
+						},
+						"consumerGroup": "some-cg",
+						"initialOffset": "earliest",
+						//"balanceStrategy": "",
+						"brokers": []string{
+							"some-broker",
+						},
+					},
+				},
+				&runtime.Configuration{
+					Configuration: &processor.Configuration{
+						Config: functionconfig.Config{
+							Meta: functionconfig.Meta{
+								Annotations: map[string]string{
+									"nuclio.io/kafka-explicit-ack-mode":      string(testCase.explicitAckMode),
+									"nuclio.io/kafka-worker-allocation-mode": string(testCase.workerAllocationMode),
+								},
+							},
+						},
+					},
+				},
+				suite.logger)
+			if testCase.expectedFailure {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
 	}
 }
 
