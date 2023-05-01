@@ -118,8 +118,8 @@ context.platform.on_signal(callback)
 ```
 
 **NOTES**:
-* Currently, the explicit ack feature is only available for python runtime and function that have a Kafka trigger.
-* The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"static"`.
+* Currently, the explicit ack feature is only available for python runtime and functions that have a stream trigger (kafka/v3io).
+* The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/v3iostream-worker-allocation-mode":"static"`.
 * The `QualifiedOffset` object can be saved in a persistent storage and used to commit the offset on later invocation of the function.
 * The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function, or provide an event loop to run that method. e.g.:
 ```py
