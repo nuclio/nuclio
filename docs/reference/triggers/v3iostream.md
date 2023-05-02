@@ -92,7 +92,7 @@ One example are stateful functions that might need to go and consume already bei
 For that, Nuclio offers a way to accept new events without committing them, and explicitly mark offsets on the relevant stream shard, when the processing is done.
 This enables the function to receive and process more events simultaneously.
 
-To enable this feature, set the `ExplicitAckMode` in the trigger's spec to `enabled` or `explicitOnly`, where the optional modes are:
+To enable this feature, set the `ExplicitAckMode` in the trigger's spec to `enable` or `explicitOnly`, where the optional modes are:
 * `enable` - allows explicit and implicit ack according to the "x-nuclio-stream-no-ack" header
 * `disable`- disables the explicit ack feature and allows only implicit acks (default)
 * `explicitOnly`- allows only explicit acks and disables implicit acks
