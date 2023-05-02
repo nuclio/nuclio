@@ -283,10 +283,14 @@ func (vs *v3iostream) eventSubmitter(claim streamconsumergroup.Claim, submittedE
 			// indicate that we're done
 			submittedEvent.done <- processErr
 
-		// also includes ExplicitAckModeExplicitOnly
+		case functionconfig.ExplicitAckModeExplicitOnly:
+
+			// we always return an error so the offset will only be marked by the explicit ack handler
+			submittedEvent.done <- processor.StreamNoAckError{}
 		default:
 
-			// ignore response
+			// we should not get here, but just in case
+			submittedEvent.done <- processErr
 		}
 	}
 

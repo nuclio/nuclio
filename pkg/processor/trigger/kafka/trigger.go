@@ -328,11 +328,12 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 		switch k.configuration.ExplicitAckMode {
 		case functionconfig.ExplicitAckModeEnable:
 
+			// decide whether to ack or not based on the `StreamNoAck` header
 			if err := k.resolveNoAckMessage(response, submittedEvent); err != nil {
 				processErr = err
 			}
 
-			// indicate that we're done
+			// pass the result
 			submittedEvent.done <- processErr
 
 		case functionconfig.ExplicitAckModeDisable:
@@ -340,10 +341,14 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 			// indicate that we're done
 			submittedEvent.done <- processErr
 
-		// also includes ExplicitAckModeExplicitOnly
+		case functionconfig.ExplicitAckModeExplicitOnly:
+
+			// we always return an error so the offset will only be marked by the explicit ack handler
+			submittedEvent.done <- processor.StreamNoAckError{}
 		default:
 
-			// ignore response
+			// we should not get here, but just in case
+			submittedEvent.done <- processErr
 		}
 	}
 

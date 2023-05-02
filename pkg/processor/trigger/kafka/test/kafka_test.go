@@ -174,7 +174,6 @@ func (suite *testSuite) TestReceiveRecords() {
 }
 
 func (suite *testSuite) TestExplicitAck() {
-
 	topic := "myNewTopic"
 	shardID := int32(1)
 	functionName := "explicitacker"
@@ -198,92 +197,108 @@ func (suite *testSuite) TestExplicitAck() {
 		"topic", topic,
 		"createTopicResponse", createTopicsResponse)
 
-	// create explicit ack function
-
-	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
-	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install nuclio-sdk"}
-	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
-		Attributes: map[string]interface{}{
-			"network": suite.BrokerContainerNetworkName,
+	for _, testCase := range []struct {
+		name            string
+		explicitAckMode functionconfig.ExplicitAckMode
+	}{
+		{
+			name:            "EnableMode",
+			explicitAckMode: functionconfig.ExplicitAckModeEnable,
 		},
-	}
-
-	// configure kafka trigger with explicit ack enabled
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"my-kafka": {
-			Kind: "kafka-cluster",
-			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-			Attributes: map[string]interface{}{
-				"topics":        []string{topic},
-				"consumerGroup": functionName,
-				"initialOffset": suite.initialOffset,
-			},
-			WorkerTerminationTimeout: "5s",
-			ExplicitAckMode:          functionconfig.ExplicitAckModeEnable,
+		{
+			name:            "ExplicitOnly",
+			explicitAckMode: functionconfig.ExplicitAckModeExplicitOnly,
 		},
-		"my-http": {
-			Kind:       "http",
-			Attributes: map[string]interface{}{},
-		},
-	}
+	} {
+		suite.Run(testCase.name, func() {
 
-	// set worker allocation mode to static
-	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
-		"nuclio.io/kafka-worker-allocation-mode": string(partitionworker.AllocationModeStatic),
-	}
+			// create explicit ack function
+			createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install nuclio-sdk"}
+			createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+				Attributes: map[string]interface{}{
+					"network": suite.BrokerContainerNetworkName,
+				},
+			}
 
-	// deploy function
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+			// configure kafka trigger with explicit ack enabled
+			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+				"my-kafka": {
+					Kind: "kafka-cluster",
+					URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+					Attributes: map[string]interface{}{
+						"topics":        []string{topic},
+						"consumerGroup": functionName,
+						"initialOffset": suite.initialOffset,
+					},
+					WorkerTerminationTimeout: "5s",
+					ExplicitAckMode:          functionconfig.ExplicitAckModeEnable,
+				},
+				"my-http": {
+					Kind:       "http",
+					Attributes: map[string]interface{}{},
+				},
+			}
 
-		var err error
+			// set worker allocation mode to static
+			createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+				"nuclio.io/kafka-worker-allocation-mode": string(partitionworker.AllocationModeStatic),
+			}
 
-		// publish 10 messages to the topic
-		for i := 0; i < 10; i++ {
-			err = suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", i), shardID)
-			suite.Require().NoError(err, "Failed to publish message")
-		}
+			// deploy function
+			suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+				suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
 
-		// ensure queue size is 10
-		suite.Logger.Debug("Getting current queue size")
-		queueSize := suite.waitForFunctionQueueSize(deployResult.Port, 10, 5*time.Second)
-		suite.Require().Equal(queueSize, 10, "Queue size is not 10")
+				var err error
 
-		// ensure commit offset is 0
-		suite.Logger.Debug("Getting commit offset before processing")
-		commitOffset := suite.getLastCommitOffset(deployResult.Port)
-		suite.Require().Equal(commitOffset, 0, "Commit offset is not 0")
+				// publish 10 messages to the topic
+				for i := 0; i < 10; i++ {
+					err = suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", i), shardID)
+					suite.Require().NoError(err, "Failed to publish message")
+				}
 
-		// send http request "start processing"
-		suite.Logger.Debug("Sending start processing request")
-		body := map[string]string{
-			"resource": "start_processing",
-		}
+				// ensure queue size is 10
+				suite.Logger.Debug("Getting current queue size")
+				queueSize := suite.waitForFunctionQueueSize(deployResult.Port, 10, 5*time.Second)
+				suite.Require().Equal(queueSize, 10, "Queue size is not 10")
 
-		marshalledBody, err := json.Marshal(body)
-		suite.Require().NoError(err, "Failed to marshal body")
-		response, err := suite.SendHTTPRequest(&triggertest.Request{
-			Method: http.MethodPost,
-			Port:   deployResult.Port,
-			Body:   string(marshalledBody),
+				// ensure commit offset is 0
+				suite.Logger.Debug("Getting commit offset before processing")
+				commitOffset := suite.getLastCommitOffset(deployResult.Port)
+				suite.Require().Equal(commitOffset, 0, "Commit offset is not 0")
+
+				// send http request "start processing"
+				suite.Logger.Debug("Sending start processing request")
+				body := map[string]string{
+					"resource": "start_processing",
+				}
+
+				marshalledBody, err := json.Marshal(body)
+				suite.Require().NoError(err, "Failed to marshal body")
+				response, err := suite.SendHTTPRequest(&triggertest.Request{
+					Method: http.MethodPost,
+					Port:   deployResult.Port,
+					Body:   string(marshalledBody),
+				})
+				suite.Require().NoError(err, "Failed to send request")
+				suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+				time.Sleep(2 * time.Second)
+
+				// ensure queue size is 0 (or < 10)
+				suite.Logger.Debug("Getting queue size after processing")
+				queueSize = suite.waitForFunctionQueueSize(deployResult.Port, 0, 5*time.Second)
+				suite.Require().Equal(queueSize, 0, "Queue size is not 0")
+
+				// ensure commit offset is 9 (10 in zero-indexed offsets)
+				suite.Logger.Debug("Getting commit offset after processing")
+				commitOffset = suite.getLastCommitOffset(deployResult.Port)
+				suite.Require().Equal(commitOffset, 9, "Commit offset is not 10")
+
+				return true
+			})
 		})
-		suite.Require().NoError(err, "Failed to send request")
-		suite.Require().Equal(http.StatusOK, response.StatusCode)
-
-		time.Sleep(2 * time.Second)
-
-		// ensure queue size is 0 (or < 10)
-		suite.Logger.Debug("Getting queue size after processing")
-		queueSize = suite.waitForFunctionQueueSize(deployResult.Port, 0, 5*time.Second)
-		suite.Require().Equal(queueSize, 0, "Queue size is not 0")
-
-		// ensure commit offset is 9 (10 in zero-indexed offsets)
-		suite.Logger.Debug("Getting commit offset after processing")
-		commitOffset = suite.getLastCommitOffset(deployResult.Port)
-		suite.Require().Equal(commitOffset, 9, "Commit offset is not 10")
-
-		return true
-	})
+	}
 }
 
 //func (suite *testSuite) TestEventRecorderRebalance() {
