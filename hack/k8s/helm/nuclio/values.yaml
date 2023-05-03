@@ -176,6 +176,8 @@ dashboard:
     # for example: aws-secret in https://github.com/GoogleContainerTools/kaniko#pushing-to-amazon-ecr
     registryProviderSecretName: ""
 
+    serviceAccount: ""
+
   # use to configure node port
   nodePort:
 
