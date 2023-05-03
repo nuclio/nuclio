@@ -16,11 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kafka
+package v3iostream
 
 import (
-	"os"
-	"path"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -36,61 +34,17 @@ import (
 
 type TestSuite struct {
 	suite.Suite
-	trigger kafka
+	trigger v3iostream
 	logger  logger.Logger
 }
 
 func (suite *TestSuite) SetupSuite() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.trigger = kafka{
+	suite.trigger = v3iostream{
 		AbstractTrigger: trigger.AbstractTrigger{
 			Logger: suite.logger,
 		},
 		configuration: &Configuration{},
-	}
-}
-
-func (suite *TestSuite) TestPopulateValuesFromMountedSecrets() {
-
-	// mock a mounted secret by creating a files in a temp dir
-	// and setting the configuration fields to point to it
-
-	// create temp dir
-	tempDir, err := os.MkdirTemp("", "test")
-	suite.Require().NoError(err)
-	defer os.RemoveAll(tempDir)
-
-	sensitiveConfigFields := []struct {
-		fileName    string
-		value       string
-		configField *string
-	}{
-		{"accessKey", "test-access-key", &suite.trigger.configuration.AccessKey},
-		{"AccessCert", "test-access-certificate", &suite.trigger.configuration.AccessCertificate},
-		{"caCert", "test-ca-certificate", &suite.trigger.configuration.CACert},
-		{"SASLPassword", "test-sasl-password", &suite.trigger.configuration.SASL.Password},
-		{"SASLClientSecret", "test-sasl-client-secret", &suite.trigger.configuration.SASL.OAuth.ClientSecret},
-	}
-
-	for _, field := range sensitiveConfigFields {
-
-		// create files
-		filePath := path.Join(tempDir, field.fileName)
-		err = os.WriteFile(filePath, []byte(field.value), 0644)
-		suite.Require().NoError(err)
-
-		// set config value
-		*field.configField = field.fileName
-	}
-
-	// set configuration fields to point to the temp dir
-	suite.trigger.configuration.SecretPath = tempDir
-
-	err = suite.trigger.configuration.populateValuesFromMountedSecrets(suite.logger)
-	suite.Require().NoError(err)
-
-	for _, field := range sensitiveConfigFields {
-		suite.Require().Equal(field.value, *field.configField)
 	}
 }
 
@@ -143,14 +97,10 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 				&functionconfig.Trigger{
 					// populate some dummy values
 					Attributes: map[string]interface{}{
-						"topics": []string{
-							"some-topic",
-						},
+						"containerName": "my-container",
+						"streamPath":    "/my-stream",
 						"consumerGroup": "some-cg",
-						"initialOffset": "earliest",
-						"brokers": []string{
-							"some-broker",
-						},
+						"password":      "some-password",
 					},
 				},
 				&runtime.Configuration{
@@ -158,8 +108,8 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 						Config: functionconfig.Config{
 							Meta: functionconfig.Meta{
 								Annotations: map[string]string{
-									"nuclio.io/kafka-explicit-ack-mode":      string(testCase.explicitAckMode),
-									"nuclio.io/kafka-worker-allocation-mode": string(testCase.workerAllocationMode),
+									"nuclio.io/v3iostream-explicit-ack-mode":      string(testCase.explicitAckMode),
+									"nuclio.io/v3iostream-worker-allocation-mode": string(testCase.workerAllocationMode),
 								},
 							},
 						},

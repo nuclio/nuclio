@@ -85,14 +85,9 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 		return nil, errors.Wrap(err, "Failed to populate explicit ack mode")
 	}
 
-	// default explicit ack mode to 'disable'
-	if triggerConfiguration.ExplicitAckMode == "" {
-		newConfiguration.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
-	}
-
 	// explicit ack is only allowed for Static Allocation mode
 	if newConfiguration.WorkerAllocationMode != partitionworker.AllocationModeStatic &&
-		functionconfig.ExplicitAckEnabled(triggerConfiguration.ExplicitAckMode) {
+		functionconfig.ExplicitAckEnabled(newConfiguration.ExplicitAckMode) {
 		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
 	}
 
