@@ -281,7 +281,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
 	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
-	serviceAccount := k.resolveServiceAccount(buildOptions.ServiceAccountName)
+	serviceAccount := k.resolveServiceAccount(buildOptions)
 
 	kanikoJobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -731,11 +731,16 @@ func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
 	return strings.Split(registryURL, ".")[3]
 }
 
-func (k *Kaniko) resolveServiceAccount(builderServiceAccount string) string {
+func (k *Kaniko) resolveServiceAccount(buildOptions *BuildOptions) string {
 
-	// if a default service account is configured, fallback to it
-	if builderServiceAccount == "" && k.builderConfiguration.DefaultServiceAccount != "" {
+	// if a builder service account is provided in build options, use it.
+	if buildOptions.BuilderServiceAccount != "" {
+		return buildOptions.BuilderServiceAccount
+	}
+	// otherwise, if default service account is provided in builder configuration, use it.
+	if k.builderConfiguration.DefaultServiceAccount != "" {
 		return k.builderConfiguration.DefaultServiceAccount
 	}
-	return builderServiceAccount
+	// otherwise, use function service account.
+	return buildOptions.FunctionServiceAccount
 }

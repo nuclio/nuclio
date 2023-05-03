@@ -48,7 +48,8 @@ type BuildOptions struct {
 	PriorityClassName       string
 	Tolerations             []v1.Toleration
 	ReadinessTimeoutSeconds int
-	ServiceAccountName      string
+	FunctionServiceAccount  string
+	BuilderServiceAccount   string
 	SecurityContext         *v1.PodSecurityContext
 }
 
