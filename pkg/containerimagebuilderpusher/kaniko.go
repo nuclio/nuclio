@@ -281,6 +281,8 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
 	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
+	serviceAccount := k.resolveServiceAccount(buildOptions)
+
 	kanikoJobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -347,7 +349,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 					Affinity:           buildOptions.Affinity,
 					PriorityClassName:  buildOptions.PriorityClassName,
 					Tolerations:        buildOptions.Tolerations,
-					ServiceAccountName: buildOptions.ServiceAccountName,
+					ServiceAccountName: serviceAccount,
 				},
 			},
 		},
@@ -727,4 +729,18 @@ func (k *Kaniko) matchECRUrl(registryURL string) bool {
 
 func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
 	return strings.Split(registryURL, ".")[3]
+}
+
+func (k *Kaniko) resolveServiceAccount(buildOptions *BuildOptions) string {
+
+	// if a builder service account is provided in build options, use it.
+	if buildOptions.BuilderServiceAccount != "" {
+		return buildOptions.BuilderServiceAccount
+	}
+	// otherwise, if default service account is provided in builder configuration, use it.
+	if k.builderConfiguration.DefaultServiceAccount != "" {
+		return k.builderConfiguration.DefaultServiceAccount
+	}
+	// otherwise, use function service account.
+	return buildOptions.FunctionServiceAccount
 }

@@ -48,7 +48,8 @@ type BuildOptions struct {
 	PriorityClassName       string
 	Tolerations             []v1.Toleration
 	ReadinessTimeoutSeconds int
-	ServiceAccountName      string
+	FunctionServiceAccount  string
+	BuilderServiceAccount   string
 	SecurityContext         *v1.PodSecurityContext
 }
 
@@ -64,6 +65,7 @@ type ContainerBuilderConfiguration struct {
 	DefaultRegistryCredentialsSecretName string
 	DefaultBaseRegistryURL               string
 	DefaultOnbuildRegistryURL            string
+	DefaultServiceAccount                string
 	CacheRepo                            string
 	InsecurePushRegistry                 bool
 	InsecurePullRegistry                 bool
@@ -143,6 +145,9 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse job deletion timeout duration")
 	}
+
+	containerBuilderConfiguration.DefaultServiceAccount = common.GetEnvOrDefaultString("NUCLIO_KANIKO_DEFAULT_SERVICE_ACCOUNT",
+		"")
 
 	return &containerBuilderConfiguration, nil
 }
