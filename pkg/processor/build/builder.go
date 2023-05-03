@@ -1063,6 +1063,8 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 		"registryURL", registryURL,
 		"taggedImageName", taggedImageName)
 
+	builderServiceAccount := b.resolveBuilderServiceAccount()
+
 	err = b.platform.BuildAndPushContainerImage(ctx,
 		&containerimagebuilderpusher.BuildOptions{
 			ContextDir:     b.stagingDir,
@@ -1088,7 +1090,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			Affinity:           b.options.FunctionConfig.Spec.Affinity,
 			PriorityClassName:  b.options.FunctionConfig.Spec.PriorityClassName,
 			Tolerations:        b.options.FunctionConfig.Spec.Tolerations,
-			ServiceAccountName: b.options.FunctionConfig.Spec.ServiceAccount,
+			ServiceAccountName: builderServiceAccount,
 			ReadinessTimeoutSeconds: b.platform.GetConfig().GetFunctionReadinessTimeoutOrDefault(
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
 			SecurityContext: b.options.FunctionConfig.Spec.SecurityContext,
@@ -1834,4 +1836,13 @@ func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
 		}
 	}
 	return healthCheckInterval, nil
+}
+
+func (b *Builder) resolveBuilderServiceAccount() string {
+
+	// if builder service account is set, use it. otherwise, use the function's service account
+	if b.options.FunctionConfig.Spec.Build.BuilderServiceAccount != "" {
+		return b.options.FunctionConfig.Spec.Build.BuilderServiceAccount
+	}
+	return b.options.FunctionConfig.Spec.ServiceAccount
 }

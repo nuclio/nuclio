@@ -64,8 +64,8 @@ type ContainerBuilderConfiguration struct {
 	DefaultRegistryCredentialsSecretName string
 	DefaultBaseRegistryURL               string
 	DefaultOnbuildRegistryURL            string
+	DefaultServiceAccount                string
 	CacheRepo                            string
-	ServiceAccount                       string
 	InsecurePushRegistry                 bool
 	InsecurePullRegistry                 bool
 	PushImagesRetries                    int
@@ -145,7 +145,7 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 		return nil, errors.Wrap(err, "Failed to parse job deletion timeout duration")
 	}
 
-	containerBuilderConfiguration.ServiceAccount = common.GetEnvOrDefaultString("NUCLIO_KANIKO_SERVICE_ACCOUNT",
+	containerBuilderConfiguration.DefaultServiceAccount = common.GetEnvOrDefaultString("NUCLIO_KANIKO_DEFAULT_SERVICE_ACCOUNT",
 		"")
 
 	return &containerBuilderConfiguration, nil

@@ -155,7 +155,7 @@ spec:
           value: {{ .Values.dashboard.kaniko.cacheRepo }}
         {{- end }}
         {{- if .Values.dashboard.kaniko.serviceAccount }}
-        - name: NUCLIO_KANIKO_SERVICE_ACCOUNT
+        - name: NUCLIO_KANIKO_DEFAULT_SERVICE_ACCOUNT
           value: {{ .Values.dashboard.kaniko.serviceAccount }}
         {{- end }}
         {{- if .Values.registry.runRegistryURL }}

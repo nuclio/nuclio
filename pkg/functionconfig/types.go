@@ -291,31 +291,32 @@ const (
 
 // Build holds all configuration parameters related to building a function
 type Build struct {
-	Path                string                 `json:"path,omitempty"`
-	FunctionSourceCode  string                 `json:"functionSourceCode,omitempty"`
-	FunctionConfigPath  string                 `json:"functionConfigPath,omitempty"`
-	TempDir             string                 `json:"tempDir,omitempty"`
-	Registry            string                 `json:"registry,omitempty"`
-	BaseImageRegistry   string                 `json:"baseImageRegistry,omitempty"`
-	Image               string                 `json:"image,omitempty"`
-	NoBaseImagesPull    bool                   `json:"noBaseImagesPull,omitempty"`
-	NoCache             bool                   `json:"noCache,omitempty"`
-	NoCleanup           bool                   `json:"noCleanup,omitempty"`
-	BaseImage           string                 `json:"baseImage,omitempty"`
-	Commands            []string               `json:"commands,omitempty"`
-	Directives          map[string][]Directive `json:"directives,omitempty"`
-	ScriptPaths         []string               `json:"scriptPaths,omitempty"`
-	AddedObjectPaths    map[string]string      `json:"addedPaths,omitempty"`
-	Dependencies        []string               `json:"dependencies,omitempty"`
-	OnbuildImage        string                 `json:"onbuildImage,omitempty"`
-	Offline             bool                   `json:"offline,omitempty"`
-	RuntimeAttributes   map[string]interface{} `json:"runtimeAttributes,omitempty"`
-	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
-	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
-	Timestamp           int64                  `json:"timestamp,omitempty"`
-	BuildTimeoutSeconds *int64                 `json:"buildTimeoutSeconds,omitempty"`
-	Mode                BuildMode              `json:"mode,omitempty"`
-	Args                map[string]string      `json:"args,omitempty"`
+	Path                  string                 `json:"path,omitempty"`
+	FunctionSourceCode    string                 `json:"functionSourceCode,omitempty"`
+	FunctionConfigPath    string                 `json:"functionConfigPath,omitempty"`
+	TempDir               string                 `json:"tempDir,omitempty"`
+	Registry              string                 `json:"registry,omitempty"`
+	BaseImageRegistry     string                 `json:"baseImageRegistry,omitempty"`
+	Image                 string                 `json:"image,omitempty"`
+	NoBaseImagesPull      bool                   `json:"noBaseImagesPull,omitempty"`
+	NoCache               bool                   `json:"noCache,omitempty"`
+	NoCleanup             bool                   `json:"noCleanup,omitempty"`
+	BaseImage             string                 `json:"baseImage,omitempty"`
+	Commands              []string               `json:"commands,omitempty"`
+	Directives            map[string][]Directive `json:"directives,omitempty"`
+	ScriptPaths           []string               `json:"scriptPaths,omitempty"`
+	AddedObjectPaths      map[string]string      `json:"addedPaths,omitempty"`
+	Dependencies          []string               `json:"dependencies,omitempty"`
+	OnbuildImage          string                 `json:"onbuildImage,omitempty"`
+	Offline               bool                   `json:"offline,omitempty"`
+	RuntimeAttributes     map[string]interface{} `json:"runtimeAttributes,omitempty"`
+	CodeEntryType         string                 `json:"codeEntryType,omitempty"`
+	CodeEntryAttributes   map[string]interface{} `json:"codeEntryAttributes,omitempty"`
+	Timestamp             int64                  `json:"timestamp,omitempty"`
+	BuildTimeoutSeconds   *int64                 `json:"buildTimeoutSeconds,omitempty"`
+	Mode                  BuildMode              `json:"mode,omitempty"`
+	Args                  map[string]string      `json:"args,omitempty"`
+	BuilderServiceAccount string                 `json:"builderServiceAccount,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration

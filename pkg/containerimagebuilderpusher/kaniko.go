@@ -731,11 +731,11 @@ func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
 	return strings.Split(registryURL, ".")[3]
 }
 
-func (k *Kaniko) resolveServiceAccount(functionServiceAccount string) string {
+func (k *Kaniko) resolveServiceAccount(builderServiceAccount string) string {
 
-	// override service account if specified for the builder
-	if k.builderConfiguration.ServiceAccount != "" {
-		return k.builderConfiguration.ServiceAccount
+	// if a default service account is configured, fallback to it
+	if builderServiceAccount == "" && k.builderConfiguration.DefaultServiceAccount != "" {
+		return k.builderConfiguration.DefaultServiceAccount
 	}
-	return functionServiceAccount
+	return builderServiceAccount
 }
