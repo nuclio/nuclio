@@ -97,10 +97,11 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 				&functionconfig.Trigger{
 					// populate some dummy values
 					Attributes: map[string]interface{}{
-						"containerName": "my-container",
-						"streamPath":    "/my-stream",
-						"consumerGroup": "some-cg",
-						"password":      "some-password",
+						"containerName":        "my-container",
+						"streamPath":           "/my-stream",
+						"consumerGroup":        "some-cg",
+						"password":             "some-password",
+						"workerAllocationMode": string(testCase.workerAllocationMode),
 					},
 				},
 				&runtime.Configuration{
@@ -108,8 +109,7 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 						Config: functionconfig.Config{
 							Meta: functionconfig.Meta{
 								Annotations: map[string]string{
-									"nuclio.io/v3iostream-explicit-ack-mode":      string(testCase.explicitAckMode),
-									"nuclio.io/v3iostream-worker-allocation-mode": string(testCase.workerAllocationMode),
+									"nuclio.io/v3iostream-explicit-ack-mode": string(testCase.explicitAckMode),
 								},
 							},
 						},

@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
@@ -141,6 +142,20 @@ func (c *Configuration) PopulateExplicitAckMode(explicitAckModeValue string,
 		}
 	}
 	return nil
+}
+
+func (c *Configuration) ResolveWorkerAllocationMode(modeFromAttributes, modeFromAnnotation partitionworker.AllocationMode) partitionworker.AllocationMode {
+
+	// prioritize attribute over annotation
+	if modeFromAttributes != "" {
+		return modeFromAttributes
+	}
+	if modeFromAnnotation != "" {
+		return modeFromAnnotation
+	}
+
+	// default to pool
+	return partitionworker.AllocationModePool
 }
 
 type Statistics struct {

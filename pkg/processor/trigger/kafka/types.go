@@ -176,17 +176,9 @@ func NewConfiguration(id string,
 		return nil, errors.Wrap(err, "Failed to populate configuration from secrets")
 	}
 
-	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
-
 	if err := newConfiguration.PopulateExplicitAckMode(explicitAckModeValue,
 		triggerConfiguration.ExplicitAckMode); err != nil {
 		return nil, errors.Wrap(err, "Failed to populate explicit ack mode")
-	}
-
-	// explicit ack is only allowed for Static Allocation mode
-	if newConfiguration.WorkerAllocationMode != partitionworker.AllocationModeStatic &&
-		functionconfig.ExplicitAckEnabled(newConfiguration.ExplicitAckMode) {
-		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
 	}
 
 	if ackWindowSizeInterface, ok := newConfiguration.Attributes["ackWindowSize"]; ok {
@@ -324,8 +316,13 @@ func NewConfiguration(id string,
 	// enrich runtime configuration with worker termination timeout
 	runtimeConfiguration.WorkerTerminationTimeout = workerTerminationTimeout
 
-	if newConfiguration.WorkerAllocationMode == "" {
-		newConfiguration.WorkerAllocationMode = partitionworker.AllocationModePool
+	newConfiguration.WorkerAllocationMode = newConfiguration.ResolveWorkerAllocationMode(newConfiguration.WorkerAllocationMode,
+		partitionworker.AllocationMode(workerAllocationModeValue))
+
+	// explicit ack is only allowed for Static Allocation mode
+	if newConfiguration.WorkerAllocationMode != partitionworker.AllocationModeStatic &&
+		functionconfig.ExplicitAckEnabled(newConfiguration.ExplicitAckMode) {
+		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
 	}
 
 	if newConfiguration.RebalanceRetryMax == 0 {
