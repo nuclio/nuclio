@@ -151,6 +151,7 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 						"brokers": []string{
 							"some-broker",
 						},
+						"workerAllocationMode": string(testCase.workerAllocationMode),
 					},
 				},
 				&runtime.Configuration{
@@ -158,8 +159,7 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 						Config: functionconfig.Config{
 							Meta: functionconfig.Meta{
 								Annotations: map[string]string{
-									"nuclio.io/kafka-explicit-ack-mode":      string(testCase.explicitAckMode),
-									"nuclio.io/kafka-worker-allocation-mode": string(testCase.workerAllocationMode),
+									"nuclio.io/kafka-explicit-ack-mode": string(testCase.explicitAckMode),
 								},
 							},
 						},

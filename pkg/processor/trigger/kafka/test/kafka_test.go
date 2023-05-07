@@ -227,9 +227,10 @@ func (suite *testSuite) TestExplicitAck() {
 					Kind: "kafka-cluster",
 					URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
 					Attributes: map[string]interface{}{
-						"topics":        []string{topic},
-						"consumerGroup": functionName,
-						"initialOffset": suite.initialOffset,
+						"topics":               []string{topic},
+						"consumerGroup":        functionName,
+						"initialOffset":        suite.initialOffset,
+						"workerAllocationMode": string(partitionworker.AllocationModeStatic),
 					},
 					WorkerTerminationTimeout: "5s",
 					ExplicitAckMode:          functionconfig.ExplicitAckModeEnable,
@@ -238,11 +239,6 @@ func (suite *testSuite) TestExplicitAck() {
 					Kind:       "http",
 					Attributes: map[string]interface{}{},
 				},
-			}
-
-			// set worker allocation mode to static
-			createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
-				"nuclio.io/kafka-worker-allocation-mode": string(partitionworker.AllocationModeStatic),
 			}
 
 			// deploy function

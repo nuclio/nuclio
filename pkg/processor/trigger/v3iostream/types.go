@@ -78,17 +78,9 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
 	}
 
-	newConfiguration.WorkerAllocationMode = partitionworker.AllocationMode(workerAllocationModeValue)
-
 	if err := newConfiguration.PopulateExplicitAckMode(explicitAckModeValue,
 		triggerConfiguration.ExplicitAckMode); err != nil {
 		return nil, errors.Wrap(err, "Failed to populate explicit ack mode")
-	}
-
-	// explicit ack is only allowed for Static Allocation mode
-	if newConfiguration.WorkerAllocationMode != partitionworker.AllocationModeStatic &&
-		functionconfig.ExplicitAckEnabled(newConfiguration.ExplicitAckMode) {
-		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
 	}
 
 	// parse attributes
@@ -117,8 +109,13 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 		newConfiguration.SeekTo = "latest"
 	}
 
-	if newConfiguration.WorkerAllocationMode == "" {
-		newConfiguration.WorkerAllocationMode = partitionworker.AllocationModePool
+	newConfiguration.WorkerAllocationMode = newConfiguration.ResolveWorkerAllocationMode(newConfiguration.WorkerAllocationMode,
+		partitionworker.AllocationMode(workerAllocationModeValue))
+
+	// explicit ack is only allowed for Static Allocation mode
+	if newConfiguration.WorkerAllocationMode != partitionworker.AllocationModeStatic &&
+		functionconfig.ExplicitAckEnabled(newConfiguration.ExplicitAckMode) {
+		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
 	}
 
 	// for backwards compatibility, allow populating container name, streampath and consumer group
