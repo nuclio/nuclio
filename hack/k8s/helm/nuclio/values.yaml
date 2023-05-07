@@ -450,63 +450,63 @@ platform: {}
 #      pipCAPath: /path/to/pip-ca-file.crt
 #      buildArgs:
 #        PIP_INDEX_URL: "https://test.pypi.org/simple"
-#   logger:
-#     sinks:
-#       myHumanReadableStdout:
-#         kind: stdout
-#         format: humanReadable
-#     system:
-#     - level: debug
-#       sink: myHumanReadableStdout
-#     functions:
-#     - level: debug
-#       sink: myHumanReadableStdout
-#   metrics:
-#     sinks:
-#       myPrometheusPull:
-#         kind: prometheusPull
-#     system:
-#     - myPrometheusPull
-#     functions:
-#     - myPrometheusPull
-#   cronTriggerCreationMode: "kube"
-#   kube:
-#     defaultFunctionNodeSelector:
-#       nodeLabelKey: nodeLabelValue
-#     defaultServiceType: ClusterIP
-#     defaultHTTPIngressHostTemplate: ""
-#     defaultHTTPIngressAnnotations:
-#       ingressAnnotationKey: ingressAnnotationValue
-#   imageRegistryOverrides:
-#     baseImageRegistries:
-#       "python:3.9": "myregistry"
-#     onbuildImageRegistries:
-#       "golang": "myregistry"
-#   functionReadinessTimeout: 120s
-#   functionInvocationTimeout: 60s
-#   opa:
+#  logger:
+#    sinks:
+#      myHumanReadableStdout:
+#        kind: stdout
+#        format: humanReadable
+#    system:
+#    - level: debug
+#      sink: myHumanReadableStdout
+#    functions:
+#    - level: debug
+#      sink: myHumanReadableStdout
+#  metrics:
+#    sinks:
+#      myPrometheusPull:
+#        kind: prometheusPull
+#    system:
+#    - myPrometheusPull
+#    functions:
+#    - myPrometheusPull
+#  cronTriggerCreationMode: "kube"
+#  kube:
+#    defaultFunctionNodeSelector:
+#      nodeLabelKey: nodeLabelValue
+#    defaultServiceType: ClusterIP
+#    defaultHTTPIngressHostTemplate: ""
+#    defaultHTTPIngressAnnotations:
+#      ingressAnnotationKey: ingressAnnotationValue
+#  imageRegistryOverrides:
+#    baseImageRegistries:
+#      "python:3.9": "myregistry"
+#    onbuildImageRegistries:
+#      "golang": "myregistry"
+#  functionReadinessTimeout: 120s
+#  functionInvocationTimeout: 60s
+#  opa:
 #
-#     # set to 10 for extra verbosity on top of nuclio logger
-#     logLevel: 0
-#     address: http://1.11.18.0.1.11.181
-#     clientKind: nop
-#     requestTimeout: 10
-#     permissionQueryPath: /v1/data/somewhere/authz/allow
+#    # set to 10 for extra verbosity on top of nuclio logger
+#    logLevel: 0
+#    address: http://1.11.18.0.1.11.181
+#    clientKind: nop
+#    requestTimeout: 10
+#    permissionQueryPath: /v1/data/somewhere/authz/allow
 #
-#   defaultUserFunctionPodResources
-#      requests:
-#        cpu: 25m
-#        memory: 1Mi
-#      limits:
-#        cpu: 2
-#        memory: 20Mi
+#  defaultUserFunctionPodResources:
+#     requests:
+#       cpu: 25m
+#       memory: 1Mi
+#     limits:
+#       cpu: 2
+#       memory: 20Mi
 #
-#   streamMonitoring:
-#     webapiURL: ""
-#     getStreamShardsConcurrentRequests: 64
+#  streamMonitoring:
+#    webapiURL: ""
+#    getStreamShardsConcurrentRequests: 64
 #
-#   sensitiveFields:
-#     maskSensitiveFields: true
+#  sensitiveFields:
+#    maskSensitiveFields: true
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:
