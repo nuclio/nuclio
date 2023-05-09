@@ -19,7 +19,8 @@ on:
     inputs:
       pr_number:
         description: 'PR number'
-        required: true
+        required: false
+        default: ''
 
 env:
   START_LABEL: long-ci-started
@@ -34,7 +35,13 @@ jobs:
     name: PR-${{ github.event.inputs.pr_number }}
     runs-on: ubuntu-latest
     steps:
+      # checkout from development
       - uses: actions/checkout@v3
+        if: github.event.inputs.pr_number == ''
+
+      # checkout from PR
+      - uses: actions/checkout@v3
+        if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
           ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
