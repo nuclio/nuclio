@@ -687,6 +687,17 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 				},
 			},
 		},
+		{
+			Name: "AzureDevopsBranchWithDuplicatedProjectName",
+			BuildConfiguration: functionconfig.Build{
+				CodeEntryType: GitEntryType,
+				Path:          "https://sahar920089@dev.azure.com/sahar920089/test-nuclio-cet/_git/test-nuclio-cet",
+				CodeEntryAttributes: map[string]interface{}{
+					"workDir": "go-function",
+					"branch":  "go-func",
+				},
+			},
+		},
 	} {
 		suite.Run(testCase.Name, func() {
 			err := suite.builder.createTempDir()

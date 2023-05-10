@@ -120,11 +120,21 @@ func (agc *AbstractClient) cloneFromAzureDevops(outputDir string,
 	// compile repository URL with git auth credentials
 	if gitAuth != nil {
 		splitFunctionPath := strings.Split(repositoryURL, "://")
+		prefix := splitFunctionPath[0]
+		projectPath := splitFunctionPath[1]
+
+		// when getting a git URL from azure, the project name might appear in the URL, so we need to remove it
+		// as we comprise the URL with the credentials instead.
+		if strings.Contains(splitFunctionPath[1], "@") {
+			splitProjectPath := strings.Split(splitFunctionPath[1], "@")
+			projectPath = splitProjectPath[1]
+		}
+
 		repositoryURL = fmt.Sprintf("%s://%s:%s@%s",
-			splitFunctionPath[0],
+			prefix,
 			gitAuth.Username,
 			gitAuth.Password,
-			splitFunctionPath[1])
+			projectPath)
 
 		// redact username and password (so it won't be logged)
 		runOptions = &cmdrunner.RunOptions{
