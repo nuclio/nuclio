@@ -32,12 +32,16 @@ env:
 
 jobs:
   long_ci:
-    name: ${{ github.event.inputs.pr_number != "" && PR-${{ github.event.inputs.pr_number }} || "Development" }}
+    name: Long CI
     runs-on: ubuntu-latest
     steps:
       # checkout from development
       - uses: actions/checkout@v3
         if: github.event.inputs.pr_number == ''
+
+      - if : ${{ github.event.inputs.pr_number != '' }}
+        name: Running on specific PR
+        run: echo "PR number - ${{ github.event.inputs.pr_number }}"
 
       # checkout from PR
       - uses: actions/checkout@v3
