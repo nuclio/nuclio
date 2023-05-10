@@ -31,36 +31,17 @@ env:
   DOCKER_BUILDKIT: 1
 
 jobs:
-  prepare_job_name:
-    name: Prepare job name
-#    outputs:
-#      name: ${{ steps.set-job-name.outputs.name }}
-    runs-on: ubuntu-latest
-    steps:
-#      - uses: actions/checkout@v3
-
-      - name: set name
-        id: set-job-name
-        run: |
-
-          # if pr number is given - use it,
-          # else - use "Development"
-          if [ -n "${{ github.event.inputs.pr_number }}" ]; then
-            echo "name='PR-${{ github.event.inputs.pr_number }}'" >> $GITHUB_ENV
-          else
-            echo "name='Development'" >> $GITHUB_ENV
-          fi
-          
-          echo $GITHUB_ENV
-
   long_ci:
-    name: ${{ needs.prepare_job_name.outputs.name }}
+    name: Long CI
     runs-on: ubuntu-latest
-    needs: prepare_job_name
     steps:
       # checkout from development
       - uses: actions/checkout@v3
         if: github.event.inputs.pr_number == ''
+
+      - if : ${{ github.event.inputs.pr_number != '' }}
+        name: Running on specific PR
+        run: echo "PR number - ${{ github.event.inputs.pr_number }}"
 
       # checkout from PR
       - uses: actions/checkout@v3
