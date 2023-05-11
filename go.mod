@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.161
 	github.com/coreos/go-semver v0.3.0
 	github.com/disintegration/imaging v1.6.0
-	github.com/docker/distribution v2.8.1+incompatible
+	github.com/docker/distribution v2.8.2+incompatible
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/fatih/color v1.13.0
 	github.com/fatih/structs v1.1.0
