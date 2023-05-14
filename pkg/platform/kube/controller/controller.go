@@ -169,7 +169,7 @@ func NewController(parentLogger logger.Logger,
 			&cronJobStaleResourcesCleanupInterval)
 	}
 
-	// creat evicted pods cleanup monitoring
+	// create evicted pods cleanup monitoring
 	newController.evictedPodsMonitoring = NewEvictedPodsMonitoring(ctx,
 		parentLogger,
 		newController,

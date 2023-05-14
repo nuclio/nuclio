@@ -58,10 +58,12 @@ func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
 		return errors.Wrap(err, "Failed to encode message")
 	}
 
+	// write the encoded size message to the socket
 	if err := binary.Write(e.writer, binary.BigEndian, int32(e.buf.Len())); err != nil {
 		return errors.Wrap(err, "Failed to write message size to socket")
 	}
 
+	// write the encoded message content to the socket
 	bs := e.buf.Bytes()
 	if _, err := e.writer.Write(bs); err != nil {
 		return errors.Wrap(err, "Failed to write message to socket")
