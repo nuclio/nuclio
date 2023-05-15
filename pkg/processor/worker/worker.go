@@ -164,3 +164,8 @@ func (w *Worker) IsTerminated() bool {
 func (w *Worker) Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
 	return w.runtime.GetControlMessageBroker().Subscribe(kind, channel)
 }
+
+// Unsubscribe unsubscribes from a control message kind
+func (w *Worker) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
+	return w.runtime.GetControlMessageBroker().Unsubscribe(kind, channel)
+}

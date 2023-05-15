@@ -82,6 +82,9 @@ type ControlMessageBroker interface {
 
 	// Subscribe subscribes channel to a control message kind
 	Subscribe(kind ControlMessageKind, channel chan *ControlMessage) error
+
+	// Unsubscribe unsubscribes channel from a control message kind
+	Unsubscribe(kind ControlMessageKind, channel chan *ControlMessage) error
 }
 
 type AbstractControlMessageBroker struct {
@@ -135,5 +138,24 @@ func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind, cha
 	consumer.Channels = append(consumer.Channels, channel)
 	acmb.Consumers = append(acmb.Consumers, consumer)
 
+	return nil
+}
+
+func (acmb *AbstractControlMessageBroker) Unsubscribe(kind ControlMessageKind, channel chan *ControlMessage) error {
+
+	// Find the consumer with relevant kind
+	for _, consumer := range acmb.Consumers {
+		if consumer.GetKind() == kind {
+
+			// remove the channel from the consumer
+			for i, c := range consumer.Channels {
+				if c == channel {
+					consumer.Channels = append(consumer.Channels[:i], consumer.Channels[i+1:]...)
+					break
+				}
+			}
+			return nil
+		}
+	}
 	return nil
 }

@@ -326,7 +326,30 @@ func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunicati
 
 	for _, workerInstance := range at.WorkerAllocator.GetWorkers() {
 		if err := workerInstance.Subscribe(kind, controlMessageChan); err != nil {
-			return errors.Wrapf(err, "Failed to subscribe to explicit ack control message kind in worker %d", workerInstance.GetIndex())
+			return errors.Wrapf(err,
+				"Failed to subscribe to control message kind %s in worker %d",
+				kind,
+				workerInstance.GetIndex())
+		}
+	}
+
+	return nil
+}
+
+// UnsubscribeFromControlMessageKind unsubscribes all workers from control message kind
+func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommunication.ControlMessageKind,
+	controlMessageChan chan *controlcommunication.ControlMessage) error {
+
+	at.Logger.DebugWith("Unsubscribing channel from control message kind",
+		"kind", kind,
+		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
+
+	for _, workerInstance := range at.WorkerAllocator.GetWorkers() {
+		if err := workerInstance.Unsubscribe(kind, controlMessageChan); err != nil {
+			return errors.Wrapf(err,
+				"Failed to unsubscribe channel from control message kind %s in worker %d",
+				kind,
+				workerInstance.GetIndex())
 		}
 	}
 

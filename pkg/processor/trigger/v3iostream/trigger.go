@@ -231,6 +231,11 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 
 	vs.Logger.DebugWith("Claim consumption stopped", "shardID", claim.GetShardID())
 
+	// unsubscribe channel from the streamAck control message kind before closing it
+	if err := vs.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
+		vs.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
+	}
+
 	// shut down the event submitter and the explicit ack handler
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
