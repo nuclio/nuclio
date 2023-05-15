@@ -18,6 +18,7 @@ package controlcommunication
 
 import (
 	"bufio"
+	"sync"
 
 	"github.com/nuclio/errors"
 )
@@ -88,13 +89,15 @@ type ControlMessageBroker interface {
 }
 
 type AbstractControlMessageBroker struct {
-	Consumers []*ControlConsumer
+	Consumers   []*ControlConsumer
+	channelLock sync.Mutex
 }
 
 // NewAbstractControlMessageBroker creates a new abstract control message broker
 func NewAbstractControlMessageBroker() *AbstractControlMessageBroker {
 	return &AbstractControlMessageBroker{
-		Consumers: make([]*ControlConsumer, 0),
+		Consumers:   make([]*ControlConsumer, 0),
+		channelLock: sync.Mutex{},
 	}
 }
 
@@ -120,6 +123,10 @@ func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessag
 
 func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind, channel chan *ControlMessage) error {
 
+	// acquire lock to prevent concurrent access to the consumers and channels
+	acmb.channelLock.Lock()
+	defer acmb.channelLock.Unlock()
+
 	// create consumers if they don't exist
 	if acmb.Consumers == nil {
 		acmb.Consumers = make([]*ControlConsumer, 0)
@@ -142,6 +149,10 @@ func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind, cha
 }
 
 func (acmb *AbstractControlMessageBroker) Unsubscribe(kind ControlMessageKind, channel chan *ControlMessage) error {
+
+	// acquire lock to prevent concurrent access to the consumers and channels
+	acmb.channelLock.Lock()
+	defer acmb.channelLock.Unlock()
 
 	// Find the consumer with relevant kind
 	for _, consumer := range acmb.Consumers {
