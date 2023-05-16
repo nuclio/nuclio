@@ -302,6 +302,11 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
 
+	// unsubscribe channel from the streamAck control message kind before closing it
+	if err := k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
+		k.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
+	}
+
 	// shut down goroutines and channels
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
