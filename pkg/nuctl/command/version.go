@@ -38,7 +38,7 @@ func newVersionCommandeer(rootCommandeer *RootCommandeer) *versionCommandeer {
 		Aliases: []string{"ver"},
 		Short:   "Display the version number of the nuctl CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Printf("Client version:\n%#v", version.Get().String())
+			fmt.Printf("Client version:\n%#v\n", version.Get().String())
 			return nil
 		},
 	}
