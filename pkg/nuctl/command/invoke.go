@@ -52,6 +52,7 @@ type invokeCommandeer struct {
 	contentType                     string
 	headers                         string
 	body                            string
+	raiseOnStatus                   bool
 }
 
 func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *invokeCommandeer {
@@ -107,7 +108,7 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 
 			// verify correctness of logger level
 			switch commandeer.createFunctionInvocationOptions.LogLevelName {
-			case "none", "debug", "info", "warn", "error":
+			case "none", "debug", "info", "warn", "error": // nolint: goconst
 				break
 			default:
 				return errors.New("Invalid logger level name. Must be one of none / debug / info / warn / error")
@@ -172,6 +173,8 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
 	cmd.Flags().DurationVarP(&commandeer.timeout, "timeout", "t", platformconfig.DefaultFunctionInvocationTimeoutSeconds*time.Second, "Invocation request timeout")
 	cmd.Flags().BoolVarP(&commandeer.createFunctionInvocationOptions.SkipTLSVerification, "skip-tls", "", false, "Skip TLS verification")
+	cmd.Flags().BoolVarP(&commandeer.raiseOnStatus, "raise-on-status", "", false, "Fail nuctl in case function invocation returns non-200 status code")
+
 	commandeer.cmd = cmd
 
 	return commandeer
@@ -262,6 +265,11 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	// output the body
 	if err := i.outputResponseBody(invokeResult, writer); err != nil {
 		return errors.Wrap(err, "Failed to output body")
+	}
+
+	// if the flag is set - fail in case function invocation returns non-200 status code
+	if !(invokeResult.StatusCode >= http.StatusOK && invokeResult.StatusCode < 300) && i.raiseOnStatus {
+		return errors.New("Function invocation failed")
 	}
 
 	return nil
