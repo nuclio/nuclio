@@ -52,7 +52,7 @@ type invokeCommandeer struct {
 	contentType                     string
 	headers                         string
 	body                            string
-	failOnFunctionError             bool
+	raiseOnStatus                   bool
 }
 
 func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *invokeCommandeer {
@@ -173,7 +173,7 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
 	cmd.Flags().DurationVarP(&commandeer.timeout, "timeout", "t", platformconfig.DefaultFunctionInvocationTimeoutSeconds*time.Second, "Invocation request timeout")
 	cmd.Flags().BoolVarP(&commandeer.createFunctionInvocationOptions.SkipTLSVerification, "skip-tls", "", false, "Skip TLS verification")
-	cmd.Flags().BoolVarP(&commandeer.failOnFunctionError, "fail-on-error", "", false, "Fail nuctl in case function invocation fails")
+	cmd.Flags().BoolVarP(&commandeer.raiseOnStatus, "raise-on-status", "", false, "Fail nuctl in case function invocation returns non-200 status code")
 
 	commandeer.cmd = cmd
 
@@ -250,15 +250,9 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	invokeResult *platform.CreateFunctionInvocationResult,
 	writer io.Writer) error {
 
-	var (
-		functionFailed bool
-		err            error
-	)
-
 	// try to output the logs (ignore errors)
 	if createFunctionInvocationOptions.LogLevelName != "none" {
-		functionFailed, err = i.outputFunctionLogs(invokeResult, writer)
-		if err != nil {
+		if err := i.outputFunctionLogs(invokeResult, writer); err != nil {
 			return errors.Wrap(err, "Failed to output logs")
 		}
 	}
@@ -273,7 +267,8 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 		return errors.Wrap(err, "Failed to output body")
 	}
 
-	if i.failOnFunctionError && functionFailed {
+	// if the flag is set - fail in case function invocation returns non-200 status code
+	if !(invokeResult.StatusCode >= http.StatusOK && invokeResult.StatusCode < 300) && i.raiseOnStatus {
 		return errors.New("Function invocation failed")
 	}
 
@@ -347,7 +342,7 @@ func (i *invokeCommandeer) resolveMethod() string {
 	return i.createFunctionInvocationOptions.Method
 }
 
-func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) (bool, error) {
+func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
 
 	// the function logs should return as JSON
 	functionLogs := []map[string]interface{}{}
@@ -358,12 +353,12 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 	// parse the JSON into function logs
 	err := json.Unmarshal([]byte(encodedFunctionLogs), &functionLogs)
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to parse logs")
+		return errors.Wrap(err, "Failed to parse logs")
 	}
 
 	// if there are no logs, return now
 	if len(functionLogs) == 0 {
-		return false, nil
+		return nil
 	}
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
@@ -376,12 +371,10 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 		nucliozap.DebugLevel)
 
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to create function logger")
+		return errors.Wrap(err, "Failed to create function logger")
 	}
 
 	i.rootCommandeer.loggerInstance.Info(">>> Start of function logs")
-
-	functionFailed := false
 
 	// iterate through all the logs
 	for _, functionLog := range functionLogs {
@@ -394,11 +387,6 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 		// convert args map to a slice of interfaces
 		args := i.stringInterfaceMapToInterfaceSlice(functionLog)
 
-		// if the function logs contain an error, mark the function as failed
-		if levelName == "error" {
-			functionFailed = true
-		}
-
 		// output to log by level
 		i.getOutputByLevelName(functionLogger, levelName)(message, args...)
 	}
@@ -407,7 +395,7 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 		i.rootCommandeer.loggerInstance.Info("<<< End of function logs")
 	}
 
-	return functionFailed, nil
+	return nil
 }
 
 func (i *invokeCommandeer) stringInterfaceMapToInterfaceSlice(input map[string]interface{}) []interface{} {
