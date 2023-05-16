@@ -52,6 +52,7 @@ type invokeCommandeer struct {
 	contentType                     string
 	headers                         string
 	body                            string
+	failOnFunctionError             bool
 }
 
 func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *invokeCommandeer {
@@ -107,7 +108,7 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 
 			// verify correctness of logger level
 			switch commandeer.createFunctionInvocationOptions.LogLevelName {
-			case "none", "debug", "info", "warn", "error":
+			case "none", "debug", "info", "warn", "error": // nolint: goconst
 				break
 			default:
 				return errors.New("Invalid logger level name. Must be one of none / debug / info / warn / error")
@@ -172,6 +173,8 @@ func newInvokeCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", os.Getenv("NUCTL_EXTERNAL_IP_ADDRESSES"), "External IP addresses (comma-delimited) with which to invoke the function")
 	cmd.Flags().DurationVarP(&commandeer.timeout, "timeout", "t", platformconfig.DefaultFunctionInvocationTimeoutSeconds*time.Second, "Invocation request timeout")
 	cmd.Flags().BoolVarP(&commandeer.createFunctionInvocationOptions.SkipTLSVerification, "skip-tls", "", false, "Skip TLS verification")
+	cmd.Flags().BoolVarP(&commandeer.failOnFunctionError, "fail-on-error", "", false, "Fail nuctl in case function invocation fails")
+
 	commandeer.cmd = cmd
 
 	return commandeer
@@ -247,9 +250,15 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	invokeResult *platform.CreateFunctionInvocationResult,
 	writer io.Writer) error {
 
+	var (
+		functionFailed bool
+		err            error
+	)
+
 	// try to output the logs (ignore errors)
 	if createFunctionInvocationOptions.LogLevelName != "none" {
-		if err := i.outputFunctionLogs(invokeResult, writer); err != nil {
+		functionFailed, err = i.outputFunctionLogs(invokeResult, writer)
+		if err != nil {
 			return errors.Wrap(err, "Failed to output logs")
 		}
 	}
@@ -262,6 +271,10 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	// output the body
 	if err := i.outputResponseBody(invokeResult, writer); err != nil {
 		return errors.Wrap(err, "Failed to output body")
+	}
+
+	if i.failOnFunctionError && functionFailed {
+		return errors.New("Function invocation failed")
 	}
 
 	return nil
@@ -334,7 +347,7 @@ func (i *invokeCommandeer) resolveMethod() string {
 	return i.createFunctionInvocationOptions.Method
 }
 
-func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
+func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) (bool, error) {
 
 	// the function logs should return as JSON
 	functionLogs := []map[string]interface{}{}
@@ -345,12 +358,12 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 	// parse the JSON into function logs
 	err := json.Unmarshal([]byte(encodedFunctionLogs), &functionLogs)
 	if err != nil {
-		return errors.Wrap(err, "Failed to parse logs")
+		return false, errors.Wrap(err, "Failed to parse logs")
 	}
 
 	// if there are no logs, return now
 	if len(functionLogs) == 0 {
-		return nil
+		return false, nil
 	}
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
@@ -363,10 +376,12 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 		nucliozap.DebugLevel)
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to create function logger")
+		return false, errors.Wrap(err, "Failed to create function logger")
 	}
 
 	i.rootCommandeer.loggerInstance.Info(">>> Start of function logs")
+
+	functionFailed := false
 
 	// iterate through all the logs
 	for _, functionLog := range functionLogs {
@@ -379,6 +394,11 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 		// convert args map to a slice of interfaces
 		args := i.stringInterfaceMapToInterfaceSlice(functionLog)
 
+		// if the function logs contain an error, mark the function as failed
+		if levelName == "error" {
+			functionFailed = true
+		}
+
 		// output to log by level
 		i.getOutputByLevelName(functionLogger, levelName)(message, args...)
 	}
@@ -387,7 +407,7 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 		i.rootCommandeer.loggerInstance.Info("<<< End of function logs")
 	}
 
-	return nil
+	return functionFailed, nil
 }
 
 func (i *invokeCommandeer) stringInterfaceMapToInterfaceSlice(input map[string]interface{}) []interface{} {
