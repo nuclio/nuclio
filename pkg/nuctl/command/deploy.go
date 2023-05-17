@@ -421,10 +421,10 @@ func (d *deployCommandeer) overrideBasicConfigFields(rootCommandeer *RootCommand
 
 	// don't override name if it came from a config file
 	if d.functionConfig.Meta.Name == "" {
-		if d.functionName != "" {
-			d.functionConfig.Meta.Name = d.functionName
+		if d.functionName == "" {
+			return errors.New("Function name cannot be empty")
 		}
-		return errors.New("Function name cannot be empty")
+		d.functionConfig.Meta.Name = d.functionName
 	} else {
 		if d.functionName != "" && d.functionName != d.functionConfig.Meta.Name {
 			return errors.Errorf("Function name %s is different from the name in the config file %s", d.functionName, d.functionConfig.Meta.Name)
