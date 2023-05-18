@@ -179,17 +179,14 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 			// Populate HTTP Service type
 			commandeer.populateHTTPServiceType()
 
-			// Override basic fields from the config
-			if err := commandeer.overrideBasicConfigFields(rootCommandeer); err != nil {
+			// Enrich function config with args
+			if err := commandeer.enrichConfigMetadata(rootCommandeer); err != nil {
 				return errors.Wrap(err, "Failed overriding basic config fields")
 			}
-
-			// Enrich function config with args
 			commandeer.enrichConfigWithStringArgs()
 			commandeer.enrichConfigWithIntArgs()
 			commandeer.enrichConfigWithBoolArgs()
-			err = commandeer.enrichConfigWithComplexArgs()
-			if err != nil {
+			if err = commandeer.enrichConfigWithComplexArgs(); err != nil {
 				return errors.Wrap(err, "Failed config with complex args")
 			}
 
@@ -415,49 +412,23 @@ func (d *deployCommandeer) populateHTTPServiceType() {
 	}
 }
 
-// overrideBasicConfigFields overrides basic fields in the function config with the values from the commandeer,
+// enrichConfigMetadata overrides metadata fields in the function config with the values from the commandeer,
 // if they are given explicitly
-func (d *deployCommandeer) overrideBasicConfigFields(rootCommandeer *RootCommandeer) error {
+func (d *deployCommandeer) enrichConfigMetadata(rootCommandeer *RootCommandeer) error {
 
-	// don't override name if it came from a config file
-	if d.functionConfig.Meta.Name == "" {
-		if d.functionName == "" {
+	if d.functionName == "" {
+		if d.functionConfig.Meta.Name == "" {
 			return errors.New("Function name cannot be empty")
 		}
-		d.functionConfig.Meta.Name = d.functionName
-	} else {
-		if d.functionName != "" && d.functionName != d.functionConfig.Meta.Name {
-			return errors.Errorf("Function name %s is different from the name in the config file %s", d.functionName, d.functionConfig.Meta.Name)
-		}
 		d.functionName = d.functionConfig.Meta.Name
+	} else {
+
+		// override the name in the config with the name from the command line
+		d.functionConfig.Meta.Name = d.functionName
 	}
 
-	if d.functionConfig.Meta.Namespace == "" {
-		d.functionConfig.Meta.Namespace = rootCommandeer.namespace
-	}
-
-	if len(d.commands) != 0 {
-		d.functionConfig.Spec.Build.Commands = d.commands
-	}
-
-	if d.functionConfigPath != "" {
-		d.functionConfig.Spec.Build.FunctionConfigPath = d.functionConfigPath
-	}
-
-	// override build fields if they are given explicitly
-	for flagValue, fieldInFunctionConfig := range map[string]*string{
-		d.functionBuild.Path:               &d.functionConfig.Spec.Build.Path,
-		d.functionBuild.FunctionSourceCode: &d.functionConfig.Spec.Build.FunctionSourceCode,
-		d.functionBuild.Image:              &d.functionConfig.Spec.Build.Image,
-		d.functionBuild.Registry:           &d.functionConfig.Spec.Build.Registry,
-		d.functionBuild.BaseImage:          &d.functionConfig.Spec.Build.BaseImage,
-		d.functionBuild.OnbuildImage:       &d.functionConfig.Spec.Build.OnbuildImage,
-		d.functionBuild.CodeEntryType:      &d.functionConfig.Spec.Build.CodeEntryType,
-	} {
-		if flagValue != "" {
-			*fieldInFunctionConfig = flagValue
-		}
-	}
+	// override the namespace in the config with the namespace from the command line (must be set)
+	d.functionConfig.Meta.Namespace = rootCommandeer.namespace
 
 	return nil
 }
@@ -501,6 +472,10 @@ func (d *deployCommandeer) enrichConfigWithStringArgs() {
 
 	if d.priorityClassName != "" {
 		d.functionConfig.Spec.PriorityClassName = d.priorityClassName
+	}
+
+	if d.functionConfigPath != "" {
+		d.functionConfig.Spec.Build.FunctionConfigPath = d.functionConfigPath
 	}
 }
 
@@ -677,6 +652,11 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 			Name:  envNameAndValue[0],
 			Value: envNameAndValue[1],
 		})
+	}
+
+	// override commands if given
+	if len(d.commands) != 0 {
+		d.functionConfig.Spec.Build.Commands = d.commands
 	}
 
 	return nil
