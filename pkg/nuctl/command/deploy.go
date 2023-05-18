@@ -186,6 +186,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 			commandeer.enrichConfigWithStringArgs()
 			commandeer.enrichConfigWithIntArgs()
 			commandeer.enrichConfigWithBoolArgs()
+			commandeer.enrichBuildConfigWithArgs()
 			if err = commandeer.enrichConfigWithComplexArgs(); err != nil {
 				return errors.Wrap(err, "Failed config with complex args")
 			}
@@ -474,9 +475,6 @@ func (d *deployCommandeer) enrichConfigWithStringArgs() {
 		d.functionConfig.Spec.PriorityClassName = d.priorityClassName
 	}
 
-	if d.functionConfigPath != "" {
-		d.functionConfig.Spec.Build.FunctionConfigPath = d.functionConfigPath
-	}
 }
 
 func (d *deployCommandeer) enrichConfigWithBoolArgs() {
@@ -654,12 +652,37 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 		})
 	}
 
-	// override commands if given
-	if len(d.commands) != 0 {
-		d.functionConfig.Spec.Build.Commands = d.commands
+	return nil
+}
+
+func (d *deployCommandeer) enrichBuildConfigWithArgs() {
+
+	// enrich string fields in function config with flags
+	for flagValue, fieldInFunctionConfig := range map[string]*string{
+		d.functionConfigPath:               &d.functionConfig.Spec.Build.FunctionConfigPath,
+		d.functionBuild.Path:               &d.functionConfig.Spec.Build.Path,
+		d.functionBuild.FunctionSourceCode: &d.functionConfig.Spec.Build.FunctionSourceCode,
+		d.functionBuild.Image:              &d.functionConfig.Spec.Build.Image,
+		d.functionBuild.Registry:           &d.functionConfig.Spec.Build.Registry,
+		d.functionBuild.BaseImage:          &d.functionConfig.Spec.Build.BaseImage,
+		d.functionBuild.OnbuildImage:       &d.functionConfig.Spec.Build.OnbuildImage,
+		d.functionBuild.CodeEntryType:      &d.functionConfig.Spec.Build.CodeEntryType,
+	} {
+		if flagValue != "" {
+			*fieldInFunctionConfig = flagValue
+		}
 	}
 
-	return nil
+	// enrich bool fields in function config with flags
+	for flagValue, fieldInFunctionConfig := range map[bool]*bool{
+		d.functionBuild.NoBaseImagesPull: &d.functionConfig.Spec.Build.NoBaseImagesPull,
+		d.functionBuild.NoCleanup:        &d.functionConfig.Spec.Build.NoCleanup,
+		d.functionBuild.Offline:          &d.functionConfig.Spec.Build.Offline,
+	} {
+		if flagValue {
+			*fieldInFunctionConfig = flagValue
+		}
+	}
 }
 
 func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error {
