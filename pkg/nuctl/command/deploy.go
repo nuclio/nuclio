@@ -179,20 +179,15 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 			// Populate HTTP Service type
 			commandeer.populateHTTPServiceType()
 
-			// Override basic fields from the config
-			commandeer.functionConfig.Meta.Name = commandeer.functionName
-			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
-
-			commandeer.functionConfig.Spec.Build = commandeer.functionBuild
-			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
-			commandeer.functionConfig.Spec.Build.FunctionConfigPath = commandeer.functionConfigPath
-
 			// Enrich function config with args
+			if err := commandeer.enrichConfigMetadata(rootCommandeer); err != nil {
+				return errors.Wrap(err, "Failed overriding basic config fields")
+			}
 			commandeer.enrichConfigWithStringArgs()
 			commandeer.enrichConfigWithIntArgs()
 			commandeer.enrichConfigWithBoolArgs()
-			err = commandeer.enrichConfigWithComplexArgs()
-			if err != nil {
+			commandeer.enrichBuildConfigWithArgs()
+			if err = commandeer.enrichConfigWithComplexArgs(); err != nil {
 				return errors.Wrap(err, "Failed config with complex args")
 			}
 
@@ -418,6 +413,27 @@ func (d *deployCommandeer) populateHTTPServiceType() {
 	}
 }
 
+// enrichConfigMetadata overrides metadata fields in the function config with the values from the commandeer,
+// if they are given explicitly
+func (d *deployCommandeer) enrichConfigMetadata(rootCommandeer *RootCommandeer) error {
+
+	if d.functionName == "" {
+		if d.functionConfig.Meta.Name == "" {
+			return errors.New("Function name cannot be empty")
+		}
+		d.functionName = d.functionConfig.Meta.Name
+	} else {
+
+		// override the name in the config with the name from the command line
+		d.functionConfig.Meta.Name = d.functionName
+	}
+
+	// override the namespace in the config with the namespace from the command line (must be set)
+	d.functionConfig.Meta.Namespace = rootCommandeer.namespace
+
+	return nil
+}
+
 func (d *deployCommandeer) enrichConfigWithStringArgs() {
 	if d.description != "" {
 		d.functionConfig.Spec.Description = d.description
@@ -636,6 +652,28 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 	}
 
 	return nil
+}
+
+func (d *deployCommandeer) enrichBuildConfigWithArgs() {
+
+	// enrich string fields in function config with flags
+	common.PopulateFieldsFromValues(map[*string]string{
+		&d.functionConfig.Spec.Build.FunctionConfigPath: d.functionConfigPath,
+		&d.functionConfig.Spec.Build.Path:               d.functionBuild.Path,
+		&d.functionConfig.Spec.Build.FunctionSourceCode: d.functionBuild.FunctionSourceCode,
+		&d.functionConfig.Spec.Build.Image:              d.functionBuild.Image,
+		&d.functionConfig.Spec.Build.Registry:           d.functionBuild.Registry,
+		&d.functionConfig.Spec.Build.BaseImage:          d.functionBuild.BaseImage,
+		&d.functionConfig.Spec.Build.OnbuildImage:       d.functionBuild.OnbuildImage,
+		&d.functionConfig.Spec.Build.CodeEntryType:      d.functionBuild.CodeEntryType,
+	})
+
+	// enrich bool fields in function config with flags
+	common.PopulateFieldsFromValues(map[*bool]bool{
+		&d.functionConfig.Spec.Build.NoBaseImagesPull: d.functionBuild.NoBaseImagesPull,
+		&d.functionConfig.Spec.Build.NoCleanup:        d.functionBuild.NoCleanup,
+		&d.functionConfig.Spec.Build.Offline:          d.functionBuild.Offline,
+	})
 }
 
 func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error {

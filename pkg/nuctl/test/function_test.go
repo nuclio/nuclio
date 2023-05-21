@@ -313,7 +313,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	functionName := functionConfig.Meta.Name
 	imageName := "nuclio/processor-" + functionName
 
-	err = suite.ExecuteNuctl([]string{"deploy", "", "--verbose", "--no-pull"},
+	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
 			"image": imageName,
