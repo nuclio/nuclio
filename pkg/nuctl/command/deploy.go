@@ -657,27 +657,31 @@ func (d *deployCommandeer) enrichConfigWithComplexArgs() error {
 func (d *deployCommandeer) enrichBuildConfigWithArgs() {
 
 	// enrich string fields in function config with flags
-	common.PopulateFieldsFromValues(map[*string]string{
-		&d.functionConfig.Spec.Build.FunctionConfigPath: d.functionConfigPath,
-		&d.functionConfig.Spec.Build.Path:               d.functionBuild.Path,
-		&d.functionConfig.Spec.Build.FunctionSourceCode: d.functionBuild.FunctionSourceCode,
-		&d.functionConfig.Spec.Build.Image:              d.functionBuild.Image,
-		&d.functionConfig.Spec.Build.Registry:           d.functionBuild.Registry,
-		&d.functionConfig.Spec.Build.BaseImage:          d.functionBuild.BaseImage,
-		&d.functionConfig.Spec.Build.OnbuildImage:       d.functionBuild.OnbuildImage,
-		&d.functionConfig.Spec.Build.CodeEntryType:      d.functionBuild.CodeEntryType,
-	}, func(s string) bool {
-		return s != ""
-	})
+	for flagValue, fieldInFunctionConfig := range map[string]*string{
+		d.functionConfigPath:               &d.functionConfig.Spec.Build.FunctionConfigPath,
+		d.functionBuild.Path:               &d.functionConfig.Spec.Build.Path,
+		d.functionBuild.FunctionSourceCode: &d.functionConfig.Spec.Build.FunctionSourceCode,
+		d.functionBuild.Image:              &d.functionConfig.Spec.Build.Image,
+		d.functionBuild.Registry:           &d.functionConfig.Spec.Build.Registry,
+		d.functionBuild.BaseImage:          &d.functionConfig.Spec.Build.BaseImage,
+		d.functionBuild.OnbuildImage:       &d.functionConfig.Spec.Build.OnbuildImage,
+		d.functionBuild.CodeEntryType:      &d.functionConfig.Spec.Build.CodeEntryType,
+	} {
+		if flagValue != "" {
+			*fieldInFunctionConfig = flagValue
+		}
+	}
 
 	// enrich bool fields in function config with flags
-	common.PopulateFieldsFromValues(map[*bool]bool{
-		&d.functionConfig.Spec.Build.NoBaseImagesPull: d.functionBuild.NoBaseImagesPull,
-		&d.functionConfig.Spec.Build.NoCleanup:        d.functionBuild.NoCleanup,
-		&d.functionConfig.Spec.Build.Offline:          d.functionBuild.Offline,
-	}, func(b bool) bool {
-		return b
-	})
+	for flagValue, fieldInFunctionConfig := range map[bool]*bool{
+		d.functionBuild.NoBaseImagesPull: &d.functionConfig.Spec.Build.NoBaseImagesPull,
+		d.functionBuild.NoCleanup:        &d.functionConfig.Spec.Build.NoCleanup,
+		d.functionBuild.Offline:          &d.functionConfig.Spec.Build.Offline,
+	} {
+		if flagValue {
+			*fieldInFunctionConfig = flagValue
+		}
+	}
 }
 
 func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error {

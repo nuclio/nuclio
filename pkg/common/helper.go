@@ -574,13 +574,3 @@ func RemoveStringSliceItemsFromStringSlice(slice []string, itemsToRemove []strin
 	}
 	return list
 }
-
-// PopulateFieldsFromValues populates fields with values if the value is not nil, according to the isNotNilFunc.
-// the given fieldsToValues map is a map of pointers to fields to populate and values.
-func PopulateFieldsFromValues[T string | bool | int](fieldsToValues map[*T]T, isNotNilFunc func(T) bool) {
-	for field, value := range fieldsToValues {
-		if isNotNilFunc(value) {
-			*field = value
-		}
-	}
-}
