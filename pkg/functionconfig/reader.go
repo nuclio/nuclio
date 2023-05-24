@@ -106,15 +106,6 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 
 func (r *Reader) ReadFunctionConfigFile(functionConfigPath string, config *Config) error {
 
-	// read the file once for logging
-	functionConfigContents, err := os.ReadFile(functionConfigPath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to read function configuration file")
-	}
-
-	// log
-	r.logger.DebugWith("Read function configuration file", "contents", string(functionConfigContents))
-
 	functionConfigFile, err := os.Open(functionConfigPath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to open function configuration file: %s", functionConfigPath)
