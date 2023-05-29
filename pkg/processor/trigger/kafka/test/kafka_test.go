@@ -429,6 +429,7 @@ func (suite *testSuite) TestTerminationHook() {
 	}
 
 	// test a specific branch in nuclio-sdk-py
+	// TODO: remove this when this is released in nuclio-sdk-py
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
 		"@nuclio.postCopy",
 		"pip install git+https://github.com/TomerShor/nuclio-sdk-py.git@on-termination",
