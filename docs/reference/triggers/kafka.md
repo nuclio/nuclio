@@ -298,7 +298,8 @@ qualified_offset = nuclio.QualifiedOffset.from_event(event)
 await context.platform.explicit_ack(qualified_offset)
 ```
 
-During [rebalance](#rebalancing), the function can still be processing events. We can register a callback to drop or commit events being handled when the rebalancing is about to happen, using the following method:
+During [rebalance](#rebalancing), the function can still be processing events. 
+We can register a callback to drop or commit events being handled when the rebalancing is about to happen, using the following method (Note that the registered callback is a nullity callback (doesn't accept arguments)):
 ```py
 context.platform.set_termination_callback(callback)
 ```
