@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import re
+import signal
 import socket
 import sys
 import time
@@ -164,6 +165,9 @@ class Wrapper(object):
         # call init_context
         await self._initialize_context()
 
+        # register to the SIGTERM signal
+        self._register_to_signal()
+
         # indicate that we're ready
         await self._write_packet_to_processor(self._event_sock, 's')
         await self._send_data_on_control_socket({
@@ -192,6 +196,15 @@ class Wrapper(object):
             except:
                 self._logger.error('Exception raised while running init_context')
                 raise
+
+    def _register_to_signal(self):
+        signal.signal(signal.SIGTERM, self._on_sigterm)
+
+    def _on_sigterm(self, signal_number, frame):
+        self._logger.debug(f'Received SIGTERM signal, calling on_signal hook - signal_number={signal_number}')
+
+        # call the platform's _on_signal method
+        self._platform._on_signal()
 
     async def _send_data_on_control_socket(self, data):
         self._logger.debug_with('Sending data on control socket', data_length=len(data))

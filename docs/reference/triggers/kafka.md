@@ -300,7 +300,7 @@ await context.platform.explicit_ack(qualified_offset)
 
 During [rebalance](#rebalancing), the function can still be processing events. We can register a callback to drop or commit events being handled when the rebalancing is about to happen, using the following method:
 ```py
-context.platform.on_signal(callback)
+context.platform.set_termination_callback(callback)
 ```
 
 **NOTES**:

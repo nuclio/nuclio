@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"testing"
@@ -36,6 +37,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
 )
 
 type testSuite struct {
@@ -233,7 +235,7 @@ func (suite *testSuite) TestExplicitAck() {
 						"workerAllocationMode": string(partitionworker.AllocationModeStatic),
 					},
 					WorkerTerminationTimeout: "5s",
-					ExplicitAckMode:          functionconfig.ExplicitAckModeEnable,
+					ExplicitAckMode:          testCase.explicitAckMode,
 				},
 				"my-http": {
 					Kind:       "http",
@@ -295,6 +297,230 @@ func (suite *testSuite) TestExplicitAck() {
 			})
 		})
 	}
+}
+
+func (suite *testSuite) TestTerminationHookManual() {
+	functionName := "termination-hook-manual"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"termination-hook",
+		"termination-hook.py")
+
+	// create a function
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+
+	// test a specific branch in nuclio-sdk-py
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"@nuclio.postCopy",
+		"pip install git+https://github.com/TomerShor/nuclio-sdk-py.git@on-termination",
+	}
+
+	// create a temp dir
+	tempDir, err := os.MkdirTemp("", "termination-hook")
+	suite.Require().NoError(err, "Failed to create temp dir")
+	defer os.RemoveAll(tempDir) // nolint: errcheck
+
+	mountPath := "/tmp/nuclio"
+	directoryType := v1.HostPathDirectory
+
+	// mount it to the function
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "termination-hook",
+				VolumeSource: v1.VolumeSource{
+					HostPath: &v1.HostPathVolumeSource{
+						Path: tempDir,
+						Type: &directoryType,
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "termination-hook",
+				ReadOnly:  false,
+				MountPath: mountPath,
+			},
+		},
+	}
+
+	//createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+	//	"my-http": {
+	//		Kind:       "http",
+	//		Attributes: map[string]interface{}{
+	//			"ingresses": map[string]interface{}{
+	//				"0": map[string]interface{}{
+	//					"host":  "host-and-path-already-in-use.com",
+	//					"paths": []string{"/unused-path"},
+	//				},
+	//			},
+	//		},
+	//	},
+	//}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		suite.Logger.Debug("Put a breakpoint here!")
+
+		return true
+	})
+
+	// check that the function's termination hook was called by reading the file it should have written to
+	filePath := path.Join(tempDir, "termination-hook.txt")
+	suite.Logger.InfoWith("Reading termination hook file", "filePath", filePath)
+	fileBytes, err := os.ReadFile(filePath)
+	suite.Require().NoError(err, "Failed to read termination hook file")
+
+	// check that the file is not empty
+	suite.Logger.DebugWith("Checking termination hook file is not empty", "fileContent", string(fileBytes))
+	suite.Require().NotEmpty(fileBytes, "Termination hook file is empty")
+}
+
+func (suite *testSuite) TestTerminationHook() {
+	topic := "myTopic"
+	functionName := "termination-hook"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"termination-hook",
+		"termination-hook.py")
+
+	// create new topic
+	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+		TopicDetails: map[string]*sarama.TopicDetail{
+			topic: {
+				NumPartitions:     suite.NumPartitions,
+				ReplicationFactor: 1,
+			},
+		},
+	})
+	suite.Require().NoError(err, "Failed to create topic")
+
+	suite.Logger.InfoWith("Created topic",
+		"topic", topic,
+		"createTopicResponse", createTopicsResponse)
+
+	// create a function
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+		Attributes: map[string]interface{}{
+			"network": suite.BrokerContainerNetworkName,
+		},
+	}
+
+	// configure kafka trigger
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"my-kafka": {
+			Kind: "kafka-cluster",
+			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+			Attributes: map[string]interface{}{
+				"topics":               []string{topic},
+				"consumerGroup":        suite.consumerGroup,
+				"initialOffset":        suite.initialOffset,
+				"workerAllocationMode": string(partitionworker.AllocationModeStatic),
+			},
+			WorkerTerminationTimeout: "5s",
+			MaxWorkers:               4,
+		},
+		"my-http": {
+			Kind:       "http",
+			Attributes: map[string]interface{}{},
+		},
+	}
+
+	// test a specific branch in nuclio-sdk-py
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"@nuclio.postCopy",
+		"pip install git+https://github.com/TomerShor/nuclio-sdk-py.git@on-termination",
+	}
+
+	// create a temp dir
+	tempDir, err := os.MkdirTemp("", "termination-hook")
+	suite.Require().NoError(err, "Failed to create temp dir")
+	defer os.RemoveAll(tempDir) // nolint: errcheck
+
+	mountPath := "/tmp/nuclio"
+	directoryType := v1.HostPathDirectory
+
+	// mount it to the function
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "termination-hook",
+				VolumeSource: v1.VolumeSource{
+					HostPath: &v1.HostPathVolumeSource{
+						Path: tempDir,
+						Type: &directoryType,
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "termination-hook",
+				ReadOnly:  false,
+				MountPath: mountPath,
+			},
+		},
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		// publish 10 messages to the topic
+		for i := 0; i < 10; i++ {
+			err := suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", i), int32(i%4))
+			suite.Require().NoError(err, "Failed to publish message")
+		}
+
+		// create another function that consumes from the same topic and consumer group, to trigger rebalance
+		newCreateFunctionOptions := suite.GetDeployOptions("event_recorder-2", suite.FunctionPaths["python"])
+		newCreateFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+			Attributes: map[string]interface{}{
+				"network": suite.BrokerContainerNetworkName,
+			},
+		}
+
+		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+			"my-kafka": {
+				Kind: "kafka-cluster",
+				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+				Attributes: map[string]interface{}{
+					"topics":        []string{topic},
+					"consumerGroup": suite.consumerGroup,
+					"initialOffset": suite.initialOffset,
+				},
+			},
+		}
+
+		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
+
+			suite.Logger.DebugWith("Created second function, producing messages to topic",
+				"topic", topic)
+
+			// write messages to all 4 shards
+			for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+				messageBody := fmt.Sprintf("%s-%d", "messagingCycleB", partitionIdx)
+
+				// send the message
+				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
+				suite.Require().NoError(err, "Failed to publish message")
+			}
+
+			return true
+		})
+
+		return true
+	})
+
+	// check that the function's termination hook was called by reading the file it should have written to
+	filePath := path.Join(tempDir, "termination-hook.txt")
+	suite.Logger.DebugWith("Reading termination hook file", "filePath", filePath)
+	fileBytes, err := os.ReadFile(filePath)
+	suite.Require().NoError(err, "Failed to read termination hook file")
+
+	// check that the file is not empty
+	suite.Logger.DebugWith("Checking termination hook file is not empty", "fileContent", string(fileBytes))
+	suite.Require().NotEmpty(fileBytes, "Termination hook file is empty")
 }
 
 //func (suite *testSuite) TestEventRecorderRebalance() {

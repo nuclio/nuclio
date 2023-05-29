@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -200,8 +201,11 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		done: make(chan error),
 	}
 
+	// initialize goroutine communication channels
 	submittedEventChan := make(chan *submittedEvent)
 	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
+	workerTerminationCompleteChan := make(chan bool)
+	readyForRebalanceChan := make(chan bool)
 
 	// submit the events in a goroutine so that we can unblock immediately
 	go k.eventSubmitter(claim, submittedEventChan)
@@ -267,13 +271,32 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			// TODO: find a way to signal the workers on an imminent rebalance so they can stop gracefully
-			// since current implementation is not working (IG-21152)
-			// go k.signalWorkerTermination(workerTerminationCompleteChan)
+			// signal the worker that termination is about to happen, and wait for it to finish its work
+			go k.signalWorkerTermination(workerTerminationCompleteChan)
+
+			// trigger is ready for rebalance if both the handler is done and
+			// the workers are finished with the graceful termination
+			go func() {
+				var wg sync.WaitGroup
+				wg.Add(2)
+				go func() {
+					<-submittedEventInstance.done
+					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
+					wg.Done()
+				}()
+				go func() {
+					<-workerTerminationCompleteChan
+					k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
+					wg.Done()
+				}()
+
+				wg.Wait()
+				readyForRebalanceChan <- true
+			}()
 
 			//  wait a for rebalance readiness or max timeout
 			select {
-			case <-submittedEventInstance.done:
+			case <-readyForRebalanceChan:
 				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
@@ -310,6 +333,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// shut down goroutines and channels
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
+	close(workerTerminationCompleteChan)
+	close(readyForRebalanceChan)
 
 	return submitError
 }
