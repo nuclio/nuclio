@@ -390,14 +390,16 @@ func (suite *testSuite) TestTerminationHook() {
 
 	// create a function
 	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
-	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+
+	platformSpec := functionconfig.Platform{
 		Attributes: map[string]interface{}{
 			"network": suite.BrokerContainerNetworkName,
 		},
 	}
+	createFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
 
 	// configure kafka trigger
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+	triggerSpec := map[string]functionconfig.Trigger{
 		"my-kafka": {
 			Kind: "kafka-cluster",
 			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
@@ -410,20 +412,18 @@ func (suite *testSuite) TestTerminationHook() {
 			WorkerTerminationTimeout: "40s",
 			MaxWorkers:               4,
 		},
-		"my-http": {
-			Kind:       "http",
-			Attributes: map[string]interface{}{},
-		},
 	}
+	createFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
 
 	// test a specific branch in nuclio-sdk-py
 	// TODO: remove this when this is released in nuclio-sdk-py
-	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+	customNuclioSdkPyCommands := []string{
 		"@nuclio.postCopy",
 		"pip install git+https://github.com/nuclio/nuclio-sdk-py.git@development",
 	}
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = customNuclioSdkPyCommands
 
-	// create a temp dir
+	// create a temp dir, delete it after the test
 	tempDir, err := os.MkdirTemp("", "termination-hook")
 	suite.Require().NoError(err, "Failed to create temp dir")
 	defer os.RemoveAll(tempDir) // nolint: errcheck
@@ -451,7 +451,7 @@ func (suite *testSuite) TestTerminationHook() {
 		},
 	}
 
-	var firstInvocationTime time.Time
+	var rebalanceStartedTime time.Time
 
 	// deploy function
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
@@ -465,42 +465,21 @@ func (suite *testSuite) TestTerminationHook() {
 			err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
 			suite.Require().NoError(err, "Failed to publish message")
 		}
-		firstInvocationTime = time.Now()
 
 		// create another function that consumes from the same topic and consumer group, to trigger rebalance
-		newFunctionName := "termination-hook-new"
-		newCreateFunctionOptions := suite.GetDeployOptions(newFunctionName, functionPath)
-		newCreateFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
-			Attributes: map[string]interface{}{
-				"network": suite.BrokerContainerNetworkName,
-			},
-		}
-
-		// configure kafka trigger
-		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-			"my-kafka-2": {
-				Kind: "kafka-cluster",
-				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-				Attributes: map[string]interface{}{
-					"topics":               []string{topic},
-					"consumerGroup":        suite.consumerGroup,
-					"initialOffset":        suite.initialOffset,
-					"workerAllocationMode": string(partitionworker.AllocationModeStatic),
-				},
-				WorkerTerminationTimeout: "40s",
-				MaxWorkers:               4,
-			},
-		}
+		newCreateFunctionOptions := suite.GetDeployOptions("termination-hook-new", functionPath)
+		newCreateFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
+		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
 
 		// test a specific branch in nuclio-sdk-py
 		// TODO: remove this when this is released in nuclio-sdk-py
-		newCreateFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
-			"@nuclio.postCopy",
-			"pip install git+https://github.com/nuclio/nuclio-sdk-py.git@development",
-		}
+		newCreateFunctionOptions.FunctionConfig.Spec.Build.Commands = customNuclioSdkPyCommands
+
+		suite.Logger.Debug("Creating second function, to trigger rebalance")
 
 		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
 			suite.Require().NotNil(deployResult, "Unexpected empty second deploy results")
+			rebalanceStartedTime = time.Now()
 
 			suite.Logger.DebugWith("Created second function, producing messages to topic",
 				"topic", topic)
@@ -514,9 +493,9 @@ func (suite *testSuite) TestTerminationHook() {
 				suite.Require().NoError(err, "Failed to publish message")
 			}
 
-			// wait for at lease 30 seconds to pass from first invocation, to allow the function to run
-			// its termination hook before we check the file
-			<-time.After(firstInvocationTime.Add(30 * time.Second).Sub(time.Now()))
+			// wait for at least 40 seconds (the kafka trigger's WorkerTerminationTimeout) to pass from first invocation,
+			// to allow the function to run its termination hook before we delete the function
+			<-time.After(time.Until(rebalanceStartedTime.Add(40 * time.Second)))
 
 			return true
 		})

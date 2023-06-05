@@ -213,25 +213,25 @@ func (fp *fixedPool) SignalTermination(partitionNumber int32) error {
 
 		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
 
-			if workerInstance.IsTerminated() {
-				fp.logger.DebugWith("Worker is already terminated",
-					"workerIndex", workerInstance.GetIndex(),
-					"partitionNumber", partitionNumber)
-				return nil
-			}
-
-			// if worker is terminating, wait for it to finish
-			if workerInstance.IsTerminating() {
-				fp.logger.DebugWith("Worker is already terminating, waiting for termination",
-					"workerIndex", workerInstance.GetIndex(),
-					"partitionNumber", partitionNumber)
-
-				// wait for worker to be terminated
-				for !workerInstance.IsTerminated() {
-					time.Sleep(100 * time.Millisecond)
-				}
-				return nil
-			}
+			//if workerInstance.IsTerminated() {
+			//	fp.logger.DebugWith("Worker is already terminated",
+			//		"workerIndex", workerInstance.GetIndex(),
+			//		"partitionNumber", partitionNumber)
+			//	return nil
+			//}
+			//
+			//// if worker is terminating, wait for it to finish
+			//if workerInstance.IsTerminating() {
+			//	fp.logger.DebugWith("Worker is already terminating, waiting for termination",
+			//		"workerIndex", workerInstance.GetIndex(),
+			//		"partitionNumber", partitionNumber)
+			//
+			//	// wait for worker to be terminated
+			//	for !workerInstance.IsTerminated() {
+			//		time.Sleep(100 * time.Millisecond)
+			//	}
+			//	return nil
+			//}
 
 			// if worker is not terminating, signal it to terminate
 			if !workerInstance.IsTerminated() {

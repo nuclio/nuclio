@@ -164,18 +164,12 @@ class Wrapper(object):
                 if self._is_terminated:
                     self._logger.debug('Something happened! Calling platform termination handler')
                     self._call_termination_handler()
-                    break
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None:
                 num_requests -= 1
                 if num_requests <= 0:
                     break
-
-        # we don't necessarily get here because of a signal, so check it again
-        if self._is_terminated:
-            self._logger.debug('Finished serving requests, calling platform termination handler')
-            self._call_termination_handler()
 
     async def initialize(self):
 

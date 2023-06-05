@@ -45,9 +45,7 @@ type Worker struct {
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time
 	isTerminated         bool
-	isTerminating        bool
 	terminatedLock       sync.Mutex
-	terminatingLock      sync.Mutex
 }
 
 // NewWorker creates a new worker
@@ -56,11 +54,10 @@ func NewWorker(parentLogger logger.Logger,
 	runtime runtime.Runtime) (*Worker, error) {
 
 	newWorker := Worker{
-		logger:          parentLogger,
-		index:           index,
-		runtime:         runtime,
-		terminatedLock:  sync.Mutex{},
-		terminatingLock: sync.Mutex{},
+		logger:         parentLogger,
+		index:          index,
+		runtime:        runtime,
+		terminatedLock: sync.Mutex{},
 	}
 
 	// return an instance of the default worker
@@ -155,14 +152,11 @@ func (w *Worker) SupportsRestart() bool {
 }
 
 func (w *Worker) Terminate() error {
-	w.setTerminating(true)
-
 	err := w.runtime.Terminate()
 	if err == nil {
 
 		w.setTerminated(true)
 	}
-	w.setTerminating(false)
 	return err
 }
 
@@ -173,25 +167,11 @@ func (w *Worker) IsTerminated() bool {
 	return w.isTerminated
 }
 
-func (w *Worker) IsTerminating() bool {
-	w.terminatingLock.Lock()
-	defer w.terminatingLock.Unlock()
-
-	return w.isTerminating
-}
-
 func (w *Worker) setTerminated(isTerminated bool) {
 	w.terminatedLock.Lock()
 	defer w.terminatedLock.Unlock()
 
 	w.isTerminated = isTerminated
-}
-
-func (w *Worker) setTerminating(isTerminating bool) {
-	w.terminatingLock.Lock()
-	defer w.terminatingLock.Unlock()
-
-	w.isTerminating = isTerminating
 }
 
 // Subscribe subscribes to a control message kind

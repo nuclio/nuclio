@@ -527,7 +527,7 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 				}
 				if errLogCounter%5 == 0 {
 					r.Logger.WarnWith(string(common.FailedReadControlMessage),
-						"errStack", errors.GetErrorStackString(err, 10))
+						"errRootCause", errors.RootCause(err).Error())
 					errLogCounter++
 				}
 
