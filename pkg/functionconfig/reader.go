@@ -19,6 +19,7 @@ package functionconfig
 import (
 	"encoding/json"
 	"io"
+	"os"
 
 	"github.com/nuclio/nuclio/pkg/common"
 
@@ -99,6 +100,26 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 	}
 
 	r.enrichPostMergeConfig(config, &codeEntryConfig)
+
+	return nil
+}
+
+func (r *Reader) ReadFunctionConfigFile(functionConfigPath string, config *Config) error {
+
+	functionConfigFile, err := os.Open(functionConfigPath)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to open function configuration file: %s", functionConfigPath)
+	}
+
+	defer functionConfigFile.Close() // nolint: errcheck
+
+	// read the configuration
+	if err := r.Read(functionConfigFile,
+		"yaml",
+		config); err != nil {
+
+		return errors.Wrap(err, "Failed to read function configuration file")
+	}
 
 	return nil
 }
