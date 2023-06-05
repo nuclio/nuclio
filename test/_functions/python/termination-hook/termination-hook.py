@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import signal
 import time
 import os
 
@@ -44,21 +43,14 @@ def init_context(context):
     context.platform.set_termination_callback(termination_handler.write_results)
 
 
-# def kill_yourself():
-#     os.kill(os.getpid(), signal.SIGTERM)
-
-
 def handler(context, event):
-    body = None
-    if event.body:
-        body = event.body
-    context.logger.info_with('Got event', event=body)
+    context.logger.info_with('Got event!')
 
     # simulate a long running function
     sleep_time = 30
     context.logger.info_with('Sleeping', seconds=sleep_time)
     time.sleep(sleep_time)
 
-    context.logger.info_with('Done!', event=body)
+    context.logger.info_with('Done!')
 
     return context.Response(body='Done\n', headers={})

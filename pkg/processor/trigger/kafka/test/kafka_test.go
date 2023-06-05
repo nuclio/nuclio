@@ -415,14 +415,6 @@ func (suite *testSuite) TestTerminationHook() {
 	}
 	createFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
 
-	// test a specific branch in nuclio-sdk-py
-	// TODO: remove this when this is released in nuclio-sdk-py
-	customNuclioSdkPyCommands := []string{
-		"@nuclio.postCopy",
-		"pip install git+https://github.com/nuclio/nuclio-sdk-py.git@development",
-	}
-	createFunctionOptions.FunctionConfig.Spec.Build.Commands = customNuclioSdkPyCommands
-
 	// create a temp dir, delete it after the test
 	tempDir, err := os.MkdirTemp("", "termination-hook")
 	suite.Require().NoError(err, "Failed to create temp dir")
@@ -470,10 +462,6 @@ func (suite *testSuite) TestTerminationHook() {
 		newCreateFunctionOptions := suite.GetDeployOptions("termination-hook-new", functionPath)
 		newCreateFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
 		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
-
-		// test a specific branch in nuclio-sdk-py
-		// TODO: remove this when this is released in nuclio-sdk-py
-		newCreateFunctionOptions.FunctionConfig.Spec.Build.Commands = customNuclioSdkPyCommands
 
 		suite.Logger.Debug("Creating second function, to trigger rebalance")
 

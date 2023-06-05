@@ -270,7 +270,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			consumeMessages = false
 
 			// signal the worker that termination is about to happen, and wait for it to finish its work
-			go k.SignalWorkerTermination(workerTerminationCompleteChan, claim.Partition())
+			go k.SignalWorkerTermination(workerTerminationCompleteChan)
 
 			// trigger is ready for rebalance if both the handler is done and
 			// the workers are finished with the graceful termination
