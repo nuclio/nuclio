@@ -20,13 +20,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
@@ -272,7 +270,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			consumeMessages = false
 
 			// signal the worker that termination is about to happen, and wait for it to finish its work
-			go k.signalWorkerTermination(workerTerminationCompleteChan)
+			go k.SignalWorkerTermination(workerTerminationCompleteChan, claim.Partition())
 
 			// trigger is ready for rebalance if both the handler is done and
 			// the workers are finished with the graceful termination
@@ -555,36 +553,6 @@ func (k *kafka) resolveSCRAMClientGeneratorFunc(mechanism sarama.SASLMechanism) 
 	default:
 		return nil
 	}
-}
-
-// signalWorkerTermination sends a SIGTERM signal to all workers, signaling them to drop or ack events
-// that are currently being processed
-func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool) {
-
-	// signal all workers on re-balance
-	k.Logger.Debug("Signaling all workers to drop or ack events due to rebalance")
-
-	errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
-
-	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-		workerInstance := workerInstance
-		if !workerInstance.IsTerminated() {
-			errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
-				if err := workerInstance.Terminate(); err != nil {
-					return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
-				}
-
-				return nil
-			})
-		}
-	}
-
-	if err := errGroup.Wait(); err != nil {
-		k.Logger.WarnWith("At least one worker failed to stop", "err", err.Error())
-	}
-
-	// signal termination complete
-	workerTerminationCompleteChan <- true
 }
 
 // explicitAckHandler reads offset data messages from the trigger's control channel, and marks the

@@ -299,6 +299,72 @@ func (suite *testSuite) TestExplicitAck() {
 	}
 }
 
+func (suite *testSuite) TestTerminationHookManual() {
+	functionName := "termination-hook-manual"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"termination-hook",
+		"termination-hook.py")
+
+	// create a function
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+
+	// test a specific branch in nuclio-sdk-py
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"@nuclio.postCopy",
+		"pip install git+https://github.com/nuclio/nuclio-sdk-py.git@development",
+	}
+
+	// create a temp dir
+	tempDir, err := os.MkdirTemp("", "termination-hook")
+	suite.Require().NoError(err, "Failed to create temp dir")
+	defer os.RemoveAll(tempDir) // nolint: errcheck
+
+	mountPath := "/tmp/nuclio"
+	directoryType := v1.HostPathDirectory
+
+	// mount it to the function
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "termination-hook",
+				VolumeSource: v1.VolumeSource{
+					HostPath: &v1.HostPathVolumeSource{
+						Path: tempDir,
+						Type: &directoryType,
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "termination-hook",
+				ReadOnly:  false,
+				MountPath: mountPath,
+			},
+		},
+	}
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		suite.Logger.DebugWith("Put a breakpoint here!",
+			"deployResult", deployResult,
+			"port", deployResult.Port)
+
+		return true
+	})
+
+	// check that the function's termination hook was called by reading the file it should have written to
+	filePath := path.Join(tempDir, "termination-hook.txt")
+	suite.Logger.InfoWith("Reading termination hook file", "filePath", filePath)
+	fileBytes, err := os.ReadFile(filePath)
+	suite.Require().NoError(err, "Failed to read termination hook file")
+
+	// check that the file is not empty
+	suite.Logger.DebugWith("Checking termination hook file is not empty", "fileContent", string(fileBytes))
+	suite.Require().NotEmpty(fileBytes, "Termination hook file is empty")
+}
+
 func (suite *testSuite) TestTerminationHook() {
 	topic := "myTopic"
 	functionName := "termination-hook"
@@ -341,7 +407,7 @@ func (suite *testSuite) TestTerminationHook() {
 				"initialOffset":        suite.initialOffset,
 				"workerAllocationMode": string(partitionworker.AllocationModeStatic),
 			},
-			WorkerTerminationTimeout: "5s",
+			WorkerTerminationTimeout: "40s",
 			MaxWorkers:               4,
 		},
 		"my-http": {
@@ -354,7 +420,7 @@ func (suite *testSuite) TestTerminationHook() {
 	// TODO: remove this when this is released in nuclio-sdk-py
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
 		"@nuclio.postCopy",
-		"pip install git+https://github.com/TomerShor/nuclio-sdk-py.git@on-termination",
+		"pip install git+https://github.com/nuclio/nuclio-sdk-py.git@development",
 	}
 
 	// create a temp dir
@@ -385,37 +451,56 @@ func (suite *testSuite) TestTerminationHook() {
 		},
 	}
 
+	var firstInvocationTime time.Time
+
 	// deploy function
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
 
-		// publish 10 messages to the topic
-		for i := 0; i < 10; i++ {
-			err := suite.publishMessageToTopicOnSpecificShard(topic, fmt.Sprintf("message-%d", i), int32(i%4))
+		// write messages on 4 shards
+		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+			messageBody := fmt.Sprintf("%s-%d", "messagingCycleA", partitionIdx)
+
+			// send the message
+			err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
 			suite.Require().NoError(err, "Failed to publish message")
 		}
+		firstInvocationTime = time.Now()
 
 		// create another function that consumes from the same topic and consumer group, to trigger rebalance
-		newCreateFunctionOptions := suite.GetDeployOptions("event_recorder-2", suite.FunctionPaths["python"])
+		newFunctionName := "termination-hook-new"
+		newCreateFunctionOptions := suite.GetDeployOptions(newFunctionName, functionPath)
 		newCreateFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 			Attributes: map[string]interface{}{
 				"network": suite.BrokerContainerNetworkName,
 			},
 		}
 
+		// configure kafka trigger
 		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-			"my-kafka": {
+			"my-kafka-2": {
 				Kind: "kafka-cluster",
 				URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
 				Attributes: map[string]interface{}{
-					"topics":        []string{topic},
-					"consumerGroup": suite.consumerGroup,
-					"initialOffset": suite.initialOffset,
+					"topics":               []string{topic},
+					"consumerGroup":        suite.consumerGroup,
+					"initialOffset":        suite.initialOffset,
+					"workerAllocationMode": string(partitionworker.AllocationModeStatic),
 				},
+				WorkerTerminationTimeout: "40s",
+				MaxWorkers:               4,
 			},
 		}
 
+		// test a specific branch in nuclio-sdk-py
+		// TODO: remove this when this is released in nuclio-sdk-py
+		newCreateFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+			"@nuclio.postCopy",
+			"pip install git+https://github.com/nuclio/nuclio-sdk-py.git@development",
+		}
+
 		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
+			suite.Require().NotNil(deployResult, "Unexpected empty second deploy results")
 
 			suite.Logger.DebugWith("Created second function, producing messages to topic",
 				"topic", topic)
@@ -428,6 +513,10 @@ func (suite *testSuite) TestTerminationHook() {
 				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
 				suite.Require().NoError(err, "Failed to publish message")
 			}
+
+			// wait for at lease 30 seconds to pass from first invocation, to allow the function to run
+			// its termination hook before we check the file
+			<-time.After(firstInvocationTime.Add(30 * time.Second).Sub(time.Now()))
 
 			return true
 		})

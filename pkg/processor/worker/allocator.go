@@ -17,10 +17,14 @@ limitations under the License.
 package worker
 
 import (
-	"errors"
+	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errgroup"
+
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -46,6 +50,8 @@ type Allocator interface {
 
 	// GetStatistics returns worker allocator statistics
 	GetStatistics() *AllocatorStatistics
+
+	SignalTermination(partitionNumber int32) error
 }
 
 //
@@ -94,6 +100,10 @@ func (s *singleton) GetNumWorkersAvailable() int {
 // GetStatistics returns worker allocator statistics
 func (s *singleton) GetStatistics() *AllocatorStatistics {
 	return &s.statistics
+}
+
+func (s *singleton) SignalTermination(partitionNumber int32) error {
+	return nil
 }
 
 //
@@ -193,4 +203,57 @@ func (fp *fixedPool) GetNumWorkersAvailable() int {
 // GetStatistics returns worker allocator statistics
 func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
 	return &fp.statistics
+}
+
+func (fp *fixedPool) SignalTermination(partitionNumber int32) error {
+	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
+
+	for _, workerInstance := range fp.GetWorkers() {
+		workerInstance := workerInstance
+
+		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
+
+			if workerInstance.IsTerminated() {
+				fp.logger.DebugWith("Worker is already terminated",
+					"workerIndex", workerInstance.GetIndex(),
+					"partitionNumber", partitionNumber)
+				return nil
+			}
+
+			// if worker is terminating, wait for it to finish
+			if workerInstance.IsTerminating() {
+				fp.logger.DebugWith("Worker is already terminating, waiting for termination",
+					"workerIndex", workerInstance.GetIndex(),
+					"partitionNumber", partitionNumber)
+
+				// wait for worker to be terminated
+				for !workerInstance.IsTerminated() {
+					time.Sleep(100 * time.Millisecond)
+				}
+				return nil
+			}
+
+			// if worker is not terminating, signal it to terminate
+			if !workerInstance.IsTerminated() {
+				fp.logger.DebugWith("Signaling worker to terminate",
+					"workerIndex", workerInstance.GetIndex(),
+					"partitionNumber", partitionNumber)
+				if err := workerInstance.Terminate(); err != nil {
+					return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
+				}
+				fp.logger.DebugWith("Worker is terminated after signaling", "workerIndex", workerInstance.GetIndex())
+			}
+			return nil
+		})
+	}
+
+	fp.logger.DebugWith("Allocator - Waiting for workers to terminate")
+
+	if err := errGroup.Wait(); err != nil {
+		fp.logger.WarnWith("At least one worker failed to stop", "err", err.Error())
+	}
+
+	fp.logger.DebugWith("Allocator - Finished waiting for workers to terminate")
+
+	return nil
 }

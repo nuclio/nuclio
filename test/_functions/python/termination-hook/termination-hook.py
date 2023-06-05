@@ -1,4 +1,4 @@
-# Copyright 2017 The Nuclio Authors.
+# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,19 +44,21 @@ def init_context(context):
     context.platform.set_termination_callback(termination_handler.write_results)
 
 
-def kill_yourself():
-    os.kill(os.getpid(), signal.SIGTERM)
+# def kill_yourself():
+#     os.kill(os.getpid(), signal.SIGTERM)
 
 
 def handler(context, event):
-    context.logger.info_with('Got event', event=event.body)
-
-    body = event.body.decode('utf-8')
-    if body == 'die':
-        kill_yourself()
+    body = None
+    if event.body:
+        body = event.body
+    context.logger.info_with('Got event', event=body)
 
     # simulate a long running function
-    context.logger.info_with('Sleeping', seconds=300)
-    time.sleep(300)
+    sleep_time = 30
+    context.logger.info_with('Sleeping', seconds=sleep_time)
+    time.sleep(sleep_time)
+
+    context.logger.info_with('Done!', event=body)
 
     return context.Response(body='Done\n', headers={})

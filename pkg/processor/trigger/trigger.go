@@ -356,6 +356,23 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 	return nil
 }
 
+// SignalWorkerTermination sends a SIGTERM signal to all workers, signaling them to drop or ack events
+// that are currently being processed
+func (at *AbstractTrigger) SignalWorkerTermination(workerTerminationCompleteChan chan bool, partitionNumber int32) {
+
+	// signal all workers on re-balance
+	at.Logger.DebugWith("Signaling all workers to terminate", "partitionNumber", partitionNumber)
+
+	if err := at.WorkerAllocator.SignalTermination(partitionNumber); err != nil {
+		at.Logger.WarnWith("Failed to signal all workers to terminate", "err", err.Error())
+	}
+
+	at.Logger.DebugWith("All workers have been signaled to terminate", "partitionNumber", partitionNumber)
+
+	// signal termination complete
+	workerTerminationCompleteChan <- true
+}
+
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {
 
 	// if the content type starts with application/cloudevents, the body
