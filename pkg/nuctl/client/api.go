@@ -210,7 +210,7 @@ func (c *NuclioAPIClient) createAuthorizationHeaders(ctx context.Context) (map[s
 		return c.authHeaders, nil
 	}
 
-	// resolve username and password from env vars if not provided
+	// resolve username and access key from env vars if not provided
 	if c.username == "" {
 		c.username = common.GetEnvOrDefaultString("NUCLIO_USERNAME", "")
 	}
@@ -218,9 +218,11 @@ func (c *NuclioAPIClient) createAuthorizationHeaders(ctx context.Context) (map[s
 		c.accessKey = common.GetEnvOrDefaultString("NUCLIO_ACCESS_KEY", "")
 	}
 
-	// if username and password are still empty, fail
-	if c.username == "" || c.accessKey == "" {
-		return nil, errors.New("Username and password must be provided")
+	// access key is still empty, fail
+	if c.accessKey == "" {
+		message := "Access key must be provided"
+		c.logger.Error(message)
+		return nil, errors.New(message)
 	}
 
 	// cache the auth headers
