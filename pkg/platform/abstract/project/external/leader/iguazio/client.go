@@ -488,7 +488,11 @@ func (c *Client) resolveGetProjectResponse(detail bool, body []byte) ([]platform
 func (c *Client) logLeaderInternalServerResponseError(ctx context.Context,
 	response *http.Response,
 	errMessage string) {
-	if response.StatusCode >= 500 {
+	if response == nil {
+		c.logger.WarnWithCtx(ctx, "Failed to get response", "errMessage", errMessage)
+		return
+	}
+	if response != nil && response.StatusCode >= 500 {
 		c.logger.WarnWithCtx(ctx,
 			errMessage,
 			"statusCode", response.StatusCode,
