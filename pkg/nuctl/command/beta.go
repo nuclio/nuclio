@@ -35,7 +35,7 @@ type betaCommandeer struct {
 	concurrency    int
 	apiURL         string
 	username       string
-	password       string
+	accessKey      string
 	requestTimeout string
 	skipTLSVerify  bool
 }
@@ -52,7 +52,7 @@ func newBetaCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *bet
 
 	cmd.PersistentFlags().StringVar(&commandeer.apiURL, "api-url", "", "URL of the nuclio API (e.g. https://nuclio.io:8070)")
 	cmd.PersistentFlags().StringVar(&commandeer.username, "username", "", "Username of a user with permissions to the nuclio API")
-	cmd.PersistentFlags().StringVar(&commandeer.password, "password", "", "Password/Access Key of a user with permissions to the nuclio API")
+	cmd.PersistentFlags().StringVar(&commandeer.accessKey, "access-key", "", "Access Key of a user with permissions to the nuclio API")
 	cmd.PersistentFlags().StringVar(&commandeer.requestTimeout, "request-timeout", "60s", "Request timeout")
 	cmd.PersistentFlags().BoolVar(&commandeer.skipTLSVerify, "skip-tls-verify", false, "Skip TLS verification")
 	cmd.PersistentFlags().IntVar(&commandeer.concurrency, "concurrency", DefaultConcurrency, "Max number of parallel patches")
@@ -80,7 +80,7 @@ func (b *betaCommandeer) initialize() error {
 		b.apiURL,
 		b.requestTimeout,
 		b.username,
-		b.password,
+		b.accessKey,
 		b.skipTLSVerify)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create API client")

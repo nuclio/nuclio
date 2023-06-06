@@ -123,7 +123,6 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 				}
 				commandeer.rootCommandeer.loggerInstance.Debug("In BETA mode")
 				if commandeer.noBuild {
-					commandeer.rootCommandeer.loggerInstance.Debug("BETA redeployment called")
 					if err := commandeer.betaDeploy(ctx, args); err != nil {
 						return errors.Wrap(err, "Failed to deploy function")
 					}
@@ -260,7 +259,6 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.loggerLevel, "logger-level", "", "One of debug, info, warn, error. By default, uses platform configuration")
 
 	addBetaDeployFlags(cmd, commandeer)
-
 }
 
 func addBetaDeployFlags(cmd *cobra.Command,

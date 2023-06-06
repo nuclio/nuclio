@@ -45,7 +45,7 @@ type NuclioAPIClient struct {
 	apiURL         string
 	requestTimeout string
 	username       string
-	password       string
+	accessKey      string
 	skipTLSVerify  bool
 	authHeaders    map[string]string
 }
@@ -61,7 +61,7 @@ func NewNuclioAPIClient(parentLogger logger.Logger,
 		apiURL:         apiURL,
 		requestTimeout: requestTimeout,
 		username:       username,
-		password:       password,
+		accessKey:      password,
 		skipTLSVerify:  skipTLSVerify,
 	}
 
@@ -214,19 +214,19 @@ func (c *NuclioAPIClient) createAuthorizationHeaders(ctx context.Context) (map[s
 	if c.username == "" {
 		c.username = common.GetEnvOrDefaultString("NUCLIO_USERNAME", "")
 	}
-	if c.password == "" {
-		c.password = common.GetEnvOrDefaultString("NUCLIO_PASSWORD", "")
+	if c.accessKey == "" {
+		c.accessKey = common.GetEnvOrDefaultString("NUCLIO_ACCESS_KEY", "")
 	}
 
 	// if username and password are still empty, fail
-	if c.username == "" || c.password == "" {
+	if c.username == "" || c.accessKey == "" {
 		return nil, errors.New("Username and password must be provided")
 	}
 
 	// cache the auth headers
 	c.authHeaders = map[string]string{
 		"x-v3io-username": c.username,
-		"Authorization":   "Basic " + base64.StdEncoding.EncodeToString([]byte(c.username+":"+c.password)),
+		"Authorization":   "Basic " + base64.StdEncoding.EncodeToString([]byte(c.username+":"+c.accessKey)),
 	}
 
 	return c.authHeaders, nil
