@@ -299,7 +299,8 @@ await context.platform.explicit_ack(qualified_offset)
 ```
 
 During [rebalance](#rebalancing), the function can still be processing events. 
-We can register a callback to drop or commit events being handled when the rebalancing is about to happen, using the following method (Note that the registered callback is a nullity callback (doesn't accept arguments)):
+We can register a callback to run before the workers are terminated, e.g. to drop or commit events being handled when the rebalancing is about to happen, 
+using the following method (Note that the registered callback is a nullary callback (doesn't accept arguments)):
 ```py
 context.platform.set_termination_callback(callback)
 ```
@@ -311,13 +312,20 @@ context.platform.set_termination_callback(callback)
 * The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function, or provide an event loop to run that method. e.g.:
 ```py
 import asyncio
-import nuclio
+import nuclio_sdk
 
 def handler(context, event):
-  qualified_offset = nuclio.QualifiedOffset.from_event(event)
-  loop = asyncio.get_event_loop()
-  loop.run_until_complete(context.platform.explicit_ack(qualified_offset)
-  return "acked"
+    qualified_offset = nuclio_sdk.QualifiedOffset.from_event(event)
+  
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        # add the coroutine to the loop
+        asyncio.run_coroutine_threadsafe(context.platform.explicit_ack(qualified_offset), loop)
+    else:
+        # run the loop and wait for the coroutine to finish
+        loop.run_until_complete(context.platform.explicit_ack(qualified_offset))
+    
+    return "acked"
 ```
 
 <a id="rebalancing"></a>

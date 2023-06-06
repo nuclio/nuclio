@@ -443,8 +443,6 @@ func (suite *testSuite) TestTerminationHook() {
 		},
 	}
 
-	var rebalanceStartedTime time.Time
-
 	// deploy function
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
@@ -467,7 +465,6 @@ func (suite *testSuite) TestTerminationHook() {
 
 		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
 			suite.Require().NotNil(deployResult, "Unexpected empty second deploy results")
-			rebalanceStartedTime = time.Now()
 
 			suite.Logger.DebugWith("Created second function, producing messages to topic",
 				"topic", topic)
@@ -480,10 +477,6 @@ func (suite *testSuite) TestTerminationHook() {
 				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
 				suite.Require().NoError(err, "Failed to publish message")
 			}
-
-			// wait for at least 40 seconds (the kafka trigger's WorkerTerminationTimeout) to pass from first invocation,
-			// to allow the function to run its termination hook before we delete the function
-			<-time.After(time.Until(rebalanceStartedTime.Add(40 * time.Second)))
 
 			return true
 		})

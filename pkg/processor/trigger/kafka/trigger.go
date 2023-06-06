@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -217,7 +216,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
 
-		go k.explicitAckHandler(session, explicitAckControlMessageChan)
+		go k.explicitAckHandler(session, explicitAckControlMessageChan, claim.Partition())
 	}
 
 	k.Logger.DebugWith("Starting claim consumption",
@@ -272,30 +271,10 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// signal the worker that termination is about to happen, and wait for it to finish its work
 			go k.SignalWorkerTermination(workerTerminationCompleteChan)
 
-			// trigger is ready for rebalance if both the handler is done and
-			// the workers are finished with the graceful termination
-			go func() {
-				var wg sync.WaitGroup
-				wg.Add(2)
-				go func() {
-					<-submittedEventInstance.done
-					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
-					wg.Done()
-				}()
-				go func() {
-					<-workerTerminationCompleteChan
-					k.Logger.DebugWith("Workers terminated", "partition", claim.Partition())
-					wg.Done()
-				}()
-
-				wg.Wait()
-				readyForRebalanceChan <- true
-			}()
-
 			//  wait a for rebalance readiness or max timeout
 			select {
-			case <-readyForRebalanceChan:
-				k.Logger.DebugWith("Handler done, rebalancing will commence")
+			case <-workerTerminationCompleteChan:
+				k.Logger.DebugWith("Workers were signaled on termination, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
 				k.Logger.DebugWith("Timed out waiting for handler to complete",
@@ -558,7 +537,8 @@ func (k *kafka) resolveSCRAMClientGeneratorFunc(mechanism sarama.SASLMechanism) 
 // explicitAckHandler reads offset data messages from the trigger's control channel, and marks the
 // offset accordingly
 func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
-	controlMessageChan chan *controlcommunication.ControlMessage) {
+	controlMessageChan chan *controlcommunication.ControlMessage,
+	partitionNumber int32) {
 
 	k.Logger.InfoWith("Listening for explicit ack control messages")
 
@@ -572,6 +552,11 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 		// decode offset data from message attributes
 		if err := mapstructure.Decode(streamAckControlMessage.Attributes, explicitAckAttributes); err != nil {
 			k.Logger.WarnWith("Failed decoding control message attributes", "err", err)
+			continue
+		}
+
+		// skip the message if it is not for this partition
+		if explicitAckAttributes.Partition != partitionNumber {
 			continue
 		}
 

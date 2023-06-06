@@ -118,21 +118,17 @@ class Wrapper(object):
         # replace the default output with the process socket
         self._logger.set_handler('default', self._event_sock_wfile, JSONFormatterOverSocket())
 
-        # initialize flags
-        self._is_terminated = False
-        self._is_waiting_for_event = False
+        # we keep the current event handling task, so we can cancel it
+        self._current_event_handling_task = None
 
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
 
         while True:
             try:
-                self._is_waiting_for_event = True
 
                 # resolve event message length
                 event_message_length = await self._resolve_event_message_length(self._event_sock)
-
-                self._is_waiting_for_event = False
 
                 # resolve event message
                 event = await self._resolve_event(self._event_sock, event_message_length)
@@ -140,7 +136,11 @@ class Wrapper(object):
                 try:
 
                     # handle event
-                    await self._handle_event(event)
+                    self._current_event_handling_task = self._loop.create_task(self._handle_event(event))
+                    await self._current_event_handling_task
+
+                    # reset current event handling task
+                    self._current_event_handling_task = None
                 except BaseException as exc:
                     await self._on_handle_event_error(exc)
 
@@ -159,11 +159,6 @@ class Wrapper(object):
 
             except Exception as exc:
                 await self._on_serving_error(exc)
-
-            finally:
-                if self._is_terminated:
-                    self._logger.debug('Something happened! Calling platform termination handler')
-                    self._call_termination_handler()
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None:
@@ -212,25 +207,11 @@ class Wrapper(object):
         signal.signal(signal.SIGTERM, self._on_sigterm)
 
     def _on_sigterm(self, signal_number, frame):
-        self._logger.debug_with('Received signal', signal=signal_number)
+        self._logger.debug_with('Received signal, calling termination callback', signal=signal_number)
 
-        if self._is_waiting_for_event:
-            self._logger.debug('Wrapper is waiting for an event, calling termination handler')
-
-            # call the termination handler here as the event loop is stuck waiting for an event
-            self._call_termination_handler()
-        else:
-            self._logger.debug('Wrapper is handling an event, setting termination flag to true')
-
-            # set the flag to true so the event loop will call the platform's _on_signal method
-            # after the current event is handled
-            self._is_terminated = True
-
-    def _call_termination_handler(self):
-        self._logger.debug('Calling platform termination handler')
-
-        # set the flag to true so the termination handler will not be called more than once
-        self._is_terminated = False
+        # cancel current event handling task if exists
+        if self._current_event_handling_task is not None:
+            self._current_event_handling_task.cancel()
 
         # TODO: send a control message to the processor after this line,
         # to indicate that the termination handler has finished, and the processor can exit early
