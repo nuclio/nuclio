@@ -95,6 +95,12 @@ func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
 	return NewEventJSONEncoder(r.Logger, writer)
 }
 
+func (r *testRuntime) Terminate() error {
+
+	// override the default terminate to not kill the wrapper process
+	return nil
+}
+
 type RuntimeSuite struct {
 	suite.Suite
 	testRuntimeInstance *testRuntime
