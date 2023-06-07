@@ -54,14 +54,28 @@ func NewNuclioAPIClient(parentLogger logger.Logger,
 	apiURL string,
 	requestTimeout string,
 	username string,
-	password string,
+	accessKey string,
 	skipTLSVerify bool) (*NuclioAPIClient, error) {
+
+	// validate and enrich credentials
+	if username == "" {
+		username = common.GetEnvOrDefaultString("NUCLIO_USERNAME", "")
+	}
+	if accessKey == "" {
+		accessKey = common.GetEnvOrDefaultString("NUCLIO_ACCESS_KEY", "")
+	}
+
+	// if access key is still empty, fail
+	if accessKey == "" {
+		return nil, errors.New("Access key must be provided")
+	}
+
 	newAPIClient := &NuclioAPIClient{
 		logger:         parentLogger.GetChild("api-client"),
 		apiURL:         apiURL,
 		requestTimeout: requestTimeout,
 		username:       username,
-		accessKey:      password,
+		accessKey:      accessKey,
 		skipTLSVerify:  skipTLSVerify,
 	}
 
@@ -208,21 +222,6 @@ func (c *NuclioAPIClient) sendRequest(ctx context.Context,
 func (c *NuclioAPIClient) createAuthorizationHeaders(ctx context.Context) (map[string]string, error) {
 	if c.authHeaders != nil {
 		return c.authHeaders, nil
-	}
-
-	// resolve username and access key from env vars if not provided
-	if c.username == "" {
-		c.username = common.GetEnvOrDefaultString("NUCLIO_USERNAME", "")
-	}
-	if c.accessKey == "" {
-		c.accessKey = common.GetEnvOrDefaultString("NUCLIO_ACCESS_KEY", "")
-	}
-
-	// access key is still empty, fail
-	if c.accessKey == "" {
-		message := "Access key must be provided"
-		c.logger.Error(message)
-		return nil, errors.New(message)
 	}
 
 	// cache the auth headers

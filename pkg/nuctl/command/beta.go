@@ -52,6 +52,7 @@ func newBetaCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *bet
 
 	cmd.PersistentFlags().StringVar(&commandeer.apiURL, "api-url", "", "URL of the nuclio API (e.g. https://nuclio.io:8070)")
 	cmd.PersistentFlags().StringVar(&commandeer.username, "username", "", "Username of a user with permissions to the nuclio API")
+	cmd.PersistentFlags().StringVar(&commandeer.accessKey, "password", "", "Access Key of a user with permissions to the nuclio API [Deprecated: use --access-key]")
 	cmd.PersistentFlags().StringVar(&commandeer.accessKey, "access-key", "", "Access Key of a user with permissions to the nuclio API")
 	cmd.PersistentFlags().StringVar(&commandeer.requestTimeout, "request-timeout", "60s", "Request timeout")
 	cmd.PersistentFlags().BoolVar(&commandeer.skipTLSVerify, "skip-tls-verify", false, "Skip TLS verification")
