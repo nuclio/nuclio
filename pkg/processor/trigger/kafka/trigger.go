@@ -544,8 +544,6 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 
 	for streamAckControlMessage := range controlMessageChan {
 
-		k.Logger.DebugWith("Received explicit ack control message", "controlMessage", streamAckControlMessage)
-
 		// retrieve attributes from control message
 		explicitAckAttributes := &controlcommunication.ControlMessageAttributesExplicitAck{}
 
@@ -559,6 +557,11 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 		if explicitAckAttributes.Partition != partitionNumber {
 			continue
 		}
+
+		k.Logger.DebugWith("Marking offset on explicit ack request",
+			"topic", explicitAckAttributes.Topic,
+			"partition", explicitAckAttributes.Partition,
+			"offset", explicitAckAttributes.Offset)
 
 		// mark offset
 		session.MarkOffset(
