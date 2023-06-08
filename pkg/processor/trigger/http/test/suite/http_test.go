@@ -143,23 +143,31 @@ func (suite *HTTPTestSuite) TestMaxRequestBodySize() {
 		})
 }
 
-func (suite *HTTPTestSuite) TestIntResponse() {
-	functionSourceCode := `def handler(context, event):
-	return 123
+func (suite *HTTPTestSuite) TestProcessErrorResponse() {
+
+	// create a function which returns a faulty content type in the response
+	functionSourceCode := `import nuclio_sdk
+
+def handler(context, event):
+	return nuclio_sdk.Response(
+		body=str(123),
+		headers={},
+		content_type=123,
+		status_code=200,
+	)
 `
 	createFunctionOptions := suite.getHTTPDeployOptions()
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 
-	// TODO: Change to StatusOk once nuclio-sdk-py is bumped to 0.5.5
 	statusInternalServerError := http.StatusInternalServerError
 	suite.DeployFunctionAndRequests(createFunctionOptions,
 		[]*Request{
 			{
 				RequestMethod:              "GET",
 				ExpectedResponseStatusCode: &statusInternalServerError,
-				ExpectedResponseBody:       "json: cannot unmarshal number into Go struct field result.body of type string",
+				ExpectedResponseBody:       "json: cannot unmarshal number into Go struct field result.content_type of type string",
 			},
 		})
 }
