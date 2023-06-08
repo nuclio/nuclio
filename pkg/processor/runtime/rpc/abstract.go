@@ -441,7 +441,8 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 			data, unmarshalledResult.err = outReader.ReadBytes('\n')
 
 			if unmarshalledResult.err != nil {
-				r.Logger.WarnWith(string(common.FailedReadFromEventConnection), "err", unmarshalledResult.err)
+				r.Logger.WarnWith(string(common.FailedReadFromEventConnection),
+					"err", unmarshalledResult.err.Error())
 				resultChan <- unmarshalledResult
 				continue
 			}
@@ -451,7 +452,7 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 
 				// try to unmarshall the result
 				if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
-					r.Logger.WarnWith("Failed to unmarshal result", "err", unmarshalledResult.err)
+					r.Logger.WarnWith("Failed to unmarshal result", "err", unmarshalledResult.err.Error())
 					r.resultChan <- unmarshalledResult
 					continue
 				}
