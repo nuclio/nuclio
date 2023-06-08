@@ -19,6 +19,7 @@ limitations under the License.
 package httpsuite
 
 import (
+	"encoding/base64"
 	"net/http"
 	"path"
 	"strconv"
@@ -138,6 +139,27 @@ func (suite *HTTPTestSuite) TestMaxRequestBodySize() {
 				RequestMethod:              "POST",
 				RequestBody:                string(make([]byte, maxRequestBodySize+1)),
 				ExpectedResponseStatusCode: &statusBadRequest,
+			},
+		})
+}
+
+func (suite *HTTPTestSuite) TestIntResponse() {
+	functionSourceCode := `def handler(context, event):
+	return 123
+`
+	createFunctionOptions := suite.getHTTPDeployOptions()
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+
+	// TODO: Change to StatusOk once nuclio-sdk-py is bumped to 0.5.5
+	statusInternalServerError := http.StatusInternalServerError
+	suite.DeployFunctionAndRequests(createFunctionOptions,
+		[]*Request{
+			{
+				RequestMethod:              "GET",
+				ExpectedResponseStatusCode: &statusInternalServerError,
+				ExpectedResponseBody:       "json: cannot unmarshal number into Go struct field result.body of type string",
 			},
 		})
 }
