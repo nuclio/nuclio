@@ -19,6 +19,7 @@ limitations under the License.
 package httpsuite
 
 import (
+	"encoding/base64"
 	"net/http"
 	"path"
 	"strconv"
@@ -138,6 +139,35 @@ func (suite *HTTPTestSuite) TestMaxRequestBodySize() {
 				RequestMethod:              "POST",
 				RequestBody:                string(make([]byte, maxRequestBodySize+1)),
 				ExpectedResponseStatusCode: &statusBadRequest,
+			},
+		})
+}
+
+func (suite *HTTPTestSuite) TestProcessErrorResponse() {
+
+	// create a function which returns a faulty content type in the response
+	functionSourceCode := `import nuclio_sdk
+
+def handler(context, event):
+	return nuclio_sdk.Response(
+		body=str(123),
+		headers={},
+		content_type=123,
+		status_code=200,
+	)
+`
+	createFunctionOptions := suite.getHTTPDeployOptions()
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+
+	statusInternalServerError := http.StatusInternalServerError
+	suite.DeployFunctionAndRequests(createFunctionOptions,
+		[]*Request{
+			{
+				RequestMethod:              "GET",
+				ExpectedResponseStatusCode: &statusInternalServerError,
+				ExpectedResponseBody:       "json: cannot unmarshal number into Go struct field result.content_type of type string",
 			},
 		})
 }
