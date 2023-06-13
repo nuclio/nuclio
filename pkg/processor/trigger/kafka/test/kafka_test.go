@@ -419,14 +419,17 @@ func (suite *testSuite) TestTerminationHook() {
 	})
 
 	// check that the function's termination hook was called by reading the file it should have written to
-	filePath := path.Join(tempDir, "termination-hook.txt")
-	suite.Logger.DebugWith("Reading termination hook file", "filePath", filePath)
-	fileBytes, err := os.ReadFile(filePath)
-	suite.Require().NoError(err, "Failed to read termination hook file")
+	// 1 file per worker -> 4 files
+	for workerID := 0; workerID < 4; workerID++ {
+		filePath := path.Join(tempDir, fmt.Sprintf("termination-hook-%d.txt", workerID))
+		suite.Logger.DebugWith("Reading termination hook file", "filePath", filePath)
+		fileBytes, err := os.ReadFile(filePath)
+		suite.Require().NoError(err, "Failed to read termination hook file")
 
-	// check that the file is not empty
-	suite.Logger.DebugWith("Checking termination hook file is not empty", "fileContent", string(fileBytes))
-	suite.Require().NotEmpty(fileBytes, "Termination hook file is empty")
+		// check that the file is not empty
+		suite.Logger.DebugWith("Checking termination hook file is not empty", "fileContent", string(fileBytes))
+		suite.Require().NotEmpty(fileBytes, "Termination hook file is empty")
+	}
 }
 
 //func (suite *testSuite) TestEventRecorderRebalance() {

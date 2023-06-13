@@ -16,22 +16,23 @@ import os
 
 
 class TerminationHandler:
-    file_path = '/tmp/nuclio/termination-hook.txt'
+    file_path_template = '/tmp/nuclio/termination-hook-{}.txt'
 
     def __init__(self, worker_id, logger):
         self.worker_id = worker_id
         self.logger = logger
+        self.file_name = self.file_path_template.format(worker_id)
 
     def write_results(self):
 
         # if the file doesn't exist, create it
-        if not os.path.exists(self.file_path):
-            self.logger.info_with('Creating file', file_path=self.file_path)
-            os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
-            open(self.file_path, 'w').close()
+        if not os.path.exists(self.file_name):
+            self.logger.info_with('Creating file', file_name=self.file_name)
+            os.makedirs(os.path.dirname(self.file_name), exist_ok=True)
+            open(self.file_name, 'w').close()
 
-        with open(self.file_path, 'a') as f:
-            self.logger.info_with('Writing to file', file_path=self.file_path)
+        with open(self.file_name, 'a') as f:
+            self.logger.info_with('Writing to file', file_name=self.file_name)
             f.write(f'Worker {self.worker_id} - Done!\n')
 
 
