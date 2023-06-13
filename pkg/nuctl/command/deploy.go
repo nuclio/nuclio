@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -122,7 +123,6 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 				}
 				commandeer.rootCommandeer.loggerInstance.Debug("In BETA mode")
 				if commandeer.noBuild {
-					commandeer.rootCommandeer.loggerInstance.Debug("BETA redeployment called")
 					if err := commandeer.betaDeploy(ctx, args); err != nil {
 						return errors.Wrap(err, "Failed to deploy function")
 					}
@@ -259,7 +259,6 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.loggerLevel, "logger-level", "", "One of debug, info, warn, error. By default, uses platform configuration")
 
 	addBetaDeployFlags(cmd, commandeer)
-
 }
 
 func addBetaDeployFlags(cmd *cobra.Command,
@@ -417,16 +416,14 @@ func (d *deployCommandeer) populateHTTPServiceType() {
 // if they are given explicitly
 func (d *deployCommandeer) enrichConfigMetadata(rootCommandeer *RootCommandeer) error {
 
-	if d.functionName == "" {
-		if d.functionConfig.Meta.Name == "" {
-			return errors.New("Function name cannot be empty")
-		}
-		d.functionName = d.functionConfig.Meta.Name
-	} else {
-
-		// override the name in the config with the name from the command line
-		d.functionConfig.Meta.Name = d.functionName
+	functionName, err := d.resolveFunctionName()
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve function name")
 	}
+
+	// set the resolved function name
+	d.functionConfig.Meta.Name = functionName
+	d.functionName = functionName
 
 	// override the namespace in the config with the namespace from the command line (must be set)
 	d.functionConfig.Meta.Namespace = rootCommandeer.namespace
@@ -814,4 +811,73 @@ func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
 		requestHeaders[headers.ImportedFunctionOnly] = "true"
 	}
 	return requestHeaders
+}
+
+func (d *deployCommandeer) resolveFunctionName() (string, error) {
+	if d.functionName != "" {
+		return d.functionName, nil
+	}
+
+	// if function name is not provided, use the name from the config
+	if d.functionConfig.Meta.Name != "" {
+		return d.functionConfig.Meta.Name, nil
+	}
+
+	// if a path is provided, read the function config from the path and use the name from the config
+	if d.functionBuild.Path != "" {
+		functionName, err := d.resolveFunctionNameFromPath()
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to resolve function name from path")
+		}
+		return functionName, nil
+	}
+
+	return "", errors.New("Function name is not provided")
+}
+
+func (d *deployCommandeer) resolveFunctionNameFromPath() (string, error) {
+
+	functionConfigPath := d.resolveFunctionConfigPath()
+	if functionConfigPath == "" {
+		return "", errors.New("Failed to resolve function config path")
+	}
+
+	config := &functionconfig.Config{}
+
+	functionconfigReader, err := functionconfig.NewReader(d.rootCommandeer.loggerInstance)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create functionconfig reader")
+	}
+	if err := functionconfigReader.ReadFunctionConfigFile(functionConfigPath, config); err != nil {
+		return "", errors.Wrap(err, "Failed to read function configuration")
+	}
+
+	return config.Meta.Name, nil
+}
+
+func (d *deployCommandeer) resolveFunctionConfigPath() string {
+
+	// if the user provided a configuration path, use that
+	if d.functionBuild.FunctionConfigPath != "" {
+		return d.functionBuild.FunctionConfigPath
+	}
+
+	// if the path is a file, check if it is a yaml file
+	if common.IsFile(d.functionBuild.Path) {
+		cleanPath := filepath.Clean(d.functionBuild.Path)
+		if filepath.Ext(cleanPath) == ".yaml" || filepath.Ext(cleanPath) == ".yml" {
+			return cleanPath
+		}
+
+		// it's a file, but not a config file
+		return ""
+	}
+
+	functionConfigPath := filepath.Join(d.functionBuild.Path, common.FunctionConfigFileName)
+
+	if !common.FileExists(functionConfigPath) {
+		return ""
+	}
+
+	return functionConfigPath
 }

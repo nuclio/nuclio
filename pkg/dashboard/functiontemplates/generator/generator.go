@@ -32,7 +32,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 
 	"github.com/gobuffalo/flect"
@@ -216,7 +215,7 @@ func (g *Generator) isFunctionDir(runtime *Runtime, functionDirFiles []os.DirEnt
 	for _, file := range functionDirFiles {
 
 		// directory has at least one file related to function's runtime or a function.yaml
-		if strings.HasSuffix(file.Name(), runtime.FileExtension) || file.Name() == build.FunctionConfigFileName {
+		if strings.HasSuffix(file.Name(), runtime.FileExtension) || file.Name() == common.FunctionConfigFileName {
 			return true
 		}
 	}
@@ -317,7 +316,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 	configFileExists := false
 
 	// first, look for a function.yaml file. parse it if found
-	configPath := filepath.Join(functionDir, build.FunctionConfigFileName)
+	configPath := filepath.Join(functionDir, common.FunctionConfigFileName)
 
 	if common.IsFile(configPath) {
 		configFileExists = true
@@ -340,7 +339,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 	}
 
 	for _, file := range files {
-		if file.Name() != build.FunctionConfigFileName {
+		if file.Name() != common.FunctionConfigFileName {
 
 			// we found our source code, read it
 			sourcePath := filepath.Join(functionDir, file.Name())
@@ -400,7 +399,7 @@ func (g *Generator) parseInlineConfiguration(sourcePath string,
 		return nil
 	}
 
-	unmarshalledInlineConfigYAML, found := configureBlock.Contents[build.FunctionConfigFileName]
+	unmarshalledInlineConfigYAML, found := configureBlock.Contents[common.FunctionConfigFileName]
 	if !found {
 		return errors.Errorf("No function.yaml file found inside configure block at %s", sourcePath)
 	}

@@ -36,7 +36,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/gobuffalo/flect"
 	"github.com/nuclio/errors"
@@ -306,14 +305,14 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, common.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
 	functionName := functionConfig.Meta.Name
 	imageName := "nuclio/processor-" + functionName
 
-	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+	err = suite.ExecuteNuctl([]string{"deploy", "--verbose", "--no-pull"},
 		map[string]string{
 			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
 			"image": imageName,
@@ -672,7 +671,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, common.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -741,7 +740,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
 	functionConfig := functionconfig.Config{}
-	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, common.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -819,7 +818,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	functionConfig := functionconfig.Config{}
 	uniqueSuffix := "-" + xid.New().String()
 	functionPath := path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python")
-	functionBody, err := os.ReadFile(filepath.Join(functionPath, build.FunctionConfigFileName))
+	functionBody, err := os.ReadFile(filepath.Join(functionPath, common.FunctionConfigFileName))
 	suite.Require().NoError(err)
 	err = yaml.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
