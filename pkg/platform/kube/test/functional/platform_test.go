@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -104,6 +105,56 @@ func (suite *PlatformTestSuite) TestBuildAndDeployFunctionWithKaniko() {
 	// create function
 	suite.createFunction(functionConfig)
 	suite.waitForFunctionToBeReady(functionConfig)
+}
+
+func (suite *PlatformTestSuite) TestDeletedKanikoPods() {
+
+	// generate function config
+	functionConfig := suite.compileFunctionConfig()
+
+	// create function
+	suite.createFunction(functionConfig)
+
+	findKanikoFunc := func(output string) string {
+
+		// split the output and find kaniko pod
+		for _, line := range strings.Fields(output) {
+			if strings.Contains(line, "kaniko") {
+				return strings.TrimSpace(line)
+			}
+		}
+		return ""
+	}
+
+	// find kaniko pod
+	var kanikoPodName string
+	go func() {
+		err := common.RetryUntilSuccessful(10*time.Minute, 10*time.Second,
+			func() bool {
+				result := suite.executeKubectl([]string{"get", "pods"}, nil)
+				if result.ExitCode != 0 {
+					suite.logger.WarnWith("Failed to get pods",
+						"output", result.Output,
+						"error", result.Stderr,
+						"exitCode", result.ExitCode)
+					return false
+				}
+
+				kanikoPodName = findKanikoFunc(result.Output)
+				return kanikoPodName != ""
+			})
+		suite.Require().NoError(err)
+	}()
+
+	suite.waitForFunctionToBeReady(functionConfig)
+
+	// wait job deletion timeout
+	<-time.After(1 * time.Minute)
+
+	// check kaniko pods are deleted
+	result := suite.executeKubectl([]string{"get", "pods", kanikoPodName}, nil)
+	suite.Require().Equal(0, result.ExitCode)
+	suite.Require().Empty(findKanikoFunc(result.Output))
 }
 
 func (suite *PlatformTestSuite) compileFunctionConfig() *functionconfig.Config {
@@ -240,6 +291,7 @@ func (suite *PlatformTestSuite) installNuclioHelmChart() {
 				"dashboard.containerBuilderKind":        "kaniko",
 				"dashboard.kaniko.insecurePushRegistry": "true",
 				"dashboard.kaniko.insecurePullRegistry": "true",
+				"dashboard.kaniko.jobDeletionTimeout":   "1m",
 			}),
 		})
 	suite.Require().NoError(err)
