@@ -369,6 +369,11 @@ func (at *AbstractTrigger) SignalWorkerTermination(workerTerminationCompleteChan
 	workerTerminationCompleteChan <- true
 }
 
+// ResetWorkerTerminationState resets the worker termination state
+func (at *AbstractTrigger) ResetWorkerTerminationState() {
+	at.WorkerAllocator.ResetTerminationState()
+}
+
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {
 
 	// if the content type starts with application/cloudevents, the body

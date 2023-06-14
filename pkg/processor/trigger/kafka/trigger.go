@@ -302,6 +302,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
 
+	k.ResetWorkerTerminationState()
+
 	// unsubscribe channel from the streamAck control message kind before closing it
 	if err := k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
 		k.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
@@ -549,7 +551,7 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 
 		// decode offset data from message attributes
 		if err := mapstructure.Decode(streamAckControlMessage.Attributes, explicitAckAttributes); err != nil {
-			k.Logger.WarnWith("Failed decoding control message attributes", "err", err)
+			k.Logger.WarnWith("Failed decoding control message attributes", "err", err.Error())
 			continue
 		}
 
@@ -558,10 +560,14 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 			continue
 		}
 
-		k.Logger.DebugWith("Marking offset on explicit ack request",
-			"topic", explicitAckAttributes.Topic,
-			"partition", explicitAckAttributes.Partition,
-			"offset", explicitAckAttributes.Offset)
+		// this log is mostly for development purposes, to see that we are actually marking the offset
+		// to enable it use the "nuclio.io/kafka-log-level" annotation
+		if k.configuration.LogLevel > 5 {
+			k.Logger.InfoWith("Marking offset on explicit ack request",
+				"topic", explicitAckAttributes.Topic,
+				"partition", explicitAckAttributes.Partition,
+				"offset", explicitAckAttributes.Offset)
+		}
 
 		// mark offset
 		session.MarkOffset(

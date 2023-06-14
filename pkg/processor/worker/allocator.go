@@ -52,6 +52,8 @@ type Allocator interface {
 	GetStatistics() *AllocatorStatistics
 
 	SignalTermination() error
+
+	ResetTerminationState()
 }
 
 //
@@ -105,6 +107,8 @@ func (s *singleton) GetStatistics() *AllocatorStatistics {
 func (s *singleton) SignalTermination() error {
 	return nil
 }
+
+func (s *singleton) ResetTerminationState() {}
 
 //
 // Fixed pool of workers
@@ -231,4 +235,10 @@ func (fp *fixedPool) SignalTermination() error {
 	}
 
 	return nil
+}
+
+func (fp *fixedPool) ResetTerminationState() {
+	for _, workerInstance := range fp.GetWorkers() {
+		workerInstance.setTerminated(false)
+	}
 }
