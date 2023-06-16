@@ -194,7 +194,7 @@ spec:
 
 ## Function Status (`spec`)
 
-The `statis` section contains the requirements and attributes and has the following elements:
+The `status` section contains the requirements and attributes and has the following elements:
 
 | **Path**               | **Type** | **Description**                                                                                   |
 |:-----------------------|:---------|:--------------------------------------------------------------------------------------------------|
