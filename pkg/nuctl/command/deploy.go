@@ -673,8 +673,8 @@ func (d *deployCommandeer) enrichBuildConfigWithArgs() {
 	})
 
 	// enrich build commands
-	if len(d.functionBuild.Commands) > 0 {
-		d.functionConfig.Spec.Build.Commands = d.functionBuild.Commands
+	if len(d.commands) > 0 {
+		d.functionConfig.Spec.Build.Commands = d.commands
 	}
 }
 
