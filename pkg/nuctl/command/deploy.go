@@ -671,6 +671,11 @@ func (d *deployCommandeer) enrichBuildConfigWithArgs() {
 		&d.functionConfig.Spec.Build.NoCleanup:        d.functionBuild.NoCleanup,
 		&d.functionConfig.Spec.Build.Offline:          d.functionBuild.Offline,
 	})
+
+	// enrich build commands
+	if len(d.functionBuild.Commands) > 0 {
+		d.functionConfig.Spec.Build.Commands = d.functionBuild.Commands
+	}
 }
 
 func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error {
