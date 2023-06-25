@@ -95,12 +95,6 @@ func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
 	return NewEventJSONEncoder(r.Logger, writer)
 }
 
-func (r *testRuntime) Drain() error {
-
-	// override the default Drain function, so a real signal won't be sent to the wrapper process
-	return nil
-}
-
 type RuntimeSuite struct {
 	suite.Suite
 	testRuntimeInstance *testRuntime
@@ -119,6 +113,9 @@ func (suite *RuntimeSuite) TestRestart() {
 	suite.Require().NoError(err, "Can't start runtime")
 
 	time.Sleep(1 * time.Second)
+
+	// set the runtime's isDrained to true, so it won't send a signal to the wrapper process
+	suite.testRuntimeInstance.isDrained = true
 
 	oldPid := suite.testRuntimeInstance.wrapperProcess.Pid
 	err = suite.testRuntimeInstance.Restart()
