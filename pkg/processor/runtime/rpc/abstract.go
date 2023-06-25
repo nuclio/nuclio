@@ -162,6 +162,7 @@ func (r *AbstractRuntime) Stop() error {
 	if r.wrapperProcess != nil {
 
 		// signal the wrapper process to drain events before killing it
+		// TODO: notify the process that this drain is called before killing it (and not before rebalance)
 		if err := r.Drain(); err != nil {
 			return errors.Wrap(err, "Failed to drain wrapper process")
 		}

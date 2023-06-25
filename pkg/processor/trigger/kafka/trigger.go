@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -271,10 +272,30 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// signal the worker to drain its accumulated events and wait for it to finish its work
 			go k.SignalWorkerDraining(workerDrainingCompleteChan)
 
-			//  wait a for rebalance readiness or max timeout
+			// trigger is ready for rebalance if both the handler is done and
+			// the workers are finished draining events
+			go func() {
+				var wg sync.WaitGroup
+				wg.Add(2)
+				go func() {
+					<-submittedEventInstance.done
+					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
+					wg.Done()
+				}()
+				go func() {
+					<-workerDrainingCompleteChan
+					k.Logger.DebugWith("Workers drained", "partition", claim.Partition())
+					wg.Done()
+				}()
+
+				wg.Wait()
+				readyForRebalanceChan <- true
+			}()
+
+			// wait a for rebalance readiness or max timeout
 			select {
-			case <-workerDrainingCompleteChan:
-				k.Logger.DebugWith("Workers were signaled on termination, rebalancing will commence")
+			case <-readyForRebalanceChan:
+				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
 				k.Logger.DebugWith("Timed out waiting for handler to complete",
