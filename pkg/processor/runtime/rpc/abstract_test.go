@@ -95,9 +95,9 @@ func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
 	return NewEventJSONEncoder(r.Logger, writer)
 }
 
-func (r *testRuntime) Terminate() error {
+func (r *testRuntime) Drain() error {
 
-	// override the default terminate to not kill the wrapper process
+	// override the default Drain function, so a real signal won't be sent to the wrapper process
 	return nil
 }
 

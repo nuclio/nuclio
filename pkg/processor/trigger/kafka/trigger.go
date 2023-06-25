@@ -201,7 +201,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// initialize goroutine communication channels
 	submittedEventChan := make(chan *submittedEvent)
 	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
-	workerTerminationCompleteChan := make(chan bool)
+	workerDrainingCompleteChan := make(chan bool)
 	readyForRebalanceChan := make(chan bool)
 
 	// submit the events in a goroutine so that we can unblock immediately
@@ -268,12 +268,12 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			// signal the worker that termination is about to happen, and wait for it to finish its work
-			go k.SignalWorkerTermination(workerTerminationCompleteChan)
+			// signal the worker to drain its accumulated events and wait for it to finish its work
+			go k.SignalWorkerDraining(workerDrainingCompleteChan)
 
 			//  wait a for rebalance readiness or max timeout
 			select {
-			case <-workerTerminationCompleteChan:
+			case <-workerDrainingCompleteChan:
 				k.Logger.DebugWith("Workers were signaled on termination, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
@@ -312,7 +312,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// shut down goroutines and channels
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
-	close(workerTerminationCompleteChan)
+	close(workerDrainingCompleteChan)
 	close(readyForRebalanceChan)
 
 	return submitError

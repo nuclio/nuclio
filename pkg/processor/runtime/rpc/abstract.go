@@ -78,7 +78,7 @@ type AbstractRuntime struct {
 	cancelHandlerChan chan struct{}
 	socketType        SocketType
 	processWaiter     *processwaiter.ProcessWaiter
-	isTerminated      bool
+	isDrained         bool
 }
 
 type rpcLogRecord struct {
@@ -161,9 +161,9 @@ func (r *AbstractRuntime) Stop() error {
 
 	if r.wrapperProcess != nil {
 
-		// send termination signal to wrapper process, and wait for it to terminate
-		if err := r.Terminate(); err != nil {
-			return errors.Wrap(err, "Failed to terminate")
+		// signal the wrapper process to drain events before killing it
+		if err := r.Drain(); err != nil {
+			return errors.Wrap(err, "Failed to drain wrapper process")
 		}
 
 		// stop waiting for process
@@ -234,14 +234,15 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 	return false
 }
 
-// Terminate sends a signal to the runtime and waits for it to exit
-func (r *AbstractRuntime) Terminate() error {
-	if r.isTerminated {
+// Drain signals to the runtime to drain its accumulated events and waits for it to finish
+func (r *AbstractRuntime) Drain() error {
+	if r.isDrained {
 		return nil
 	}
-	r.isTerminated = true
+	r.isDrained = true
 
-	if err := r.signal(syscall.SIGTERM); err != nil {
+	// we use SIGUSR1 to signal the wrapper process to drain events
+	if err := r.signal(syscall.SIGUSR1); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process")
 	}
 
@@ -255,8 +256,6 @@ func (r *AbstractRuntime) Terminate() error {
 func (r *AbstractRuntime) signal(signal syscall.Signal) error {
 
 	if r.wrapperProcess != nil {
-
-		// signal wrapper to terminate
 		r.Logger.DebugWith("Signaling wrapper process",
 			"pid", r.wrapperProcess.Pid,
 			"signal", signal.String())

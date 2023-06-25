@@ -51,7 +51,7 @@ type Allocator interface {
 	// GetStatistics returns worker allocator statistics
 	GetStatistics() *AllocatorStatistics
 
-	SignalTermination() error
+	SignalDraining() error
 
 	ResetTerminationState()
 }
@@ -104,7 +104,7 @@ func (s *singleton) GetStatistics() *AllocatorStatistics {
 	return &s.statistics
 }
 
-func (s *singleton) SignalTermination() error {
+func (s *singleton) SignalDraining() error {
 	return nil
 }
 
@@ -209,22 +209,23 @@ func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
 	return &fp.statistics
 }
 
-func (fp *fixedPool) SignalTermination() error {
+func (fp *fixedPool) SignalDraining() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
 
 	for _, workerInstance := range fp.GetWorkers() {
 		workerInstance := workerInstance
 
-		errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
+		errGroup.Go(fmt.Sprintf("Drain worker %d", workerInstance.GetIndex()), func() error {
 
-			// if worker is not terminating, signal it to terminate
-			if !workerInstance.IsTerminated() {
-				fp.logger.DebugWith("Signaling worker to terminate",
+			// if worker is not already drained, signal it to drain events
+			if !workerInstance.IsDrained() {
+				fp.logger.DebugWith("Signaling worker to drain events",
 					"workerIndex", workerInstance.GetIndex())
-				if err := workerInstance.Terminate(); err != nil {
-					return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
+				if err := workerInstance.Drain(); err != nil {
+					return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
 				}
-				fp.logger.DebugWith("Worker is terminated after signaling", "workerIndex", workerInstance.GetIndex())
+				fp.logger.DebugWith("Worker has drained events after signaling",
+					"workerIndex", workerInstance.GetIndex())
 			}
 			return nil
 		})
@@ -239,6 +240,6 @@ func (fp *fixedPool) SignalTermination() error {
 
 func (fp *fixedPool) ResetTerminationState() {
 	for _, workerInstance := range fp.GetWorkers() {
-		workerInstance.setTerminated(false)
+		workerInstance.setDrained(false)
 	}
 }

@@ -171,7 +171,7 @@ class Wrapper(object):
         # call init_context
         await self._initialize_context()
 
-        # register to the SIGTERM signal
+        # register to the SIGUSR1 signal, used to signal draining
         self._register_to_signal()
 
         # indicate that we're ready
@@ -204,7 +204,7 @@ class Wrapper(object):
                 raise
 
     def _register_to_signal(self):
-        signal.signal(signal.SIGTERM, self._on_sigterm)
+        signal.signal(signal.SIGUSR1, self._on_sigterm)
 
     def _on_sigterm(self, signal_number, frame):
         self._logger.debug_with('Received signal, calling termination callback', signal=signal_number)

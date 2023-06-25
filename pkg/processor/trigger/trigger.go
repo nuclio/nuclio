@@ -356,17 +356,17 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 	return nil
 }
 
-// SignalWorkerTermination sends a SIGTERM signal to all workers, signaling them to drop or ack events
+// SignalWorkerDraining sends a signal to all workers, telling them to drop or ack events
 // that are currently being processed
-func (at *AbstractTrigger) SignalWorkerTermination(workerTerminationCompleteChan chan bool) {
+func (at *AbstractTrigger) SignalWorkerDraining(workerDrainingCompleteChan chan bool) {
 
-	// signal all workers on re-balance
-	if err := at.WorkerAllocator.SignalTermination(); err != nil {
-		at.Logger.WarnWith("Failed to signal all workers to terminate", "err", err.Error())
+	// signal all workers to drain
+	if err := at.WorkerAllocator.SignalDraining(); err != nil {
+		at.Logger.WarnWith("Failed to signal all workers to drain events", "err", err.Error())
 	}
 
-	// signal termination complete
-	workerTerminationCompleteChan <- true
+	// signal draining complete
+	workerDrainingCompleteChan <- true
 }
 
 // ResetWorkerTerminationState resets the worker termination state
