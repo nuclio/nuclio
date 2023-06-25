@@ -72,7 +72,7 @@ spec:
       name: ""
 `),
 		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -208,7 +208,7 @@ spec:
   runtime: golang
 `),
 		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -256,7 +256,7 @@ spec:
   runtime: golang
 `),
 		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -373,7 +373,7 @@ spec:
       url: amqp://user:password@rabbitmq-host:5672
 `),
 		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -477,7 +477,7 @@ spec:
   runtime: golang
 `),
 		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -561,7 +561,7 @@ spec:
   runtime: nodejs
 `),
 		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -619,7 +619,7 @@ spec:
   resources: {}
   runtime: dotnetcore
 `),
-		SourceCode: `//  Copyright 2017 The Nuclio Authors.
+		SourceCode: `//  Copyright 2023 The Nuclio Authors.
 // 
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -666,7 +666,7 @@ spec:
   resources: {}
   runtime: dotnetcore
 `),
-		SourceCode: `//  Copyright 2017 The Nuclio Authors.
+		SourceCode: `//  Copyright 2023 The Nuclio Authors.
 // 
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -712,7 +712,7 @@ spec:
   resources: {}
   runtime: python
 `),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
+		SourceCode: `# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -772,7 +772,7 @@ spec:
   resources: {}
   runtime: python
 `),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
+		SourceCode: `# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -912,7 +912,7 @@ spec:
   resources: {}
   runtime: python
 `),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
+		SourceCode: `# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -952,7 +952,7 @@ spec:
   resources: {}
   runtime: python
 `),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
+		SourceCode: `# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1004,7 +1004,7 @@ spec:
   resources: {}
   runtime: python
 `),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
+		SourceCode: `# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1390,7 +1390,7 @@ spec:
   resources: {}
   runtime: shell
 `),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
+		SourceCode: `# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
