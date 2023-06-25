@@ -29,6 +29,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
@@ -114,8 +115,13 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 
 	// Cleanup after 30 minutes, allowing to dev to inspect job / pod information before getting deleted
 	defer time.AfterFunc(k.builderConfiguration.JobDeletionTimeout, func() {
-		if err := k.deleteJob(ctx, namespace, job.Name); err != nil {
-			k.logger.WarnWithCtx(ctx, "Failed to delete job", "err", err.Error())
+
+		// Create a detached context to avoid cancellation of the deletion process
+		detachedCtx := nucliocontext.NewDetached(ctx)
+		if err := k.deleteJob(detachedCtx, namespace, job.Name); err != nil {
+			k.logger.WarnWithCtx(ctx,
+				"Failed to delete job",
+				"err", err.Error())
 		}
 	})
 
@@ -614,7 +620,8 @@ func (k *Kaniko) resolveFailFast(ctx context.Context,
 			if err != nil {
 				k.logger.WarnWithCtx(ctx,
 					"Failed to get kaniko job pod",
-					"jobName", jobName)
+					"jobName", jobName,
+					"err", err.Error())
 				time.Sleep(5 * time.Second)
 
 				// skip in case job hasn't started yet. it will fail on timeout if getJobPod keeps failing.
@@ -717,6 +724,12 @@ func (k *Kaniko) deleteJob(ctx context.Context, namespace string, jobName string
 	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	}); err != nil {
+		k.logger.WarnWithCtx(ctx,
+			"Failed to delete kaniko job",
+			"namespace", namespace,
+			"job", jobName,
+			"error", err.Error(),
+		)
 		return errors.Wrap(err, "Failed to delete job")
 	}
 	k.logger.DebugWithCtx(ctx, "Successfully deleted job", "namespace", namespace, "job", jobName)

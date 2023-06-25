@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-const DefaultRequestTimeout = "60s"
+const DefaultRequestTimeout = "5m"
 
 type NuclioAPIClient struct {
 	logger         logger.Logger
