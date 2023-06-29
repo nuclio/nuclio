@@ -1291,9 +1291,6 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithCustomScalingMetrics
 			},
 		},
 	}
-	/*
-		is invalid: spec.metrics[0].pods.target.averageValue: Required value: must specify a positive target averageValue
-	*/
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult)
