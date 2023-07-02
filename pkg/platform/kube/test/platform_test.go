@@ -44,7 +44,6 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -546,7 +545,7 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &two
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		hpaInstance := &autoscalingv1.HorizontalPodAutoscaler{}
+		hpaInstance := &autosv2.HorizontalPodAutoscaler{}
 		suite.GetResourceAndUnmarshal("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
 		suite.Require().Equal(two, int(*hpaInstance.Spec.MinReplicas))
 		suite.Require().Equal(three, int(hpaInstance.Spec.MaxReplicas))
