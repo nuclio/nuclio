@@ -44,7 +44,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -545,7 +545,7 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &two
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		hpaInstance := &autoscalingv1.HorizontalPodAutoscaler{}
+		hpaInstance := &autosv2.HorizontalPodAutoscaler{}
 		suite.GetResourceAndUnmarshal("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
 		suite.Require().Equal(two, int(*hpaInstance.Spec.MinReplicas))
 		suite.Require().Equal(three, int(hpaInstance.Spec.MaxReplicas))
@@ -1262,6 +1262,48 @@ func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndValidateResourc
 		suite.Require().NotNil(functionSpec.Resources.Requests)
 		suite.Require().NotZero(functionSpec.Resources.Requests.Cpu().MilliValue())
 		suite.Require().NotZero(functionSpec.Resources.Requests.Memory().Value())
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestCreateFunctionWithCustomScalingMetrics() {
+	one := 1
+	four := 4
+	eighty := resource.MustParse("80")
+	gpuMetricName := "DCGM_FI_DEV_GPU_UTIL"
+	functionName := "func-with-custom-scaling-metrics"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &four
+	createFunctionOptions.FunctionConfig.Spec.CustomScalingMetricSpecs = []autosv2.MetricSpec{
+		{
+			Type: autosv2.PodsMetricSourceType,
+			Pods: &autosv2.PodsMetricSource{
+				Metric: autosv2.MetricIdentifier{
+					Name: gpuMetricName,
+				},
+				Target: autosv2.MetricTarget{
+					Type:         autosv2.AverageValueMetricType,
+					AverageValue: &eighty,
+				},
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function's HPA and validate it has the custom scaling metrics
+		hpaName := kube.HPANameFromFunctionName(functionName)
+		hpa, err := suite.KubeClientSet.AutoscalingV2().HorizontalPodAutoscalers(suite.Namespace).Get(suite.Ctx,
+			hpaName, metav1.GetOptions{})
+		suite.Require().NoError(err)
+
+		suite.Require().Len(hpa.Spec.Metrics, 1)
+		suite.Require().Equal(autosv2.PodsMetricSourceType, hpa.Spec.Metrics[0].Type)
+		suite.Require().Equal(gpuMetricName, hpa.Spec.Metrics[0].Pods.Metric.Name)
+		suite.Require().Equal(&eighty, hpa.Spec.Metrics[0].Pods.Target.AverageValue)
 
 		return true
 	})
