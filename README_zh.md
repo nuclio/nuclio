@@ -55,11 +55,7 @@ All you need to run the dashboard is Docker:
 探索尝试 Nuclio 的最简单方式是通过运行项目提供的图形用户界面（Nuclio [仪表盘](#dashboard)。你可以很轻松的通过 Docker 将它运行起来：
 
 ```sh
-docker run -p 8070:8070 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /tmp:/tmp \
-  --name nuclio-dashboard \
-  quay.io/nuclio/dashboard:stable-amd64
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock --name nuclio-dashboard quay.io/nuclio/dashboard:stable-amd64
 ```
 
 ![dashboard](/docs/assets/images/dashboard.png)
