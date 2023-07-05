@@ -24,7 +24,7 @@ env:
 jobs:
   periodic:
     name: Periodic Regression
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     # let's not run this on every fork, comment this out when developing periodic on your fork
     if: github.repository == 'nuclio/nuclio'
