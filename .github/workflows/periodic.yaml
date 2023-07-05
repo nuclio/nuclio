@@ -24,6 +24,8 @@ env:
 jobs:
   periodic:
     name: Periodic Regression
+    # TODO: update this to ubuntu-latest when the runner issue is fixed:
+    # https://github.com/actions/runner-images/discussions/7188
     runs-on: ubuntu-20.04
 
     # let's not run this on every fork, comment this out when developing periodic on your fork
