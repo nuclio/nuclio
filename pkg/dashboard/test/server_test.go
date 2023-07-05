@@ -1039,7 +1039,7 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 		Once()
 
 	// send request
-	expectedStatusCode := http.StatusNoContent
+	expectedStatusCode := http.StatusAccepted
 	requestHeaders := map[string]string{
 		headers.WaitFunctionAction: "true",
 		headers.FunctionNamespace:  namespace,
@@ -1170,7 +1170,7 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 			}
 
 			// send request
-			expectedStatusCode := http.StatusNoContent
+			expectedStatusCode := http.StatusAccepted
 			requestHeaders := map[string]string{
 				headers.WaitFunctionAction:   "true",
 				headers.FunctionNamespace:    namespace,

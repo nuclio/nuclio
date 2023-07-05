@@ -135,7 +135,7 @@ func (c *NuclioAPIClient) GetFunctions(ctx context.Context, namespace string) (m
 	return functions, nil
 }
 
-// GetFunction a single function with the given name and namespace
+// GetFunction returns a single function with the given name and namespace
 func (c *NuclioAPIClient) GetFunction(ctx context.Context, name, namespace string) (*functionconfig.ConfigWithStatus, error) {
 
 	url := fmt.Sprintf("%s/%s/%s", c.apiURL, FunctionsEndpoint, name)

@@ -793,33 +793,64 @@ func (d *deployCommandeer) patchFunction(ctx context.Context, functionName strin
 		"function", functionName)
 
 	if d.waitForFunction {
-		ticker := time.NewTicker(5 * time.Second)
-		for {
-			select {
-			case <-time.After(d.waitTimeout):
-				return errors.New(fmt.Sprintf("Timed out waiting for function '%s' to be ready", functionName))
-			case <-ticker.C:
-
-				// get function and poll its status
-				function, err := d.betaCommandeer.apiClient.GetFunction(ctx, functionName, d.rootCommandeer.namespace)
-				if err != nil {
-					d.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to get function", "functionName", functionName)
-				}
-				if function.Status.State == functionconfig.FunctionStateReady {
-					d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
-						"Function redeployed successfully",
-						"functionName", functionName)
-					return nil
-				}
-				d.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
-					"Function not ready yet",
-					"functionName", functionName,
-					"functionState", function.Status.State)
-			}
-		}
+		return d.waitForFunctionDeployment(ctx, functionName)
 	}
 
 	return nil
+}
+
+func (d *deployCommandeer) waitForFunctionDeployment(ctx context.Context, functionName string) error {
+	ticker := time.NewTicker(5 * time.Second)
+	for {
+		select {
+		case <-time.After(d.waitTimeout):
+			return errors.New(fmt.Sprintf("Timed out waiting for function '%s' to be ready", functionName))
+		case <-ticker.C:
+			isReady, err := d.functionIsInTerminalState(ctx, functionName)
+			if !isReady {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+
+			// function is ready
+			return nil
+		}
+	}
+}
+
+// functionIsInTerminalState checks if the function is in terminal state
+// if the function is ready, it returns true and no error
+// if the function is in another terminal state, it returns true and an error
+// else it returns false
+func (d *deployCommandeer) functionIsInTerminalState(ctx context.Context, functionName string) (bool, error) {
+
+	// get function and poll its status
+	function, err := d.betaCommandeer.apiClient.GetFunction(ctx, functionName, d.rootCommandeer.namespace)
+	if err != nil {
+		d.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to get function", "functionName", functionName)
+		return false, err
+	}
+	if function.Status.State == functionconfig.FunctionStateReady {
+		d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
+			"Function redeployed successfully",
+			"functionName", functionName)
+		return true, nil
+	}
+
+	// we use this function to check if the function is in terminal state, as we already checked that it's ready
+	if functionconfig.FunctionStateProvisioned(function.Status.State) {
+		return true, errors.New(fmt.Sprintf("Function '%s' is in terminal state '%s' but not ready",
+			functionName, function.Status.State))
+	}
+
+	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+		"Function not ready yet",
+		"functionName", functionName,
+		"functionState", function.Status.State)
+
+	return false, nil
 }
 
 // shouldSkipFunction returns true if the function patch should be skipped
