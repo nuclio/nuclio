@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
@@ -93,6 +94,7 @@ type deployCommandeer struct {
 	excludedFunctions      []string
 	excludeFunctionWithGPU bool
 	importedOnly           bool
+	waitTimeout            time.Duration
 }
 
 func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, betaCommandeer *betaCommandeer) *deployCommandeer {
@@ -271,6 +273,7 @@ func addBetaDeployFlags(cmd *cobra.Command,
 	cmd.PersistentFlags().StringSliceVar(&commandeer.excludedFunctions, "exclude-functions", []string{}, "Exclude functions to patch")
 	cmd.PersistentFlags().BoolVar(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", false, "Skip functions with GPU")
 	cmd.PersistentFlags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
+	cmd.PersistentFlags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment (default 15m)")
 }
 
 func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList) error {
@@ -718,10 +721,10 @@ func (d *deployCommandeer) getFunctionNames(ctx context.Context) ([]string, erro
 	}
 
 	functionNames := make([]string, 0)
-	for functionName, functionConfig := range functionConfigs {
+	for functionName, functionConfigWithStatus := range functionConfigs {
 
 		// filter excluded functions
-		if d.shouldSkipFunction(functionConfig) {
+		if d.shouldSkipFunction(functionConfigWithStatus.Config) {
 			d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Excluding function", "function", functionName)
 			d.outputManifest.AddSkipped(functionName)
 			continue
@@ -761,9 +764,9 @@ func (d *deployCommandeer) redeployFunctions(ctx context.Context, functionNames 
 }
 
 // patchFunction patches a single function
-func (d *deployCommandeer) patchFunction(ctx context.Context, function string) error {
+func (d *deployCommandeer) patchFunction(ctx context.Context, functionName string) error {
 
-	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Redeploying function", "function", function)
+	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Redeploying function", "function", functionName)
 
 	// patch function
 	patchOptions := map[string]string{
@@ -778,11 +781,42 @@ func (d *deployCommandeer) patchFunction(ctx context.Context, function string) e
 	requestHeaders := d.resolveRequestHeaders()
 
 	if err := d.betaCommandeer.apiClient.PatchFunction(ctx,
-		function,
+		functionName,
 		d.rootCommandeer.namespace,
 		payload,
 		requestHeaders); err != nil {
 		return errors.Wrap(err, "Failed to patch function")
+	}
+
+	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
+		"Function redeploy request sent successfully",
+		"function", functionName)
+
+	if d.waitForFunction {
+		ticker := time.NewTicker(5 * time.Second)
+		for {
+			select {
+			case <-time.After(d.waitTimeout):
+				return errors.New(fmt.Sprintf("Timed out waiting for function '%s' to be ready", functionName))
+			case <-ticker.C:
+
+				// get function and poll its status
+				function, err := d.betaCommandeer.apiClient.GetFunction(ctx, functionName, d.rootCommandeer.namespace)
+				if err != nil {
+					d.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to get function", "functionName", functionName)
+				}
+				if function.Status.State == functionconfig.FunctionStateReady {
+					d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
+						"Function redeployed successfully",
+						"functionName", functionName)
+					return nil
+				}
+				d.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+					"Function not ready yet",
+					"functionName", functionName,
+					"functionState", function.Status.State)
+			}
+		}
 	}
 
 	return nil
@@ -805,11 +839,6 @@ func (d *deployCommandeer) shouldSkipFunction(functionConfig functionconfig.Conf
 
 func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
 	requestHeaders := map[string]string{}
-	if d.waitForFunction {
-
-		// add a header that will tell the API to wait for the function to be ready after patching
-		requestHeaders[headers.WaitFunctionAction] = "true"
-	}
 	if d.importedOnly {
 
 		// add a header that will tell the API to only deploy imported functions

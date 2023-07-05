@@ -529,7 +529,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return responseErr
 	}
 
-	return nuclio.ErrNoContent
+	return nuclio.ErrAccepted
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {

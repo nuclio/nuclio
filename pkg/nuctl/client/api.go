@@ -102,7 +102,7 @@ func NewNuclioAPIClient(parentLogger logger.Logger,
 }
 
 // GetFunctions returns a map of function name to function config for all functions in the given namespace
-func (c *NuclioAPIClient) GetFunctions(ctx context.Context, namespace string) (map[string]functionconfig.Config, error) {
+func (c *NuclioAPIClient) GetFunctions(ctx context.Context, namespace string) (map[string]*functionconfig.ConfigWithStatus, error) {
 
 	url := fmt.Sprintf("%s/%s", c.apiURL, FunctionsEndpoint)
 	requestHeaders := map[string]string{
@@ -121,18 +121,40 @@ func (c *NuclioAPIClient) GetFunctions(ctx context.Context, namespace string) (m
 
 	c.logger.DebugWithCtx(ctx, "Got functions", "numOfFunctions", len(responseBody))
 
-	functions := map[string]functionconfig.Config{}
+	functions := map[string]*functionconfig.ConfigWithStatus{}
 
-	for functionName, functionConfigMap := range responseBody {
-		functionConfig, err := nuctlcommon.ConvertMapToFunctionConfig(functionConfigMap.(map[string]interface{}))
+	for functionName, functionMap := range responseBody {
+		functionConfigWithStatus, err := nuctlcommon.ConvertMapToFunctionConfigWithStatus(functionMap.(map[string]interface{}))
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to convert function config")
 		}
 
-		functions[functionName] = functionConfig
+		functions[functionName] = functionConfigWithStatus
 	}
 
 	return functions, nil
+}
+
+// GetFunction a single function with the given name and namespace
+func (c *NuclioAPIClient) GetFunction(ctx context.Context, name, namespace string) (*functionconfig.ConfigWithStatus, error) {
+
+	url := fmt.Sprintf("%s/%s/%s", c.apiURL, FunctionsEndpoint, name)
+	requestHeaders := map[string]string{
+		headers.FunctionNamespace:         namespace,
+		headers.FunctionEnrichApiGateways: "true",
+	}
+	_, responseBody, err := c.sendRequest(ctx,
+		http.MethodGet, // method
+		url,            // url
+		nil,            // body
+		requestHeaders, // headers
+		http.StatusOK,  // expectedStatusCode
+		true)           // returnResponseBody
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	return nuctlcommon.ConvertMapToFunctionConfigWithStatus(responseBody)
 }
 
 // PatchFunction patches a single function with the given options
@@ -151,7 +173,7 @@ func (c *NuclioAPIClient) PatchFunction(ctx context.Context,
 		url,
 		optionsPayload,
 		patchHeaders,
-		http.StatusNoContent,
+		http.StatusAccepted,
 		false); err != nil {
 		return errors.Wrap(err, "Failed to send patch API request")
 	}
