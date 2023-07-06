@@ -1021,9 +1021,9 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 		suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
 		return true
 	}
-	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
-		suite.Require().Equal(functionName, createFunctionOptions.FunctionConfig.Meta.Name)
-		suite.Require().Equal(namespace, createFunctionOptions.FunctionConfig.Meta.Namespace)
+	verifyUpdateFunctionsOptions := func(updateFunctionsOptions *platform.UpdateFunctionOptions) bool {
+		suite.Require().Equal(functionName, updateFunctionsOptions.FunctionMeta.Name)
+		suite.Require().Equal(namespace, updateFunctionsOptions.FunctionMeta.Namespace)
 		return true
 	}
 
@@ -1034,8 +1034,11 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 		Once()
 
 	suite.mockPlatform.
-		On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunction)).
-		Return(&platform.CreateFunctionResult{}, nil).
+		On("UpdateFunctionState",
+			mock.Anything,
+			mock.MatchedBy(verifyUpdateFunctionsOptions),
+			functionconfig.FunctionStateWaitingForResourceConfiguration).
+		Return(nil).
 		Once()
 
 	// send request
@@ -1150,9 +1153,9 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 				suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
 				return true
 			}
-			verifyCreateFunctionOptions := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
-				suite.Require().Equal(testCase.functionName, createFunctionOptions.FunctionConfig.Meta.Name)
-				suite.Require().Equal(namespace, createFunctionOptions.FunctionConfig.Meta.Namespace)
+			verifyUpdateFunctionsOptions := func(updateFunctionsOptions *platform.UpdateFunctionOptions) bool {
+				suite.Require().Equal(testCase.functionName, updateFunctionsOptions.FunctionMeta.Name)
+				suite.Require().Equal(namespace, updateFunctionsOptions.FunctionMeta.Namespace)
 				return true
 			}
 
@@ -1162,12 +1165,13 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 				Return([]platform.Function{&function}, nil).
 				Once()
 
-			if testCase.expectedCreateCalled {
-				suite.mockPlatform.
-					On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunctionOptions)).
-					Return(&platform.CreateFunctionResult{}, nil).
-					Once()
-			}
+			suite.mockPlatform.
+				On("UpdateFunctionState",
+					mock.Anything,
+					mock.MatchedBy(verifyUpdateFunctionsOptions),
+					functionconfig.FunctionStateWaitingForResourceConfiguration).
+				Return(nil).
+				Once()
 
 			// send request
 			expectedStatusCode := http.StatusNoContent

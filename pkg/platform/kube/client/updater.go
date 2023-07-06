@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -116,5 +117,49 @@ func (u *Updater) Update(ctx context.Context, updateFunctionOptions *platform.Up
 	}
 
 	u.logger.InfoWithCtx(ctx, "Function updated", "functionName", updatedFunction.Name)
+	return nil
+}
+
+// UpdateState will update a function CRD state
+// we don't require permissions for this operation because it's used internally by the platform
+func (u *Updater) UpdateState(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions, state functionconfig.FunctionState) error {
+	u.logger.InfoWithCtx(ctx,
+		"Updating function state",
+		"name", updateFunctionOptions.FunctionMeta.Name,
+		"state", state)
+
+	// get specific function CR
+	function, err := u.consumer.
+		NuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
+		Get(ctx, updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function")
+	}
+
+	// modify the state
+	function.Status.State = state
+
+	// get clientset
+	nuclioClientSet, err := u.consumer.getNuclioClientSet(updateFunctionOptions.AuthConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get nuclio clientset")
+	}
+
+	// trigger an update
+	updatedFunction, err := nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
+		Update(ctx, function, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to update function CR")
+	}
+
+	u.logger.InfoWithCtx(ctx,
+		"Function state updated",
+		"functionName", updatedFunction.Name,
+		"state", state)
+
 	return nil
 }

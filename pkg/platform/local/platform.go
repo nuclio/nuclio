@@ -390,6 +390,11 @@ func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *pl
 	return nil
 }
 
+// UpdateFunctionState will update a function's state
+func (p *Platform) UpdateFunctionState(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions, state functionconfig.FunctionState) error {
+	return nil
+}
+
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 

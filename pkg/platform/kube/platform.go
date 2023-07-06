@@ -522,6 +522,11 @@ func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *pl
 	return p.updater.Update(ctx, updateFunctionOptions)
 }
 
+// UpdateFunctionState will update a function's state
+func (p *Platform) UpdateFunctionState(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions, state functionconfig.FunctionState) error {
+	return p.updater.UpdateState(ctx, updateFunctionOptions, state)
+}
+
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	p.Logger.DebugWithCtx(ctx, "Deleting function",
