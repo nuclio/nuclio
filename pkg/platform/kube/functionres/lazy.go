@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -2493,16 +2493,26 @@ func (lc *lazyClient) GetFunctionMetricSpecs(function *nuclioio.NuclioFunction) 
 
 	var metricSpecs []autosv2.MetricSpec
 
+	// add custom metrics
+	if function.Spec.CustomScalingMetricSpecs != nil {
+		metricSpecs = append(metricSpecs, function.Spec.CustomScalingMetricSpecs...)
+	}
+
 	if lc.platformConfigurationProvider.GetPlatformConfiguration().AutoScaleMetricsMode ==
 		platformconfig.AutoScaleMetricsModeCustom {
 
-		metricSpecs, err := lc.resolveMetricSpecs(function)
+		scalingMetricSpecs, err := lc.resolveMetricSpecs(function)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to resolve metric specs")
 		}
-		if len(metricSpecs) > 0 {
-			return metricSpecs, nil
+		if len(scalingMetricSpecs) > 0 {
+			metricSpecs = append(metricSpecs, scalingMetricSpecs...)
 		}
+	}
+
+	// if we have custom metrics, we don't add the default metric
+	if len(metricSpecs) > 0 {
+		return metricSpecs, nil
 	}
 
 	// for backwards compatibility, if no custom metrics are specified, use targetCPU and default metric
