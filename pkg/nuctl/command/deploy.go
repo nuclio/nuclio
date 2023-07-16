@@ -806,11 +806,15 @@ func (d *deployCommandeer) waitForFunctionDeployment(ctx context.Context, functi
 		case <-time.After(d.waitTimeout):
 			return errors.New(fmt.Sprintf("Timed out waiting for function '%s' to be ready", functionName))
 		case <-ticker.C:
-			isReady, err := d.functionIsInTerminalState(ctx, functionName)
-			if !isReady {
+			isTerminal, err := d.functionIsInTerminalState(ctx, functionName)
+			if !isTerminal {
+
+				// function isn't in terminal state yet, retry
 				continue
 			}
 			if err != nil {
+
+				// function is terminal, but not ready, return error
 				return err
 			}
 
