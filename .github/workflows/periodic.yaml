@@ -49,3 +49,5 @@ jobs:
 
     - name: Test
       run: make test
+      env:
+        NUCLIO_CI_SKIP_STRESS_TEST: true

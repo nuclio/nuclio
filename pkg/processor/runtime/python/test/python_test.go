@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"regexp"
 	"runtime"
@@ -102,6 +103,9 @@ func (suite *TestSuite) TestAsyncHandler() {
 }
 
 func (suite *TestSuite) TestStress() {
+	if os.Getenv("NUCLIO_CI_SKIP_STRESS_TEST") == "true" {
+		suite.T().Skip("Skipping stress test")
+	}
 
 	// Create blastConfiguration using default configurations + changes for python specification
 	blastConfiguration := suite.NewBlastConfiguration()
