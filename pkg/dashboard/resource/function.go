@@ -526,7 +526,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return errors.Wrap(err, "Failed to update function CRD state")
 	}
 
-	return nuclio.ErrNoContent
+	return nuclio.ErrAccepted
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
