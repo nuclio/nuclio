@@ -128,9 +128,14 @@ func (u *Updater) UpdateState(ctx context.Context, updateFunctionOptions *platfo
 		"name", updateFunctionOptions.FunctionMeta.Name,
 		"state", state)
 
+	// get clientset
+	nuclioClientSet, err := u.consumer.getNuclioClientSet(updateFunctionOptions.AuthConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get nuclio clientset")
+	}
+
 	// get specific function CR
-	function, err := u.consumer.
-		NuclioClientSet.
+	function, err := nuclioClientSet.
 		NuclioV1beta1().
 		NuclioFunctions(updateFunctionOptions.FunctionMeta.Namespace).
 		Get(ctx, updateFunctionOptions.FunctionMeta.Name, metav1.GetOptions{})
@@ -141,11 +146,15 @@ func (u *Updater) UpdateState(ctx context.Context, updateFunctionOptions *platfo
 	// modify the state
 	function.Status.State = state
 
-	// get clientset
-	nuclioClientSet, err := u.consumer.getNuclioClientSet(updateFunctionOptions.AuthConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get nuclio clientset")
+	// reset scale to zero so that update function won't be ignored by controller
+	function.Status.ScaleToZero = nil
+
+	// create a random annotation so that the controller will update the CR
+	// if the annotation already exists, it will be changed
+	if function.Annotations == nil {
+		function.Annotations = map[string]string{}
 	}
+	function.Annotations["nuclio.io/force-update"] = strconv.Itoa(int(time.Now().UnixNano()))
 
 	// trigger an update
 	updatedFunction, err := nuclioClientSet.
