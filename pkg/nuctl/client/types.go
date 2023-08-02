@@ -25,7 +25,9 @@ import (
 type APIClient interface {
 
 	// GetFunctions returns a map of function name to function config for all functions in the given namespace
-	GetFunctions(ctx context.Context, namespace string) (map[string]functionconfig.Config, error)
+	GetFunctions(ctx context.Context, namespace string) (map[string]*functionconfig.ConfigWithStatus, error)
+
+	GetFunction(ctx context.Context, name, namespace string) (*functionconfig.ConfigWithStatus, error)
 
 	// PatchFunction patches a single function with the given options
 	PatchFunction(ctx context.Context,
