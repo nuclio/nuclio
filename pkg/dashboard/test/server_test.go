@@ -1127,18 +1127,21 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 		functionName         string
 		functionState        functionconfig.FunctionState
 		expectedCreateCalled bool
+		expectedStatusCode   int
 	}{
 		{
 			name:                 "importedFunction",
 			functionName:         "imported-func",
 			functionState:        functionconfig.FunctionStateImported,
 			expectedCreateCalled: true,
+			expectedStatusCode:   http.StatusAccepted,
 		},
 		{
 			name:                 "readyFunction",
 			functionName:         "ready-func",
 			functionState:        functionconfig.FunctionStateReady,
 			expectedCreateCalled: false,
+			expectedStatusCode:   http.StatusNoContent,
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -1174,7 +1177,6 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 				Once()
 
 			// send request
-			expectedStatusCode := http.StatusNoContent
 			requestHeaders := map[string]string{
 				headers.WaitFunctionAction:   "true",
 				headers.FunctionNamespace:    namespace,
@@ -1189,7 +1191,7 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 				fmt.Sprintf("/api/functions/%s", testCase.functionName),
 				requestHeaders,
 				bytes.NewBufferString(requestBody),
-				&expectedStatusCode,
+				&testCase.expectedStatusCode,
 				nil)
 		})
 	}
