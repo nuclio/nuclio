@@ -522,11 +522,6 @@ func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *pl
 	return p.updater.Update(ctx, updateFunctionOptions)
 }
 
-// UpdateFunctionState will update a function's state
-func (p *Platform) UpdateFunctionState(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions, state functionconfig.FunctionState) error {
-	return p.updater.UpdateState(ctx, updateFunctionOptions, state)
-}
-
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	p.Logger.DebugWithCtx(ctx, "Deleting function",
@@ -549,6 +544,20 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 	}
 
 	return p.deleter.Delete(ctx, p.consumer, deleteFunctionOptions)
+}
+
+// RedeployFunction will redeploy a previously deployed function
+func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
+
+	// update the function CRD state to waiting for resource configuration, so the controller will redeploy its resources
+	if err := p.updater.UpdateState(ctx,
+		redeployFunctionOptions.FunctionMeta.Name,
+		redeployFunctionOptions.FunctionMeta.Namespace,
+		redeployFunctionOptions.AuthConfig,
+		functionconfig.FunctionStateWaitingForResourceConfiguration); err != nil {
+		return errors.Wrap(err, "Failed to update function state")
+	}
+	return nil
 }
 
 func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,

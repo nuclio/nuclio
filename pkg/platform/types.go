@@ -88,6 +88,17 @@ type DeleteFunctionOptions struct {
 	IgnoreFunctionStateValidation bool
 }
 
+type RedeployFunctionOptions struct {
+	FunctionMeta                *functionconfig.Meta
+	FunctionSpec                *functionconfig.Spec
+	FunctionStatus              *functionconfig.Status
+	AuthConfig                  *AuthConfig
+	DependantImagesRegistryURL  string
+	AuthSession                 auth.Session
+	PermissionOptions           opa.PermissionOptions
+	CreationStateUpdatedTimeout time.Duration
+}
+
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process
 type CreateFunctionBuildResult struct {
 	Image string

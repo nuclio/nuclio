@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
+	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -390,11 +391,6 @@ func (p *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *pl
 	return nil
 }
 
-// UpdateFunctionState will update a function's state
-func (p *Platform) UpdateFunctionState(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions, state functionconfig.FunctionState) error {
-	return nil
-}
-
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 
@@ -411,6 +407,48 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 
 	// actual function and its resources deletion
 	return p.delete(ctx, deleteFunctionOptions)
+}
+
+func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
+
+	creationStateUpdatedChan := make(chan bool, 1)
+	errDeployingChan := make(chan error, 1)
+
+	// call CreateFunction with the same function config in a goroutine
+	go func() {
+		deployCtx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(ctx))
+		defer cancelCtx()
+
+		// extra enrichment was already done on the first deploy, so just reuse the same function config
+		if _, err := p.CreateFunction(deployCtx, &platform.CreateFunctionOptions{
+			FunctionConfig: functionconfig.Config{
+				Meta: *redeployFunctionOptions.FunctionMeta,
+				Spec: *redeployFunctionOptions.FunctionSpec,
+			},
+			CreationStateUpdated:       creationStateUpdatedChan,
+			AuthConfig:                 redeployFunctionOptions.AuthConfig,
+			DependantImagesRegistryURL: redeployFunctionOptions.DependantImagesRegistryURL,
+			AuthSession:                redeployFunctionOptions.AuthSession,
+			PermissionOptions:          redeployFunctionOptions.PermissionOptions,
+		}); err != nil {
+			p.Logger.ErrorWithCtx(ctx, "Failed to redeploy a function", "err", err)
+			errDeployingChan <- err
+		}
+	}()
+
+	// wait until the function is in "creating" state. we must return only once the correct function state
+	// will be returned on an immediate get. for example, if the function exists and is in "ready" state, we don't
+	// want to return before the function's state is in "building"
+	select {
+	case <-creationStateUpdatedChan:
+		break
+	case errDeploying := <-errDeployingChan:
+		return errors.Wrapf(errDeploying, "Failed to deploy function %s", redeployFunctionOptions.FunctionMeta.Name)
+	case <-time.After(redeployFunctionOptions.CreationStateUpdatedTimeout):
+		return nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
+	}
+
+	return nil
 }
 
 func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,

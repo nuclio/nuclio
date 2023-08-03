@@ -98,15 +98,14 @@ func (mp *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *p
 	return args.Error(0)
 }
 
-// UpdateFunctionState will update a function's state
-func (mp *Platform) UpdateFunctionState(ctx context.Context, updateFunctionOptions *platform.UpdateFunctionOptions, state functionconfig.FunctionState) error {
-	args := mp.Called(ctx, updateFunctionOptions, state)
-	return args.Error(0)
-}
-
 // DeleteFunction will delete a previously deployed function
 func (mp *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	args := mp.Called(ctx, deleteFunctionOptions)
+	return args.Error(0)
+}
+
+func (mp *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
+	args := mp.Called(ctx, redeployFunctionOptions)
 	return args.Error(0)
 }
 

@@ -257,7 +257,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
 
-	// asynchronously, do the deploy so that the user doesn't wait
+	// deploy asynchronously, so that the user doesn't wait
 	go func() {
 
 		ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
@@ -518,12 +518,20 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 
 	fr.Logger.DebugWith("Redeploying function", "functionName", id)
 
-	// we set the function's CRD state to "waiting for resource configuration" so that the controller
-	// will do the actual redeployment
-	if err := fr.updateFunctionCRDState(ctx,
-		function,
-		functionconfig.FunctionStateWaitingForResourceConfiguration); err != nil {
-		return errors.Wrap(err, "Failed to update function CRD state")
+	if err := fr.getPlatform().RedeployFunction(ctx, &platform.RedeployFunctionOptions{
+		FunctionMeta:               &function.GetConfig().Meta,
+		FunctionSpec:               &function.GetConfig().Spec,
+		FunctionStatus:             function.GetStatus(),
+		AuthConfig:                 authConfig,
+		DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
+		AuthSession:                fr.getCtxSession(ctx),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		},
+		CreationStateUpdatedTimeout: fr.getCreationStateUpdatedTimeout(request),
+	}); err != nil {
+		return errors.Wrap(err, "Failed to redeploy function")
 	}
 
 	return nuclio.ErrAccepted
@@ -729,22 +737,6 @@ func (fr *functionResource) getCreationStateUpdatedTimeout(request *http.Request
 		}
 	}
 	return timeoutDuration
-}
-
-// updateFunctionCRDState updates the CRD state of the function
-func (fr *functionResource) updateFunctionCRDState(ctx context.Context, function platform.Function, state functionconfig.FunctionState) error {
-
-	// only the function name and namespace are needed when updating the CRD state
-	updateFunctionOptions := &platform.UpdateFunctionOptions{
-		FunctionMeta: &functionconfig.Meta{
-			Name:      function.GetConfig().Meta.Name,
-			Namespace: function.GetConfig().Meta.Namespace,
-		},
-	}
-	if err := fr.getPlatform().UpdateFunctionState(ctx, updateFunctionOptions, state); err != nil {
-		return errors.Wrap(err, "Failed to update function state")
-	}
-	return nil
 }
 
 // register the resource

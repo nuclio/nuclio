@@ -843,8 +843,13 @@ func (d *deployCommandeer) functionIsInTerminalState(ctx context.Context, functi
 		return true, nil
 	}
 
-	// we use this function to check if the function is in terminal state, as we already checked that it's ready
-	if functionconfig.FunctionStateProvisioned(function.Status.State) {
+	// we use this function to check if the function is in terminal state, as we already checked if it's ready
+	if functionconfig.FunctionStateInSlice(function.Status.State,
+		[]functionconfig.FunctionState{
+			functionconfig.FunctionStateError,
+			functionconfig.FunctionStateUnhealthy,
+			functionconfig.FunctionStateScaledToZero,
+		}) {
 		return true, errors.New(fmt.Sprintf("Function '%s' is in terminal state '%s' but not ready",
 			functionName, function.Status.State))
 	}
