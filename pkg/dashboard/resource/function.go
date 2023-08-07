@@ -521,7 +521,6 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 	if err := fr.getPlatform().RedeployFunction(ctx, &platform.RedeployFunctionOptions{
 		FunctionMeta:               &function.GetConfig().Meta,
 		FunctionSpec:               &function.GetConfig().Spec,
-		FunctionStatus:             function.GetStatus(),
 		AuthConfig:                 authConfig,
 		DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
 		AuthSession:                fr.getCtxSession(ctx),

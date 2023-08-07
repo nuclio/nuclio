@@ -91,7 +91,6 @@ type DeleteFunctionOptions struct {
 type RedeployFunctionOptions struct {
 	FunctionMeta                *functionconfig.Meta
 	FunctionSpec                *functionconfig.Spec
-	FunctionStatus              *functionconfig.Status
 	AuthConfig                  *AuthConfig
 	DependantImagesRegistryURL  string
 	AuthSession                 auth.Session
