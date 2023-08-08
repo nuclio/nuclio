@@ -239,6 +239,10 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(ctx context.Context,
 	for _, projectInstance := range projectsToUpdate {
 		projectInstance := projectInstance
 		updateProjectErrGroup.Go("update projects", func() error {
+
+			// filter out labels that are not allowed by kubernetes
+			projectInstance.Meta.Labels = c.filterInvalidLabels(projectInstance.Meta.Labels)
+
 			c.logger.DebugWith("Updating project from leader sync", "projectInstance", *projectInstance)
 			updateProjectOptions := &platform.UpdateProjectOptions{
 				ProjectConfig: platform.ProjectConfig{
