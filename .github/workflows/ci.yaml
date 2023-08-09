@@ -142,6 +142,15 @@ jobs:
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
+      - name: Setup tmate session for debugging
+        uses: mxschmitt/action-tmate@v3
+        with:
+
+          # run in detach mode to allow the workflow to continue running while session is active
+          # this will wait up to 10 minutes AFTER the entire job is done. Once user connects to the session,
+          # it will wait until the user disconnects before finishing up the job.
+          detached: true
+
       - uses: actions/setup-go@v3
         with:
           cache: true
@@ -266,16 +275,6 @@ jobs:
           minikube kubectl -- --namespace ${NAMESPACE} get pvc
           minikube kubectl -- --namespace ${NAMESPACE} get pv
           set +x
-
-      - name: Setup tmate session for debugging
-        uses: mxschmitt/action-tmate@v3
-        if: ${{ failure() }}
-        with:
-
-          # run in detach mode to allow the workflow to continue running while session is active
-          # this will wait up to 10 minutes AFTER the entire job is done. Once user connects to the session,
-          # it will wait until the user disconnects before finishing up the job.
-          detached: true
 
   test_docker_nuctl:
     name: Test Docker nuctl
