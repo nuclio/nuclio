@@ -68,6 +68,8 @@ type Config struct {
 
 	// stores the encoded FunctionInvocationTimeout as time.Duration
 	functionInvocationTimeout *time.Duration
+
+	Foo *string `json:"foo,omitempty"`
 }
 
 func NewPlatformConfig(configurationPath string) (*Config, error) {

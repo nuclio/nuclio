@@ -401,6 +401,9 @@ type Spec struct {
 	// When filled, tolerations, node labels, and affinity would be populated correspondingly to
 	// the platformconfig.PreemptibleNodes values.
 	PreemptionMode RunOnPreemptibleNodeMode `json:"preemptionMode,omitempty"`
+
+	// foo value
+	Foo *string `json:"foo,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string

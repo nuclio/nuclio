@@ -565,6 +565,16 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	case string:
 		ctx.WriteString(typedResponse) // nolint: errcheck
 	}
+
+	h.setFooHeaderIfNeeded(ctx)
+}
+
+func (h *http) setFooHeaderIfNeeded(ctx *fasthttp.RequestCtx) {
+	if h.configuration.RuntimeConfiguration.Spec.Foo != nil {
+		ctx.Response.Header.Set("X-Nuclio-Foo", *h.configuration.RuntimeConfiguration.Spec.Foo)
+	} else if h.configuration.RuntimeConfiguration.PlatformConfig.Foo != nil {
+		ctx.Response.Header.Set("X-Nuclio-Foo", *h.configuration.RuntimeConfiguration.PlatformConfig.Foo)
+	}
 }
 
 func (h *http) allocateEvents(size int) {

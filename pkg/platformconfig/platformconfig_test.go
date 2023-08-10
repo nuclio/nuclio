@@ -105,6 +105,7 @@ metrics:
   - mypush
   functions:
   - mypush
+foo: fooString
 `
 
 	var readConfiguration, expectedConfiguration Config
@@ -168,6 +169,9 @@ metrics:
 	// metric
 	expectedConfiguration.Metrics.System = []string{"mypush"}
 	expectedConfiguration.Metrics.Functions = []string{"mypush"}
+
+	fooStr := "fooString"
+	expectedConfiguration.Foo = &fooStr
 
 	// metric sinks
 	expectedConfiguration.Metrics.Sinks = map[string]MetricSink{}

@@ -313,6 +313,24 @@ func (suite *ReaderTestSuite) TestCodeEntryConfigTriggerMerge() {
 	}
 }
 
+func (suite *ReaderTestSuite) TestFooValue() {
+	configData := `
+metadata:
+  name: code_entry_name
+  namespace: code_entry_namespace
+  labels:
+    label_key: label_val
+spec:
+  foo: fooString
+     `
+	config := Config{}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &config)
+	suite.Require().NoError(err, "Can't reader configuration")
+	suite.Require().Equal("fooString", *config.Spec.Foo, "Bad foo value")
+}
+
 func TestRegistryTestSuite(t *testing.T) {
 	suite.Run(t, new(ReaderTestSuite))
 }
