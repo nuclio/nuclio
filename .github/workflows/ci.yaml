@@ -175,6 +175,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Freeing up disk space
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+
       - uses: azure/setup-helm@v3
         with:
           version: "v3.6.3"
