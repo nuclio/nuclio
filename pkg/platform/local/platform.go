@@ -410,6 +410,10 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 
 func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
 
+	p.Logger.InfoWithCtx(ctx,
+		"Redeploying function",
+		"functionName", redeployFunctionOptions.FunctionMeta.Name)
+
 	// delete existing function containers
 	previousHTTPPort, err := p.deleteOrStopFunctionContainers(&platform.CreateFunctionOptions{
 		Logger: p.Logger,
