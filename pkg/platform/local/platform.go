@@ -34,7 +34,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -411,41 +410,67 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 
 func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
 
-	creationStateUpdatedChan := make(chan bool, 1)
-	errDeployingChan := make(chan error, 1)
+	// delete existing function containers
+	previousHTTPPort, err := p.deleteOrStopFunctionContainers(&platform.CreateFunctionOptions{
+		Logger: p.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: *redeployFunctionOptions.FunctionMeta,
+			Spec: *redeployFunctionOptions.FunctionSpec,
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete previous containers")
+	}
+	var functionStatus functionconfig.Status
 
-	// call CreateFunction with the same function config in a goroutine
-	go func() {
-		deployCtx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(ctx))
-		defer cancelCtx()
+	reportRedeployError := func(creationError error) error {
+		p.Logger.WarnWithCtx(ctx,
+			"Failed to redeploy function; setting the function status",
+			"functionName", redeployFunctionOptions.FunctionMeta.Name,
+			"err", creationError)
 
-		// extra enrichment was already done on the first deploy, so just reuse the same function config
-		if _, err := p.CreateFunction(deployCtx, &platform.CreateFunctionOptions{
-			FunctionConfig: functionconfig.Config{
+		errorStack := bytes.Buffer{}
+		errors.PrintErrorStack(&errorStack, creationError, 20)
+
+		// cut messages that are too big
+		if errorStack.Len() >= 4*Mib {
+			errorStack.Truncate(4 * Mib)
+		}
+
+		// post logs and error
+		return p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{
+			Config: functionconfig.Config{
 				Meta: *redeployFunctionOptions.FunctionMeta,
 				Spec: *redeployFunctionOptions.FunctionSpec,
 			},
-			CreationStateUpdated:       creationStateUpdatedChan,
-			AuthConfig:                 redeployFunctionOptions.AuthConfig,
-			DependantImagesRegistryURL: redeployFunctionOptions.DependantImagesRegistryURL,
-			AuthSession:                redeployFunctionOptions.AuthSession,
-			PermissionOptions:          redeployFunctionOptions.PermissionOptions,
-		}); err != nil {
-			p.Logger.ErrorWithCtx(ctx, "Failed to redeploy a function", "err", err)
-			errDeployingChan <- err
-		}
-	}()
+			Status: functionconfig.Status{
+				State:   functionconfig.FunctionStateError,
+				Message: errorStack.String(),
+			},
+		})
+	}
 
-	// wait until the function is in "creating" state. we must return only once the correct function state
-	// will be returned on an immediate get. for example, if the function exists and is in "ready" state, we don't
-	// want to return before the function's state is in "building"
-	select {
-	case <-creationStateUpdatedChan:
-		break
-	case errDeploying := <-errDeployingChan:
-		return errors.Wrapf(errDeploying, "Failed to deploy function %s", redeployFunctionOptions.FunctionMeta.Name)
-	case <-time.After(redeployFunctionOptions.CreationStateUpdatedTimeout):
-		return nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
+	createFunctionResult, deployErr := p.deployFunction(&platform.CreateFunctionOptions{
+		Logger: p.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: *redeployFunctionOptions.FunctionMeta,
+			Spec: *redeployFunctionOptions.FunctionSpec,
+		},
+		AuthConfig:                 redeployFunctionOptions.AuthConfig,
+		DependantImagesRegistryURL: redeployFunctionOptions.DependantImagesRegistryURL,
+		AuthSession:                redeployFunctionOptions.AuthSession,
+		PermissionOptions:          redeployFunctionOptions.PermissionOptions,
+	}, previousHTTPPort)
+	if deployErr != nil {
+		reportRedeployError(deployErr) // nolint: errcheck
+		return deployErr
+	}
+
+	functionStatus.HTTPPort = createFunctionResult.Port
+	functionStatus.State = functionconfig.FunctionStateReady
+
+	if err := p.populateFunctionInvocationStatus(&functionStatus, createFunctionResult); err != nil {
+		return errors.Wrap(err, "Failed to populate function invocation status")
 	}
 
 	return nil
