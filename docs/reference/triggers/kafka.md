@@ -309,24 +309,6 @@ context.platform.set_termination_callback(callback)
 * Currently, the explicit ack feature is only available for python runtime and functions that have a stream trigger (kafka/v3io).
 * The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"static"`.
 * The `QualifiedOffset` object can be saved in a persistent storage and used to commit the offset on later invocation of the function.
-* The call to the `explicit_ack()` method must be awaited, meaning the handler must be an async function, or provide an event loop to run that method. e.g.:
-```py
-import asyncio
-import nuclio_sdk
-
-def handler(context, event):
-    qualified_offset = nuclio_sdk.QualifiedOffset.from_event(event)
-  
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        # add the coroutine to the loop
-        asyncio.run_coroutine_threadsafe(context.platform.explicit_ack(qualified_offset), loop)
-    else:
-        # run the loop and wait for the coroutine to finish
-        loop.run_until_complete(context.platform.explicit_ack(qualified_offset))
-    
-    return "acked"
-```
 
 <a id="rebalancing"></a>
 ## Rebalancing
