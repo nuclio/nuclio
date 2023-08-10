@@ -1021,9 +1021,10 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 		suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
 		return true
 	}
-	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
-		suite.Require().Equal(functionName, createFunctionOptions.FunctionConfig.Meta.Name)
-		suite.Require().Equal(namespace, createFunctionOptions.FunctionConfig.Meta.Namespace)
+	verifyRedeployFunctionsOptions := func(redeployFunctionsOptions *platform.RedeployFunctionOptions) bool {
+		suite.Require().Equal(functionName, redeployFunctionsOptions.FunctionMeta.Name)
+		suite.Require().Equal(namespace, redeployFunctionsOptions.FunctionMeta.Namespace)
+		suite.Require().Equal(1*time.Minute, redeployFunctionsOptions.CreationStateUpdatedTimeout)
 		return true
 	}
 
@@ -1034,8 +1035,10 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 		Once()
 
 	suite.mockPlatform.
-		On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunction)).
-		Return(&platform.CreateFunctionResult{}, nil).
+		On("RedeployFunction",
+			mock.Anything,
+			mock.MatchedBy(verifyRedeployFunctionsOptions)).
+		Return(nil).
 		Once()
 
 	// send request
@@ -1120,25 +1123,22 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 	namespace := "some-namespace"
 
 	for _, testCase := range []struct {
-		name                 string
-		functionName         string
-		functionState        functionconfig.FunctionState
-		expectedCreateCalled bool
-		expectedStatusCode   int
+		name               string
+		functionName       string
+		functionState      functionconfig.FunctionState
+		expectedStatusCode int
 	}{
 		{
-			name:                 "importedFunction",
-			functionName:         "imported-func",
-			functionState:        functionconfig.FunctionStateImported,
-			expectedCreateCalled: true,
-			expectedStatusCode:   http.StatusAccepted,
+			name:               "importedFunction",
+			functionName:       "imported-func",
+			functionState:      functionconfig.FunctionStateImported,
+			expectedStatusCode: http.StatusAccepted,
 		},
 		{
-			name:                 "readyFunction",
-			functionName:         "ready-func",
-			functionState:        functionconfig.FunctionStateReady,
-			expectedCreateCalled: false,
-			expectedStatusCode:   http.StatusNoContent,
+			name:               "readyFunction",
+			functionName:       "ready-func",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedStatusCode: http.StatusNoContent,
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -1153,9 +1153,10 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 				suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
 				return true
 			}
-			verifyCreateFunctionOptions := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
-				suite.Require().Equal(testCase.functionName, createFunctionOptions.FunctionConfig.Meta.Name)
-				suite.Require().Equal(namespace, createFunctionOptions.FunctionConfig.Meta.Namespace)
+			verifyRedeployFunctionsOptions := func(redeployFunctionsOptions *platform.RedeployFunctionOptions) bool {
+				suite.Require().Equal(testCase.functionName, redeployFunctionsOptions.FunctionMeta.Name)
+				suite.Require().Equal(namespace, redeployFunctionsOptions.FunctionMeta.Namespace)
+				suite.Require().Equal(1*time.Minute, redeployFunctionsOptions.CreationStateUpdatedTimeout)
 				return true
 			}
 
@@ -1165,12 +1166,12 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 				Return([]platform.Function{&function}, nil).
 				Once()
 
-			if testCase.expectedCreateCalled {
-				suite.mockPlatform.
-					On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunctionOptions)).
-					Return(&platform.CreateFunctionResult{}, nil).
-					Once()
-			}
+			suite.mockPlatform.
+				On("RedeployFunction",
+					mock.Anything,
+					mock.MatchedBy(verifyRedeployFunctionsOptions)).
+				Return(nil).
+				Once()
 
 			// send request
 			requestHeaders := map[string]string{

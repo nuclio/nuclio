@@ -257,7 +257,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
 
-	// asynchronously, do the deploy so that the user doesn't wait
+	// deploy asynchronously, so that the user doesn't wait
 	go func() {
 
 		ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
@@ -501,6 +501,7 @@ func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 func (fr *functionResource) redeployFunction(request *http.Request,
 	id string,
 	authConfig *platform.AuthConfig) error {
+	ctx := request.Context()
 
 	// get function
 	function, err := fr.getFunction(request, id)
@@ -508,25 +509,28 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return errors.Wrap(err, "Failed to get get function")
 	}
 
-	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
 	importedOnly := fr.headerValueIsTrue(request, headers.ImportedFunctionOnly)
 
 	if importedOnly && function.GetStatus().State != functionconfig.FunctionStateImported {
-		fr.Logger.DebugWithCtx(request.Context(), "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
+		fr.Logger.DebugWithCtx(ctx, "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
 		return nil
 	}
 
 	fr.Logger.DebugWith("Redeploying function", "functionName", id)
 
-	// Deploy function
-	functionInfoInstance := &functionInfo{
-		Meta:   &function.GetConfig().Meta,
-		Spec:   &function.GetConfig().Spec,
-		Status: function.GetStatus(),
-	}
-
-	if responseErr := fr.storeAndDeployFunction(request, functionInfoInstance, authConfig, waitForFunction); responseErr != nil {
-		return responseErr
+	if err := fr.getPlatform().RedeployFunction(ctx, &platform.RedeployFunctionOptions{
+		FunctionMeta:               &function.GetConfig().Meta,
+		FunctionSpec:               &function.GetConfig().Spec,
+		AuthConfig:                 authConfig,
+		DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
+		AuthSession:                fr.getCtxSession(ctx),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		},
+		CreationStateUpdatedTimeout: fr.getCreationStateUpdatedTimeout(request),
+	}); err != nil {
+		return errors.Wrap(err, "Failed to redeploy function")
 	}
 
 	return nuclio.ErrAccepted

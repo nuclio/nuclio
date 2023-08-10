@@ -104,6 +104,11 @@ func (mp *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *p
 	return args.Error(0)
 }
 
+func (mp *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
+	args := mp.Called(ctx, redeployFunctionOptions)
+	return args.Error(0)
+}
+
 // CreateFunctionInvocation will invoke a previously deployed function
 func (mp *Platform) CreateFunctionInvocation(ctx context.Context, createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
 	args := mp.Called(ctx, createFunctionInvocationOptions)

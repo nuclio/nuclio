@@ -68,6 +68,9 @@ type Platform interface {
 	// DeleteFunction will delete a previously deployed function
 	DeleteFunction(ctx context.Context, deleteFunctionOptions *DeleteFunctionOptions) error
 
+	// RedeployFunction will redeploy a previously deployed function
+	RedeployFunction(ctx context.Context, redeployFunctionOptions *RedeployFunctionOptions) error
+
 	// CreateFunctionInvocation will invoke a previously deployed function
 	CreateFunctionInvocation(ctx context.Context, createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
 
