@@ -114,9 +114,6 @@ func (suite *RuntimeSuite) TestRestart() {
 
 	time.Sleep(1 * time.Second)
 
-	// set the runtime's isDrained to true, so it won't send a signal to the wrapper process
-	suite.testRuntimeInstance.isDrained = true
-
 	oldPid := suite.testRuntimeInstance.wrapperProcess.Pid
 	err = suite.testRuntimeInstance.Restart()
 	suite.Require().NoError(err, "Can't restart runtime")
@@ -208,6 +205,9 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 }
 
 func (suite *RuntimeSuite) TearDownTest() {
+	// set the runtime's isDrained to true, so it won't send a signal to the wrapper process
+	suite.testRuntimeInstance.isDrained = true
+
 	if suite.testRuntimeInstance != nil && suite.testRuntimeInstance.wrapperProcess != nil {
 		suite.testRuntimeInstance.Stop() // nolint: errcheck
 	}
