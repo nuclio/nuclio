@@ -104,7 +104,7 @@ const (
 	ExplicitAckModeExplicitOnly ExplicitAckMode = "explicitOnly"
 
 	// DefaultWorkerTerminationTimeout wait time for workers to drop or ack events before rebalance initiates
-	DefaultWorkerTerminationTimeout string = "5s"
+	DefaultWorkerTerminationTimeout string = "10s"
 )
 
 func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {

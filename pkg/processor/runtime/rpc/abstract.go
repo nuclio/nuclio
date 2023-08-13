@@ -78,6 +78,7 @@ type AbstractRuntime struct {
 	cancelHandlerChan chan struct{}
 	socketType        SocketType
 	processWaiter     *processwaiter.ProcessWaiter
+	isDrained         bool
 }
 
 type rpcLogRecord struct {
@@ -160,6 +161,12 @@ func (r *AbstractRuntime) Stop() error {
 
 	if r.wrapperProcess != nil {
 
+		// signal the wrapper process to drain events before killing it
+		// TODO: notify the process that this drain is called before killing it (and not before rebalance)
+		if err := r.Drain(); err != nil {
+			return errors.Wrap(err, "Failed to drain wrapper process")
+		}
+
 		// stop waiting for process
 		if err := r.processWaiter.Cancel(); err != nil {
 			r.Logger.WarnWith("Failed to cancel process waiting")
@@ -228,16 +235,20 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 	return false
 }
 
-// Terminate sends a signal to the runtime and waits for it to exit
-func (r *AbstractRuntime) Terminate() error {
+// Drain signals to the runtime to drain its accumulated events and waits for it to finish
+func (r *AbstractRuntime) Drain() error {
+	if r.isDrained {
+		return nil
+	}
+	r.isDrained = true
 
-	// signal and wait for process termination
-	// NOTE: SIGTERM terminates processes if they don't handle it.
-	if err := r.signal(syscall.SIGTERM); err != nil {
+	// we use SIGUSR1 to signal the wrapper process to drain events
+	if err := r.signal(syscall.SIGUSR1); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process")
 	}
 
-	// wait for process to finish or timeout
+	// wait for process to finish event handling or timeout
+	// TODO: replace the following function with one that waits for a control communication message or timeout
 	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
 
 	return nil
@@ -246,8 +257,6 @@ func (r *AbstractRuntime) Terminate() error {
 func (r *AbstractRuntime) signal(signal syscall.Signal) error {
 
 	if r.wrapperProcess != nil {
-
-		// signal wrapper to terminate
 		r.Logger.DebugWith("Signaling wrapper process",
 			"pid", r.wrapperProcess.Pid,
 			"signal", signal.String())
@@ -519,9 +528,17 @@ func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
 					errLogCounter = 0
 				}
 				if errLogCounter%5 == 0 {
-					r.Logger.WarnWith(string(common.FailedReadControlMessage), "err", err.Error())
+					r.Logger.WarnWith(string(common.FailedReadControlMessage),
+						"errRootCause", errors.RootCause(err).Error())
 					errLogCounter++
 				}
+
+				// if error is EOF it means the connection was closed, so we should exit
+				if errors.RootCause(err) == io.EOF {
+					r.Logger.Debug("Control connection was closed")
+					return
+				}
+
 				continue
 			} else {
 				errLogCounter = 0
@@ -641,6 +658,11 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 
 // waitForProcessTermination will best effort wait few seconds to stop channel, if timeout - assume closed
 func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
+	r.Logger.DebugWith("Waiting for process termination",
+		"wid", r.Context.WorkerID,
+		"process", r.wrapperProcess,
+		"timeout", timeout)
+
 	for {
 		select {
 		case <-r.stopChan:

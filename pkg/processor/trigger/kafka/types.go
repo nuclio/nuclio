@@ -137,7 +137,7 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-version", ValueString: &newConfiguration.Version},
 		{Key: "nuclio.io/kafka-secret-path", ValueString: &newConfiguration.SecretPath},
 
-		// deprecated. not in use anymore.
+		// use this to enable development logs
 		{Key: "nuclio.io/kafka-log-level", ValueInt: &newConfiguration.LogLevel},
 
 		// tls

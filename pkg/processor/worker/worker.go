@@ -18,6 +18,7 @@ package worker
 
 import (
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -43,7 +44,8 @@ type Worker struct {
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time
-	isTerminated         bool
+	isDrained            bool
+	drainedLock          sync.Mutex
 }
 
 // NewWorker creates a new worker
@@ -52,9 +54,10 @@ func NewWorker(parentLogger logger.Logger,
 	runtime runtime.Runtime) (*Worker, error) {
 
 	newWorker := Worker{
-		logger:  parentLogger,
-		index:   index,
-		runtime: runtime,
+		logger:      parentLogger,
+		index:       index,
+		runtime:     runtime,
+		drainedLock: sync.Mutex{},
 	}
 
 	// return an instance of the default worker
@@ -148,16 +151,27 @@ func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
 }
 
-func (w *Worker) Terminate() error {
-	err := w.runtime.Terminate()
+func (w *Worker) Drain() error {
+	err := w.runtime.Drain()
 	if err == nil {
-		w.isTerminated = true
+
+		w.setDrained(true)
 	}
 	return err
 }
 
-func (w *Worker) IsTerminated() bool {
-	return w.isTerminated
+func (w *Worker) IsDrained() bool {
+	w.drainedLock.Lock()
+	defer w.drainedLock.Unlock()
+
+	return w.isDrained
+}
+
+func (w *Worker) setDrained(isDrained bool) {
+	w.drainedLock.Lock()
+	defer w.drainedLock.Unlock()
+
+	w.isDrained = isDrained
 }
 
 // Subscribe subscribes to a control message kind

@@ -17,10 +17,14 @@ limitations under the License.
 package worker
 
 import (
-	"errors"
+	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errgroup"
+
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -46,6 +50,10 @@ type Allocator interface {
 
 	// GetStatistics returns worker allocator statistics
 	GetStatistics() *AllocatorStatistics
+
+	SignalDraining() error
+
+	ResetTerminationState()
 }
 
 //
@@ -95,6 +103,12 @@ func (s *singleton) GetNumWorkersAvailable() int {
 func (s *singleton) GetStatistics() *AllocatorStatistics {
 	return &s.statistics
 }
+
+func (s *singleton) SignalDraining() error {
+	return nil
+}
+
+func (s *singleton) ResetTerminationState() {}
 
 //
 // Fixed pool of workers
@@ -193,4 +207,39 @@ func (fp *fixedPool) GetNumWorkersAvailable() int {
 // GetStatistics returns worker allocator statistics
 func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
 	return &fp.statistics
+}
+
+func (fp *fixedPool) SignalDraining() error {
+	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
+
+	for _, workerInstance := range fp.GetWorkers() {
+		workerInstance := workerInstance
+
+		errGroup.Go(fmt.Sprintf("Drain worker %d", workerInstance.GetIndex()), func() error {
+
+			// if worker is not already drained, signal it to drain events
+			if !workerInstance.IsDrained() {
+				fp.logger.DebugWith("Signaling worker to drain events",
+					"workerIndex", workerInstance.GetIndex())
+				if err := workerInstance.Drain(); err != nil {
+					return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
+				}
+				fp.logger.DebugWith("Worker has drained events after signaling",
+					"workerIndex", workerInstance.GetIndex())
+			}
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		fp.logger.WarnWith("At least one worker failed to stop", "err", err.Error())
+	}
+
+	return nil
+}
+
+func (fp *fixedPool) ResetTerminationState() {
+	for _, workerInstance := range fp.GetWorkers() {
+		workerInstance.setDrained(false)
+	}
 }

@@ -356,6 +356,24 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 	return nil
 }
 
+// SignalWorkerDraining sends a signal to all workers, telling them to drop or ack events
+// that are currently being processed
+func (at *AbstractTrigger) SignalWorkerDraining(workerDrainingCompleteChan chan bool) {
+
+	// signal all workers to drain
+	if err := at.WorkerAllocator.SignalDraining(); err != nil {
+		at.Logger.WarnWith("Failed to signal all workers to drain events", "err", err.Error())
+	}
+
+	// signal draining complete
+	workerDrainingCompleteChan <- true
+}
+
+// ResetWorkerTerminationState resets the worker termination state
+func (at *AbstractTrigger) ResetWorkerTerminationState() {
+	at.WorkerAllocator.ResetTerminationState()
+}
+
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {
 
 	// if the content type starts with application/cloudevents, the body

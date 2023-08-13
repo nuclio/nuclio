@@ -76,7 +76,7 @@ func (mr *MockRuntime) SupportsRestart() bool {
 	return true
 }
 
-func (mr *MockRuntime) Terminate() error {
+func (mr *MockRuntime) Drain() error {
 	args := mr.Called()
 	return args.Error(0)
 }

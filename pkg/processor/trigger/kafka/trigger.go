@@ -20,12 +20,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
@@ -200,8 +199,11 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 		done: make(chan error),
 	}
 
+	// initialize goroutine communication channels
 	submittedEventChan := make(chan *submittedEvent)
 	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
+	workerDrainingCompleteChan := make(chan bool)
+	readyForRebalanceChan := make(chan bool)
 
 	// submit the events in a goroutine so that we can unblock immediately
 	go k.eventSubmitter(claim, submittedEventChan)
@@ -215,7 +217,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
 
-		go k.explicitAckHandler(session, explicitAckControlMessageChan)
+		go k.explicitAckHandler(session, explicitAckControlMessageChan, claim.Partition())
 	}
 
 	k.Logger.DebugWith("Starting claim consumption",
@@ -267,13 +269,32 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			// TODO: find a way to signal the workers on an imminent rebalance so they can stop gracefully
-			// since current implementation is not working (IG-21152)
-			// go k.signalWorkerTermination(workerTerminationCompleteChan)
+			// signal the worker to drain its accumulated events and wait for it to finish its work
+			go k.SignalWorkerDraining(workerDrainingCompleteChan)
 
-			//  wait a for rebalance readiness or max timeout
+			// trigger is ready for rebalance if both the handler is done and
+			// the workers are finished draining events
+			go func() {
+				var wg sync.WaitGroup
+				wg.Add(2)
+				go func() {
+					<-submittedEventInstance.done
+					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
+					wg.Done()
+				}()
+				go func() {
+					<-workerDrainingCompleteChan
+					k.Logger.DebugWith("Workers drained", "partition", claim.Partition())
+					wg.Done()
+				}()
+
+				wg.Wait()
+				readyForRebalanceChan <- true
+			}()
+
+			// wait a for rebalance readiness or max timeout
 			select {
-			case <-submittedEventInstance.done:
+			case <-readyForRebalanceChan:
 				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
@@ -302,6 +323,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
 
+	k.ResetWorkerTerminationState()
+
 	// unsubscribe channel from the streamAck control message kind before closing it
 	if err := k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
 		k.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
@@ -310,6 +333,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	// shut down goroutines and channels
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
+	close(workerDrainingCompleteChan)
+	close(readyForRebalanceChan)
 
 	return submitError
 }
@@ -532,54 +557,37 @@ func (k *kafka) resolveSCRAMClientGeneratorFunc(mechanism sarama.SASLMechanism) 
 	}
 }
 
-// signalWorkerTermination sends a SIGTERM signal to all workers, signaling them to drop or ack events
-// that are currently being processed
-func (k *kafka) signalWorkerTermination(workerTerminationCompleteChan chan bool) {
-
-	// signal all workers on re-balance
-	k.Logger.Debug("Signaling all workers to drop or ack events due to rebalance")
-
-	errGroup, _ := errgroup.WithContext(context.Background(), k.Logger)
-
-	for _, workerInstance := range k.WorkerAllocator.GetWorkers() {
-		workerInstance := workerInstance
-		if !workerInstance.IsTerminated() {
-			errGroup.Go(fmt.Sprintf("Terminating worker %d", workerInstance.GetIndex()), func() error {
-				if err := workerInstance.Terminate(); err != nil {
-					return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
-				}
-
-				return nil
-			})
-		}
-	}
-
-	if err := errGroup.Wait(); err != nil {
-		k.Logger.WarnWith("At least one worker failed to stop", "err", err.Error())
-	}
-
-	// signal termination complete
-	workerTerminationCompleteChan <- true
-}
-
 // explicitAckHandler reads offset data messages from the trigger's control channel, and marks the
 // offset accordingly
 func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
-	controlMessageChan chan *controlcommunication.ControlMessage) {
+	controlMessageChan chan *controlcommunication.ControlMessage,
+	partitionNumber int32) {
 
 	k.Logger.InfoWith("Listening for explicit ack control messages")
 
 	for streamAckControlMessage := range controlMessageChan {
-
-		k.Logger.DebugWith("Received explicit ack control message", "controlMessage", streamAckControlMessage)
 
 		// retrieve attributes from control message
 		explicitAckAttributes := &controlcommunication.ControlMessageAttributesExplicitAck{}
 
 		// decode offset data from message attributes
 		if err := mapstructure.Decode(streamAckControlMessage.Attributes, explicitAckAttributes); err != nil {
-			k.Logger.WarnWith("Failed decoding control message attributes", "err", err)
+			k.Logger.WarnWith("Failed decoding control message attributes", "err", err.Error())
 			continue
+		}
+
+		// skip the message if it is not for this partition
+		if explicitAckAttributes.Partition != partitionNumber {
+			continue
+		}
+
+		// this log is mostly for development purposes, to see that we are actually marking the offset
+		// to enable it use the "nuclio.io/kafka-log-level" annotation
+		if k.configuration.LogLevel > 5 {
+			k.Logger.InfoWith("Marking offset on explicit ack request",
+				"topic", explicitAckAttributes.Topic,
+				"partition", explicitAckAttributes.Partition,
+				"offset", explicitAckAttributes.Offset)
 		}
 
 		// mark offset

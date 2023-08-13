@@ -23,6 +23,7 @@ const (
 	WorkDirectoryDoesNotExist         ReusedMessage = "Work directory does not exist"
 	WorkDirectoryExpectedBeString     ReusedMessage = "Work directory is expected to be string"
 	FailedReadFromEventConnection     ReusedMessage = "Failed to read from event connection"
+	FailedReadFromControlConnection   ReusedMessage = "Failed to read from control connection"
 	FailedReadControlMessage          ReusedMessage = "Failed to read control message"
 )
 
