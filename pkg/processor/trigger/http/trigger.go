@@ -570,10 +570,9 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 }
 
 func (h *http) setFooHeaderIfNeeded(ctx *fasthttp.RequestCtx) {
-	if h.configuration.RuntimeConfiguration.Spec.Foo != nil {
-		ctx.Response.Header.Set("X-Nuclio-Foo", *h.configuration.RuntimeConfiguration.Spec.Foo)
-	} else if h.configuration.RuntimeConfiguration.PlatformConfig.Foo != nil {
-		ctx.Response.Header.Set("X-Nuclio-Foo", *h.configuration.RuntimeConfiguration.PlatformConfig.Foo)
+
+	if foo := h.configuration.RuntimeConfiguration.Spec.Foo; foo != nil {
+		ctx.Response.Header.Set("X-Nuclio-Foo", *foo)
 	}
 }
 

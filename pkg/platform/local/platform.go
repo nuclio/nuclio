@@ -1265,6 +1265,9 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 		functionConfig.Spec.Volumes = p.Config.Local.DefaultFunctionVolumes
 	}
 
+	if functionConfig.Spec.Foo == nil {
+		functionConfig.Spec.Foo = p.Config.Foo
+	}
 	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
