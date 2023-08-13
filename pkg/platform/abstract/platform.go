@@ -283,6 +283,10 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 		functionConfig.Spec.SecurityContext = &v1.PodSecurityContext{}
 	}
 
+	if functionConfig.Spec.Foo == nil {
+		functionConfig.Spec.Foo = ap.Config.Foo
+	}
+
 	if err := ap.enrichVolumes(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching volumes")
 	}

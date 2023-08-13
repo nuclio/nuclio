@@ -472,6 +472,11 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 		functionConfig.Spec.ServiceAccount = p.Config.Kube.DefaultFunctionServiceAccount
 	}
 
+	// enrich foo
+	if functionConfig.Spec.Foo == nil {
+		functionConfig.Spec.Foo = p.Config.Foo
+	}
+
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	return nil
 }
