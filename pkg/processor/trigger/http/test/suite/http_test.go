@@ -192,6 +192,19 @@ func (suite *HTTPTestSuite) getHTTPDeployOptions() *platform.CreateFunctionOptio
 	return createFunctionOptions
 }
 
+func (suite *HTTPTestSuite) TestFooHeader() {
+	fooValue := "fooValue"
+	suite.TestSuite.PlatformConfiguration.Foo = &fooValue
+	createFunctionOptions := suite.getHTTPDeployOptions()
+
+	suite.DeployFunctionAndRequest(createFunctionOptions, &Request{
+		ExpectedResponseHeadersValues: map[string][]string{
+			"X-Nuclio-Foo": {fooValue},
+		},
+	})
+
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return
