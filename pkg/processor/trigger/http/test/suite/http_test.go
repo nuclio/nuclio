@@ -192,30 +192,39 @@ func (suite *HTTPTestSuite) getHTTPDeployOptions() *platform.CreateFunctionOptio
 	return createFunctionOptions
 }
 
-func (suite *HTTPTestSuite) TestFooHeaderPlatformConfigValue() {
-	fooValue := "fooValue"
-	suite.TestSuite.PlatformConfiguration.Foo = &fooValue
-	createFunctionOptions := suite.getHTTPDeployOptions()
-
-	suite.DeployFunctionAndRequest(createFunctionOptions, &Request{
-		ExpectedResponseHeadersValues: map[string][]string{
-			"X-Nuclio-Foo": {fooValue},
+func (suite *HTTPTestSuite) TestFooHeader() {
+	platformFooValue := "platformFooValue"
+	functionFooValue := "functionFooValue"
+	for _, testCase := range []struct {
+		name                string
+		platformFoo         *string
+		functionFoo         *string
+		expectedHeaderValue string
+	}{
+		{
+			name:                "Value from platform config",
+			platformFoo:         &platformFooValue,
+			functionFoo:         nil,
+			expectedHeaderValue: platformFooValue,
 		},
-	})
-}
-
-func (suite *HTTPTestSuite) TestFooHeaderFunctionConfigValue() {
-	fooValue := "fooValue"
-	suite.TestSuite.PlatformConfiguration.Foo = &fooValue
-	createFunctionOptions := suite.getHTTPDeployOptions()
-	newFooValue := "newFooValue"
-	createFunctionOptions.FunctionConfig.Spec.Foo = &newFooValue
-
-	suite.DeployFunctionAndRequest(createFunctionOptions, &Request{
-		ExpectedResponseHeadersValues: map[string][]string{
-			"X-Nuclio-Foo": {newFooValue},
+		{
+			name:                "Value from function config",
+			platformFoo:         &platformFooValue,
+			functionFoo:         &functionFooValue,
+			expectedHeaderValue: functionFooValue,
 		},
-	})
+	} {
+		suite.Run(testCase.name, func() {
+			suite.TestSuite.PlatformConfiguration.Foo = testCase.platformFoo
+			createFunctionOptions := suite.getHTTPDeployOptions()
+			createFunctionOptions.FunctionConfig.Spec.Foo = testCase.functionFoo
+			suite.DeployFunctionAndRequest(createFunctionOptions, &Request{
+				ExpectedResponseHeadersValues: map[string][]string{
+					"X-Nuclio-Foo": {testCase.expectedHeaderValue},
+				},
+			})
+		})
+	}
 }
 
 func TestIntegrationSuite(t *testing.T) {
