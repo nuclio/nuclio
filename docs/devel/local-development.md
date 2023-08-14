@@ -8,6 +8,8 @@ This guide will guide you through the process of setting up Nuclio services (das
 
 - [Running Nuclio services](#running-nuclio)
 
+- [Running a function locally](#running-function)
+
 <a id="prerequisites"></a>
 ## Prerequisites
 
@@ -60,13 +62,18 @@ docker run --rm -d -p 5000:5000 registry:2
    1. In Goland - open the `dashboard-kube` run configuration. Make sure the program arguments are as follows:
    ```sh
    --platform kube --platform-config hack/env/platform_config.yaml --namespace default --registry localhost:5000 --run-registry localhost:5000 --templates-archive-address "" --templates-git-repository "https://github.com/nuclio/nuclio-templates.git"
---templates-git-ref "refs/heads/master"
    ```
-   
+   ---  
+   **_NOTE:_**
+   By default, when building a function image, the dashboard will try to pull the base image from the remote registry with the "latest" tag. 
+   If you have the base image locally you can specify the env-var: `NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES=true`
+   ---
+
    2. If you want to run a specific Nuclio version, you can add the following flags to `Go tool aruments` in the run configuration:
    ```sh
    -ldflags="-X github.com/v3io/version-go.label=<Nuclio-version>"
    ```
+      Or set the following env-var: `NUCLIO_LABEL=<Nuclio-version>`
    
    3. Run it - see that it's listening on port `8070`
    
@@ -92,3 +99,30 @@ docker run --rm -d -p 5000:5000 registry:2
    
 
 You can now perform operations on the Nuclio UI and view the dashboard and controller logs live on Goland's run console.
+
+<a id="running-function"></a>
+## Running a function locally
+
+We can also run a function locally, and debug the processor code using Goland.
+
+1. Create a function yaml file,  (This is essentially a function config, since the processor runs inside a single function.
+   e.g for a Go function: hack/env/golang.yaml file:
+   ```yaml
+   meta:
+      name: "my-func"
+      namespace: "nuclio"
+   spec:
+      runtime: golang
+      handler: nuclio:builtin
+      readinessTimeoutSeconds: 60
+      logger:
+         level: debug
+      replicas: 1
+   ```
+   
+2. Open `cmd/processor/main.go` and run the `main` function with the following run configurations:]
+   ```shell
+   --config hack/env/golang.yaml --platform-config hack/env/platform_config.yaml
+   ```
+   
+3. Run it / debug it. You can now debug the processor code, and see the function logs on the console.
