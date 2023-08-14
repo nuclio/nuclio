@@ -192,7 +192,7 @@ func (suite *HTTPTestSuite) getHTTPDeployOptions() *platform.CreateFunctionOptio
 	return createFunctionOptions
 }
 
-func (suite *HTTPTestSuite) TestFooHeader() {
+func (suite *HTTPTestSuite) TestFooHeaderPlatformConfigValue() {
 	fooValue := "fooValue"
 	suite.TestSuite.PlatformConfiguration.Foo = &fooValue
 	createFunctionOptions := suite.getHTTPDeployOptions()
@@ -202,7 +202,20 @@ func (suite *HTTPTestSuite) TestFooHeader() {
 			"X-Nuclio-Foo": {fooValue},
 		},
 	})
+}
 
+func (suite *HTTPTestSuite) TestFooHeaderFunctionConfigValue() {
+	fooValue := "fooValue"
+	suite.TestSuite.PlatformConfiguration.Foo = &fooValue
+	createFunctionOptions := suite.getHTTPDeployOptions()
+	newFooValue := "newFooValue"
+	createFunctionOptions.FunctionConfig.Spec.Foo = &newFooValue
+
+	suite.DeployFunctionAndRequest(createFunctionOptions, &Request{
+		ExpectedResponseHeadersValues: map[string][]string{
+			"X-Nuclio-Foo": {newFooValue},
+		},
+	})
 }
 
 func TestIntegrationSuite(t *testing.T) {
