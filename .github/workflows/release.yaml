@@ -213,8 +213,8 @@ jobs:
     - name: Build binaries
       run: |
         NUCLIO_OS=linux make tools
+        NUCLIO_OS=darwin make tools
         if [ $NUCLIO_ARCH == "amd64" ]; then \
-          NUCLIO_OS=darwin make tools; \
           NUCLIO_OS=windows make tools; \
         fi;
       env:
