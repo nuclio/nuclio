@@ -21,8 +21,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"path"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -195,6 +197,9 @@ func (p *Processor) Start() error {
 
 	// create a goroutine that restarts a trigger if needed
 	go p.listenOnRestartTriggerChannel()
+
+	// handles system signals (for now only SIGTERM)
+	go p.handleSignals()
 
 	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
@@ -648,4 +653,21 @@ func (p *Processor) setWorkersStatus(triggerInstance trigger.Trigger, status sta
 	}
 
 	return nil
+}
+
+// creates a sigterm handler. On SIGTERM signal gracefully shutdowns
+func (p *Processor) handleSignals() {
+	var captureSignal = make(chan os.Signal, 1)
+	signal.Notify(captureSignal, syscall.SIGTERM, syscall.SIGABRT)
+	p.actOnSignal(<-captureSignal)
+}
+
+func (p *Processor) actOnSignal(signal os.Signal) {
+	if signal == syscall.SIGTERM {
+		p.logger.WarnWith("Got SIGTERM")
+		for _, triggerInstance := range p.triggers {
+			triggerInstance.SignalWorkerDraining()
+		}
+		os.Exit(0)
+	}
 }
