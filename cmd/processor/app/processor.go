@@ -690,6 +690,7 @@ func (p *Processor) terminateAllTriggers() {
 
 	tasksCounterCheckTicker := time.NewTicker(time.Second)
 
+	// waits for all triggers to be drainer
 	for {
 		select {
 		case <-tasksCounterCheckTicker.C:
