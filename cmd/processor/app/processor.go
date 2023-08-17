@@ -24,7 +24,6 @@ import (
 	"os/signal"
 	"path"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -76,8 +75,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
 )
-
-const defaultGracefulShutdownTimeout = 30 * time.Second
 
 // Processor is responsible to process events
 type Processor struct {
@@ -658,48 +655,28 @@ func (p *Processor) setWorkersStatus(triggerInstance trigger.Trigger, status sta
 	return nil
 }
 
-// creates a signal handler, so on signal processor gracefully terminated
+// handleSignals creates a signal handler, so on signal processor gracefully terminated
 func (p *Processor) handleSignals() {
 	var captureSignal = make(chan os.Signal, 1)
 	signal.Notify(captureSignal, syscall.SIGTERM, syscall.SIGABRT, syscall.SIGINT)
-	p.actOnSignal(<-captureSignal)
+	p.terminateAllTriggers(<-captureSignal)
+	p.Stop()
 }
 
-func (p *Processor) actOnSignal(signal os.Signal) {
-	p.logger.WarnWith("", "Got system signal", signal.String())
-	p.terminateAllTriggers()
-	os.Exit(0)
-}
+func (p *Processor) terminateAllTriggers(signal os.Signal) {
+	p.logger.WarnWith("Got system signal", "signal", signal.String())
 
-func (p *Processor) terminateAllTriggers() {
-	// counter to control trigger termination
-	gracefulShutdownTimeout := time.NewTicker(defaultGracefulShutdownTimeout)
-	tasksCounter := int32(0)
+	wg := &sync.WaitGroup{}
 
 	for _, triggerInstance := range p.triggers {
 
-		// adding new task
-		atomic.AddInt32(&tasksCounter, 1)
-
-		// goroutine to drain trigger, decrements counter when it's done
-		go func(triggerInstance trigger.Trigger, counter *int32) {
-			defer atomic.AddInt32(counter, -1)
+		// goroutine to drain trigger
+		go func(triggerInstance trigger.Trigger) {
+			defer wg.Done()
+			wg.Add(1)
 			triggerInstance.SignalWorkerDraining()
-		}(triggerInstance, &tasksCounter)
+		}(triggerInstance)
 	}
-
-	tasksCounterCheckTicker := time.NewTicker(time.Second)
-
-	// waits for all triggers to be drainer
-	for {
-		select {
-		case <-tasksCounterCheckTicker.C:
-			if atomic.LoadInt32(&tasksCounter) == 0 {
-				p.logger.Info("All triggers are terminated")
-				os.Exit(0)
-			}
-		case <-gracefulShutdownTimeout.C:
-			p.logger.Warn("Processor is about to terminate, but some triggers are not drained")
-		}
-	}
+	wg.Wait()
+	p.logger.Info("All triggers are terminated")
 }
