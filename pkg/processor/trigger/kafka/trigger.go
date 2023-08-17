@@ -278,7 +278,17 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				var wg sync.WaitGroup
 				wg.Add(2)
 				go func() {
-					<-submittedEventInstance.done
+					err := <-submittedEventInstance.done
+
+					// we successfully submitted the message to the handler. mark it
+					if err == nil {
+						session.MarkOffset(
+							message.Topic,
+							message.Partition,
+							message.Offset+1-ackWindowSize,
+							"",
+						)
+					}
 					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
 					wg.Done()
 				}()
