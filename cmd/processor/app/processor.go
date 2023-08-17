@@ -669,13 +669,12 @@ func (p *Processor) terminateAllTriggers(signal os.Signal) {
 	wg := &sync.WaitGroup{}
 
 	for _, triggerInstance := range p.triggers {
-
+		wg.Add(1)
 		// goroutine to drain trigger
-		go func(triggerInstance trigger.Trigger) {
+		go func(triggerInstance trigger.Trigger, wg *sync.WaitGroup) {
 			defer wg.Done()
-			wg.Add(1)
 			triggerInstance.SignalWorkerDraining()
-		}(triggerInstance)
+		}(triggerInstance, wg)
 	}
 	wg.Wait()
 	p.logger.Info("All triggers are terminated")
