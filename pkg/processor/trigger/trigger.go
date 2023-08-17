@@ -84,6 +84,7 @@ type Trigger interface {
 	// TimeoutWorker times out a worker
 	TimeoutWorker(worker *worker.Worker) error
 
+	// SignalWorkerDraining drains all workers
 	SignalWorkerDraining()
 }
 
