@@ -64,9 +64,6 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 
 	newTestRuntime.AbstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(nil, parentLogger, nil)
 
-	// set the runtime's isDrained to true, so it won't send a signal to the wrapper process
-	newTestRuntime.isDrained = true
-
 	return newTestRuntime, nil
 }
 
@@ -208,6 +205,9 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 }
 
 func (suite *RuntimeSuite) TearDownTest() {
+	// set the runtime's isDrained to true, so it won't send a signal to the wrapper process
+	suite.testRuntimeInstance.isDrained = true
+
 	if suite.testRuntimeInstance != nil && suite.testRuntimeInstance.wrapperProcess != nil {
 		suite.testRuntimeInstance.Stop() // nolint: errcheck
 	}
