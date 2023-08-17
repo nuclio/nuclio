@@ -666,7 +666,7 @@ func (p *Processor) handleSignals() {
 }
 
 func (p *Processor) actOnSignal(signal os.Signal) {
-	p.logger.WarnWith("Got system signal", signal.String())
+	p.logger.WarnWith("", "Got system signal", signal.String())
 	p.terminateAllTriggers()
 	os.Exit(0)
 }
@@ -682,10 +682,10 @@ func (p *Processor) terminateAllTriggers() {
 		atomic.AddInt32(&tasksCounter, 1)
 
 		// goroutine to drain trigger, decrements counter when it's done
-		go func(triggerInstance trigger.Trigger, counter int32) {
-			defer atomic.AddInt32(&counter, -1)
+		go func(triggerInstance trigger.Trigger, counter *int32) {
+			defer atomic.AddInt32(counter, -1)
 			triggerInstance.SignalWorkerDraining()
-		}(triggerInstance, tasksCounter)
+		}(triggerInstance, &tasksCounter)
 	}
 
 	tasksCounterCheckTicker := time.NewTicker(time.Second)
