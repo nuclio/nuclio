@@ -63,7 +63,11 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
+	baseConfiguration, err := trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
+	if err != nil {
+		return nil, err
+	}
+	newConfiguration.Configuration = *baseConfiguration
 
 	workerAllocationModeValue := ""
 	explicitAckModeValue := ""

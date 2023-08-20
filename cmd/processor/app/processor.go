@@ -658,6 +658,10 @@ func (p *Processor) setWorkersStatus(triggerInstance trigger.Trigger, status sta
 // handleSignals creates a signal handler, so on signal processor gracefully terminated
 func (p *Processor) handleSignals() {
 	var captureSignal = make(chan os.Signal, 1)
+
+	// when k8s deletes pods, it sends SIGTERM (https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination)
+	// when docker stops container it sends SIGTERM by default (https://docs.docker.com/engine/reference/commandline/stop/)
+	// but you can specify a specific signal with a specific option, so we support SIGABRT and SIGINT as well
 	signal.Notify(captureSignal, syscall.SIGTERM, syscall.SIGABRT, syscall.SIGINT)
 	p.terminateAllTriggers(<-captureSignal)
 	p.Stop()
@@ -667,10 +671,10 @@ func (p *Processor) terminateAllTriggers(signal os.Signal) {
 	p.logger.WarnWith("Got system signal", "signal", signal.String())
 
 	wg := &sync.WaitGroup{}
-
 	for _, triggerInstance := range p.triggers {
 		wg.Add(1)
-		// goroutine to drain trigger
+
+		// drains all workers in trigger (for each trigger in parallel)
 		go func(triggerInstance trigger.Trigger, wg *sync.WaitGroup) {
 			defer wg.Done()
 			triggerInstance.SignalWorkerDraining()
