@@ -56,7 +56,7 @@ func NewConfiguration(id string,
 	// create base
 	baseConfiguration, err := trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to create trigger configuration")
 	}
 	newConfiguration.Configuration = *baseConfiguration
 
