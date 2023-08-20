@@ -725,7 +725,7 @@ func (suite *KubeTestSuite) GetPodLogs(namespace, name string, opts *v1.PodLogOp
 	if err != nil {
 		return ""
 	}
-	return string(podLogs[:])
+	return string(podLogs)
 }
 
 func (suite *KubeTestSuite) WaitMessageInPodLog(namespace, name, message string, opts *v1.PodLogOptions, numberOfRetries int) bool {
