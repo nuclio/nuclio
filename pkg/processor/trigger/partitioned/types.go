@@ -17,7 +17,6 @@ limitations under the License.
 package partitioned
 
 import (
-	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -35,7 +34,7 @@ func NewConfiguration(id string,
 	// create base
 	baseConfiguration, err := trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create trigger configuration")
+		return nil, err
 	}
 	newConfiguration.Configuration = *baseConfiguration
 
