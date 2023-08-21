@@ -731,9 +731,6 @@ func (suite *KubeTestSuite) GetPodLogs(namespace, name string, opts *v1.PodLogOp
 func (suite *KubeTestSuite) WaitMessageInPodLog(namespace, name, message string, opts *v1.PodLogOptions, maxDuration time.Duration) error {
 	return common.RetryUntilSuccessful(maxDuration, time.Second, func() bool {
 		logs := suite.GetPodLogs(namespace, name, opts)
-		if strings.Contains(logs, message) {
-			return true
-		}
-		return false
+		return strings.Contains(logs, message)
 	})
 }
