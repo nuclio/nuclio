@@ -717,3 +717,20 @@ func (suite *KubeTestSuite) CompileCreateAPIGatewayOptions(apiGatewayName string
 		},
 	}
 }
+
+func (suite *KubeTestSuite) GetPodLogs(namespace, name string, opts *v1.PodLogOptions) string {
+
+	req := suite.KubeClientSet.CoreV1().Pods(namespace).GetLogs(name, opts)
+	podLogs, err := req.Do(suite.Ctx).Raw()
+	if err != nil {
+		return ""
+	}
+	return string(podLogs)
+}
+
+func (suite *KubeTestSuite) WaitMessageInPodLog(namespace, name, message string, opts *v1.PodLogOptions, maxDuration time.Duration) error {
+	return common.RetryUntilSuccessful(maxDuration, time.Second, func() bool {
+		logs := suite.GetPodLogs(namespace, name, opts)
+		return strings.Contains(logs, message)
+	})
+}

@@ -1398,6 +1398,27 @@ def handler(context, event):
 	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
 }
 
+func (suite *DeleteFunctionTestSuite) TestProcessorShutdown() {
+	functionName := "func-to-test-processor-shutdown"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotEmpty(deployResult)
+		pods := suite.GetFunctionPods(functionName)
+		firstPod := pods[0]
+		err := suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Processor started", &v1.PodLogOptions{}, 20*time.Second)
+		suite.Require().NoError(err)
+
+		err = suite.KubeClientSet.CoreV1().Pods(firstPod.Namespace).Delete(suite.Ctx, firstPod.Name, metav1.DeleteOptions{})
+		suite.Require().NoError(err)
+
+		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "All triggers are terminated", &v1.PodLogOptions{}, 30*time.Second)
+		suite.Require().NoError(err, "triggers were not drained")
+		return true
+	})
+
+}
+
 type UpdateFunctionTestSuite struct {
 	KubeTestSuite
 }

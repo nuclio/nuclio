@@ -83,6 +83,9 @@ type Trigger interface {
 
 	// TimeoutWorker times out a worker
 	TimeoutWorker(worker *worker.Worker) error
+
+	// SignalWorkerDraining drains all workers
+	SignalWorkerDraining()
 }
 
 // AbstractTrigger implements common trigger operations
@@ -358,15 +361,12 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 
 // SignalWorkerDraining sends a signal to all workers, telling them to drop or ack events
 // that are currently being processed
-func (at *AbstractTrigger) SignalWorkerDraining(workerDrainingCompleteChan chan bool) {
+func (at *AbstractTrigger) SignalWorkerDraining() {
 
 	// signal all workers to drain
 	if err := at.WorkerAllocator.SignalDraining(); err != nil {
 		at.Logger.WarnWith("Failed to signal all workers to drain events", "err", err.Error())
 	}
-
-	// signal draining complete
-	workerDrainingCompleteChan <- true
 }
 
 // ResetWorkerTerminationState resets the worker termination state

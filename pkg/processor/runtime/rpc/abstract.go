@@ -661,7 +661,7 @@ func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 	r.Logger.DebugWith("Waiting for process termination",
 		"wid", r.Context.WorkerID,
 		"process", r.wrapperProcess,
-		"timeout", timeout)
+		"timeout", timeout.String())
 
 	for {
 		select {

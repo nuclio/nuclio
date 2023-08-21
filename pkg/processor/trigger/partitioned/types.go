@@ -28,11 +28,15 @@ type Configuration struct {
 
 func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) *Configuration {
+	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
+	baseConfiguration, err := trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
+	if err != nil {
+		return nil, err
+	}
+	newConfiguration.Configuration = *baseConfiguration
 
-	return &newConfiguration
+	return &newConfiguration, nil
 }

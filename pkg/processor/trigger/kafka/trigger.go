@@ -72,12 +72,12 @@ func newTrigger(parentLogger logger.Logger,
 
 	sarama.Logger = NewSaramaLogger(loggerInstance)
 
-	newTrigger := &kafka{
+	kafkaTrigger := &kafka{
 		configuration:       configuration,
 		stopConsumptionChan: make(chan struct{}, 1),
 	}
 
-	newTrigger.AbstractTrigger, err = trigger.NewAbstractTrigger(loggerInstance,
+	kafkaTrigger.AbstractTrigger, err = trigger.NewAbstractTrigger(loggerInstance,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
@@ -88,9 +88,9 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.New("Failed to create abstract trigger")
 	}
 
-	newTrigger.AbstractTrigger.Trigger = newTrigger
+	kafkaTrigger.AbstractTrigger.Trigger = kafkaTrigger
 
-	newTrigger.Logger.DebugWith("Creating consumer",
+	kafkaTrigger.Logger.DebugWith("Creating consumer",
 		"brokers", configuration.brokers,
 		"workerAllocationMode", configuration.WorkerAllocationMode,
 		"sessionTimeout", configuration.sessionTimeout,
@@ -107,12 +107,12 @@ func newTrigger(parentLogger logger.Logger,
 		"maxWaitHandlerDuringRebalance", configuration.maxWaitHandlerDuringRebalance,
 		"logLevel", configuration.LogLevel)
 
-	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig()
+	kafkaTrigger.kafkaConfig, err = kafkaTrigger.newKafkaConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	return newTrigger, nil
+	return kafkaTrigger, nil
 }
 
 func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
@@ -269,9 +269,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// don't consume any more messages
 			consumeMessages = false
 
-			// signal the worker to drain its accumulated events and wait for it to finish its work
-			go k.SignalWorkerDraining(workerDrainingCompleteChan)
-
 			// trigger is ready for rebalance if both the handler is done and
 			// the workers are finished draining events
 			go func() {
@@ -293,7 +290,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 					wg.Done()
 				}()
 				go func() {
-					<-workerDrainingCompleteChan
+					k.SignalWorkerDraining()
 					k.Logger.DebugWith("Workers drained", "partition", claim.Partition())
 					wg.Done()
 				}()
