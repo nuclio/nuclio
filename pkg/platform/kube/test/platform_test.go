@@ -1406,13 +1406,14 @@ func (suite *DeleteFunctionTestSuite) TestProcessorShutdown() {
 		suite.Require().NotEmpty(deployResult)
 		pods := suite.GetFunctionPods(functionName)
 		firstPod := pods[0]
-
-		suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Processor started", &v1.PodLogOptions{}, 10)
-		err := suite.KubeClientSet.CoreV1().Pods(firstPod.Namespace).Delete(suite.Ctx, firstPod.Name, metav1.DeleteOptions{})
+		err := suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Processor started", &v1.PodLogOptions{}, 20*time.Second)
 		suite.Require().NoError(err)
 
-		triggersTerminated := suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "All triggers are terminated", &v1.PodLogOptions{}, 10)
-		suite.Require().Equal(triggersTerminated, true, "triggers were not drained")
+		err = suite.KubeClientSet.CoreV1().Pods(firstPod.Namespace).Delete(suite.Ctx, firstPod.Name, metav1.DeleteOptions{})
+		suite.Require().NoError(err)
+
+		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "All triggers are terminated", &v1.PodLogOptions{}, 30*time.Second)
+		suite.Require().NoError(err, "triggers were not drained")
 		return true
 	})
 

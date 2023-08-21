@@ -728,13 +728,12 @@ func (suite *KubeTestSuite) GetPodLogs(namespace, name string, opts *v1.PodLogOp
 	return string(podLogs)
 }
 
-func (suite *KubeTestSuite) WaitMessageInPodLog(namespace, name, message string, opts *v1.PodLogOptions, numberOfRetries int) bool {
-	for i := 0; i < numberOfRetries; i++ {
+func (suite *KubeTestSuite) WaitMessageInPodLog(namespace, name, message string, opts *v1.PodLogOptions, maxDuration time.Duration) error {
+	return common.RetryUntilSuccessful(maxDuration, time.Second, func() bool {
 		logs := suite.GetPodLogs(namespace, name, opts)
 		if strings.Contains(logs, message) {
 			return true
 		}
-		time.Sleep(1 * time.Second)
-	}
-	return false
+		return false
+	})
 }
