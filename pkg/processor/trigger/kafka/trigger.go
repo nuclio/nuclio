@@ -273,7 +273,16 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 			//  wait a for rebalance readiness or max timeout
 			select {
-			case <-submittedEventInstance.done:
+			case err := <-submittedEventInstance.done:
+				// we successfully submitted the message to the handler. mark it
+				if err == nil {
+					session.MarkOffset(
+						message.Topic,
+						message.Partition,
+						message.Offset+1-ackWindowSize,
+						"",
+					)
+				}
 				k.Logger.DebugWith("Handler done, rebalancing will commence")
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
