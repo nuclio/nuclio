@@ -888,11 +888,6 @@ func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
 		// add a header that will tell the API to only deploy imported functions
 		requestHeaders[headers.ImportedFunctionOnly] = "true"
 	}
-	if d.skipSpecCleanup {
-
-		// add a header that will signal that we want to leave image info in function config
-		requestHeaders[headers.ExportWithImage] = "true"
-	}
 	return requestHeaders
 }
 
