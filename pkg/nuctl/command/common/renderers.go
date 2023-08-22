@@ -185,7 +185,8 @@ func RenderFunctionEvents(functionEvents []platform.FunctionEvent,
 
 func RenderProjects(ctx context.Context,
 	projects []platform.Project,
-	format string, writer io.Writer,
+	format string, 
+	writer io.Writer,
 	renderCallback func(ctx context.Context, functions []platform.Project, renderer func(interface{}) error) error,
 	skipSpecCleanup bool) error {
 
