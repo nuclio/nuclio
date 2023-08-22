@@ -89,8 +89,7 @@ func newExportFunctionCommandeer(ctx context.Context, exportCommandeer *exportCo
 to the standard output, in JSON or YAML format (see -o|--output)
 
 Arguments:
-  <function> (string) The name of a function to export
-  <with-image> (flag) With this flag function will be exported with image info`,
+  <function> (string) The name of a function to export`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -213,8 +212,7 @@ all its functions, function events, and API gateways) or of all projects (defaul
 to the standard output, in JSON or YAML format (see -o|--output)
 
 Arguments:
-  <project> (string) The name of a project to export
-  <with-image> (flag) With this flag functions will be exported with image info`,
+  <project> (string) The name of a project to export`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
