@@ -601,11 +601,11 @@ func (c *Config) AddSkipAnnotations() {
 	c.Meta.AddSkipDeployAnnotation()
 }
 
-func (c *Config) AddPrevStateAnnotation(status string) {
+func (c *Config) AddPrevStateAnnotation(state string) {
 	if c.Meta.Annotations == nil {
 		c.Meta.Annotations = map[string]string{}
 	}
-	c.Meta.Annotations[FunctionAnnotationPrevState] = status
+	c.Meta.Annotations[FunctionAnnotationPrevState] = state
 }
 
 func (c *Config) scrubFunctionData() {
