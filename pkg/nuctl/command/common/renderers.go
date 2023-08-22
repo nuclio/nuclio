@@ -43,7 +43,8 @@ const (
 func RenderFunctions(ctx context.Context,
 	logger logger.Logger,
 	functions []platform.Function,
-	format string, writer io.Writer,
+	format string,
+	writer io.Writer,
 	renderCallback func(functions []platform.Function, renderer func(interface{}) error, skipSpecCleanup bool) error,
 	skipSpecCleanup bool) error {
 
@@ -185,7 +186,7 @@ func RenderFunctionEvents(functionEvents []platform.FunctionEvent,
 
 func RenderProjects(ctx context.Context,
 	projects []platform.Project,
-	format string, 
+	format string,
 	writer io.Writer,
 	renderCallback func(ctx context.Context, functions []platform.Project, renderer func(interface{}) error) error,
 	skipSpecCleanup bool) error {
