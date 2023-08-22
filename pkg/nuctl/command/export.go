@@ -54,7 +54,7 @@ func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *e
 to the standard output, in JSON or YAML format`,
 	}
 
-	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
+	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", true, "Export all function data, including sensitive and unnecessary data")
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
@@ -72,6 +72,7 @@ to the standard output, in JSON or YAML format`,
 type exportFunctionCommandeer struct {
 	*exportCommandeer
 	getFunctionsOptions platform.GetFunctionsOptions
+	withImage           bool
 	output              string
 }
 
@@ -88,7 +89,8 @@ func newExportFunctionCommandeer(ctx context.Context, exportCommandeer *exportCo
 to the standard output, in JSON or YAML format (see -o|--output)
 
 Arguments:
-  <function> (string) The name of a function to export`,
+  <function> (string) The name of a function to export
+  <with-image> (flag) With this flag function will be exported with image info`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -125,10 +127,13 @@ Arguments:
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				commandeer.renderFunctionConfig)
+				commandeer.renderFunctionConfig,
+				commandeer.withImage,
+			)
 		},
 	}
 
+	cmd.Flags().BoolVarP(&commandeer.withImage, "with-image", "i", false, "Flag to export with image info")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 
 	commandeer.cmd = cmd
@@ -136,7 +141,7 @@ Arguments:
 	return commandeer
 }
 
-func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
+func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, withImage bool) error {
 	functionConfigs := map[string]*functionconfig.Config{}
 	lock := sync.Mutex{}
 	errGroup, errGroupCtx := errgroup.WithContextSemaphore(context.Background(),
@@ -161,7 +166,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			} else if err != nil {
 				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
-			functionConfig.PrepareFunctionForExport(e.noScrub)
+			functionConfig.PrepareFunctionForExport(e.noScrub, withImage)
 			lock.Lock()
 			functionConfigs[functionConfig.Meta.Name] = functionConfig
 			lock.Unlock()
@@ -190,6 +195,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 type exportProjectCommandeer struct {
 	*exportCommandeer
 	getProjectsOptions platform.GetProjectsOptions
+	withImage          bool
 	output             string
 }
 
@@ -207,7 +213,8 @@ all its functions, function events, and API gateways) or of all projects (defaul
 to the standard output, in JSON or YAML format (see -o|--output)
 
 Arguments:
-  <project> (string) The name of a project to export`,
+  <project> (string) The name of a project to export
+  <with-image> (flag) With this flag functions will be exported with image info`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -240,10 +247,11 @@ Arguments:
 			}
 
 			// render the projects
-			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
+			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig, commandeer.withImage)
 		},
 	}
 
+	cmd.Flags().BoolVarP(&commandeer.withImage, "with-image", "i", false, "Flag to export with image info")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 	commandeer.cmd = cmd
 
@@ -294,7 +302,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	return apiGatewaysMap, nil
 }
 
-func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig) (
+func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, withImage bool) (
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Namespace: projectConfig.Meta.Namespace,
@@ -331,7 +339,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
 
-		functionConfig.PrepareFunctionForExport(e.noScrub)
+		functionConfig.PrepareFunctionForExport(e.noScrub, withImage)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 
@@ -339,7 +347,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 }
 
 func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
-	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig)
+	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig, false)
 	if err != nil {
 		return nil, err
 	}

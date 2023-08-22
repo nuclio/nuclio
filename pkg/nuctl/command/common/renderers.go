@@ -40,12 +40,7 @@ const (
 	OutputFormatYAML = "yaml"
 )
 
-func RenderFunctions(ctx context.Context,
-	logger logger.Logger,
-	functions []platform.Function,
-	format string,
-	writer io.Writer,
-	renderCallback func(functions []platform.Function, renderer func(interface{}) error) error) error {
+func RenderFunctions(ctx context.Context, logger logger.Logger, functions []platform.Function, format string, writer io.Writer, renderCallback func(functions []platform.Function, renderer func(interface{}) error, withImage bool) error, withImage bool) error {
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx, logger)
 	var renderNodePort bool
@@ -123,9 +118,9 @@ func RenderFunctions(ctx context.Context,
 
 		rendererInstance.RenderTable(header, functionRecords)
 	case OutputFormatYAML:
-		return renderCallback(functions, rendererInstance.RenderYAML)
+		return renderCallback(functions, rendererInstance.RenderYAML, withImage)
 	case OutputFormatJSON:
-		return renderCallback(functions, rendererInstance.RenderJSON)
+		return renderCallback(functions, rendererInstance.RenderJSON, withImage)
 	}
 
 	return nil
@@ -183,11 +178,7 @@ func RenderFunctionEvents(functionEvents []platform.FunctionEvent,
 	return nil
 }
 
-func RenderProjects(ctx context.Context,
-	projects []platform.Project,
-	format string,
-	writer io.Writer,
-	renderCallback func(ctx context.Context, functions []platform.Project, renderer func(interface{}) error) error) error {
+func RenderProjects(ctx context.Context, projects []platform.Project, format string, writer io.Writer, renderCallback func(ctx context.Context, functions []platform.Project, renderer func(interface{}) error) error, withImage bool) error {
 
 	rendererInstance := renderer.NewRenderer(writer)
 

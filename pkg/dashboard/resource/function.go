@@ -79,13 +79,13 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
-
+	withImage := fr.getWithImageFlagFromRequest(request)
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		if exportFunction {
-			response[function.GetConfig().Meta.Name] = fr.export(ctx, function)
+			response[function.GetConfig().Meta.Name] = fr.export(ctx, function, withImage)
 		} else {
-			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
+			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function, withImage)
 		}
 	}
 
@@ -107,12 +107,12 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get get function")
 	}
-
+	withImage := fr.getWithImageFlagFromRequest(request)
 	if fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
-		return fr.export(ctx, function), nil
+		return fr.export(ctx, function, withImage), nil
 	}
 
-	return fr.functionToAttributes(function), nil
+	return fr.functionToAttributes(function, withImage), nil
 }
 
 // Create and deploy a function
@@ -230,12 +230,12 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) export(ctx context.Context, function platform.Function) restful.Attributes {
+func (fr *functionResource) export(ctx context.Context, function platform.Function, withImage bool) restful.Attributes {
 
 	functionConfig := function.GetConfig()
 
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
-	functionConfig.PrepareFunctionForExport(false)
+	functionConfig.PrepareFunctionForExport(false, withImage)
 
 	fr.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)
 
@@ -536,9 +536,11 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 	return nuclio.ErrAccepted
 }
 
-func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
+func (fr *functionResource) functionToAttributes(function platform.Function, withImage bool) restful.Attributes {
 	functionConfig := function.GetConfig()
-	functionConfig.CleanFunctionSpec()
+	if !withImage {
+		functionConfig.CleanFunctionSpec()
+	}
 
 	attributes := restful.Attributes{
 		"metadata": functionConfig.Meta,
@@ -556,6 +558,16 @@ func (fr *functionResource) getNamespaceFromRequest(request *http.Request) strin
 
 	// get the namespace provided by the user or the default namespace
 	return fr.getNamespaceOrDefault(request.Header.Get(headers.FunctionNamespace))
+}
+
+func (fr *functionResource) getWithImageFlagFromRequest(request *http.Request) bool {
+
+	// get the flag to export with/without image
+	providedHeader := request.Header.Get(headers.WithImageFlag)
+	if providedHeader == "" {
+		return false
+	}
+	return true
 }
 
 func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {

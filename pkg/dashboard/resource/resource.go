@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"net/http"
 	"strings"
 
@@ -53,6 +54,14 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 
 	// get the default namespace we were created with
 	return r.getDashboard().GetDefaultNamespace()
+}
+
+func (r *resource) getWithImageFlagFromRequest(request *http.Request) bool {
+	providedHeader := request.Header.Get(headers.WithImageFlag)
+	if providedHeader == "" {
+		return false
+	}
+	return true
 }
 
 func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthConfig, error) {
