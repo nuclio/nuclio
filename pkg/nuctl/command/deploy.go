@@ -89,7 +89,7 @@ type deployCommandeer struct {
 	noBuild                bool
 	deployAll              bool
 	waitForFunction        bool
-	withImage              bool
+	skipSpecCleanup        bool
 	outputManifest         *nuctlcommon.PatchOutputManifest
 	excludedProjects       []string
 	excludedFunctions      []string
@@ -145,7 +145,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 				}
 				if importedFunction != nil {
 					commandeer.rootCommandeer.loggerInstance.Debug("Function was already imported, deploying it")
-					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction, commandeer.withImage)
+					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction, commandeer.skipSpecCleanup)
 				}
 			}
 
@@ -219,7 +219,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 	}
 
 	addDeployFlags(cmd, commandeer)
-	cmd.Flags().BoolVarP(&commandeer.withImage, "with-image", "i", false, "Flag to leave image value in function config")
+	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "s", false, "Do not clean up spec in function configs")
 	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
 
 	commandeer.cmd = cmd
@@ -888,7 +888,7 @@ func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
 		// add a header that will tell the API to only deploy imported functions
 		requestHeaders[headers.ImportedFunctionOnly] = "true"
 	}
-	if d.withImage {
+	if d.skipSpecCleanup {
 
 		// add a header that will signal that we want to leave image info in function config
 		requestHeaders[headers.WithImageFlag] = "true"
