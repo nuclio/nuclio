@@ -233,9 +233,9 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 func (fr *functionResource) export(ctx context.Context, function platform.Function) restful.Attributes {
 
 	functionConfig := function.GetConfig()
-
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
-	functionConfig.PrepareFunctionForExport(false)
+	state := string(function.GetStatus().State)
+	functionConfig.PrepareFunctionForExport(false, state)
 
 	fr.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)
 

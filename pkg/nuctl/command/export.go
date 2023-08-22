@@ -161,7 +161,8 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			} else if err != nil {
 				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
-			functionConfig.PrepareFunctionForExport(e.noScrub)
+			state := string(function.GetStatus().State)
+			functionConfig.PrepareFunctionForExport(e.noScrub, state)
 			lock.Lock()
 			functionConfigs[functionConfig.Meta.Name] = functionConfig
 			lock.Unlock()
@@ -330,8 +331,8 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventConfig.Meta.Namespace = ""
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
-
-		functionConfig.PrepareFunctionForExport(e.noScrub)
+		state := string(function.GetStatus().State)
+		functionConfig.PrepareFunctionForExport(e.noScrub, state)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 
