@@ -190,7 +190,12 @@ func newGetProjectCommandeer(ctx context.Context, getCommandeer *getCommandeer) 
 			}
 
 			// render the projects
-			return common.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig, false)
+			return common.RenderProjects(ctx,
+				projects,
+				commandeer.output,
+				cmd.OutOrStdout(),
+				commandeer.renderProjectConfig,
+				false)
 		},
 	}
 
