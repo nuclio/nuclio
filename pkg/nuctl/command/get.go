@@ -110,10 +110,10 @@ func newGetFunctionCommandeer(ctx context.Context, getCommandeer *getCommandeer)
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				commandeer.renderFunctionConfigWithStatus,
-				false)
+				commandeer.renderFunctionConfigWithStatus)
 		},
 	}
+
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 	commandeer.cmd = cmd
@@ -122,7 +122,7 @@ func newGetFunctionCommandeer(ctx context.Context, getCommandeer *getCommandeer)
 }
 
 func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platform.Function,
-	renderer func(interface{}) error, withImage bool) error {
+	renderer func(interface{}) error) error {
 	configsWithStatus := make([]functionconfig.ConfigWithStatus, 0, len(functions))
 	for _, function := range functions {
 		functionConfigWithStatus := functionconfig.ConfigWithStatus{
@@ -190,7 +190,11 @@ func newGetProjectCommandeer(ctx context.Context, getCommandeer *getCommandeer) 
 			}
 
 			// render the projects
-			return common.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig, false)
+			return common.RenderProjects(ctx,
+				projects,
+				commandeer.output,
+				cmd.OutOrStdout(),
+				commandeer.renderProjectConfig)
 		},
 	}
 
