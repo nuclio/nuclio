@@ -564,10 +564,7 @@ func (fr *functionResource) getWithImageFlagFromRequest(request *http.Request) b
 
 	// get the flag to export with/without image
 	providedHeader := request.Header.Get(headers.WithImageFlag)
-	if providedHeader == "" {
-		return false
-	}
-	return true
+	return providedHeader != ""
 }
 
 func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {

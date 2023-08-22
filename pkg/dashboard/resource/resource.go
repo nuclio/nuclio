@@ -18,11 +18,11 @@ package resource
 
 import (
 	"context"
-	"github.com/nuclio/nuclio/pkg/common/headers"
 	"net/http"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"

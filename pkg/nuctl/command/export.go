@@ -54,7 +54,7 @@ func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *e
 to the standard output, in JSON or YAML format`,
 	}
 
-	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", true, "Export all function data, including sensitive and unnecessary data")
+	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
@@ -132,7 +132,7 @@ Arguments:
 		},
 	}
 
-	cmd.Flags().BoolVarP(&commandeer.withImage, "with-image", "i", false, "Flag to export with image info")
+	cmd.Flags().BoolVarP(&commandeer.withImage, "with-image", "i", false, "Do not clear the image info from the function spec")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 
 	commandeer.cmd = cmd
@@ -249,7 +249,7 @@ Arguments:
 		},
 	}
 
-	cmd.Flags().BoolVarP(&commandeer.withImage, "with-image", "i", false, "Flag to export with image info")
+	cmd.Flags().BoolVarP(&commandeer.withImage, "with-image", "i", false, "Do not clear the image info from the function spec")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 	commandeer.cmd = cmd
 
