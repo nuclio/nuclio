@@ -37,6 +37,7 @@ type exportCommandeer struct {
 	rootCommandeer *RootCommandeer
 	scrubber       *functionconfig.Scrubber
 	noScrub        bool
+	withImage      bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -72,7 +73,6 @@ to the standard output, in JSON or YAML format`,
 type exportFunctionCommandeer struct {
 	*exportCommandeer
 	getFunctionsOptions platform.GetFunctionsOptions
-	withImage           bool
 	output              string
 }
 
@@ -194,7 +194,6 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 type exportProjectCommandeer struct {
 	*exportCommandeer
 	getProjectsOptions platform.GetProjectsOptions
-	withImage          bool
 	output             string
 }
 
