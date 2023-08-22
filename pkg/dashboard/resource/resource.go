@@ -57,11 +57,9 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 }
 
 func (r *resource) getWithImageFlagFromRequest(request *http.Request) bool {
-	providedHeader := request.Header.Get(headers.WithImageFlag)
-	if providedHeader == "" {
-		return false
-	}
-	return true
+	// get the flag to export with/without image
+	providedHeader := request.Header.Get(headers.ExportWithImage)
+	return providedHeader != ""
 }
 
 func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthConfig, error) {

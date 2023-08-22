@@ -560,13 +560,6 @@ func (fr *functionResource) getNamespaceFromRequest(request *http.Request) strin
 	return fr.getNamespaceOrDefault(request.Header.Get(headers.FunctionNamespace))
 }
 
-func (fr *functionResource) getWithImageFlagFromRequest(request *http.Request) bool {
-
-	// get the flag to export with/without image
-	providedHeader := request.Header.Get(headers.WithImageFlag)
-	return providedHeader != ""
-}
-
 func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {
 
 	// read body

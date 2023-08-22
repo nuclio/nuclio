@@ -891,7 +891,7 @@ func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
 	if d.skipSpecCleanup {
 
 		// add a header that will signal that we want to leave image info in function config
-		requestHeaders[headers.WithImageFlag] = "true"
+		requestHeaders[headers.ExportWithImage] = "true"
 	}
 	return requestHeaders
 }
