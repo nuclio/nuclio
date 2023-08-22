@@ -577,12 +577,12 @@ func (c *Config) CleanFunctionSpec() {
 	}
 }
 
-func (c *Config) PrepareFunctionForExport(noScrub, withImage bool) {
+func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool) {
 	if !noScrub {
 		c.scrubFunctionData()
 	}
 
-	if !withImage {
+	if !skipSpecCleanup {
 		c.CleanFunctionSpec()
 	}
 

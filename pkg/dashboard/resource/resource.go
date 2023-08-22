@@ -56,9 +56,9 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 	return r.getDashboard().GetDefaultNamespace()
 }
 
-func (r *resource) getWithImageFlagFromRequest(request *http.Request) bool {
+func (r *resource) getSkipSpecCleanupFlagFromRequest(request *http.Request) bool {
 	// get the flag to export with/without image
-	providedHeader := request.Header.Get(headers.ExportWithImage)
+	providedHeader := request.Header.Get(headers.SkipSpecCleanup)
 	return providedHeader != ""
 }
 

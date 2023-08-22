@@ -44,8 +44,8 @@ func RenderFunctions(ctx context.Context,
 	logger logger.Logger,
 	functions []platform.Function,
 	format string, writer io.Writer,
-	renderCallback func(functions []platform.Function, renderer func(interface{}) error, withImage bool) error,
-	withImage bool) error {
+	renderCallback func(functions []platform.Function, renderer func(interface{}) error, skipSpecCleanup bool) error,
+	skipSpecCleanup bool) error {
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx, logger)
 	var renderNodePort bool
@@ -123,9 +123,9 @@ func RenderFunctions(ctx context.Context,
 
 		rendererInstance.RenderTable(header, functionRecords)
 	case OutputFormatYAML:
-		return renderCallback(functions, rendererInstance.RenderYAML, withImage)
+		return renderCallback(functions, rendererInstance.RenderYAML, skipSpecCleanup)
 	case OutputFormatJSON:
-		return renderCallback(functions, rendererInstance.RenderJSON, withImage)
+		return renderCallback(functions, rendererInstance.RenderJSON, skipSpecCleanup)
 	}
 
 	return nil
@@ -187,7 +187,7 @@ func RenderProjects(ctx context.Context,
 	projects []platform.Project,
 	format string, writer io.Writer,
 	renderCallback func(ctx context.Context, functions []platform.Project, renderer func(interface{}) error) error,
-	withImage bool) error {
+	skipSpecCleanup bool) error {
 
 	rendererInstance := renderer.NewRenderer(writer)
 

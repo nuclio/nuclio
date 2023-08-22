@@ -122,7 +122,7 @@ func newGetFunctionCommandeer(ctx context.Context, getCommandeer *getCommandeer)
 }
 
 func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platform.Function,
-	renderer func(interface{}) error, withImage bool) error {
+	renderer func(interface{}) error, skipSpecCleanup bool) error {
 	configsWithStatus := make([]functionconfig.ConfigWithStatus, 0, len(functions))
 	for _, function := range functions {
 		functionConfigWithStatus := functionconfig.ConfigWithStatus{
