@@ -121,7 +121,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		functionconfig.FunctionAnnotationPrevState,
 	}
 
-	// cleaning
+	// clean the irrelevant annotations from the CRD before adding resources
 	if function.ObjectMeta.Annotations != nil {
 		for _, annotation := range annotationsToClean {
 			delete(function.ObjectMeta.Annotations, annotation)
