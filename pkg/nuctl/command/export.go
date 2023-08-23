@@ -33,10 +33,11 @@ import (
 )
 
 type exportCommandeer struct {
-	cmd            *cobra.Command
-	rootCommandeer *RootCommandeer
-	scrubber       *functionconfig.Scrubber
-	noScrub        bool
+	cmd             *cobra.Command
+	rootCommandeer  *RootCommandeer
+	scrubber        *functionconfig.Scrubber
+	noScrub         bool
+	skipSpecCleanup bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -125,10 +126,13 @@ Arguments:
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				commandeer.renderFunctionConfig)
+				commandeer.renderFunctionConfig,
+				commandeer.skipSpecCleanup,
+			)
 		},
 	}
 
+	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clear the image info from the function spec")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 
 	commandeer.cmd = cmd
@@ -136,7 +140,7 @@ Arguments:
 	return commandeer
 }
 
-func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
+func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, skipSpecCleanup bool) error {
 	functionConfigs := map[string]*functionconfig.Config{}
 	lock := sync.Mutex{}
 	errGroup, errGroupCtx := errgroup.WithContextSemaphore(context.Background(),
@@ -162,7 +166,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
 			state := string(function.GetStatus().State)
-			functionConfig.PrepareFunctionForExport(e.noScrub, state)
+			functionConfig.PrepareFunctionForExport(e.noScrub, skipSpecCleanup, state)
 			lock.Lock()
 			functionConfigs[functionConfig.Meta.Name] = functionConfig
 			lock.Unlock()
@@ -241,10 +245,11 @@ Arguments:
 			}
 
 			// render the projects
-			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
+			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig, commandeer.skipSpecCleanup)
 		},
 	}
 
+	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clear the image info from the function spec")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 	commandeer.cmd = cmd
 
@@ -295,7 +300,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	return apiGatewaysMap, nil
 }
 
-func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig) (
+func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, skipSpecCleanup bool) (
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Namespace: projectConfig.Meta.Namespace,
@@ -332,7 +337,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
 		state := string(function.GetStatus().State)
-		functionConfig.PrepareFunctionForExport(e.noScrub, state)
+		functionConfig.PrepareFunctionForExport(e.noScrub, skipSpecCleanup,state)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 
@@ -340,7 +345,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 }
 
 func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
-	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig)
+	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig, false)
 	if err != nil {
 		return nil, err
 	}

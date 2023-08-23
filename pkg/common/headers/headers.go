@@ -30,6 +30,7 @@ const (
 	CreationStateUpdatedTimeout         = "X-Nuclio-Creation-State-Updated-Timeout"
 	FunctionEnrichApiGateways           = "X-Nuclio-Function-Enrich-Apigateways"
 	ImportedFunctionOnly                = "X-Nuclio-Imported-Function-Only"
+	SkipSpecCleanup                     = "X-Nuclio-Skip-Spec-Cleanup"
 
 	// Project headers
 	ProjectName           = "X-Nuclio-Project-Name"

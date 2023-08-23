@@ -79,13 +79,13 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
-
+	skipSpecCleanup := fr.getSkipSpecCleanupFlagFromRequest(request)
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		if exportFunction {
-			response[function.GetConfig().Meta.Name] = fr.export(ctx, function)
+			response[function.GetConfig().Meta.Name] = fr.export(ctx, function, skipSpecCleanup)
 		} else {
-			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
+			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function, skipSpecCleanup)
 		}
 	}
 
@@ -107,12 +107,12 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get get function")
 	}
-
+	skipSpecCleanup := fr.getSkipSpecCleanupFlagFromRequest(request)
 	if fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
-		return fr.export(ctx, function), nil
+		return fr.export(ctx, function, skipSpecCleanup), nil
 	}
 
-	return fr.functionToAttributes(function), nil
+	return fr.functionToAttributes(function, skipSpecCleanup), nil
 }
 
 // Create and deploy a function
@@ -230,12 +230,12 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) export(ctx context.Context, function platform.Function) restful.Attributes {
+func (fr *functionResource) export(ctx context.Context, function platform.Function, skipSpecCleanup bool) restful.Attributes {
 
 	functionConfig := function.GetConfig()
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
 	state := string(function.GetStatus().State)
-	functionConfig.PrepareFunctionForExport(false, state)
+	functionConfig.PrepareFunctionForExport(false, skipSpecCleanup, state)
 
 	fr.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)
 
@@ -536,9 +536,11 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 	return nuclio.ErrAccepted
 }
 
-func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
+func (fr *functionResource) functionToAttributes(function platform.Function, skipSpecCleanup bool) restful.Attributes {
 	functionConfig := function.GetConfig()
-	functionConfig.CleanFunctionSpec()
+	if !skipSpecCleanup {
+		functionConfig.CleanFunctionSpec()
+	}
 
 	attributes := restful.Attributes{
 		"metadata": functionConfig.Meta,

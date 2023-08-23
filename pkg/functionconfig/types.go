@@ -578,9 +578,13 @@ func (c *Config) CleanFunctionSpec() {
 	}
 }
 
-func (c *Config) PrepareFunctionForExport(noScrub bool, state string) {
+func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool, state string) {
 	if !noScrub {
 		c.scrubFunctionData()
+	}
+
+	if !skipSpecCleanup {
+		c.CleanFunctionSpec()
 	}
 
 	// resource version should not be exported anyway, as it's a k8s thing
@@ -609,8 +613,6 @@ func (c *Config) AddPrevStateAnnotation(state string) {
 }
 
 func (c *Config) scrubFunctionData() {
-	c.CleanFunctionSpec()
-
 	// scrub namespace from function meta
 	c.Meta.Namespace = ""
 

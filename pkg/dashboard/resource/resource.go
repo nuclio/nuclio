@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -53,6 +54,12 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 
 	// get the default namespace we were created with
 	return r.getDashboard().GetDefaultNamespace()
+}
+
+func (r *resource) getSkipSpecCleanupFlagFromRequest(request *http.Request) bool {
+	// get the flag to export with/without image
+	providedHeader := request.Header.Get(headers.SkipSpecCleanup)
+	return providedHeader != ""
 }
 
 func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthConfig, error) {

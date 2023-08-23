@@ -89,6 +89,7 @@ type deployCommandeer struct {
 	noBuild                bool
 	deployAll              bool
 	waitForFunction        bool
+	skipSpecCleanup        bool
 	outputManifest         *nuctlcommon.PatchOutputManifest
 	excludedProjects       []string
 	excludedFunctions      []string
@@ -144,7 +145,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 				}
 				if importedFunction != nil {
 					commandeer.rootCommandeer.loggerInstance.Debug("Function was already imported, deploying it")
-					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction)
+					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction, commandeer.skipSpecCleanup)
 				}
 			}
 
@@ -218,6 +219,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 	}
 
 	addDeployFlags(cmd, commandeer)
+	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clean up spec in function configs")
 	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
 
 	commandeer.cmd = cmd
@@ -372,11 +374,13 @@ func (d *deployCommandeer) getImportedFunction(ctx context.Context, functionName
 	return nil, nil
 }
 
-func (d *deployCommandeer) prepareFunctionConfigForRedeploy(importedFunction platform.Function) functionconfig.Config {
+func (d *deployCommandeer) prepareFunctionConfigForRedeploy(importedFunction platform.Function, skipSpecCleanup bool) functionconfig.Config {
 	functionConfig := importedFunction.GetConfig()
 
 	// Ensure RunRegistry is taken from the commandeer config
-	functionConfig.CleanFunctionSpec()
+	if !skipSpecCleanup {
+		functionConfig.CleanFunctionSpec()
+	}
 	functionConfig.Spec.RunRegistry = d.functionConfig.Spec.RunRegistry
 
 	return *functionConfig
