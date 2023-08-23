@@ -16,7 +16,8 @@ Ensure that your setup includes the following prerequisite components:
 
 ## Building
 
-Run `make build` to build all necessary docker images. If you change parts of the application and need to rebuild some components, you don't need to re-run `make build`: you can also re-build the components that you changed, e.g. with `make dashboard`
+Run `make build` to build all necessary docker images. 
+If you change parts of the application and need to rebuild only specific components, you don't need to re-run `make build`: you can also re-build the components that you changed, e.g. with `make dashboard` / `make controller`.
 
 ## Running
 
