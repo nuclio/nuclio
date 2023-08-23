@@ -118,7 +118,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	annotationsToClean := []string{
 		functionconfig.FunctionAnnotationForceUpdate,
-		"nuclio.io/previous-state",
+		functionconfig.FunctionAnnotationPrevState,
 	}
 
 	// cleaning

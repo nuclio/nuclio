@@ -501,6 +501,7 @@ func (s *Spec) PositiveGPUResourceLimit() bool {
 const (
 	FunctionAnnotationSkipBuild   = "skip-build"
 	FunctionAnnotationSkipDeploy  = "skip-deploy"
+	FunctionAnnotationPrevState   = "nuclio.io/previous-state"
 	FunctionAnnotationForceUpdate = "nuclio.io/force-update"
 )
 
