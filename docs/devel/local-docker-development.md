@@ -1,6 +1,9 @@
 # Development setup for running Nuclio services in docker
 
-This guide will guide you through setting up Nuclio services inside docker on your local machine. This is slower than running them locally (see [local-development.md](local-development.md)), but is easier to set up.
+This guide will guide you through running the Nuclio services locally using docker, so they will contain your changes when developing in Nuclio.
+This is helpful for testing out code changes in a docker environment before committing them.
+
+If you want to be able to debug the actual components locally, see [local-development.md](local-development.md).
 
 ## Prerequisites
 
