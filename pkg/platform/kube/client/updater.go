@@ -154,7 +154,7 @@ func (u *Updater) UpdateState(ctx context.Context, functionName, namespace strin
 	if function.Annotations == nil {
 		function.Annotations = map[string]string{}
 	}
-	function.Annotations["nuclio.io/force-update"] = strconv.Itoa(int(time.Now().UnixNano()))
+	function.Annotations[functionconfig.FunctionAnnotationForceUpdate] = strconv.Itoa(int(time.Now().UnixNano()))
 	delete(function.Annotations, functionconfig.FunctionAnnotationSkipDeploy)
 	delete(function.Annotations, functionconfig.FunctionAnnotationSkipBuild)
 

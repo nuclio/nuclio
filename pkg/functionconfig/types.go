@@ -499,8 +499,9 @@ func (s *Spec) PositiveGPUResourceLimit() bool {
 }
 
 const (
-	FunctionAnnotationSkipBuild  = "skip-build"
-	FunctionAnnotationSkipDeploy = "skip-deploy"
+	FunctionAnnotationSkipBuild   = "skip-build"
+	FunctionAnnotationSkipDeploy  = "skip-deploy"
+	FunctionAnnotationForceUpdate = "nuclio.io/force-update"
 )
 
 // Meta identifies a function

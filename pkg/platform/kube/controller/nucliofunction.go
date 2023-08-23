@@ -116,6 +116,18 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
+	annotationsToClean := []string{
+		functionconfig.FunctionAnnotationForceUpdate,
+		"nuclio.io/previous-state",
+	}
+
+	// cleaning
+	if function.ObjectMeta.Annotations != nil {
+		for _, annotation := range annotationsToClean {
+			delete(function.ObjectMeta.Annotations, annotation)
+		}
+	}
+
 	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
 	// properly configured
 	statesToRespond := []functionconfig.FunctionState{
