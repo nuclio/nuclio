@@ -28,9 +28,9 @@ roleRef:
   kind: ClusterRole
   name: {{ template "nuclio.crdAdminName" . }}-clusterrole
 subjects:
-  - kind: ServiceAccount
-    name: {{ template "nuclio.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+- kind: ServiceAccount
+  name: {{ template "nuclio.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- if eq .Values.rbac.crdAccessMode "namespaced" }}
 apiVersion: rbac.authorization.k8s.io/v1
