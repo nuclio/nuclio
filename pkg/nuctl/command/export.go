@@ -337,7 +337,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
 		state := string(function.GetStatus().State)
-		functionConfig.PrepareFunctionForExport(e.noScrub, skipSpecCleanup,state)
+		functionConfig.PrepareFunctionForExport(e.noScrub, skipSpecCleanup, state)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 
