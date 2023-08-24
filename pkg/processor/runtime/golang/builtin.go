@@ -38,3 +38,9 @@ func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, e
 
 	return "Built in handler called", nil
 }
+
+func InitContext(context *nuclio.Context) error {
+
+	// just a stub
+	return nil
+}
