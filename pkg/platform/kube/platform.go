@@ -549,6 +549,16 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 // RedeployFunction will redeploy a previously deployed function
 func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
 
+	// Check OPA permissions
+	permissionOptions := redeployFunctionOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
+	if _, err := p.QueryOPAFunctionRedeployPermissions(
+		redeployFunctionOptions.FunctionMeta.Labels[common.NuclioResourceLabelKeyProjectName],
+		redeployFunctionOptions.FunctionMeta.Name,
+		&permissionOptions); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	// update the function CRD state to waiting for resource configuration, so the controller will redeploy its resources
 	if err := p.updater.UpdateState(ctx,
 		redeployFunctionOptions.FunctionMeta.Name,
