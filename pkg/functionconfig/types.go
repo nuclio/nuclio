@@ -501,6 +501,7 @@ func (s *Spec) PositiveGPUResourceLimit() bool {
 const (
 	FunctionAnnotationSkipBuild  = "skip-build"
 	FunctionAnnotationSkipDeploy = "skip-deploy"
+	FunctionAnnotationPrevState  = "nuclio.io/previous-state"
 )
 
 // Meta identifies a function
@@ -577,7 +578,7 @@ func (c *Config) CleanFunctionSpec() {
 	}
 }
 
-func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool) {
+func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool, state string) {
 	if !noScrub {
 		c.scrubFunctionData()
 	}
@@ -590,6 +591,7 @@ func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool) {
 	c.Meta.ResourceVersion = ""
 
 	c.AddSkipAnnotations()
+	c.AddPrevStateAnnotation(state)
 }
 
 func (c *Config) AddSkipAnnotations() {
@@ -601,6 +603,13 @@ func (c *Config) AddSkipAnnotations() {
 	// add annotations for not deploying or building on import
 	c.Meta.AddSkipBuildAnnotation()
 	c.Meta.AddSkipDeployAnnotation()
+}
+
+func (c *Config) AddPrevStateAnnotation(state string) {
+	if c.Meta.Annotations == nil {
+		c.Meta.Annotations = map[string]string{}
+	}
+	c.Meta.Annotations[FunctionAnnotationPrevState] = state
 }
 
 func (c *Config) scrubFunctionData() {
