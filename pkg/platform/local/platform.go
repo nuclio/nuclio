@@ -410,6 +410,16 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 
 func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
 
+	// Check OPA permissions
+	permissionOptions := redeployFunctionOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
+	if _, err := p.QueryOPAFunctionRedeployPermissions(
+		redeployFunctionOptions.FunctionMeta.Labels[common.NuclioResourceLabelKeyProjectName],
+		redeployFunctionOptions.FunctionMeta.Name,
+		&permissionOptions); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
 	p.Logger.InfoWithCtx(ctx,
 		"Redeploying function",
 		"functionName", redeployFunctionOptions.FunctionMeta.Name)

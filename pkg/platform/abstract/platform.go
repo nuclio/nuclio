@@ -1182,6 +1182,20 @@ func (ap *Platform) QueryOPAFunctionPermissions(projectName,
 		permissionOptions)
 }
 
+func (ap *Platform) QueryOPAFunctionRedeployPermissions(projectName,
+	functionName string,
+	permissionOptions *opa.PermissionOptions) (bool, error) {
+	if projectName == "" {
+		projectName = "*"
+	}
+	if functionName == "" {
+		functionName = "*"
+	}
+	return ap.queryOPAPermissions(opa.GenerateFunctionRedeployResourceString(projectName, functionName),
+		opa.ActionCreate,
+		permissionOptions)
+}
+
 func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 	functionName,
 	functionEventName string,

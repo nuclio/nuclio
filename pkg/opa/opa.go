@@ -67,6 +67,10 @@ func GenerateFunctionResourceString(projectName, functionName string) string {
 	return fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName)
 }
 
+func GenerateFunctionRedeployResourceString(projectName, functionName string) string {
+	return fmt.Sprintf("/projects/%s/functions/%s/redeploy", projectName, functionName)
+}
+
 func GenerateFunctionEventResourceString(projectName, functionName, functionEventName string) string {
 	return fmt.Sprintf("/projects/%s/functions/%s/function-events/%s", projectName, functionName, functionEventName)
 }
