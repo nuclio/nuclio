@@ -186,7 +186,7 @@ push-docker-images: print-docker-images
 .PHONY: save-docker-images
 save-docker-images: print-docker-images
 	@echo "Saving Nuclio docker images"
-	docker save $(IMAGES_TO_PUSH) | pigz --fast > nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
+	docker save $(IMAGES_TO_PUSH) | gzip --fast > nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
 
 .PHONY: load-docker-images
 load-docker-images: print-docker-images
