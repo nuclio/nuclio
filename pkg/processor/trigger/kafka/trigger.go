@@ -272,6 +272,13 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// trigger is ready for rebalance if both the handler is done and
 			// the workers are finished draining events
 			go func() {
+				defer common.CatchAndLogPanicWithOptions(k.ctx, // nolint: errcheck
+					k.Logger,
+					"Recover from panic after trying to write into channel, which was closed because of wait for rebalance timeout",
+					&common.CatchAndLogPanicOptions{
+						Args:          nil,
+						CustomHandler: nil,
+					})
 				var wg sync.WaitGroup
 				wg.Add(2)
 				go func() {
