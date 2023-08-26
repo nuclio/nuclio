@@ -93,6 +93,7 @@ type BlastConfiguration struct {
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
 	var err error
+	common.SetVersionFromEnv()
 
 	if suite.RuntimeDir == "" {
 		suite.RuntimeDir = suite.Runtime
