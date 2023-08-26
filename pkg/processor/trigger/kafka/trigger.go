@@ -404,6 +404,13 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 func (k *kafka) cancelEventHandling(workerInstance *worker.Worker,
 	claim sarama.ConsumerGroupClaim) error {
 	if workerInstance.SupportsRestart() {
+
+		k.Logger.WarnWith("Cancelling event handling",
+			"topic", claim.Topic(),
+			"partition", claim.Partition())
+		if err := workerInstance.Drain(); err != nil {
+			return errors.Wrap(err, "Failed to drain worker")
+		}
 		return workerInstance.Restart()
 	}
 
