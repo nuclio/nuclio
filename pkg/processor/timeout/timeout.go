@@ -136,7 +136,7 @@ func (w EventTimeoutWatcher) gracefulShutdown(ctx context.Context, timedoutWorke
 	w.logger.WarnWithCtx(ctx, "Stopping triggers")
 	runningWorkers := w.stopTriggers(ctx, timedoutWorker)
 
-	w.logger.WarnWithCtx(ctx, "waiting for workers termination")
+	w.logger.WarnWithCtx(ctx, "Waiting for workers termination")
 	w.waitForWorkers(ctx, runningWorkers)
 
 	w.logger.WarnWithCtx(ctx, "Stopping processor")
@@ -157,7 +157,10 @@ func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker *w
 		triggerErrGroup.Go("Stop trigger", func() error {
 
 			if checkpoint, err := triggerInstance.Stop(false); err != nil {
-				w.logger.ErrorWithCtx(triggerErrGroupCtx, "Can't stop trigger", "triggerIdx", triggerIdx, "error", err)
+				w.logger.ErrorWithCtx(triggerErrGroupCtx,
+					"Can't stop trigger",
+					"triggerIdx", triggerIdx,
+					"error", err)
 			} else {
 				checkpointValue := ""
 				if checkpoint != nil {
