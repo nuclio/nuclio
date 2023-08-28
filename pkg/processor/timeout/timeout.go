@@ -68,7 +68,6 @@ func (w EventTimeoutWatcher) watch() {
 		// create error group
 		triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(context.Background(), w.logger)
 
-		// TODO: Run in parallel
 		for triggerName, triggerInstance := range w.processor.GetTriggers() {
 			triggerName, triggerInstance := triggerName, triggerInstance
 
@@ -98,7 +97,13 @@ func (w EventTimeoutWatcher) watch() {
 							"elapsed", elapsedTime,
 						}
 
-						// if the worker can be restarted, restart it. otherwise time it out
+						if err := triggerInstance.TimeoutWorker(workerInstance); err != nil {
+							w.logger.WarnWithCtx(workerErrGroupCtx,
+								"Error timing out a worker",
+								with...)
+						}
+
+						// if the worker can be restarted, restart it. otherwise shut it completely
 						if workerInstance.SupportsRestart() {
 							w.logger.InfoWithCtx(workerErrGroupCtx, "Restarting worker due to timeout", with...)
 							if err := workerInstance.Restart(); err != nil {
@@ -106,10 +111,7 @@ func (w EventTimeoutWatcher) watch() {
 								w.logger.ErrorWithCtx(workerErrGroupCtx, "Can't restart worker", with...)
 							}
 						} else {
-							if err := triggerInstance.TimeoutWorker(workerInstance); err != nil {
-								w.logger.WarnWithCtx(workerErrGroupCtx, "Error timing out a worker", "worker", workerInstance.GetIndex(), "trigger", triggerName)
-							}
-							w.gracefulShutdown(workerInstance)
+							w.gracefulShutdown(triggerErrGroupCtx, workerInstance)
 						}
 
 						return nil
@@ -126,21 +128,28 @@ func (w EventTimeoutWatcher) watch() {
 	}
 }
 
-func (w EventTimeoutWatcher) gracefulShutdown(timedoutWorker *worker.Worker) {
-	w.logger.WarnWith("Staring graceful shutdown")
+func (w EventTimeoutWatcher) gracefulShutdown(ctx context.Context, timedoutWorker *worker.Worker) {
+	w.logger.WarnWithCtx(ctx, "Staring graceful shutdown")
 
 	w.shuttingDown = true
 
-	runningWorkers := w.stopTriggers(timedoutWorker)
-	w.waitForWorkers(runningWorkers)
+	w.logger.WarnWithCtx(ctx, "Stopping triggers")
+	runningWorkers := w.stopTriggers(ctx, timedoutWorker)
+
+	w.logger.WarnWithCtx(ctx, "Waiting for workers termination")
+	w.waitForWorkers(ctx, runningWorkers)
+
+	w.logger.WarnWithCtx(ctx, "Stopping processor")
 	w.processor.Stop()
+
+	w.logger.WarnWithCtx(ctx, "Graceful shutdown completed")
 }
 
-func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[string]*worker.Worker {
+func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker *worker.Worker) map[string]*worker.Worker {
 	runningWorkers := make(map[string]*worker.Worker)
 
 	// create error group
-	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(context.Background(), w.logger)
+	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx, w.logger)
 
 	for triggerIdx, triggerInstance := range w.processor.GetTriggers() {
 		triggerIdx, triggerInstance := triggerIdx, triggerInstance
@@ -148,7 +157,10 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 		triggerErrGroup.Go("Stop trigger", func() error {
 
 			if checkpoint, err := triggerInstance.Stop(false); err != nil {
-				w.logger.ErrorWithCtx(triggerErrGroupCtx, "Can't stop trigger", "triggerIdx", triggerIdx, "error", err)
+				w.logger.ErrorWithCtx(triggerErrGroupCtx,
+					"Can't stop trigger",
+					"triggerIdx", triggerIdx,
+					"error", err)
 			} else {
 				checkpointValue := ""
 				if checkpoint != nil {
@@ -178,25 +190,31 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 	}
 
 	if err := triggerErrGroup.Wait(); err != nil {
-		w.logger.WarnWithCtx(triggerErrGroupCtx, "Failed to wait for triggers", "err", errors.GetErrorStackString(err, 10))
+		w.logger.WarnWithCtx(triggerErrGroupCtx,
+			"Failed to wait for triggers",
+			"err", errors.GetErrorStackString(err, 10))
 	}
 
 	return runningWorkers
 }
 
-func (w EventTimeoutWatcher) waitForWorkers(runningWorkers map[string]*worker.Worker) {
+func (w EventTimeoutWatcher) waitForWorkers(ctx context.Context, runningWorkers map[string]*worker.Worker) {
 	// TODO: Find a better deadline
 	shutdownDuration := 10 * w.timeout
 	deadline := time.Now().Add(shutdownDuration)
 
 	for {
+
+		// we're done
 		if len(runningWorkers) == 0 {
 			return
 		}
 
 		now := time.Now()
 		if now.After(deadline) {
-			w.logger.WarnWith("Graceful shutdown deadline reached", "duration", shutdownDuration)
+			w.logger.WarnWithCtx(ctx,
+				"Graceful shutdown deadline reached",
+				"duration", shutdownDuration)
 			return
 		}
 
@@ -208,7 +226,9 @@ func (w EventTimeoutWatcher) waitForWorkers(runningWorkers map[string]*worker.Wo
 			}
 
 			if now.Sub(*eventTime) > w.timeout {
-				w.logger.WarnWith("Worker timed out", "worker", key)
+				w.logger.WarnWithCtx(ctx,
+					"Worker timed out",
+					"worker", key)
 				delete(runningWorkers, key)
 				continue
 			}
