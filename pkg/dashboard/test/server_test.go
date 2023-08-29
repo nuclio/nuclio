@@ -86,7 +86,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		suite.mockPlatform.GetContainerBuilderKind(),
 		"",
 		"",
-		"", "",
+		"",
 		suite.mockPlatform,
 		true,
 		&platformconfig.WebServer{Enabled: &trueValue},

@@ -429,7 +429,7 @@ registry:
   # `onCluster` - for an internal app-node registry
   # `offCluster` - for an external registry
   # empty value is also supported
-  kind: "onCluster"
+  kind: ""
 
 rbac:
 
