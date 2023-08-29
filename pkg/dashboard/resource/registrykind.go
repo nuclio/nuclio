@@ -17,9 +17,10 @@ limitations under the License.
 package resource
 
 import (
+	"net/http"
+
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/restful"
-	"net/http"
 )
 
 type registryKind struct {
