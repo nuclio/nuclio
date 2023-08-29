@@ -201,6 +201,9 @@ type Platform interface {
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string
 
+	// GetRegistryKind returns platform registry kind
+	GetRegistryKind() string
+
 	// GetFunctionSecrets returns all the function's secrets
 	GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]FunctionSecret, error)
 

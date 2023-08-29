@@ -95,6 +95,10 @@ func (d *Docker) GetDefaultRegistryCredentialsSecretName() string {
 	return d.builderConfiguration.DefaultRegistryCredentialsSecretName
 }
 
+func (d *Docker) GetRegistryKind() string {
+	return d.builderConfiguration.RegistryKind
+}
+
 func (d *Docker) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifact) (map[string]string, error) {
 
 	// maps between a _relative_ path in staging to the path in the image

@@ -65,6 +65,7 @@ type ContainerBuilderConfiguration struct {
 	DefaultRegistryCredentialsSecretName string
 	DefaultBaseRegistryURL               string
 	DefaultOnbuildRegistryURL            string
+	RegistryKind                         string
 	DefaultServiceAccount                string
 	CacheRepo                            string
 	InsecurePushRegistry                 bool
@@ -114,6 +115,9 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 
 	containerBuilderConfiguration.DefaultRegistryCredentialsSecretName =
 		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")
+
+	containerBuilderConfiguration.RegistryKind =
+		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_KIND", "")
 
 	if containerBuilderConfiguration.DefaultBaseRegistryURL == "" {
 		containerBuilderConfiguration.DefaultBaseRegistryURL =
