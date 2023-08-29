@@ -19,6 +19,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -107,7 +108,9 @@ func (s *singleton) SignalDraining() error {
 	return s.worker.Drain()
 }
 
-func (s *singleton) ResetTerminationState() {}
+func (s *singleton) ResetTerminationState() {
+	s.worker.setDrained(false)
+}
 
 //
 // Fixed pool of workers
@@ -122,6 +125,7 @@ type fixedPool struct {
 	logger     logger.Logger
 	workerChan chan *Worker
 	workers    []*Worker
+	drainLock  sync.Locker
 }
 
 func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (Allocator, error) {
@@ -131,6 +135,7 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 		workerChan: make(chan *Worker, len(workers)),
 		workers:    workers,
 		statistics: AllocatorStatistics{},
+		drainLock:  &sync.Mutex{},
 	}
 
 	// iterate over workers, shove to pool
@@ -209,12 +214,16 @@ func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
 func (fp *fixedPool) SignalDraining() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
 
+	// allow only one drain at a time
+	fp.drainLock.Lock()
+	defer fp.drainLock.Unlock()
+
 	for _, workerInstance := range fp.GetWorkers() {
 		workerInstance := workerInstance
 
 		errGroup.Go(fmt.Sprintf("Drain worker %d", workerInstance.GetIndex()), func() error {
 
-			// if worker is not already drained, signal it to drain events
+			// drain worker once
 			if !workerInstance.IsDrained() {
 				fp.logger.DebugWith("Signaling worker to drain events",
 					"workerIndex", workerInstance.GetIndex())
