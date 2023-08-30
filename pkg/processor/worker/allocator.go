@@ -107,7 +107,9 @@ func (s *singleton) SignalDraining() error {
 	return s.worker.Drain()
 }
 
-func (s *singleton) ResetTerminationState() {}
+func (s *singleton) ResetTerminationState() {
+	s.worker.setDrained(false)
+}
 
 //
 // Fixed pool of workers
@@ -213,17 +215,12 @@ func (fp *fixedPool) SignalDraining() error {
 		workerInstance := workerInstance
 
 		errGroup.Go(fmt.Sprintf("Drain worker %d", workerInstance.GetIndex()), func() error {
-
 			// if worker is not already drained, signal it to drain events
-			if !workerInstance.IsDrained() {
-				fp.logger.DebugWith("Signaling worker to drain events",
-					"workerIndex", workerInstance.GetIndex())
-				if err := workerInstance.Drain(); err != nil {
-					return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
-				}
-				fp.logger.DebugWith("Worker has drained events after signaling",
-					"workerIndex", workerInstance.GetIndex())
+			if err := workerInstance.Drain(); err != nil {
+				return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
 			}
+			fp.logger.DebugWith("Worker has drained events after signaling",
+				"workerIndex", workerInstance.GetIndex())
 			return nil
 		})
 	}
