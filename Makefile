@@ -780,7 +780,7 @@ test-k8s-functional:
 
 .PHONY: build-test
 build-test: build-builder
-	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.24.11)
+	$(eval NUCLIO_TEST_KUBECTL_CLI_VERSION ?= v1.27.5)
 	$(eval NUCLIO_TEST_KUBECTL_CLI_ARCH ?= $(if $(filter $(NUCLIO_ARCH),amd64),amd64,arm64))
 	docker build \
         --build-arg GOARCH=$(NUCLIO_ARCH) \

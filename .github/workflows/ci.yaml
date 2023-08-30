@@ -187,10 +187,10 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@v2.7.1
+      - uses: manusa/actions-setup-minikube@v2.7.2
         with:
-          minikube version: "v1.29.0"
-          kubernetes version: "v1.24.11"
+          minikube version: "v1.31.2"
+          kubernetes version: "v1.27.5"
           driver: docker
           github token: ${{ github.token }}
           start args: "--addons registry --addons ingress"
@@ -314,10 +314,10 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@v2.7.1
+      - uses: manusa/actions-setup-minikube@v2.7.2
         with:
-          minikube version: "v1.29.0"
-          kubernetes version: "v1.24.11"
+          minikube version: "v1.31.2"
+          kubernetes version: "v1.27.5"
           driver: docker
           github token: ${{ github.token }}
           start args: "--addons registry --addons ingress"
