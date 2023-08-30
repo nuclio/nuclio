@@ -56,7 +56,7 @@ func (suite *TimeoutTestSuite) TestTimeout() {
 		{
 			Name:                       "handler timeout",
 			RequestBody:                "",
-			ExpectedResponseBody:       "Failed waiting for function execution",
+			ExpectedResponseBody:       `{"error": "handler timed out"}`,
 			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
 		{
