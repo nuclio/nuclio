@@ -216,7 +216,7 @@ func (fp *fixedPool) SignalDraining() error {
 
 		errGroup.Go(fmt.Sprintf("Drain worker %d", workerInstance.GetIndex()), func() error {
 			// if worker is not already drained, signal it to drain events
-			err := workerInstance.DrainIfNotDrained()
+			err := workerInstance.Drain()
 			if err != nil {
 				return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
 			}
