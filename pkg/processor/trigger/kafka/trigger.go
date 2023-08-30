@@ -299,7 +299,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 				go func() {
 
 					// this needs to occur once. the reason is that this specific function (ConsumeClaim)
-					// would run in parallel for each partition, and we want to make sure that we only
+					// runs in parallel for each partition, and we want to make sure that we only
 					// drain the workers once.
 					k.SignalWorkerDraining()
 					k.Logger.DebugWith("Workers drained", "partition", claim.Partition())
