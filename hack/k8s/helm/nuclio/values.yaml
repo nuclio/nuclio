@@ -425,6 +425,12 @@ registry:
   # specified registry URL and not from the default registries
   dependantImageRegistryURL: ""
 
+  # Use this option to let the system know which registry type is being used. Possible value are:
+  # `onCluster` - for an internal app-node registry
+  # `offCluster` - for an external registry
+  # empty value is also supported
+  kind: ""
+
 rbac:
 
   # If true, creates the necessary roles and role bindings for nuclio's service account

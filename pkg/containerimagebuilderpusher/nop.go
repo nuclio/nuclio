@@ -55,6 +55,10 @@ func (n Nop) GetBaseImageRegistry(registry string) string {
 	return ""
 }
 
+func (n Nop) GetRegistryKind() string {
+	return ""
+}
+
 func (n Nop) GetOnbuildImageRegistry(registry string) string {
 	return ""
 }
