@@ -102,8 +102,8 @@ else
 	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:14.21
 endif
 
-NUCLIO_BASE_IMAGE_TAG ?= 1.19
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.19-alpine3.17
+NUCLIO_BASE_IMAGE_TAG ?= 1.21
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.21-alpine3.17
 
 #
 #  Must be first target
