@@ -34,6 +34,9 @@ type BuildOptions struct {
 	TempDir                 string
 	DockerfileInfo          *runtime.ProcessorDockerfileInfo
 	NoCache                 bool
+	InsecurePushRegistry    *bool
+	InsecurePullRegistry    *bool
+	SkipTlsVerify           *bool
 	Pull                    bool
 	NoBaseImagePull         bool
 	BuildArgs               map[string]string
@@ -69,6 +72,7 @@ type ContainerBuilderConfiguration struct {
 	CacheRepo                            string
 	InsecurePushRegistry                 bool
 	InsecurePullRegistry                 bool
+	SkipTlsVerify                        bool
 	PushImagesRetries                    int
 	ImageFSExtractionRetries             int
 }
@@ -111,7 +115,8 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 		common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PUSH_REGISTRY", false)
 	containerBuilderConfiguration.InsecurePullRegistry =
 		common.GetEnvOrDefaultBool("NUCLIO_KANIKO_INSECURE_PULL_REGISTRY", false)
-
+	containerBuilderConfiguration.SkipTlsVerify =
+		common.GetEnvOrDefaultBool("NUCLIO_KANIKO_SKIP_TLS_VERIFY", false)
 	containerBuilderConfiguration.DefaultRegistryCredentialsSecretName =
 		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")
 

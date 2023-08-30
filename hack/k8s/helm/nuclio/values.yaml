@@ -150,6 +150,9 @@ dashboard:
     # Set this flag to pull images from a plain HTTP registry
     insecurePullRegistry: false
 
+    # Set this flag to skip tls check (for self-signed docker-registries)
+    skipTlsVerify: false
+
     image:
       repository: gcr.io/kaniko-project/executor
       tag: v1.9.0

@@ -261,12 +261,26 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 	if !buildOptions.NoCache {
 		buildArgs = append(buildArgs, "--cache=true")
 	}
-
-	if k.builderConfiguration.InsecurePushRegistry {
+	// firstly look for option specified in build options (which comes from function config)
+	// if not specified, check builderConfiguration (common for all kaniko builds aka default)
+	if buildOptions.InsecurePushRegistry != nil && *buildOptions.InsecurePushRegistry {
+		buildArgs = append(buildArgs, "--insecure")
+	} else if k.builderConfiguration.InsecurePushRegistry {
 		buildArgs = append(buildArgs, "--insecure")
 	}
-	if k.builderConfiguration.InsecurePullRegistry {
+
+	if buildOptions.InsecurePullRegistry != nil && *buildOptions.InsecurePullRegistry {
 		buildArgs = append(buildArgs, "--insecure-pull")
+	} else if k.builderConfiguration.InsecurePullRegistry {
+		buildArgs = append(buildArgs, "--insecure-pull")
+	}
+
+	if buildOptions.SkipTlsVerify != nil {
+		if *buildOptions.SkipTlsVerify {
+			buildArgs = append(buildArgs, "--skip-tls-verify")
+		}
+	} else if k.builderConfiguration.SkipTlsVerify {
+		buildArgs = append(buildArgs, "--skip-tls-verify")
 	}
 
 	if k.builderConfiguration.CacheRepo != "" {

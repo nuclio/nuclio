@@ -138,6 +138,10 @@ spec:
         - name: NUCLIO_KANIKO_INSECURE_PULL_REGISTRY
           value: "true"
         {{- end }}
+        {{- if .Values.dashboard.kaniko.skipTlsVerify }}
+        - name: NUCLIO_KANIKO_SKIP_TLS_VERIFY
+          value: "true"
+        {{- end }}
         {{- if .Values.registry.defaultBaseRegistryURL }}
         - name: NUCLIO_DASHBOARD_DEFAULT_BASE_REGISTRY_URL
           value: {{ .Values.registry.defaultBaseRegistryURL }}

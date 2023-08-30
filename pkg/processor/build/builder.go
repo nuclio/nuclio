@@ -1074,15 +1074,18 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 
 			// Conjunct Pull with NoCache
 			// To ensure that when forcing a function build, the base images would be pulled as well.
-			Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
-			NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
-			NoBaseImagePull:     b.GetNoBaseImagePull(),
-			BuildArgs:           buildArgs,
-			RegistryURL:         registryURL,
-			RepoName:            b.resolveRepoName(registryURL),
-			SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
-			OutputImageFile:     b.options.OutputImageFile,
-			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
+			Pull:                 b.options.FunctionConfig.Spec.Build.NoCache,
+			InsecurePullRegistry: b.options.FunctionConfig.Spec.Build.InsecurePullRegistry,
+			InsecurePushRegistry: b.options.FunctionConfig.Spec.Build.InsecurePushRegistry,
+			SkipTlsVerify:        b.options.FunctionConfig.Spec.Build.SkipTlsVerify,
+			NoCache:              b.options.FunctionConfig.Spec.Build.NoCache,
+			NoBaseImagePull:      b.GetNoBaseImagePull(),
+			BuildArgs:            buildArgs,
+			RegistryURL:          registryURL,
+			RepoName:             b.resolveRepoName(registryURL),
+			SecretName:           b.options.FunctionConfig.Spec.ImagePullSecrets,
+			OutputImageFile:      b.options.OutputImageFile,
+			BuildTimeoutSeconds:  b.resolveBuildTimeoutSeconds(),
 
 			// kaniko pod attributes
 			NodeSelector:           b.options.FunctionConfig.Spec.NodeSelector,

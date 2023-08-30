@@ -300,6 +300,9 @@ type Build struct {
 	Image                 string                 `json:"image,omitempty"`
 	NoBaseImagesPull      bool                   `json:"noBaseImagesPull,omitempty"`
 	NoCache               bool                   `json:"noCache,omitempty"`
+	InsecurePushRegistry  *bool                  `json:"insecurePushRegistry,omitempty"`
+	InsecurePullRegistry  *bool                  `json:"insecurePullRegistry,omitempty"`
+	SkipTlsVerify         *bool                  `json:"skipTlsVerify,omitempty"`
 	NoCleanup             bool                   `json:"noCleanup,omitempty"`
 	BaseImage             string                 `json:"baseImage,omitempty"`
 	Commands              []string               `json:"commands,omitempty"`
