@@ -167,6 +167,20 @@ func (w *Worker) IsDrained() bool {
 	return w.isDrained
 }
 
+func (w *Worker) DrainIfNotDrained() error {
+	w.drainedLock.Lock()
+	defer w.drainedLock.Unlock()
+
+	if !w.isDrained {
+		err := w.runtime.Drain()
+		if err == nil {
+			w.isDrained = true
+		}
+		return err
+	}
+	return nil
+}
+
 func (w *Worker) setDrained(isDrained bool) {
 	w.drainedLock.Lock()
 	defer w.drainedLock.Unlock()

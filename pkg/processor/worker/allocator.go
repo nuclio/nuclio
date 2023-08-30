@@ -19,7 +19,6 @@ package worker
 import (
 	"context"
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -125,7 +124,6 @@ type fixedPool struct {
 	logger     logger.Logger
 	workerChan chan *Worker
 	workers    []*Worker
-	drainLock  sync.Locker
 }
 
 func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (Allocator, error) {
@@ -135,7 +133,6 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 		workerChan: make(chan *Worker, len(workers)),
 		workers:    workers,
 		statistics: AllocatorStatistics{},
-		drainLock:  &sync.Mutex{},
 	}
 
 	// iterate over workers, shove to pool
@@ -214,25 +211,17 @@ func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
 func (fp *fixedPool) SignalDraining() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
 
-	// allow only one drain at a time
-	fp.drainLock.Lock()
-	defer fp.drainLock.Unlock()
-
 	for _, workerInstance := range fp.GetWorkers() {
 		workerInstance := workerInstance
 
 		errGroup.Go(fmt.Sprintf("Drain worker %d", workerInstance.GetIndex()), func() error {
-
-			// drain worker once
-			if !workerInstance.IsDrained() {
-				fp.logger.DebugWith("Signaling worker to drain events",
-					"workerIndex", workerInstance.GetIndex())
-				if err := workerInstance.Drain(); err != nil {
-					return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
-				}
-				fp.logger.DebugWith("Worker has drained events after signaling",
-					"workerIndex", workerInstance.GetIndex())
+			// if worker is not already drained, signal it to drain events
+			err := workerInstance.DrainIfNotDrained()
+			if err != nil {
+				return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
 			}
+			fp.logger.DebugWith("Worker has drained events after signaling",
+				"workerIndex", workerInstance.GetIndex())
 			return nil
 		})
 	}
