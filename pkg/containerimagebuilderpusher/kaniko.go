@@ -263,23 +263,18 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 	}
 	// firstly look for option specified in build options (which comes from function config)
 	// if not specified, check builderConfiguration (common for all kaniko builds aka default)
-	if buildOptions.InsecurePushRegistry != nil && *buildOptions.InsecurePushRegistry {
-		buildArgs = append(buildArgs, "--insecure")
-	} else if k.builderConfiguration.InsecurePushRegistry {
+	if buildOptions.InsecurePushRegistry != nil && *buildOptions.InsecurePushRegistry ||
+		buildOptions.InsecurePushRegistry == nil && k.builderConfiguration.InsecurePushRegistry {
 		buildArgs = append(buildArgs, "--insecure")
 	}
 
-	if buildOptions.InsecurePullRegistry != nil && *buildOptions.InsecurePullRegistry {
-		buildArgs = append(buildArgs, "--insecure-pull")
-	} else if k.builderConfiguration.InsecurePullRegistry {
+	if buildOptions.InsecurePullRegistry != nil && *buildOptions.InsecurePullRegistry ||
+		buildOptions.InsecurePullRegistry == nil && k.builderConfiguration.InsecurePullRegistry {
 		buildArgs = append(buildArgs, "--insecure-pull")
 	}
 
-	if buildOptions.SkipTlsVerify != nil {
-		if *buildOptions.SkipTlsVerify {
-			buildArgs = append(buildArgs, "--skip-tls-verify")
-		}
-	} else if k.builderConfiguration.SkipTlsVerify {
+	if buildOptions.SkipTlsVerify != nil && *buildOptions.SkipTlsVerify ||
+		buildOptions.SkipTlsVerify == nil && k.builderConfiguration.SkipTlsVerify {
 		buildArgs = append(buildArgs, "--skip-tls-verify")
 	}
 
