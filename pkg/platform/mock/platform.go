@@ -324,6 +324,10 @@ func (mp *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Run
 	return "", nil
 }
 
+func (mp *Platform) GetRegistryKind() string {
+	return ""
+}
+
 func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {
 	return "nuclio-registry-credentials"
 }

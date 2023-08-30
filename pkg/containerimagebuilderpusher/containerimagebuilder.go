@@ -43,6 +43,9 @@ type BuilderPusher interface {
 	// GetOnbuildImageRegistry returns onbuild base registry
 	GetOnbuildImageRegistry(registry string) string
 
+	// GetRegistryKind returns registry kind (onCluster, offCluster or empty value if not specified)
+	GetRegistryKind() string
+
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string
 }

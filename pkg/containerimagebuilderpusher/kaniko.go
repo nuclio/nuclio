@@ -188,6 +188,10 @@ func (k *Kaniko) GetBaseImageRegistry(registry string) string {
 	return k.builderConfiguration.DefaultBaseRegistryURL
 }
 
+func (k *Kaniko) GetRegistryKind() string {
+	return k.builderConfiguration.RegistryKind
+}
+
 func (k *Kaniko) GetOnbuildImageRegistry(registry string) string {
 	return k.builderConfiguration.DefaultOnbuildRegistryURL
 }
