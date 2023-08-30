@@ -152,19 +152,17 @@ func (w *Worker) SupportsRestart() bool {
 }
 
 func (w *Worker) Drain() error {
-	err := w.runtime.Drain()
-	if err == nil {
-
-		w.setDrained(true)
-	}
-	return err
-}
-
-func (w *Worker) IsDrained() bool {
 	w.drainedLock.Lock()
 	defer w.drainedLock.Unlock()
 
-	return w.isDrained
+	if !w.isDrained {
+		err := w.runtime.Drain()
+		if err == nil {
+			w.isDrained = true
+		}
+		return err
+	}
+	return nil
 }
 
 func (w *Worker) setDrained(isDrained bool) {

@@ -263,7 +263,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 
 		case <-session.Context().Done():
 			k.Logger.DebugWith("Got signal to stop consumption",
-				"wait", k.configuration.maxWaitHandlerDuringRebalance,
+				"wait", k.configuration.maxWaitHandlerDuringRebalance.String(),
 				"partition", claim.Partition())
 
 			// don't consume any more messages
@@ -297,6 +297,10 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 					wg.Done()
 				}()
 				go func() {
+
+					// this needs to occur once. the reason is that this specific function (ConsumeClaim)
+					// runs in parallel for each partition, and we want to make sure that we only
+					// drain the workers once.
 					k.SignalWorkerDraining()
 					k.Logger.DebugWith("Workers drained", "partition", claim.Partition())
 					wg.Done()
