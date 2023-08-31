@@ -112,6 +112,10 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		buildArgs += fmt.Sprintf("--build-arg %s=%s ", buildArgName, buildArgValue)
 	}
 
+	for buildFLag := range buildOptions.BuildFlags {
+		buildArgs += fmt.Sprintf(buildFLag, "")
+	}
+
 	if err := c.build(buildOptions, buildArgs); err != nil {
 		return errors.Wrap(err, "Failed to build")
 	}

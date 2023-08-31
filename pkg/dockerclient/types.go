@@ -47,6 +47,7 @@ type BuildOptions struct {
 	NoCache        bool
 	Pull           bool
 	BuildArgs      map[string]string
+	BuildFlags     map[string]bool
 }
 
 // RunOptions are options for running a docker image

@@ -1456,6 +1456,10 @@ func (b *Builder) getBuildArgs() map[string]string {
 
 func (b *Builder) getBuildFlags() map[string]bool {
 	buildFlags := map[string]bool{}
+
+	// with this regexp we check that flags consist of only letters and dash symbol
+	// all possible flags are here https://github.com/GoogleContainerTools/kaniko
+	// https://docs.docker.com/engine/reference/commandline/image_build/
 	escapeBuildArgsRegex := regexp.MustCompile("[a-zA-Z-]")
 
 	for _, flag := range b.options.FunctionConfig.Spec.Build.BuildFlags {
