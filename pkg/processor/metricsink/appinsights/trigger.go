@@ -19,7 +19,7 @@ package appinsights
 import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
-	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
+	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 )
 
 type TriggerGatherer struct {

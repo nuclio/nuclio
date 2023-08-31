@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus"
 
-	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
+	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
