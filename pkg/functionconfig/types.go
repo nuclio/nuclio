@@ -301,6 +301,7 @@ type Build struct {
 	NoBaseImagesPull      bool                   `json:"noBaseImagesPull,omitempty"`
 	NoCache               bool                   `json:"noCache,omitempty"`
 	NoCleanup             bool                   `json:"noCleanup,omitempty"`
+	BuildFlags            []string               `json:"buildFlags,omitempty"`
 	BaseImage             string                 `json:"baseImage,omitempty"`
 	Commands              []string               `json:"commands,omitempty"`
 	Directives            map[string][]Directive `json:"directives,omitempty"`
