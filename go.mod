@@ -7,7 +7,7 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/Azure/go-amqp v0.17.0
 	github.com/Shopify/sarama v1.37.2
-	github.com/aws/aws-sdk-go v1.45.0
+	github.com/aws/aws-sdk-go v1.45.2
 	github.com/coreos/go-semver v0.3.1
 	github.com/disintegration/imaging v1.6.2
 	github.com/docker/distribution v2.8.2+incompatible
