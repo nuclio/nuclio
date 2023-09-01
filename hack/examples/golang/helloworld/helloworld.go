@@ -21,7 +21,7 @@ import (
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.Info("This is an unstrucured %s", "log")
+	context.Logger.Info("This is an unstructured %s", "log")
 
 	return nuclio.Response{
 		StatusCode:  200,
