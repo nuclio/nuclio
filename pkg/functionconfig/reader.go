@@ -23,7 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"sigs.k8s.io/yaml"

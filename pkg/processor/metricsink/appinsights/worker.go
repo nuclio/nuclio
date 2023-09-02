@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
+	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 )
 
 type WorkerGatherer struct {

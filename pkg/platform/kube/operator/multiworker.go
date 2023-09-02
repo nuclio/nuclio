@@ -75,7 +75,7 @@ func NewMultiWorker(ctx context.Context,
 	newMultiWorker.informer = cache.NewSharedIndexInformer(listWatcher, object, *resyncInterval, cache.Indexers{})
 
 	// register event handlers for the informer
-	newMultiWorker.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := newMultiWorker.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
@@ -94,9 +94,12 @@ func NewMultiWorker(ctx context.Context,
 				newMultiWorker.queue.Add(key)
 			}
 		},
-	})
+	}); err != nil {
+		return nil, errors.Wrap(err, "Failed to register event handlers for informer")
+	}
 
 	return newMultiWorker, nil
+
 }
 
 func (mw *MultiWorker) Start(ctx context.Context) error {

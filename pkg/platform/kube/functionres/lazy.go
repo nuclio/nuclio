@@ -42,7 +42,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"

@@ -31,8 +31,8 @@ import (
 	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
-	"github.com/imdario/mergo"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
