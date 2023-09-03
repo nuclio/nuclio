@@ -677,7 +677,12 @@ func (p *Processor) terminateAllTriggers(signal os.Signal) {
 		// drains all workers in trigger (for each trigger in parallel)
 		go func(triggerInstance trigger.Trigger, wg *sync.WaitGroup) {
 			defer wg.Done()
-			triggerInstance.SignalWorkerDraining()
+			if err := triggerInstance.SignalWorkerDraining(); err != nil {
+				p.logger.WarnWith("Failed to signal worker draining",
+					"triggerKind", triggerInstance.GetKind(),
+					"triggerName", triggerInstance.GetName(),
+					"err", err.Error())
+			}
 		}(triggerInstance, wg)
 	}
 	wg.Wait()

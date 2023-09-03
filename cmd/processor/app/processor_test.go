@@ -231,8 +231,9 @@ func (t *testTrigger) TimeoutWorker(worker *worker.Worker) error {
 	return nil
 }
 
-func (t *testTrigger) SignalWorkerDraining() {
+func (t *testTrigger) SignalWorkerDraining() error {
 	t.Called()
+	return nil
 }
 
 func TestTriggerTestSuite(t *testing.T) {
