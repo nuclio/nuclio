@@ -224,7 +224,6 @@ func (fp *fixedPool) SignalDraining() error {
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		fp.logger.WarnWith("At least one worker failed to stop", "err", err.Error())
 		return errors.Wrap(err, "At least one worker failed to drain")
 	}
 
