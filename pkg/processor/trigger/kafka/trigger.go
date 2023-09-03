@@ -229,7 +229,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	for message := range claim.Messages() {
 		if !consumeMessages {
 			k.Logger.DebugWith("Stopping message consumption", "partition", claim.Partition())
-
 			break
 		}
 
@@ -276,7 +275,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 					k.Logger,
 					"Recover from panic after trying to write into channel, which was closed because of wait for rebalance timeout",
 					&common.CatchAndLogPanicOptions{
-						Args:          nil,
+						Args:          []interface{}{"partition", claim.Partition()},
 						CustomHandler: nil,
 					})
 				var wg sync.WaitGroup
@@ -302,7 +301,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 					// runs in parallel for each partition, and we want to make sure that we only
 					// drain the workers once.
 					k.SignalWorkerDraining()
-					k.Logger.DebugWith("Workers drained", "partition", claim.Partition())
 					wg.Done()
 				}()
 
@@ -313,7 +311,8 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			// wait a for rebalance readiness or max timeout
 			select {
 			case <-readyForRebalanceChan:
-				k.Logger.DebugWith("Handler done, rebalancing will commence")
+				k.Logger.DebugWith("Handler done, rebalancing will commence",
+					"partition", claim.Partition())
 
 			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
 				k.Logger.DebugWith("Timed out waiting for handler to complete",

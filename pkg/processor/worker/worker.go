@@ -158,6 +158,7 @@ func (w *Worker) Drain() error {
 	if !w.isDrained {
 		err := w.runtime.Drain()
 		if err == nil {
+			w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
 			w.isDrained = true
 		}
 		return err
