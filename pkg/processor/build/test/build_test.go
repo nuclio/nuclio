@@ -603,6 +603,8 @@ func (suite *testSuite) TestBuildWithFlags() {
 			flags: []string{"-m 100"}},
 		{expectError: false,
 			flags: []string{"-m 100", "--pull"}},
+		{expectError: false,
+			flags: []string{"--memory=100"}},
 	} {
 
 		createFunctionOptions := &platform.CreateFunctionOptions{
