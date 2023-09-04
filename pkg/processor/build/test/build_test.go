@@ -586,6 +586,66 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 	suite.Equal(deployResult.Image, redeployResult.Image)
 }
 
+func (suite *testSuite) TestBuildWithFlags() {
+	for _, testCase := range []struct {
+		expectError bool
+		flags       []string
+	}{
+		{expectError: false,
+			flags: []string{"--pull"}},
+		{expectError: true,
+			flags: []string{"--pull-insecure"}},
+		{expectError: true,
+			flags: []string{"-q & whoami || "}},
+		{expectError: false,
+			flags: []string{"-q"}},
+		{expectError: false,
+			flags: []string{"-m 100"}},
+		{expectError: false,
+			flags: []string{"-m 100", "--pull"}},
+	} {
+
+		createFunctionOptions := &platform.CreateFunctionOptions{
+			Logger: suite.Logger,
+			FunctionConfig: functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      "build-from-local",
+					Namespace: "default",
+				},
+				Spec: functionconfig.Spec{
+					Env: []v1.EnvVar{
+						{
+							Name:  "MANIPULATION_KIND",
+							Value: "reverse",
+						},
+					},
+					Handler: "string-manipulator:handler",
+					Runtime: "python",
+					Build: functionconfig.Build{
+						CodeEntryAttributes: map[string]interface{}{
+							"workDir": "/nuclio-templates-master/string-manipulator",
+						},
+						Path:  "https://github.com/nuclio/nuclio-templates/archive/master.zip",
+						Flags: testCase.flags,
+					},
+				},
+			},
+		}
+
+		if testCase.expectError {
+			suite.DeployFunctionAndExpectError(createFunctionOptions, "Failed to deploy function")
+		} else {
+			deployResult := suite.DeployFunctionAndRequest(createFunctionOptions,
+				&httpsuite.Request{
+					RequestMethod:        "POST",
+					RequestBody:          "abcd",
+					ExpectedResponseBody: "dcba",
+				})
+			suite.Require().NotEmpty(deployResult, "Bad deploy result value")
+		}
+	}
+}
+
 func (suite *testSuite) TestGenerateProcessorDockerfile() {
 	newPlatform, err := local.NewPlatform(suite.TestSuite.Ctx, suite.Logger, &platformconfig.Config{}, "")
 	suite.Require().NoErrorf(err, "Instantiating Platform failed: %s", err)
