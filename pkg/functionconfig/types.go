@@ -316,7 +316,7 @@ type Build struct {
 	BuildTimeoutSeconds   *int64                 `json:"buildTimeoutSeconds,omitempty"`
 	Mode                  BuildMode              `json:"mode,omitempty"`
 	Args                  map[string]string      `json:"args,omitempty"`
-	Flags                 []string               `json:"buildFlags,omitempty"`
+	Flags                 []string               `json:"flags,omitempty"`
 	BuilderServiceAccount string                 `json:"builderServiceAccount,omitempty"`
 }
 
