@@ -27,7 +27,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -1457,19 +1456,11 @@ func (b *Builder) getBuildArgs() map[string]string {
 func (b *Builder) getBuildFlags() map[string]bool {
 	buildFlags := map[string]bool{}
 
-	// with this regexp we check that flags consist of only letters and dash symbol
 	// all possible flags are here https://github.com/GoogleContainerTools/kaniko
 	// https://docs.docker.com/engine/reference/commandline/image_build/
-	escapeBuildArgsRegex := regexp.MustCompile("[a-zA-Z-]")
 
 	for _, flag := range b.options.FunctionConfig.Spec.Build.Flags {
-		if !escapeBuildArgsRegex.MatchString(flag) {
-			b.logger.DebugWith(
-				"Build flag does not match regex. Won't use build flag",
-				"buildFlag", flag)
-			continue
-		}
-		buildFlags[flag] = true
+		buildFlags[common.Quote(flag)] = true
 	}
 	return buildFlags
 }
