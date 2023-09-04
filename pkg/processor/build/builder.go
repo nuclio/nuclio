@@ -1462,7 +1462,7 @@ func (b *Builder) getBuildFlags() map[string]bool {
 	// https://docs.docker.com/engine/reference/commandline/image_build/
 	escapeBuildArgsRegex := regexp.MustCompile("[a-zA-Z-]")
 
-	for _, flag := range b.options.FunctionConfig.Spec.Build.BuildFlags {
+	for _, flag := range b.options.FunctionConfig.Spec.Build.Flags {
 		if !escapeBuildArgsRegex.MatchString(flag) {
 			b.logger.DebugWith(
 				"Build flag does not match regex. Won't use build flag",
