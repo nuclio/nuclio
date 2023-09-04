@@ -44,7 +44,7 @@ type Worker struct {
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time
-	isDrained            bool
+	isDrained            atomic.Bool
 	drainedLock          sync.Mutex
 }
 
@@ -155,11 +155,11 @@ func (w *Worker) Drain() error {
 	w.drainedLock.Lock()
 	defer w.drainedLock.Unlock()
 
-	if !w.isDrained {
+	if !w.isDrained.Load() {
 		err := w.runtime.Drain()
 		if err == nil {
 			w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
-			w.isDrained = true
+			w.isDrained.Store(true)
 		}
 		return err
 	}
@@ -170,7 +170,7 @@ func (w *Worker) setDrained(isDrained bool) {
 	w.drainedLock.Lock()
 	defer w.drainedLock.Unlock()
 
-	w.isDrained = isDrained
+	w.isDrained.Store(isDrained)
 }
 
 // Subscribe subscribes to a control message kind
