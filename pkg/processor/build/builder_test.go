@@ -102,6 +102,13 @@ func (suite *testSuite) TestGetRuntimeNameFromConfig() {
 	suite.Require().Equal("foo", runtimeName)
 }
 
+func (suite *testSuite) TestGetBuildFlags() {
+	suite.builder.options.FunctionConfig.Spec.Build.Flags = []string{"--insecure-pull", "-f && whoami &&", "--label key=value"}
+	flags := suite.builder.getBuildFlags()
+
+	suite.Require().Equal(map[string]bool{"'--label key=value'": true, "'-f && whoami &&'": true, "--insecure-pull": true}, flags)
+}
+
 // Make sure that "Builder.getRuntimeName" properly reads the runtime name from the build path if not set by the user
 func (suite *testSuite) TestGetPythonRuntimeNameFromBuildPath() {
 	suite.builder.options.FunctionConfig.Spec.Runtime = ""

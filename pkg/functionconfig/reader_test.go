@@ -313,6 +313,32 @@ func (suite *ReaderTestSuite) TestCodeEntryConfigTriggerMerge() {
 	}
 }
 
+func (suite *ReaderTestSuite) TestBuildFlags() {
+	configData := `
+metadata:
+  name: python handler
+spec:
+  build:
+    flags:
+      - "--insecure-pull"
+      - "--label key=value"
+  runtime: python
+  handler: reverser:handler
+  triggers:
+    http:
+      maxWorkers: 4
+      kind: http
+`
+	config := Config{}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &config)
+	suite.Require().NoError(err, "Can't reader configuration")
+
+	build := config.Spec.Build
+	suite.Require().Equal([]string{"--insecure-pull", "--label key=value"}, build.Flags, "Bad build flags value")
+}
+
 func TestRegistryTestSuite(t *testing.T) {
 	suite.Run(t, new(ReaderTestSuite))
 }
