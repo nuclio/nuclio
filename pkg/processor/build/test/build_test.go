@@ -591,20 +591,17 @@ func (suite *testSuite) TestBuildWithFlags() {
 		expectError bool
 		flags       []string
 	}{
+		// in this test case we check all possible flag formats (--<long_name>, -<short_name>, --<key>=<value>)
+		// and expect that function deployment is successful
 		{expectError: false,
-			flags: []string{"--pull"}},
+			flags: []string{"--pull", "-q", "--memory=100"}},
+		// here we check that injection doesn't work and deployment is failed since such flag doesn't exist
 		{expectError: true,
-			flags: []string{"--pull-insecure"}},
+			flags: []string{"-q", "& whoami || "}},
+
+		// here we pass 3 valid flags and 4th not valid specifically for Docker, so failure is expected
 		{expectError: true,
-			flags: []string{"-q & whoami || "}},
-		{expectError: false,
-			flags: []string{"-q"}},
-		{expectError: false,
-			flags: []string{"-m 100"}},
-		{expectError: false,
-			flags: []string{"-m 100", "--pull"}},
-		{expectError: false,
-			flags: []string{"--memory=100"}},
+			flags: []string{"--pull", "-q", "--memory=100", "--pull-insecure"}},
 	} {
 
 		createFunctionOptions := &platform.CreateFunctionOptions{
