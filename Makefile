@@ -103,7 +103,7 @@ else
 endif
 
 NUCLIO_BASE_IMAGE_TAG ?= 1.21
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.21-alpine3.17
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.21-alpine
 
 #
 #  Must be first target
