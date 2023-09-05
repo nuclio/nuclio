@@ -193,13 +193,13 @@ func (fr *functionResource) Patch(request *http.Request, id string) error {
 	// get the desired state of the function from the request body
 	patchOptionsInstance, err := fr.getPatchFunctionOptionsFromRequest(request)
 	if err != nil {
-		return nuclio.NewErrPreconditionFailed("Failed to get patch options")
+		return errors.Wrap(err, "Failed to get patch options")
 	}
 
 	// get the authentication configuration for the request
 	authConfig, err := fr.getRequestAuthConfig(request)
 	if err != nil {
-		return nuclio.NewErrPreconditionFailed("Failed to get auth config")
+		return errors.Wrap(err, "Failed to get auth config")
 	}
 
 	if patchOptionsInstance.DesiredState != nil {
