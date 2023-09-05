@@ -266,11 +266,17 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 		buildArgs = append(buildArgs, "--cache=true")
 	}
 
-	if k.builderConfiguration.InsecurePushRegistry {
+	if _, ok := buildOptions.BuildFLags["--insecure"]; !ok && k.builderConfiguration.InsecurePushRegistry {
 		buildArgs = append(buildArgs, "--insecure")
 	}
-	if k.builderConfiguration.InsecurePullRegistry {
+
+	if _, ok := buildOptions.BuildFLags["--insecure-pull"]; !ok && k.builderConfiguration.InsecurePullRegistry {
 		buildArgs = append(buildArgs, "--insecure-pull")
+	}
+
+	// Add user's custom flags
+	for flag := range buildOptions.BuildFLags {
+		buildArgs = append(buildArgs, flag)
 	}
 
 	if k.builderConfiguration.CacheRepo != "" {

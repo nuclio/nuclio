@@ -132,6 +132,7 @@ func (d *Docker) buildContainerImage(ctx context.Context, buildOptions *BuildOpt
 		NoCache:        buildOptions.NoCache,
 		Pull:           buildOptions.Pull,
 		BuildArgs:      buildOptions.BuildArgs,
+		BuildFlags:     buildOptions.BuildFLags,
 	})
 
 }

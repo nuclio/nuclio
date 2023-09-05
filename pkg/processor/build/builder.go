@@ -1025,6 +1025,7 @@ func (b *Builder) cleanupTempDir() error {
 
 func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	buildArgs := b.getBuildArgs()
+	buildFlags := b.getBuildFlags()
 
 	// get override base and onbuild image registries from the platform configuration
 
@@ -1077,6 +1078,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
 			NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
 			NoBaseImagePull:     b.GetNoBaseImagePull(),
+			BuildFLags:          buildFlags,
 			BuildArgs:           buildArgs,
 			RegistryURL:         registryURL,
 			RepoName:            b.resolveRepoName(registryURL),
@@ -1449,6 +1451,18 @@ func (b *Builder) getBuildArgs() map[string]string {
 	buildArgs["NUCLIO_BUILD_LOCAL_HANDLER_DIR"] = "handler"
 
 	return buildArgs
+}
+
+func (b *Builder) getBuildFlags() map[string]bool {
+	buildFlags := map[string]bool{}
+
+	// all possible flags are here https://github.com/GoogleContainerTools/kaniko
+	// https://docs.docker.com/engine/reference/commandline/image_build/
+
+	for _, flag := range b.options.FunctionConfig.Spec.Build.Flags {
+		buildFlags[common.Quote(flag)] = true
+	}
+	return buildFlags
 }
 
 func (b *Builder) commandsToDirectives(commands []string) (map[string][]functionconfig.Directive, error) {
