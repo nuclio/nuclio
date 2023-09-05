@@ -888,6 +888,7 @@ func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
 		// add a header that will tell the API to only deploy imported functions
 		requestHeaders[headers.ImportedFunctionOnly] = "true"
 	}
+	requestHeaders[headers.VerifyExternalRegistry] = "true"
 	return requestHeaders
 }
 
