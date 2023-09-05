@@ -21,7 +21,7 @@ import "fmt"
 // Provider is an interface for entities that have a reportable status
 type Provider interface {
 
-	// Returns the entity's status
+	// GetStatus Returns the entity's status
 	GetStatus() Status
 }
 

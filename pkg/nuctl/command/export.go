@@ -33,11 +33,10 @@ import (
 )
 
 type exportCommandeer struct {
-	cmd             *cobra.Command
-	rootCommandeer  *RootCommandeer
-	scrubber        *functionconfig.Scrubber
-	noScrub         bool
-	skipSpecCleanup bool
+	cmd            *cobra.Command
+	rootCommandeer *RootCommandeer
+	scrubber       *functionconfig.Scrubber
+	noScrub        bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -74,6 +73,7 @@ type exportFunctionCommandeer struct {
 	*exportCommandeer
 	getFunctionsOptions platform.GetFunctionsOptions
 	output              string
+	skipSpecCleanup     bool
 }
 
 func newExportFunctionCommandeer(ctx context.Context, exportCommandeer *exportCommandeer) *exportFunctionCommandeer {
@@ -196,6 +196,7 @@ type exportProjectCommandeer struct {
 	*exportCommandeer
 	getProjectsOptions platform.GetProjectsOptions
 	output             string
+	skipSpecCleanup    bool
 }
 
 func newExportProjectCommandeer(ctx context.Context, exportCommandeer *exportCommandeer) *exportProjectCommandeer {

@@ -219,14 +219,12 @@ func (fp *fixedPool) SignalDraining() error {
 			if err := workerInstance.Drain(); err != nil {
 				return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
 			}
-			fp.logger.DebugWith("Worker has drained events after signaling",
-				"workerIndex", workerInstance.GetIndex())
 			return nil
 		})
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		fp.logger.WarnWith("At least one worker failed to stop", "err", err.Error())
+		return errors.Wrap(err, "At least one worker failed to drain")
 	}
 
 	return nil
