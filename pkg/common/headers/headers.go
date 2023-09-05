@@ -31,6 +31,7 @@ const (
 	FunctionEnrichApiGateways           = "X-Nuclio-Function-Enrich-Apigateways"
 	ImportedFunctionOnly                = "X-Nuclio-Imported-Function-Only"
 	SkipSpecCleanup                     = "X-Nuclio-Skip-Spec-Cleanup"
+	VerifyExternalRegistry              = "X-Nuclio-Verify-External-Registry"
 
 	// Project headers
 	ProjectName           = "X-Nuclio-Project-Name"

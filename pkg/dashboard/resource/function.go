@@ -186,16 +186,20 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 // Patch applies partial modifications to a function
 func (fr *functionResource) Patch(request *http.Request, id string) error {
 
+	// if external registry required, but user has an internal one, then return 412 code (PreconditionFailed)
+	if fr.headerValueIsTrue(request, headers.VerifyExternalRegistry) && fr.getPlatform().GetRegistryKind() == "onCluster" {
+		return nuclio.NewErrPreconditionFailed("Can not patch function because registry is internal")
+	}
 	// get the desired state of the function from the request body
 	patchOptionsInstance, err := fr.getPatchFunctionOptionsFromRequest(request)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get patch options")
+		return nuclio.NewErrPreconditionFailed("Failed to get patch options")
 	}
 
 	// get the authentication configuration for the request
 	authConfig, err := fr.getRequestAuthConfig(request)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get auth config")
+		return nuclio.NewErrPreconditionFailed("Failed to get auth config")
 	}
 
 	if patchOptionsInstance.DesiredState != nil {
