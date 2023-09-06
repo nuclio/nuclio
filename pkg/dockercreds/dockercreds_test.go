@@ -122,7 +122,8 @@ type ReadKubernetesDockerRegistrySecretTestSuite struct {
 
 func (suite *ReadKubernetesDockerRegistrySecretTestSuite) SetupTest() {
 	suite.DockerCredsTestSuite.SetupTest()
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	dockerCreds, _ := NewDockerCreds(suite.logger, nil, nil)
 	suite.dockerCred, _ = newDockerCred(ctx, dockerCreds, "", nil)
