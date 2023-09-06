@@ -17,6 +17,7 @@ limitations under the License.
 package dockercreds
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path"
@@ -35,7 +36,7 @@ type dockerCred struct {
 	credentials            Credentials
 }
 
-func newDockerCred(dockerCreds *DockerCreds, path string,
+func newDockerCred(ctx context.Context, dockerCreds *DockerCreds, path string,
 	defaultRefreshInterval *time.Duration) (*dockerCred, error) {
 	fallbackDuration := time.Hour * 12
 
@@ -49,14 +50,14 @@ func newDockerCred(dockerCreds *DockerCreds, path string,
 		defaultRefreshInterval: defaultRefreshInterval,
 	}
 
-	if err := newDockerCred.initialize(); err != nil {
+	if err := newDockerCred.initialize(ctx); err != nil {
 		return nil, err
 	}
 
 	return newDockerCred, nil
 }
 
-func (dc *dockerCred) initialize() error {
+func (dc *dockerCred) initialize(ctx context.Context) error {
 	var err error
 
 	fileName := path.Base(dc.path)
@@ -111,7 +112,7 @@ func (dc *dockerCred) initialize() error {
 	}
 
 	if dc.credentials.RefreshInterval != nil {
-		dc.refreshCredentials(*dc.credentials.RefreshInterval)
+		dc.refreshCredentials(ctx, *dc.credentials.RefreshInterval)
 	}
 
 	return nil
@@ -258,7 +259,7 @@ func parseRefreshInterval(refreshInterval string) (*time.Duration, error) {
 	return &refreshIntervalDuration, nil
 }
 
-func (dc *dockerCred) refreshCredentials(refreshInterval time.Duration) {
+func (dc *dockerCred) refreshCredentials(ctx context.Context, refreshInterval time.Duration) {
 	dc.dockerCreds.logger.InfoWith("Refreshing credentials periodically",
 		"path", dc.path,
 		"refreshInterval", refreshInterval)
@@ -266,8 +267,13 @@ func (dc *dockerCred) refreshCredentials(refreshInterval time.Duration) {
 	refreshTicker := time.NewTicker(refreshInterval)
 
 	go func() {
-		for range refreshTicker.C {
-			dc.login() // nolint: errcheck
+		for {
+			select {
+			case <-refreshTicker.C:
+				dc.login() // nolint: errcheck
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 }
