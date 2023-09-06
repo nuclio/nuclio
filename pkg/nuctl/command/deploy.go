@@ -90,6 +90,7 @@ type deployCommandeer struct {
 	deployAll              bool
 	waitForFunction        bool
 	skipSpecCleanup        bool
+	verifyExternalRegistry bool
 	outputManifest         *nuctlcommon.PatchOutputManifest
 	excludedProjects       []string
 	excludedFunctions      []string
@@ -220,6 +221,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 
 	addDeployFlags(cmd, commandeer)
 	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clean up spec in function configs")
+	cmd.Flags().BoolVarP(&commandeer.verifyExternalRegistry, "verify-external-registry", "", false, "verify registry is external")
 	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
 
 	commandeer.cmd = cmd
@@ -888,7 +890,9 @@ func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
 		// add a header that will tell the API to only deploy imported functions
 		requestHeaders[headers.ImportedFunctionOnly] = "true"
 	}
-	requestHeaders[headers.VerifyExternalRegistry] = "true"
+	if d.verifyExternalRegistry {
+		requestHeaders[headers.VerifyExternalRegistry] = "true"
+	}
 	return requestHeaders
 }
 

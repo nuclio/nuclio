@@ -36,7 +36,7 @@ type BuildOptions struct {
 	NoCache                 bool
 	Pull                    bool
 	NoBaseImagePull         bool
-	BuildFLags              map[string]bool
+	BuildFlags              map[string]bool
 	BuildArgs               map[string]string
 	RegistryURL             string
 	RepoName                string

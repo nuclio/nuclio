@@ -108,8 +108,8 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 	}
 
 	buildArgs := ""
-	for buildFLag := range buildOptions.BuildFlags {
-		buildArgs += fmt.Sprintf(buildFLag + " ")
+	for buildFlag := range buildOptions.BuildFlags {
+		buildArgs += fmt.Sprintf(buildFlag + " ")
 	}
 	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
 		buildArgs += fmt.Sprintf("--build-arg %s=%s ", buildArgName, buildArgValue)
