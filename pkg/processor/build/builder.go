@@ -1078,7 +1078,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
 			NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
 			NoBaseImagePull:     b.GetNoBaseImagePull(),
-			BuildFLags:          buildFlags,
+			BuildFlags:          buildFlags,
 			BuildArgs:           buildArgs,
 			RegistryURL:         registryURL,
 			RepoName:            b.resolveRepoName(registryURL),
