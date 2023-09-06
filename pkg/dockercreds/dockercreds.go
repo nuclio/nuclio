@@ -108,6 +108,8 @@ func (dc *DockerCreds) GetCredentials() []Credentials {
 	return credentials
 }
 
+// cancelLogins method stops all refreshCredentials goroutines
+// We use this method for testing purposes to avoid leaving behind zombie goroutines
 func (dc *DockerCreds) cancelLogins() {
 	for _, cancelFunction := range dc.cancelFunctions {
 		cancelFunction()
