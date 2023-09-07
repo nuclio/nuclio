@@ -102,8 +102,8 @@ else
 	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:14.21
 endif
 
-NUCLIO_BASE_IMAGE_TAG ?= 1.19
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.19-alpine3.17
+NUCLIO_BASE_IMAGE_TAG ?= 1.21
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.21-alpine
 
 #
 #  Must be first target
@@ -623,7 +623,7 @@ lint: modules ensure-test-files-annotated
 		&& chmod +x $(GOPATH)/bin/impi)
 
 	@test -e $(GOPATH)/bin/golangci-lint || \
-	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.50.1)
+	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.54.2)
 
 	@echo Verifying imports...
 	$(GOPATH)/bin/impi \

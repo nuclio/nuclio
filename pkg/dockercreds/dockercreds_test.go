@@ -19,6 +19,7 @@ limitations under the License.
 package dockercreds
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -121,9 +122,11 @@ type ReadKubernetesDockerRegistrySecretTestSuite struct {
 
 func (suite *ReadKubernetesDockerRegistrySecretTestSuite) SetupTest() {
 	suite.DockerCredsTestSuite.SetupTest()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	dockerCreds, _ := NewDockerCreds(suite.logger, nil, nil)
-	suite.dockerCred, _ = newDockerCred(dockerCreds, "", nil)
+	suite.dockerCred, _ = newDockerCred(ctx, dockerCreds, "", nil)
 }
 
 func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestSuccessfulReadAuths() {
@@ -378,6 +381,7 @@ func (suite *LogInFromDirTestSuite) TestRefreshLogins() {
 
 	// make sure all expectations are met
 	suite.mockDockerClient.AssertExpectations(suite.T())
+	dockerCreds.cancelLogins()
 }
 
 func (suite *LogInFromDirTestSuite) TestNoRefreshLogins() {
