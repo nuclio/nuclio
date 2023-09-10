@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -102,7 +101,7 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 	}
 
 	// create function
-	createFunctionCtx := nucliocontext.NewDetached(ctx)
+	createFunctionCtx := context.WithoutCancel(ctx)
 	_, err = i.rootCommandeer.platform.CreateFunction(createFunctionCtx,
 		&platform.CreateFunctionOptions{
 			Logger:         i.rootCommandeer.loggerInstance,

@@ -28,7 +28,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -164,7 +163,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 
 // Update a project
 func (pr *projectResource) Update(request *http.Request, id string) (restful.Attributes, error) {
-	ctx := nucliocontext.NewDetached(request.Context())
+	ctx := context.WithoutCancel(request.Context())
 
 	// get project config and status from body
 	projectInfo, err := pr.getProjectInfoFromRequest(request)
@@ -313,7 +312,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 func (pr *projectResource) createProject(request *http.Request, projectInfoInstance *projectInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
-	ctx := nucliocontext.NewDetached(request.Context())
+	ctx := context.WithoutCancel(request.Context())
 
 	// create a project config
 	projectConfig := platform.ProjectConfig{

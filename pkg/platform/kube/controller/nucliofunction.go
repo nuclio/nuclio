@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	detachcontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
@@ -324,9 +323,9 @@ func (fo *functionOperator) setFunctionError(ctx context.Context,
 	functionErrorState functionconfig.FunctionState,
 	err error) error {
 
-	// context might timed out, but we still want to set the error,
+	// context might time out, but we still want to set the error,
 	// so we'll use a detached background context
-	detachedContext := detachcontext.NewDetached(ctx)
+	detachedContext := context.WithoutCancel(ctx)
 
 	// whatever the error, try to update the function CR
 	fo.logger.WarnWithCtx(detachedContext,
