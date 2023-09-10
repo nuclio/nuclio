@@ -29,7 +29,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -264,7 +263,8 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	// deploy asynchronously, so that the user doesn't wait
 	go func() {
 
-		ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
+		// create a cancel function independent of the parent context
+		ctx, cancelCtx := context.WithCancel(context.WithoutCancel(request.Context()))
 		defer cancelCtx()
 
 		// inject auth session to new context

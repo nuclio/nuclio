@@ -29,7 +29,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
@@ -117,7 +116,7 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 	defer time.AfterFunc(k.builderConfiguration.JobDeletionTimeout, func() {
 
 		// Create a detached context to avoid cancellation of the deletion process
-		detachedCtx := nucliocontext.NewDetached(ctx)
+		detachedCtx := context.WithoutCancel(ctx)
 		if err := k.deleteJob(detachedCtx, namespace, job.Name); err != nil {
 			k.logger.WarnWithCtx(ctx,
 				"Failed to delete job",
