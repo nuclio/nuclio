@@ -20,7 +20,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio-sdk-go"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,11 +89,15 @@ type deployCommandeer struct {
 	// beta - api client
 	betaCommandeer         *betaCommandeer
 	noBuild                bool
+	redeployWithReportFile bool
 	deployAll              bool
 	waitForFunction        bool
 	skipSpecCleanup        bool
 	verifyExternalRegistry bool
-	outputManifest         *nuctlcommon.PatchOutputManifest
+	outputManifest         *nuctlcommon.PatchManifest
+	inputManifest          *nuctlcommon.PatchManifest
+	noReport               bool
+	reportFilePath         string
 	excludedProjects       []string
 	excludedFunctions      []string
 	excludeFunctionWithGPU bool
@@ -103,7 +109,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 	commandeer := &deployCommandeer{
 		rootCommandeer: rootCommandeer,
 		functionConfig: *functionconfig.NewConfig(),
-		outputManifest: nuctlcommon.NewOutputManifest(),
+		outputManifest: nuctlcommon.NewPatchManifest(),
 	}
 
 	if betaCommandeer != nil {
@@ -221,8 +227,11 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 
 	addDeployFlags(cmd, commandeer)
 	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clean up spec in function configs")
+	cmd.Flags().BoolVarP(&commandeer.redeployWithReportFile, "redeploy-with-report-file", "", false, "Redeploy any functions that failed in the report and can be redeployed")
+	cmd.Flags().BoolVarP(&commandeer.noReport, "no-report", "", false, "Do not save report to a file")
 	cmd.Flags().BoolVarP(&commandeer.verifyExternalRegistry, "verify-external-registry", "", false, "verify registry is external")
 	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
+	cmd.Flags().StringVarP(&commandeer.reportFilePath, "output-file", "", "nuctl-deployment-report.json", "Path to deployment report")
 
 	commandeer.cmd = cmd
 
@@ -689,8 +698,15 @@ func (d *deployCommandeer) enrichBuildConfigWithArgs() {
 
 func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error {
 
-	if len(args) == 0 {
+	if d.redeployWithReportFile {
+		d.inputManifest = nuctlcommon.NewPatchManifestFromFile(d.reportFilePath)
+		retryableFunctions := d.inputManifest.GetRetryable()
+		d.rootCommandeer.loggerInstance.InfoWith("Redeploying failed functions from report file", "report file", d.reportFilePath,
+			"functions", retryableFunctions)
+		args = append(args, retryableFunctions...)
+	}
 
+	if len(args) == 0 && d.inputManifest == nil {
 		// redeploy all functions in the namespace
 		if err := d.redeployAllFunctions(ctx); err != nil {
 			return errors.Wrap(err, "Failed to redeploy all functions")
@@ -749,7 +765,8 @@ func (d *deployCommandeer) redeployFunctions(ctx context.Context, functionNames 
 		function := function
 		patchErrGroup.Go("patch function", func() error {
 			if err := d.patchFunction(ctx, function); err != nil {
-				d.outputManifest.AddFailure(function, err)
+				d.rootCommandeer.loggerInstance.ErrorWith("Problem in redeployment", "err", err)
+				d.outputManifest.AddFailure(function, err, d.resolveIfRedeployRetryable(err))
 				return errors.Wrap(err, "Failed to patch function")
 			}
 			d.outputManifest.AddSuccess(function)
@@ -765,6 +782,7 @@ func (d *deployCommandeer) redeployFunctions(ctx context.Context, functionNames 
 	}
 
 	d.outputManifest.LogOutput(ctx, d.rootCommandeer.loggerInstance)
+	d.outputManifest.SaveToFile(ctx, d.rootCommandeer.loggerInstance, d.reportFilePath)
 
 	return nil
 }
@@ -791,7 +809,12 @@ func (d *deployCommandeer) patchFunction(ctx context.Context, functionName strin
 		d.rootCommandeer.namespace,
 		payload,
 		requestHeaders); err != nil {
-		return errors.Wrap(err, "Failed to patch function")
+		switch err.(type) {
+		case *nuclio.ErrorWithStatusCode:
+			return nuclio.GetWrapByStatusCode(err.(*nuclio.ErrorWithStatusCode).StatusCode())(errors.Wrap(err, "Failed to patch function"))
+		default:
+			return errors.Wrap(err, "Failed to patch function")
+		}
 	}
 
 	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
@@ -916,6 +939,21 @@ func (d *deployCommandeer) resolveFunctionName() (string, error) {
 	}
 
 	return "", errors.New("Function name is not provided")
+}
+
+func (d *deployCommandeer) resolveIfRedeployRetryable(err error) bool {
+	switch err.(type) {
+	case *nuclio.ErrorWithStatusCode:
+		responseError := err.(*nuclio.ErrorWithStatusCode)
+		if responseError == nil {
+			return true
+		}
+		// if the status code is 412, then another redeployment will not help because there is something wrong with the configuration
+		return responseError.StatusCode() != http.StatusPreconditionFailed
+	case error:
+		return true
+	}
+	return true
 }
 
 func (d *deployCommandeer) resolveFunctionNameFromPath() (string, error) {
