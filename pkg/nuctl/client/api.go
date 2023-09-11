@@ -176,11 +176,11 @@ func (c *NuclioAPIClient) PatchFunction(ctx context.Context,
 		patchHeaders,
 		http.StatusAccepted,
 		false); err != nil {
-		switch err.(type) {
+		switch typedError := err.(type) {
 		case *nuclio.ErrorWithStatusCode:
-			return nuclio.GetWrapByStatusCode(err.(*nuclio.ErrorWithStatusCode).StatusCode())(errors.Wrap(err, "Failed to send patch API request"))
+			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(errors.Wrap(err, "Failed to send patch API request"))
 		default:
-			return errors.Wrap(err, "Failed to send patch API request")
+			return errors.Wrap(typedError, "Failed to send patch API request")
 		}
 	}
 

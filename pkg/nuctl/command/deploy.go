@@ -809,11 +809,11 @@ func (d *deployCommandeer) patchFunction(ctx context.Context, functionName strin
 		d.rootCommandeer.namespace,
 		payload,
 		requestHeaders); err != nil {
-		switch err.(type) {
+		switch typedError := err.(type) {
 		case *nuclio.ErrorWithStatusCode:
-			return nuclio.GetWrapByStatusCode(err.(*nuclio.ErrorWithStatusCode).StatusCode())(errors.Wrap(err, "Failed to patch function"))
+			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(errors.Wrap(err, "Failed to patch function"))
 		default:
-			return errors.Wrap(err, "Failed to patch function")
+			return errors.Wrap(typedError, "Failed to patch function")
 		}
 	}
 
@@ -942,14 +942,10 @@ func (d *deployCommandeer) resolveFunctionName() (string, error) {
 }
 
 func (d *deployCommandeer) resolveIfRedeployRetryable(err error) bool {
-	switch err.(type) {
+	switch typedError := err.(type) {
 	case *nuclio.ErrorWithStatusCode:
-		responseError := err.(*nuclio.ErrorWithStatusCode)
-		if responseError == nil {
-			return true
-		}
 		// if the status code is 412, then another redeployment will not help because there is something wrong with the configuration
-		return responseError.StatusCode() != http.StatusPreconditionFailed
+		return typedError.StatusCode() != http.StatusPreconditionFailed
 	case error:
 		return true
 	}
