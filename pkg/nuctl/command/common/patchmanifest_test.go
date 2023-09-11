@@ -20,12 +20,12 @@ package common
 
 import (
 	"context"
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
+	"os"
 	"testing"
 
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/suite"
-	"os"
 )
 
 type PatchManifestTestSuite struct {

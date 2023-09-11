@@ -23,7 +23,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/nuclio-sdk-go"
 	"io"
 	"net/http"
 	"time"
@@ -35,6 +34,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/apimachinery/pkg/labels"
 )
 

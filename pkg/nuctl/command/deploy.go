@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/nuclio-sdk-go"
 	"io"
 	"net/http"
 	"os"
@@ -37,6 +36,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
