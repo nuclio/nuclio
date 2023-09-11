@@ -706,7 +706,7 @@ func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error 
 		args = append(args, retryableFunctions...)
 	}
 
-	if len(args) == 0 && d.inputManifest == nil {
+	if len(args) == 0 && !d.redeployWithReportFile {
 		// redeploy all functions in the namespace
 		if err := d.redeployAllFunctions(ctx); err != nil {
 			return errors.Wrap(err, "Failed to redeploy all functions")
