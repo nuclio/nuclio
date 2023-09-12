@@ -160,8 +160,7 @@ func readManifestFromFile(path string) (*patchManifest, error) {
 		return nil, errors.Wrap(err, "Failed to read patch manifest from file")
 	}
 	var patchManifestInstance *patchManifest
-	err = json.Unmarshal(file, &patchManifestInstance)
-	if err != nil {
+	if err := json.Unmarshal(file, &patchManifestInstance); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal patch manifest")
 	}
 	return patchManifestInstance, nil
