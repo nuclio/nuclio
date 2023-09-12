@@ -52,7 +52,7 @@ func (suite *PatchManifestTestSuite) TestNewPatchManifestFromFile() {
 		"\"failed\":{\"failed1\":{\"error\":\"error1\",\"retryable\":false}," +
 		"\"failed2\":{\"error\":\"error2\",\"retryable\":true}}}"
 	expected := NewPatchManifest()
-	expected.Failed = map[string]FailDescription{
+	expected.Failed = map[string]failDescription{
 		"failed1": {Err: "error1", Retryable: false},
 		"failed2": {Err: "error2", Retryable: true},
 	}

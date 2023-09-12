@@ -34,10 +34,10 @@ type PatchManifest struct {
 type patchManifest struct {
 	Success []string                   `json:"success,omitempty"`
 	Skipped []string                   `json:"skipped,omitempty"`
-	Failed  map[string]FailDescription `json:"failed,omitempty"`
+	Failed  map[string]failDescription `json:"failed,omitempty"`
 }
 
-type FailDescription struct {
+type failDescription struct {
 	Err       string `json:"error,omitempty"`
 	Retryable bool   `json:"retryable"`
 }
@@ -48,7 +48,7 @@ func NewPatchManifest() *PatchManifest {
 		patchManifest: &patchManifest{
 			Success: []string{},
 			Skipped: []string{},
-			Failed:  make(map[string]FailDescription),
+			Failed:  make(map[string]failDescription),
 		},
 	}
 }
@@ -82,7 +82,7 @@ func (m *PatchManifest) AddFailure(name string, err error, retryable bool) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.Failed[name] = FailDescription{
+	m.Failed[name] = failDescription{
 		Err:       err.Error(),
 		Retryable: retryable,
 	}
@@ -102,7 +102,7 @@ func (m *PatchManifest) GetSkipped() []string {
 	return m.Skipped
 }
 
-func (m *PatchManifest) GetFailed() map[string]FailDescription {
+func (m *PatchManifest) GetFailed() map[string]failDescription {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
