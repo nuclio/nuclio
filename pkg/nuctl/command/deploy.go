@@ -781,7 +781,9 @@ func (d *deployCommandeer) redeployFunctions(ctx context.Context, functionNames 
 	}
 
 	d.outputManifest.LogOutput(ctx, d.rootCommandeer.loggerInstance)
-	d.outputManifest.SaveToFile(ctx, d.rootCommandeer.loggerInstance, d.reportFilePath)
+	if !d.noReport {
+		d.outputManifest.SaveToFile(ctx, d.rootCommandeer.loggerInstance, d.reportFilePath)
+	}
 
 	return nil
 }
