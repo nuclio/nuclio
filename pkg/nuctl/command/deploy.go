@@ -765,7 +765,6 @@ func (d *deployCommandeer) redeployFunctions(ctx context.Context, functionNames 
 		function := function
 		patchErrGroup.Go("patch function", func() error {
 			if err := d.patchFunction(ctx, function); err != nil {
-				d.rootCommandeer.loggerInstance.ErrorWith("Problem in redeployment", "err", err)
 				d.outputManifest.AddFailure(function, err, d.resolveIfRedeployRetryable(err))
 				return errors.Wrap(err, "Failed to patch function")
 			}
