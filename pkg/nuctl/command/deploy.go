@@ -714,7 +714,8 @@ func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error 
 	if len(args) == 0 {
 
 		if d.redeployFromReportFile {
-			return errors.New("No retryable functions to redeploy")
+			d.rootCommandeer.loggerInstance.Info("No retryable functions to redeploy")
+			return nil
 		}
 
 		// redeploy all functions in the namespace
