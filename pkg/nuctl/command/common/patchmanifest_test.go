@@ -93,7 +93,10 @@ func (suite *PatchManifestTestSuite) TestPatchManifestSaveToFile() {
 	manifestData, err := os.ReadFile(tempFile.Name())
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("{\"success\":[\"success1\",\"success2\"],\"skipped\":[\"skipped1\",\"skipped2\"],\"failed\":{\"failed1\":{\"error\":\"error1\",\"retryable\":false},\"failed2\":{\"error\":\"error2\",\"retryable\":true}}}", string(manifestData))
+	suite.Require().Equal("{\"success\":[\"success1\",\"success2\"],"+
+		"\"skipped\":[\"skipped1\",\"skipped2\"],"+
+		"\"failed\":{\"failed1\":{\"error\":\"error1\",\"retryable\":false},"+
+		"\"failed2\":{\"error\":\"error2\",\"retryable\":true}}}", string(manifestData))
 
 }
 
