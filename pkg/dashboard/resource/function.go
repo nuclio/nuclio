@@ -513,7 +513,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return errors.Wrap(err, "Failed to get get function")
 	}
 
-	if function.GetConfig().Spec.Build.Image == "" {
+	if function.GetConfig().Spec.Image == "" {
 		return nuclio.NewErrPreconditionFailed("No image field in function config spec, unable to redeploy")
 	}
 
