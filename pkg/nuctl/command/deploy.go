@@ -89,14 +89,14 @@ type deployCommandeer struct {
 	// beta - api client
 	betaCommandeer         *betaCommandeer
 	noBuild                bool
-	redeployWithReportFile bool
+	redeployFromReportFile bool
 	deployAll              bool
 	waitForFunction        bool
 	skipSpecCleanup        bool
 	verifyExternalRegistry bool
 	outputManifest         *nuctlcommon.PatchManifest
 	inputManifest          *nuctlcommon.PatchManifest
-	noReport               bool
+	saveReport             bool
 	reportFilePath         string
 	excludedProjects       []string
 	excludedFunctions      []string
@@ -227,11 +227,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 
 	addDeployFlags(cmd, commandeer)
 	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clean up spec in function configs")
-	cmd.Flags().BoolVarP(&commandeer.redeployWithReportFile, "redeploy-with-report-file", "", false, "Redeploy any functions that failed in the report and can be redeployed")
-	cmd.Flags().BoolVarP(&commandeer.noReport, "no-report", "", false, "Do not save report to a file")
-	cmd.Flags().BoolVarP(&commandeer.verifyExternalRegistry, "verify-external-registry", "", false, "verify registry is external")
 	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
-	cmd.Flags().StringVarP(&commandeer.reportFilePath, "output-file", "", "nuctl-deployment-report.json", "Path to deployment report")
 
 	commandeer.cmd = cmd
 
@@ -287,6 +283,10 @@ func addBetaDeployFlags(cmd *cobra.Command,
 	cmd.PersistentFlags().BoolVar(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", false, "Skip functions with GPU")
 	cmd.PersistentFlags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
 	cmd.PersistentFlags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment (default 15m)")
+	cmd.Flags().BoolVarP(&commandeer.redeployFromReportFile, "redeploy-from-report-file", "", false, "Redeploy failed and retryable functions from the given report file")
+	cmd.Flags().BoolVarP(&commandeer.saveReport, "save-report", "", false, "Save redeployment report to a file")
+	cmd.Flags().BoolVarP(&commandeer.verifyExternalRegistry, "verify-external-registry", "", false, "verify registry is external")
+	cmd.Flags().StringVarP(&commandeer.reportFilePath, "report-file-path", "", "nuctl-redeployment-report.json", "Path to redeployment report")
 }
 
 func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList) error {
@@ -698,15 +698,19 @@ func (d *deployCommandeer) enrichBuildConfigWithArgs() {
 
 func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error {
 
-	if d.redeployWithReportFile {
-		d.inputManifest = nuctlcommon.NewPatchManifestFromFile(d.reportFilePath)
-		retryableFunctions := d.inputManifest.GetRetryable()
+	if d.redeployFromReportFile {
+		manifest, err := nuctlcommon.NewPatchManifestFromFile(d.reportFilePath)
+		if err != nil {
+			return errors.Wrap(err, "Problem with reading report file")
+		}
+		d.inputManifest = manifest
+		retryableFunctions := d.inputManifest.GetRetryableFunctionNames()
 		d.rootCommandeer.loggerInstance.InfoWith("Redeploying failed functions from report file", "report file", d.reportFilePath,
 			"functions", retryableFunctions)
 		args = append(args, retryableFunctions...)
 	}
 
-	if len(args) == 0 && !d.redeployWithReportFile {
+	if len(args) == 0 && !d.redeployFromReportFile {
 		// redeploy all functions in the namespace
 		if err := d.redeployAllFunctions(ctx); err != nil {
 			return errors.Wrap(err, "Failed to redeploy all functions")
@@ -765,7 +769,7 @@ func (d *deployCommandeer) redeployFunctions(ctx context.Context, functionNames 
 		function := function
 		patchErrGroup.Go("patch function", func() error {
 			if err := d.patchFunction(ctx, function); err != nil {
-				d.outputManifest.AddFailure(function, err, d.resolveIfRedeployRetryable(err))
+				d.outputManifest.AddFailure(function, err, d.isRedeploymentRetryable(err))
 				return errors.Wrap(err, "Failed to patch function")
 			}
 			d.outputManifest.AddSuccess(function)
@@ -781,7 +785,7 @@ func (d *deployCommandeer) redeployFunctions(ctx context.Context, functionNames 
 	}
 
 	d.outputManifest.LogOutput(ctx, d.rootCommandeer.loggerInstance)
-	if !d.noReport {
+	if d.saveReport {
 		d.outputManifest.SaveToFile(ctx, d.rootCommandeer.loggerInstance, d.reportFilePath)
 	}
 
@@ -942,7 +946,7 @@ func (d *deployCommandeer) resolveFunctionName() (string, error) {
 	return "", errors.New("Function name is not provided")
 }
 
-func (d *deployCommandeer) resolveIfRedeployRetryable(err error) bool {
+func (d *deployCommandeer) isRedeploymentRetryable(err error) bool {
 	switch typedError := err.(type) {
 	case *nuclio.ErrorWithStatusCode:
 		// if the status code is 412, then another redeployment will not help because there is something wrong with the configuration

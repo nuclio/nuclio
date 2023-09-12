@@ -47,7 +47,10 @@ func (suite *PatchManifestTestSuite) TearDownSuite() {
 }
 
 func (suite *PatchManifestTestSuite) TestNewPatchManifestFromFile() {
-	testData := "{\"success\":[\"success1\",\"success2\"],\"skipped\":[\"skipped1\",\"skipped2\"],\"failed\":{\"failed1\":{\"error\":\"error1\",\"retryable\":false},\"failed2\":{\"error\":\"error2\",\"retryable\":true}}}"
+	testData := "{\"success\":[\"success1\",\"success2\"]," +
+		"\"skipped\":[\"skipped1\",\"skipped2\"]," +
+		"\"failed\":{\"failed1\":{\"error\":\"error1\",\"retryable\":false}," +
+		"\"failed2\":{\"error\":\"error2\",\"retryable\":true}}}"
 	expected := NewPatchManifest()
 	expected.Failed = map[string]FailDescription{
 		"failed1": {Err: "error1", Retryable: false},
@@ -64,7 +67,8 @@ func (suite *PatchManifestTestSuite) TestNewPatchManifestFromFile() {
 	_, err = tempFile.Write([]byte(testData))
 	suite.Require().NoError(err)
 
-	manifest := NewPatchManifestFromFile(tempFile.Name())
+	manifest, err := NewPatchManifestFromFile(tempFile.Name())
+	suite.Require().NoError(err)
 	suite.Require().Equal(expected.Failed, manifest.Failed, "Failed deployments was read incorrectly")
 	suite.Require().Equal(expected.Success, manifest.Success, "Success deployments was read incorrectly")
 	suite.Require().Equal(expected.Skipped, manifest.Skipped, "Skipped deployments was read incorrectly")

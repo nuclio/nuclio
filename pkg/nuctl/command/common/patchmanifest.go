@@ -22,6 +22,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -52,112 +53,116 @@ func NewPatchManifest() *PatchManifest {
 	}
 }
 
-func NewPatchManifestFromFile(path string) *PatchManifest {
+func NewPatchManifestFromFile(path string) (*PatchManifest, error) {
 	parsedManifest, err := readManifestFromFile(path)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	return &PatchManifest{
 		patchManifest: parsedManifest,
 		lock:          sync.Mutex{},
-	}
+	}, nil
 }
 
-func (om *PatchManifest) AddSuccess(name string) {
-	om.lock.Lock()
-	defer om.lock.Unlock()
+func (m *PatchManifest) AddSuccess(name string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	om.Success = append(om.Success, name)
+	m.Success = append(m.Success, name)
 }
 
-func (om *PatchManifest) AddSkipped(name string) {
-	om.lock.Lock()
-	defer om.lock.Unlock()
+func (m *PatchManifest) AddSkipped(name string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	om.Skipped = append(om.Skipped, name)
+	m.Skipped = append(m.Skipped, name)
 }
 
-func (om *PatchManifest) AddFailure(name string, err error, retryable bool) {
-	om.lock.Lock()
-	defer om.lock.Unlock()
+func (m *PatchManifest) AddFailure(name string, err error, retryable bool) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	om.Failed[name] = FailDescription{
+	m.Failed[name] = FailDescription{
 		Err:       err.Error(),
 		Retryable: retryable,
 	}
 }
 
-func (om *PatchManifest) GetSuccess() []string {
-	om.lock.Lock()
-	defer om.lock.Unlock()
+func (m *PatchManifest) GetSuccess() []string {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	return om.Success
+	return m.Success
 }
 
-func (om *PatchManifest) GetSkipped() []string {
-	om.lock.Lock()
-	defer om.lock.Unlock()
+func (m *PatchManifest) GetSkipped() []string {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	return om.Skipped
+	return m.Skipped
 }
 
-func (om *PatchManifest) GetFailed() map[string]FailDescription {
-	om.lock.Lock()
-	defer om.lock.Unlock()
+func (m *PatchManifest) GetFailed() map[string]FailDescription {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	return om.Failed
+	return m.Failed
 }
 
-func (om *PatchManifest) GetRetryable() []string {
+func (m *PatchManifest) GetRetryableFunctionNames() []string {
 	retryable := make([]string, 0)
-	for name, deployRes := range om.GetFailed() {
-		if deployRes.Retryable {
+	for name, failDescription := range m.GetFailed() {
+		if failDescription.Retryable {
 			retryable = append(retryable, name)
 		}
 	}
 	return retryable
 }
 
-func (om *PatchManifest) LogOutput(ctx context.Context, loggerInstance logger.Logger) {
-	if len(om.GetSuccess()) > 0 {
+func (m *PatchManifest) LogOutput(ctx context.Context, loggerInstance logger.Logger) {
+	if len(m.GetSuccess()) > 0 {
 		loggerInstance.InfoWithCtx(ctx, "Patched functions successfully",
-			"functions", om.GetSuccess())
+			"functions", m.GetSuccess())
 	}
-	if len(om.GetSkipped()) > 0 {
+	if len(m.GetSkipped()) > 0 {
 		loggerInstance.InfoWithCtx(ctx, "Skipped functions",
-			"functions", om.GetSkipped())
+			"functions", m.GetSkipped())
 	}
-	if len(om.GetFailed()) > 0 {
-		for function, err := range om.GetFailed() {
+	if len(m.GetFailed()) > 0 {
+		for function, failDescription := range m.GetFailed() {
 			loggerInstance.ErrorWithCtx(ctx, "Failed to patch function",
 				"function", function,
-				"err", err)
+				"err", failDescription.Err,
+				"retryable", failDescription.Retryable)
 		}
 	}
 }
 
-func (om *PatchManifest) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
-	file, err := json.Marshal(om.patchManifest)
+func (m *PatchManifest) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
+	file, err := json.Marshal(m.patchManifest)
 	if err != nil {
-		loggerInstance.ErrorWithCtx(ctx, "Failed to marshal to json",
-			"err", err, "path", path)
+		loggerInstance.ErrorWithCtx(ctx,
+			"Failed to marshal report to json",
+			"err", err,
+			"path", path)
 	}
-	err = os.WriteFile(path, file, 0644)
-	if err != nil {
-		loggerInstance.ErrorWithCtx(ctx, "Failed to write report to file",
-			"err", err, "path", path)
+	if err := os.WriteFile(path, file, 0644); err != nil {
+		loggerInstance.ErrorWithCtx(ctx,
+			"Failed to write report to file",
+			"err", err,
+			"path", path)
 	}
 }
 
 func readManifestFromFile(path string) (*patchManifest, error) {
 	file, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to read patch manifest from file")
 	}
 	var patchManifestInstance *patchManifest
 	err = json.Unmarshal(file, &patchManifestInstance)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to unmarshal patch manifest")
 	}
 	return patchManifestInstance, nil
 }
