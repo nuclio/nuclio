@@ -47,10 +47,26 @@ func (suite *PatchManifestTestSuite) TearDownSuite() {
 }
 
 func (suite *PatchManifestTestSuite) TestNewPatchManifestFromFile() {
-	testData := "{\"success\":[\"success1\",\"success2\"]," +
-		"\"skipped\":[\"skipped1\",\"skipped2\"]," +
-		"\"failed\":{\"failed1\":{\"error\":\"error1\",\"retryable\":false}," +
-		"\"failed2\":{\"error\":\"error2\",\"retryable\":true}}}"
+	testData := `{
+        "success": [
+                "success1",
+                "success2"
+        ],
+        "skipped": [
+                "skipped1",
+                "skipped2"
+        ],
+        "failed": {
+                "failed1": {
+                        "error": "error1",
+                        "retryable": false
+                },
+                "failed2": {
+                        "error": "error2",
+                        "retryable": true
+                }
+        }
+	}`
 	expected := NewPatchManifest()
 	expected.Failed = map[string]failDescription{
 		"failed1": {Err: "error1", Retryable: false},

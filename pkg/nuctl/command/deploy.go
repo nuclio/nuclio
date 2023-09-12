@@ -705,12 +705,18 @@ func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error 
 		}
 		d.inputManifest = manifest
 		retryableFunctions := d.inputManifest.GetRetryableFunctionNames()
-		d.rootCommandeer.loggerInstance.InfoWith("Redeploying failed functions from report file", "report file", d.reportFilePath,
+		d.rootCommandeer.loggerInstance.InfoWith("Redeploying failed functions from report file",
+			"report file", d.reportFilePath,
 			"functions", retryableFunctions)
 		args = append(args, retryableFunctions...)
 	}
 
-	if len(args) == 0 && !d.redeployFromReportFile {
+	if len(args) == 0 {
+
+		if d.redeployFromReportFile {
+			return errors.New("No retryable functions to redeploy")
+		}
+
 		// redeploy all functions in the namespace
 		if err := d.redeployAllFunctions(ctx); err != nil {
 			return errors.Wrap(err, "Failed to redeploy all functions")
