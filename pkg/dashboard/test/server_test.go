@@ -1020,7 +1020,7 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 	returnedFunction.Config.Meta.Name = functionName
 	returnedFunction.Config.Meta.Namespace = namespace
 	returnedFunction.Status.State = functionconfig.FunctionStateImported
-	returnedFunction.Config.Spec.Build.Image = "image"
+	returnedFunction.Config.Spec.Image = "image"
 
 	// verify
 	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
@@ -1153,7 +1153,7 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 			function.Config.Meta.Name = testCase.functionName
 			function.Config.Meta.Namespace = namespace
 			function.Status.State = testCase.functionState
-			function.Config.Spec.Build.Image = "image"
+			function.Config.Spec.Image = "image"
 
 			// verifications
 			verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
