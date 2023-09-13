@@ -34,6 +34,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -175,7 +176,12 @@ func (c *NuclioAPIClient) PatchFunction(ctx context.Context,
 		patchHeaders,
 		http.StatusAccepted,
 		false); err != nil {
-		return errors.Wrap(err, "Failed to send patch API request")
+		switch typedError := err.(type) {
+		case *nuclio.ErrorWithStatusCode:
+			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(errors.Wrap(err, "Failed to send patch API request"))
+		default:
+			return errors.Wrap(typedError, "Failed to send patch API request")
+		}
 	}
 
 	return nil
@@ -218,7 +224,7 @@ func (c *NuclioAPIClient) sendRequest(ctx context.Context,
 	}
 
 	if response.StatusCode != expectedStatusCode {
-		return nil, nil, errors.Errorf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode)
+		return nil, nil, nuclio.GetByStatusCode(response.StatusCode)(fmt.Sprintf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode))
 	}
 
 	if !returnResponseBody {
