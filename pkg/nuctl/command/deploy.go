@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,7 +32,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -643,17 +641,6 @@ func (d *deployCommandeer) resolveFunctionName() (string, error) {
 	}
 
 	return "", errors.New("Function name is not provided")
-}
-
-func (d *deployCommandeer) isRedeploymentRetryable(err error) bool {
-	switch typedError := err.(type) {
-	case *nuclio.ErrorWithStatusCode:
-		// if the status code is 412, then another redeployment will not help because there is something wrong with the configuration
-		return typedError.StatusCode() != http.StatusPreconditionFailed
-	case error:
-		return true
-	}
-	return true
 }
 
 func (d *deployCommandeer) resolveFunctionNameFromPath() (string, error) {
