@@ -111,6 +111,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 				}
 				if importedFunction != nil {
 					commandeer.rootCommandeer.loggerInstance.Debug("Function was already imported, deploying it")
+					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction)
 				}
 			}
 
@@ -320,6 +321,16 @@ func (d *deployCommandeer) getImportedFunction(ctx context.Context, functionName
 	}
 
 	return nil, nil
+}
+
+func (d *deployCommandeer) prepareFunctionConfigForRedeploy(importedFunction platform.Function) functionconfig.Config {
+	functionConfig := importedFunction.GetConfig()
+
+	// Ensure RunRegistry is taken from the commandeer config
+	functionConfig.CleanFunctionSpec()
+	functionConfig.Spec.RunRegistry = d.functionConfig.Spec.RunRegistry
+
+	return *functionConfig
 }
 
 func (d *deployCommandeer) populateDeploymentDefaults() {
