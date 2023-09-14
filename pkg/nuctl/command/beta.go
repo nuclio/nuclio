@@ -61,7 +61,7 @@ func newBetaCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *bet
 	cmd.MarkPersistentFlagRequired("api-url") // nolint: errcheck
 
 	cmd.AddCommand(
-		newDeployCommandeer(ctx, rootCommandeer, commandeer).cmd,
+		newRedeployCommandeer(ctx, rootCommandeer, commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd

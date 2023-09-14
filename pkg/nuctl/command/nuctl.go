@@ -71,7 +71,7 @@ func NewRootCommandeer() *RootCommandeer {
 	// add children
 	cmd.AddCommand(
 		newBuildCommandeer(commandeer).cmd,
-		newDeployCommandeer(ctx, commandeer, nil).cmd,
+		newDeployCommandeer(ctx, commandeer).cmd,
 		newInvokeCommandeer(ctx, commandeer).cmd,
 		newGetCommandeer(ctx, commandeer).cmd,
 		newDeleteCommandeer(ctx, commandeer).cmd,
