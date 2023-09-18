@@ -43,7 +43,6 @@ type redeployCommandeer struct {
 	waitForFunction        bool
 	verifyExternalRegistry bool
 	outputManifest         *nuctlcommon.PatchManifest
-	inputManifest          *nuctlcommon.PatchManifest
 	saveReport             bool
 	reportFilePath         string
 	excludedProjects       []string
