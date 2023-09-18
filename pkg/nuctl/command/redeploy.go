@@ -40,9 +40,7 @@ type redeployCommandeer struct {
 
 	betaCommandeer         *betaCommandeer
 	redeployFromReportFile bool
-	deployAll              bool
 	waitForFunction        bool
-	skipSpecCleanup        bool
 	verifyExternalRegistry bool
 	outputManifest         *nuctlcommon.PatchManifest
 	inputManifest          *nuctlcommon.PatchManifest
@@ -71,23 +69,17 @@ func newRedeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, 
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
-
-			if commandeer.betaCommandeer != nil {
-				if err := commandeer.betaCommandeer.initialize(); err != nil {
-					return errors.Wrap(err, "Failed to initialize beta commandeer")
-				}
-				commandeer.rootCommandeer.loggerInstance.Debug("In BETA mode")
-				if err := commandeer.betaRedeploy(ctx, args); err != nil {
-					return errors.Wrap(err, "Failed to deploy function")
-				}
-				return nil
+			if err := commandeer.betaCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize beta commandeer")
+			}
+			if err := commandeer.redeploy(ctx, args); err != nil {
+				return errors.Wrap(err, "Failed to deploy function")
 			}
 			return nil
 		},
 	}
 
 	addRedeployFlags(cmd, commandeer)
-	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clean up spec in function configs")
 
 	commandeer.cmd = cmd
 
@@ -96,7 +88,6 @@ func newRedeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, 
 
 func addRedeployFlags(cmd *cobra.Command,
 	commandeer *redeployCommandeer) {
-	cmd.Flags().BoolVar(&commandeer.deployAll, "deploy-all", false, "Deploy all functions in the namespace")
 	cmd.PersistentFlags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
 	cmd.PersistentFlags().StringSliceVar(&commandeer.excludedProjects, "exclude-projects", []string{}, "Exclude projects to patch")
 	cmd.PersistentFlags().StringSliceVar(&commandeer.excludedFunctions, "exclude-functions", []string{}, "Exclude functions to patch")
@@ -109,15 +100,14 @@ func addRedeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVarP(&commandeer.reportFilePath, "report-file-path", "", "nuctl-redeployment-report.json", "Path to redeployment report")
 }
 
-func (d *redeployCommandeer) betaRedeploy(ctx context.Context, args []string) error {
+func (d *redeployCommandeer) redeploy(ctx context.Context, args []string) error {
 
 	if d.redeployFromReportFile {
 		manifest, err := nuctlcommon.NewPatchManifestFromFile(d.reportFilePath)
 		if err != nil {
 			return errors.Wrap(err, "Problem with reading report file")
 		}
-		d.inputManifest = manifest
-		retryableFunctions := d.inputManifest.GetRetryableFunctionNames()
+		retryableFunctions := manifest.GetRetryableFunctionNames()
 		d.rootCommandeer.loggerInstance.InfoWith("Redeploying failed functions from report file",
 			"report file", d.reportFilePath,
 			"functions", retryableFunctions)
@@ -321,14 +311,9 @@ func (d *redeployCommandeer) shouldSkipFunction(functionConfig functionconfig.Co
 	functionName := functionConfig.Meta.Name
 	projectName := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 
-	// skip if function is excluded or if it has a positive GPU resource limit
-	if common.StringSliceContainsString(d.excludedFunctions, functionName) ||
+	return common.StringSliceContainsString(d.excludedFunctions, functionName) ||
 		common.StringSliceContainsString(d.excludedProjects, projectName) ||
-		(d.excludeFunctionWithGPU && functionConfig.Spec.PositiveGPUResourceLimit()) {
-		return true
-	}
-
-	return false
+		(d.excludeFunctionWithGPU && functionConfig.Spec.PositiveGPUResourceLimit())
 }
 
 func (d *redeployCommandeer) resolveRequestHeaders() map[string]string {

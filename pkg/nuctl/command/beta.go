@@ -86,6 +86,6 @@ func (b *betaCommandeer) initialize() error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to create API client")
 	}
-
+	b.rootCommandeer.loggerInstance.Debug("In BETA mode")
 	return nil
 }
