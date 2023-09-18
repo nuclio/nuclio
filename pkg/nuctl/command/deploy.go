@@ -185,7 +185,6 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 	}
 
 	addDeployFlags(cmd, commandeer)
-	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
 
 	commandeer.cmd = cmd
 
@@ -226,6 +225,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Resource restrictions of the format '<resource name>=<quantity>' (for example, 'cpu=3')")
 	cmd.Flags().Var(&commandeer.resourceRequests, "resource-request", "Requested resources of the format '<resource name>=<quantity>' (for example, 'cpu=3')")
 	cmd.Flags().StringVar(&commandeer.loggerLevel, "logger-level", "", "One of debug, info, warn, error. By default, uses platform configuration")
+	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
 }
 func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList) error {
 	for _, value := range values {
