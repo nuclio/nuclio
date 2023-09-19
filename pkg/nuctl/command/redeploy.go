@@ -49,7 +49,6 @@ type redeployCommandeer struct {
 	excludeFunctionWithGPU bool
 	importedOnly           bool
 	waitForFunction        bool
-	waitTimeoutStr         string
 	waitTimeout            time.Duration
 }
 
@@ -82,13 +81,6 @@ Arguments:
 				return errors.Wrap(err, "Failed to initialize beta commandeer")
 			}
 
-			// parse the wait timeout duration
-			waitTimoutDuration, err := time.ParseDuration(commandeer.waitTimeoutStr)
-			if err != nil {
-				return errors.Wrap(err, "Failed to parse wait timeout")
-			}
-			commandeer.waitTimeout = waitTimoutDuration
-
 			if err := commandeer.redeploy(ctx, args); err != nil {
 				return errors.Wrap(err, "Failed to deploy function")
 			}
@@ -114,7 +106,7 @@ func addRedeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", false, "Skip functions with GPU")
 	cmd.Flags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
 	cmd.Flags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
-	cmd.Flags().StringVar(&commandeer.waitTimeoutStr, "wait-timeout", "15m", "Wait timeout duration for the function deployment (default 15m)")
+	cmd.Flags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment, e.g 30s, 5m")
 }
 
 func (d *redeployCommandeer) redeploy(ctx context.Context, args []string) error {
