@@ -39,16 +39,17 @@ type redeployCommandeer struct {
 	rootCommandeer *RootCommandeer
 
 	betaCommandeer         *betaCommandeer
-	redeployFromReportFile bool
-	waitForFunction        bool
-	verifyExternalRegistry bool
 	outputManifest         *nuctlcommon.PatchManifest
+	verifyExternalRegistry bool
 	saveReport             bool
+	fromReport             bool
 	reportFilePath         string
 	excludedProjects       []string
 	excludedFunctions      []string
 	excludeFunctionWithGPU bool
 	importedOnly           bool
+	waitForFunction        bool
+	waitTimeoutStr         string
 	waitTimeout            time.Duration
 }
 
@@ -60,8 +61,17 @@ func newRedeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, 
 	}
 
 	cmd := &cobra.Command{
-		Use:   "redeploy function-name",
-		Short: "Redeploy a function",
+		Use:   "redeploy [<function>]",
+		Short: "Redeploy one or more functions",
+		Long: `
+Redeploy one or more functions. If no function name is specified, 
+all functions in the namespace will be redeployed.
+
+Note: This command works on functions that were previously deployed, or imported functions.
+	  To deploy a new function, use the 'deploy' command.
+
+Arguments:
+  <function> (string) The name of a function to redeploy. Can be specified multiple times.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
@@ -71,6 +81,14 @@ func newRedeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, 
 			if err := commandeer.betaCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize beta commandeer")
 			}
+
+			// parse the wait timeout duration
+			waitTimoutDuration, err := time.ParseDuration(commandeer.waitTimeoutStr)
+			if err != nil {
+				return errors.Wrap(err, "Failed to parse wait timeout")
+			}
+			commandeer.waitTimeout = waitTimoutDuration
+
 			if err := commandeer.redeploy(ctx, args); err != nil {
 				return errors.Wrap(err, "Failed to deploy function")
 			}
@@ -87,38 +105,38 @@ func newRedeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, 
 
 func addRedeployFlags(cmd *cobra.Command,
 	commandeer *redeployCommandeer) {
-	cmd.Flags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
+	cmd.Flags().BoolVar(&commandeer.verifyExternalRegistry, "verify-external-registry", false, "verify registry is external")
+	cmd.Flags().BoolVar(&commandeer.saveReport, "save-report", false, "Save redeployment report to a file")
+	cmd.Flags().BoolVar(&commandeer.fromReport, "from-report", false, "Redeploy failed and retryable functions from the given report file (if arguments are also given, they will be redeployed as well)")
+	cmd.Flags().StringVar(&commandeer.reportFilePath, "report-file-path", "nuctl-redeployment-report.json", "Path to redeployment report")
 	cmd.Flags().StringSliceVar(&commandeer.excludedProjects, "exclude-projects", []string{}, "Exclude projects to patch")
 	cmd.Flags().StringSliceVar(&commandeer.excludedFunctions, "exclude-functions", []string{}, "Exclude functions to patch")
 	cmd.Flags().BoolVar(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", false, "Skip functions with GPU")
 	cmd.Flags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
-	cmd.Flags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment (default 15m)")
-	cmd.Flags().BoolVarP(&commandeer.redeployFromReportFile, "redeploy-from-report-file", "", false, "Redeploy failed and retryable functions from the given report file")
-	cmd.Flags().BoolVarP(&commandeer.saveReport, "save-report", "", false, "Save redeployment report to a file")
-	cmd.Flags().BoolVarP(&commandeer.verifyExternalRegistry, "verify-external-registry", "", false, "verify registry is external")
-	cmd.Flags().StringVarP(&commandeer.reportFilePath, "report-file-path", "", "nuctl-redeployment-report.json", "Path to redeployment report")
+	cmd.Flags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
+	cmd.Flags().StringVar(&commandeer.waitTimeoutStr, "wait-timeout", "15m", "Wait timeout duration for the function deployment (default 15m)")
 }
 
 func (d *redeployCommandeer) redeploy(ctx context.Context, args []string) error {
 
-	if d.redeployFromReportFile {
+	if d.fromReport {
 		manifest, err := nuctlcommon.NewPatchManifestFromFile(d.reportFilePath)
 		if err != nil {
 			return errors.Wrap(err, "Problem with reading report file")
 		}
 		retryableFunctions := manifest.GetRetryableFunctionNames()
-		d.rootCommandeer.loggerInstance.InfoWith("Redeploying failed functions from report file",
-			"report file", d.reportFilePath,
-			"functions", retryableFunctions)
-		args = append(args, retryableFunctions...)
+		if len(retryableFunctions) != 0 {
+			d.rootCommandeer.loggerInstance.InfoWith("Found retryable functions in report file",
+				"reportFile", d.reportFilePath,
+				"functions", retryableFunctions)
+			args = common.RemoveDuplicatesFromSliceString(append(args, retryableFunctions...))
+		} else {
+			d.rootCommandeer.loggerInstance.InfoWith("No retryable functions found in report file",
+				"reportFile", d.reportFilePath)
+		}
 	}
 
 	if len(args) == 0 {
-
-		if d.redeployFromReportFile {
-			d.rootCommandeer.loggerInstance.Info("No retryable functions to redeploy")
-			return nil
-		}
 
 		// redeploy all functions in the namespace
 		if err := d.redeployAllFunctions(ctx); err != nil {
@@ -171,7 +189,7 @@ func (d *redeployCommandeer) getFunctionNames(ctx context.Context) ([]string, er
 }
 
 func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionNames []string) error {
-	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Redeploying functions", "functionNames", functionNames)
+	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx, "Redeploying functions", "functionNames", functionNames)
 
 	patchErrGroup, _ := errgroup.WithContextSemaphore(ctx, d.rootCommandeer.loggerInstance, uint(d.betaCommandeer.concurrency))
 	for _, function := range functionNames {
@@ -204,7 +222,7 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 // patchFunction patches a single function
 func (d *redeployCommandeer) patchFunction(ctx context.Context, functionName string) error {
 
-	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Redeploying function", "function", functionName)
+	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx, "Redeploying function", "function", functionName)
 
 	// patch function
 	patchOptions := map[string]string{
@@ -231,7 +249,7 @@ func (d *redeployCommandeer) patchFunction(ctx context.Context, functionName str
 		}
 	}
 
-	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
+	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
 		"Function redeploy request sent successfully",
 		"function", functionName)
 
@@ -243,35 +261,36 @@ func (d *redeployCommandeer) patchFunction(ctx context.Context, functionName str
 }
 
 func (d *redeployCommandeer) waitForFunctionDeployment(ctx context.Context, functionName string) error {
-	ticker := time.NewTicker(5 * time.Second)
-	for {
-		select {
-		case <-time.After(d.waitTimeout):
-			return errors.New(fmt.Sprintf("Timed out waiting for function '%s' to be ready", functionName))
-		case <-ticker.C:
-			isTerminal, err := d.functionIsInTerminalState(ctx, functionName)
-			if !isTerminal {
-
-				// function isn't in terminal state yet, retry
-				continue
-			}
-			if err != nil {
-
-				// function is terminal, but not ready, return error
-				return err
-			}
-
-			// function is ready
-			return nil
+	var waitError error
+	err := common.RetryUntilSuccessful(d.waitTimeout, 5*time.Second, func() bool {
+		isTerminal, err := d.isFunctionInTerminalState(ctx, functionName)
+		if !isTerminal {
+			// function isn't in terminal state yet, retry
+			return false
 		}
+		if err != nil {
+			// function is terminal, but not ready, stop and return error
+			waitError = err
+			return true
+		}
+
+		// function is ready
+		return true
+	})
+	if waitError != nil {
+		return waitError
 	}
+	if err != nil {
+		return errors.New(fmt.Sprintf("Timed out waiting for function '%s' to be ready", functionName))
+	}
+	return nil
 }
 
-// functionIsInTerminalState checks if the function is in terminal state
+// isFunctionInTerminalState checks if the function is in terminal state
 // if the function is ready, it returns true and no error
 // if the function is in another terminal state, it returns true and an error
 // else it returns false
-func (d *redeployCommandeer) functionIsInTerminalState(ctx context.Context, functionName string) (bool, error) {
+func (d *redeployCommandeer) isFunctionInTerminalState(ctx context.Context, functionName string) (bool, error) {
 
 	// get function and poll its status
 	function, err := d.betaCommandeer.apiClient.GetFunction(ctx, functionName, d.rootCommandeer.namespace)
