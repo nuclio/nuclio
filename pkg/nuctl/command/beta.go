@@ -61,7 +61,7 @@ func newBetaCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *bet
 	cmd.MarkPersistentFlagRequired("api-url") // nolint: errcheck
 
 	cmd.AddCommand(
-		newDeployCommandeer(ctx, rootCommandeer, commandeer).cmd,
+		newRedeployCommandeer(ctx, rootCommandeer, commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
@@ -86,6 +86,6 @@ func (b *betaCommandeer) initialize() error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to create API client")
 	}
-
+	b.rootCommandeer.loggerInstance.Debug("In BETA mode")
 	return nil
 }

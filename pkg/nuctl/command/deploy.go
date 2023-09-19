@@ -21,22 +21,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -85,35 +80,12 @@ type deployCommandeer struct {
 	runAsGroup                      int64
 	fsGroup                         int64
 	overrideHTTPTriggerServiceType  string
-
-	// beta - api client
-	betaCommandeer         *betaCommandeer
-	noBuild                bool
-	redeployFromReportFile bool
-	deployAll              bool
-	waitForFunction        bool
-	skipSpecCleanup        bool
-	verifyExternalRegistry bool
-	outputManifest         *nuctlcommon.PatchManifest
-	inputManifest          *nuctlcommon.PatchManifest
-	saveReport             bool
-	reportFilePath         string
-	excludedProjects       []string
-	excludedFunctions      []string
-	excludeFunctionWithGPU bool
-	importedOnly           bool
-	waitTimeout            time.Duration
 }
 
-func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, betaCommandeer *betaCommandeer) *deployCommandeer {
+func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *deployCommandeer {
 	commandeer := &deployCommandeer{
 		rootCommandeer: rootCommandeer,
 		functionConfig: *functionconfig.NewConfig(),
-		outputManifest: nuctlcommon.NewPatchManifest(),
-	}
-
-	if betaCommandeer != nil {
-		commandeer.betaCommandeer = betaCommandeer
 	}
 
 	cmd := &cobra.Command{
@@ -125,19 +97,6 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
-			}
-
-			if commandeer.betaCommandeer != nil {
-				if err := commandeer.betaCommandeer.initialize(); err != nil {
-					return errors.Wrap(err, "Failed to initialize beta commandeer")
-				}
-				commandeer.rootCommandeer.loggerInstance.Debug("In BETA mode")
-				if commandeer.noBuild {
-					if err := commandeer.betaDeploy(ctx, args); err != nil {
-						return errors.Wrap(err, "Failed to deploy function")
-					}
-					return nil
-				}
 			}
 
 			var importedFunction platform.Function
@@ -152,7 +111,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 				}
 				if importedFunction != nil {
 					commandeer.rootCommandeer.loggerInstance.Debug("Function was already imported, deploying it")
-					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction, commandeer.skipSpecCleanup)
+					commandeer.functionConfig = commandeer.prepareFunctionConfigForRedeploy(importedFunction)
 				}
 			}
 
@@ -226,8 +185,6 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, be
 	}
 
 	addDeployFlags(cmd, commandeer)
-	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clean up spec in function configs")
-	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
 
 	commandeer.cmd = cmd
 
@@ -268,27 +225,8 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Resource restrictions of the format '<resource name>=<quantity>' (for example, 'cpu=3')")
 	cmd.Flags().Var(&commandeer.resourceRequests, "resource-request", "Requested resources of the format '<resource name>=<quantity>' (for example, 'cpu=3')")
 	cmd.Flags().StringVar(&commandeer.loggerLevel, "logger-level", "", "One of debug, info, warn, error. By default, uses platform configuration")
-
-	addBetaDeployFlags(cmd, commandeer)
+	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to an input function-image Docker archive file")
 }
-
-func addBetaDeployFlags(cmd *cobra.Command,
-	commandeer *deployCommandeer) {
-
-	cmd.Flags().BoolVar(&commandeer.noBuild, "no-build", false, "Don't build the function, only deploy it")
-	cmd.Flags().BoolVar(&commandeer.deployAll, "deploy-all", false, "Deploy all functions in the namespace")
-	cmd.PersistentFlags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
-	cmd.PersistentFlags().StringSliceVar(&commandeer.excludedProjects, "exclude-projects", []string{}, "Exclude projects to patch")
-	cmd.PersistentFlags().StringSliceVar(&commandeer.excludedFunctions, "exclude-functions", []string{}, "Exclude functions to patch")
-	cmd.PersistentFlags().BoolVar(&commandeer.excludeFunctionWithGPU, "exclude-functions-with-gpu", false, "Skip functions with GPU")
-	cmd.PersistentFlags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
-	cmd.PersistentFlags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment (default 15m)")
-	cmd.Flags().BoolVarP(&commandeer.redeployFromReportFile, "redeploy-from-report-file", "", false, "Redeploy failed and retryable functions from the given report file")
-	cmd.Flags().BoolVarP(&commandeer.saveReport, "save-report", "", false, "Save redeployment report to a file")
-	cmd.Flags().BoolVarP(&commandeer.verifyExternalRegistry, "verify-external-registry", "", false, "verify registry is external")
-	cmd.Flags().StringVarP(&commandeer.reportFilePath, "report-file-path", "", "nuctl-redeployment-report.json", "Path to redeployment report")
-}
-
 func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList) error {
 	for _, value := range values {
 
@@ -385,13 +323,11 @@ func (d *deployCommandeer) getImportedFunction(ctx context.Context, functionName
 	return nil, nil
 }
 
-func (d *deployCommandeer) prepareFunctionConfigForRedeploy(importedFunction platform.Function, skipSpecCleanup bool) functionconfig.Config {
+func (d *deployCommandeer) prepareFunctionConfigForRedeploy(importedFunction platform.Function) functionconfig.Config {
 	functionConfig := importedFunction.GetConfig()
 
 	// Ensure RunRegistry is taken from the commandeer config
-	if !skipSpecCleanup {
-		functionConfig.CleanFunctionSpec()
-	}
+	functionConfig.CleanFunctionSpec()
 	functionConfig.Spec.RunRegistry = d.functionConfig.Spec.RunRegistry
 
 	return *functionConfig
@@ -696,241 +632,6 @@ func (d *deployCommandeer) enrichBuildConfigWithArgs() {
 	}
 }
 
-func (d *deployCommandeer) betaDeploy(ctx context.Context, args []string) error {
-
-	if d.redeployFromReportFile {
-		manifest, err := nuctlcommon.NewPatchManifestFromFile(d.reportFilePath)
-		if err != nil {
-			return errors.Wrap(err, "Problem with reading report file")
-		}
-		d.inputManifest = manifest
-		retryableFunctions := d.inputManifest.GetRetryableFunctionNames()
-		d.rootCommandeer.loggerInstance.InfoWith("Redeploying failed functions from report file",
-			"report file", d.reportFilePath,
-			"functions", retryableFunctions)
-		args = append(args, retryableFunctions...)
-	}
-
-	if len(args) == 0 {
-
-		if d.redeployFromReportFile {
-			d.rootCommandeer.loggerInstance.Info("No retryable functions to redeploy")
-			return nil
-		}
-
-		// redeploy all functions in the namespace
-		if err := d.redeployAllFunctions(ctx); err != nil {
-			return errors.Wrap(err, "Failed to redeploy all functions")
-		}
-	} else {
-
-		// redeploy the given functions
-		if err := d.redeployFunctions(ctx, args); err != nil {
-			return errors.Wrap(err, "Failed to redeploy functions")
-		}
-	}
-
-	return nil
-}
-
-func (d *deployCommandeer) redeployAllFunctions(ctx context.Context) error {
-	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Redeploying all functions")
-
-	// get function names to redeploy
-	functionNames, err := d.getFunctionNames(ctx)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get functions")
-	}
-
-	return d.redeployFunctions(ctx, functionNames)
-}
-
-func (d *deployCommandeer) getFunctionNames(ctx context.Context) ([]string, error) {
-	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Getting function names")
-
-	functionConfigs, err := d.betaCommandeer.apiClient.GetFunctions(ctx, d.rootCommandeer.namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get functions")
-	}
-
-	functionNames := make([]string, 0)
-	for functionName, functionConfigWithStatus := range functionConfigs {
-
-		// filter excluded functions
-		if d.shouldSkipFunction(functionConfigWithStatus.Config) {
-			d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Excluding function", "function", functionName)
-			d.outputManifest.AddSkipped(functionName)
-			continue
-		}
-		functionNames = append(functionNames, functionName)
-	}
-
-	return functionNames, nil
-}
-
-func (d *deployCommandeer) redeployFunctions(ctx context.Context, functionNames []string) error {
-	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Redeploying functions", "functionNames", functionNames)
-
-	patchErrGroup, _ := errgroup.WithContextSemaphore(ctx, d.rootCommandeer.loggerInstance, uint(d.betaCommandeer.concurrency))
-	for _, function := range functionNames {
-		function := function
-		patchErrGroup.Go("patch function", func() error {
-			if err := d.patchFunction(ctx, function); err != nil {
-				d.outputManifest.AddFailure(function, err, d.isRedeploymentRetryable(err))
-				return errors.Wrap(err, "Failed to patch function")
-			}
-			d.outputManifest.AddSuccess(function)
-			return nil
-		})
-	}
-
-	if err := patchErrGroup.Wait(); err != nil {
-
-		// Functions that failed to patch are included in the output manifest,
-		// so we don't need to fail the entire operation here
-		d.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to patch functions", "err", err)
-	}
-
-	d.outputManifest.LogOutput(ctx, d.rootCommandeer.loggerInstance)
-	if d.saveReport {
-		d.outputManifest.SaveToFile(ctx, d.rootCommandeer.loggerInstance, d.reportFilePath)
-	}
-
-	return nil
-}
-
-// patchFunction patches a single function
-func (d *deployCommandeer) patchFunction(ctx context.Context, functionName string) error {
-
-	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Redeploying function", "function", functionName)
-
-	// patch function
-	patchOptions := map[string]string{
-		"desiredState": "ready",
-	}
-
-	payload, err := json.Marshal(patchOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to marshal payload")
-	}
-
-	requestHeaders := d.resolveRequestHeaders()
-
-	if err := d.betaCommandeer.apiClient.PatchFunction(ctx,
-		functionName,
-		d.rootCommandeer.namespace,
-		payload,
-		requestHeaders); err != nil {
-		switch typedError := err.(type) {
-		case *nuclio.ErrorWithStatusCode:
-			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(errors.Wrap(err, "Failed to patch function"))
-		default:
-			return errors.Wrap(typedError, "Failed to patch function")
-		}
-	}
-
-	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
-		"Function redeploy request sent successfully",
-		"function", functionName)
-
-	if d.waitForFunction {
-		return d.waitForFunctionDeployment(ctx, functionName)
-	}
-
-	return nil
-}
-
-func (d *deployCommandeer) waitForFunctionDeployment(ctx context.Context, functionName string) error {
-	ticker := time.NewTicker(5 * time.Second)
-	for {
-		select {
-		case <-time.After(d.waitTimeout):
-			return errors.New(fmt.Sprintf("Timed out waiting for function '%s' to be ready", functionName))
-		case <-ticker.C:
-			isTerminal, err := d.functionIsInTerminalState(ctx, functionName)
-			if !isTerminal {
-
-				// function isn't in terminal state yet, retry
-				continue
-			}
-			if err != nil {
-
-				// function is terminal, but not ready, return error
-				return err
-			}
-
-			// function is ready
-			return nil
-		}
-	}
-}
-
-// functionIsInTerminalState checks if the function is in terminal state
-// if the function is ready, it returns true and no error
-// if the function is in another terminal state, it returns true and an error
-// else it returns false
-func (d *deployCommandeer) functionIsInTerminalState(ctx context.Context, functionName string) (bool, error) {
-
-	// get function and poll its status
-	function, err := d.betaCommandeer.apiClient.GetFunction(ctx, functionName, d.rootCommandeer.namespace)
-	if err != nil {
-		d.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to get function", "functionName", functionName)
-		return false, err
-	}
-	if function.Status.State == functionconfig.FunctionStateReady {
-		d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
-			"Function redeployed successfully",
-			"functionName", functionName)
-		return true, nil
-	}
-
-	// we use this function to check if the function is in terminal state, as we already checked if it's ready
-	if functionconfig.FunctionStateInSlice(function.Status.State,
-		[]functionconfig.FunctionState{
-			functionconfig.FunctionStateError,
-			functionconfig.FunctionStateUnhealthy,
-			functionconfig.FunctionStateScaledToZero,
-		}) {
-		return true, errors.New(fmt.Sprintf("Function '%s' is in terminal state '%s' but not ready",
-			functionName, function.Status.State))
-	}
-
-	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
-		"Function not ready yet",
-		"functionName", functionName,
-		"functionState", function.Status.State)
-
-	return false, nil
-}
-
-// shouldSkipFunction returns true if the function patch should be skipped
-func (d *deployCommandeer) shouldSkipFunction(functionConfig functionconfig.Config) bool {
-	functionName := functionConfig.Meta.Name
-	projectName := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
-
-	// skip if function is excluded or if it has a positive GPU resource limit
-	if common.StringSliceContainsString(d.excludedFunctions, functionName) ||
-		common.StringSliceContainsString(d.excludedProjects, projectName) ||
-		(d.excludeFunctionWithGPU && functionConfig.Spec.PositiveGPUResourceLimit()) {
-		return true
-	}
-
-	return false
-}
-
-func (d *deployCommandeer) resolveRequestHeaders() map[string]string {
-	requestHeaders := map[string]string{}
-	if d.importedOnly {
-
-		// add a header that will tell the API to only deploy imported functions
-		requestHeaders[headers.ImportedFunctionOnly] = "true"
-	}
-	if d.verifyExternalRegistry {
-		requestHeaders[headers.VerifyExternalRegistry] = "true"
-	}
-	return requestHeaders
-}
-
 func (d *deployCommandeer) resolveFunctionName() (string, error) {
 	if d.functionName != "" {
 		return d.functionName, nil
@@ -951,17 +652,6 @@ func (d *deployCommandeer) resolveFunctionName() (string, error) {
 	}
 
 	return "", errors.New("Function name is not provided")
-}
-
-func (d *deployCommandeer) isRedeploymentRetryable(err error) bool {
-	switch typedError := err.(type) {
-	case *nuclio.ErrorWithStatusCode:
-		// if the status code is 412, then another redeployment will not help because there is something wrong with the configuration
-		return typedError.StatusCode() != http.StatusPreconditionFailed
-	case error:
-		return true
-	}
-	return true
 }
 
 func (d *deployCommandeer) resolveFunctionNameFromPath() (string, error) {
