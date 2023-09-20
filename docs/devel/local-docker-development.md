@@ -42,8 +42,9 @@ eval "$COMMAND"
 
 You can now access the dashboard by opening `localhost:8000` in a browser.
 
-Note: if you want to use `nuctl`, you need to add `--platform local` to every command (or `export NUCTL_PLATFORM="local"`).
-You can build `nuctl` locally by running:
+Note: if you want to use `nuctl`, you need to add `--platform local` to every command (or `export NUCTL_PLATFORM="local"`). See more in [Nuctl](../reference/nuctl/nuctl.md).
+
+If you're changing code in nuctl, you can build a `nuctl` binary locally by running:
 
 ```sh
 if [[ $(uname -m) -eq "arm64" ]]; then
