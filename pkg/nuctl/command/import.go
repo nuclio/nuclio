@@ -140,8 +140,8 @@ func newImportFunctionCommandeer(ctx context.Context, importCommandeer *importCo
 		Use:     "functions [<config file>]",
 		Aliases: []string{"function", "fn", "fu"},
 		Short:   "(or function) Import functions",
-		Long: `(or function) Import the configurations of one or more functions
-from a configurations file or from standard input (default)
+		Long: `Import the configurations of one or more functions from
+a configurations file or from standard input (default)
 
 Note: The command doesn't deploy the imported functions.
       To deploy an imported function, use the 'deploy' command.
@@ -241,8 +241,8 @@ func newImportProjectCommandeer(ctx context.Context, importCommandeer *importCom
 		Use:     "projects [<config file>]",
 		Aliases: []string{"project", "prj", "proj"},
 		Short:   "(or project) Import projects (including all functions, function events, and API gateways)",
-		Long: `(or project) Import the configurations of one or more projects (including
-all project functions, function events, and API gateways) from a configurations file
+		Long: `Import the configurations of one or more projects (including all project 
+functions, function events, and API gateways) from a configurations file
 or from standard input (default)
 
 Note: The command doesn't deploy the functions in the  imported projects.

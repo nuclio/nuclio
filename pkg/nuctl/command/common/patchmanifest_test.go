@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -37,13 +38,14 @@ type PatchManifestTestSuite struct {
 
 func (suite *PatchManifestTestSuite) SetupSuite() {
 	var err error
-
+	suite.ctx = context.Background()
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.tempDir, err = os.MkdirTemp("", "patchManifest-test")
 	suite.Require().NoError(err)
 }
 
 func (suite *PatchManifestTestSuite) TearDownSuite() {
-	defer os.RemoveAll(suite.tempDir)
+	defer os.RemoveAll(suite.tempDir) // nolint: errcheck
 }
 
 func (suite *PatchManifestTestSuite) TestNewPatchManifestFromFile() {

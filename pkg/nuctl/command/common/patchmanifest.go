@@ -139,6 +139,9 @@ func (m *PatchManifest) LogOutput(ctx context.Context, loggerInstance logger.Log
 }
 
 func (m *PatchManifest) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
+	loggerInstance.InfoWithCtx(ctx, "Saving redeploy report to file",
+		"path", path)
+
 	file, err := json.Marshal(m.patchManifest)
 	if err != nil {
 		loggerInstance.ErrorWithCtx(ctx,
