@@ -19,7 +19,7 @@ Ensure that your setup includes the following prerequisite components:
 - Docker version 19.03+
 - The Go toolchain (CI tests with 1.21, best use that)
 - Kubernetes version 1.24+ (mostly for testing) - `minikube` recommended; (you can follow
-  the [Minikube getting-started guide](/docs/setup/minikube/getting-started-minikube.md))
+  the [Minikube getting-started guide](../setup/minikube/getting-started-minikube.md))
 
 <a id="get-source"></a>
 ## Getting the source code
@@ -189,6 +189,6 @@ work with Kubernetes.
 ## Submitting a PR
 
 Your PRs will go through Github Action CI and code review. Make sure to follow
-the [coding conventions](/docs/devel/coding-conventions.md) and run `make fmt lint` before submitting a PR, that would
+the [coding conventions](../devel/coding-conventions.md) and run `make fmt lint` before submitting a PR, that would
 save you some time failing on CI linting and test validations
 

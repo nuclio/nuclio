@@ -27,7 +27,7 @@ Triggers the function according to a schedule or interval, with an optional body
 > 1. <a id="schedule-or-interval-attr-set-note"></a>You must set either the [`schedule`](#attr-schedule) or [`interval`](#attr-interval) mutually-exclusive attributes.
 > 2. <a id="event-attrs-note"></a>The `event.*` attributes are optional.
 > 3. <a id="k8s-notes"></a>**[Tech Preview]** On Kubernetes platforms, you can set the `cronTriggerCreationMode` platform-configuration field to `"kube"` to run the triggers as Kubernetes CronJobs instead of the default implementation of running Cron triggers from the Nuclio processor.
->        For more information, see [Configuring a Platform](/docs/tasks/configuring-a-platform.md#cronTriggerCreationMode).
+>        For more information, see [Configuring a Platform](../../tasks/configuring-a-platform.md#cronTriggerCreationMode).
 >        When running Cron triggers as CronJobs &mdash;
 >    - The created CronJob uses `wget` to call the default HTTP trigger of the function according to the configured interval or schedule.
 >        (This means that worker-related attributes are irrelevant.)

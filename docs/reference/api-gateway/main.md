@@ -16,6 +16,6 @@ It can be used to invoke your functions, and can provide authentication, canary 
 
 See how to create and invoke your functions with the Nuclio API Gateway in different ways:
 
-- [Using the UI](/docs/reference/api-gateway/ui.md)
-- [Using Nuctl](/docs/reference/api-gateway/nuctl.md)
-- [Using Http Requests](/docs/reference/api-gateway/http.md)
+- [Using the UI](../../reference/api-gateway/ui.md)
+- [Using Nuctl](../../reference/api-gateway/nuctl.md)
+- [Using Http Requests](../../reference/api-gateway/http.md)

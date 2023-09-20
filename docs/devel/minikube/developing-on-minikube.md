@@ -5,7 +5,7 @@ This guide will guide you through the process of deploying and running your loca
 ## Working assumptions
 
 This guide assumes that:
-- You set up your Minikube VM as described in the [Minikube getting started guide](/docs/setup/minikube/getting-started-minikube.md)
+- You set up your Minikube VM as described in the [Minikube getting started guide](../../setup/minikube/getting-started-minikube.md)
 - You have previously deployed a _released_ Nuclio version on top of it and interacted with it
 - You have a working Nuclio development environment, and you're on a branch containing changes you made which pertain to the Kubernetes platform
 
