@@ -1,4 +1,4 @@
-# kafka-cluster: Kafka Trigger
+# Kafka Trigger
 
 **In This Document**
 - [Overview](#overview)

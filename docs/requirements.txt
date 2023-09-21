@@ -1,1 +1,2 @@
 myst_nb
+myst-parser
