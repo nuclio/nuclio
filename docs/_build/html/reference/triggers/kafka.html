@@ -1,0 +1,552 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>kafka-cluster: Kafka Trigger &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="kafka-cluster-kafka-trigger">
+<h1>kafka-cluster: Kafka Trigger<a class="headerlink" href="#kafka-cluster-kafka-trigger" title="Permalink to this heading">¶</a></h1>
+<p><strong>In This Document</strong></p>
+<ul class="simple">
+<li><p><span class="xref myst">Overview</span></p>
+<ul>
+<li><p><span class="xref myst">Workers and Worker Allocation modes</span></p></li>
+<li><p><span class="xref myst">Multiple topics</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">Configuration parameters</span></p>
+<ul>
+<li><p><span class="xref myst">Passing configuration via secrets</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">How a message travels through Nuclio to the handler</span></p>
+<ul>
+<li><p><span class="xref myst">Configuration parameters</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">Offset management</span></p>
+<ul>
+<li><p><span class="xref myst">Explicit offset commits</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">Rebalancing</span></p>
+<ul>
+<li><p><span class="xref myst">Configuration parameters</span></p></li>
+<li><p><span class="xref myst">Choosing the right configuration for rebalancing</span></p></li>
+<li><p><span class="xref myst">Rebalancing notes</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">Configuration example</span></p></li>
+</ul>
+<p><a id="overview"></a></p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">¶</a></h2>
+<p>The Nuclio Kafka trigger allows users to process messages sent to Kafka. To simplify, you send messages to a Kafka stream (across topics and partitions), tell Nuclio to read from this stream, and your function handler is then called once for every stream message.</p>
+<p>In the real world, however, you may want to scale your message processing up and down based on how much the processing occupies your Nuclio function. To support dynamic scaling, several instances (<strong>&quot;replicas&quot;</strong>) of your function must work together to split the stream messages among themselves as fairly as possible without losing any messages and without processing the same message more than once (to the best of their ability).</p>
+<p>To this end, Nuclio leverages Kafka consumer groups. When one or more Nuclio replica joins a consumer group, Kafka informs Nuclio which part of the stream it should handle. It does so by using a process known as &quot;rebalancing&quot; to assign each Nuclio replica one or more Kafka partitions to read from and handle; Nuclio's role in the rebalancing process is discussed later in this document (see <span class="xref myst">Rebalancing</span>).</p>
+<p align="center"><img src="/docs/assets/images/kafka-high-level.png" alt="Nuclio and Kafka consumer groups illustration" width="400"/></p>
+<p>When a Nuclio replica is assigned its set of partitions, it can start using Nuclio workers to read from the partitions and handle them. It's currently guaranteed that a given partition is handled only by one replica and that the messages are processed sequentially; that is, a message will only be read and handled after the handling of the previous message in the partition is completed. During rebalancing, however, the responsibility for a partition may be migrated to another Nuclio replica while still preserving the guarantee of sequential processing (in-order-execution).</p>
+<ul class="simple">
+<li><p><span class="xref myst">Workers and Worker Allocation modes</span></p></li>
+<li><p><span class="xref myst">Multiple topics</span></p></li>
+</ul>
+<p><a id="workers"></a></p>
+<section id="workers-and-worker-allocation-modes">
+<h3>Workers and Worker Allocation modes<a class="headerlink" href="#workers-and-worker-allocation-modes" title="Permalink to this heading">¶</a></h3>
+<p>When a partition is assigned to a replica, the partition messages are handled sequentially by one or more workers; each message is handled by a single worker. You can configure how many workers a single replica contains and how to allocate the workers to process partition messages.</p>
+<ul class="simple">
+<li><p><span class="xref myst">How many workers to allocate for your replica?</span></p></li>
+<li><p><span class="xref myst">How are workers allocated to a partition?</span></p></li>
+</ul>
+<p><a id="num-workers"></a></p>
+<section id="how-many-workers-to-allocate-for-your-replica">
+<h4>How many workers to allocate for your replica?<a class="headerlink" href="#how-many-workers-to-allocate-for-your-replica" title="Permalink to this heading">¶</a></h4>
+<p>Currently, the number of workers for a given replica is statically determined by the user. Fewer workers mean less memory consumption by the replica but a longer wait time before a worker becomes available to process a new message.
+A good rule of thumb is to set the number of workers to <code class="docutils literal notranslate"><span class="pre">ceil((&lt;number</span> <span class="pre">of</span> <span class="pre">partitions&gt;</span> <span class="pre">/</span> <span class="pre">&lt;max</span> <span class="pre">number</span> <span class="pre">of</span> <span class="pre">replicas&gt;)</span> <span class="pre">*</span> <span class="pre">1.2)</span></code>.</p>
+<p>For example, if you have 16 partitions and you set the maximum number of replicas to 4, then during steady state each replica handles <code class="docutils literal notranslate"><span class="pre">16</span> <span class="pre">/</span> <span class="pre">4</span> <span class="pre">=</span> <span class="pre">4</span></code> partitions. But if one of the replicas goes down, each replica handles <code class="docutils literal notranslate"><span class="pre">16</span> <span class="pre">/</span> <span class="pre">3</span> <span class="pre">=</span> <span class="pre">5</span> <span class="pre">or</span> <span class="pre">6</span></code> partitions. According to the recommended formula, the maximum number of workers should be <code class="docutils literal notranslate"><span class="pre">ceil((16</span> <span class="pre">/</span> <span class="pre">4)</span> <span class="pre">*</span> <span class="pre">1.2)</span> <span class="pre">=</span> <span class="pre">5</span></code>. This means that there's an extra unused worker during steady state, but the message processing won't be stalled significantly if a replica goes down.</p>
+<p><a id="workers-partition-allocation"></a></p>
+</section>
+<section id="how-are-workers-allocated-to-a-partition">
+<h4>How are workers allocated to a partition?<a class="headerlink" href="#how-are-workers-allocated-to-a-partition" title="Permalink to this heading">¶</a></h4>
+<p>Nuclio supports two modes of worker allocation, which can be configured via the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">workerAllocationMode</span></code></span> configuration parameter:</p>
+<ul class="simple">
+<li><p><strong>Pool mode</strong> (<code class="docutils literal notranslate"><span class="pre">&quot;pool&quot;</span></code>) - In this mode, partitions are allocated to workers dynamically on a first-come, first served basis. Whenever one of the replica's partitions receives a message, the message is allocated to the first available worker. The benefit here is that a worker is never idle while there are messages to process across the replica's partitions. The cost is that messages of a given partition may be handled by different workers (albeit always sequentially). For stateless functions, this is not a problem. However, if your function retains state, you might benefit from &quot;pinning&quot; specific workers to specific partitions by using the <code class="docutils literal notranslate"><span class="pre">&quot;static&quot;</span></code> allocation mode.</p></li>
+<li><p><strong>Static mode</strong> (<code class="docutils literal notranslate"><span class="pre">&quot;static&quot;</span></code>) - In this mode, partitions are allocated statically to specific workers; each worker is assigned to handle the messages for specific partitions. For example, if the replica is handling 20 partitions and has 5 workers - partitions 0–3 are handled by worker 0, partitions 3–6 by worker 1, ..., and partitions 16–19 by worker 4. The benefit and cost of this mode are inverse to the <code class="docutils literal notranslate"><span class="pre">&quot;pool&quot;</span></code> mode: it's entirely possible to encounter stalled processing despite having available workers (because the available workers aren't allocated to the busy partitions), but it's guaranteed that each partition is always handled by the same worker.</p></li>
+</ul>
+<p><a id="multiple-topics"></a></p>
+</section>
+</section>
+<section id="multiple-topics">
+<h3>Multiple topics<a class="headerlink" href="#multiple-topics" title="Permalink to this heading">¶</a></h3>
+<p>Up until now, the overview discussed partitions and workers. But a Nuclio replica can also read from multiple topics. A Nuclio replica can use its workers to handle the partitions of multiple topics instead of only those of a single topic.
+For example, if your replica has 10 workers and is configured to handle 10 topics, each with 100 partitions, the replica is essentially using 10 workers to handle 1,000 partitions.</p>
+<p><a id="config-params"></a></p>
+</section>
+</section>
+<section id="configuration-parameters">
+<h2>Configuration parameters<a class="headerlink" href="#configuration-parameters" title="Permalink to this heading">¶</a></h2>
+<!-- See https://kafka.apache.org/documentation/#consumerconfigs + types and
+  default values in pkg/processor/trigger/kafka/types.go. -->
+<p>Use the following trigger attributes for basic configurations of your Kafka trigger.
+You can configure each attribute either in the <code class="docutils literal notranslate"><span class="pre">triggers.&lt;trigger&gt;.attributes.&lt;attribute&gt;</span></code> function <code class="docutils literal notranslate"><span class="pre">spec</span></code> element (for example, <code class="docutils literal notranslate"><span class="pre">triggers.myKafkaTrigger.attributes.sessionTimeout</span></code>) or by setting the matching <code class="docutils literal notranslate"><span class="pre">nuclio.io</span></code> annotation key (for example, <code class="docutils literal notranslate"><span class="pre">nuclio.io/kafka-session-timeout</span></code>); (note that not all attributes have matching annotation keys).
+For more information on Nuclio function configuration, see the <a class="reference internal" href="../function-configuration/function-configuration-reference.html"><span class="doc std std-doc">function-configuration reference</span></a>.</p>
+<blockquote>
+<div><p><strong>Note:</strong> For more advanced configuration parameters, see the configuration sections under <span class="xref myst">How a message travels through Nuclio to the handler</span> and <span class="xref myst">Rebalancing</span>. For an example, see <span class="xref myst">Configuration example</span>.</p>
+</div></blockquote>
+<ul>
+<li><p><a id="topics"></a><strong><code class="docutils literal notranslate"><span class="pre">topics</span></code></strong> - The name of the topic(s) on which to listen.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">[]string</span></code></p></li>
+<li><p><a id="brokers"></a><strong><code class="docutils literal notranslate"><span class="pre">brokers</span></code></strong> - A list of broker IP addresses.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">[]string</span></code></p></li>
+<li><p><a id="partitions"></a><strong><code class="docutils literal notranslate"><span class="pre">partitions</span></code></strong> - A list of partitions for which the function receives events.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">[]int</span></code></p></li>
+<li><p><a id="consumerGroup"></a><strong><code class="docutils literal notranslate"><span class="pre">consumerGroup</span></code></strong> - The name of the Kafka consumer group to use.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code></p></li>
+<li><p><a id="initialOffset"></a><strong><code class="docutils literal notranslate"><span class="pre">initialOffset</span></code></strong> - The location (offset) within the partition at which to begin the message processing when first reading from a partition.
+Currently, you can begin the processing either with the earliest or latest ingested messages.
+<br/>
+Note that once a partition is read from and connected to a consumer group, subsequent reads are always done from the offset at which the previous read stopped, and the <code class="docutils literal notranslate"><span class="pre">initialOffset</span></code> configuration is ignored.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code>
+<br/>
+<strong>Valid Values:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;earliest&quot;</span> <span class="pre">|</span> <span class="pre">&quot;latest&quot;</span></code>
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;earliest&quot;</span></code></p></li>
+<li><p><a id="sasl"></a><strong><code class="docutils literal notranslate"><span class="pre">sasl</span></code></strong> - A simple authentication and security layer (SASL) object.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">object</span></code> with the following attributes -</p>
+<ul>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">enable</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>) - Enable authentication.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">handshake</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>) - Whether to send Kafka SASL handshake first. (default to: <code class="docutils literal notranslate"><span class="pre">true</span></code>)</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">user</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) - Username to be used for authentication.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">password</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) - Password to be used for authentication.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">mechanism</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) - Name of SASL mechanism to use for authentication. (default to: <code class="docutils literal notranslate"><span class="pre">plain</span></code>, see <a class="reference external" href="https://github.com/Shopify/sarama/blob/f16c9d8fbe4866c970b20a08be14d57553b0b660/broker.go#L62">here</a> for options)</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">GSSAPI</span></code> is yet to be supported by Nuclio. (read: Kerberos)</p>
+</div></blockquote>
+</li>
+<li><p><a id="sasl.oauth"></a><strong><code class="docutils literal notranslate"><span class="pre">sasl.oauth</span></code></strong> - SASL OAuth configuration object.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">object</span></code> with the following attributes -</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">clientID</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) - The client ID to use for OAuth authentication.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">clientSecret</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) - The client secret to use for OAuth authentication.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">tokenURL</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) - The URL of the OAuth token endpoint.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">scopes</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">[]string</span></code>) - A list of OAuth scopes to request.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><a id="tls"></a><strong><code class="docutils literal notranslate"><span class="pre">tls</span></code></strong> - TLS configuration object.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">object</span></code> with the following attributes -</p>
+<ul class="simple">
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">enable</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>) - Enable TLS.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">insecureSkipVerify</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">bool</span></code>) - Allow insecure server connections when TLS enabled. (default to: <code class="docutils literal notranslate"><span class="pre">false</span></code>)</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">minimumVersion</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">string</span></code>) - The default minimum TLS version that is acceptable. (default to: <code class="docutils literal notranslate"><span class="pre">1.2</span></code>)</p></li>
+</ul>
+</li>
+<li><p><a id="cacert"></a><strong><code class="docutils literal notranslate"><span class="pre">caCert</span></code></strong> - The certificate authority (CA) certificate used for TLS authentication.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code></p>
+<blockquote>
+<div><p>When filled, the certificate is used to authenticate the Kafka broker.
+TLS Authentication is enabled by default when this field is filled.</p>
+</div></blockquote>
+</li>
+<li><p><a id="accesskey"></a><strong><code class="docutils literal notranslate"><span class="pre">accessKey</span></code></strong> - The private key used for TLS authentication.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code></p>
+<blockquote>
+<div><p>In conjunction with the <code class="docutils literal notranslate"><span class="pre">accessCertificate</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">caCert</span></code>, the certificate is used to authenticate the Kafka broker.</p>
+</div></blockquote>
+</li>
+<li><p><a id="accesscertificate"></a><strong><code class="docutils literal notranslate"><span class="pre">accessCertificate</span></code></strong> - The public key used for TLS authentication.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code></p>
+<blockquote>
+<div><p>In conjunction with the <code class="docutils literal notranslate"><span class="pre">accessKey</span></code> &amp; <code class="docutils literal notranslate"><span class="pre">caCert</span></code>, the certificate is used to authenticate the Kafka broker.</p>
+</div></blockquote>
+</li>
+<li><p><a id="sessionTimeout"></a><strong><code class="docutils literal notranslate"><span class="pre">sessionTimeout</span></code></strong> (<code class="docutils literal notranslate"><span class="pre">kafka-session-timeout</span></code>) - The timeout used to detect consumer failures when using Kafka's group management facility. The consumer sends periodic heartbeats to indicate its liveness to the broker. If no heartbeats are received by the broker before the expiration of this session timeout, the broker removes this consumer from the group and initiates rebalancing. Note that the value must be in the allowable range, as configured in the <code class="docutils literal notranslate"><span class="pre">group.min.session.timeout.ms</span></code> and <code class="docutils literal notranslate"><span class="pre">group.max.session.timeout.ms</span></code> broker configuration parameters.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code> - a string containing one or more duration strings of the format <code class="docutils literal notranslate"><span class="pre">&quot;[0-9]+[ns|us|ms|s|m|h]&quot;</span></code>; for example, <code class="docutils literal notranslate"><span class="pre">&quot;300ms&quot;</span></code> (300 milliseconds) or <code class="docutils literal notranslate"><span class="pre">&quot;2h45m&quot;</span></code> (2 hours and 45 minutes). See the <a class="reference external" href="https://golang.org/pkg/time/#ParseDuration"><code class="docutils literal notranslate"><span class="pre">ParseDuration</span></code></a> Go function.
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;10s&quot;</span></code> (10 seconds)<!-- 10 * time.Second --></p>
+<!-- Kafka `session.timeout.ms` -->
+</li>
+<li><p><a id="heartbeatInterval"></a><strong><code class="docutils literal notranslate"><span class="pre">heartbeatInterval</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-heartbeat-interval</span></code></strong>) - The expected time between heartbeats to the consumer coordinator when using Kafka's group management facilities. Heartbeats are used to ensure that the consumer's session stays active and to facilitate rebalancing when new consumers join or leave the group. The value must be set lower than the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">sessionTimeout</span></code></span> configuration, but typically should be set no higher than 1/3 of that value. It can be adjusted even lower to control the expected time for normal rebalancing.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code> - a string containing one or more duration strings of the format <code class="docutils literal notranslate"><span class="pre">&quot;[0-9]+[ns|us|ms|s|m|h]&quot;</span></code>; for example, <code class="docutils literal notranslate"><span class="pre">&quot;300ms&quot;</span></code> (300 milliseconds) or <code class="docutils literal notranslate"><span class="pre">&quot;2h45m&quot;</span></code> (2 hours and 45 minutes). See the <a class="reference external" href="https://golang.org/pkg/time/#ParseDuration"><code class="docutils literal notranslate"><span class="pre">ParseDuration</span></code></a> Go function.
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;3s&quot;</span></code> (3 seconds)<!-- 3 * time.Second --></p>
+<!-- Kafka `heartbeat.interval.ms` -->
+</li>
+<li><p><a id="workerAllocationMode"></a><strong><code class="docutils literal notranslate"><span class="pre">workerAllocationMode</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-worker-allocation-mode</span></code></strong>) - The <span class="xref myst">worker allocation mode</span>.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code>
+<br/>
+<strong>Valid Values:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;pool&quot;</span> <span class="pre">|</span> <span class="pre">&quot;static&quot;</span></code>
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;pool&quot;</span></code></p></li>
+</ul>
+<p><a id="configuration-via-secret"></a></p>
+<section id="passing-configuration-via-secrets">
+<h3>Passing configuration via secrets<a class="headerlink" href="#passing-configuration-via-secrets" title="Permalink to this heading">¶</a></h3>
+<p>Nuclio allows passing sensitive configuration values (such as Kafka credentials) via secrets.
+To do that, follow the following steps:</p>
+<ol class="arabic simple">
+<li><p>Create a secret with the sensitive data (e.g. <code class="docutils literal notranslate"><span class="pre">access-key</span></code>)</p></li>
+<li><p>Mount the secret as a volume to the function (in <code class="docutils literal notranslate"><span class="pre">spec.Volumes</span></code>)</p></li>
+<li><p>Specify the path to the mounted values, either in the function's spec or in the function's annotations, with:</p>
+<ol class="arabic simple">
+<li><p>Either specify the full path in the spec/annotation (e.g. <code class="docutils literal notranslate"><span class="pre">nuclio.io/kafka-access-key</span> <span class="pre">=</span> <span class="pre">/path/to/secret/access-key</span></code>)</p></li>
+<li><p>Or, add the secret mount path to the secretPath filed (or the nuclio.io/kafka-secret-path annotation), and the sub paths to the other annotations. Nuclio will resolve the full paths according to the existing annotations.
+e.g:</p></li>
+</ol>
+</li>
+</ol>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">nuclio</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">kafka</span><span class="o">-</span><span class="n">secret</span><span class="o">-</span><span class="n">path</span> <span class="o">=</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">nuclio</span><span class="o">/</span><span class="n">kafka</span><span class="o">-</span><span class="n">secret</span>
+<span class="n">nuclio</span><span class="o">.</span><span class="n">io</span><span class="o">/</span><span class="n">kafka</span><span class="o">-</span><span class="n">access</span><span class="o">-</span><span class="n">key</span> <span class="o">=</span> <span class="n">accessKey</span>
+</pre></div>
+</div>
+<p>The current configurations supported via secrets are: <code class="docutils literal notranslate"><span class="pre">accessKey</span></code>, <code class="docutils literal notranslate"><span class="pre">accessCertificate</span></code>, <code class="docutils literal notranslate"><span class="pre">caCert</span></code>, <code class="docutils literal notranslate"><span class="pre">SASL.OAuth.clientSecret</span></code>, <code class="docutils literal notranslate"><span class="pre">SASL.password</span></code>.</p>
+<p><a id="message-course"></a></p>
+</section>
+</section>
+<section id="how-a-message-travels-through-nuclio-to-the-handler">
+<h2>How a message travels through Nuclio to the handler<a class="headerlink" href="#how-a-message-travels-through-nuclio-to-the-handler" title="Permalink to this heading">¶</a></h2>
+<p>Nuclio leverages the <a class="reference external" href="https://pkg.go.dev/github.com/Shopify/sarama?tab=doc">Sarama</a> Go client library (<code class="docutils literal notranslate"><span class="pre">sarama</span></code>) to read from Kafka. This library takes care of reading messages from Kafka partitions and distributing them to a consumer - in this case, the Nuclio trigger. A Nuclio replica has exactly one instance of Sarama and one instance of the Nuclio trigger for each Kafka trigger configured for the Nuclio function.</p>
+<p>Upon its creation, the Nuclio trigger configures Sarama to start reading messages from a given broker, topics, or consumer group. At this point, Sarama calculates which partitions the Nuclio replica must handle, communicates the results to the Nuclio trigger, and then starts dispatching messages.</p>
+<p align="center"><img src="/docs/assets/images/kafka-message-flow.png" alt="Nuclio Kafka-trigger message flow" width="400"/></p>
+<p>As the first step, Sarama reads a chunk of data from all partitions that are assigned to it, across all topics <code class="docutils literal notranslate"><span class="pre">(1)</span></code>. The amount of data to read per partition is determined in bytes and controlled by the function configuration. Ideally, each read returns data across all partitions, but this is highly dependant on the configuration and the size of messages in the partitions (see the following explanation).</p>
+<p>When Kafka responds with a set of messages (per topic or partition), Sarama sends this information to all of its partition feeders through a queue <code class="docutils literal notranslate"><span class="pre">(2)</span></code>. The size of this queue is exactly one and is not configurable. The partition feeder (which is running in a separate &quot;thread&quot;) reads the response and plucks and parses the relevant messages for the topic or partition that it's handling. For each parsed message, the feeder writes the processed data to the partition consumer queue <code class="docutils literal notranslate"><span class="pre">(3)</span></code>; the size of this queue is determined by the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">channelBufferSize</span></code></span> configuration . If there's no space in the queue, Sarama waits approximately for the duration of the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">maxProcessingTime</span></code></span> configuration before giving up and killing the child. This partition consumer queue allows Sarama to queue messages from Kafka so that the partition consumer never waits for reads from Kafka.</p>
+<p>A large partition consumer queue reduces processing delays (as there are almost always messages waiting in the queue to be processed), but it costs memory and the processing time that's required to read the data from Kafka if the replica goes down.</p>
+<p>The Nuclio trigger reads directly from this partition consumer queue (remember that there's one such message queue per partition), and for each message it allocates a worker and sends the message to be handled. When the handler returns, a new message is read from the queue and handled.</p>
+<p><a id="message-course-config-params"></a></p>
+<section id="id1">
+<h3>Configuration parameters<a class="headerlink" href="#id1" title="Permalink to this heading">¶</a></h3>
+<!-- See https://pkg.go.dev/github.com/Shopify/sarama?tab=doc /
+  vendor/github.com/Shopify/sarama/config.go, and
+  https://kafka.apache.org/documentation/#consumerconfigs + types and default
+  values in pkg/processor/trigger/kafka/types.go. -->
+<p>Use the following trigger attributes for message-course trigger configurations.
+You can configure each attribute either in the <code class="docutils literal notranslate"><span class="pre">triggers.&lt;trigger&gt;.attributes.&lt;attribute&gt;</span></code> function <code class="docutils literal notranslate"><span class="pre">spec</span></code> element (for example, <code class="docutils literal notranslate"><span class="pre">triggers.myKafkaTrigger.attributes.fetchMin</span></code>) or by setting the matching <code class="docutils literal notranslate"><span class="pre">nuclio.io</span></code> annotation key (for example, <code class="docutils literal notranslate"><span class="pre">nuclio.io/kafka-fetch-min</span></code>).</p>
+<ul>
+<li><p><a id="fetchMin"></a><strong><code class="docutils literal notranslate"><span class="pre">fetchMin</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-fetch-min</span></code></strong>) - The minimum number of message bytes to fetch in a request (similar to the JVM's <code class="docutils literal notranslate"><span class="pre">fetch.min.bytes</span></code> configuration). If insufficient data is available, the broker waits for this amount of bytes to accumulate before answering the request. The default setting of 1 byte means that fetch requests are answered as soon as a single byte of data is available or the fetch request times out waiting for data to arrive. A value of 0 causes the consumer to spin when no messages are available. A value greater than 1 causes the server to wait for larger amounts of data to accumulate, which can improve server throughput a bit at the cost of some additional latency.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">int</span></code>
+<br/>
+<strong>Valid Values:</strong> <code class="docutils literal notranslate"><span class="pre">[0,...]</span></code>
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">1</span></code></p>
+<!-- Kafka `fetch.min.bytes`; sarama `Fetch.Min` -->
+</li>
+<li><p><a id="fetchDefault"></a><strong><code class="docutils literal notranslate"><span class="pre">fetchDefault</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-fetch-default</span></code></strong>) - The default number of message bytes to fetch from the broker in each request. This value should be larger than the majority of your messages, otherwise the consumer will spend a lot of time negotiating sizes and not actually consuming.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">int</span></code>
+<br/>
+<strong>Valid Values:</strong> <code class="docutils literal notranslate"><span class="pre">[0,...]</span></code>
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">1048576</span></code> (1 MB)<!-- 1 * 1024 * 1024 --></p>
+<!-- sarama `Fetch.Default` -->
+</li>
+<li><p><a id="fetchMax"></a><strong><code class="docutils literal notranslate"><span class="pre">fetchMax</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-fetch-max</span></code></strong>) - The maximum number of message bytes to fetch from the broker in a single request (similar to the JVM's <code class="docutils literal notranslate"><span class="pre">fetch.message.max.bytes</span></code> configuration). Messages larger than this value return <code class="docutils literal notranslate"><span class="pre">ErrMessageTooLarge</span></code> and are not consumable, so ensure that the value is at least as large as the size of the largest message.
+Note that the global <code class="docutils literal notranslate"><span class="pre">sarama.MaxResponseSize</span></code> configuration still applies.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">int</span></code>
+<br/>
+<strong>Valid Values:</strong> <code class="docutils literal notranslate"><span class="pre">[0,...]</span></code>
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">0</span></code> (no limit)</p>
+<!-- Kafka `fetch.max.bytes`; sarama `Fetch.Max` -->
+</li>
+<li><p><a id="channelBufferSize"></a><strong><code class="docutils literal notranslate"><span class="pre">channelBufferSize</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-channel-buffer-size</span></code></strong>) - The number of events to buffer in internal and external channels. This permits the producer and consumer to continue processing some messages in the background while user code is working, thus greatly improving throughput.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">int</span></code>
+<br/>
+<strong>Valid Values:</strong> <code class="docutils literal notranslate"><span class="pre">[1..256]</span></code> or <code class="docutils literal notranslate"><span class="pre">0</span></code> to apply the default value
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">256</span></code></p>
+<!-- sarama `ChannelBufferSize` -->
+</li>
+<li><p><a id="maxProcessingTime"></a><strong><code class="docutils literal notranslate"><span class="pre">maxProcessingTime</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-max-processing-time</span></code></strong>) - The maximum amount of time that the consumer expects a message takes to process for the user. If writing to the Messages channel takes longer, the partition stops fetching messages until it can proceed.
+<br/>
+Note that, since the Messages channel is buffered, the actual grace time is <code class="docutils literal notranslate"><span class="pre">maxProcessingTime</span> <span class="pre">*</span></code><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">channelBufferSize</span></code></span>.
+<br/>
+If a message is not written to the Messages channel between two ticks of the Sarama ticker (<code class="docutils literal notranslate"><span class="pre">expiryTicker</span></code>), a timeout is detected. Using a ticker instead of a timer to detect timeouts should typically result in much fewer calls to Timer functions, which may result in a significant performance improvement if many messages are being sent and timeouts are infrequent. The disadvantage of using a ticker instead of a timer is that timeouts are less accurate. That is, the effective timeout could be between <code class="docutils literal notranslate"><span class="pre">MaxProcessingTime</span></code> and <code class="docutils literal notranslate"><span class="pre">2</span> <span class="pre">*</span> <span class="pre">MaxProcessingTime</span></code>. For example, if <code class="docutils literal notranslate"><span class="pre">MaxProcessingTime</span></code> is 100 ms, then a delay of 180 ms between two messages being sent may not be recognized as a timeout.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code> - a string containing one or more duration strings of the format <code class="docutils literal notranslate"><span class="pre">&quot;[0-9]+[ns|us|ms|s|m|h]&quot;</span></code>; for example, <code class="docutils literal notranslate"><span class="pre">&quot;300ms&quot;</span></code> (300 milliseconds) or <code class="docutils literal notranslate"><span class="pre">&quot;2h45m&quot;</span></code> (2 hours and 45 minutes). See the <a class="reference external" href="https://golang.org/pkg/time/#ParseDuration"><code class="docutils literal notranslate"><span class="pre">ParseDuration</span></code></a> Go function.
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;5m&quot;</span></code> (5 minutes)<!-- 5 * time.Minute --></p>
+<!-- sarama `MaxProcessingTime`. In sarama the default is 100 ms
+(`100 * time.Millisecond`) but in the Nuclio Kafka package its 5 minutes. -->
+</li>
+</ul>
+<p><a id="offset-management"></a></p>
+</section>
+</section>
+<section id="offset-management">
+<h2>Offset management<a class="headerlink" href="#offset-management" title="Permalink to this heading">¶</a></h2>
+<p>Nuclio replicas can come up and go down on a whim (mostly due to auto-scaling), and the responsibility for a given partition migrates from one replica to the other. It's important to ensure that the new replica picks up where the previous replica left off (to avoid losing or re-processing messages). Kafka offers a persistent &quot;offset&quot; per partition, which indicates the consumer group's location in the partition. New Nuclio replicas can read this offset and start reading the partition from the relevant location.</p>
+<p>However, the Nuclio replica is responsible for updating this offset. Naively, whenever a message is handled, Nuclio can contact Kafka and tell it to increment the offset of the partition. This would carry a large overhead per message and therefore be very slow.</p>
+<p>The Sarama library offers an &quot;auto-commit&quot; feature wherein Nuclio replicas need only &quot;mark&quot; the message as handled to trigger Sarama to update Kafka periodically, in the background, about the current offsets of all partitions. The default interval is one second and cannot be configured at this time.</p>
+<p>In addition to periodically committing offsets, Nuclio and Sarama &quot;flush&quot; the marked offsets to Kafka whenever a replica stops handling a partition, either because of a rebalancing process or some other condition that caused a graceful shutdown of the replica.</p>
+<p><a id="explicit-offset-commits"></a></p>
+<section id="explicit-offset-commits">
+<h3>Explicit offset commits<a class="headerlink" href="#explicit-offset-commits" title="Permalink to this heading">¶</a></h3>
+<p>In some cases, the &quot;auto-commit&quot; feature can be problematic.
+One example are stateful functions that might need to go and consume already being received records upon the function failure.</p>
+<p>For that, Nuclio offers a way to accept new events without committing them, and explicitly commit offsets of the partition, when the processing is done.
+This enables the function to receive and process more events simultaneously.</p>
+<p>To enable this feature, set the <code class="docutils literal notranslate"><span class="pre">ExplicitAckMode</span></code> in the trigger's spec to <code class="docutils literal notranslate"><span class="pre">enable</span></code> or <code class="docutils literal notranslate"><span class="pre">explicitOnly</span></code>, where the optional modes are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">enable</span></code> - allows explicit and implicit ack according to the &quot;x-nuclio-stream-no-ack&quot; header</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">disable</span></code>- disables the explicit ack feature and allows only implicit acks (default)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">explicitOnly</span></code>- allows only explicit acks and disables implicit acks</p></li>
+</ul>
+<p>To receive more events without committing them, your function handler must respond with a nuclio response object, set the <code class="docutils literal notranslate"><span class="pre">x-nuclio-stream-no-ack</span></code> header to <code class="docutils literal notranslate"><span class="pre">true</span></code> in the request.
+This can be done by calling the response's <code class="docutils literal notranslate"><span class="pre">ensure_no_ack()</span></code> method, like this:</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">response</span> <span class="o">=</span> <span class="n">nuclio_sdk</span><span class="o">.</span><span class="n">Response</span><span class="p">()</span>
+<span class="n">response</span><span class="o">.</span><span class="n">ensure_no_ack</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>To explicitly commit the offset on an event, save the relevant event information in the <code class="docutils literal notranslate"><span class="pre">QualifiedOffset</span></code> object,
+and pass it to async function <code class="docutils literal notranslate"><span class="pre">explicit_ack()</span></code> method of the context's response object, like so:</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">qualified_offset</span> <span class="o">=</span> <span class="n">nuclio</span><span class="o">.</span><span class="n">QualifiedOffset</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+<span class="k">await</span> <span class="n">context</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">explicit_ack</span><span class="p">(</span><span class="n">qualified_offset</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>During <span class="xref myst">rebalance</span>, the function can still be processing events.
+We can register a callback to run before the workers are terminated, e.g. to drop or commit events being handled when the rebalancing is about to happen,
+using the following method (Note that the registered callback is a nullary callback (doesn't accept arguments)):</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">context</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">set_termination_callback</span><span class="p">(</span><span class="n">callback</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>NOTES</strong>:</p>
+<ul class="simple">
+<li><p>Currently, the explicit ack feature is only available for python runtime and functions that have a stream trigger (kafka/v3io).</p></li>
+<li><p>The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: <code class="docutils literal notranslate"><span class="pre">&quot;nuclio.io/kafka-worker-allocation-mode&quot;:&quot;static&quot;</span></code>.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">QualifiedOffset</span></code> object can be saved in a persistent storage and used to commit the offset on later invocation of the function.</p></li>
+</ul>
+<p><a id="rebalancing"></a></p>
+</section>
+</section>
+<section id="rebalancing">
+<h2>Rebalancing<a class="headerlink" href="#rebalancing" title="Permalink to this heading">¶</a></h2>
+<p>A rebalance process (<strong>&quot;rebalancing&quot;</strong>) is triggered whenever there's a change in the number of consumer group members. This can happen in the following situations:</p>
+<ul class="simple">
+<li><p>The Nuclio function comes up and all Nuclio replicas are spawned. (Note that because replicas don't come up at the same time, several rebalancing processes may initially occur.)</p></li>
+<li><p>A new Nuclio replica joins as a result of an auto-scaling spin-up.</p></li>
+<li><p>A Nuclio replica goes down as a result of a failure or an auto-scaling spin-down.</p></li>
+</ul>
+<p>When Kafka detects a change in members, it first instructs all existing members to stop their processing and &quot;return&quot; their partitions. When the membership stabilizes, Kafka splits the partitions across all existing members (Nuclio replicas), and each replica can then start the previously described consumption process.</p>
+<p>This process is handled by Sarama but requires very careful logic on the Nuclio end, because Sarama is very strict with regard to time lines in this context. For example, the Nuclio partition consumer must finish handling messages well before the rebalancing timeout period (<span class="xref myst"><code class="docutils literal notranslate"><span class="pre">rebalanceTimeout</span></code></span>) elapses, because Sarama needs to do clean-up of its own.</p>
+<p>However, Nuclio might be busy waiting for the user's code to finish processing an event, which can take an undetermined amount of time that's out of Nuclio's control. When the <code class="docutils literal notranslate"><span class="pre">rebalanceTimeout</span></code> period elapses, Sarama exits the membership and may return only when the messages stored in the partition consumer queue are handled. This is very problematic because when this happens, it triggers another rebalancing process (a member leaving the group), which might cause this condition on another replica.</p>
+<p>To prevent this, Nuclio has a hard limit on how long it waits for handlers to complete processing the event (<span class="xref myst"><code class="docutils literal notranslate"><span class="pre">maxWaitHandlerDuringRebalance</span></code></span>). If rebalancing occurs while a handler is still processing an event, Nuclio waits for a duration of <code class="docutils literal notranslate"><span class="pre">maxWaitHandlerDuringRebalance</span></code> before forcefully restarting the worker (in runtimes that support this, such as Python) or the replica (in runtimes that don't support worker restart, such as Golang).</p>
+<p>This aggressive termination helps the consumer groups stabilize in a deterministic time frame, at the expense of re-processing the message. To reduce this occurrence, consider setting a high value for the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">rebalanceTimeout</span></code></span> and <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">maxWaitHandlerDuringRebalance</span></code></span> configurations.</p>
+<ul class="simple">
+<li><p><span class="xref myst">Rebalancing configuration parameters</span></p></li>
+<li><p><span class="xref myst">Choosing the right configuration for rebalancing</span></p></li>
+<li><p><span class="xref myst">Rebalancing notes</span></p></li>
+</ul>
+<p><a id="rebalancing-config-params"></a></p>
+<section id="id2">
+<h3>Configuration parameters<a class="headerlink" href="#id2" title="Permalink to this heading">¶</a></h3>
+<!-- See https://pkg.go.dev/github.com/Shopify/sarama?tab=doc /
+  vendor/github.com/Shopify/sarama/config.go, and
+  https://kafka.apache.org/documentation/#consumerconfigs + types and default
+  values in pkg/processor/trigger/kafka/types.go. -->
+<p>Use the following trigger attributes for rebalancing trigger configurations.
+You can configure each attribute either in the <code class="docutils literal notranslate"><span class="pre">triggers.&lt;trigger&gt;.attributes.&lt;attribute&gt;</span></code> function <code class="docutils literal notranslate"><span class="pre">spec</span></code> element (for example, <code class="docutils literal notranslate"><span class="pre">triggers.myKafkaTrigger.attributes.rebalanceTimeout</span></code>) or by setting the matching <code class="docutils literal notranslate"><span class="pre">nuclio.io</span></code> annotation key (for example, <code class="docutils literal notranslate"><span class="pre">nuclio.io/kafka-rebalance-timeout</span></code>).</p>
+<ul>
+<li><p><a id="rebalanceTimeout"></a><strong><code class="docutils literal notranslate"><span class="pre">rebalanceTimeout</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-rebalance-timeout</span></code></strong>) - The maximum allowed time for each worker to join the group after rebalancing starts. This is basically a limit on the amount of time needed for all tasks to flush any pending data and commit offsets. If this timeout is exceeded, the worker is removed from the group, which results in offset commit failures.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code> - a string containing one or more duration strings of the format <code class="docutils literal notranslate"><span class="pre">&quot;[0-9]+[ns|us|ms|s|m|h]&quot;</span></code>; for example, <code class="docutils literal notranslate"><span class="pre">&quot;300ms&quot;</span></code> (300 milliseconds) or <code class="docutils literal notranslate"><span class="pre">&quot;2h45m&quot;</span></code> (2 hours and 45 minutes). See the <a class="reference external" href="https://golang.org/pkg/time/#ParseDuration"><code class="docutils literal notranslate"><span class="pre">ParseDuration</span></code></a> Go function.
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;60s&quot;</span></code> (60 seconds)<!-- 60 * time.Second --></p>
+<!-- sarama `Rebalance.Timeout` -->
+</li>
+<li><p><a id="rebalanceRetryMax"></a><strong><code class="docutils literal notranslate"><span class="pre">rebalanceRetryMax</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-rebalance-retry-max</span></code></strong>) - When a new consumer joins a consumer group, the set of consumers attempt to &quot;rebalance&quot; the load to assign partitions to each consumer. If the set of consumers changes during this assignment, the rebalancing fails and is then retried. This configuration controls the maximum number of retry attempts before giving up.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">int</span></code>
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">4</span></code></p>
+<!-- sarama `Rebalance.Retry.Max` -->
+</li>
+<li><p><a id="rebalanceRetryBackoff"></a><strong><code class="docutils literal notranslate"><span class="pre">rebalanceRetryBackoff</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-rebalance-retry-backoff</span></code></strong>) - Back-off time between retries during rebalancing.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code> - a string containing one or more duration strings of the format <code class="docutils literal notranslate"><span class="pre">&quot;[0-9]+[ns|us|ms|s|m|h]&quot;</span></code>; for example, <code class="docutils literal notranslate"><span class="pre">&quot;300ms&quot;</span></code> (300 milliseconds) or <code class="docutils literal notranslate"><span class="pre">&quot;2h45m&quot;</span></code> (2 hours and 45 minutes). See the <a class="reference external" href="https://golang.org/pkg/time/#ParseDuration"><code class="docutils literal notranslate"><span class="pre">ParseDuration</span></code></a> Go function.
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;2s&quot;</span></code> (2 seconds)<!-- 2 * time.Second --></p>
+<!-- sarama `Rebalance.Retry.Backoff` -->
+</li>
+<li><p><a id="maxWaitHandlerDuringRebalance"></a><strong><code class="docutils literal notranslate"><span class="pre">maxWaitHandlerDuringRebalance</span></code></strong> (<strong><code class="docutils literal notranslate"><span class="pre">kafka-max-wait-handler-during-rebalance</span></code></strong>) - The amount of time to wait for a handler to return when a rebalancing occurs before restarting the worker or replica.
+<br/>
+<strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">string</span></code> - a string containing one or more duration strings of the format <code class="docutils literal notranslate"><span class="pre">&quot;[0-9]+[ns|us|ms|s|m|h]&quot;</span></code>; for example, <code class="docutils literal notranslate"><span class="pre">&quot;300ms&quot;</span></code> (300 milliseconds) or <code class="docutils literal notranslate"><span class="pre">&quot;2h45m&quot;</span></code> (2 hours and 45 minutes). See the <a class="reference external" href="https://golang.org/pkg/time/#ParseDuration"><code class="docutils literal notranslate"><span class="pre">ParseDuration</span></code></a> Go function.
+<br/>
+<strong>Default Value:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;5s&quot;</span></code> (5 seconds)<!-- 5 * time.Second --></p></li>
+</ul>
+<p><a id="rebalancing-config-choice"></a></p>
+</section>
+<section id="choosing-the-right-configuration-for-rebalancing">
+<h3>Choosing the right configuration for rebalancing<a class="headerlink" href="#choosing-the-right-configuration-for-rebalancing" title="Permalink to this heading">¶</a></h3>
+<p>In a perfect world, Nuclio would be configured out of the box to perform in the most optimal way across all use cases. In fact, if your worst-case event-processing time is short (a few seconds), then Nuclio does just that: you can leave the default configurations as-is and Nuclio should perform optimally under normal network conditions. However, if your worst-case event-processing time is in the order of tens of seconds or minutes, you must choose between the following configuration alternatives:</p>
+<ul class="simple">
+<li><p><span class="xref myst">Prioritizing throughput (default)</span></p></li>
+<li><p><span class="xref myst">Prioritizing minimum duplicates</span></p></li>
+</ul>
+<p><a id="rebalancing-config-choice-throughput-prioritize"></a></p>
+<section id="prioritizing-throughput-default">
+<h4>Prioritizing throughput (default)<a class="headerlink" href="#prioritizing-throughput-default" title="Permalink to this heading">¶</a></h4>
+<p>During rebalancing, replicas stop processing while the new generation of the consumer group stabilizes and all members are allocated partitions. This means that while rebalancing is taking place, messages from Kafka aren't processed, which reduces the average pipeline throughput. Ideally, once a rebalancing process is initiated (for any of the reasons previously explained), all replicas immediately stop their current processing and join the rebalancing process. However, if there's a long event processing in progress, the workers processing the event can only join the rebalancing process after the current event processing completes and the user handler that received the event returns, which might take a while.</p>
+<p>To join the rebalancing process as quickly as possible, you need to stop processing the event immediately or after a short deterministic grace periodic. Obviously, in this scenario Nuclio would not mark the event as processed because it didn't complete the processing, and therefore the event will be processed again by the replica that's assigned this partition in the new consumer-group generation.</p>
+<p>To configure this processing logic, set <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">maxWaitHandlerDuringRebalance</span></code></span> to a short time period, like 5 or 10 seconds. Nuclio will only wait this short amount of time before stopping the event processing and joining the rebalancing process, resulting in duplicate event processing in favor of a higher throughput.</p>
+<p><a id="rebalancing-config-choice-min-duplicates-prioritize"></a></p>
+</section>
+<section id="prioritizing-minimum-duplicates">
+<h4>Prioritizing minimum duplicates<a class="headerlink" href="#prioritizing-minimum-duplicates" title="Permalink to this heading">¶</a></h4>
+<p>There are many scenarios in which you might prefer to instruct Nuclio to wait for the completion of all active event processing before joining a rebalancing process - for example, when duplicate processing incurs a high cost.
+This means blocking the rebalancing process and effectively halting all new event processing until the current event processing is done.</p>
+<p>To configure this processing logic, set <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">maxWaitHandlerDuringRebalance</span></code></span> to your worst-case event-processing time, and set <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">rebalanceTimeout</span></code></span> to approximately 120% of <code class="docutils literal notranslate"><span class="pre">maxWaitHandlerDuringRebalance</span></code>. For example, if your worst-case event-processing time is 4 minutes, set <code class="docutils literal notranslate"><span class="pre">maxWaitHandlerDuringRebalance</span></code> to 4 minutes and <code class="docutils literal notranslate"><span class="pre">rebalanceTimeout</span></code> to 5 minutes. Increasing the rebalancing timeout guarantees that the replica or replicas that are waiting for 4 minutes (or less) for the event processing to complete are guaranteed not to be removed from the consumer group for 5 minutes, thus avoiding another rebalancing process that would be triggered if the member replica left the group.</p>
+<p><a id="rebalancing-notes"></a></p>
+</section>
+</section>
+<section id="rebalancing-notes">
+<h3>Rebalancing notes<a class="headerlink" href="#rebalancing-notes" title="Permalink to this heading">¶</a></h3>
+<p><a id="message-pre-fetching"></a>Note that Nuclio's Kafka client, Sarama, performs pre-fetching of <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">channelBufferSize</span></code></span> messages from Kafka into the partition consumer queue. It does so to reduce the number of times it needs to contact Kafka for messages, and to allow workers to (almost) always have a set of messages waiting to be processed without having to wait a round-trip time for Kafka to fetch the messages. During rebalancing, regardless of whether you prefer a higher throughput or minimum duplicates, the messages in this queue are discarded and have no effect on the rebalancing time. (I.e., it doesn't matter if you have one message in the queue or 256; all messages are discarded and re-fetched by the replica that handles this partition in the new consumer-group generation.)</p>
+<p><a id="config-example"></a></p>
+</section>
+</section>
+<section id="configuration-example">
+<h2>Configuration example<a class="headerlink" href="#configuration-example" title="Permalink to this heading">¶</a></h2>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">triggers</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">myKafkaTrigger</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kafka-cluster</span>
+<span class="w">    </span><span class="nt">attributes</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">initialOffset</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">earliest</span>
+<span class="w">      </span><span class="nt">topics</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mytopic</span>
+<span class="w">      </span><span class="nt">brokers</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10.0.0.2:9092</span>
+<span class="w">      </span><span class="nt">consumerGroup</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-consumer-group</span>
+<span class="w">      </span><span class="nt">sasl</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">enable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">user</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;nuclio&quot;</span>
+<span class="w">        </span><span class="nt">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;s3rv3rl3ss&quot;</span>
+<span class="w">        </span><span class="nt">handshake</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="w">        </span><span class="c1"># [optional] specify mechanism</span>
+<span class="w">        </span><span class="nt">mechanism</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SCRAM-SHA-256</span>
+
+<span class="w">      </span><span class="c1"># [optional] set tls if broker requires a secured communication</span>
+<span class="w">      </span><span class="nt">tls</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">enable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">insecureSkipVerify</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">minVersion</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1.2&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../_sources/reference/triggers/kafka.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

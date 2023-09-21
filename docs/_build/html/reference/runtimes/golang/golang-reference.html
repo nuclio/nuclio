@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Golang (Go) Reference &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="golang-go-reference">
+<h1>Golang (Go) Reference<a class="headerlink" href="#golang-go-reference" title="Permalink to this heading">¶</a></h1>
+<p>This document describes specific Golang (Go) build and deploy configurations.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Function and handler</span></p></li>
+<li><p><span class="xref myst">Dockerfile</span></p></li>
+</ul>
+</section>
+<section id="function-and-handler">
+<h2>Function and handler<a class="headerlink" href="#function-and-handler" title="Permalink to this heading">¶</a></h2>
+<div class="highlight-go notranslate"><div class="highlight"><pre><span></span><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s">&quot;github.com/nuclio/nuclio-sdk-go&quot;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">Handler</span><span class="p">(</span><span class="nx">context</span><span class="w"> </span><span class="o">*</span><span class="nx">nuclio</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">event</span><span class="w"> </span><span class="nx">nuclio</span><span class="p">.</span><span class="nx">Event</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kd">interface</span><span class="p">{},</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The function package must be <code class="docutils literal notranslate"><span class="pre">main</span></code>, because the code compiles into a Go plugin. The <code class="docutils literal notranslate"><span class="pre">handler</span></code> field can be empty, as the Go runtime supports auto-handler detection by parsing the AST and looking for an exported function with the expected signature. Should you want to provide a handler for consistency, it should be of the form <code class="docutils literal notranslate"><span class="pre">&lt;package&gt;:&lt;entrypoint&gt;</span></code>. In the example above, the handler is <code class="docutils literal notranslate"><span class="pre">main:Handler</span></code>.</p>
+</section>
+<section id="dockerfile">
+<h2>Dockerfile<a class="headerlink" href="#dockerfile" title="Permalink to this heading">¶</a></h2>
+<p>See <a class="reference internal" href="../../../tasks/deploy-functions-from-dockerfile.html"><span class="doc std std-doc">Deploying Functions from a Dockerfile</span></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>ARG NUCLIO_LABEL=0.5.6
+ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_BASE_IMAGE=alpine:3.17
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
+
+# Supplies processor uhttpc, used for healthcheck
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+
+# Builds source, supplies processor binary and handler plugin
+FROM ${NUCLIO_ONBUILD_IMAGE} as builder
+
+# From the base image
+FROM ${NUCLIO_BASE_IMAGE}
+
+# Copy required objects from the suppliers
+COPY --from=builder /home/nuclio/bin/processor /usr/local/bin/processor
+COPY --from=builder /home/nuclio/bin/handler.so /opt/nuclio/handler.so
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+
+# Run processor with configuration and platform configuration
+CMD [ &quot;processor&quot; ]
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../../_sources/reference/runtimes/golang/golang-reference.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

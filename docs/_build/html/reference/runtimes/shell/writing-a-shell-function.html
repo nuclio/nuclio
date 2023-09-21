@@ -1,0 +1,202 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Writing a Shell Function &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="writing-a-shell-function">
+<h1>Writing a Shell Function<a class="headerlink" href="#writing-a-shell-function" title="Permalink to this heading">¶</a></h1>
+<p>This guide uses practical examples to guide you through the process of writing serverless shell functions.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Overview</span></p></li>
+<li><p><span class="xref myst">Handle events with a bash script</span></p></li>
+<li><p><span class="xref myst">Handle events with any executable binary</span></p></li>
+<li><p><span class="xref myst">See also</span></p></li>
+</ul>
+</section>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">¶</a></h2>
+<p>The shell runtime allows function developers to fork a process on every received event. Developers can choose to provide an executable script or run any executable binary in the container image. This guide walks you through both scenarios.</p>
+</section>
+<section id="handle-events-with-a-bash-script">
+<h2>Handle events with a bash script<a class="headerlink" href="#handle-events-with-a-bash-script" title="Permalink to this heading">¶</a></h2>
+<p>This example guides you through the steps for deploying a shell script that reverses the event's body. To implement this, you call <code class="docutils literal notranslate"><span class="pre">rev</span></code> and pass <code class="docutils literal notranslate"><span class="pre">stdin</span></code> as input; (the event body will appear to shell functions as <code class="docutils literal notranslate"><span class="pre">stdin</span></code>).</p>
+<p>Create a <strong>/tmp/nuclio-shell-script/reverser.sh</strong> file with the following code:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/sh</span>
+
+<span class="c1"># @nuclio.configure</span>
+<span class="c1">#</span>
+<span class="c1"># function.yaml:</span>
+<span class="c1">#   apiVersion: &quot;nuclio.io/v1&quot;</span>
+<span class="c1">#   kind: &quot;NuclioFunction&quot;</span>
+<span class="c1">#   spec:</span>
+<span class="c1">#     runtime: &quot;shell&quot;</span>
+<span class="c1">#     handler: &quot;reverser.sh&quot;</span>
+<span class="c1">#</span>
+
+rev<span class="w"> </span>/dev/stdin
+</pre></div>
+</div>
+<p>The function configuration needs to include the following:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">runtime</span></code> - set to <code class="docutils literal notranslate"><span class="pre">shell</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">handler</span></code> - set to the name of the executable file. In this example, the file is <strong>reverser.sh</strong>.</p></li>
+</ol>
+<p>Run the following command to deploy the function with the Nuclio CLI (<code class="docutils literal notranslate"><span class="pre">nuctl</span></code>):</p>
+<blockquote>
+<div><p><strong>Note:</strong> if you're not running on top of Kubernetes, pass the <code class="docutils literal notranslate"><span class="pre">--platform</span> <span class="pre">local</span></code> option to <code class="docutils literal notranslate"><span class="pre">nuctl</span></code>.</p>
+</div></blockquote>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>-p<span class="w"> </span>/tmp/nuclio-shell-script/reverser.sh<span class="w"> </span>rev
+</pre></div>
+</div>
+<p>And now, use the <code class="docutils literal notranslate"><span class="pre">nuctl</span></code> CLI to invoke the function:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>invoke<span class="w"> </span>rev<span class="w"> </span>-m<span class="w"> </span>POST<span class="w"> </span>-b<span class="w"> </span>reverse-me
+
+&gt;<span class="w"> </span>Response<span class="w"> </span>headers:
+<span class="nv">Date</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>Sun,<span class="w"> </span><span class="m">03</span><span class="w"> </span>Dec<span class="w"> </span><span class="m">2017</span><span class="w"> </span><span class="m">12</span>:53:51<span class="w"> </span>GMT
+Content-Type<span class="w"> </span><span class="o">=</span><span class="w"> </span>text/plain<span class="p">;</span><span class="w"> </span><span class="nv">charset</span><span class="o">=</span>utf-8
+Content-Length<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">10</span>
+<span class="nv">Server</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>nuclio
+
+&gt;<span class="w"> </span>Response<span class="w"> </span>body:
+em-esrever
+</pre></div>
+</div>
+</section>
+<section id="handle-events-with-any-executable-binary">
+<h2>Handle events with any executable binary<a class="headerlink" href="#handle-events-with-any-executable-binary" title="Permalink to this heading">¶</a></h2>
+<p>Because the shell runtime simply forks a process, you can leverage it to run any executable binary in the container image. This means that you don't need to provide any code to the shell runtime, only a function configuration. In this example, you install the <a class="reference external" href="https://www.imagemagick.org/script/index.php">ImageMagick</a> utility and call its <code class="docutils literal notranslate"><span class="pre">convert</span></code> executable on each event. You then send the function images and use <code class="docutils literal notranslate"><span class="pre">convert</span></code> to reduce the image by 50% in the response. You do this by invoking the <code class="docutils literal notranslate"><span class="pre">nuctl</span></code> CLI as follows:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>-p<span class="w"> </span>/dev/null<span class="w"> </span>convert<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--runtime<span class="w"> </span>shell<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--build-command<span class="w"> </span><span class="s2">&quot;apk --update --no-cache add imagemagick&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--handler<span class="w"> </span>convert<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--runtime-attrs<span class="w"> </span><span class="s1">&#39;{&quot;arguments&quot;: &quot;- -resize 50% fd:1&quot;}&#39;</span>
+</pre></div>
+</div>
+<p>Following is an explanation of the options used in the command:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-p</span> <span class="pre">/dev/null</span></code> - because you don't need to pass a path, you just instruct <code class="docutils literal notranslate"><span class="pre">nuctl</span></code> to read from <code class="docutils literal notranslate"><span class="pre">/dev/null</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--build-command</span> <span class="pre">&quot;apk</span> <span class="pre">--update</span> <span class="pre">--no-cache</span> <span class="pre">add</span> <span class="pre">imagemagick&quot;</span></code> - instruct the builder to install ImageMagick on the build through <code class="docutils literal notranslate"><span class="pre">apk</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--handler</span> <span class="pre">convert</span></code> - the <code class="docutils literal notranslate"><span class="pre">handler</span></code> must be set to the name or path of the executable. In this example, <code class="docutils literal notranslate"><span class="pre">convert</span></code> is in the environment <code class="docutils literal notranslate"><span class="pre">PATH</span></code> so there's no need for a full path.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--runtime-attrs</span> <span class="pre">'{&quot;arguments&quot;:</span> <span class="pre">&quot;-</span> <span class="pre">-resize</span> <span class="pre">50%</span> <span class="pre">fd:1&quot;}'</span></code> - through runtime specific attributes, you specify the arguments for the executable. In this example, <code class="docutils literal notranslate"><span class="pre">-</span></code> instructs the runtime to read from <code class="docutils literal notranslate"><span class="pre">stdin</span></code>, and the rest of the arguments specify how to convert the received image.</p></li>
+</ul>
+<p>Because <code class="docutils literal notranslate"><span class="pre">invoke</span></code> can't (yet) send images, use <a class="reference external" href="https://httpie.org/">HTTPie</a> to create a thumbnail file; replace the <code class="docutils literal notranslate"><span class="pre">&lt;function</span> <span class="pre">ip:port&gt;</span></code> placeholder with your function-URL information:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>http<span class="w"> </span>https://blog.golang.org/gopher/header.jpg<span class="w"> </span><span class="p">|</span><span class="w"> </span>http<span class="w"> </span>&lt;<span class="k">function</span><span class="w"> </span>ip:port&gt;<span class="w"> </span>&gt;<span class="w"> </span>thumb.jpg
+</pre></div>
+</div>
+<section id="overriding-the-arguments-per-request">
+<h3>Overriding the arguments per request<a class="headerlink" href="#overriding-the-arguments-per-request" title="Permalink to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">shell</span></code> runtime allows events to override the default arguments through the use of a header. This means that you can supply <code class="docutils literal notranslate"><span class="pre">x-nuclio-arguments</span></code> as a header and provide any <code class="docutils literal notranslate"><span class="pre">convert</span></code> arguments that you wish, per event. Thus, you can create, for example, a smaller thumbnail file by using the following invocation command; replace the <code class="docutils literal notranslate"><span class="pre">&lt;function</span> <span class="pre">ip:port&gt;</span></code> placeholder with your function-URL information:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>http<span class="w"> </span>https://blog.golang.org/gopher/header.jpg<span class="w"> </span><span class="p">|</span><span class="w"> </span>http<span class="w"> </span>&lt;<span class="k">function</span><span class="w"> </span>ip:port&gt;<span class="w"> </span>x-nuclio-arguments:<span class="s2">&quot;- -resize 20% fd:1&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>thumb.jpg<span class="w"> </span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="see-also">
+<h2>See also<a class="headerlink" href="#see-also" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../../tasks/deploying-functions.html"><span class="doc std std-doc">Deploying Functions</span></a></p></li>
+<li><p><a class="reference internal" href="../../function-configuration/function-configuration-reference.html"><span class="doc std std-doc">Function-Configuration Reference</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../../_sources/reference/runtimes/shell/writing-a-shell-function.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

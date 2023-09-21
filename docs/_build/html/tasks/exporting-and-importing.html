@@ -1,0 +1,310 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Exporting and Importing Resources &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="exporting-and-importing-resources">
+<h1>Exporting and Importing Resources<a class="headerlink" href="#exporting-and-importing-resources" title="Permalink to this heading">¶</a></h1>
+<p>This tutorial guides you through the process of using the Nuclio CLI (<code class="docutils literal notranslate"><span class="pre">nuctl</span></code>) to export and import Nuclio functions and projects.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Exporting deployed functions</span></p></li>
+<li><p><span class="xref myst">Importing functions</span></p></li>
+<li><p><span class="xref myst">Exporting projects</span></p></li>
+<li><p><span class="xref myst">Importing projects</span></p></li>
+<li><p><span class="xref myst">Deploying imported functions</span></p></li>
+</ul>
+<p><a id="functions-export"></a></p>
+</section>
+<section id="exporting-deployed-functions">
+<h2>Exporting deployed functions<a class="headerlink" href="#exporting-deployed-functions" title="Permalink to this heading">¶</a></h2>
+<p>You can  use the Nuclio CLI's <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">functions</span></code> command (or the <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">function</span></code> alias) to export the configurations of <span class="xref myst">deployed Nuclio functions</span> in your environment (&quot;export functions&quot;).
+You can save the exported configurations, for example, to a file, and <span class="xref myst">import</span> them later on any environment that is running Nuclio.</p>
+<p>To export a specific function, set the optional <code class="docutils literal notranslate"><span class="pre">&lt;function&gt;</span></code> argument to the name of the function to export:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span><span class="nb">export</span><span class="w"> </span>functions<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>&lt;<span class="k">function</span>&gt;
+</pre></div>
+</div>
+<p>For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span><span class="nb">export</span><span class="w"> </span>functions<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>myfunction
+</pre></div>
+</div>
+<p>By default, if you omit the <code class="docutils literal notranslate"><span class="pre">&lt;function&gt;</span></code> argument, the command exports all deployed Nuclio functions in your environment:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span><span class="nb">export</span><span class="w"> </span>functions<span class="w"> </span>--namespace<span class="w"> </span>nuclio
+</pre></div>
+</div>
+<p>You can use the <code class="docutils literal notranslate"><span class="pre">-o|--output</span></code> flag to select the output format for the exported configuration — <code class="docutils literal notranslate"><span class="pre">&quot;json&quot;</span></code> for JSON or <code class="docutils literal notranslate"><span class="pre">&quot;yaml&quot;</span></code>for YAML (default).</p>
+<p>The command prints the exported function configurations to the standard output (<code class="docutils literal notranslate"><span class="pre">stdout</span></code>).
+It's recommended that you save the output to a configuration file from which you can later import the configuration.
+You can do this by redirecting the output of the <code class="docutils literal notranslate"><span class="pre">export</span></code> command to a file.
+For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span><span class="nb">export</span><span class="w"> </span>functions<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>myfunction<span class="w"> </span>&gt;<span class="w"> </span>myfunction.yaml
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note:</strong> By default, the <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">functions</span></code> command doesn't export all the data:
+it &quot;scrubs&quot; sensitive function data (such as authentication information that might be stored in the function triggers) and unnecessary data (such as the namespace).
+You can set the <code class="docutils literal notranslate"><span class="pre">--no-scrub</span></code> flag to override this default behavior and export all function data.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Tip:</strong> Run <code class="docutils literal notranslate"><span class="pre">nuctl</span> <span class="pre">help</span> <span class="pre">export</span> <span class="pre">functions</span></code> for full usage instructions.</p>
+</div></blockquote>
+<p><a id="functions-import"></a></p>
+</section>
+<section id="importing-functions">
+<h2>Importing functions<a class="headerlink" href="#importing-functions" title="Permalink to this heading">¶</a></h2>
+<p>You can use the Nuclio CLI's <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">functions</span></code> command (or the <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">function</span></code> alias) to import function configurations (&quot;import functions&quot;), typically from previously exported function configurations.</p>
+<blockquote>
+<div><p><strong>Note:</strong> The <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">functions</span></code> command doesn't deploy the imported functions.
+See <span class="xref myst">Deploying imported functions</span>, which also outlines the option of using the <code class="docutils literal notranslate"><span class="pre">deploy</span></code> command to both import and deploy a function in a single command.</p>
+</div></blockquote>
+<p>Use either of the following alternatives methods to pass the function configurations to the import command:</p>
+<ul>
+<li><p>Set the optional <code class="docutils literal notranslate"><span class="pre">&lt;function-configurations</span> <span class="pre">file&gt;</span></code> command argument to the path to a YAML or JSON file that contains the configuration of one or more Nuclio functions (as saved, for example, from the output of a previous export command):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>import<span class="w"> </span>functions<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>&lt;<span class="k">function</span>-configurations<span class="w"> </span>file&gt;
+</pre></div>
+</div>
+<p>For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>import<span class="w"> </span>functions<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>myfunction.yaml
+</pre></div>
+</div>
+</li>
+<li><p>Provide the function configurations in the standard input (<code class="docutils literal notranslate"><span class="pre">stdin</span></code>) and don't pass any arguments to the command.
+For example, the following command passes the configuration via the standard input by piping the contents of a <strong>myfunction.yaml</strong> configuration file to the import command:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>cat<span class="w"> </span>myfunction.yaml<span class="w"> </span><span class="p">|</span><span class="w"> </span>nuctl<span class="w"> </span>import<span class="w"> </span>functions<span class="w"> </span>--namespace<span class="w"> </span>nuclio
+</pre></div>
+</div>
+</li>
+</ul>
+<p>You can also import function configurations to an instance of the Nuclio dashboard by using an HTTP <code class="docutils literal notranslate"><span class="pre">POST</span></code> command with an <code class="docutils literal notranslate"><span class="pre">import=true</span></code> query string to send a function-configurations file to the dashboard's functions API endpoint — <code class="docutils literal notranslate"><span class="pre">/api/functions/</span></code>.
+You can do this, for example, by using the <code class="docutils literal notranslate"><span class="pre">http</span></code> CLI tool; replace <code class="docutils literal notranslate"><span class="pre">&lt;function-configurations</span> <span class="pre">file&gt;</span></code> with the path to a Nuclio function-configurations file, and <code class="docutils literal notranslate"><span class="pre">&lt;Nuclio</span> <span class="pre">dashboard</span> <span class="pre">URL&gt;</span></code> with the IP address or host name of your Nuclio dashboard:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>cat<span class="w"> </span>&lt;<span class="k">function</span>-configurations<span class="w"> </span>file&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>http<span class="w"> </span>post<span class="w"> </span><span class="s1">&#39;http://&lt;Nuclio dashboard URL&gt;/api/functions/?import=true&#39;</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Tip:</strong> Run <code class="docutils literal notranslate"><span class="pre">nuctl</span> <span class="pre">help</span> <span class="pre">import</span> <span class="pre">functions</span></code> for full usage instructions.</p>
+</div></blockquote>
+<p><a id="projects-export"></a></p>
+</section>
+<section id="exporting-projects">
+<h2>Exporting projects<a class="headerlink" href="#exporting-projects" title="Permalink to this heading">¶</a></h2>
+<p>You can use the Nuclio CLI's <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">projects</span></code> command (or the <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">project</span></code> alias) to export and save the configurations of Nuclio projects in your environment (&quot;export projects&quot;) — including the configuration of all of the projects' functions, function events, and API gateways.
+You can save the exported configurations, for example, to a file, and <span class="xref myst">import</span> them later on any environment that is running Nuclio.</p>
+<p>To export a specific project, set the optional <code class="docutils literal notranslate"><span class="pre">&lt;project&gt;</span></code> argument to the name of the project to export:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span><span class="nb">export</span><span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>&lt;project&gt;
+</pre></div>
+</div>
+<p>For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span><span class="nb">export</span><span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>myproject
+</pre></div>
+</div>
+<p>By default, if you omit the <code class="docutils literal notranslate"><span class="pre">&lt;project&gt;</span></code> argument, the command exports all Nuclio projects in your environment:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span><span class="nb">export</span><span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio
+</pre></div>
+</div>
+<p>You can use the <code class="docutils literal notranslate"><span class="pre">-o|--output</span></code> flag to select the output format for the exported configuration — <code class="docutils literal notranslate"><span class="pre">&quot;json&quot;</span></code> for JSON or <code class="docutils literal notranslate"><span class="pre">&quot;yaml&quot;</span></code>for YAML (default).</p>
+<p>The command prints the exported project configurations to the standard output (<code class="docutils literal notranslate"><span class="pre">stdout</span></code>).
+It's recommended that you save the output to a configuration file from which you can later import the configuration.
+You can do this by redirecting the output of the <code class="docutils literal notranslate"><span class="pre">export</span></code> command to a file.
+For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span><span class="nb">export</span><span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>myproject<span class="w"> </span>&gt;<span class="w"> </span>myproject.yaml
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note:</strong> The <code class="docutils literal notranslate"><span class="pre">export</span> <span class="pre">projects</span></code> command doesn't export all the data:
+it &quot;scrubs&quot; sensitive function data (such as authentication information that might be stored in the function triggers) and unnecessary data (such as the namespace).</p>
+</div></blockquote>
+<!-- [IntInfo] Unlike `export functions`, `export projects` doesn't currently
+  have a no-scrub flag. -->
+<blockquote>
+<div><p><strong>Tip:</strong> Run <code class="docutils literal notranslate"><span class="pre">nuctl</span> <span class="pre">help</span> <span class="pre">export</span> <span class="pre">projects</span></code> for full usage instructions.</p>
+</div></blockquote>
+<p><a id="projects-import"></a></p>
+</section>
+<section id="importing-projects">
+<h2>Importing projects<a class="headerlink" href="#importing-projects" title="Permalink to this heading">¶</a></h2>
+<p>You can use the Nuclio CLI's <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">projects</span></code> command (or the <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">project</span></code> alias) to import project configurations (&quot;import projects&quot;) — including the configurations of all of the projects' functions, function events, and API gateways — typically from previously exported project configurations.</p>
+<blockquote>
+<div><p><strong>Note:</strong> The <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">projects</span></code> command doesn't deploy the functions in the imported projects.
+See <span class="xref myst">Deploying imported functions</span>.</p>
+</div></blockquote>
+<p>Use either of the following alternatives methods to pass the project configurations to the import command:</p>
+<ul>
+<li><p>Set the optional <code class="docutils literal notranslate"><span class="pre">&lt;project-configurations</span> <span class="pre">file&gt;</span></code> command argument to the path to a YAML or JSON file that contains the configuration of one or more Nuclio projects (as saved, for example, from the output of a previous export command):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>import<span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>&lt;project-configurations<span class="w"> </span>file&gt;
+</pre></div>
+</div>
+<p>For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>import<span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>myproject.yaml
+</pre></div>
+</div>
+</li>
+<li><p>Provide the project configurations in the standard input (<code class="docutils literal notranslate"><span class="pre">stdin</span></code>) and don't pass any arguments to the command.
+For example, the following command passes the configuration via the standard input by piping the contents of a <strong>myproject.yaml</strong> configuration file to the import command:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>cat<span class="w"> </span>myproject.yaml<span class="w"> </span><span class="p">|</span><span class="w"> </span>nuctl<span class="w"> </span>import<span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio
+</pre></div>
+</div>
+</li>
+</ul>
+<p>You can set the <code class="docutils literal notranslate"><span class="pre">--skip</span></code> flag to the names of projects that are included in the input project configurations but shouldn't be imported (i.e., whose import should be skipped); replace <code class="docutils literal notranslate"><span class="pre">&lt;projects</span> <span class="pre">to</span> <span class="pre">skip&gt;</span></code> with a comma-separated list of project names:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>import<span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>--skip<span class="w"> </span>&lt;projects<span class="w"> </span>to<span class="w"> </span>skip&gt;<span class="w"> </span><span class="o">[</span>&lt;project-configurations<span class="w"> </span>file&gt;<span class="o">]</span>
+</pre></div>
+</div>
+<p>For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>import<span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>--skip<span class="w"> </span><span class="s2">&quot;myproject1,myproject3&quot;</span>
+</pre></div>
+</div>
+<!-- [IntInfo] `import functions` doesn't have a similar `skip` flag. -->
+<p>The project display-name configuration (<code class="docutils literal notranslate"><span class="pre">spec.displayName</span></code>) is being deprecated in favor of the project metadata-name configuration (<code class="docutils literal notranslate"><span class="pre">metadata.name</span></code>).
+Therefore, by default, when the imported configuration sets <code class="docutils literal notranslate"><span class="pre">spec.displayName</span></code> and doesn't set <code class="docutils literal notranslate"><span class="pre">metadata.name</span></code> or sets it in the form of a UUID, the imported configuration will have a <code class="docutils literal notranslate"><span class="pre">metadata.name</span></code> field with the value of the original <code class="docutils literal notranslate"><span class="pre">spec.displayName</span></code> field and won't have a <code class="docutils literal notranslate"><span class="pre">spec.displayName</span></code> field.
+You can bypass this behavior by using the <code class="docutils literal notranslate"><span class="pre">--skip-transform-display-name</span></code> import flag:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>import<span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>--skip-transform-display-name<span class="w"> </span><span class="o">[</span>&lt;project-configurations<span class="w"> </span>file&gt;<span class="o">]</span>
+</pre></div>
+</div>
+<p>For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>import<span class="w"> </span>projects<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>--skip-transform-display-name
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Warning:</strong> Note that the <code class="docutils literal notranslate"><span class="pre">spec.displayName</span></code> project-configuration field will ultimately be fully deprecated and no longer supported.</p>
+</div></blockquote>
+<p>You can also import project configurations to an instance of the Nuclio dashboard by using an HTTP <code class="docutils literal notranslate"><span class="pre">POST</span></code> command with an <code class="docutils literal notranslate"><span class="pre">import=true</span></code> query string to send a project-configurations file to the dashboard's projects API endpoint — <code class="docutils literal notranslate"><span class="pre">/api/projects/</span></code>.
+You can do this, for example, by using the <code class="docutils literal notranslate"><span class="pre">http</span></code> CLI tool; replace <code class="docutils literal notranslate"><span class="pre">&lt;project-configurations</span> <span class="pre">file&gt;</span></code> with the path to a Nuclio project-configurations file, and <code class="docutils literal notranslate"><span class="pre">&lt;Nuclio</span> <span class="pre">dashboard</span> <span class="pre">URL&gt;</span></code> with the IP address or host name of your Nuclio dashboard:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>cat<span class="w"> </span>&lt;project-configurations<span class="w"> </span>file&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>http<span class="w"> </span>post<span class="w"> </span><span class="s1">&#39;http://&lt;Nuclio dashboard URL&gt;/api/projects/?import=true&#39;</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note</strong>: As indicated, importing a project configuration also involves importing of all of the project's functions, function events, and API gateways.
+To allow this flow to run smoothly, if one of the resources fails to import, an error is printed to the standard error (<code class="docutils literal notranslate"><span class="pre">stderr</span></code>), but the command continues to run and attempts to import the other relevant resources.</p>
+<p>For example, if the imported project contains a function named <code class="docutils literal notranslate"><span class="pre">myfunction</span></code> and a function by this name already exists in another project in the parent namespace, the function (and its function events) won't be imported, because function names in a namespace must be unique.
+But the project as a whole — including any other functions, function events, and API gateways in the imported configuration — will still be imported.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Tip:</strong> Run <code class="docutils literal notranslate"><span class="pre">nuctl</span> <span class="pre">help</span> <span class="pre">import</span> <span class="pre">projects</span></code> for full usage instructions.</p>
+</div></blockquote>
+<p><a id="imported-functions-deploy"></a></p>
+</section>
+<section id="deploying-imported-functions">
+<h2>Deploying imported functions<a class="headerlink" href="#deploying-imported-functions" title="Permalink to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">functions</span></code> and <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">projects</span></code> commands change the status of the imported functions to the <code class="docutils literal notranslate"><span class="pre">imported</span></code> state, but they don't automatically deploy these functions.
+To build and deploy an imported function, you need to use the <code class="docutils literal notranslate"><span class="pre">deploy</span></code> command; replace <code class="docutils literal notranslate"><span class="pre">&lt;imported</span> <span class="pre">function</span> <span class="pre">name&gt;</span></code> with the name of the imported function to deploy:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>&lt;imported-function<span class="w"> </span>name&gt;
+</pre></div>
+</div>
+<p>For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>myfunction
+</pre></div>
+</div>
+<p>Alternatively, you can use the <code class="docutils literal notranslate"><span class="pre">deploy</span></code> command with the <code class="docutils literal notranslate"><span class="pre">-f|--file</span></code> flag to import, build, and deploy a function from a function-configuration file without first running an <code class="docutils literal notranslate"><span class="pre">import</span></code> command; replace <code class="docutils literal notranslate"><span class="pre">&lt;function-configuration</span> <span class="pre">file&gt;</span></code> with the path to a function-configuration file (typically created from the output of a previous <code class="docutils literal notranslate"><span class="pre">export</span></code> command):</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>-f<span class="p">|</span>--file<span class="w"> </span>&lt;<span class="k">function</span>-configuration<span class="w"> </span>file&gt;
+</pre></div>
+</div>
+<p>For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>--namespace<span class="w"> </span>nuclio<span class="w"> </span>--file<span class="w"> </span>myfunction.yaml
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Tip:</strong> Run <code class="docutils literal notranslate"><span class="pre">nuctl</span> <span class="pre">help</span> <span class="pre">deploy</span></code> for full usage instructions.</p>
+</div></blockquote>
+<p>For more information about deployment of Nuclio functions, see <span class="xref myst">Deploying Functions</span>.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/tasks/exporting-and-importing.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

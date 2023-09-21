@@ -1,0 +1,182 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Writing a .NET Core 6.0 Function &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="writing-a-net-core-6-0-function">
+<h1>Writing a .NET Core 6.0 Function<a class="headerlink" href="#writing-a-net-core-6-0-function" title="Permalink to this heading">¶</a></h1>
+<p>This guide uses practical examples to guide you through the process of writing serverless .NET Core functions.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Overview</span></p></li>
+<li><p><span class="xref myst">Deploy a .NET Core function</span></p></li>
+<li><p><span class="xref myst">See also</span></p></li>
+</ul>
+</section>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">¶</a></h2>
+<p>The .NET Core runtime allows function developers to create serverless functions using <a class="reference external" href="https://dotnet.microsoft.com/">.NET Core 3.1</a>. This guide walks you through the function-creation process.</p>
+</section>
+<section id="deploy-a-net-core-function">
+<h2>Deploy a .NET Core function<a class="headerlink" href="#deploy-a-net-core-function" title="Permalink to this heading">¶</a></h2>
+<p>This example guides you through the steps for deploying a .NET Core code that reverses the event's body. To implement this, you call <code class="docutils literal notranslate"><span class="pre">reverser</span></code> and pass an input;</p>
+<p>Create a <strong>/tmp/nuclio-dotnetcore-script/reverser.cs</strong> file with the following code:</p>
+<div class="highlight-csharp notranslate"><div class="highlight"><pre><span></span><span class="c1">// @nuclio.configure</span>
+<span class="c1">//</span>
+<span class="c1">// function.yaml:</span>
+<span class="c1">//   spec:</span>
+<span class="c1">//     runtime: dotnetcore</span>
+<span class="c1">//     handler: nuclio:reverser</span>
+
+<span class="k">using</span><span class="w"> </span><span class="nn">System</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="nn">Nuclio.Sdk</span><span class="p">;</span>
+
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">nuclio</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="nf">reverser</span><span class="p">(</span><span class="n">Context</span><span class="w"> </span><span class="n">context</span><span class="p">,</span><span class="w"> </span><span class="n">Event</span><span class="w"> </span><span class="n">eventBase</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">charArray</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">eventBase</span><span class="p">.</span><span class="n">GetBody</span><span class="p">().</span><span class="n">ToCharArray</span><span class="p">();</span>
+<span class="w">        </span><span class="n">Array</span><span class="p">.</span><span class="n">Reverse</span><span class="p">(</span><span class="n">charArray</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">string</span><span class="p">(</span><span class="n">charArray</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The function configuration needs to include the following:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">runtime</span></code> - set to <code class="docutils literal notranslate"><span class="pre">dotnetcore</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">handler</span></code> - set to the name of the class and the name of the method . In this example, the handler is <strong>nuclio:reverser</strong>.</p></li>
+</ol>
+<p>Run the following command to deploy the function with the Nuclio CLI (<code class="docutils literal notranslate"><span class="pre">nuctl</span></code>).</p>
+<blockquote>
+<div><p><strong>Note:</strong> If you're not running on top of Kubernetes, pass the <code class="docutils literal notranslate"><span class="pre">--platform</span> <span class="pre">local</span></code> option to <code class="docutils literal notranslate"><span class="pre">nuctl</span></code>.</p>
+</div></blockquote>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>-p<span class="w"> </span>/tmp/nuclio-dotnetcore-script/reverser.cs<span class="w"> </span>reverser
+</pre></div>
+</div>
+<p>You can also remove the settings from <code class="docutils literal notranslate"><span class="pre">reverser.cs</span></code> and run the following command:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>-p<span class="w"> </span>/tmp/nuclio-dotnetcore-script/reverser.cs<span class="w"> </span>--runtime<span class="w"> </span>dotnetcore<span class="w"> </span>--handler<span class="w"> </span>nuclio:reverser<span class="w"> </span>reverser
+</pre></div>
+</div>
+<p>And now, use the <code class="docutils literal notranslate"><span class="pre">nuctl</span></code> CLI to invoke the function:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>invoke<span class="w"> </span>reverser<span class="w"> </span>-m<span class="w"> </span>POST<span class="w"> </span>-b<span class="w"> </span>reverse-me
+
+&gt;<span class="w"> </span>Response<span class="w"> </span>headers:
+<span class="nv">Date</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>Sun,<span class="w"> </span><span class="m">03</span><span class="w"> </span>Dec<span class="w"> </span><span class="m">2017</span><span class="w"> </span><span class="m">12</span>:53:51<span class="w"> </span>GMT
+Content-Type<span class="w"> </span><span class="o">=</span><span class="w"> </span>text/plain<span class="p">;</span><span class="w"> </span><span class="nv">charset</span><span class="o">=</span>utf-8
+Content-Length<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">10</span>
+<span class="nv">Server</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>nuclio
+
+&gt;<span class="w"> </span>Response<span class="w"> </span>body:
+em-esrever
+</pre></div>
+</div>
+</section>
+<section id="see-also">
+<h2>See also<a class="headerlink" href="#see-also" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../../tasks/deploying-functions.html"><span class="doc std std-doc">Deploying Functions</span></a></p></li>
+<li><p><a class="reference internal" href="../../function-configuration/function-configuration-reference.html"><span class="doc std std-doc">Function-Configuration Reference</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../../_sources/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

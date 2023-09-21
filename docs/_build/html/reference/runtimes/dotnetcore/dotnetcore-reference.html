@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>.NET Core Reference &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="net-core-reference">
+<h1>.NET Core Reference<a class="headerlink" href="#net-core-reference" title="Permalink to this heading">¶</a></h1>
+<p>This document describes the specific .NET Core build and deploy configurations.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Function and handler</span></p></li>
+<li><p><span class="xref myst">Dockerfile</span></p></li>
+</ul>
+</section>
+<section id="function-and-handler">
+<h2>Function and handler<a class="headerlink" href="#function-and-handler" title="Permalink to this heading">¶</a></h2>
+<div class="highlight-cs notranslate"><div class="highlight"><pre><span></span><span class="k">using</span><span class="w"> </span><span class="nn">System</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="nn">Nuclio.Sdk</span><span class="p">;</span>
+
+<span class="k">public</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">nuclio</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="kt">object</span><span class="w"> </span><span class="nf">empty</span><span class="p">(</span><span class="n">Context</span><span class="w"> </span><span class="n">context</span><span class="p">,</span><span class="w"> </span><span class="n">Event</span><span class="w"> </span><span class="n">eventBase</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">Response</span><span class="p">()</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">StatusCode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">200</span><span class="p">,</span>
+<span class="w">            </span><span class="n">ContentType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;application/text&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="n">Body</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">handler</span></code> field is of the form <code class="docutils literal notranslate"><span class="pre">&lt;class&gt;:&lt;entrypoint&gt;</span></code>. In the example above, the handler is <code class="docutils literal notranslate"><span class="pre">nuclio:empty</span></code>.</p>
+</section>
+<section id="project-file">
+<h2>Project file<a class="headerlink" href="#project-file" title="Permalink to this heading">¶</a></h2>
+<p>To use or import external dependencies, create a <strong>handler.csproj</strong> file that lists the required dependencies, alongside your function-handler file.</p>
+<p>For example, the following file defines a dependency on the <code class="docutils literal notranslate"><span class="pre">Microsoft.NET.Sdk</span></code> package:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;Project</span><span class="w"> </span><span class="na">Sdk=</span><span class="s">&quot;Microsoft.NET.Sdk&quot;</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;PropertyGroup&gt;</span>
+<span class="w">        </span><span class="nt">&lt;TargetFramework&gt;</span>net6.0<span class="nt">&lt;/TargetFramework&gt;</span>
+<span class="w">        </span><span class="nt">&lt;GenerateAssemblyInfo&gt;</span>false<span class="nt">&lt;/GenerateAssemblyInfo&gt;</span>
+<span class="w">        </span><span class="nt">&lt;LangVersion&gt;</span>10.0<span class="nt">&lt;/LangVersion&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/PropertyGroup&gt;</span>
+<span class="w">    </span><span class="nt">&lt;ItemGroup&gt;</span>
+<span class="w">        </span><span class="nt">&lt;PackageReference</span><span class="w"> </span><span class="na">Include=</span><span class="s">&quot;Newtonsoft.Json&quot;</span><span class="w"> </span><span class="na">Version=</span><span class="s">&quot;12.0.2&quot;</span><span class="nt">/&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/ItemGroup&gt;</span>
+<span class="nt">&lt;/Project&gt;</span>
+</pre></div>
+</div>
+<p>With this example <strong>handler.csproj</strong> file, you can use the <code class="docutils literal notranslate"><span class="pre">Newtonsoft.Json</span></code> package as follows:</p>
+<div class="highlight-cs notranslate"><div class="highlight"><pre><span></span><span class="k">using</span><span class="w"> </span><span class="nn">Newtonsoft.Json</span><span class="p">;</span>
+<span class="p">...</span>
+<span class="n">JsonConvert</span><span class="p">.</span><span class="n">SerializeObject</span><span class="p">(...);</span>
+</pre></div>
+</div>
+<p>Adding more dependencies is made easy using <code class="docutils literal notranslate"><span class="pre">dotnet</span> <span class="pre">add</span> <span class="pre">package</span> <span class="pre">&lt;package</span> <span class="pre">name&gt;</span></code>.
+For more details about <code class="docutils literal notranslate"><span class="pre">dotnet</span> <span class="pre">add</span> <span class="pre">package</span></code>, see the <a class="reference external" href="https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-add-package">Microsoft documentation</a>.</p>
+</section>
+<section id="dockerfile">
+<h2>Dockerfile<a class="headerlink" href="#dockerfile" title="Permalink to this heading">¶</a></h2>
+<p>See <a class="reference internal" href="../../../tasks/deploy-functions-from-dockerfile.html"><span class="doc std std-doc">Deploying Functions from a Dockerfile</span></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>ARG NUCLIO_LABEL=0.5.6
+ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_BASE_IMAGE=mcr.microsoft.com/dotnet/sdk:6.0
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
+
+# Supplies processor uhttpc, used for healthcheck
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+
+# Builds source, supplies processor binary and handler plugin
+FROM ${NUCLIO_ONBUILD_IMAGE} as builder
+
+# From the base image
+FROM ${NUCLIO_BASE_IMAGE}
+
+# Copy required objects from the suppliers
+COPY --from=builder /home/nuclio/bin/processor /usr/local/bin/processor
+COPY --from=builder /home/nuclio/bin/wrapper /opt/nuclio/wrapper
+COPY --from=builder /home/nuclio/bin/handler /opt/nuclio/handler
+COPY --from=builder /home/nuclio/src/nuclio-sdk-dotnetcore /opt/nuclio/nuclio-sdk-dotnetcore
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+
+# Run processor with configuration and platform configuration
+CMD [ &quot;processor&quot; ]
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../../_sources/reference/runtimes/dotnetcore/dotnetcore-reference.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Deploying Pre-Built Functions &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="deploying-pre-built-functions">
+<h1>Deploying Pre-Built Functions<a class="headerlink" href="#deploying-pre-built-functions" title="Permalink to this heading">¶</a></h1>
+<p>This guide goes through building functions to container images and then deploying them in a separate process.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Motivation</span></p></li>
+<li><p><span class="xref myst">Building a function</span></p></li>
+<li><p><span class="xref myst">Deploying the pre built function</span></p></li>
+<li><p><span class="xref myst">See also</span></p></li>
+</ul>
+</section>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Permalink to this heading">¶</a></h2>
+<p>If you followed the <span class="xref myst">function-deployment guide</span>, you built and deployed a function in a single convenient step using the <code class="docutils literal notranslate"><span class="pre">nuctl</span></code> CLI. However, it is sometimes desirable to build a function once and deploy it many times with different configuration. This guide will walk you through that process using <code class="docutils literal notranslate"><span class="pre">nuctl</span></code>.</p>
+<p>In this scenario, you'll use the <span class="xref myst">Go hello-world example</span> example.</p>
+</section>
+<section id="building-a-function">
+<h2>Building a function<a class="headerlink" href="#building-a-function" title="Permalink to this heading">¶</a></h2>
+<p>Using <code class="docutils literal notranslate"><span class="pre">nuctl</span></code>, you can issue a build - specifying the URL of the Go hello-world:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>build<span class="w"> </span>hello-world<span class="w"> </span>--path<span class="w"> </span>https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--registry<span class="w"> </span><span class="k">$(</span>minikube<span class="w"> </span>ip<span class="k">)</span>:5000
+</pre></div>
+</div>
+<p>This produces the <code class="docutils literal notranslate"><span class="pre">nuclio/processor-hello-world:latest</span></code> image and pushes it to <code class="docutils literal notranslate"><span class="pre">192.168.64.8:5000</span></code>. The image contains everything the function needs to run, except a configuration file.</p>
+</section>
+<section id="deploying-the-pre-built-function">
+<h2>Deploying the pre-built function<a class="headerlink" href="#deploying-the-pre-built-function" title="Permalink to this heading">¶</a></h2>
+<p>To deploy the function to your platform, you'll use the <code class="docutils literal notranslate"><span class="pre">nuctl</span></code> deploy command with the <code class="docutils literal notranslate"><span class="pre">--run-image</span></code> option. When <code class="docutils literal notranslate"><span class="pre">--run-image</span></code> is present, <code class="docutils literal notranslate"><span class="pre">nuctl</span></code> does not initiate a build process - only creates a function in the platform and waits for it to become ready.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>hello-world<span class="w"> </span>--run-image<span class="w"> </span>localhost:5000/nuclio/processor-hello-world:latest<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--runtime<span class="w"> </span>golang<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--handler<span class="w"> </span>main:Handler<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--namespace<span class="w"> </span>nuclio
+</pre></div>
+</div>
+<p>You can deploy this function several times, providing different labels, triggers, etc. - yet still use the same image.</p>
+</section>
+<section id="see-also">
+<h2>See also<a class="headerlink" href="#see-also" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Deploying Functions</span></p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/tasks/deploying-pre-built-functions.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Java reference &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="java-reference">
+<h1>Java reference<a class="headerlink" href="#java-reference" title="Permalink to this heading">¶</a></h1>
+<p>This document describes specific Java build and deploy configurations.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Function and handler</span></p></li>
+<li><p><span class="xref myst">Build</span></p></li>
+<li><p><span class="xref myst">Dockerfile</span></p></li>
+</ul>
+</section>
+<section id="function-and-handler">
+<h2>Function and handler<a class="headerlink" href="#function-and-handler" title="Permalink to this heading">¶</a></h2>
+<div class="highlight-java notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">io.nuclio.Context</span><span class="p">;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io.nuclio.Event</span><span class="p">;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io.nuclio.EventHandler</span><span class="p">;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io.nuclio.Response</span><span class="p">;</span>
+
+<span class="kd">public</span><span class="w"> </span><span class="kd">class</span> <span class="nc">EmptyHandler</span><span class="w"> </span><span class="kd">implements</span><span class="w"> </span><span class="n">EventHandler</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="nd">@Override</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="nf">handleEvent</span><span class="p">(</span><span class="n">Context</span><span class="w"> </span><span class="n">context</span><span class="p">,</span><span class="w"> </span><span class="n">Event</span><span class="w"> </span><span class="n">event</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">       </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Response</span><span class="p">().</span><span class="na">setBody</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">handler</span></code> field must simply contain the class name. In the example above, the <code class="docutils literal notranslate"><span class="pre">handler</span></code> is <code class="docutils literal notranslate"><span class="pre">EmptyHandler</span></code>.</p>
+</section>
+<section id="build">
+<h2>Build<a class="headerlink" href="#build" title="Permalink to this heading">¶</a></h2>
+<p>When instructed to build the user's handler (to create a user handler JAR), the Java runtime will generate a Gradle build script from the following template:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">plugins</span> <span class="p">{</span>
+  <span class="nb">id</span> <span class="s1">&#39;com.github.johnrengelman.shadow&#39;</span> <span class="n">version</span> <span class="s1">&#39;5.2.0&#39;</span>
+  <span class="nb">id</span> <span class="s1">&#39;java&#39;</span>
+<span class="p">}</span>
+
+<span class="n">repositories</span> <span class="p">{</span>
+    <span class="p">{{</span> <span class="nb">range</span> <span class="o">.</span><span class="n">Repositories</span> <span class="p">}}</span>
+    <span class="p">{{</span> <span class="o">.</span> <span class="p">}}</span>
+    <span class="p">{{</span> <span class="n">end</span> <span class="p">}}</span>
+<span class="p">}</span>
+
+<span class="n">dependencies</span> <span class="p">{</span>
+    <span class="p">{{</span> <span class="nb">range</span> <span class="o">.</span><span class="n">Dependencies</span> <span class="p">}}</span>
+    <span class="nb">compile</span> <span class="n">group</span><span class="p">:</span> <span class="s1">&#39;{{.Group}}&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="s1">&#39;{{.Name}}&#39;</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="s1">&#39;{{.Version}}&#39;</span>
+    <span class="p">{{</span> <span class="n">end</span> <span class="p">}}</span>
+
+    <span class="nb">compile</span> <span class="n">files</span><span class="p">(</span><span class="s1">&#39;./nuclio-sdk-java-1.1.0.jar&#39;</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="n">shadowJar</span> <span class="p">{</span>
+   <span class="n">baseName</span> <span class="o">=</span> <span class="s1">&#39;user-handler&#39;</span>
+   <span class="n">classifier</span> <span class="o">=</span> <span class="n">null</span>  <span class="o">//</span> <span class="n">Don</span><span class="s1">&#39;t append &quot;all&quot; to jar name</span>
+<span class="p">}</span>
+
+<span class="n">task</span> <span class="n">userHandler</span><span class="p">(</span><span class="n">dependsOn</span><span class="p">:</span> <span class="n">shadowJar</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The shim layer JAR is contained within the <code class="docutils literal notranslate"><span class="pre">onbuild</span></code> image, and an uber JAR is created from the user's JAR and the shim layer JAR. All dependencies (for example, <code class="docutils literal notranslate"><span class="pre">com.github.johnrengelman.shadow</span></code>) are contained within the build cache, so no internet access is required by the basic build process.</p>
+<section id="dependencies">
+<h3>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this heading">¶</a></h3>
+<p>The Java runtime will format <code class="docutils literal notranslate"><span class="pre">spec.build.dependencies</span></code> into the Gradle build script. For example, the following <strong>function.yaml</strong> section</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;group:</span><span class="nv"> </span><span class="s">com.fasterxml.jackson.core,</span><span class="nv"> </span><span class="s">name:</span><span class="nv"> </span><span class="s">jackson-databind,</span><span class="nv"> </span><span class="s">version:</span><span class="nv"> </span><span class="s">2.9.0&quot;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;group:</span><span class="nv"> </span><span class="s">com.fasterxml.jackson.core,</span><span class="nv"> </span><span class="s">name:</span><span class="nv"> </span><span class="s">jackson-core,</span><span class="nv"> </span><span class="s">version:</span><span class="nv"> </span><span class="s">2.9.0&quot;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;group:</span><span class="nv"> </span><span class="s">com.fasterxml.jackson.core,</span><span class="nv"> </span><span class="s">name:</span><span class="nv"> </span><span class="s">jackson-annotations,</span><span class="nv"> </span><span class="s">version:</span><span class="nv"> </span><span class="s">2.9.0&quot;</span>
+</pre></div>
+</div>
+<p>will populate the Gradle build script as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dependencies</span> <span class="p">{</span>
+    <span class="nb">compile</span> <span class="n">group</span><span class="p">:</span> <span class="s1">&#39;com.fasterxml.jackson.core&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="s1">&#39;jackson-databind&#39;</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="s1">&#39;2.9.0&#39;</span>
+    <span class="nb">compile</span> <span class="n">group</span><span class="p">:</span> <span class="s1">&#39;com.fasterxml.jackson.core&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="s1">&#39;jackson-core&#39;</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="s1">&#39;2.9.0&#39;</span>
+    <span class="nb">compile</span> <span class="n">group</span><span class="p">:</span> <span class="s1">&#39;com.fasterxml.jackson.core&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="s1">&#39;jackson-annotations&#39;</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="s1">&#39;2.9.0&#39;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="runtime-attributes">
+<h3>Runtime attributes<a class="headerlink" href="#runtime-attributes" title="Permalink to this heading">¶</a></h3>
+<p>By providing the <code class="docutils literal notranslate"><span class="pre">repositories</span></code> runtime attribute, you can override the <code class="docutils literal notranslate"><span class="pre">repositories</span></code> section in the <strong>build.gradle</strong>. When this field is empty, <code class="docutils literal notranslate"><span class="pre">mavenCentral()</span></code> is used. For example, the following <strong>function.yaml</strong> section</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">runtimeAttributes</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mavenCentral()</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">jcenter()</span>
+</pre></div>
+</div>
+<p>will populate the Gradle build script as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">repositories</span> <span class="p">{</span>
+    <span class="n">mavenCentral</span><span class="p">()</span>
+    <span class="n">jcenter</span><span class="p">()</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="custom-gradle-script">
+<h3>Custom Gradle script<a class="headerlink" href="#custom-gradle-script" title="Permalink to this heading">¶</a></h3>
+<p>Providing a <strong>build.gradle</strong> file inside the function directory or archive overrides the script generation.</p>
+</section>
+</section>
+<section id="dockerfile">
+<h2>Dockerfile<a class="headerlink" href="#dockerfile" title="Permalink to this heading">¶</a></h2>
+<p>See <a class="reference internal" href="../../../tasks/deploy-functions-from-dockerfile.html"><span class="doc std std-doc">Deploying Functions from a Dockerfile</span></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>ARG NUCLIO_LABEL=0.5.6
+ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_BASE_IMAGE=openjdk:11-jre-slim
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-java-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
+
+# Supplies processor, handler.jar
+FROM ${NUCLIO_ONBUILD_IMAGE} as builder
+
+# Supplies uhttpc, used for healthcheck
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+
+# From the base image
+FROM ${NUCLIO_BASE_IMAGE}
+
+# Copy required objects from the suppliers
+COPY --from=builder /home/gradle/bin/processor /usr/local/bin/processor
+COPY --from=builder /home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar /opt/nuclio/nuclio-java-wrapper.jar
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+
+# Run processor with configuration and platform configuration
+CMD [ &quot;processor&quot; ]
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../../_sources/reference/runtimes/java/java-reference.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

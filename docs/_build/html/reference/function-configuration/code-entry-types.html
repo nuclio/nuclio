@@ -1,0 +1,474 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Code-Entry Types &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="code-entry-types">
+<h1>Code-Entry Types<a class="headerlink" href="#code-entry-types" title="Permalink to this heading">¶</a></h1>
+<p>This document describes the Nuclio function code-entry types and related configuration fields.</p>
+<section id="in-this-document">
+<h2>In This Document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Overview</span></p>
+<ul>
+<li><p><span class="xref myst">Determining the code-entry type</span></p></li>
+<li><p><span class="xref myst">Configuring the code-entry type from the dashboard</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">Function-image code-entry type (<code class="docutils literal notranslate"><span class="pre">image</span></code>)</span></p></li>
+<li><p><span class="xref myst">Function source-code entry types</span></p>
+<ul>
+<li><p><span class="xref myst">Encoded source-code string code-entry type (<code class="docutils literal notranslate"><span class="pre">sourceCode</span></code>)</span></p></li>
+<li><p><span class="xref myst">Source-code file code-entry type</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">External function-code entry types</span></p>
+<ul>
+<li><p><span class="xref myst">Git code-entry type (<code class="docutils literal notranslate"><span class="pre">git</span></code>)</span></p></li>
+<li><p><span class="xref myst">GitHub code-entry type (<code class="docutils literal notranslate"><span class="pre">github</span></code>)</span></p></li>
+<li><p><span class="xref myst">Archive-file code-entry type (<code class="docutils literal notranslate"><span class="pre">archive</span></code>)</span></p></li>
+<li><p><span class="xref myst">AWS S3 code-entry type (<code class="docutils literal notranslate"><span class="pre">s3</span></code>)</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">See also</span></p></li>
+</ul>
+</section>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">¶</a></h2>
+<p>As part of the <span class="xref myst">function specification</span> (<code class="docutils literal notranslate"><span class="pre">spec</span></code>), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:</p>
+<ul class="simple">
+<li><p>Function image (<code class="docutils literal notranslate"><span class="pre">image</span></code>) — set the <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> configuration field to the name of a function container image. See <span class="xref myst">Function-image code-entry type (<code class="docutils literal notranslate"><span class="pre">image</span></code>)</span>.</p></li>
+<li><p>Function source code — provide the function source code either by setting the <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code> configuration field to an <span class="xref myst">encoded source-code string</span> (<code class="docutils literal notranslate"><span class="pre">sourceCode</span></code>), or by setting the  <code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code> field to a URL for downloading a <span class="xref myst">function source-code file</span>. See <span class="xref myst">Function source-code entry types</span>.</p></li>
+<li><p>External function code — set the <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code> configuration field to a code-entry type for downloading the function's source code and optional additional configuration (&quot;function code&quot;) from an external source — <span class="xref myst">GitHub repository</span> (<code class="docutils literal notranslate"><span class="pre">github</span></code>), <span class="xref myst">archive file</span> (<code class="docutils literal notranslate"><span class="pre">archive</span></code>), or <span class="xref myst">AWS S3 bucket</span> (<code class="docutils literal notranslate"><span class="pre">s3</span></code>) — and configure the required download information.
+See <span class="xref myst">External function-code entry types</span>.</p></li>
+</ul>
+<blockquote>
+<div><p><strong>Go Note</strong><br/>
+To import packages in Go source code, use the following syntax:<br/>
+<code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">&quot;github.com/nuclio/handler/&lt;package_name&gt;&quot;</span></code></p>
+</div></blockquote>
+<p><a id="code-entry-type-determine"></a></p>
+<section id="determining-the-code-entry-type">
+<h3>Determining the code-entry type<a class="headerlink" href="#determining-the-code-entry-type" title="Permalink to this heading">¶</a></h3>
+<p>The code-entry type is determined by using the following processing logic:</p>
+<ol class="arabic">
+<li><p>If <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.image</span></code></span> is set, the implied code-entry type is <span class="xref myst">function image</span> (<code class="docutils literal notranslate"><span class="pre">image</span></code>) and the configured function image is used. The <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code>, <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code>, and <code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code> fields are ignored.</p>
+<blockquote>
+<div><p><strong>Note:</strong> When you build and deploy a Nuclio function, the <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> field is automatically updated to the name of the function's container image, so to use a different code-entry type for a redeployed function you must first reset the <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> configuration field. This is handled implicitly when deploying a function from the Nuclio dashboard.</p>
+</div></blockquote>
+</li>
+<li><p>If <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code></span> is set (and <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> isn't set), the implied code-entry type is <span class="xref myst">encoded source-code string</span> (<code class="docutils literal notranslate"><span class="pre">sourceCode</span></code>) and the function is built from the configured source code. The <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code> and <code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code> fields are ignored.</p></li>
+<li><p>If <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code></span> is set (and <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> and <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code> aren't set), the value of the code-entry field determines the <span class="xref myst">external function-code code-entry type</span> (<code class="docutils literal notranslate"><span class="pre">archive</span></code>, <code class="docutils literal notranslate"><span class="pre">github</span></code>, or <code class="docutils literal notranslate"><span class="pre">s3</span></code>).</p></li>
+<li><p>If <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code></span> is set (and <code class="docutils literal notranslate"><span class="pre">spec.image</span></code>, <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code>, and <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code> aren't set), the implied code-entry type is <span class="xref myst">source-code-file</span> and the function is built from the configured source code.</p></li>
+</ol>
+<p><a id="dashboard-configuration"></a></p>
+</section>
+<section id="configuring-the-code-entry-type-from-the-dashboard">
+<h3>Configuring the code-entry type from the dashboard<a class="headerlink" href="#configuring-the-code-entry-type-from-the-dashboard" title="Permalink to this heading">¶</a></h3>
+<p>When deploying a function from the Nuclio dashboard, you select the code-entry type from the <strong>Code entry type</strong> drop-down list in the <strong>Code</strong> function tab.
+Additional configuration parameters are displayed according to the selected entry type.
+When you select to deploy the function, the respective function-configuration parameters are automatically updated based on your dashboard configuration.
+The dashboard notes in this reference refer to fields in the <strong>Code</strong> function dashboard tab.</p>
+<p><a id="code-entry-type-image"></a></p>
+</section>
+</section>
+<section id="function-image-code-entry-type-image">
+<h2>Function-image code-entry type (<code class="docutils literal notranslate"><span class="pre">image</span></code>)<a class="headerlink" href="#function-image-code-entry-type-image" title="Permalink to this heading">¶</a></h2>
+<p>Set the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.image</span></code></span> function-configuration field to the name of a function container image (<code class="docutils literal notranslate"><span class="pre">[&lt;host</span> <span class="pre">name&gt;.]&lt;namespace&gt;.&lt;repository&gt;[:&lt;tag&gt;]</span></code>) to deploy the function from this image.</p>
+<blockquote>
+<div><p><strong>Note:</strong> When <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> is set, the implied code-entry type is <code class="docutils literal notranslate"><span class="pre">image</span></code> and <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code> and <code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code> are ignored. See <span class="xref myst">Determining the code-entry type</span>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Dashboard Note:</strong> To configure a function image from the dashboard, select <code class="docutils literal notranslate"><span class="pre">Image</span></code> from the <strong>Code entry type</strong> list, and then enter the image name in the <strong>URL</strong> field.</p>
+</div></blockquote>
+<p><a id="code-entry-type-image-example"></a></p>
+<section id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mydockeruser/my-func:latest</span>
+</pre></div>
+</div>
+<p><a id="func-source-code-entry-types"></a></p>
+</section>
+</section>
+<section id="function-source-code-entry-types">
+<h2>Function source-code entry types<a class="headerlink" href="#function-source-code-entry-types" title="Permalink to this heading">¶</a></h2>
+<p>Use either of the following methods to provide the function source code:</p>
+<ul class="simple">
+<li><p>Set the <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code> configuration field to the function's source code, encoded as a Base64 string. This implies the <code class="docutils literal notranslate"><span class="pre">sourceCode</span></code> code-entry type. See <span class="xref myst">Encoded source-code string code-entry type (<code class="docutils literal notranslate"><span class="pre">sourceCode</span></code>)</span>.</p></li>
+<li><p>Set the <code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code> configuration field to a URL for downloading a function source-code file. See <span class="xref myst">Source-code file code-entry type</span>.</p></li>
+</ul>
+<p><a id="code-entry-type-sourcecode"></a></p>
+<section id="encoded-source-code-string-code-entry-type-sourcecode">
+<h3>Encoded source-code string code-entry type (<code class="docutils literal notranslate"><span class="pre">sourceCode</span></code>)<a class="headerlink" href="#encoded-source-code-string-code-entry-type-sourcecode" title="Permalink to this heading">¶</a></h3>
+<p>Set the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code></span> function-configuration field to the function's source code, encoded as a Base64-encoded string, to build the function image from this code.</p>
+<blockquote>
+<div><p><strong>Note:</strong> When <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code> is set and <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> isn't set, the implied code-entry type is <code class="docutils literal notranslate"><span class="pre">sourceCode</span></code> and <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code> and <code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code> are ignored. When <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> is set, <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code> is ignored. See <span class="xref myst">Determining the code-entry type</span>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Dashboard Note:</strong> To configure the function source code from the dashboard, select <code class="docutils literal notranslate"><span class="pre">Edit</span> <span class="pre">online</span></code> from the <strong>Code entry type</strong> list (default), and then edit the code in the unnamed function-code text box, as needed.
+When you select to deploy the function, the source code will automatically be encoded as a Base64 encoded string.</p>
+</div></blockquote>
+<p><a id="code-entry-type-sourcecode-example"></a></p>
+<section id="id1">
+<h4>Example<a class="headerlink" href="#id1" title="Permalink to this heading">¶</a></h4>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main:Handler</span>
+<span class="w">  </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">functionSourceCode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cGFja2FnZSBtYWluDQoNCmltcG9ydCAoDQogICAgImdpdGh1Yi5jb20vbnVjbGlvL251Y2xpby1zZGstZ28iDQopDQoNCmZ1bmMgSGFuZGxlcihjb250ZXh0ICpudWNsaW8uQ29udGV4dCwgZXZlbnQgbnVjbGlvLkV2ZW50KSAoaW50ZXJmYWNle30sIGVycm9yKSB7DQogICAgcmV0dXJuIG5pbCwgbmlsDQp9&quot;</span>
+</pre></div>
+</div>
+<p><a id="code-entry-type-codefile"></a></p>
+</section>
+</section>
+<section id="source-code-file-code-entry-type">
+<h3>Source-code file code-entry type<a class="headerlink" href="#source-code-file-code-entry-type" title="Permalink to this heading">¶</a></h3>
+<p>Set the <code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code> function-configuration field to a URL for downloading a function source-code file.</p>
+<blockquote>
+<div><p><strong>Note:</strong> This code-entry type is applicable only when <code class="docutils literal notranslate"><span class="pre">spec.image</span></code>, <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code>, and <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code> aren't set. See <span class="xref myst">Determining the code-entry type</span>.</p>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Dashboard Note:</strong> The source-code file code-entry type isn't supported from the dashboard.</p>
+</div></blockquote>
+<p><a id="code-entry-type-codefile-example"></a></p>
+<section id="id2">
+<h4>Example<a class="headerlink" href="#id2" title="Permalink to this heading">¶</a></h4>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main:Handler</span>
+<span class="w">  </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://www.my-host.com/my-function.go&quot;</span>
+</pre></div>
+</div>
+<p><a id="external-func-code-entry-types"></a></p>
+</section>
+</section>
+</section>
+<section id="external-function-code-entry-types">
+<h2>External function-code entry types<a class="headerlink" href="#external-function-code-entry-types" title="Permalink to this heading">¶</a></h2>
+<p>Set the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code></span> function-configuration field to one of the following code-entry types to download the function code from the respective external source:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">github</span></code> — download the code from a GitHub repository. See <span class="xref myst">GitHub code-entry type (<code class="docutils literal notranslate"><span class="pre">github</span></code>)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">archive</span></code> — download the code as an archive file from an Iguazio Data Science Platform data container (authenticated) or from any URL that doesn't require download authentication. See <span class="xref myst">Archive-file code-entry type (<code class="docutils literal notranslate"><span class="pre">archive</span></code>)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s3</span></code> — download the code as an archive file from an AWS S3 bucket. See <span class="xref myst">AWS S3 code-entry type (<code class="docutils literal notranslate"><span class="pre">s3</span></code>)</span>.</p></li>
+</ul>
+<p>Additional information for performing the download — such as the download URL or authentication information — is provided in dedicated configuration fields for each code-entry type, as detailed in the documentation of each code-entry type.</p>
+<blockquote>
+<div><p><strong>Note:</strong></p>
+<ul class="simple">
+<li><p>When <code class="docutils literal notranslate"><span class="pre">spec.image</span></code> or <code class="docutils literal notranslate"><span class="pre">spec.build.functionSourceCode</span></code> are set, <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code> is ignored. See <span class="xref myst">Determining the code-entry type</span>.</p></li>
+<li><p><a id="archive-file-formats"></a>The <code class="docutils literal notranslate"><span class="pre">archive</span></code> and <code class="docutils literal notranslate"><span class="pre">s3</span></code> code-entry types support the following archive-file formats: <strong>*.jar</strong>, <strong>*.rar</strong>, <strong>*.tar</strong>, <strong>*.tar.bz2</strong>, <strong>*.tar.lz4</strong>, <strong>*.tar.gz</strong>, <strong>*.tar.sz</strong>, <strong>*.tar.xz</strong>, <strong>*.zip</strong></p></li>
+<li><p>The downloaded code files are saved and can be used by the function handler.</p></li>
+</ul>
+</div></blockquote>
+<blockquote>
+<div><p><strong>Dashboard Note:</strong> To configure an external function-code source from the dashboard, select the relevant code-entry type — <code class="docutils literal notranslate"><span class="pre">Archive</span></code>, <code class="docutils literal notranslate"><span class="pre">Git</span></code>, <code class="docutils literal notranslate"><span class="pre">GitHub</span></code>, or <code class="docutils literal notranslate"><span class="pre">S3</span></code> — from the <strong>Code entry type</strong> list.</p>
+</div></blockquote>
+<p>The downloaded function code can optionally contain a <strong>function.yaml</strong> file with function configuration for enriching the original configuration (in the configuration file that sets the code-entry type) according to the following merge strategy:</p>
+<ul class="simple">
+<li><p>Field values that are set only in the downloaded configuration are added to the original configuration.</p></li>
+<li><p>List and map field values — such as <code class="docutils literal notranslate"><span class="pre">meta.labels</span></code> and <code class="docutils literal notranslate"><span class="pre">spec.env</span></code> —are merged by adding any values that are set only in the downloaded configuration to the values that are set in the original configuration.</p></li>
+<li><p>In case of a conflict — i.e., if the original and downloaded configurations set different values for the same element — the original configuration takes precedence and the value in the downloaded configuration is ignored.</p></li>
+</ul>
+<p><a id="code-entry-type-git"></a></p>
+<section id="git-code-entry-type-git">
+<h3>Git code-entry type (<code class="docutils literal notranslate"><span class="pre">git</span></code>)<a class="headerlink" href="#git-code-entry-type-git" title="Permalink to this heading">¶</a></h3>
+<p>Set the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code></span> function-configuration field to <code class="docutils literal notranslate"><span class="pre">git</span></code> (dashboard: <strong>Code entry type</strong> = <code class="docutils literal notranslate"><span class="pre">Git</span></code>) to clone the function code from a Git repository. The following configuration fields provide additional information for performing the cloning:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">spec.build</span></code> —</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">path</span></code> (dashboard: <strong>URL</strong>) (Required) — the URL of the Git repository that contains the function code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">codeEntryAttributes</span></code> —</p>
+<p>// must use one of the following as git reference</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">branch</span></code> (dashboard: <strong>Branch</strong>) — the Git repository branch from which to download the function code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tag</span></code> (dashboard: <strong>Tag</strong>) — the Git repository tag from which to download the function code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reference</span></code> (dashboard: <strong>Reference</strong>) — the Git repository reference from which to download the function code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">username</span></code> (dashboard: <strong>Username</strong>) (Optional) Git username</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">password</span></code> (dashboard: <strong>Password</strong>) (Optional) Git password</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">workDir</span></code> (dashboard: <strong>Work directory</strong>) (Optional) — the relative path to the function-code directory within the configured repository.
+The default work directory is the root directory of the git repository (<code class="docutils literal notranslate"><span class="pre">&quot;/&quot;</span></code>).</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><a id="code-entry-type-git-example"></a></p>
+<section id="examples">
+<h4>Examples<a class="headerlink" href="#examples" title="Permalink to this heading">¶</a></h4>
+<p>Using Branch:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main:Handler</span>
+<span class="w">  </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">codeEntryType</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;git&quot;</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://bitbucket.org/&lt;my-user&gt;/&lt;my-repo&gt;&quot;</span>
+<span class="w">    </span><span class="nt">codeEntryAttributes</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">workDir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/go-function&quot;</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;go-func&quot;</span>
+
+<span class="w">      </span><span class="c1"># Uncomment in case of a private repository</span>
+<span class="w">      </span><span class="c1">#</span>
+<span class="w">      </span><span class="c1">#  username: &quot;myusername&quot;</span>
+<span class="w">      </span><span class="c1">#  password: &quot;mypassword&quot;</span>
+</pre></div>
+</div>
+<p>Using Tag:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main:Handler</span>
+<span class="w">  </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">codeEntryType</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;git&quot;</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://bitbucket.org/&lt;my-user&gt;/&lt;my-repo&gt;&quot;</span>
+<span class="w">    </span><span class="nt">codeEntryAttributes</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">workDir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/go-function&quot;</span>
+<span class="w">      </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.0.1&quot;</span>
+</pre></div>
+</div>
+<p>Using Full Reference:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main:Handler</span>
+<span class="w">  </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">codeEntryType</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;git&quot;</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://bitbucket.org/&lt;my-user&gt;/&lt;my-repo&gt;&quot;</span>
+<span class="w">    </span><span class="nt">codeEntryAttributes</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">workDir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/go-function&quot;</span>
+<span class="w">      </span><span class="nt">reference</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;refs/heads/go-func&quot;</span>
+</pre></div>
+</div>
+<p><a id="code-entry-type-github"></a></p>
+</section>
+</section>
+<section id="github-code-entry-type-github">
+<h3>GitHub code-entry type (<code class="docutils literal notranslate"><span class="pre">github</span></code>)<a class="headerlink" href="#github-code-entry-type-github" title="Permalink to this heading">¶</a></h3>
+<p>Set the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code></span> function-configuration field to <code class="docutils literal notranslate"><span class="pre">github</span></code> (dashboard: <strong>Code entry type</strong> = <code class="docutils literal notranslate"><span class="pre">GitHub</span></code>) to download the function code from a GitHub repository. The following configuration fields provide additional information for performing the download:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">spec.build</span></code> —</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">path</span></code> (dashboard: <strong>URL</strong>) (Required) — the URL of the GitHub repository that contains the function code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">codeEntryAttributes</span></code> —</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">branch</span></code> (dashboard: <strong>Branch</strong>) (Required) — the GitHub repository branch from which to download the function code.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">headers.Authorization</span></code> (dashboard: <strong>Token</strong>) (Optional) — a GitHub access token for download authentication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">workDir</span></code> (dashboard: <strong>Work directory</strong>) (Optional) — the relative path to the function-code directory within the configured repository branch.
+The default work directory is the root directory of the GitHub repository (<code class="docutils literal notranslate"><span class="pre">&quot;/&quot;</span></code>).</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><a id="code-entry-type-github-example"></a></p>
+<section id="id3">
+<h4>Example<a class="headerlink" href="#id3" title="Permalink to this heading">¶</a></h4>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main:Handler</span>
+<span class="w">  </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">codeEntryType</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;github&quot;</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://github.com/my-organization/my-repository&quot;</span>
+<span class="w">    </span><span class="nt">codeEntryAttributes</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my-branch&quot;</span>
+<span class="w">      </span><span class="nt">headers</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">Authorization</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my-Github-access-token&quot;</span>
+<span class="w">      </span><span class="nt">workDir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/go/myfunc&quot;</span>
+</pre></div>
+</div>
+<p><a id="code-entry-type-archive"></a></p>
+</section>
+</section>
+<section id="archive-file-code-entry-type-archive">
+<h3>Archive-file code-entry type (<code class="docutils literal notranslate"><span class="pre">archive</span></code>)<a class="headerlink" href="#archive-file-code-entry-type-archive" title="Permalink to this heading">¶</a></h3>
+<p>Set the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code></span> function-configuration field to <code class="docutils literal notranslate"><span class="pre">archive</span></code> (dashboard: <strong>Code entry type</strong> = <code class="docutils literal notranslate"><span class="pre">Archive</span></code>) to download <span class="xref myst">an archive file</span> of the function code from one of the following sources:</p>
+<ul class="simple">
+<li><p>An <a class="reference external" href="https://www.iguazio.com">Iguazio Data Science Platform</a> (&quot;platform&quot;) data container. Downloads from this source require user authentication.</p></li>
+<li><p>Any URL that doesn't require user authentication to perform the download.</p></li>
+</ul>
+<p>The following configuration fields provide additional information for performing the download:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">spec.build</span></code> —</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">path</span></code> (dashboard: <strong>URL</strong>) (Required) — a URL for downloading the archive file.<br/>
+To download an archive file from an Iguazio Data Science Platform data container, the URL should be set to <code class="docutils literal notranslate"><span class="pre">&lt;API</span> <span class="pre">URL</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">platform's</span> <span class="pre">web-APIs</span> <span class="pre">service&gt;/&lt;container</span> <span class="pre">name&gt;/&lt;path</span> <span class="pre">to</span> <span class="pre">archive</span> <span class="pre">file&gt;</span></code>, and a respective data-access key must be provided in the <code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryAttributes.headers.X-V3io-Session-Key</span></code> field.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">codeEntryAttributes</span></code> —</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">headers.X-V3io-Session-Key</span></code> (dashboard: <strong>Access key</strong>) (Required for a platform archive file) — an Iguazio Data Science Platform access key, which is required when the download URL (<code class="docutils literal notranslate"><span class="pre">spec.build.path</span></code>) refers to an archive file in a platform data container.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">workDir</span></code> (dashboard: <strong>Work directory</strong>) (Optional) — the relative path to the function-code directory within the extracted archive-file directory.
+The default work directory is the root of the extracted archive-file directory (<code class="docutils literal notranslate"><span class="pre">&quot;/&quot;</span></code>).</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><a id="code-entry-type-archive-example"></a></p>
+<section id="id4">
+<h4>Example<a class="headerlink" href="#id4" title="Permalink to this heading">¶</a></h4>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main:Handler</span>
+<span class="w">  </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">codeEntryType</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;archive&quot;</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://webapi.default-tenant.app.mycluster.iguazio.com/users/myuser/my-functions.zip&quot;</span>
+<span class="w">    </span><span class="nt">codeEntryAttributes</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">headers</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">X-V3io-Session-Key</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my-platform-access-key&quot;</span>
+<span class="w">      </span><span class="nt">workDir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/go/myfunc&quot;</span>
+</pre></div>
+</div>
+<p><a id="code-entry-type-s3"></a></p>
+</section>
+</section>
+<section id="aws-s3-code-entry-type-s3">
+<h3>AWS S3 code-entry type (<code class="docutils literal notranslate"><span class="pre">s3</span></code>)<a class="headerlink" href="#aws-s3-code-entry-type-s3" title="Permalink to this heading">¶</a></h3>
+<p>Set the <span class="xref myst"><code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryType</span></code></span> function-configuration field to <code class="docutils literal notranslate"><span class="pre">s3</span></code> (dashboard: <strong>Code entry type</strong> = <code class="docutils literal notranslate"><span class="pre">S3</span></code>) to download <span class="xref myst">an archive file</span> of the function code from an Amazon Simple Storage Service (AWS S3) bucket. The following configuration fields provide additional information for performing the download:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">spec.build.codeEntryAttributes</span></code> —</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">s3Bucket</span></code> (dashboard: <strong>Bucket</strong>) (Required) — the name of the S3 bucket that contains the archive file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s3ItemKey</span></code> (dashboard: <strong>Item key</strong>) (Required) — the relative path to the archive file within the bucket.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s3AccessKeyId</span></code> (dashboard: <strong>Access key ID</strong>) (Optional) — an S3 access key ID for download authentication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s3SecretAccessKey</span></code> (dashboard: <strong>Secret access key</strong>) (Optional) — an S3 secret access key for download authentication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s3SessionToken</span></code> (dashboard: <strong>Session token</strong>) (Optional) — an S3 session token for download authentication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">s3Region</span></code> (dashboard: <strong>Region</strong>) (Optional) — the AWS Region of the configured bucket. When this parameter isn't provided, it's implicitly deduced.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">workDir</span></code> (dashboard: <strong>Work directory</strong>) (Optional) — the relative path to the function-code directory within the extracted archive-file directory.
+The default work directory is the root of the extracted archive-file directory (<code class="docutils literal notranslate"><span class="pre">&quot;/&quot;</span></code>).</p></li>
+</ul>
+</li>
+</ul>
+<p><a id="code-entry-type-s3-example"></a></p>
+<section id="id5">
+<h4>Example<a class="headerlink" href="#id5" title="Permalink to this heading">¶</a></h4>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my Go function</span>
+<span class="w">  </span><span class="nt">handler</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main:Handler</span>
+<span class="w">  </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">codeEntryType</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;s3&quot;</span>
+<span class="w">    </span><span class="nt">codeEntryAttributes</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">s3Bucket</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my-s3-bucket&quot;</span>
+<span class="w">      </span><span class="nt">s3ItemKey</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my-folder/my-functions.zip&quot;</span>
+<span class="w">      </span><span class="nt">s3AccessKeyId</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my-@cc355-k3y&quot;</span>
+<span class="w">      </span><span class="nt">s3SecretAccessKey</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my-53cr3t-@cce55-k3y&quot;</span>
+<span class="w">      </span><span class="nt">s3SessionToken</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my-s3ss10n-t0k3n&quot;</span>
+<span class="w">      </span><span class="nt">s3Region</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;us-east-1&quot;</span>
+<span class="w">      </span><span class="nt">workDir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/go/myfunc&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="see-also">
+<h2>See also<a class="headerlink" href="#see-also" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="function-configuration-reference.html"><span class="doc std std-doc">Function-Configuration Reference</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../_sources/reference/function-configuration/code-entry-types.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

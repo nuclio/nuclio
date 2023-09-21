@@ -1,0 +1,256 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Architecture &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Best Practices and Common Pitfalls" href="best-practices-and-common-pitfalls.html" />
+    <link rel="prev" title="Invoking Functions by Name with a Kubernetes Ingress" href="k8s/function-ingress.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="architecture">
+<h1>Architecture<a class="headerlink" href="#architecture" title="Permalink to this heading">¶</a></h1>
+<p><strong>In This Document</strong></p>
+<ul class="simple">
+<li><p><span class="xref myst">Function processors</span></p></li>
+<li><p><span class="xref myst">Event sources and mapping</span></p></li>
+<li><p><span class="xref myst">Function build and deployment flow</span></p></li>
+</ul>
+<section id="function-processors">
+<h2>Function processors<a class="headerlink" href="#function-processors" title="Permalink to this heading">¶</a></h2>
+<p>Function processors provide an environment for executing functions. The processor feeds functions with events, provides context and data, collects logs and statistics, and manages the function's life cycle.</p>
+<p>Processors can be compiled into a single binary (when using Go or C), or packaged into a container with all the required code dependencies. Processor containers can run as standalone Docker containers, or on top of a container-orchestration platform such as Kubernetes. Each function has its own function processors. Function Processors will be scaled-out automatically (by adding more container instances) to address high event frequency.</p>
+<section id="processor-architecture">
+<h3>Processor architecture<a class="headerlink" href="#processor-architecture" title="Permalink to this heading">¶</a></h3>
+<p>Nuclio's unique processor architecture is aimed at maximizing function performance and providing abstractions and portability across a wide set of platforms, event sources, and data services.</p>
+<p><img alt="function processor" src="docs/assets/images/function-processor.png" /></p>
+<p>The processor has four main components:</p>
+<section id="event-source-listeners">
+<h4>Event-source listeners<a class="headerlink" href="#event-source-listeners" title="Permalink to this heading">¶</a></h4>
+<p>Event-source listeners can listen on sockets and message queues, or periodically fetch events from external event or data sources. Received events share a common schema, which decouples the function logic from the event source implementation or specific structure, and pushed to one or more parallel runtime workers.</p>
+<p>The event listeners also guarantee exactly-once or at-least-once event execution and handle failures - for example, by storing stream checkpoints, acknowledging or retrying message-queue events, or responding to HTTP client requests.</p>
+</section>
+<section id="runtime-engine">
+<h4>Runtime engine<a class="headerlink" href="#runtime-engine" title="Permalink to this heading">¶</a></h4>
+<p>The runtime engine (&quot;runtime&quot;) initializes the function environment (variables, context, log, data bindings, etc.), feeds event objects into functions workers, and returns responses to the event sources.</p>
+<p>Runtimes can have multiple independent parallel workers (for example, Go routines, Python asyncio, Akka, or threads) to enable non-blocking operations and maximize CPU utilization.</p>
+<p>Nuclio currently supports three types of processor runtime implementations:</p>
+<ol class="arabic">
+<li><p><strong>Native</strong> - for real-time and inline Go or C-based routines.</p></li>
+<li><p><strong>SHMEM</strong> - for shared-memory languages, such as Python, Java, and Node.js. The processor communicates with the SHMEM function runtime through zero-copy shared-memory channels.</p></li>
+<li><p><strong>Shell</strong> - for command-line execution functions or binaries (&quot;executables&quot;). Upon receiving an event, the processor runs the executable in a command-line shell, using the relevant command and environment variables, and then maps the executable's standard-output (<code class="docutils literal notranslate"><span class="pre">stdout</span></code>) or standard-error (<code class="docutils literal notranslate"><span class="pre">stderr</span></code>) logs to the function results.</p>
+<blockquote>
+<div><p><strong>Note:</strong> The shell runtime supports only file data bindings.</p>
+</div></blockquote>
+</li>
+</ol>
+</section>
+<section id="data-bindings">
+<h4>Data bindings<a class="headerlink" href="#data-bindings" title="Permalink to this heading">¶</a></h4>
+<p>Functions can benefit from persistent data connections to external files, objects, databases, or messaging systems. The runtime initializes the data-service connection based on the type, URL, properties, and credentials specified in the function specification, and serves them to the function through the context object.</p>
+<p>Data bindings simplify development by eliminating the need to integrate with SDKs or manage connections and credentials. They also enable function reuse and portability, because different data services of the same class are mapped to the function using the same APIs.</p>
+<p>Data bindings can also handle aspects of data prefetching, caching, and micro-batching, to reduce execution latency and increase I/O performance. Data bindings and event sources are designed with zero-copy, zero-serialization, and non-blocking operation, and enable real-time performance without the need for any special function code.</p>
+</section>
+<section id="control-framework">
+<h4>Control framework<a class="headerlink" href="#control-framework" title="Permalink to this heading">¶</a></h4>
+<p>The control framework initializes and controls the different processor components, provides logging for the processor and the function (stored in different log streams), monitors execution statistics, and serves a mini portal for remote management.</p>
+<p>The control framework interacts with the underlining platform through abstract interfaces, allowing for portability across different IoT devices, container orchestrators, and cloud platforms. The platform-specific processor configuration is done through a <strong>processor.yaml</strong> file in the working directory. Function developers should not modify this file. The underlying interfaces of the function processors to the required platform services are all abstracted in a way that enables porting the same function processor among different deployments types.</p>
+</section>
+</section>
+</section>
+<section id="event-sources-and-mapping">
+<h2>Event sources and mapping<a class="headerlink" href="#event-sources-and-mapping" title="Permalink to this heading">¶</a></h2>
+<p>Functions are event-driven. They respond to event triggers, data messages, or records that are accepted from the event source and pushed to the function runtime engine.</p>
+<p>Event sources can be divided into classes, based on their behavior and flow management. Each class can have multiple event-source implementations. Nuclio supports the following event classes:</p>
+<ol class="arabic simple">
+<li><p><strong>Synchronous Request/Response</strong> - the client issues a request and waits for an immediate response. For example, HTTP requests or Remote Procedure Calls (RPCs).</p></li>
+<li><p><strong>Asynchronous Message-Queue Request</strong> - messages are published to an exchange and distributed to subscribers. For example, RabbitMQ, MQTT, emails, or scheduled events.</p></li>
+<li><p><strong>Message or Record Streams</strong> - an ordered set of messages or record updates is processed sequentially. For example, Kafka, AWS Kinesis or Iguazio V3IO streams.</p></li>
+<li><p><strong>Record or Data Polling (ETL)</strong> - a filtered set of records or data objects is retrieved from an external data source or database. The retrieval can be done periodically or triggered by data changes.</p></li>
+</ol>
+<p><img alt="Event examples" src="docs/assets/images/event-src.png" /></p>
+<p>New event classes and event sources can be added to the processor framework.</p>
+<section id="event-source-mapping">
+<h3>Event-source mapping<a class="headerlink" href="#event-source-mapping" title="Permalink to this heading">¶</a></h3>
+<p>Event sources are mapped to a specific function version. For example, the API gateway web URL &quot;/&quot; may be mapped to the &quot;production&quot; version, and the URL &quot;/beta&quot; may be mapped to the &quot;beta&quot; version of the same function. The user needs to specify the event mapping in the function specification, or by using event mapping CRUD API calls or CLI commands. (The current CLI version does not yet support event mapping, and still requires some manual configuration.)</p>
+<p>Multiple event sources can be associated with the same function, and the same event can trigger the invocation of multiple functions.</p>
+<p>The event-source mapping can utilize either the exact function version or its alias (see details under <span class="xref myst">versioning</span>). The mapping also includes information such as the function name, class, type, credentials, and class-specific properties.</p>
+</section>
+<section id="event-load-balancing-sharding-and-dealers">
+<h3>Event load-balancing, sharding, and dealers<a class="headerlink" href="#event-load-balancing-sharding-and-dealers" title="Permalink to this heading">¶</a></h3>
+<p>Some jobs involve distributing data or work items across multiple function processor instances. For example, a Kafka stream can be divided into several partitions, and each partition should only be processed by a single processor at any given time. Or in the case of a sharded dataset, you might want to scale-out the processing of the dataset across multiple processing elements, which requires a resource-scheduling entity that will distribute data partitions to the available processors and track the execution and completion.</p>
+<p>Nuclio includes a &quot;dealer&quot; entity that can dynamically distribute N resources (shards, partitions, tasks, etc.) to M processors, and can handle aspects of failures and scale-up or scale-down of resources and processors.</p>
+</section>
+<section id="event-object-used-by-the-function">
+<h3>Event object (used by the function)<a class="headerlink" href="#event-object-used-by-the-function" title="Permalink to this heading">¶</a></h3>
+<p>Functions are called with two elements, the context object and the event object. The event object describes the data and metadata of the incoming event. It is generalized in a way that decouples the actual event source from the function. A single function can be driven by multiple types of event sources. A function can accept a single event or an array of events (for example, when using a stream).</p>
+<p>An event object is accessed through interfaces (methods). To enable zero-copy, eliminate serialization overhead, and add robustness, an event object can also be consumed as a JSON object, which might add some serialization and deserialization overhead. There are common event-object interfaces, such as <code class="docutils literal notranslate"><span class="pre">EventID</span></code>, <code class="docutils literal notranslate"><span class="pre">Body</span></code>, <code class="docutils literal notranslate"><span class="pre">ContentType</span></code>, <code class="docutils literal notranslate"><span class="pre">Headers</span></code>, <code class="docutils literal notranslate"><span class="pre">Fields</span></code>, and <code class="docutils literal notranslate"><span class="pre">AsJson</span></code>. There are also event-object interfaces that are class-specific.</p>
+</section>
+</section>
+<section id="function-build-and-deployment-flow">
+<h2>Function build and deployment flow<a class="headerlink" href="#function-build-and-deployment-flow" title="Permalink to this heading">¶</a></h2>
+<p>You begin the development flow by implementing the function in one of the supported languages. You then build the function artifacts (a code binary, package, or container image), deploy the function on the destination cluster, and feed it with events and data, as illustrated in the following diagram.</p>
+<p><img alt="deployment-flow" src="docs/assets/images/build-deploy.png" /></p>
+<p>Each function has a version-specific function specification (&quot;spec&quot;). The function spec defines different aspects of the function, such as its code, data binding, environment resources, credentials, and event sources.<br/>
+The function spec can be written in YAML or JSON, and can also be defined or overwritten using command-line options.<br/>
+The builder uses the function spec in the compilation phase, and the controller uses the spec to identify the operating requirements for the function.</p>
+<p>The user can control whether to build and deploy the function in a single operation, or whether to perform each step separately.<br/>
+The <code class="docutils literal notranslate"><span class="pre">build</span></code> command compiles the function and builds the artifact, so it can later be used by one or more deployments of the function.<br/>
+The <code class="docutils literal notranslate"><span class="pre">run</span></code> command can accept sources, and can either both build and deploy the function, or skip the build and deploy an existing artifact.</p>
+<p>The user can control the exact build flags through an optional <strong>build.yaml</strong> file that is located in the same directory as the function sources.</p>
+</section>
+<section id="function-versioning">
+<h2>Function versioning<a class="headerlink" href="#function-versioning" title="Permalink to this heading">¶</a></h2>
+<p>Nuclio supports function versioning. You can publish a new version of a function and tag it with aliases for referencing the function.</p>
+<p>Nuclio provides the ability to run different versions of the same function simultaneously (for example, production and beta versions).</p>
+<p>The event-source mapping can either specify the exact function version, or utilize a defined alias and thus eliminate the need to change the mapping when a newer version of the function is published.</p>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="k8s/function-ingress.html">Invoking Functions by Name with a Kubernetes Ingress</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="best-practices-and-common-pitfalls.html">Best Practices and Common Pitfalls</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuring-a-function.html">Configuring a Function</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../devel/minikube/developing-on-minikube.html">Developing with Minikube</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../devel/coding-conventions.html">Code Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../devel/contributing.html">How to Contribute to Nuclio</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../devel/local-development.html">Fast development cycles on Nuclio services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../devel/troubleshooting.html">Troubleshooting</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Gateway</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/api-gateway/http.html">API Gateway</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/api-gateway/main.html">API Gateway</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/api-gateway/nuctl.html">API Gateway with nuctl</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/api-gateway/ui.html">API Gateway via the UI</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Function configuration</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/function-configuration/code-entry-types.html">Code-Entry Types</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/function-configuration/function-configuration-reference.html">Function-Configuration Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Nuctl</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/nuctl/nuctl.html">The Nuclio CLI (nuctl)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Runtimes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/runtimes/dotnetcore/dotnetcore-reference.html">.NET Core Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/runtimes/dotnetcore/writing-a-dotnetcore-function.html">Writing a .NET Core 6.0 Function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/runtimes/golang/golang-reference.html">Golang (Go) Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/runtimes/java/java-reference.html">Java reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/runtimes/nodejs/nodejs-reference.html">NodeJS Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/runtimes/python/python-reference.html">Python Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/runtimes/runtime-feature-matrix.html">Runtime feature matrix</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/runtimes/shell/writing-a-shell-function.html">Writing a Shell Function</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Triggers</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/cron.html">cron: Cron Trigger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/eventhub.html">eventhub: Azure Event Hubs Trigger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/http.html">http: HTTP Trigger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/kafka.html">kafka-cluster: Kafka Trigger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/kinesis.html">kinesis: Kinesis Trigger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/mqtt.html">mqtt: MQTT Trigger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/nats.html">nats: NATS Trigger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/rabbitmq.html">rabbitmq: RabbitMQ Trigger</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../reference/triggers/v3iostream.html">v3ioStream: Iguazio Data Science Platform Stream Trigger</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="k8s/function-ingress.html" title="previous chapter">Invoking Functions by Name with a Kubernetes Ingress</a></li>
+      <li>Next: <a href="best-practices-and-common-pitfalls.html" title="next chapter">Best Practices and Common Pitfalls</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/concepts/architecture.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

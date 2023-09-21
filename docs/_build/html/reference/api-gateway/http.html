@@ -1,0 +1,298 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>API Gateway &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="api-gateway">
+<h1>API Gateway<a class="headerlink" href="#api-gateway" title="Permalink to this heading">¶</a></h1>
+<section id="in-this-section">
+<h2>In This Section<a class="headerlink" href="#in-this-section" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">No Authentication</span></p>
+<ul>
+<li><p><span class="xref myst">Create</span></p></li>
+<li><p><span class="xref myst">Invoke</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">Basic Authentication</span></p>
+<ul>
+<li><p><span class="xref myst">Create</span></p></li>
+<li><p><span class="xref myst">Invoke</span></p></li>
+</ul>
+</li>
+<li><p><span class="xref myst">Delete an API Gateway</span></p></li>
+<li><p><span class="xref myst">Canary Function</span></p></li>
+</ul>
+<p><a id="none-auth"></a></p>
+</section>
+<section id="no-authentication">
+<h2>No authentication<a class="headerlink" href="#no-authentication" title="Permalink to this heading">¶</a></h2>
+<p><a id="create-none"></a></p>
+<section id="create-api-gateways">
+<h3>Create API gateways<a class="headerlink" href="#create-api-gateways" title="Permalink to this heading">¶</a></h3>
+<p>You can create an API gateway with basic authentication by sending a POST request to the following endpoint:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">nuclio</span><span class="o">-</span><span class="n">host</span><span class="o">-</span><span class="n">name</span><span class="o">&gt;/</span><span class="n">api</span><span class="o">/</span><span class="n">api_gateways</span>
+</pre></div>
+</div>
+<p>With the following request body:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;spec&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;some description&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/some/path&quot;</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">&quot;authenticationMode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;upstreams&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nucliofunction&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;nucliofunction&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function-name-to-invoke&quot;</span>
+<span class="w">                </span><span class="p">},</span>
+<span class="w">                </span><span class="nt">&quot;percentage&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">],</span>
+<span class="w">        </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;-&lt;project-name&gt;.&lt;nuclio-host-name&gt;&quot;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;nuclio.io/project-name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;default&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><a id="invoke-none"></a></p>
+</section>
+<section id="invoke-api-gateways">
+<h3>Invoke API gateways<a class="headerlink" href="#invoke-api-gateways" title="Permalink to this heading">¶</a></h3>
+<p>To invoke it, send a request to the created API Gateway ingress (e.g.: <code class="docutils literal notranslate"><span class="pre">&lt;apigateway-name&gt;-&lt;project-name&gt;.&lt;nuclio-host-name&gt;</span></code>,
+specified on the request body <code class="docutils literal notranslate"><span class="pre">spec.host</span></code> ).</p>
+<p><a id="basic-auth"></a></p>
+</section>
+</section>
+<section id="basic-authentication">
+<h2>Basic authentication<a class="headerlink" href="#basic-authentication" title="Permalink to this heading">¶</a></h2>
+<p>You can protect your function by applying <a class="reference external" href="https://en.wikipedia.org/wiki/Basic_access_authentication">basic authentication</a> to the API gateway.
+With basic authentication the client needs to provide both a username and password to access a function.</p>
+<p><a id="create-basic"></a></p>
+<section id="id1">
+<h3>Create API gateways<a class="headerlink" href="#id1" title="Permalink to this heading">¶</a></h3>
+<p>You can create an API gateway with basic authentication by sending a POST request to the following endpoint:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">nuclio</span><span class="o">-</span><span class="n">host</span><span class="o">-</span><span class="n">name</span><span class="o">&gt;/</span><span class="n">api</span><span class="o">/</span><span class="n">api_gateways</span>
+</pre></div>
+</div>
+<p>With the following request body:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;spec&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;some description&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/some/path&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;authenticationMode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;basicAuth&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;upstreams&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nucliofunction&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;nucliofunction&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function-name-to-invoke&quot;</span>
+<span class="w">                </span><span class="p">},</span>
+<span class="w">                </span><span class="nt">&quot;percentage&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">],</span>
+<span class="w">        </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;-&lt;project-name&gt;.&lt;nuclio-host-name&gt;&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;authentication&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;basicAuth&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;username&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;some-username&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;password&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;some-password&quot;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;nuclio.io/project-name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;default&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><a id="invoke-basic"></a></p>
+</section>
+<section id="id2">
+<h3>Invoke API gateways<a class="headerlink" href="#id2" title="Permalink to this heading">¶</a></h3>
+<p>To invoke it, simply send a request to the created API Gateway ingress (e.g.: <code class="docutils literal notranslate"><span class="pre">&lt;apigateway-name&gt;-&lt;project-name&gt;.&lt;nuclio-host-name&gt;</span></code>,
+specified on the request body <code class="docutils literal notranslate"><span class="pre">spec.host</span></code>) with the following header:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">key</span><span class="p">:</span> <span class="n">Authorization</span>
+<span class="n">value</span><span class="p">:</span> <span class="n">Basic</span> <span class="n">base64encode</span><span class="p">(</span><span class="s2">&quot;username:password&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><em>Example</em>:</p>
+<p>For the following credentials:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;some-username&quot;</span>
+<span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="s2">&quot;some-password&quot;</span>
+</pre></div>
+</div>
+<p>base64 encoding of &quot;some-username:some-password&quot; is <code class="docutils literal notranslate"><span class="pre">c29tZS11c2VybmFtZTpzb21lLXBhc3N3b3Jk</span></code>(<code class="docutils literal notranslate"><span class="pre">echo</span> <span class="pre">&quot;some-username:some-password&quot;</span> <span class="pre">|</span> <span class="pre">base64</span> <span class="pre">-d</span></code>),
+so the resulting header is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Authorization</span><span class="p">:</span> <span class="n">Basic</span> <span class="n">c29tZS11c2VybmFtZTpzb21lLXBhc3N3b3Jk</span>
+</pre></div>
+</div>
+<p>Invoking the function without the above header results in <code class="docutils literal notranslate"><span class="pre">401</span> <span class="pre">Authorization</span> <span class="pre">Required</span></code></p>
+<p><a id="delete"></a></p>
+</section>
+</section>
+<section id="delete-an-api-gateway">
+<h2>Delete an API Gateway<a class="headerlink" href="#delete-an-api-gateway" title="Permalink to this heading">¶</a></h2>
+<p>To delete an API gateway, send a DELETE request to the following endpoint:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">nuclio</span><span class="o">-</span><span class="n">host</span><span class="o">-</span><span class="n">name</span><span class="o">&gt;/</span><span class="n">api</span><span class="o">/</span><span class="n">api_gateways</span>
+</pre></div>
+</div>
+<p>With a request body specifying the name of the API gateway to delete:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;metadata&quot;</span><span class="p">:{</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Response status code: 204 (No content).</p>
+<p><a id="canary-function"></a></p>
+</section>
+<section id="canary-function">
+<h2>Canary function<a class="headerlink" href="#canary-function" title="Permalink to this heading">¶</a></h2>
+<p>You can control the percentage of traffic that goes to a canary function by changing the percentage of the upstream.</p>
+<p>Add a canary function to an API gateway by adding another upstream to the API gateway, and set its <code class="docutils literal notranslate"><span class="pre">&quot;percentage&quot;</span></code> to a value between 0 and 100.
+Make sure to set the percentage of the first function accordingly.</p>
+<p>For instance, if you have two functions, <code class="docutils literal notranslate"><span class="pre">function-1</span></code> and <code class="docutils literal notranslate"><span class="pre">function-2</span></code>, and you want to have 80% of the traffic go to <code class="docutils literal notranslate"><span class="pre">function-1</span></code> and 20% of the traffic go to <code class="docutils literal notranslate"><span class="pre">function-2</span></code>, specify the following:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;spec&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;some description&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/some/path&quot;</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">&quot;authenticationMode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;upstreams&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nucliofunction&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;nucliofunction&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function-1&quot;</span>
+<span class="w">                </span><span class="p">},</span>
+<span class="w">                </span><span class="nt">&quot;percentage&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">80</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">              </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;nucliofunction&quot;</span><span class="p">,</span>
+<span class="w">              </span><span class="nt">&quot;nucliofunction&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function-2&quot;</span>
+<span class="w">              </span><span class="p">},</span>
+<span class="w">              </span><span class="nt">&quot;percentage&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">],</span>
+<span class="w">        </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;-&lt;project-name&gt;.&lt;nuclio-host-name&gt;&quot;</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;labels&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;nuclio.io/project-name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;default&quot;</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;apigateway-name&gt;&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../_sources/reference/api-gateway/http.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

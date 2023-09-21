@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Getting Started with Nuclio on Kubernetes &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="getting-started-with-nuclio-on-kubernetes">
+<h1>Getting Started with Nuclio on Kubernetes<a class="headerlink" href="#getting-started-with-nuclio-on-kubernetes" title="Permalink to this heading">¶</a></h1>
+<p>Follow this step-by-step guide to set up a Nuclio development environment that uses a Kubernetes cluster.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">Prerequisites</span></p></li>
+<li><p><span class="xref myst">Install Nuclio</span></p></li>
+<li><p><span class="xref myst">What's next</span></p></li>
+</ul>
+</section>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading">¶</a></h2>
+<p>Before starting the set-up procedure, ensure that the following prerequisites are met:</p>
+<ul class="simple">
+<li><p>Your environment has a <a class="reference external" href="https://kubernetes.io">Kubernetes</a> <strong>v1.19 or later</strong> cluster.</p></li>
+<li><p>You have the credentials of a Docker registry, such as <a class="reference external" href="https://hub.docker.com/">Docker Hub</a>, <a class="reference external" href="https://azure.microsoft.com/services/container-registry/">Azure Container Registry (ACR)</a>, or <a class="reference external" href="https://cloud.google.com/container-registry/">Google Container Registry (GCR)</a>.</p></li>
+<li><p>The <span class="xref myst">Nuclio CLI</span> (<code class="docutils literal notranslate"><span class="pre">nuctl</span></code>) is installed — if you wish to <span class="xref myst">use the CLI to deploy Nuclio functions</span>.
+To install the CLI, simply <a class="reference external" href="https://github.com/nuclio/nuclio/releases">download</a> the appropriate CLI version to your installation machine.</p></li>
+</ul>
+</section>
+<section id="install-nuclio">
+<h2>Install Nuclio<a class="headerlink" href="#install-nuclio" title="Permalink to this heading">¶</a></h2>
+<p>At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (<code class="docutils literal notranslate"><span class="pre">kubectl</span></code>), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about <code class="docutils literal notranslate"><span class="pre">kubectl</span></code>, see the <a class="reference external" href="https://kubernetes.io/docs/user-guide/kubectl-overview/">Kubernetes documentation</a>.</p>
+<p>Follow the instructions of <span class="xref myst">How to run nuclio in Production</span></p>
+<p>Use the command <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">--namespace</span> <span class="pre">nuclio</span> <span class="pre">get</span> <span class="pre">pods</span></code> to verify both the controller and dashboard are running.</p>
+</section>
+<section id="what-s-next">
+<h2>What's next?<a class="headerlink" href="#what-s-next" title="Permalink to this heading">¶</a></h2>
+<p>See the following resources to make the best of your new Nuclio environment:</p>
+<ul class="simple">
+<li><p><span class="xref myst">Deploying Functions</span></p></li>
+<li><p><span class="xref myst">Invoking Functions by Name with a Kubernetes Ingress</span></p></li>
+<li><p><span class="xref myst">More function examples</span></p></li>
+<li><p><span class="xref myst">References</span></p></li>
+<li><p><span class="xref myst">Best Practices and Common Pitfalls</span></p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../_sources/setup/k8s/getting-started-k8s.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

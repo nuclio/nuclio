@@ -1,0 +1,195 @@
+
+<!DOCTYPE html>
+
+<html lang="go">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Deploying Functions from a Dockerfile &#8212; nuclio 1.12.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="deploying-functions-from-a-dockerfile">
+<h1>Deploying Functions from a Dockerfile<a class="headerlink" href="#deploying-functions-from-a-dockerfile" title="Permalink to this heading">¶</a></h1>
+<p>This tutorial guides you through the process of deploying functions whose build process is solely defined in a user-supplied Dockerfile. The tutorial assumes that you followed the <span class="xref myst">source-based deployment tutorial</span>, which provides an introduction to function signatures, configuration, and more.</p>
+<section id="in-this-document">
+<h2>In this document<a class="headerlink" href="#in-this-document" title="Permalink to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><span class="xref myst">How is this different from source-based deploys?</span></p></li>
+<li><p><span class="xref myst">Building a function with Docker</span></p></li>
+<li><p><span class="xref myst">Deploying a function built with Docker</span></p></li>
+</ul>
+</section>
+<section id="how-is-this-different-from-source-based-deploys">
+<h2>How is this different from source-based deploys?<a class="headerlink" href="#how-is-this-different-from-source-based-deploys" title="Permalink to this heading">¶</a></h2>
+<p>A Nuclio function is, at the end of the build process, a container image. This image includes all the components required to run the function, except for the function configuration:</p>
+<ul class="simple">
+<li><p>Processor binary</p></li>
+<li><p>Per-runtime shim layer (for example, a Python application that communicates with the processor on one side and the user's code on the other)</p></li>
+<li><p>User code</p></li>
+</ul>
+<p>To be able to generate such an image using Docker, you must provide a Dockerfile. When you provide Nuclio's build process with source code (be it from a local directory, a local file, or a URL pointing to an archive), Nuclio generates this Dockerfile for you. Prior to version 0.5.0 of Nuclio, this generation process required formatting and templating, and therefore happened in the code. In version 0.5.0, a Dockerfile-based build process was introduced, modifying the previous build recipe into one that can be solely represented in a Dockerfile. This opened up a new build method in which the user either provides a Dockerfile, or even more extremely - builds the function image himself using only <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">build</span></code>.</p>
+<p>Dockerfile deployment isn't better than source-based deployment; it's just another way for users to create function images. Even prior to version 0.5.0, Nuclio had features that allowed users to inject build-time parameters, like <code class="docutils literal notranslate"><span class="pre">spec.build.commands</span></code> for running <code class="docutils literal notranslate"><span class="pre">apk</span></code>, <code class="docutils literal notranslate"><span class="pre">apt-get</span></code>, <code class="docutils literal notranslate"><span class="pre">pip</span></code>, and other package providers. However, some users may prefer to handle build themselves, using the tools they know and love.</p>
+<blockquote>
+<div><p><strong>Note:</strong> While the process itself is offered as an alternative, many good things came from this feature. Most notably, prior to version 0.5.0, users were limited to using pre-baked &quot;alpine&quot; or &quot;jessie&quot; base images. Now, source-based and Dockerfile-based builds can provide any base image, as long as this base image contains the runtime environment suitable for the runtime; (for example, to run Python functions, the image must contain a Python interpreter).</p>
+</div></blockquote>
+</section>
+<section id="building-a-function-with-docker">
+<h2>Building a function with Docker<a class="headerlink" href="#building-a-function-with-docker" title="Permalink to this heading">¶</a></h2>
+<p>Create an empty directory in your preferred location. Then, download a simple Go handler to this directory:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-LO<span class="w"> </span>https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go
+</pre></div>
+</div>
+<p>Now, create a Dockerfile by following the guidelines in the <span class="xref myst">Go reference</span>.</p>
+<blockquote>
+<div><p><strong>Note:</strong> Future versions of <code class="docutils literal notranslate"><span class="pre">nuctl</span></code> will automate creating these blueprints through something like <code class="docutils literal notranslate"><span class="pre">nuctl</span> <span class="pre">create</span> <span class="pre">blueprint</span> <span class="pre">--runtime</span> <span class="pre">python</span></code>, which will create a Dockerfile, a <strong>function.yaml</strong> file, and an empty Python handler.</p>
+</div></blockquote>
+<p>The Dockerfile will look something like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>ARG NUCLIO_LABEL=latest
+ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_BASE_IMAGE=alpine:3.17
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
+
+# Supplies processor uhttpc, used for healthcheck
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+
+# Builds source, supplies processor binary and handler plugin
+FROM ${NUCLIO_ONBUILD_IMAGE} as builder
+
+# From the base image
+FROM ${NUCLIO_BASE_IMAGE}
+
+# Copy required objects from the suppliers
+COPY --from=builder /home/nuclio/bin/processor /usr/local/bin/processor
+COPY --from=builder /home/nuclio/bin/handler.so /opt/nuclio/handler.so
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+
+# Run processor with configuration and platform configuration
+CMD [ &quot;processor&quot; ]
+</pre></div>
+</div>
+<p>This multi-stage Dockerfile uses three <code class="docutils literal notranslate"><span class="pre">FROM</span></code> directives:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">FROM</span> <span class="pre">nuclio/uhttpc:0.0.1-amd64</span></code> - used for providing an <a class="reference external" href="https://github.com/nuclio/uhttpc">open-source health-check related binary</a> (basically, a self contained curl). This is used for the &quot;local&quot; platform. You don't need this or the <code class="docutils literal notranslate"><span class="pre">HEALTHCHECK</span></code> platform if you plan on running only on Kubernetes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">FROM</span> <span class="pre">alpine:3.17</span></code> - the base image on which the final processor image will run.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">FROM</span> <span class="pre">nuclio/handler-builder-golang-onbuild</span></code> - this is where it gets interesting: while every runtime needs the processor binary, each runtime must also provide a unique set of artifacts. Interpreter-based runtimes, like Python and NodeJS, simply need to provide the shim layer and the user's code. However, compiled runtimes (Go, Java, .NET Core) must compile the user's code into a binary. This is done with a set of <code class="docutils literal notranslate"><span class="pre">ONBUILD</span></code> directives in the <code class="docutils literal notranslate"><span class="pre">onbuild</span></code> image. You provide the source, and the base image will do everything that is required to provide you with the artifact at the expected location. In this tutorial, by simply using <code class="docutils literal notranslate"><span class="pre">FROM</span> <span class="pre">nuclio/handler-builder-golang-onbuild</span></code> and providing Go source code, you will build a Go plugin that will reside at <code class="docutils literal notranslate"><span class="pre">/opt/nuclio/handler.so</span></code>. All you have to do is copy the plugin to the proper location in you final processor image.</p></li>
+</ol>
+<p>It is up to you to customize this Dockerfile, if you so choose (for example, by adding <code class="docutils literal notranslate"><span class="pre">RUN</span></code> directives that add dependencies), but all provided Dockerfiles are ready to go. Go ahead and build the function; you only need the <strong>Dockerfile</strong> and <strong>helloworld.go</strong>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>helloworld-from-df<span class="w"> </span>.
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>Note:</strong> Each runtime has a different Dockerfile. Consult the appropriate <span class="xref myst">runtime reference documents</span> to understand the specific nuances.</p>
+</div></blockquote>
+</section>
+<section id="deploying-a-function-built-with-docker">
+<h2>Deploying a function built with Docker<a class="headerlink" href="#deploying-a-function-built-with-docker" title="Permalink to this heading">¶</a></h2>
+<p>Now that you have a function image, you can use Nuclio's ability to <span class="xref myst">deploy pre-built functions</span>. This is no different than if you had used <code class="docutils literal notranslate"><span class="pre">nuctl</span> <span class="pre">build</span></code> to build the function image:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>deploy<span class="w"> </span>helloworld<span class="w"> </span>--run-image<span class="w"> </span>helloworld-from-df:latest<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--runtime<span class="w"> </span>golang<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--handler<span class="w"> </span>main:Handler<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--platform<span class="w"> </span><span class="nb">local</span>
+</pre></div>
+</div>
+<p>Finally, you can invoke your function:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>nuctl<span class="w"> </span>invoke<span class="w"> </span>helloworld<span class="w"> </span>--platform<span class="w"> </span><span class="nb">local</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">nuclio</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Concepts</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../concepts/architecture.html">Architecture</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, nuclio.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.0.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/tasks/deploy-functions-from-dockerfile.md.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
