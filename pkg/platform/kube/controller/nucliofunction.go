@@ -115,21 +115,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
-	var prevState string
-
-	// clean the irrelevant annotations from the CRD before adding resources
-	if function.ObjectMeta.Annotations != nil {
-		prevState = function.ObjectMeta.Annotations[functionconfig.FunctionAnnotationPrevState]
-		annotationsToClean := []string{
-			functionconfig.FunctionAnnotationForceUpdate,
-			functionconfig.FunctionAnnotationPrevState,
-			functionconfig.FunctionAnnotationSkipDeploy,
-		}
-		for _, annotation := range annotationsToClean {
-			delete(function.ObjectMeta.Annotations, annotation)
-		}
-	}
-
 	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
 	// properly configured
 	statesToRespond := []functionconfig.FunctionState{
@@ -156,12 +141,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return nil
 	}
 
-	if prevState == string(functionconfig.FunctionStateScaledToZero) {
-		fo.logger.InfoWith("Previous status of function is set to ScaledToZero, so function will be deployed in this state",
-			"function", function.Name)
-		function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
-	}
-
 	// imported functions have skip deploy annotation, set its state and bail
 	if functionconfig.ShouldSkipDeploy(function.Annotations) {
 		fo.logger.InfoWithCtx(ctx,
@@ -177,7 +156,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	//we respond to ready to complete the scale from zero flow. we want to skip flows where once the function
 	// has created or updated and marked as ready, so it will not needlessly run the create or update flow.
-	if prevState == "" && functionconfig.FunctionStateInSlice(function.Status.State,
+	if functionconfig.FunctionStateInSlice(function.Status.State,
 		[]functionconfig.FunctionState{
 			functionconfig.FunctionStateReady,
 			functionconfig.FunctionStateScaledToZero,
@@ -210,6 +189,27 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 		}
 
+	}
+
+	var prevState string
+
+	// clean the irrelevant annotations from the CRD before adding resources
+	if function.ObjectMeta.Annotations != nil {
+		prevState = function.ObjectMeta.Annotations[functionconfig.FunctionAnnotationPrevState]
+		annotationsToClean := []string{
+			functionconfig.FunctionAnnotationForceUpdate,
+			functionconfig.FunctionAnnotationPrevState,
+			functionconfig.FunctionAnnotationSkipDeploy,
+		}
+		for _, annotation := range annotationsToClean {
+			delete(function.ObjectMeta.Annotations, annotation)
+		}
+	}
+
+	if prevState == string(functionconfig.FunctionStateScaledToZero) {
+		fo.logger.InfoWith("Previous status of function is set to ScaledToZero, so function will be deployed in this state",
+			"function", function.Name)
+		function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
