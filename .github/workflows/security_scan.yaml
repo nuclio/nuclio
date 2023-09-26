@@ -27,13 +27,9 @@ on:
         required: false
         default: ''
       publish_results:
-        description: 'Whether to publish results to Github or not (default "false")'
+        description: 'Whether to publish results to Github or not (default empty - no publish)'
         required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
+        default: ''
       severity_threshold:
         description: 'The minimum severity of vulnerabilities to report ("negligible", "low", "medium", "high" and "critical".)'
         required: false
