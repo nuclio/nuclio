@@ -816,6 +816,20 @@ func FunctionStateProvisioning(functionState FunctionState) bool {
 	return !FunctionStateProvisioned(functionState)
 }
 
+func IsPreviousFunctionStateAllowedToBeSet(prevState string) bool {
+	allowedPreviousStates := []string{
+		string(FunctionStateScaledToZero),
+		string(FunctionStateReady),
+		string(FunctionStateImported),
+	}
+	for _, state := range allowedPreviousStates {
+		if state == prevState {
+			return true
+		}
+	}
+	return false
+}
+
 // Status holds the status of the function
 type Status struct {
 	State       FunctionState            `json:"state,omitempty"`

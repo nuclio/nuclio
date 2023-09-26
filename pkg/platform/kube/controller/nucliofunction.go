@@ -206,10 +206,18 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		}
 	}
 
-	if prevState == string(functionconfig.FunctionStateScaledToZero) {
-		fo.logger.InfoWith("Previous status of function is set to ScaledToZero, so function will be deployed in this state",
-			"function", function.Name)
-		function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
+	if functionconfig.IsPreviousFunctionStateAllowedToBeSet(prevState) {
+		fo.logger.InfoWith("Previous status of function is set in annotation, so function will be moved to this state.",
+			"function", function.Name, "prevState", prevState)
+		switch prevState {
+		case string(functionconfig.FunctionStateScaledToZero):
+			function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
+		case string(functionconfig.FunctionStateImported):
+			return fo.setFunctionStatus(ctx,
+				function, &functionconfig.Status{
+					State: functionconfig.FunctionStateImported,
+				})
+		}
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
