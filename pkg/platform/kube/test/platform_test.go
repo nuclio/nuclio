@@ -1276,9 +1276,8 @@ func (suite *DeployFunctionTestSuite) TestDeployImportedFunctionAsScaledToZero()
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &one
 	createFunctionOptions.FunctionConfig.AddPrevStateAnnotation(string(functionconfig.FunctionStateScaledToZero))
 	result, deployErr := suite.Platform.CreateFunction(suite.Ctx, createFunctionOptions)
-
-	suite.Require().Equal(result.FunctionStatus.State, functionconfig.FunctionStateScaledToZero)
 	suite.NoError(deployErr)
+	suite.Require().Equal(result.FunctionStatus.State, functionconfig.FunctionStateScaledToZero)
 
 	deployment, err := suite.KubeClientSet.AppsV1().Deployments("default").Get(suite.Ctx, "nuclio-func-scale-to-zero", metav1.GetOptions{})
 	suite.NoError(err)

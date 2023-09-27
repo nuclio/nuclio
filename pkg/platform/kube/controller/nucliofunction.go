@@ -169,9 +169,12 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		}
 	}
 
+	// prevState annotation presents in the function config after function being imported and redeployed
+	// this allows to deploy function right to the state which function had before it was exported
 	if functionconfig.IsPreviousFunctionStateAllowedToBeSet(functionconfig.FunctionState(prevState)) {
 		fo.logger.InfoWith("Previous status of function is set in annotation, so function will be moved to this state.",
-			"function", function.Name, "prevState", prevState)
+			"function", function.Name,
+			"prevState", prevState)
 		switch prevState {
 		case string(functionconfig.FunctionStateScaledToZero):
 			function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
