@@ -19,10 +19,10 @@ package command
 import (
 	"context"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
