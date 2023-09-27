@@ -19,7 +19,7 @@ ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
 # Supplies wrapper and nuclio-sdk-dotnetcore
-FROM mcr.microsoft.com/dotnet/sdk:6.0 as builder
+FROM mcr.microsoft.com/dotnet/sdk:7.0 as builder
 
 # Update packages
 RUN apt-get update && \
@@ -34,7 +34,7 @@ COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Fetch Nuclio .NET SDK
 RUN git clone \
-     --branch dotnet6.0 \
+     --branch dotnet7.0 \
      https://github.com/nuclio/nuclio-sdk-dotnetcore.git \
      /home/nuclio/src/nuclio-sdk-dotnetcore
 
