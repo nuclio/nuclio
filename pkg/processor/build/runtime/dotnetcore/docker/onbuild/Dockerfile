@@ -34,7 +34,7 @@ COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Fetch Nuclio .NET SDK
 RUN git clone \
-     --branch dotnet7.0 \
+     --branch master \
      https://github.com/nuclio/nuclio-sdk-dotnetcore.git \
      /home/nuclio/src/nuclio-sdk-dotnetcore
 
