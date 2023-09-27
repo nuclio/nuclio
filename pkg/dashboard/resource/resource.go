@@ -62,6 +62,19 @@ func (r *resource) getSkipSpecCleanupFlagFromRequest(request *http.Request) bool
 	return providedHeader != ""
 }
 
+func (r *resource) getAddPrevStatusFromRequest(request *http.Request) bool {
+	// get the flag to export with/without image
+	providedHeader := request.Header.Get(headers.AddPrevState)
+	return providedHeader != ""
+}
+
+func (r *resource) getExportOptions(request *http.Request) *ExportOptions {
+	return &ExportOptions{
+		AddPrevState:    r.getAddPrevStatusFromRequest(request),
+		SkipSpecCleanUp: r.getSkipSpecCleanupFlagFromRequest(request),
+	}
+}
+
 func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthConfig, error) {
 
 	// TODO: move as a middleware for specific routes

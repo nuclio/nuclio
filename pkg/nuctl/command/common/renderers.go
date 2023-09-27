@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -45,8 +46,8 @@ func RenderFunctions(ctx context.Context,
 	functions []platform.Function,
 	format string,
 	writer io.Writer,
-	renderCallback func(functions []platform.Function, renderer func(interface{}) error, skipSpecCleanup bool) error,
-	skipSpecCleanup bool) error {
+	renderCallback func(functions []platform.Function, renderer func(interface{}) error, options *resource.ExportOptions) error,
+	options *resource.ExportOptions) error {
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx, logger)
 	var renderNodePort bool
@@ -124,9 +125,9 @@ func RenderFunctions(ctx context.Context,
 
 		rendererInstance.RenderTable(header, functionRecords)
 	case OutputFormatYAML:
-		return renderCallback(functions, rendererInstance.RenderYAML, skipSpecCleanup)
+		return renderCallback(functions, rendererInstance.RenderYAML, options)
 	case OutputFormatJSON:
-		return renderCallback(functions, rendererInstance.RenderJSON, skipSpecCleanup)
+		return renderCallback(functions, rendererInstance.RenderJSON, options)
 	}
 
 	return nil

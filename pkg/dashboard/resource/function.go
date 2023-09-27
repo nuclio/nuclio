@@ -54,6 +54,13 @@ type PatchOptions struct {
 	DesiredState *functionconfig.FunctionState `json:"desiredState,omitempty"`
 }
 
+type ExportOptions struct {
+	SkipSpecCleanUp bool
+	AddPrevState    bool
+	NoScrub         bool
+	PrevState       string
+}
+
 func (fr *functionResource) ExtendMiddlewares() error {
 	fr.resource.addAuthMiddleware(nil)
 	return nil
@@ -78,13 +85,13 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
-	skipSpecCleanup := fr.getSkipSpecCleanupFlagFromRequest(request)
+	exportOptions := fr.getExportOptions(request)
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		if exportFunction {
-			response[function.GetConfig().Meta.Name] = fr.export(ctx, function, skipSpecCleanup)
+			response[function.GetConfig().Meta.Name] = fr.export(ctx, function, exportOptions)
 		} else {
-			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function, skipSpecCleanup)
+			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function, exportOptions.SkipSpecCleanUp)
 		}
 	}
 
@@ -106,12 +113,12 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get get function")
 	}
-	skipSpecCleanup := fr.getSkipSpecCleanupFlagFromRequest(request)
+	exportOptions := fr.getExportOptions(request)
 	if fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
-		return fr.export(ctx, function, skipSpecCleanup), nil
+		return fr.export(ctx, function, exportOptions), nil
 	}
 
-	return fr.functionToAttributes(function, skipSpecCleanup), nil
+	return fr.functionToAttributes(function, exportOptions.SkipSpecCleanUp), nil
 }
 
 // Create and deploy a function
@@ -233,12 +240,12 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) export(ctx context.Context, function platform.Function, skipSpecCleanup bool) restful.Attributes {
+func (fr *functionResource) export(ctx context.Context, function platform.Function, exportOptions *ExportOptions) restful.Attributes {
 
 	functionConfig := function.GetConfig()
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
-	state := string(function.GetStatus().State)
-	functionConfig.PrepareFunctionForExport(false, skipSpecCleanup, state)
+	exportOptions.PrevState = string(function.GetStatus().State)
+	functionConfig.PrepareFunctionForExport(exportOptions)
 
 	fr.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)
 

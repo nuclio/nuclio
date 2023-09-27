@@ -19,6 +19,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -74,6 +75,7 @@ type exportFunctionCommandeer struct {
 	getFunctionsOptions platform.GetFunctionsOptions
 	output              string
 	skipSpecCleanup     bool
+	withPrevState       bool
 }
 
 func newExportFunctionCommandeer(ctx context.Context, exportCommandeer *exportCommandeer) *exportFunctionCommandeer {
@@ -119,6 +121,7 @@ Arguments:
 				cmd.OutOrStdout().Write([]byte("No functions found\n")) // nolint: errcheck
 				return nil
 			}
+			exportOptions := &resource.ExportOptions{SkipSpecCleanUp: commandeer.skipSpecCleanup, NoScrub: commandeer.noScrub, AddPrevState: commandeer.withPrevState}
 
 			// render the functions
 			return nuctlcommon.RenderFunctions(ctx,
@@ -127,12 +130,13 @@ Arguments:
 				commandeer.output,
 				cmd.OutOrStdout(),
 				commandeer.renderFunctionConfig,
-				commandeer.skipSpecCleanup,
+				exportOptions,
 			)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clear the image info from the function spec")
+	cmd.Flags().BoolVarP(&commandeer.withPrevState, "with-previous-state", "", false, "Save function state before export so it can be redeployed right to this state")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 
 	commandeer.cmd = cmd
@@ -140,7 +144,7 @@ Arguments:
 	return commandeer
 }
 
-func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, skipSpecCleanup bool) error {
+func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, options *resource.ExportOptions) error {
 	functionConfigs := map[string]*functionconfig.Config{}
 	lock := sync.Mutex{}
 	errGroup, errGroupCtx := errgroup.WithContextSemaphore(context.Background(),
@@ -165,8 +169,10 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			} else if err != nil {
 				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
-			state := string(function.GetStatus().State)
-			functionConfig.PrepareFunctionForExport(e.noScrub, skipSpecCleanup, state)
+			if options.AddPrevState {
+				options.PrevState = string(function.GetStatus().State)
+			}
+			functionConfig.PrepareFunctionForExport(options)
 			lock.Lock()
 			functionConfigs[functionConfig.Meta.Name] = functionConfig
 			lock.Unlock()
@@ -301,7 +307,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	return apiGatewaysMap, nil
 }
 
-func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, skipSpecCleanup bool) (
+func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, exportFuncOptions *resource.ExportOptions) (
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Namespace: projectConfig.Meta.Namespace,
@@ -337,8 +343,10 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventConfig.Meta.Namespace = ""
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
-		state := string(function.GetStatus().State)
-		functionConfig.PrepareFunctionForExport(e.noScrub, skipSpecCleanup, state)
+		if exportFuncOptions.AddPrevState {
+			exportFuncOptions.PrevState = string(function.GetStatus().State)
+		}
+		functionConfig.PrepareFunctionForExport(exportFuncOptions)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 
@@ -346,7 +354,8 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 }
 
 func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
-	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig, false)
+	exportFuncOptions := &resource.ExportOptions{SkipSpecCleanUp: false, NoScrub: e.noScrub}
+	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig, exportFuncOptions)
 	if err != nil {
 		return nil, err
 	}

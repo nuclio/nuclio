@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"reflect"
 	"strconv"
 	"time"
@@ -580,12 +581,12 @@ func (c *Config) CleanFunctionSpec() {
 	}
 }
 
-func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool, state string) {
-	if !noScrub {
+func (c *Config) PrepareFunctionForExport(exportOptions *resource.ExportOptions) {
+	if !exportOptions.NoScrub {
 		c.scrubFunctionData()
 	}
 
-	if !skipSpecCleanup {
+	if !exportOptions.SkipSpecCleanUp {
 		c.CleanFunctionSpec()
 	}
 
@@ -593,7 +594,10 @@ func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool, state s
 	c.Meta.ResourceVersion = ""
 
 	c.AddSkipAnnotations()
-	c.AddPrevStateAnnotation(state)
+
+	if exportOptions.AddPrevState {
+		c.AddPrevStateAnnotation(exportOptions.PrevState)
+	}
 }
 
 func (c *Config) AddSkipAnnotations() {
