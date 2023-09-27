@@ -816,18 +816,13 @@ func FunctionStateProvisioning(functionState FunctionState) bool {
 	return !FunctionStateProvisioned(functionState)
 }
 
-func IsPreviousFunctionStateAllowedToBeSet(prevState string) bool {
-	allowedPreviousStates := []string{
-		string(FunctionStateScaledToZero),
-		string(FunctionStateReady),
-		string(FunctionStateImported),
+func IsPreviousFunctionStateAllowedToBeSet(prevState FunctionState) bool {
+	allowedPreviousStates := []FunctionState{
+		FunctionStateScaledToZero,
+		FunctionStateReady,
+		FunctionStateImported,
 	}
-	for _, state := range allowedPreviousStates {
-		if state == prevState {
-			return true
-		}
-	}
-	return false
+	return FunctionStateInSlice(prevState, allowedPreviousStates)
 }
 
 // Status holds the status of the function

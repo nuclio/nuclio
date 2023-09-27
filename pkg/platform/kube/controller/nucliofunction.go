@@ -154,6 +154,35 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			})
 	}
 
+	var prevState string
+
+	// clean the irrelevant annotations from the CRD before adding resources
+	if function.ObjectMeta.Annotations != nil {
+		prevState = function.ObjectMeta.Annotations[functionconfig.FunctionAnnotationPrevState]
+		annotationsToClean := []string{
+			functionconfig.FunctionAnnotationForceUpdate,
+			functionconfig.FunctionAnnotationPrevState,
+			functionconfig.FunctionAnnotationSkipDeploy,
+		}
+		for _, annotation := range annotationsToClean {
+			delete(function.ObjectMeta.Annotations, annotation)
+		}
+	}
+
+	if functionconfig.IsPreviousFunctionStateAllowedToBeSet(functionconfig.FunctionState(prevState)) {
+		fo.logger.InfoWith("Previous status of function is set in annotation, so function will be moved to this state.",
+			"function", function.Name, "prevState", prevState)
+		switch prevState {
+		case string(functionconfig.FunctionStateScaledToZero):
+			function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
+		case string(functionconfig.FunctionStateImported):
+			return fo.setFunctionStatus(ctx,
+				function, &functionconfig.Status{
+					State: functionconfig.FunctionStateImported,
+				})
+		}
+	}
+
 	//we respond to ready to complete the scale from zero flow. we want to skip flows where once the function
 	// has created or updated and marked as ready, so it will not needlessly run the create or update flow.
 	if functionconfig.FunctionStateInSlice(function.Status.State,
@@ -189,35 +218,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 		}
 
-	}
-
-	var prevState string
-
-	// clean the irrelevant annotations from the CRD before adding resources
-	if function.ObjectMeta.Annotations != nil {
-		prevState = function.ObjectMeta.Annotations[functionconfig.FunctionAnnotationPrevState]
-		annotationsToClean := []string{
-			functionconfig.FunctionAnnotationForceUpdate,
-			functionconfig.FunctionAnnotationPrevState,
-			functionconfig.FunctionAnnotationSkipDeploy,
-		}
-		for _, annotation := range annotationsToClean {
-			delete(function.ObjectMeta.Annotations, annotation)
-		}
-	}
-
-	if functionconfig.IsPreviousFunctionStateAllowedToBeSet(prevState) {
-		fo.logger.InfoWith("Previous status of function is set in annotation, so function will be moved to this state.",
-			"function", function.Name, "prevState", prevState)
-		switch prevState {
-		case string(functionconfig.FunctionStateScaledToZero):
-			function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
-		case string(functionconfig.FunctionStateImported):
-			return fo.setFunctionStatus(ctx,
-				function, &functionconfig.Status{
-					State: functionconfig.FunctionStateImported,
-				})
-		}
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
