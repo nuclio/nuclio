@@ -905,7 +905,6 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	"metadata": {
 		"name": "f1",
 		"annotations": {
-			"nuclio.io/previous-state": "ready",
 			"skip-build": "true",
 			"skip-deploy": "true"
 		}
@@ -939,13 +938,11 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 	returnedFunction1.Config.Meta.Name = "f1"
 	returnedFunction1.Config.Meta.Namespace = "f-namespace"
 	returnedFunction1.Config.Spec.Replicas = &replicas
-	returnedFunction1.Status.State = functionconfig.FunctionStateReady
 
 	returnedFunction2 := platform.AbstractFunction{}
 	returnedFunction2.Config.Meta.Name = "f2"
 	returnedFunction2.Config.Meta.Namespace = "f-namespace"
 	returnedFunction2.Config.Spec.Replicas = &replicas
-	returnedFunction2.Status.State = functionconfig.FunctionStateScaledToZero
 
 	// verify
 	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
@@ -970,7 +967,6 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		"metadata": {
 			"name": "f1",
 			"annotations": {
-                "nuclio.io/previous-state": "ready",
 				"skip-build": "true",
 				"skip-deploy": "true"
 			}
@@ -987,7 +983,6 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		"metadata": {
 			"name": "f2",
 			"annotations": {
-                "nuclio.io/previous-state": "scaledToZero",
 				"skip-build": "true",
 				"skip-deploy": "true"
 			}
@@ -1570,7 +1565,6 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
       "metadata": {
         "name": "f1",
         "annotations": {
-          "nuclio.io/previous-state": "ready",
           "skip-build": "true",
           "skip-deploy": "true"
         }
@@ -1587,7 +1581,6 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
       "metadata": {
         "name": "f2",
         "annotations": {
-          "nuclio.io/previous-state": "ready",
           "skip-build": "true",
           "skip-deploy": "true"
         }
@@ -1725,7 +1718,6 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
         "metadata": {
           "name": "f1",
           "annotations": {
-			"nuclio.io/previous-state": "ready",
             "skip-build": "true",
             "skip-deploy": "true"
           }
@@ -1762,7 +1754,6 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
         "metadata": {
           "name": "f2",
           "annotations": {
-			"nuclio.io/previous-state": "ready",
             "skip-build": "true",
             "skip-deploy": "true"
           }
