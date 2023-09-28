@@ -57,22 +57,10 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 	return r.getDashboard().GetDefaultNamespace()
 }
 
-func (r *resource) getSkipSpecCleanupFlagFromRequest(request *http.Request) bool {
-	// get the flag to export with/without image
-	providedHeader := request.Header.Get(headers.SkipSpecCleanup)
-	return providedHeader != ""
-}
-
-func (r *resource) getWithPrevStateFlagFromRequest(request *http.Request) bool {
-	// get the flag to export with/without image
-	providedHeader := request.Header.Get(headers.WithPrevState)
-	return providedHeader != ""
-}
-
 func (r *resource) getExportOptionsFromRequest(request *http.Request) *common.ExportFunctionOptions {
 	return &common.ExportFunctionOptions{
-		SkipSpecCleanup: r.getSkipSpecCleanupFlagFromRequest(request),
-		WithPrevState:   r.getWithPrevStateFlagFromRequest(request),
+		SkipSpecCleanup: request.Header.Get(headers.WithPrevState) != "",
+		WithPrevState:   request.Header.Get(headers.SkipSpecCleanup) != "",
 	}
 }
 

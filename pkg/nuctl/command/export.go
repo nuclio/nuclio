@@ -38,7 +38,7 @@ type exportCommandeer struct {
 	scrubber        *functionconfig.Scrubber
 	noScrub         bool
 	skipSpecCleanup bool
-	withPrevStatus  bool
+	withPrevState   bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -58,7 +58,7 @@ to the standard output, in JSON or YAML format`,
 
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
 	cmd.PersistentFlags().BoolVar(&commandeer.skipSpecCleanup, "skip-spec-cleanup", false, "Do not clear the image info from the function spec")
-	cmd.PersistentFlags().BoolVar(&commandeer.withPrevStatus, "with-previous-status", false, "Save function state before export so it can be redeployed right to this state")
+	cmd.PersistentFlags().BoolVar(&commandeer.withPrevState, "with-previous-state", false, "Save function state so it can be redeployed to this state")
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
@@ -122,7 +122,10 @@ Arguments:
 				cmd.OutOrStdout().Write([]byte("No functions found\n")) // nolint: errcheck
 				return nil
 			}
-			exportOptions := &common.ExportFunctionOptions{WithPrevState: commandeer.withPrevStatus, SkipSpecCleanup: commandeer.skipSpecCleanup}
+			exportOptions := &common.ExportFunctionOptions{
+				WithPrevState:   commandeer.withPrevState,
+				SkipSpecCleanup: commandeer.skipSpecCleanup,
+			}
 
 			// render the functions
 			return nuctlcommon.RenderFunctions(ctx,
@@ -353,8 +356,12 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 }
 
 func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
-	exportFuncOptions := &common.ExportFunctionOptions{WithPrevState: e.withPrevStatus, SkipSpecCleanup: e.skipSpecCleanup, NoScrub: e.noScrub}
-	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig, exportFuncOptions)
+	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx,
+		projectConfig,
+		&common.ExportFunctionOptions{
+			WithPrevState:   e.withPrevState,
+			SkipSpecCleanup: e.skipSpecCleanup,
+			NoScrub:         e.noScrub})
 	if err != nil {
 		return nil, err
 	}
