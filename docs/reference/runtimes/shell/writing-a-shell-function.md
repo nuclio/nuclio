@@ -96,6 +96,6 @@ http https://blog.golang.org/gopher/header.jpg | http <function ip:port> x-nucli
 
 ## See also
 
-- [Deploying Functions](../../../tasks/deploying-functions.md)
+- [Deploying Functions](../../../user%20guide/deploying-functions.md)
 - [Function-Configuration Reference](../../../reference/function-configuration/function-configuration-reference.md)
 

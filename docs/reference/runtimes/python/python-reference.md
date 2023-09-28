@@ -47,7 +47,7 @@ async def update_db(context, event):
 
 ## Dockerfile
 
-Following is sample Dockerfile code for deploying a Python function. For more information, see [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+Following is sample Dockerfile code for deploying a Python function. For more information, see [Deploying Functions from a Dockerfile](/docs/user%20guide/deploy-functions-from-dockerfile.md).
 
 > **Note:** Make sure to replace `my-function-code` and `my-function.yaml` in the following example with the names of your function and function-configuration file.
 

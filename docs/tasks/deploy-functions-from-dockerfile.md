@@ -1,6 +1,6 @@
 # Deploying Functions from a Dockerfile
 
-This tutorial guides you through the process of deploying functions whose build process is solely defined in a user-supplied Dockerfile. The tutorial assumes that you followed the [source-based deployment tutorial](/docs/tasks/deploying-functions.md), which provides an introduction to function signatures, configuration, and more.
+This tutorial guides you through the process of deploying functions whose build process is solely defined in a user-supplied Dockerfile. The tutorial assumes that you followed the [source-based deployment tutorial](/docs/user%20guide/deploying-functions.md), which provides an introduction to function signatures, configuration, and more.
 
 #### In this document
 
@@ -79,7 +79,7 @@ docker build -t helloworld-from-df .
 
 ## Deploying a function built with Docker
 
-Now that you have a function image, you can use Nuclio's ability to [deploy pre-built functions](/docs/tasks/deploying-pre-built-functions.md). This is no different than if you had used `nuctl build` to build the function image:
+Now that you have a function image, you can use Nuclio's ability to [deploy pre-built functions](/docs/user%20guide/deploying-pre-built-functions.md). This is no different than if you had used `nuctl build` to build the function image:
 
 ```sh
 nuctl deploy helloworld --run-image helloworld-from-df:latest \

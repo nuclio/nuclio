@@ -31,7 +31,7 @@ Use the command `kubectl --namespace nuclio get pods` to verify both the control
 
 See the following resources to make the best of your new Nuclio environment:
 
-- [Deploying Functions](/docs/tasks/deploying-functions.md)
+- [Deploying Functions](/docs/user%20guide/deploying-functions.md)
 - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
 - [References](/docs/reference)

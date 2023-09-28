@@ -151,10 +151,10 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
   - [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
   - Getting Started with Nuclio on Raspberry Pi (coming soon)
 - Tasks
-  - [Deploying Functions](/docs/tasks/deploying-functions.md)
-  - [Deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md)
-  - [Deploying Pre-Built Functions](/docs/tasks/deploying-pre-built-functions.md)
-  - [Configuring a Platform](/docs/tasks/configuring-a-platform.md)
+  - [Deploying Functions](/docs/user%20guide/deploying-functions.md)
+  - [Deploying Functions from Dockerfile](/docs/user%20guide/deploy-functions-from-dockerfile.md)
+  - [Deploying Pre-Built Functions](/docs/user%20guide/deploying-pre-built-functions.md)
+  - [Configuring a Platform](/docs/user%20guide/configuring-a-platform.md)
 - Concepts
   - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
   - [Architecture](/docs/concepts/architecture.md)

@@ -28,10 +28,9 @@ Welcome to Nuclio documentation!
 
 
 .. toctree::
-   :glob:
-   :maxdepth: 1
+   :maxdepth: 2
 
-   tasks/*
+   tasks/index
 
 
 

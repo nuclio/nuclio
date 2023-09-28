@@ -175,7 +175,7 @@ Create these two configuration files in your preferred location, and pass `--con
 --platform-config <path to platform-config.yaml` as `Program arguments` in the Run/Debug configuration.
 
 For more information about the platform configuration,
-see [Configuring a Platform](/docs/tasks/configuring-a-platform.md#configuration-elements). For information about the
+see [Configuring a Platform](/docs/user%20guide/configuring-a-platform.md#configuration-elements). For information about the
 function configuration, see
 the [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md).
 

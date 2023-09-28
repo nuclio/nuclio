@@ -60,7 +60,7 @@ For more details about `dotnet add package`, see the [Microsoft documentation](h
 
 ## Dockerfile
 
-See [Deploying Functions from a Dockerfile](../../../tasks/deploy-functions-from-dockerfile.md).
+See [Deploying Functions from a Dockerfile](../../../user%20guide/deploy-functions-from-dockerfile.md).
 
 ```
 ARG NUCLIO_LABEL=0.5.6
@@ -93,4 +93,4 @@ CMD [ "processor" ]
 
 ## Writing a function
 - [Writing .Net function](writing-a-dotnetcore-function.md)
-- [Deploying Functions](../../../tasks/deploying-functions.md)
+- [Deploying Functions](../../../user%20guide/deploying-functions.md)

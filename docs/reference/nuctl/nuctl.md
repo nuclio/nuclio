@@ -68,7 +68,7 @@ While in most cases using `nuctl` on the [Local Docker](#docker) platform enable
 by default for some configurations. This means, for example, that `nuctl invoke` command will not be able to work
 unless your function is explicitly exposed or reachable from wherever you run `nuctl invoke`.
 
-See [exposing a function](../../tasks/deploying-functions.md#exposing-a-function) for more details.
+See [exposing a function](../../user%20guide/deploying-functions.md#exposing-a-function) for more details.
 
 For your convenience, when deploying a function using `nuctl`, exposing it via a `NodePort` can be easily done by using the
 CLI arg `--http-trigger-service-type=nodePort`.
