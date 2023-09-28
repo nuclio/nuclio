@@ -1267,6 +1267,23 @@ func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndValidateResourc
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestDeployImportedFunctionAsScaledToZero() {
+	zero := 0
+	one := 1
+	functionName := "func-scale-to-zero"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &zero
+	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &one
+	createFunctionOptions.FunctionConfig.AddPrevStateAnnotation(string(functionconfig.FunctionStateScaledToZero))
+	result, deployErr := suite.Platform.CreateFunction(suite.Ctx, createFunctionOptions)
+	suite.NoError(deployErr)
+	suite.Require().Equal(result.FunctionStatus.State, functionconfig.FunctionStateScaledToZero)
+
+	deployment, err := suite.KubeClientSet.AppsV1().Deployments("default").Get(suite.Ctx, "nuclio-func-scale-to-zero", metav1.GetOptions{})
+	suite.NoError(err)
+	suite.Require().Equal(int(*deployment.Spec.Replicas), 0)
+}
+
 func (suite *DeployFunctionTestSuite) TestCreateFunctionWithCustomScalingMetrics() {
 	one := 1
 	four := 4
