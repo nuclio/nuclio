@@ -101,10 +101,30 @@ namespace processor
             {
                 // AssemblyLoadContext.Default.LoadFromAssemblyPath does not load dependency-dlls, so use custom Loader
                 var assembly = AssemblyLoader.LoadFromAssemblyPath(dllPath);
+                if (assembly == null)
+                {
+                    Console.WriteLine($"TOMER - Failed to load dll path: {dllPath}");
+                    var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
+                    if (assembly == null)
+                    {
+                        Console.WriteLine($"TOMER - Failed to load dll path AGAIN: {dllPath}");
+                        throw new Exception($"Failed to load dll path: {dllPath}");
+                    }
+                }
                 // Get the type to use.
                 methodType = assembly.GetType(typeName); // Namespace and class
+                if (methodType == null)
+                {
+                    Console.WriteLine($"TOMER - Failed to get type: {typeName}");
+                    throw new Exception($"Failed to load type: {typeName}");
+                }
                 // Get the method to call.
                 var methodInfo = methodType.GetMethod(methodName);
+                if (methodInfo == null)
+                {
+                    Console.WriteLine($"TOMER - Failed to get method: {methodName}");
+                    throw new Exception($"Failed to load method: {methodName}");
+                }
                 // Create the Method delegate
                 methodDelegate = (MethodDelegate)Delegate.CreateDelegate(typeof(MethodDelegate), null, methodInfo, true);
             }
