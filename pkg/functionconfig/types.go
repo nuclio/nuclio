@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/options"
 
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
@@ -581,7 +580,7 @@ func (c *Config) CleanFunctionSpec() {
 	}
 }
 
-func (c *Config) PrepareFunctionForExport(exportOptions *options.ExportFunction) {
+func (c *Config) PrepareFunctionForExport(exportOptions *common.ExportFunctionOptions) {
 	if !exportOptions.NoScrub {
 		c.scrubFunctionData()
 	}

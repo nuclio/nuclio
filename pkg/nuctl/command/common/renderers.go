@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/options"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -46,8 +45,8 @@ func RenderFunctions(ctx context.Context,
 	functions []platform.Function,
 	format string,
 	writer io.Writer,
-	renderCallback func(functions []platform.Function, renderer func(interface{}) error, exportOptions *options.ExportFunction) error,
-	exportOptions *options.ExportFunction) error {
+	renderCallback func(functions []platform.Function, renderer func(interface{}) error, exportOptions *common.ExportFunctionOptions) error,
+	exportOptions *common.ExportFunctionOptions) error {
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx, logger)
 	var renderNodePort bool

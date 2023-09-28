@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/common/options"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -69,8 +69,8 @@ func (r *resource) getWithPrevStateFlagFromRequest(request *http.Request) bool {
 	return providedHeader != ""
 }
 
-func (r *resource) getExportOptionsFromRequest(request *http.Request) *options.ExportFunction {
-	return &options.ExportFunction{
+func (r *resource) getExportOptionsFromRequest(request *http.Request) *common.ExportFunctionOptions {
+	return &common.ExportFunctionOptions{
 		SkipSpecCleanup: r.getSkipSpecCleanupFlagFromRequest(request),
 		WithPrevState:   r.getWithPrevStateFlagFromRequest(request),
 	}

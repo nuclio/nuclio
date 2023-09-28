@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/options"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -123,7 +122,7 @@ Arguments:
 				cmd.OutOrStdout().Write([]byte("No functions found\n")) // nolint: errcheck
 				return nil
 			}
-			exportOptions := &options.ExportFunction{WithPrevState: commandeer.withPrevStatus, SkipSpecCleanup: commandeer.skipSpecCleanup}
+			exportOptions := &common.ExportFunctionOptions{WithPrevState: commandeer.withPrevStatus, SkipSpecCleanup: commandeer.skipSpecCleanup}
 
 			// render the functions
 			return nuctlcommon.RenderFunctions(ctx,
@@ -144,7 +143,7 @@ Arguments:
 	return commandeer
 }
 
-func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, exportOptions *options.ExportFunction) error {
+func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, exportOptions *common.ExportFunctionOptions) error {
 	functionConfigs := map[string]*functionconfig.Config{}
 	lock := sync.Mutex{}
 	errGroup, errGroupCtx := errgroup.WithContextSemaphore(context.Background(),
@@ -306,7 +305,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	return apiGatewaysMap, nil
 }
 
-func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, exportOptions *options.ExportFunction) (
+func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, exportOptions *common.ExportFunctionOptions) (
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Namespace: projectConfig.Meta.Namespace,
@@ -354,7 +353,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 }
 
 func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
-	exportFuncOptions := &options.ExportFunction{WithPrevState: e.withPrevStatus, SkipSpecCleanup: e.skipSpecCleanup, NoScrub: e.noScrub}
+	exportFuncOptions := &common.ExportFunctionOptions{WithPrevState: e.withPrevStatus, SkipSpecCleanup: e.skipSpecCleanup, NoScrub: e.noScrub}
 	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig, exportFuncOptions)
 	if err != nil {
 		return nil, err

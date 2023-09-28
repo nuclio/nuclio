@@ -20,3 +20,10 @@ type CatchAndLogPanicOptions struct {
 	Args          []interface{}
 	CustomHandler func(error)
 }
+
+type ExportFunctionOptions struct {
+	NoScrub         bool
+	SkipSpecCleanup bool
+	WithPrevState   bool
+	PrevState       string
+}
