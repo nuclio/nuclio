@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common/headers"
+	"github.com/nuclio/nuclio/pkg/common/options"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -60,6 +61,19 @@ func (r *resource) getSkipSpecCleanupFlagFromRequest(request *http.Request) bool
 	// get the flag to export with/without image
 	providedHeader := request.Header.Get(headers.SkipSpecCleanup)
 	return providedHeader != ""
+}
+
+func (r *resource) getWithPrevStateFlagFromRequest(request *http.Request) bool {
+	// get the flag to export with/without image
+	providedHeader := request.Header.Get(headers.WithPrevState)
+	return providedHeader != ""
+}
+
+func (r *resource) getExportOptionsFromRequest(request *http.Request) *options.ExportFunction {
+	return &options.ExportFunction{
+		SkipSpecCleanup: r.getSkipSpecCleanupFlagFromRequest(request),
+		WithPrevState:   r.getWithPrevStateFlagFromRequest(request),
+	}
 }
 
 func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthConfig, error) {

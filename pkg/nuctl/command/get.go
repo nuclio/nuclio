@@ -19,6 +19,7 @@ package command
 import (
 	"context"
 
+	"github.com/nuclio/nuclio/pkg/common/options"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -111,7 +112,7 @@ func newGetFunctionCommandeer(ctx context.Context, getCommandeer *getCommandeer)
 				commandeer.output,
 				cmd.OutOrStdout(),
 				commandeer.renderFunctionConfigWithStatus,
-				false)
+				&options.ExportFunction{})
 		},
 	}
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
@@ -122,7 +123,7 @@ func newGetFunctionCommandeer(ctx context.Context, getCommandeer *getCommandeer)
 }
 
 func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platform.Function,
-	renderer func(interface{}) error, skipSpecCleanup bool) error {
+	renderer func(interface{}) error, exportOptions *options.ExportFunction) error {
 	configsWithStatus := make([]functionconfig.ConfigWithStatus, 0, len(functions))
 	for _, function := range functions {
 		functionConfigWithStatus := functionconfig.ConfigWithStatus{

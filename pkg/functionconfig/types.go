@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/options"
 
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
@@ -580,12 +581,12 @@ func (c *Config) CleanFunctionSpec() {
 	}
 }
 
-func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool, state string) {
-	if !noScrub {
+func (c *Config) PrepareFunctionForExport(exportOptions *options.ExportFunction) {
+	if !exportOptions.NoScrub {
 		c.scrubFunctionData()
 	}
 
-	if !skipSpecCleanup {
+	if !exportOptions.SkipSpecCleanup {
 		c.CleanFunctionSpec()
 	}
 
@@ -593,7 +594,11 @@ func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool, state s
 	c.Meta.ResourceVersion = ""
 
 	c.AddSkipAnnotations()
-	c.AddPrevStateAnnotation(state)
+
+	if exportOptions.WithPrevState {
+		c.AddPrevStateAnnotation(exportOptions.PrevState)
+	}
+
 }
 
 func (c *Config) AddSkipAnnotations() {
