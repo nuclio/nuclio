@@ -125,7 +125,7 @@ helm upgrade --install --reuse-values nuclio \
 
 This is rather straightforward; however, note the following:
 
-- When running in an [air-gapped environment](#air-gapped-deployment), Kaniko's executor image must also be available to your Kubernetes cluster.
+- When running in an [air-gapped environment](./air-gapped-deployment), Kaniko's executor image must also be available to your Kubernetes cluster.
 - Kaniko requires that you work with a registry to which push the resulting function images.
   It doesn't support accessing images on the host Docker daemon.
   Therefore, you must set `registry.pushPullUrl` to the URL of the registry to which Kaniko should push the resulting images, and in air-gapped environments, you must also set `registry.defaultBaseRegistryURL` and `registry.defaultOnbuildRegistryURL` to the URL of an accessible local registry that contains the preloaded base, "onbuild", and processor images (see [Air-gapped deployment](#air-gapped-envir-base-n-onbuild-images)).

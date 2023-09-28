@@ -16,8 +16,8 @@ release = '1.12.3'
 
 extensions = [
 
-    "myst_parser",
     "sphinx.ext.napoleon",
+    "recommonmark",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
