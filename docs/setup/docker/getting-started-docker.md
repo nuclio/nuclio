@@ -1,4 +1,4 @@
-# Getting Started with Nuclio on Docker
+# Docker
 
 Follow this step-by-step guide to set up a Nuclio development environment that uses Docker.
 

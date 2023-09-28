@@ -91,3 +91,6 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://12
 CMD [ "processor" ]
 ```
 
+## Writing a function
+- [Writing .Net function](writing-a-dotnetcore-function.md)
+- [Deploying Functions](../../../tasks/deploying-functions.md)

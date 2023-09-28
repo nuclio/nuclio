@@ -1,4 +1,4 @@
-# API Gateway
+# HTTP
 
 #### In This Section
 

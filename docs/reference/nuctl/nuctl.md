@@ -1,4 +1,4 @@
-# The Nuclio CLI (nuctl)
+# Nuclio CLI
 
 #### In this document
 

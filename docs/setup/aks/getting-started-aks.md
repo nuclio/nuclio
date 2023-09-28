@@ -1,4 +1,4 @@
-# Getting Started with Nuclio on Azure Container Service (AKS)
+# Azure Container Service (AKS)
 
 Microsoft's [Azure Container Service (AKS)](https://azure.microsoft.com/services/container-service/) manages your hosted Kubernetes environment, making it quick and easy to deploy and manage containerized applications without container orchestration expertise. 
 It also eliminates the burden of ongoing operations and maintenance by provisioning, upgrading, and scaling resources on demand, without taking your applications offline. 

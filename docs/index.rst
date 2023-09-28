@@ -7,65 +7,35 @@ Welcome to Nuclio documentation!
 ==================================
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Concepts
+   :maxdepth: 2
 
-   concepts/k8s/function-ingress
-   concepts/architecture
-   concepts/best-practices-and-common-pitfalls
-   concepts/configuring-a-function.md
+   concepts/index
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Development
+   :maxdepth: 2
 
-   devel/minikube/developing-on-minikube
-   devel/coding-conventions
-   devel/contributing
-   devel/local-development
-   devel/troubleshooting
+   devel/index
 
 .. toctree::
-   :glob:
-   :maxdepth: 1
-   :caption: API Gateway
+   :maxdepth: 2
 
-   reference/api-gateway/*
+   reference/index
+
+.. toctree::
+   :maxdepth: 2
+
+   setup/index
+
 
 .. toctree::
    :glob:
    :maxdepth: 1
-   :caption: Function configuration
 
-   reference/function-configuration/*
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-   :caption: Nuctl
-
-   reference/nuctl/*
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-   :caption: Runtimes
-
-   reference/runtimes/**
-
-.. toctree::
-   :glob:
-   :maxdepth: 1
-   :caption: Triggers
-
-   reference/triggers/**
-
+   tasks/*
 
 
 
 Indices and tables
 ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
