@@ -75,7 +75,7 @@ em-esrever
 
 ## See also
 
-- [Deploying Functions](../../../user%20guide/deploying-functions.md)
+- [Deploying Functions](../../../tasks/deploying-functions.md)
 - [Function-Configuration Reference](../../../reference/function-configuration/function-configuration-reference.md)
 
     

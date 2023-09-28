@@ -41,7 +41,7 @@ docker run \
 
 See the following resources to make the best of your new Nuclio environment:
 
-- [Deploying Functions](/docs/user%20guide/deploying-functions.md)
+- [Deploying Functions](/docs/tasks/deploying-functions.md)
 - [More function examples](/hack/examples/README.md)
 - [References](/docs/reference)
 - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)

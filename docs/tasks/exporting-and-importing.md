@@ -13,7 +13,7 @@ This tutorial guides you through the process of using the Nuclio CLI (`nuctl`) t
 <a id="functions-export"></a>
 ## Exporting deployed functions
 
-You can  use the Nuclio CLI's `export functions` command (or the `export function` alias) to export the configurations of [deployed Nuclio functions](/docs/user%20guide/deploying-functions.md) in your environment ("export functions").
+You can  use the Nuclio CLI's `export functions` command (or the `export function` alias) to export the configurations of [deployed Nuclio functions](deploying-functions.md) in your environment ("export functions").
 You can save the exported configurations, for example, to a file, and [import](#functions-import) them later on any environment that is running Nuclio.
 
 To export a specific function, set the optional `<function>` argument to the name of the function to export:
@@ -194,5 +194,5 @@ nuctl deploy --namespace nuclio --file myfunction.yaml
 
 > **Tip:** Run `nuctl help deploy` for full usage instructions. 
 
-For more information about deployment of Nuclio functions, see [Deploying Functions](/docs/user%20guide/deploying-functions.md).
+For more information about deployment of Nuclio functions, see [Deploying Functions](deploying-functions.md).
 

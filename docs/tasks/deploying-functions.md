@@ -350,6 +350,6 @@ If you are deploying the function using [nuctl](/docs/reference/nuctl/nuctl.md) 
 <a id="whats-next"></a>
 ## What's next?
 
-- Check out how to [build functions once and deploy them many times](/docs/user%20guide/deploying-pre-built-functions.md).
+- Check out how to [build functions once and deploy them many times](/docs/tasks/deploying-pre-built-functions.md).
 - Read more about [function configuration](/docs/reference/function-configuration/function-configuration-reference.md).
 

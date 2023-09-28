@@ -153,10 +153,10 @@ def handler(context, event):
   - [在 Google Kubernetes Engine (GKE) 中运行 Nuclio](/docs/setup/gke/getting-started-gke.md)
   - 在树莓派中运行 Nuclio (coming soon)
 - 部署任务
-  - [部署函数](/docs/user%20guide/deploying-functions.md)
-  - [在 Dockerfile 中部署函数](/docs/user%20guide/deploy-functions-from-dockerfile.md)
-  - [部署预编译的函数](/docs/user%20guide/deploying-pre-built-functions.md)
-  - [在特定平台中配置函数](/docs/user%20guide/configuring-a-platform.md)
+  - [部署函数](/docs/tasks/deploying-functions.md)
+  - [在 Dockerfile 中部署函数](/docs/tasks/deploy-functions-from-dockerfile.md)
+  - [部署预编译的函数](/docs/tasks/deploying-pre-built-functions.md)
+  - [在特定平台中配置函数](/docs/tasks/configuring-a-platform.md)
 - 相关概念
   - [最佳实践和常见陷阱](/docs/concepts/best-practices-and-common-pitfalls.md)
   - [架构设计](/docs/concepts/architecture.md)

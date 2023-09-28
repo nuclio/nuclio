@@ -95,7 +95,7 @@ For example, to use the logger in your function, you can simply add the followin
 context.Logger.InfoWith("Some message", "arg1", 1, "arg2", 2)
 ```
 
-To read more about platform configuration [click here](../../user%20guide/configuring-a-platform.md)
+To read more about platform configuration [click here](../../tasks/configuring-a-platform.md)
 
 ## Visualize your Application Insights using Grafana
 

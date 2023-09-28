@@ -239,5 +239,5 @@ status:
 
 ## See also
 
-- [Deploying Functions](../../user%20guide/deploying-functions.md)
+- [Deploying Functions](../../tasks/deploying-functions.md)
 - [Code-Entry Types](../../reference/function-configuration/code-entry-types.md)

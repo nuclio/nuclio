@@ -10,7 +10,7 @@ This guide goes through building functions to container images and then deployin
 
 ## Motivation
 
-If you followed the [function-deployment guide](/docs/user%20guide/deploying-functions.md), you built and deployed a function in a single convenient step using the `nuctl` CLI. However, it is sometimes desirable to build a function once and deploy it many times with different configuration. This guide will walk you through that process using `nuctl`.
+If you followed the [function-deployment guide](/docs/tasks/deploying-functions.md), you built and deployed a function in a single convenient step using the `nuctl` CLI. However, it is sometimes desirable to build a function once and deploy it many times with different configuration. This guide will walk you through that process using `nuctl`.
 
 In this scenario, you'll use the [Go hello-world example](/hack/examples/golang/helloworld) example.
 
@@ -40,5 +40,5 @@ You can deploy this function several times, providing different labels, triggers
 
 ## See also
 
-- [Deploying Functions](/docs/user%20guide/deploying-functions.md)
+- [Deploying Functions](/docs/tasks/deploying-functions.md)
 
