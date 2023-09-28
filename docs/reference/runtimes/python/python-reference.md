@@ -1,4 +1,4 @@
-# Python Reference
+# Python
 
 This document describes the specific Python build and deploy configurations.
 

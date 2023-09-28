@@ -1,4 +1,4 @@
-# v3ioStream: Iguazio Data Science Platform Stream Trigger
+# v3ioStream
 
 **In This Document**
 - [Overview](#overview)

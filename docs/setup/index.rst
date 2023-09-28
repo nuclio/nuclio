@@ -7,11 +7,11 @@ Setup
 ==================================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Setup
 
-   aks/getting-started-aks
+   aks/index
    docker/getting-started-docker
    gke/getting-started-gke
-   k8s/getting-started-k8s
+   k8s/index
    minikube/getting-started-minikube

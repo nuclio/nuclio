@@ -1,4 +1,4 @@
-# NodeJS Reference
+# NodeJS
 
 This document describes the specific NodeJS build and deploy configurations.
 

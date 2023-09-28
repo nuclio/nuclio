@@ -1,4 +1,4 @@
-# Kubernetes
+# Getting started
 
 Follow this step-by-step guide to set up a Nuclio development environment that uses a Kubernetes cluster.
 

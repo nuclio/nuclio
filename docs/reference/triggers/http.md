@@ -1,4 +1,4 @@
-# HTTP Trigger
+# HTTP
 
 **In This Document**
 

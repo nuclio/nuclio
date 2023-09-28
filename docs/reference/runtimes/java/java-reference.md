@@ -1,4 +1,4 @@
-# Java reference
+# Java
 
 This document describes specific Java build and deploy configurations.
 

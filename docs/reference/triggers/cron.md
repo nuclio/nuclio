@@ -1,4 +1,4 @@
-# Cron Trigger
+# Cron
 
 **In This Document**
 - [Overview](#overview)

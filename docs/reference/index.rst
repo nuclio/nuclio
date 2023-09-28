@@ -13,7 +13,7 @@ Reference
 
    function-configuration/code-entry-types
    function-configuration/function-configuration-reference
-   api-gateway/README
+   api-gateway/index
    nuctl/nuctl
-   runtimes/runtime-feature-matrix
-   triggers/README
+   runtimes/index
+   triggers/index

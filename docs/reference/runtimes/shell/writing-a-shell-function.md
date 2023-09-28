@@ -1,4 +1,4 @@
-# Writing a Shell Function
+# Shell
 
 This guide uses practical examples to guide you through the process of writing serverless shell functions.
 

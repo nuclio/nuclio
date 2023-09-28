@@ -1,4 +1,4 @@
-# RabbitMQ Trigger
+# RabbitMQ
 
 Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 
