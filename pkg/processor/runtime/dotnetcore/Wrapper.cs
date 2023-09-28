@@ -104,12 +104,7 @@ namespace processor
                 if (assembly == null)
                 {
                     Console.WriteLine($"TOMER - Failed to load dll path: {dllPath}");
-                    var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
-                    if (assembly == null)
-                    {
-                        Console.WriteLine($"TOMER - Failed to load dll path AGAIN: {dllPath}");
-                        throw new Exception($"Failed to load dll path: {dllPath}");
-                    }
+                    throw new Exception($"Failed to load dll path: {dllPath}");
                 }
                 // Get the type to use.
                 methodType = assembly.GetType(typeName); // Namespace and class
