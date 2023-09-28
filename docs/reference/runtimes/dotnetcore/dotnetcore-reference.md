@@ -37,9 +37,9 @@ For example, the following file defines a dependency on the `Microsoft.NET.Sdk` 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net7.0</TargetFramework>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-        <LangVersion>10.0</LangVersion>
+        <LangVersion>11.0</LangVersion>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Newtonsoft.Json" Version="12.0.2"/>
