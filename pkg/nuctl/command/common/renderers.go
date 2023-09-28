@@ -45,8 +45,8 @@ func RenderFunctions(ctx context.Context,
 	functions []platform.Function,
 	format string,
 	writer io.Writer,
-	renderCallback func(functions []platform.Function, renderer func(interface{}) error, skipSpecCleanup bool) error,
-	skipSpecCleanup bool) error {
+	renderCallback func(functions []platform.Function, renderer func(interface{}) error, exportOptions *common.ExportFunctionOptions) error,
+	exportOptions *common.ExportFunctionOptions) error {
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx, logger)
 	var renderNodePort bool
@@ -124,9 +124,9 @@ func RenderFunctions(ctx context.Context,
 
 		rendererInstance.RenderTable(header, functionRecords)
 	case OutputFormatYAML:
-		return renderCallback(functions, rendererInstance.RenderYAML, skipSpecCleanup)
+		return renderCallback(functions, rendererInstance.RenderYAML, exportOptions)
 	case OutputFormatJSON:
-		return renderCallback(functions, rendererInstance.RenderJSON, skipSpecCleanup)
+		return renderCallback(functions, rendererInstance.RenderJSON, exportOptions)
 	}
 
 	return nil

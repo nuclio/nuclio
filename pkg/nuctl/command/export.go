@@ -33,10 +33,12 @@ import (
 )
 
 type exportCommandeer struct {
-	cmd            *cobra.Command
-	rootCommandeer *RootCommandeer
-	scrubber       *functionconfig.Scrubber
-	noScrub        bool
+	cmd             *cobra.Command
+	rootCommandeer  *RootCommandeer
+	scrubber        *functionconfig.Scrubber
+	noScrub         bool
+	skipSpecCleanup bool
+	withPrevState   bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -55,6 +57,8 @@ to the standard output, in JSON or YAML format`,
 	}
 
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
+	cmd.PersistentFlags().BoolVar(&commandeer.skipSpecCleanup, "skip-spec-cleanup", false, "Do not clear the image info from the function spec")
+	cmd.PersistentFlags().BoolVar(&commandeer.withPrevState, "with-previous-state", false, "Save function state so it can be redeployed to this state")
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
@@ -73,7 +77,6 @@ type exportFunctionCommandeer struct {
 	*exportCommandeer
 	getFunctionsOptions platform.GetFunctionsOptions
 	output              string
-	skipSpecCleanup     bool
 }
 
 func newExportFunctionCommandeer(ctx context.Context, exportCommandeer *exportCommandeer) *exportFunctionCommandeer {
@@ -119,6 +122,10 @@ Arguments:
 				cmd.OutOrStdout().Write([]byte("No functions found\n")) // nolint: errcheck
 				return nil
 			}
+			exportOptions := &common.ExportFunctionOptions{
+				WithPrevState:   commandeer.withPrevState,
+				SkipSpecCleanup: commandeer.skipSpecCleanup,
+			}
 
 			// render the functions
 			return nuctlcommon.RenderFunctions(ctx,
@@ -127,12 +134,11 @@ Arguments:
 				commandeer.output,
 				cmd.OutOrStdout(),
 				commandeer.renderFunctionConfig,
-				commandeer.skipSpecCleanup,
+				exportOptions,
 			)
 		},
 	}
 
-	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clear the image info from the function spec")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 
 	commandeer.cmd = cmd
@@ -140,7 +146,7 @@ Arguments:
 	return commandeer
 }
 
-func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, skipSpecCleanup bool) error {
+func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, exportOptions *common.ExportFunctionOptions) error {
 	functionConfigs := map[string]*functionconfig.Config{}
 	lock := sync.Mutex{}
 	errGroup, errGroupCtx := errgroup.WithContextSemaphore(context.Background(),
@@ -165,8 +171,11 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			} else if err != nil {
 				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
-			state := string(function.GetStatus().State)
-			functionConfig.PrepareFunctionForExport(e.noScrub, skipSpecCleanup, state)
+			if exportOptions.WithPrevState {
+				exportOptions.PrevState = string(function.GetStatus().State)
+			}
+			exportOptions.NoScrub = e.noScrub
+			functionConfig.PrepareFunctionForExport(exportOptions)
 			lock.Lock()
 			functionConfigs[functionConfig.Meta.Name] = functionConfig
 			lock.Unlock()
@@ -196,7 +205,6 @@ type exportProjectCommandeer struct {
 	*exportCommandeer
 	getProjectsOptions platform.GetProjectsOptions
 	output             string
-	skipSpecCleanup    bool
 }
 
 func newExportProjectCommandeer(ctx context.Context, exportCommandeer *exportCommandeer) *exportProjectCommandeer {
@@ -250,7 +258,6 @@ Arguments:
 		},
 	}
 
-	cmd.Flags().BoolVarP(&commandeer.skipSpecCleanup, "skip-spec-cleanup", "", false, "Do not clear the image info from the function spec")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", nuctlcommon.OutputFormatYAML, "Output format - \"json\" or \"yaml\"")
 	commandeer.cmd = cmd
 
@@ -301,7 +308,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	return apiGatewaysMap, nil
 }
 
-func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, skipSpecCleanup bool) (
+func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, exportOptions *common.ExportFunctionOptions) (
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Namespace: projectConfig.Meta.Namespace,
@@ -337,8 +344,11 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventConfig.Meta.Namespace = ""
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
-		state := string(function.GetStatus().State)
-		functionConfig.PrepareFunctionForExport(e.noScrub, skipSpecCleanup, state)
+		if exportOptions.WithPrevState {
+			exportOptions.PrevState = string(function.GetStatus().State)
+		}
+
+		functionConfig.PrepareFunctionForExport(exportOptions)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 
@@ -346,7 +356,12 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 }
 
 func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
-	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig, false)
+	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx,
+		projectConfig,
+		&common.ExportFunctionOptions{
+			WithPrevState:   e.withPrevState,
+			SkipSpecCleanup: e.skipSpecCleanup,
+			NoScrub:         e.noScrub})
 	if err != nil {
 		return nil, err
 	}

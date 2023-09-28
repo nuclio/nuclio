@@ -580,12 +580,12 @@ func (c *Config) CleanFunctionSpec() {
 	}
 }
 
-func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool, state string) {
-	if !noScrub {
+func (c *Config) PrepareFunctionForExport(exportOptions *common.ExportFunctionOptions) {
+	if !exportOptions.NoScrub {
 		c.scrubFunctionData()
 	}
 
-	if !skipSpecCleanup {
+	if !exportOptions.SkipSpecCleanup {
 		c.CleanFunctionSpec()
 	}
 
@@ -593,7 +593,11 @@ func (c *Config) PrepareFunctionForExport(noScrub, skipSpecCleanup bool, state s
 	c.Meta.ResourceVersion = ""
 
 	c.AddSkipAnnotations()
-	c.AddPrevStateAnnotation(state)
+
+	if exportOptions.WithPrevState {
+		c.AddPrevStateAnnotation(exportOptions.PrevState)
+	}
+
 }
 
 func (c *Config) AddSkipAnnotations() {

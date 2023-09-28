@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -56,10 +57,11 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 	return r.getDashboard().GetDefaultNamespace()
 }
 
-func (r *resource) getSkipSpecCleanupFlagFromRequest(request *http.Request) bool {
-	// get the flag to export with/without image
-	providedHeader := request.Header.Get(headers.SkipSpecCleanup)
-	return providedHeader != ""
+func (r *resource) getExportOptionsFromRequest(request *http.Request) *common.ExportFunctionOptions {
+	return &common.ExportFunctionOptions{
+		SkipSpecCleanup: request.Header.Get(headers.SkipSpecCleanup) != "",
+		WithPrevState:   request.Header.Get(headers.WithPrevState) != "",
+	}
 }
 
 func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthConfig, error) {

@@ -296,8 +296,8 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
-		skipSpecCleanup := pr.getSkipSpecCleanupFlagFromRequest(request)
-		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(ctx, function, skipSpecCleanup)
+		exportOptions := pr.getExportOptionsFromRequest(request)
+		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(ctx, function, exportOptions)
 
 		functionEvents := functionEventResourceInstance.getFunctionEvents(request, function, namespace)
 		for _, functionEvent := range functionEvents {
