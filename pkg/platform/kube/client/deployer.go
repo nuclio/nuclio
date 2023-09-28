@@ -563,6 +563,8 @@ func waitForFunctionReadiness(ctx context.Context,
 		}
 
 		switch function.Status.State {
+		case functionconfig.FunctionStateScaledToZero:
+			return true, nil
 		case functionconfig.FunctionStateReady:
 			return true, nil
 		case functionconfig.FunctionStateError, functionconfig.FunctionStateUnhealthy:

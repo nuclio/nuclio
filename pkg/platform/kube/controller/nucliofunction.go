@@ -115,18 +115,6 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return errors.New("Function name doesn't conform to k8s naming convention. Errors: " + joinedErrorMessage)
 	}
 
-	annotationsToClean := []string{
-		functionconfig.FunctionAnnotationForceUpdate,
-		functionconfig.FunctionAnnotationPrevState,
-	}
-
-	// clean the irrelevant annotations from the CRD before adding resources
-	if function.ObjectMeta.Annotations != nil {
-		for _, annotation := range annotationsToClean {
-			delete(function.ObjectMeta.Annotations, annotation)
-		}
-	}
-
 	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
 	// properly configured
 	statesToRespond := []functionconfig.FunctionState{
@@ -164,6 +152,38 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			function, &functionconfig.Status{
 				State: functionconfig.FunctionStateImported,
 			})
+	}
+
+	var prevState string
+
+	// clean the irrelevant annotations from the CRD before adding resources
+	if function.ObjectMeta.Annotations != nil {
+		prevState = function.ObjectMeta.Annotations[functionconfig.FunctionAnnotationPrevState]
+		annotationsToClean := []string{
+			functionconfig.FunctionAnnotationForceUpdate,
+			functionconfig.FunctionAnnotationPrevState,
+			functionconfig.FunctionAnnotationSkipDeploy,
+		}
+		for _, annotation := range annotationsToClean {
+			delete(function.ObjectMeta.Annotations, annotation)
+		}
+	}
+
+	// prevState annotation presents in the function config after function being imported and redeployed
+	// this allows to deploy function right to the state which function had before it was exported
+	if functionconfig.IsPreviousFunctionStateAllowedToBeSet(functionconfig.FunctionState(prevState)) {
+		fo.logger.InfoWith("Previous status of function is set in annotation, so function will be moved to this state.",
+			"function", function.Name,
+			"prevState", prevState)
+		switch prevState {
+		case string(functionconfig.FunctionStateScaledToZero):
+			function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
+		case string(functionconfig.FunctionStateImported):
+			return fo.setFunctionStatus(ctx,
+				function, &functionconfig.Status{
+					State: functionconfig.FunctionStateImported,
+				})
+		}
 	}
 
 	//we respond to ready to complete the scale from zero flow. we want to skip flows where once the function
@@ -254,6 +274,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 		var scaleEvent scalertypes.ScaleEvent
 		var finalState functionconfig.FunctionState
+
 		switch function.Status.State {
 		case functionconfig.FunctionStateWaitingForScaleResourcesToZero:
 			scaleEvent = scalertypes.ScaleToZeroCompletedScaleEvent
