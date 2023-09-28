@@ -906,7 +906,7 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	"metadata": {
 		"name": "f1",
 		"annotations": {
-			"nuclio.io/previous-state": "ready",	
+			"nuclio.io/previous-state": "ready",
 			"skip-build": "true",
 			"skip-deploy": "true"
 		}
