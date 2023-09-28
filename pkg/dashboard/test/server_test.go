@@ -898,6 +898,7 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 
 	headers := map[string]string{
 		headers.FunctionNamespace: "f1-namespace",
+		headers.WithPrevState:     "true",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -905,6 +906,7 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	"metadata": {
 		"name": "f1",
 		"annotations": {
+			"nuclio.io/previous-state": "ready",	
 			"skip-build": "true",
 			"skip-deploy": "true"
 		}
