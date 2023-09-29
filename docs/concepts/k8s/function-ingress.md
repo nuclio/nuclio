@@ -9,7 +9,7 @@
 
 ## Overview
 
-If you followed the [Getting Started with Nuclio on Kubernetes](../../../docs/setup/k8s/getting-started-k8s.md) or [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md) guide, you invoked functions using their HTTP interface with `nuctl` and the Nuclio dashboard.
+If you followed the [Getting Started with Nuclio on Kubernetes](getting-started-k8s.md) or [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md) guide, you invoked functions using their HTTP interface with `nuctl` and the Nuclio dashboard.
 By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port.
 To invoke the function externally, using `nuctl`, you probably exposed your function by using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that is assigned to the function.
 
