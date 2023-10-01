@@ -37,9 +37,9 @@ For example, the following file defines a dependency on the `Microsoft.NET.Sdk` 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net7.0</TargetFramework>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-        <LangVersion>10.0</LangVersion>
+        <LangVersion>11.0</LangVersion>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Newtonsoft.Json" Version="12.0.2"/>
@@ -65,7 +65,7 @@ See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-do
 ```
 ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=mcr.microsoft.com/dotnet/sdk:6.0
+ARG NUCLIO_BASE_IMAGE=mcr.microsoft.com/dotnet/sdk:7.0
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
