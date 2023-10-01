@@ -593,11 +593,7 @@ func (c *Config) PrepareFunctionForExport(exportOptions *common.ExportFunctionOp
 	c.Meta.ResourceVersion = ""
 
 	c.AddSkipAnnotations()
-
-	if exportOptions.WithPrevState {
-		c.AddPrevStateAnnotation(exportOptions.PrevState)
-	}
-
+	c.AddPrevStateAnnotation(exportOptions.PrevState)
 }
 
 func (c *Config) AddSkipAnnotations() {

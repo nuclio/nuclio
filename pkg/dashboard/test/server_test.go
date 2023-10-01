@@ -898,7 +898,6 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 
 	headers := map[string]string{
 		headers.FunctionNamespace: "f1-namespace",
-		headers.WithPrevState:     "true",
 	}
 
 	expectedStatusCode := http.StatusOK
