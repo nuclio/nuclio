@@ -65,7 +65,7 @@ See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-do
 ```
 ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=mcr.microsoft.com/dotnet/sdk:6.0
+ARG NUCLIO_BASE_IMAGE=mcr.microsoft.com/dotnet/sdk:7.0
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
