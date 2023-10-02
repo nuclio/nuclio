@@ -494,9 +494,7 @@ func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 	authConfig *platform.AuthConfig) error {
 
 	switch *options.DesiredState {
-	case functionconfig.FunctionStateReady:
-		return fr.redeployFunction(request, id, authConfig, options)
-	case functionconfig.FunctionStateScaledToZero:
+	case functionconfig.FunctionStateReady, functionconfig.FunctionStateScaledToZero:
 		return fr.redeployFunction(request, id, authConfig, options)
 	default:
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported desired state in patch request: %s",

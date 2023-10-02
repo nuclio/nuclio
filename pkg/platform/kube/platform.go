@@ -564,6 +564,7 @@ func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions
 	case functionconfig.FunctionStateScaledToZero:
 		state = functionconfig.FunctionStateWaitingForScaleResourcesToZero
 	default:
+		// setting a different function state is not supported so we fallback to ready
 		state = functionconfig.FunctionStateWaitingForResourceConfiguration
 	}
 

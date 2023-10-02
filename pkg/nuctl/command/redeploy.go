@@ -108,7 +108,7 @@ func addRedeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
 	cmd.Flags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
 	cmd.Flags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment, e.g 30s, 5m")
-	cmd.Flags().StringVar(&commandeer.desiredState, "desired-state", "ready", "Desired function state")
+	cmd.Flags().StringVar(&commandeer.desiredState, "desired-state", "ready", "Desired function state [\"ready\", \"scaledToZero\"]")
 }
 
 func (d *redeployCommandeer) redeploy(ctx context.Context, args []string) error {
@@ -190,7 +190,7 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 			functionconfig.FunctionStateReady,
 			functionconfig.FunctionStateScaledToZero,
 		}) {
-		return errors.New("Desired status is not allowed to be set")
+		return errors.New(fmt.Sprintf("Desired state %s is not supported", d.desiredState))
 	}
 
 	patchErrGroup, _ := errgroup.WithContextSemaphore(ctx, d.rootCommandeer.loggerInstance, uint(d.betaCommandeer.concurrency))
