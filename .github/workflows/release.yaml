@@ -88,6 +88,12 @@ jobs:
         - arm64
         - amd64
         docker_image_rule: ${{ fromJson(needs.image_matrix_prep.outputs.matrix) }}
+        exclude:
+
+
+          # issues with building on qemu
+          - arch: arm64
+            docker_image_rule: handler-builder-dotnetcore-onbuild
     steps:
     - name: Prepare envs
       run: |
