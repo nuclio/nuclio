@@ -50,6 +50,7 @@ type redeployCommandeer struct {
 	importedOnly           bool
 	waitForFunction        bool
 	waitTimeout            time.Duration
+	desiredState           string
 }
 
 func newRedeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer, betaCommandeer *betaCommandeer) *redeployCommandeer {
@@ -107,6 +108,7 @@ func addRedeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&commandeer.importedOnly, "imported-only", false, "Deploy only imported functions")
 	cmd.Flags().BoolVarP(&commandeer.waitForFunction, "wait", "w", false, "Wait for function deployment to complete")
 	cmd.Flags().DurationVar(&commandeer.waitTimeout, "wait-timeout", 15*time.Minute, "Wait timeout duration for the function deployment, e.g 30s, 5m")
+	cmd.Flags().StringVar(&commandeer.desiredState, "desired-state", "ready", "Desired function state")
 }
 
 func (d *redeployCommandeer) redeploy(ctx context.Context, args []string) error {
@@ -183,11 +185,19 @@ func (d *redeployCommandeer) getFunctionNames(ctx context.Context) ([]string, er
 func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionNames []string) error {
 	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx, "Redeploying functions", "functionNames", functionNames)
 
+	if !functionconfig.FunctionStateInSlice(functionconfig.FunctionState(d.desiredState),
+		[]functionconfig.FunctionState{
+			functionconfig.FunctionStateReady,
+			functionconfig.FunctionStateScaledToZero,
+		}) {
+		return errors.New("Desired status is not allowed to be set")
+	}
+
 	patchErrGroup, _ := errgroup.WithContextSemaphore(ctx, d.rootCommandeer.loggerInstance, uint(d.betaCommandeer.concurrency))
 	for _, function := range functionNames {
 		function := function
 		patchErrGroup.Go("patch function", func() error {
-			if err := d.patchFunction(ctx, function); err != nil {
+			if err := d.patchFunction(ctx, function, d.desiredState); err != nil {
 				d.outputManifest.AddFailure(function, err, d.isRedeploymentRetryable(err))
 				return errors.Wrap(err, "Failed to patch function")
 			}
@@ -212,13 +222,13 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 }
 
 // patchFunction patches a single function
-func (d *redeployCommandeer) patchFunction(ctx context.Context, functionName string) error {
+func (d *redeployCommandeer) patchFunction(ctx context.Context, functionName string, desiredState string) error {
 
 	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx, "Redeploying function", "function", functionName)
 
 	// patch function
 	patchOptions := map[string]string{
-		"desiredState": "ready",
+		"desiredState": desiredState,
 	}
 
 	payload, err := json.Marshal(patchOptions)

@@ -96,6 +96,7 @@ type RedeployFunctionOptions struct {
 	AuthSession                 auth.Session
 	PermissionOptions           opa.PermissionOptions
 	CreationStateUpdatedTimeout time.Duration
+	DesiredState                functionconfig.FunctionState
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process

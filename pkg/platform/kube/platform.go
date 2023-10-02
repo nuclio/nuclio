@@ -558,13 +558,21 @@ func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions
 		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
+	var state functionconfig.FunctionState
+
+	switch redeployFunctionOptions.DesiredState {
+	case functionconfig.FunctionStateScaledToZero:
+		state = functionconfig.FunctionStateWaitingForScaleResourcesToZero
+	default:
+		state = functionconfig.FunctionStateWaitingForResourceConfiguration
+	}
 
 	// update the function CRD state to waiting for resource configuration, so the controller will redeploy its resources
 	if err := p.updater.UpdateState(ctx,
 		redeployFunctionOptions.FunctionMeta.Name,
 		redeployFunctionOptions.FunctionMeta.Namespace,
 		redeployFunctionOptions.AuthConfig,
-		functionconfig.FunctionStateWaitingForResourceConfiguration); err != nil {
+		state); err != nil {
 		return errors.Wrap(err, "Failed to update function state")
 	}
 	return nil

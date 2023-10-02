@@ -497,7 +497,9 @@ func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 
 	switch *options.DesiredState {
 	case functionconfig.FunctionStateReady:
-		return fr.redeployFunction(request, id, authConfig)
+		return fr.redeployFunction(request, id, authConfig, options)
+	case functionconfig.FunctionStateScaledToZero:
+		return fr.redeployFunction(request, id, authConfig, options)
 	default:
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported desired state in patch request: %s",
 			*options.DesiredState))
@@ -506,7 +508,8 @@ func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 
 func (fr *functionResource) redeployFunction(request *http.Request,
 	id string,
-	authConfig *platform.AuthConfig) error {
+	authConfig *platform.AuthConfig,
+	options *PatchOptions) error {
 	ctx := request.Context()
 
 	// get function
@@ -538,6 +541,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+		DesiredState:                *options.DesiredState,
 		CreationStateUpdatedTimeout: fr.getCreationStateUpdatedTimeout(request),
 	}); err != nil {
 		return errors.Wrap(err, "Failed to redeploy function")
