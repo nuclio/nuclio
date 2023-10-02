@@ -91,7 +91,7 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://12
 CMD [ "processor" ]
 ```
 
-## Writing a .NET Core 6.0 Function
+# Writing a .NET Core 7.0 Function
 
 This guide uses practical examples to guide you through the process of writing serverless .NET Core functions.
 
@@ -168,7 +168,5 @@ em-esrever
 
 ## See also
 
-- [Deploying Functions](../../../tasks/deploying-functions.md)
-- [Function-Configuration Reference](../../../reference/function-configuration/function-configuration-reference.md)
-
-    
+- [Deploying Functions](/docs/tasks/deploying-functions.md)
+- [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
