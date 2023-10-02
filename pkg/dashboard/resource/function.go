@@ -494,8 +494,8 @@ func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 	authConfig *platform.AuthConfig) error {
 
 	switch *options.DesiredState {
-	case functionconfig.FunctionStateReady:
-		return fr.redeployFunction(request, id, authConfig)
+	case functionconfig.FunctionStateReady, functionconfig.FunctionStateScaledToZero:
+		return fr.redeployFunction(request, id, authConfig, options)
 	default:
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported desired state in patch request: %s",
 			*options.DesiredState))
@@ -504,7 +504,8 @@ func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 
 func (fr *functionResource) redeployFunction(request *http.Request,
 	id string,
-	authConfig *platform.AuthConfig) error {
+	authConfig *platform.AuthConfig,
+	options *PatchOptions) error {
 	ctx := request.Context()
 
 	// get function
@@ -517,6 +518,11 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return nuclio.NewErrPreconditionFailed("No image field in function config spec, unable to redeploy")
 	}
 
+	if *options.DesiredState == functionconfig.FunctionStateScaledToZero &&
+		*function.GetConfig().Spec.MinReplicas > 0 {
+		return nuclio.NewErrPreconditionFailed("Cannot scale to zero a function with non-zero min replicas")
+	}
+
 	importedOnly := fr.headerValueIsTrue(request, headers.ImportedFunctionOnly)
 
 	if importedOnly && function.GetStatus().State != functionconfig.FunctionStateImported {
@@ -524,7 +530,9 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return nil
 	}
 
-	fr.Logger.DebugWith("Redeploying function", "functionName", id)
+	fr.Logger.DebugWith("Redeploying function",
+		"functionName", id,
+		"desiredState", *options.DesiredState)
 
 	if err := fr.getPlatform().RedeployFunction(ctx, &platform.RedeployFunctionOptions{
 		FunctionMeta:               &function.GetConfig().Meta,
@@ -536,6 +544,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
+		DesiredState:                *options.DesiredState,
 		CreationStateUpdatedTimeout: fr.getCreationStateUpdatedTimeout(request),
 	}); err != nil {
 		return errors.Wrap(err, "Failed to redeploy function")

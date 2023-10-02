@@ -1126,7 +1126,7 @@ func (suite *functionTestSuite) TestPatchFunctionInvalidDesiredState() {
 		nil)
 }
 
-func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
+func (suite *functionTestSuite) TestPatchFunction() {
 	namespace := "some-namespace"
 
 	for _, testCase := range []struct {
@@ -1134,24 +1134,52 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 		functionName       string
 		functionState      functionconfig.FunctionState
 		expectedStatusCode int
+		importedOnly       string
+		desiredState       string
+		minReplicas        int
 	}{
 		{
 			name:               "importedFunction",
 			functionName:       "imported-func",
 			functionState:      functionconfig.FunctionStateImported,
 			expectedStatusCode: http.StatusAccepted,
+			importedOnly:       "true",
+			desiredState:       "ready",
+			minReplicas:        1,
 		},
 		{
 			name:               "readyFunction",
 			functionName:       "ready-func",
 			functionState:      functionconfig.FunctionStateReady,
 			expectedStatusCode: http.StatusNoContent,
+			importedOnly:       "true",
+			desiredState:       "ready",
+			minReplicas:        1,
+		},
+		{
+			name:               "readyFunctionToScaledToZero",
+			functionName:       "scale-to-zero",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedStatusCode: http.StatusAccepted,
+			importedOnly:       "false",
+			desiredState:       "scaledToZero",
+			minReplicas:        0,
+		},
+		{
+			name:               "readyFunctionToScaledToZero",
+			functionName:       "scale-to-zero",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedStatusCode: http.StatusPreconditionFailed,
+			importedOnly:       "false",
+			desiredState:       "scaledToZero",
+			minReplicas:        1,
 		},
 	} {
 		suite.Run(testCase.name, func() {
 			function := platform.AbstractFunction{}
 			function.Config.Meta.Name = testCase.functionName
 			function.Config.Meta.Namespace = namespace
+			function.GetConfig().Spec.MinReplicas = &testCase.minReplicas
 			function.Status.State = testCase.functionState
 			function.Config.Spec.Image = "image"
 
@@ -1185,12 +1213,12 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 			requestHeaders := map[string]string{
 				headers.WaitFunctionAction:   "true",
 				headers.FunctionNamespace:    namespace,
-				headers.ImportedFunctionOnly: "true",
+				headers.ImportedFunctionOnly: testCase.importedOnly,
 			}
 
-			requestBody := `{
-	"desiredState": "ready"
-}`
+			requestBody := fmt.Sprintf(`{
+	"desiredState": "%s"
+}`, testCase.desiredState)
 
 			suite.sendRequest("PATCH",
 				fmt.Sprintf("/api/functions/%s", testCase.functionName),
