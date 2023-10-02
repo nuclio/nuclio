@@ -237,9 +237,7 @@ func (fr *functionResource) export(ctx context.Context, function platform.Functi
 
 	functionConfig := function.GetConfig()
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
-	if exportOptions.WithPrevState {
-		exportOptions.PrevState = string(function.GetStatus().State)
-	}
+	exportOptions.PrevState = string(function.GetStatus().State)
 	functionConfig.PrepareFunctionForExport(exportOptions)
 
 	fr.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)

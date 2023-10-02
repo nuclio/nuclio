@@ -24,6 +24,5 @@ type CatchAndLogPanicOptions struct {
 type ExportFunctionOptions struct {
 	NoScrub         bool
 	SkipSpecCleanup bool
-	WithPrevState   bool
 	PrevState       string
 }
