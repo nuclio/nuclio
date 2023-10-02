@@ -38,7 +38,6 @@ type exportCommandeer struct {
 	scrubber        *functionconfig.Scrubber
 	noScrub         bool
 	skipSpecCleanup bool
-	withPrevState   bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -58,7 +57,6 @@ to the standard output, in JSON or YAML format`,
 
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
 	cmd.PersistentFlags().BoolVar(&commandeer.skipSpecCleanup, "skip-spec-cleanup", false, "Do not clear the image info from the function spec")
-	cmd.PersistentFlags().BoolVar(&commandeer.withPrevState, "with-previous-state", false, "Save function state so it can be redeployed to this state")
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
@@ -123,7 +121,6 @@ Arguments:
 				return nil
 			}
 			exportOptions := &common.ExportFunctionOptions{
-				WithPrevState:   commandeer.withPrevState,
 				SkipSpecCleanup: commandeer.skipSpecCleanup,
 			}
 
@@ -171,9 +168,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			} else if err != nil {
 				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
-			if exportOptions.WithPrevState {
-				exportOptions.PrevState = string(function.GetStatus().State)
-			}
+			exportOptions.PrevState = string(function.GetStatus().State)
 			exportOptions.NoScrub = e.noScrub
 			functionConfig.PrepareFunctionForExport(exportOptions)
 			lock.Lock()
@@ -344,9 +339,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventConfig.Meta.Namespace = ""
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
-		if exportOptions.WithPrevState {
-			exportOptions.PrevState = string(function.GetStatus().State)
-		}
+		exportOptions.PrevState = string(function.GetStatus().State)
 
 		functionConfig.PrepareFunctionForExport(exportOptions)
 		functionMap[functionConfig.Meta.Name] = functionConfig
@@ -359,7 +352,6 @@ func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConf
 	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx,
 		projectConfig,
 		&common.ExportFunctionOptions{
-			WithPrevState:   e.withPrevState,
 			SkipSpecCleanup: e.skipSpecCleanup,
 			NoScrub:         e.noScrub})
 	if err != nil {
