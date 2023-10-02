@@ -43,13 +43,6 @@ func (nf *NuclioFunction) GetComputedReplicas() *int32 {
 		nf.Status.State == functionconfig.FunctionStateImported ||
 		nf.Status.State == functionconfig.FunctionStateScaledToZero ||
 		nf.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
-
-		if (nf.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero ||
-			nf.Status.State == functionconfig.FunctionStateScaledToZero) && nf.Spec.MinReplicas != nil && *nf.Spec.MinReplicas > 0 {
-			minReplicas := int32(*nf.Spec.MinReplicas)
-			return &minReplicas
-		}
-
 		return &zero
 	} else if nf.Spec.Replicas != nil {
 

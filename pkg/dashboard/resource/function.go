@@ -518,6 +518,11 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return nuclio.NewErrPreconditionFailed("No image field in function config spec, unable to redeploy")
 	}
 
+	if *options.DesiredState == functionconfig.FunctionStateScaledToZero &&
+		*function.GetConfig().Spec.MinReplicas > 0 {
+		return nuclio.NewErrPreconditionFailed("Cannot scale to zero a function with non-zero min replicas")
+	}
+
 	importedOnly := fr.headerValueIsTrue(request, headers.ImportedFunctionOnly)
 
 	if importedOnly && function.GetStatus().State != functionconfig.FunctionStateImported {
