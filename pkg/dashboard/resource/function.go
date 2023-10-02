@@ -530,7 +530,11 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return nil
 	}
 
-	fr.Logger.DebugWith("Redeploying function", "functionName", id)
+	fr.Logger.DebugWith("Redeploying function",
+		"functionName",
+		id,
+		"desiredState",
+		*options.DesiredState)
 
 	if err := fr.getPlatform().RedeployFunction(ctx, &platform.RedeployFunctionOptions{
 		FunctionMeta:               &function.GetConfig().Meta,

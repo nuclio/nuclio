@@ -224,7 +224,10 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 // patchFunction patches a single function
 func (d *redeployCommandeer) patchFunction(ctx context.Context, functionName string, desiredState string) error {
 
-	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx, "Redeploying function", "function", functionName)
+	d.rootCommandeer.loggerInstance.InfoWithCtx(ctx,
+		"Redeploying function",
+		"function", functionName,
+		"desiredState", desiredState)
 
 	// patch function
 	patchOptions := map[string]string{
