@@ -76,7 +76,7 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 			streamCommand: func() string {
 
 				// stream the entire file contents and then follow
-				return fmt.Sprintf(`tail -n +1 -f %s`, path.Join(common.GetSourceDir(), "overview.md"))
+				return fmt.Sprintf(`tail -n +1 -f %s`, path.Join(common.GetSourceDir(), "README.md"))
 			}(),
 		},
 	} {
