@@ -1136,6 +1136,7 @@ func (suite *functionTestSuite) TestPatchFunction() {
 		expectedStatusCode int
 		importedOnly       string
 		desiredState       string
+		minReplicas        int
 	}{
 		{
 			name:               "importedFunction",
@@ -1144,6 +1145,7 @@ func (suite *functionTestSuite) TestPatchFunction() {
 			expectedStatusCode: http.StatusAccepted,
 			importedOnly:       "true",
 			desiredState:       "ready",
+			minReplicas:        1,
 		},
 		{
 			name:               "readyFunction",
@@ -1152,6 +1154,7 @@ func (suite *functionTestSuite) TestPatchFunction() {
 			expectedStatusCode: http.StatusNoContent,
 			importedOnly:       "true",
 			desiredState:       "ready",
+			minReplicas:        1,
 		},
 		{
 			name:               "readyFunctionToScaledToZero",
@@ -1160,12 +1163,23 @@ func (suite *functionTestSuite) TestPatchFunction() {
 			expectedStatusCode: http.StatusAccepted,
 			importedOnly:       "false",
 			desiredState:       "scaledToZero",
+			minReplicas:        0,
+		},
+		{
+			name:               "readyFunctionToScaledToZero",
+			functionName:       "scale-to-zero",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedStatusCode: http.StatusPreconditionFailed,
+			importedOnly:       "false",
+			desiredState:       "scaledToZero",
+			minReplicas:        1,
 		},
 	} {
 		suite.Run(testCase.name, func() {
 			function := platform.AbstractFunction{}
 			function.Config.Meta.Name = testCase.functionName
 			function.Config.Meta.Namespace = namespace
+			function.GetConfig().Spec.MinReplicas = &testCase.minReplicas
 			function.Status.State = testCase.functionState
 			function.Config.Spec.Image = "image"
 
