@@ -155,6 +155,11 @@ func (m *PatchManifest) SaveToFile(ctx context.Context, loggerInstance logger.Lo
 			"err", err,
 			"path", path)
 	}
+
+	if len(m.GetFailed()) > 0 {
+		loggerInstance.WarnWithCtx(ctx,
+			"Some functions failed to patch. To retry redeploying retryable functions, rerun the command with the \"--from-report\" flag")
+	}
 }
 
 func readManifestFromFile(path string) (*patchManifest, error) {
