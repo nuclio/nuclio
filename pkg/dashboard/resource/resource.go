@@ -59,7 +59,7 @@ func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
 
 func (r *resource) getExportOptionsFromRequest(request *http.Request) *common.ExportFunctionOptions {
 	return &common.ExportFunctionOptions{
-		SkipSpecCleanup: request.Header.Get(headers.SkipSpecCleanup) != "",
+		CleanupSpec: request.Header.Get(headers.SkipSpecCleanup) != "",
 	}
 }
 
