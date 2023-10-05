@@ -84,7 +84,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		if exportFunction {
 			response[function.GetConfig().Meta.Name] = fr.export(ctx, function, exportOptions)
 		} else {
-			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function, exportOptions.SkipSpecCleanup)
+			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function, exportOptions.CleanupSpec)
 		}
 	}
 
@@ -111,7 +111,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return fr.export(ctx, function, exportOptions), nil
 	}
 
-	return fr.functionToAttributes(function, exportOptions.SkipSpecCleanup), nil
+	return fr.functionToAttributes(function, exportOptions.CleanupSpec), nil
 }
 
 // Create and deploy a function
@@ -553,9 +553,9 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 	return nuclio.ErrAccepted
 }
 
-func (fr *functionResource) functionToAttributes(function platform.Function, skipSpecCleanup bool) restful.Attributes {
+func (fr *functionResource) functionToAttributes(function platform.Function, cleanupSpec bool) restful.Attributes {
 	functionConfig := function.GetConfig()
-	if !skipSpecCleanup {
+	if cleanupSpec {
 		functionConfig.CleanFunctionSpec()
 	}
 

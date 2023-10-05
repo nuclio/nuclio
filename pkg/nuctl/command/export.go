@@ -33,11 +33,11 @@ import (
 )
 
 type exportCommandeer struct {
-	cmd             *cobra.Command
-	rootCommandeer  *RootCommandeer
-	scrubber        *functionconfig.Scrubber
-	noScrub         bool
-	skipSpecCleanup bool
+	cmd            *cobra.Command
+	rootCommandeer *RootCommandeer
+	scrubber       *functionconfig.Scrubber
+	noScrub        bool
+	cleanupSpec    bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -56,7 +56,7 @@ to the standard output, in JSON or YAML format`,
 	}
 
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
-	cmd.PersistentFlags().BoolVar(&commandeer.skipSpecCleanup, "skip-spec-cleanup", false, "Do not clear the image info from the function spec")
+	cmd.PersistentFlags().BoolVar(&commandeer.cleanupSpec, "cleanup-spec", false, "Clean up the image info from the function spec")
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
@@ -121,7 +121,7 @@ Arguments:
 				return nil
 			}
 			exportOptions := &common.ExportFunctionOptions{
-				SkipSpecCleanup: commandeer.skipSpecCleanup,
+				CleanupSpec: commandeer.cleanupSpec,
 			}
 
 			// render the functions
@@ -249,7 +249,7 @@ Arguments:
 			}
 
 			// render the projects
-			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig, commandeer.skipSpecCleanup)
+			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig, commandeer.cleanupSpec)
 		},
 	}
 
@@ -352,8 +352,8 @@ func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConf
 	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx,
 		projectConfig,
 		&common.ExportFunctionOptions{
-			SkipSpecCleanup: e.skipSpecCleanup,
-			NoScrub:         e.noScrub})
+			CleanupSpec: e.cleanupSpec,
+			NoScrub:     e.noScrub})
 	if err != nil {
 		return nil, err
 	}
