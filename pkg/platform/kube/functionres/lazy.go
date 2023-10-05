@@ -979,7 +979,11 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		}
 
 		// create sidecars if provided
-		for _, sidecarSpec := range function.Spec.Sidecars {
+		for sidecarName, sidecarSpec := range function.Spec.Sidecars {
+			lc.logger.DebugWithCtx(ctx,
+				"Creating sidecar container",
+				"functionName", function.Name,
+				"sidecarName", sidecarName)
 			sidecarContainer := v1.Container{}
 			lc.populateSidecarContainer(ctx, sidecarSpec, &sidecarContainer)
 			sidecarContainer.VolumeMounts = volumeMounts

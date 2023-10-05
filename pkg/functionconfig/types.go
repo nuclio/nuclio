@@ -403,6 +403,8 @@ type Spec struct {
 	// the platformconfig.PreemptibleNodes values.
 	PreemptionMode RunOnPreemptibleNodeMode `json:"preemptionMode,omitempty"`
 
+	// Sidecars are containers that run alongside the function container in the same pod
+	// the configuration for each sidecar is the same as k8s containers
 	Sidecars map[string]*v1.Container `json:"sidecars,omitempty"`
 }
 
