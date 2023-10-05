@@ -473,6 +473,7 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	}
 
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
+	p.enrichSidecarsSpec(ctx, functionConfig)
 	return nil
 }
 
@@ -1495,6 +1496,49 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 		// nothing to do here
 		break
+	}
+}
+
+func (p *Platform) enrichSidecarsSpec(ctx context.Context, functionConfig *functionconfig.Config) {
+
+	for sidecarIndex, sidecar := range functionConfig.Spec.Sidecars {
+		if sidecar.Name == "" {
+			sidecar.Name = fmt.Sprintf("sidecar-%d", sidecarIndex)
+		}
+
+		// enrich env vars
+		if sidecar.Env == nil {
+			sidecar.Env = make([]v1.EnvVar, 0)
+		}
+		sidecar.Env = append(sidecar.Env, functionConfig.Spec.Env...)
+
+		// enrich resources
+		if sidecar.Resources.Limits == nil {
+			p.Logger.DebugWithCtx(ctx, "Enriching sidecar resources limits",
+				"functionName", functionConfig.Meta.Name,
+				"sidecarName", sidecar.Name,
+				"resourcesLimits", functionConfig.Spec.Resources.Limits)
+			sidecar.Resources.Limits = make(v1.ResourceList)
+			for resourceName, resourceQuantity := range functionConfig.Spec.Resources.Limits {
+				sidecar.Resources.Limits[resourceName] = resourceQuantity
+
+			}
+		}
+		if sidecar.Resources.Requests == nil {
+			sidecar.Resources.Requests = make(v1.ResourceList)
+			for resourceName, resourceQuantity := range functionConfig.Spec.Resources.Requests {
+				p.Logger.DebugWithCtx(ctx, "Enriching sidecar resources requests",
+					"functionName", functionConfig.Meta.Name,
+					"sidecarName", sidecar.Name,
+					"resourcesLimits", functionConfig.Spec.Resources.Requests)
+				sidecar.Resources.Requests[resourceName] = resourceQuantity
+			}
+		}
+
+		// image pull policy
+		if sidecar.ImagePullPolicy == "" {
+			sidecar.ImagePullPolicy = functionConfig.Spec.ImagePullPolicy
+		}
 	}
 }
 

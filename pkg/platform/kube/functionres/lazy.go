@@ -978,6 +978,14 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			}
 		}
 
+		// create sidecars if provided
+		for _, sidecarSpec := range function.Spec.Sidecars {
+			sidecarContainer := v1.Container{}
+			lc.populateSidecarContainer(ctx, sidecarSpec, &sidecarContainer)
+			sidecarContainer.VolumeMounts = volumeMounts
+			deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, sidecarContainer)
+		}
+
 		deployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        kube.DeploymentNameFromFunctionName(function.Name),
@@ -2137,6 +2145,35 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	} else {
 		container.ImagePullPolicy = function.Spec.ImagePullPolicy
 	}
+}
+
+func (lc *lazyClient) populateSidecarContainer(ctx context.Context,
+	sidecarSpec *functionconfig.SidecarSpec,
+	container *v1.Container) {
+	container.Name = sidecarSpec.Name
+	container.Env = sidecarSpec.Env
+
+	container.Image = sidecarSpec.Image
+	if sidecarSpec.ImagePullPolicy == "" {
+		container.ImagePullPolicy = v1.PullAlways
+	} else {
+		container.ImagePullPolicy = sidecarSpec.ImagePullPolicy
+	}
+	container.Ports = sidecarSpec.Ports
+
+	// resources
+	container.Resources = sidecarSpec.Resources
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+		lc.logger,
+		&container.Resources)
+
+	// entrypoint
+	container.Command = sidecarSpec.Command
+	container.Args = sidecarSpec.Args
+
+	// probes
+	container.ReadinessProbe = sidecarSpec.ReadinessProbe
+	container.LivenessProbe = sidecarSpec.LivenessProbe
 }
 
 func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,

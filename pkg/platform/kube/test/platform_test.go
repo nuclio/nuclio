@@ -19,9 +19,11 @@ limitations under the License.
 package test
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -669,42 +671,6 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 
 }
 
-func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
-
-	// create a platform config configmap with a json logger sink (this is how it is on production)
-	platformConfigConfigmap, err := suite.KubeClientSet.
-		CoreV1().
-		ConfigMaps(suite.Namespace).
-		Create(suite.Ctx,
-			&v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "nuclio-platform-config",
-					Namespace: suite.Namespace,
-				},
-				Data: map[string]string{
-					"platform.yaml": `logger:
-  functions:
-  - level: debug
-    sink: myStdoutLoggerSink
-  sinks:
-    myStdoutLoggerSink:
-      attributes:
-        encoding: json
-        timeFieldEncoding: iso8601
-        timeFieldName: time
-        varGroupName: more
-      kind: stdout
-  system:
-  - level: debug
-    sink: myStdoutLoggerSink`,
-				},
-			},
-			metav1.CreateOptions{})
-	suite.Require().NoError(err)
-
-	return platformConfigConfigmap
-}
-
 func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 	functionName := "func-with-ingress"
 	ingressHost := "something.com"
@@ -1324,6 +1290,211 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithCustomScalingMetrics
 
 		return true
 	})
+}
+
+func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
+	functionName := "func-with-sidecar"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	sidecarContainerName := "sidecar-test"
+	commands := []string{
+		"sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 1; done; echo 'Done'",
+	}
+
+	// create a busybox sidecar
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*functionconfig.SidecarSpec{
+		{
+			Name:    sidecarContainerName,
+			Image:   "busybox",
+			Command: commands,
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", "nuclio.io/function-name", functionName),
+		})
+		suite.Require().NoError(err)
+		suite.Require().Len(pods.Items, 1)
+
+		pod := pods.Items[0]
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal("busybox", pod.Spec.Containers[1].Image)
+		suite.Require().Equal(commands, pod.Spec.Containers[1].Command)
+
+		// get the logs from the sidecar container to validate it ran
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Done"})
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestDeploySidecarEnrichment() {
+	functionName := "func-with-enriched-sidecar"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// create a temp dir to mount as a volume
+	tempDir, err := os.MkdirTemp("", "nuclio-test-*")
+	suite.Require().NoError(err)
+	defer os.RemoveAll(tempDir) // nolint: errcheck
+
+	// create a file in the temp dir
+	tempFile, err := os.CreateTemp(tempDir, "nuclio-test-*")
+	suite.Require().NoError(err)
+
+	// write some data to the file
+	data := "some data"
+	_, err = tempFile.WriteString(data)
+	suite.Require().NoError(err)
+
+	fileName := "temp-file.txt"
+
+	mountPath := "/tmp/volume1"
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "volume1",
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "volume1",
+				MountPath: mountPath,
+			},
+		},
+	}
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def init_context(context):
+    context.logger.info("Init context - writing to file")
+    with open("/tmp/volume1/temp-file.txt", "w") as f:
+        f.write("some data")
+
+def handler(context, event):
+    return "Success"
+`))
+
+	createFunctionOptions.FunctionConfig.Spec.Resources = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			"cpu":    resource.MustParse("100m"),
+			"memory": resource.MustParse("128Mi"),
+		},
+	}
+	envVarKey := "MY_ENV_VAR"
+	envVarValue := "my-env-var-value"
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{
+			Name:  envVarKey,
+			Value: envVarValue,
+		},
+	}
+
+	sidecarContainerName := "sidecar-test"
+	commands := []string{
+		"sh",
+		"-c",
+		// print the env var, wait for the file to be created, then print the file contents. lastly,
+		// sleep for 20 seconds until the test is over
+		fmt.Sprintf("echo $%[1]v; while [ ! -f \"%[2]v\" ]; do echo \"waiting for file\"; sleep 0.2; done; while true; do echo $(cat %[2]v); sleep 2; done",
+			envVarKey, path.Join(mountPath, fileName)),
+	}
+
+	// create a busybox sidecar
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*functionconfig.SidecarSpec{
+		{
+			Name:    sidecarContainerName,
+			Image:   "busybox",
+			Command: commands,
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// give the function container a chance to write the file
+		time.Sleep(3 * time.Second)
+
+		// get the function pod and validate it has the sidecar
+		pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", "nuclio.io/function-name", functionName),
+		})
+		suite.Require().NoError(err)
+		suite.Require().Len(pods.Items, 1)
+
+		pod := pods.Items[0]
+		suite.Require().Len(pod.Spec.Containers, 2)
+
+		// get the logs from the sidecar container to validate it ran by checking the shared volume
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{data, envVarValue})
+
+		// validate the sidecar container has the same resources as the function
+		suite.Require().Equal(pod.Spec.Containers[0].Resources, pod.Spec.Containers[1].Resources)
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
+
+	// create a platform config configmap with a json logger sink (this is how it is on production)
+	platformConfigConfigmap, err := suite.KubeClientSet.
+		CoreV1().
+		ConfigMaps(suite.Namespace).
+		Create(suite.Ctx,
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nuclio-platform-config",
+					Namespace: suite.Namespace,
+				},
+				Data: map[string]string{
+					"platform.yaml": `logger:
+  functions:
+  - level: debug
+    sink: myStdoutLoggerSink
+  sinks:
+    myStdoutLoggerSink:
+      attributes:
+        encoding: json
+        timeFieldEncoding: iso8601
+        timeFieldName: time
+        varGroupName: more
+      kind: stdout
+  system:
+  - level: debug
+    sink: myStdoutLoggerSink`,
+				},
+			},
+			metav1.CreateOptions{})
+	suite.Require().NoError(err)
+
+	return platformConfigConfigmap
+}
+
+func (suite *DeployFunctionTestSuite) validatePodLogsContainData(podName string, options *v1.PodLogOptions, expectedData []string) {
+	podLogRequest := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).GetLogs(podName, options)
+	podLogs, err := podLogRequest.Stream(suite.Ctx)
+	suite.Require().NoError(err)
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	suite.Require().NoError(err)
+
+	for _, data := range expectedData {
+		suite.Require().Contains(buf.String(), data)
+	}
 }
 
 type DeleteFunctionTestSuite struct {
