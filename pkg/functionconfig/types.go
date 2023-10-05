@@ -282,20 +282,6 @@ type AutoScaleMetric struct {
 	DisplayType   AutoScaleDisplayType     `json:"displayType,omitempty"`
 }
 
-type SidecarSpec struct {
-	Name            string                  `json:"name,omitempty"`
-	Image           string                  `json:"image,omitempty"`
-	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
-	Env             []v1.EnvVar             `json:"env,omitempty"`
-	Volumes         []Volume                `json:"volumes,omitempty"`
-	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
-	Ports           []v1.ContainerPort      `json:"ports,omitempty"`
-	Command         []string                `json:"command,omitempty"`
-	Args            []string                `json:"args,omitempty"`
-	ReadinessProbe  *v1.Probe               `json:"readinessProbe,omitempty"`
-	LivenessProbe   *v1.Probe               `json:"livenessProbe,omitempty"`
-}
-
 type BuildMode string
 
 const (
@@ -417,7 +403,7 @@ type Spec struct {
 	// the platformconfig.PreemptibleNodes values.
 	PreemptionMode RunOnPreemptibleNodeMode `json:"preemptionMode,omitempty"`
 
-	Sidecars []*SidecarSpec `json:"sidecars,omitempty"`
+	Sidecars map[string]*v1.Container `json:"sidecars,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string

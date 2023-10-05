@@ -1879,7 +1879,8 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 
 	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
 		lc.logger,
-		&spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources)
+		&spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources,
+		false)
 
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1.ForbidConcurrent
@@ -2093,7 +2094,8 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	container.Resources = function.Spec.Resources
 	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
 		lc.logger,
-		&container.Resources)
+		&container.Resources,
+		false)
 
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
@@ -2148,7 +2150,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 }
 
 func (lc *lazyClient) populateSidecarContainer(ctx context.Context,
-	sidecarSpec *functionconfig.SidecarSpec,
+	sidecarSpec *v1.Container,
 	container *v1.Container) {
 	container.Name = sidecarSpec.Name
 	container.Env = sidecarSpec.Env
@@ -2165,7 +2167,8 @@ func (lc *lazyClient) populateSidecarContainer(ctx context.Context,
 	container.Resources = sidecarSpec.Resources
 	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
 		lc.logger,
-		&container.Resources)
+		&container.Resources,
+		true)
 
 	// entrypoint
 	container.Command = sidecarSpec.Command

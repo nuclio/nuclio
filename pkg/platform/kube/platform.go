@@ -1258,6 +1258,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Service type validation failed")
 	}
 
+	if err := p.validateSidecarSpec(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Sidecar validation failed")
+	}
+
 	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
@@ -1501,9 +1505,9 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 func (p *Platform) enrichSidecarsSpec(ctx context.Context, functionConfig *functionconfig.Config) {
 
-	for sidecarIndex, sidecar := range functionConfig.Spec.Sidecars {
+	for sidecarName, sidecar := range functionConfig.Spec.Sidecars {
 		if sidecar.Name == "" {
-			sidecar.Name = fmt.Sprintf("sidecar-%d", sidecarIndex)
+			sidecar.Name = sidecarName
 		}
 
 		// enrich env vars
@@ -1511,29 +1515,6 @@ func (p *Platform) enrichSidecarsSpec(ctx context.Context, functionConfig *funct
 			sidecar.Env = make([]v1.EnvVar, 0)
 		}
 		sidecar.Env = append(sidecar.Env, functionConfig.Spec.Env...)
-
-		// enrich resources
-		if sidecar.Resources.Limits == nil {
-			p.Logger.DebugWithCtx(ctx, "Enriching sidecar resources limits",
-				"functionName", functionConfig.Meta.Name,
-				"sidecarName", sidecar.Name,
-				"resourcesLimits", functionConfig.Spec.Resources.Limits)
-			sidecar.Resources.Limits = make(v1.ResourceList)
-			for resourceName, resourceQuantity := range functionConfig.Spec.Resources.Limits {
-				sidecar.Resources.Limits[resourceName] = resourceQuantity
-
-			}
-		}
-		if sidecar.Resources.Requests == nil {
-			sidecar.Resources.Requests = make(v1.ResourceList)
-			for resourceName, resourceQuantity := range functionConfig.Spec.Resources.Requests {
-				p.Logger.DebugWithCtx(ctx, "Enriching sidecar resources requests",
-					"functionName", functionConfig.Meta.Name,
-					"sidecarName", sidecar.Name,
-					"resourcesLimits", functionConfig.Spec.Resources.Requests)
-				sidecar.Resources.Requests[resourceName] = resourceQuantity
-			}
-		}
 
 		// image pull policy
 		if sidecar.ImagePullPolicy == "" {
@@ -1838,6 +1819,16 @@ func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayCo
 		apiGatewayConfig.Meta.Namespace,
 		apiGatewayIngresses); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway host and path availability")
+	}
+
+	return nil
+}
+
+func (p *Platform) validateSidecarSpec(ctx context.Context, functionConfig *functionconfig.Config) error {
+	for _, sidecar := range functionConfig.Spec.Sidecars {
+		if sidecar.Image == "" {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Sidecar image must be provided for sidecar %s", sidecar.Name))
+		}
 	}
 
 	return nil

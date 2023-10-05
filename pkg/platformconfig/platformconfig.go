@@ -310,42 +310,49 @@ func (c *Config) GetDefaultWindowSizePresets() []string {
 // resources defined in the platform config, only if they are not already configured
 func (c *Config) EnrichContainerResources(ctx context.Context,
 	logger logger.Logger,
-	resources *v1.ResourceRequirements) {
+	resources *v1.ResourceRequirements,
+	isSideCar bool) {
 
-	defaultFunctionPodResources := c.Kube.DefaultFunctionPodResources
+	defaultContainerResources := c.Kube.DefaultFunctionPodResources
+	if isSideCar {
+		defaultContainerResources = c.Kube.DefaultSidecarResources
+	}
 
 	logger.DebugWithCtx(ctx,
 		"Populating resources with default values",
-		"defaultFunctionPodResources", defaultFunctionPodResources)
+		"defaultContainerResources", defaultContainerResources)
 
 	if resources.Requests == nil {
 		resources.Requests = make(v1.ResourceList)
 	}
 
 	if cpuRequest, exists := resources.Requests["cpu"]; !exists || cpuRequest.IsZero() {
-		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
+		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultContainerResources.Requests.CPU,
 			"25m",
 			logger)
 	}
 	if memoryRequest, exists := resources.Requests["memory"]; !exists || memoryRequest.IsZero() {
-		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
+		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultContainerResources.Requests.Memory,
 			"1Mi",
 			logger)
 	}
 
-	if resources.Limits == nil {
-		resources.Limits = make(v1.ResourceList)
-	}
-	if cpuLimit, exists := resources.Limits["cpu"]; !exists || cpuLimit.IsZero() {
-		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
-		if err == nil {
-			resources.Limits["cpu"] = cpuQuantity
+	// only set limits if this is not a sidecar
+	if !isSideCar {
+		if resources.Limits == nil {
+			resources.Limits = make(v1.ResourceList)
 		}
-	}
-	if memoryLimit, exists := resources.Limits["memory"]; !exists || memoryLimit.IsZero() {
-		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
-		if err == nil {
-			resources.Limits["memory"] = memoryQuantity
+		if cpuLimit, exists := resources.Limits["cpu"]; !exists || cpuLimit.IsZero() {
+			cpuQuantity, err := apiresource.ParseQuantity(defaultContainerResources.Limits.CPU)
+			if err == nil {
+				resources.Limits["cpu"] = cpuQuantity
+			}
+		}
+		if memoryLimit, exists := resources.Limits["memory"]; !exists || memoryLimit.IsZero() {
+			memoryQuantity, err := apiresource.ParseQuantity(defaultContainerResources.Limits.Memory)
+			if err == nil {
+				resources.Limits["memory"] = memoryQuantity
+			}
 		}
 	}
 

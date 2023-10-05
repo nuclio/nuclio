@@ -1304,8 +1304,8 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
 	}
 
 	// create a busybox sidecar
-	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*functionconfig.SidecarSpec{
-		{
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = map[string]*v1.Container{
+		sidecarContainerName: {
 			Name:    sidecarContainerName,
 			Image:   "busybox",
 			Command: commands,
@@ -1409,8 +1409,8 @@ def handler(context, event):
 	}
 
 	// create a busybox sidecar
-	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*functionconfig.SidecarSpec{
-		{
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = map[string]*v1.Container{
+		sidecarContainerName: {
 			Name:    sidecarContainerName,
 			Image:   "busybox",
 			Command: commands,
@@ -1439,8 +1439,8 @@ def handler(context, event):
 		}
 		suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{data, envVarValue})
 
-		// validate the sidecar container has the same resources as the function
-		suite.Require().Equal(pod.Spec.Containers[0].Resources, pod.Spec.Containers[1].Resources)
+		// validate the sidecar container has the same resource requests as the function
+		suite.Require().Equal(pod.Spec.Containers[0].Resources.Requests, pod.Spec.Containers[1].Resources.Requests)
 
 		return true
 	})
