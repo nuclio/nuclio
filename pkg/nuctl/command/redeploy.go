@@ -131,6 +131,12 @@ func (d *redeployCommandeer) redeploy(ctx context.Context, args []string) error 
 	}
 
 	if len(args) == 0 {
+		if d.fromReport {
+			// this means that no explicit function names were given, and we don't have any retryable functions
+			// from the report file, so we can exit
+			d.rootCommandeer.loggerInstance.Info("No functions to redeploy")
+			return nil
+		}
 
 		// redeploy all functions in the namespace
 		if err := d.redeployAllFunctions(ctx); err != nil {
