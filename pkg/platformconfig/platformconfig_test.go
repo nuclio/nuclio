@@ -595,7 +595,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResources() {
 
 	resources := corev1.ResourceRequirements{}
 
-	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources, false)
+	platformConfig.EnrichFunctionContainerResources(suite.ctx, suite.logger, &resources)
 
 	suite.Require().Equal(expectedResources["requestsCPU"], resources.Requests["cpu"])
 	suite.Require().Equal(expectedResources["requestsMemory"], resources.Requests["memory"])
@@ -613,7 +613,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesWithoutDefault
 
 	resources := corev1.ResourceRequirements{}
 
-	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources, false)
+	platformConfig.EnrichFunctionContainerResources(suite.ctx, suite.logger, &resources)
 
 	suite.Require().Equal(expectedRequestsCPU, resources.Requests["cpu"])
 	suite.Require().Equal(expectedRequestsMemory, resources.Requests["memory"])
@@ -657,7 +657,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialEnrichm
 		},
 	}
 
-	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources, false)
+	platformConfig.EnrichFunctionContainerResources(suite.ctx, suite.logger, &resources)
 
 	suite.Require().Equal(expectedResources["requestsCPU"], resources.Requests["cpu"])
 	suite.Require().Equal(expectedResources["requestsMemory"], resources.Requests["memory"])
@@ -687,7 +687,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialDefault
 
 	resources := corev1.ResourceRequirements{}
 
-	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources, false)
+	platformConfig.EnrichFunctionContainerResources(suite.ctx, suite.logger, &resources)
 
 	suite.Require().Equal(expectedRequestsCPU, resources.Requests["cpu"])
 	suite.Require().Equal(expectedRequestsMemory, resources.Requests["memory"])

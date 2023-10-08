@@ -289,7 +289,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	ap.enrichEnvVars(functionConfig)
 
-	ap.Config.EnrichContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources, false)
+	ap.Config.EnrichFunctionContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
 
 	return nil
 }

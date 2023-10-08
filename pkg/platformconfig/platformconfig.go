@@ -306,17 +306,37 @@ func (c *Config) GetDefaultWindowSizePresets() []string {
 	}
 }
 
-// EnrichContainerResources enriches an object's requests and limits with the default
+// EnrichFunctionContainerResources enriches the function container's requests and limits with the default
 // resources defined in the platform config, only if they are not already configured
-func (c *Config) EnrichContainerResources(ctx context.Context,
+func (c *Config) EnrichFunctionContainerResources(ctx context.Context,
+	logger logger.Logger,
+	resources *v1.ResourceRequirements) {
+	c.enrichContainerResources(ctx,
+		logger,
+		resources,
+		c.Kube.DefaultFunctionPodResources,
+		true)
+}
+
+// EnrichSidecarContainerResources enriches the sidecar's container requests and limits with the default
+// resources defined in the platform config, only if they are not already configured
+func (c *Config) EnrichSidecarContainerResources(ctx context.Context,
+	logger logger.Logger,
+	resources *v1.ResourceRequirements) {
+	c.enrichContainerResources(ctx,
+		logger,
+		resources,
+		c.Kube.DefaultSidecarResources,
+		false)
+}
+
+// enrichContainerResources enriches an object's requests and limits with the default
+// resources defined in the platform config, only if they are not already configured
+func (c *Config) enrichContainerResources(ctx context.Context,
 	logger logger.Logger,
 	resources *v1.ResourceRequirements,
-	isSideCar bool) {
-
-	defaultContainerResources := c.Kube.DefaultFunctionPodResources
-	if isSideCar {
-		defaultContainerResources = c.Kube.DefaultSidecarResources
-	}
+	defaultContainerResources PodResourceRequirements,
+	enrichLimits bool) {
 
 	logger.DebugWithCtx(ctx,
 		"Populating resources with default values",
@@ -338,7 +358,7 @@ func (c *Config) EnrichContainerResources(ctx context.Context,
 	}
 
 	// only set limits if this is not a sidecar
-	if !isSideCar {
+	if !enrichLimits {
 		if resources.Limits == nil {
 			resources.Limits = make(v1.ResourceList)
 		}

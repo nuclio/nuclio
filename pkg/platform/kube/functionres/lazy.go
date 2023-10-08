@@ -1881,10 +1881,9 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		},
 	}
 
-	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichFunctionContainerResources(ctx,
 		lc.logger,
-		&spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources,
-		false)
+		&spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources)
 
 	// set concurrency policy if given (default to forbid - to protect the user from overdose of cron jobs)
 	concurrencyPolicy := batchv1.ForbidConcurrent
@@ -2096,10 +2095,9 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
-	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichFunctionContainerResources(ctx,
 		lc.logger,
-		&container.Resources,
-		false)
+		&container.Resources)
 
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
@@ -2160,19 +2158,16 @@ func (lc *lazyClient) populateSidecarContainer(ctx context.Context,
 	container.Env = sidecarSpec.Env
 
 	container.Image = sidecarSpec.Image
-	if sidecarSpec.ImagePullPolicy == "" {
-		container.ImagePullPolicy = v1.PullAlways
-	} else {
+	if sidecarSpec.ImagePullPolicy != "" {
 		container.ImagePullPolicy = sidecarSpec.ImagePullPolicy
 	}
 	container.Ports = sidecarSpec.Ports
 
 	// resources
 	container.Resources = sidecarSpec.Resources
-	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSidecarContainerResources(ctx,
 		lc.logger,
-		&container.Resources,
-		true)
+		&container.Resources)
 
 	// entrypoint
 	container.Command = sidecarSpec.Command

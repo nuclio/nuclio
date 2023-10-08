@@ -1316,13 +1316,9 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
 		suite.Require().NotNil(deployResult)
 
 		// get the function pod and validate it has the sidecar
-		pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", "nuclio.io/function-name", functionName),
-		})
-		suite.Require().NoError(err)
-		suite.Require().Len(pods.Items, 1)
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
 
-		pod := pods.Items[0]
 		suite.Require().Len(pod.Spec.Containers, 2)
 		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
 		suite.Require().Equal("busybox", pod.Spec.Containers[1].Image)
