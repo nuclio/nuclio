@@ -589,7 +589,7 @@ func (c *Config) PrepareFunctionForExport(exportOptions *common.ExportFunctionOp
 		c.scrubFunctionData()
 	}
 
-	if !exportOptions.SkipSpecCleanup {
+	if exportOptions.CleanupSpec {
 		c.CleanFunctionSpec()
 	}
 
