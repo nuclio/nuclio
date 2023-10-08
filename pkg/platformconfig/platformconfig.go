@@ -358,7 +358,7 @@ func (c *Config) enrichContainerResources(ctx context.Context,
 	}
 
 	// only set limits if this is not a sidecar
-	if !enrichLimits {
+	if enrichLimits {
 		if resources.Limits == nil {
 			resources.Limits = make(v1.ResourceList)
 		}
