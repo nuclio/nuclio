@@ -146,8 +146,10 @@ func (c *Configuration) PopulateExplicitAckMode(explicitAckModeValue string,
 		c.ExplicitAckMode = functionconfig.ExplicitAckModeExplicitOnly
 	default:
 
-		// default explicit ack mode to 'disable'
-		if triggerConfigurationExplicitAckMode == "" {
+		// default explicit ack mode to 'disable' if not set
+		if triggerConfigurationExplicitAckMode != "" {
+			c.ExplicitAckMode = triggerConfigurationExplicitAckMode
+		} else {
 			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
 	}
