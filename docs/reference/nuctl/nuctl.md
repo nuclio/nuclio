@@ -91,6 +91,7 @@ Command flags:
 * `verify-external-registry` - functions will be redeployed only if registry is external
 * `save-report` - allows to save redeployment report to a file. Path can be specified via `report-file-path` argument
 * `report-file-path` - report file path. Default is `./nuctl-redeployment-report.json`
+* `from-report` - redeploy failed retryable functions from report
 * `imported-only` - redeploy only imported functions
 * `desired-state` - redeploy to specific status. Choose any of those statuses: `[scaledToZero, ready]`.
 * `exclude-projects` - exclude projects
