@@ -72,3 +72,52 @@ See [exposing a function](/docs/tasks/deploying-functions.md#exposing-a-function
 
 For your convenience, when deploying a function using `nuctl`, exposing it via a `NodePort` can be easily done by using the
 CLI arg `--http-trigger-service-type=nodePort`.
+
+
+### Redeploying functions
+
+Currently `redeploy` command is the only command which uses dashboard API. Namely, it uses `Patch` request.  
+Main difference of `redeploy` command from `deploy` command is that during redeployment we do not build image, which 
+means that image should be presented in registry. 
+
+Use-cases:
+* to [redeploy imported functions](#redeploying-imported-functions) (for instance, after upgrade)
+* simply redeploy already existing function
+
+Functions can be successfully redeployed to either `ready` (default) or `scaledToZero` states. 
+To be able to redeploy function as `scaledToZero`, minimum replicas of function should be equal to zero.
+
+Command flags:
+* `verify-external-registry` - functions will be redeployed only if registry is external
+* `save-report` - allows to save redeployment report to a file. Path can be specified via `report-file-path` argument
+* `report-file-path` - report file path. Default is `./nuctl-redeployment-report.json`
+* `imported-only` - redeploy only imported functions
+* `desired-state` - redeploy to specific status. Choose any of those statuses: `[scaledToZero, ready]`.
+* `exclude-projects` - exclude projects
+* `exclude-functions` - exclude functions
+* `exclude-functions-with-gpu` - exclude only functions with GPU
+* `wait` - waits for redeployment to be completed
+* `wait-timeout` - waits timeout duration for the function redeployment
+
+#### Redeployment report interpretation
+Redeployment report contains 3 lists with function names - `Success, Skipped, Failed`.
+`Success` list contains names of functions which were successfully redeployed.
+`Skipped` list contains functions redeployment process for which was skipped.
+`Failed` list contains function which weren't successfully redeployed and for each failed function report contains fail descriptions and boolean variable which shows if command rerun can help.
+
+If `retryable == false` in your report there are possible reasons:
+
+* No image field found in function config spec (check `spec.image`)
+* Desired state is `scaledToZero` but `minReplicas > 0`
+* `imported-flag` was used in redeploy command and function not in `imported` state
+
+#### Redeploying imported functions
+
+To redeploy only imported functions use `--imported-only` flag.
+
+Imported function can be redeployed to the state they had before being imported. To be able to do so, function should
+be exported with previous state which means that function will have a `nuclio.io/previous-state` annotation. 
+
+
+
+* User can specify `--desired-state` parameter and manually choose any of those statuses: `[scaledToZero, ready]`.
