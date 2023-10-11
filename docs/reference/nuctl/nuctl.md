@@ -104,7 +104,8 @@ Command flags:
 Redeployment report contains 3 lists with function names - `Success, Skipped, Failed`.
 `Success` list contains names of functions which were successfully redeployed.
 `Skipped` list contains functions redeployment process for which was skipped.
-`Failed` list contains function which weren't successfully redeployed and for each failed function report contains fail descriptions and boolean variable which shows if command rerun can help.
+`Failed` list contains function which weren't successfully redeployed and for each failed function report contains fail 
+descriptions and boolean variable which shows if command rerun can help.
 
 If `retryable == false` in your report there are possible reasons:
 
