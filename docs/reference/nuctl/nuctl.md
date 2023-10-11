@@ -116,8 +116,4 @@ If `retryable == false` in your report there are possible reasons:
 To redeploy only imported functions use `--imported-only` flag.
 
 Imported function can be redeployed to the state they had before being imported. To be able to do so, function should
-be exported with previous state which means that function will have a `nuclio.io/previous-state` annotation. 
-
-
-
-* User can specify `--desired-state` parameter and manually choose any of those statuses: `[scaledToZero, ready]`.
+be exported with previous state which means that function will have a `nuclio.io/previous-state` annotation.
