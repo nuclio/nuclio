@@ -749,7 +749,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 func (suite *testSuite) TestImageNameConfigurationEnrichment() {
 	suite.builder.options.FunctionConfig.Meta.Name = "name"
 	suite.builder.options.FunctionConfig.Spec.Handler = "handler"
-	suite.builder.options.FunctionConfig.Spec.Runtime = "python3.6"
+	suite.builder.options.FunctionConfig.Spec.Runtime = "python3.9"
 
 	type testAttributes struct {
 		inputImageName             string
