@@ -69,36 +69,28 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 		baseImage = fmt.Sprintf("python:%s", runtimeVersion)
 		p.Logger.Warn(fmt.Sprintf("Python %s runtime is deprecated and will soon not be supported. ", runtimeVersion) +
 			"Migrate your code and use Python 3.9 runtime (`python:3.9`) or higher")
-		installSDKDependenciesCommand = fmt.Sprintf("pip install %s %s",
-			strings.Join(pythonCommonModules, " "),
-			strings.Join(pipInstallArgs, " "),
-		)
-
 	default:
 		baseImage = fmt.Sprintf("python:%s", runtimeVersion)
-
-		// use specific wheel files path
-		srcOnbuildWheelsPath = fmt.Sprintf("/home/nuclio/bin/py%s-whl", runtimeVersion)
-
-		// dont require special privileges
-		// TODO: enable when provide USER directive pre copying artifacts
-		// since the build user is root, while running container user might be different
-		// and hence the packages wont be available to the running user.
-		// to overcome it, suggest to add `PYTHONUSERBASE=/some/path` with the running container user access
-		// pipInstallArgs = append(pipInstallArgs, "--user")
-
-		// ensure pip is installed on python interpreter
-		installPipCommand := fmt.Sprintf("python %[1]s/$(basename %[1]s/pip-*.whl)/pip install pip %[2]s",
-			destOnbuildWheelsPath,
-			strings.Join(pipInstallArgs, " "))
-
-		// run pip from the python interpreter
-		installSDKDependenciesCommand = fmt.Sprintf("%s && python -m pip install %s %s",
-			installPipCommand,
-			strings.Join(pythonCommonModules, " "),
-			strings.Join(pipInstallArgs, " "))
-
 	}
+	srcOnbuildWheelsPath = fmt.Sprintf("/home/nuclio/bin/py%s-whl", runtimeVersion)
+
+	// dont require special privileges
+	// TODO: enable when provide USER directive pre copying artifacts
+	// since the build user is root, while running container user might be different
+	// and hence the packages wont be available to the running user.
+	// to overcome it, suggest to add `PYTHONUSERBASE=/some/path` with the running container user access
+	// pipInstallArgs = append(pipInstallArgs, "--user")
+
+	// ensure pip is installed on python interpreter
+	installPipCommand := fmt.Sprintf("python %[1]s/$(basename %[1]s/pip-*.whl)/pip install pip %[2]s",
+		destOnbuildWheelsPath,
+		strings.Join(pipInstallArgs, " "))
+
+	// run pip from the python interpreter
+	installSDKDependenciesCommand = fmt.Sprintf("%s && python -m pip install %s %s",
+		installPipCommand,
+		strings.Join(pythonCommonModules, " "),
+		strings.Join(pipInstallArgs, " "))
 
 	// fill onbuild artifact
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
