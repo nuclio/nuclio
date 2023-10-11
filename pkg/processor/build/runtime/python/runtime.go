@@ -47,7 +47,6 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	var installSDKDependenciesCommand string
 	var baseImage string
 
-	srcOnbuildWheelsPath := "/home/nuclio/bin/py-whl"
 	destOnbuildWheelsPath := "/opt/nuclio/whl"
 	pythonCommonModules := []string{
 		"nuclio-sdk",
@@ -72,7 +71,7 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	default:
 		baseImage = fmt.Sprintf("python:%s", runtimeVersion)
 	}
-	srcOnbuildWheelsPath = fmt.Sprintf("/home/nuclio/bin/py%s-whl", runtimeVersion)
+	srcOnbuildWheelsPath := fmt.Sprintf("/home/nuclio/bin/py%s-whl", runtimeVersion)
 
 	// dont require special privileges
 	// TODO: enable when provide USER directive pre copying artifacts
