@@ -473,6 +473,7 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	}
 
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
+	p.enrichSidecarsSpec(ctx, functionConfig)
 	return nil
 }
 
@@ -1257,6 +1258,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Service type validation failed")
 	}
 
+	if err := p.validateSidecarSpec(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Sidecar validation failed")
+	}
+
 	return p.validateFunctionIngresses(ctx, functionConfig)
 }
 
@@ -1495,6 +1500,26 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 		// nothing to do here
 		break
+	}
+}
+
+func (p *Platform) enrichSidecarsSpec(ctx context.Context, functionConfig *functionconfig.Config) {
+
+	for sidecarName, sidecar := range functionConfig.Spec.Sidecars {
+		if sidecar.Name == "" {
+			sidecar.Name = sidecarName
+		}
+
+		// enrich env vars
+		if sidecar.Env == nil {
+			sidecar.Env = make([]v1.EnvVar, 0)
+		}
+		sidecar.Env = append(sidecar.Env, functionConfig.Spec.Env...)
+
+		// image pull policy
+		if sidecar.ImagePullPolicy == "" {
+			sidecar.ImagePullPolicy = functionConfig.Spec.ImagePullPolicy
+		}
 	}
 }
 
@@ -1794,6 +1819,16 @@ func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayCo
 		apiGatewayConfig.Meta.Namespace,
 		apiGatewayIngresses); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway host and path availability")
+	}
+
+	return nil
+}
+
+func (p *Platform) validateSidecarSpec(ctx context.Context, functionConfig *functionconfig.Config) error {
+	for _, sidecar := range functionConfig.Spec.Sidecars {
+		if sidecar.Image == "" {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Sidecar image must be provided for sidecar %s", sidecar.Name))
+		}
 	}
 
 	return nil

@@ -178,6 +178,7 @@ type PlatformKubeConfig struct {
 	DefaultFunctionServiceAccount    string                  `json:"defaultFunctionServiceAccount,omitempty"`
 	ValidFunctionPriorityClassNames  []string                `json:"validFunctionPriorityClassNames,omitempty"`
 	DefaultFunctionPodResources      PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
+	DefaultSidecarResources          PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
 	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
 	PreemptibleNodes                 *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
 }

@@ -306,46 +306,73 @@ func (c *Config) GetDefaultWindowSizePresets() []string {
 	}
 }
 
-// EnrichContainerResources enriches an object's requests and limits with the default
+// EnrichFunctionContainerResources enriches the function container's requests and limits with the default
 // resources defined in the platform config, only if they are not already configured
-func (c *Config) EnrichContainerResources(ctx context.Context,
+func (c *Config) EnrichFunctionContainerResources(ctx context.Context,
 	logger logger.Logger,
 	resources *v1.ResourceRequirements) {
+	c.enrichContainerResources(ctx,
+		logger,
+		resources,
+		c.Kube.DefaultFunctionPodResources,
+		true)
+}
 
-	defaultFunctionPodResources := c.Kube.DefaultFunctionPodResources
+// EnrichSidecarContainerResources enriches the sidecar's container requests and limits with the default
+// resources defined in the platform config, only if they are not already configured
+func (c *Config) EnrichSidecarContainerResources(ctx context.Context,
+	logger logger.Logger,
+	resources *v1.ResourceRequirements) {
+	c.enrichContainerResources(ctx,
+		logger,
+		resources,
+		c.Kube.DefaultSidecarResources,
+		false)
+}
+
+// enrichContainerResources enriches an object's requests and limits with the default
+// resources defined in the platform config, only if they are not already configured
+func (c *Config) enrichContainerResources(ctx context.Context,
+	logger logger.Logger,
+	resources *v1.ResourceRequirements,
+	defaultContainerResources PodResourceRequirements,
+	enrichLimits bool) {
 
 	logger.DebugWithCtx(ctx,
 		"Populating resources with default values",
-		"defaultFunctionPodResources", defaultFunctionPodResources)
+		"defaultContainerResources", defaultContainerResources)
 
 	if resources.Requests == nil {
 		resources.Requests = make(v1.ResourceList)
 	}
 
 	if cpuRequest, exists := resources.Requests["cpu"]; !exists || cpuRequest.IsZero() {
-		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.CPU,
+		resources.Requests["cpu"] = common.ParseQuantityOrDefault(defaultContainerResources.Requests.CPU,
 			"25m",
 			logger)
 	}
 	if memoryRequest, exists := resources.Requests["memory"]; !exists || memoryRequest.IsZero() {
-		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultFunctionPodResources.Requests.Memory,
+		resources.Requests["memory"] = common.ParseQuantityOrDefault(defaultContainerResources.Requests.Memory,
 			"1Mi",
 			logger)
 	}
 
-	if resources.Limits == nil {
-		resources.Limits = make(v1.ResourceList)
-	}
-	if cpuLimit, exists := resources.Limits["cpu"]; !exists || cpuLimit.IsZero() {
-		cpuQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.CPU)
-		if err == nil {
-			resources.Limits["cpu"] = cpuQuantity
+	// only set limits if this is not a sidecar
+	if enrichLimits {
+		if resources.Limits == nil {
+			resources.Limits = make(v1.ResourceList)
 		}
-	}
-	if memoryLimit, exists := resources.Limits["memory"]; !exists || memoryLimit.IsZero() {
-		memoryQuantity, err := apiresource.ParseQuantity(defaultFunctionPodResources.Limits.Memory)
-		if err == nil {
-			resources.Limits["memory"] = memoryQuantity
+		if cpuLimit, exists := resources.Limits["cpu"]; !exists || cpuLimit.IsZero() {
+			cpuQuantity, err := apiresource.ParseQuantity(defaultContainerResources.Limits.CPU)
+			if err == nil {
+				resources.Limits["cpu"] = cpuQuantity
+			}
+		}
+		if memoryLimit, exists := resources.Limits["memory"]; !exists || memoryLimit.IsZero() {
+			memoryQuantity, err := apiresource.ParseQuantity(defaultContainerResources.Limits.Memory)
+			if err == nil {
+				resources.Limits["memory"] = memoryQuantity
+			}
 		}
 	}
 
