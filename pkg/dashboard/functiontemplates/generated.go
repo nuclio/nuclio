@@ -230,7 +230,7 @@ import (
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.Info("This is an unstrucured %s", "log")
+	context.Logger.Info("This is an unstructured %s", "log")
 
 	return nuclio.Response{
 		StatusCode:  200,
@@ -986,7 +986,7 @@ def handler(context, event):
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
-    baseImage: python:3.7-buster
+    baseImage: python:3.9-buster
     commands:
     - apt-get update && apt-get install -y wget
     - wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz

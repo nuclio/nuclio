@@ -124,11 +124,6 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 			filename: "empty.cs",
 		},
 		{
-			runtime:  "python:3.6",
-			handler:  "empty:handler",
-			filename: "empty.py",
-		},
-		{
 			runtime:  "python:3.7",
 			handler:  "empty:handler",
 			filename: "empty.py",
@@ -1040,7 +1035,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-			"runtime": "python:3.8",
+			"runtime": "python:3.9",
 			"handler": "reverser:handler",
 		})
 	suite.Require().NoError(err)

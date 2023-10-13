@@ -22,7 +22,7 @@ on:
         default: ''
         required: false
       runtimes:
-        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.6, default: all)'
+        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.9, default: all)'
         default: 'all'
         required: true
 
@@ -52,7 +52,7 @@ jobs:
         run: |
 
           # map runtimes to desired onbuild-targets
-          # golang,python:3.7 -> golang python
+          # golang,python:3.9 -> golang python
           if [ "$INPUT_RUNTIMES" == "all" ]; then\
             RUNTIMES=(golang java python dotnetcore nodejs);\
           else\

@@ -264,7 +264,6 @@ func TestIntegrationSuite(t *testing.T) {
 	for _, testCase := range []struct {
 		runtimeName string
 	}{
-		{runtimeName: "python:3.6"},
 		{runtimeName: "python:3.7"},
 		{runtimeName: "python:3.8"},
 		{runtimeName: "python:3.9"},

@@ -88,22 +88,15 @@ COPY . /opt/nuclio
 CMD [ "processor" ]
 ```
 
-<a id="python-runtime-27-eol"></a>
-## Python runtime 2.7 EOL
+## Supported versions:
+* [Python 3.7](#python-runtimes-37-38) - will be fully deprecated soon
+* [Python 3.8](#python-runtimes-37-38) - will be fully deprecated soon
+* Python 3.9 - recommended to use
 
-As of Jan 2020, [Python 2.7 is no longer being maintained](https://www.python.org/doc/sunset-python-2/), and it has now
-also reached its End Of Life in Nuclio as well, and thus removed as a supported runtime from the mainline Nuclio
-releases. Starting from [Nuclio 1.6.0](https://github.com/nuclio/nuclio/releases/tag/1.6.0) you would not be able to
-deploy any Nuclio function using Python 2.7 runtime.
+These versions are no longer supported: [python 2.7](#python-runtime-27-eol) and [python3.6](#python-runtime-36-eol).
 
-To keep using latest Nuclio, and reach better performance and message throughput, we strongly suggest migrating your
-code to the newer [Python 3.7, 3.8 and 3.9 runtimes](#introducing-python-runtimes-37-38-and-39), if you haven't already.
-
-<a id="introducing-python-runtimes-37-38-and-39"></a>
-## Introducing Python runtimes 3.7, 3.8 and 3.9
-
-Nuclio officially supports python 3.7, 3.8 and python 3.9 (along with good-old python 3.6) as stand-alone runtimes. Along
-with simply bumping the python versions, some changes to the internal function processor were made, to take advantage of
+Nuclio officially supports python 3.9 (along with good-old python 3.7 and 3.8) as stand-alone runtimes.
+Along with simply bumping the python versions, some changes to the internal function processor were made, to take advantage of
 new language features and newer packages.
 
 Key differences and changes:
@@ -111,8 +104,8 @@ Key differences and changes:
 - Python 3.8+ is 5%-8% faster than Python 3.6 for small sized event messages.
 - Python 3.7, 3.8 and 3.9 base images are `python:3.7`, `python:3.8` and `python:3.9`, respectively.
 
-In Python 3.7+ runtimes, events metadata, such as headers, path, method, etc can be decoded as byte-strings. 
-This may incur changes in your code to refer to the various (now) byte-string event properties correctly in the new runtimes. 
+In Python 3.7+ runtimes, events metadata, such as headers, path, method, etc can be decoded as byte-strings.
+This may incur changes in your code to refer to the various (now) byte-string event properties correctly in the new runtimes.
 e.g.: Simple code snipped which worked on python 2.7 and 3.6, using some event metadata, such as `event.path`
 
 To disable the utf8 decoding, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS` to `disabled`.
@@ -136,8 +129,36 @@ The new snippet would be looking like this:
       return "I'm doing something..."
   ```
 
-  > Note: To *disable* decoding to all incoming events to byte-strings, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`.
-  > Not disabling event strings decoding means that the Nuclio python wrapper might fail to handle events with non-utf8 metadata contents.
+> Note: To *disable* decoding to all incoming events to byte-strings, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`.
+> Not disabling event strings decoding means that the Nuclio python wrapper might fail to handle events with non-utf8 metadata contents.
+
+
+<a id="python-runtime-27-eol"></a>
+### Python runtime 2.7 EOL
+
+As of Jan 2020, [Python 2.7 is no longer being maintained](https://www.python.org/doc/sunset-python-2/), and it has now
+also reached its End Of Life in Nuclio as well, and thus removed as a supported runtime from the mainline Nuclio
+releases. Starting from [Nuclio 1.6.0](https://github.com/nuclio/nuclio/releases/tag/1.6.0) you would not be able to
+deploy any Nuclio function using Python 2.7 runtime.
+
+To keep using latest Nuclio, and reach better performance and message throughput, we strongly suggest migrating your
+code to the newer [Python 3.7, 3.8 and 3.9 runtimes](#introducing-python-runtimes-37-38-and-39), if you haven't already.
+
+<a id="python-runtime-36-eol"></a>
+### Python runtime 3.6 EOL
+
+As of Dec 2021, Python 3.6 is no longer being maintained, and it has now also reached its End Of Life in Nuclio as well, 
+and thus removed as a supported runtime from the mainline Nuclio releases.
+
+To keep using latest Nuclio, and reach better performance and message throughput, we strongly suggest migrating your
+code to the newer python 3.9.
+
+<a id="python-runtimes-37-38"></a>
+### Python runtimes 3.7, 3.8 almost deprecated
+
+We continue to offer support for Python 3.7 and 3.8, despite Python 3.7 no longer [receiving maintenance](https://devguide.python.org/versions/)
+and Python 3.8 is approaching the end of its maintenance period.
+However, it is advisable to transition to Python 3.9, as mentioned earlier.
 
 <a id="function-configuration"></a>
 ## Function configuration
