@@ -76,12 +76,14 @@ CLI arg `--http-trigger-service-type=nodePort`.
 
 ### Redeploying functions
 
-Currently `redeploy` command is the only command which uses dashboard API. Namely, it uses `Patch` request.  
-Main difference of `redeploy` command from `deploy` command is that during redeployment we do not build image, which 
-means that image should be presented in registry. 
+Redeploy is the way to deploy functions without building them. This is useful when function images are prebuilt, and you change your 
+platform (e.g. Kubernetes) environment. Backup and restore purposes, and so on.
+In case a full deployment is needed, along with rebuilding the function images, use `nuctl deploy` command.
+
+Currently `redeploy` command is the only command which uses dashboard API. Namely, it uses `Patch` request.
 
 Use-cases:
-* to [redeploy imported functions](#redeploying-imported-functions) (for instance, after upgrade)
+* to [redeploy imported functions](#redeploying-imported-functions) (for instance, after platform migration, backup and restore, etc.)
 * simply redeploy already existing function
 
 Functions can be successfully redeployed to either `ready` (default) or `scaledToZero` states. 
