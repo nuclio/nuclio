@@ -1690,6 +1690,10 @@ func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig 
 			triggerInstance.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
 		}
 
+		if triggerInstance.WaitExplicitAckDuringRebalanceTimeout == "" {
+			triggerInstance.WaitExplicitAckDuringRebalanceTimeout = functionconfig.DefaultWaitExplicitAckDuringRebalanceTimeout
+		}
+
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
 

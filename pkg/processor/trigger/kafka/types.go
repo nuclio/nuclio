@@ -89,18 +89,19 @@ type Configuration struct {
 	Version                       string
 
 	// resolved fields
-	brokers                       []string
-	initialOffset                 int64
-	balanceStrategy               sarama.BalanceStrategy
-	sessionTimeout                time.Duration
-	heartbeatInterval             time.Duration
-	maxProcessingTime             time.Duration
-	rebalanceTimeout              time.Duration
-	rebalanceRetryBackoff         time.Duration
-	retryBackoff                  time.Duration
-	maxWaitTime                   time.Duration
-	maxWaitHandlerDuringRebalance time.Duration
-	ackWindowSize                 int
+	brokers                               []string
+	initialOffset                         int64
+	balanceStrategy                       sarama.BalanceStrategy
+	sessionTimeout                        time.Duration
+	heartbeatInterval                     time.Duration
+	maxProcessingTime                     time.Duration
+	rebalanceTimeout                      time.Duration
+	rebalanceRetryBackoff                 time.Duration
+	retryBackoff                          time.Duration
+	maxWaitTime                           time.Duration
+	maxWaitHandlerDuringRebalance         time.Duration
+	waitExplicitAckDuringRebalanceTimeout time.Duration
+	ackWindowSize                         int
 }
 
 func NewConfiguration(id string,
@@ -118,6 +119,7 @@ func NewConfiguration(id string,
 
 	workerAllocationModeValue := ""
 	explicitAckModeValue := ""
+	waitExplicitAckDuringRebalanceTimeout := ""
 
 	err = newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "nuclio.io/kafka-session-timeout", ValueString: &newConfiguration.SessionTimeout},
@@ -170,6 +172,9 @@ func NewConfiguration(id string,
 
 		// allow changing explicit ack mode via annotation
 		{Key: "nuclio.io/kafka-explicit-ack-mode", ValueString: &explicitAckModeValue},
+
+		// allow changing explicit ack mode via annotation
+		{Key: "nuclio.io/wait-explicit-ack-during-rebalance-timeout", ValueString: &waitExplicitAckDuringRebalanceTimeout},
 	})
 
 	if err != nil {
@@ -184,6 +189,8 @@ func NewConfiguration(id string,
 		triggerConfiguration.ExplicitAckMode); err != nil {
 		return nil, errors.Wrap(err, "Failed to populate explicit ack mode")
 	}
+
+	triggerConfiguration.WaitExplicitAckDuringRebalanceTimeout = waitExplicitAckDuringRebalanceTimeout
 
 	if ackWindowSizeInterface, ok := newConfiguration.Attributes["ackWindowSize"]; ok {
 		var ackWindowSize int
@@ -296,6 +303,12 @@ func NewConfiguration(id string,
 			Value:   newConfiguration.MaxWaitHandlerDuringRebalance,
 			Field:   &newConfiguration.maxWaitHandlerDuringRebalance,
 			Default: 5 * time.Second,
+		},
+		{
+			Name:    "",
+			Value:   newConfiguration.WaitExplicitAckDuringRebalanceTimeout,
+			Field:   &newConfiguration.waitExplicitAckDuringRebalanceTimeout,
+			Default: 0 * time.Second,
 		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {

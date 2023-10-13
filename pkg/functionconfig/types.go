@@ -80,6 +80,7 @@ type Trigger struct {
 	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
 	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
+	WaitExplicitAckDuringRebalanceTimeout string            `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
 	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
 
 	// Dealer Information
@@ -105,6 +106,10 @@ const (
 
 	// DefaultWorkerTerminationTimeout wait time for workers to drop or ack events before rebalance initiates
 	DefaultWorkerTerminationTimeout string = "10s"
+
+	// DefaultWaitExplicitAckDuringRebalanceTimeout wait time for ExplicitAck before unsubscribing
+	// from control messages in explicitAck mode
+	DefaultWaitExplicitAckDuringRebalanceTimeout = "0s"
 )
 
 func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {
