@@ -106,7 +106,6 @@ func newTrigger(parentLogger logger.Logger,
 		"channelBufferSize", configuration.ChannelBufferSize,
 		"maxWaitHandlerDuringRebalance", configuration.maxWaitHandlerDuringRebalance,
 		"waitExplicitAckDuringRebalanceTimeout", configuration.waitExplicitAckDuringRebalanceTimeout,
-		"WaitExplicitAckDuringRebalanceTimeout", configuration.WaitExplicitAckDuringRebalanceTimeout,
 		"logLevel", configuration.LogLevel)
 
 	kafkaTrigger.kafkaConfig, err = kafkaTrigger.newKafkaConfig()
