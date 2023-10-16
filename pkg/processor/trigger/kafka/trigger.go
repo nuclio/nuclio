@@ -106,6 +106,7 @@ func newTrigger(parentLogger logger.Logger,
 		"channelBufferSize", configuration.ChannelBufferSize,
 		"maxWaitHandlerDuringRebalance", configuration.maxWaitHandlerDuringRebalance,
 		"waitExplicitAckDuringRebalanceTimeout", configuration.waitExplicitAckDuringRebalanceTimeout,
+		"WaitExplicitAckDuringRebalanceTimeout", configuration.WaitExplicitAckDuringRebalanceTimeout,
 		"logLevel", configuration.LogLevel)
 
 	kafkaTrigger.kafkaConfig, err = kafkaTrigger.newKafkaConfig()
@@ -251,12 +252,15 @@ loop:
 						"",
 					)
 				}
+				if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
+					return errors.Wrap(err, "Failed to release worker")
+				}
 			case <-session.Context().Done():
 				k.drainOnRebalance(session, claim, workerInstance, &submittedEventInstance, message, true)
-			}
-
-			if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
-				return errors.Wrap(err, "Failed to release worker")
+				if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
+					return errors.Wrap(err, "Failed to release worker")
+				}
+				break loop
 			}
 
 		case <-session.Context().Done():
@@ -285,11 +289,13 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	workerInstance *worker.Worker,
 	submittedEventInstance *submittedEvent,
 	message *sarama.ConsumerMessage,
-	handlingMessage bool) {
+	finishHandlingMsg bool) {
 
 	k.Logger.DebugWith("Got signal to stop consumption",
 		"wait", k.configuration.maxWaitHandlerDuringRebalance.String(),
-		"partition", claim.Partition())
+		"partition", claim.Partition(),
+		"finishHandlingMsg", finishHandlingMsg,
+	)
 
 	readyForRebalanceChan := make(chan bool)
 	defer close(readyForRebalanceChan)
@@ -308,7 +314,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 				CustomHandler: nil,
 			})
 		var wg sync.WaitGroup
-		if handlingMessage {
+		if finishHandlingMsg {
 			wg.Add(2)
 			go func() {
 				err := <-submittedEventInstance.done
@@ -366,7 +372,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 		// mark this as a failure, metric-wise
 		k.UpdateStatistics(false)
 
-		if handlingMessage {
+		if finishHandlingMsg {
 			// restart the worker, and having failed that shut down
 			if err := k.cancelEventHandling(workerInstance, claim); err != nil {
 				k.Logger.DebugWith("Failed to cancel event handling",
