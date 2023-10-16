@@ -811,7 +811,7 @@ test-nodejs:
 .PHONY: test-python
 test-python:
 	@set -e; \
-	for runtime in 3.9 3.8 3.7 3.6; do \
+	for runtime in 3.9 3.8 3.7; do \
 		docker build \
 			--build-arg PYTHON_IMAGE_TAG=$$runtime \
 			--build-arg CACHEBUST=$(shell date +%s) \

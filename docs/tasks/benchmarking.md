@@ -5,7 +5,7 @@ This guide walks through a few steps to benchmark Nuclio from scratch.
 #### In this document
 - [Setting up a benchmark system](#setting-up-a-benchmark-system)
 - [Benchmark Golang (Go)](#benchmark-golang-go)
-- [Benchmark Python 3.6](#benchmark-python-36)
+- [Benchmark Python](#benchmark-python)
 - [Benchmark .NET Core](#benchmark-net-core)
 - [Benchmark Java](#benchmark-java)
 - [Benchmark NodeJS](#benchmark-nodejs)
@@ -40,7 +40,7 @@ Requests/sec: 384418.84
 Transfer/sec:     33.36MB
 ```
 
-## Benchmark Python 3.6
+## Benchmark Python
 Deploy an empty Python function with 36 workers:
 ```sh
 nuctl deploy helloworld-py -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/development/hack/examples/python/empty/empty.py --platform local --triggers '{"mh": {"kind": "http", "maxWorkers": 36}}' --runtime python --handler empty:handler

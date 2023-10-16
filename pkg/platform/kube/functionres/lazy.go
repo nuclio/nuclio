@@ -978,6 +978,18 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			}
 		}
 
+		// create sidecars if provided
+		for sidecarName, sidecarSpec := range function.Spec.Sidecars {
+			lc.logger.DebugWithCtx(ctx,
+				"Creating sidecar container",
+				"functionName", function.Name,
+				"sidecarName", sidecarName)
+			sidecarContainer := v1.Container{}
+			lc.populateSidecarContainer(ctx, sidecarSpec, &sidecarContainer)
+			sidecarContainer.VolumeMounts = volumeMounts
+			deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, sidecarContainer)
+		}
+
 		deployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        kube.DeploymentNameFromFunctionName(function.Name),
@@ -1869,7 +1881,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		},
 	}
 
-	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichFunctionContainerResources(ctx,
 		lc.logger,
 		&spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources)
 
@@ -2083,7 +2095,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
-	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichContainerResources(ctx,
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichFunctionContainerResources(ctx,
 		lc.logger,
 		&container.Resources)
 
@@ -2137,6 +2149,33 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	} else {
 		container.ImagePullPolicy = function.Spec.ImagePullPolicy
 	}
+}
+
+func (lc *lazyClient) populateSidecarContainer(ctx context.Context,
+	sidecarSpec *v1.Container,
+	container *v1.Container) {
+	container.Name = sidecarSpec.Name
+	container.Env = sidecarSpec.Env
+
+	container.Image = sidecarSpec.Image
+	if sidecarSpec.ImagePullPolicy != "" {
+		container.ImagePullPolicy = sidecarSpec.ImagePullPolicy
+	}
+	container.Ports = sidecarSpec.Ports
+
+	// resources
+	container.Resources = sidecarSpec.Resources
+	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSidecarContainerResources(ctx,
+		lc.logger,
+		&container.Resources)
+
+	// entrypoint
+	container.Command = sidecarSpec.Command
+	container.Args = sidecarSpec.Args
+
+	// probes
+	container.ReadinessProbe = sidecarSpec.ReadinessProbe
+	container.LivenessProbe = sidecarSpec.LivenessProbe
 }
 
 func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
