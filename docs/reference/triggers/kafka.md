@@ -305,6 +305,11 @@ using the following method (Note that the registered callback is a nullary callb
 context.platform.set_termination_callback(callback)
 ```
 
+Also, as part of this feature, a new customizable timeout `WaitExplicitAckDuringRebalanceTimeout` was added. Its main purpose is to help avoid processing the same message twice.
+This timeout allows to configure the waiting time for a control message from runtime after a rebalance happened and before we unsubscribe from control messages from runtime and completely disconnect.
+Default value is `1ms`. It can be also set via function annotation `nuclio.io/wait-explicit-ack-during-rebalance-timeout`.
+
+
 **NOTES**:
 * Currently, the explicit ack feature is only available for python runtime and functions that have a stream trigger (kafka/v3io).
 * The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"static"`.
