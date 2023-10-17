@@ -220,7 +220,7 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	k.Logger.DebugWith("Starting claim consumption",
 		"partition", claim.Partition(),
 		"ackWindowSize", ackWindowSize)
-loop:
+consumptionLoop:
 	for {
 		select {
 		case message := <-claim.Messages():
@@ -255,16 +255,32 @@ loop:
 					return errors.Wrap(err, "Failed to release worker")
 				}
 			case <-session.Context().Done():
+
+				k.Logger.DebugWith("Got signal to stop consumption",
+					"wait", k.configuration.maxWaitHandlerDuringRebalance.String(),
+					"partition", claim.Partition(),
+					"waitForHandler", true,
+				)
+
+				// waitForHandler value is true here because we catch session closure during waiting for event submitting
+				// which means that we start processing msg on this iteration, so during session closure we have to wait for
+				// event to be successfully submitted
 				k.drainOnRebalance(session, claim, workerInstance, &submittedEventInstance, message, true)
 				if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
 					return errors.Wrap(err, "Failed to release worker")
 				}
-				break loop
+				break consumptionLoop
 			}
 
 		case <-session.Context().Done():
+			k.Logger.DebugWith("Got signal to stop consumption",
+				"wait", k.configuration.maxWaitHandlerDuringRebalance.String(),
+				"partition", claim.Partition(),
+				"waitForHandler", true,
+			)
+			// waitForHandler value is false here because we didn't start msg processing on this iteration
 			k.drainOnRebalance(session, claim, nil, nil, nil, false)
-			break loop
+			break consumptionLoop
 		}
 	}
 
@@ -288,13 +304,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	workerInstance *worker.Worker,
 	submittedEventInstance *submittedEvent,
 	message *sarama.ConsumerMessage,
-	finishHandlingMsg bool) {
-
-	k.Logger.DebugWith("Got signal to stop consumption",
-		"wait", k.configuration.maxWaitHandlerDuringRebalance.String(),
-		"partition", claim.Partition(),
-		"finishHandlingMsg", finishHandlingMsg,
-	)
+	waitForHandler bool) {
 
 	readyForRebalanceChan := make(chan bool)
 	defer close(readyForRebalanceChan)
@@ -313,7 +323,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 				CustomHandler: nil,
 			})
 		var wg sync.WaitGroup
-		if finishHandlingMsg {
+		if waitForHandler {
 			wg.Add(2)
 			go func() {
 				err := <-submittedEventInstance.done
@@ -355,14 +365,17 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	// wait a for rebalance readiness or max timeout
 	select {
 	case <-readyForRebalanceChan:
-		k.Logger.DebugWith("Handler done, rebalancing will commence",
-			"partition", claim.Partition())
 		if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
+			// if we are in explicitAck it means that runtime code sends control messages to processor
+			// sometimes draining happens too fast, so we don't have enough time to process ack control message
+			// this wait time is intended to solve this issue and avoid processing one message twice
 			k.Logger.DebugWith("Wait for control messages from runtime before rebalance",
 				"wait time", k.configuration.waitExplicitAckDuringRebalanceTimeout)
 
 			time.Sleep(k.configuration.waitExplicitAckDuringRebalanceTimeout)
 		}
+		k.Logger.DebugWith("Handler done, rebalancing will commence",
+			"partition", claim.Partition())
 
 	case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
 		k.Logger.DebugWith("Timed out waiting for handler to complete",
@@ -371,8 +384,8 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 		// mark this as a failure, metric-wise
 		k.UpdateStatistics(false)
 
-		if finishHandlingMsg {
-			// restart the worker, and having failed that shut down
+		if waitForHandler {
+			// that timeout occurred while we waited for the handler, cancel it and restart the worker
 			if err := k.cancelEventHandling(workerInstance, claim); err != nil {
 				k.Logger.DebugWith("Failed to cancel event handling",
 					"err", err.Error(),
