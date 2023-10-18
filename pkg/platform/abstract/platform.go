@@ -313,6 +313,10 @@ func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Conf
 	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) > 0 {
 		return
 	}
+	if ap.Config.DisableDefaultHttpTrigger {
+		ap.Logger.Debug("Default http trigger is disabled, skip creation")
+		return
+	}
 
 	if functionConfig.Spec.Triggers == nil {
 		functionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
@@ -901,6 +905,10 @@ func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 // GetScaleToZeroConfiguration returns scale to zero configuration
 func (ap *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 	return nil
+}
+
+func (ap *Platform) GetDisableDefaultHttpTrigger() bool {
+	return ap.Config.DisableDefaultHttpTrigger
 }
 
 // GetAllowedAuthenticationModes returns allowed authentication modes
