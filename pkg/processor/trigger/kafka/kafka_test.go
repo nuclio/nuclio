@@ -248,7 +248,7 @@ func (suite *TestSuite) TestWaitExplicitAckDuringRebalanceTimeoutConfiguration()
 		},
 		{
 			name: "Timeout not specified",
-			expectedWaitExplicitAckDuringRebalanceTimeout: 1 * time.Millisecond,
+			expectedWaitExplicitAckDuringRebalanceTimeout: 100 * time.Millisecond,
 		},
 		{
 			name:              "Timeout specified only in annotations",
