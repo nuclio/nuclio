@@ -305,7 +305,7 @@ func NewConfiguration(id string,
 			Name:    "wait explicit ack during rebalance timeout",
 			Value:   newConfiguration.WaitExplicitAckDuringRebalanceTimeout,
 			Field:   &newConfiguration.waitExplicitAckDuringRebalanceTimeout,
-			Default: 1 * time.Millisecond,
+			Default: 100 * time.Millisecond,
 		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {

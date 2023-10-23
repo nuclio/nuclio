@@ -240,33 +240,27 @@ func (suite *TestSuite) TestWaitExplicitAckDuringRebalanceTimeoutConfiguration()
 		timeoutConfig                                 string
 		timeoutAnnotation                             string
 		expectedWaitExplicitAckDuringRebalanceTimeout time.Duration
-		expectedFailure                               bool
 	}{
 		{
 			name:          "Timeout specified only in config",
 			timeoutConfig: "2s",
 			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
-			expectedFailure: false,
 		},
 		{
-			name:          "Timeout not specified",
-			timeoutConfig: "",
+			name: "Timeout not specified",
 			expectedWaitExplicitAckDuringRebalanceTimeout: 1 * time.Millisecond,
-			expectedFailure: false,
 		},
 		{
 			name:              "Timeout specified only in annotations",
 			timeoutConfig:     "",
 			timeoutAnnotation: "2s",
 			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
-			expectedFailure: false,
 		},
 		{
 			name:              "Timeout specified in both config and annotations",
 			timeoutConfig:     "1s",
 			timeoutAnnotation: "2s",
 			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
-			expectedFailure: false,
 		},
 	} {
 		triggerInstance := &functionconfig.Trigger{
@@ -296,12 +290,8 @@ func (suite *TestSuite) TestWaitExplicitAckDuringRebalanceTimeoutConfiguration()
 					},
 				},
 				suite.logger)
-			if testCase.expectedFailure {
-				suite.Require().Error(err)
-			} else {
-				suite.Require().NoError(err)
-				suite.Require().Equal(testCase.expectedWaitExplicitAckDuringRebalanceTimeout, configuration.waitExplicitAckDuringRebalanceTimeout, "Bad timeout value")
-			}
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedWaitExplicitAckDuringRebalanceTimeout, configuration.waitExplicitAckDuringRebalanceTimeout, "Bad timeout value")
 		})
 	}
 }

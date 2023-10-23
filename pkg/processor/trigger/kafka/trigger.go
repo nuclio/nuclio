@@ -369,8 +369,9 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			// if we are in explicitAck it means that runtime code sends control messages to processor
 			// sometimes draining happens too fast, so we don't have enough time to process ack control message
 			// this wait time is intended to solve this issue and avoid processing one message twice
-			k.Logger.DebugWith("Wait for control messages from runtime before rebalance",
-				"wait time", k.configuration.waitExplicitAckDuringRebalanceTimeout)
+			k.Logger.DebugWith("Waiting for control messages from runtime before rebalance",
+				"waitTimeout", k.configuration.waitExplicitAckDuringRebalanceTimeout,
+				"partition", claim.Partition())
 
 			time.Sleep(k.configuration.waitExplicitAckDuringRebalanceTimeout)
 		}
@@ -385,7 +386,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 		k.UpdateStatistics(false)
 
 		if waitForHandler {
-			// that timeout occurred while we waited for the handler, cancel it and restart the worker
+			// the rebalance timeout occurred while we waited for the handler, cancel it and restart the worker
 			if err := k.cancelEventHandling(workerInstance, claim); err != nil {
 				k.Logger.DebugWith("Failed to cancel event handling",
 					"err", err.Error(),
