@@ -427,7 +427,6 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
 	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
 	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
-	b.runtimeInfo["python:3.6"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.7"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.8"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.9"] = runtimeInfo{"py", poundParser, 5}

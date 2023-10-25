@@ -28,6 +28,11 @@ jobs:
     # https://github.com/actions/runner-images/discussions/7188
     runs-on: ubuntu-20.04
 
+    strategy:
+      fail-fast: false
+      matrix:
+        command: [nuctl-tests,dotnet-tests,golang-tests,java-tests,python-tests,python-runtime-tests,fast-tests]
+
     # let's not run this on every fork, comment this out when developing periodic on your fork
     if: github.repository == 'nuclio/nuclio'
 
@@ -48,6 +53,6 @@ jobs:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
 
     - name: Test
-      run: make test
+      run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
       env:
         NUCLIO_CI_SKIP_STRESS_TEST: true
