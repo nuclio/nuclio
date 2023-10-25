@@ -730,8 +730,6 @@ test-broken-undockerized: ensure-gopath
 .PHONY: test
 test: build-test
 	$(eval NUCLIO_TEST_MAKE_TARGET ?= $(if $(NUCLIO_TEST_BROKEN),test-broken-undockerized,test-undockerized))
-	$(eval RUN=make $(NUCLIO_TEST_MAKE_TARGET) LIST_TESTS_MAKE_COMMAND=${LIST_TESTS_MAKE_COMMAND})
-
 	@docker run \
 		--rm \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
