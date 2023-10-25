@@ -868,10 +868,6 @@ python-tests:
 python-runtime-tests:
 	@make list-all-dirs-with-tests | grep "pkg/processor/runtime/python/test"
 
-.PHONY: run-long-test
-run-long-test:
-
-
 #
 # Go env
 #
