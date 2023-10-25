@@ -16,6 +16,7 @@ GO_VERSION := $(shell go version | cut -d " " -f 3)
 GOPATH ?= $(shell go env GOPATH)
 OS_NAME = $(shell uname)
 KUBECONFIG := $(if $(KUBECONFIG),$(KUBECONFIG),$(HOME)/.kube/config)
+SHELL:=/bin/bash
 
 # upstream repo
 NUCLIO_DOCKER_REPO ?= quay.io/nuclio
@@ -73,6 +74,9 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 
 # Nuclio test timeout
 NUCLIO_GO_TEST_TIMEOUT ?= "30m"
+
+NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND=list-all-dirs-with-tests
+LIST_TESTS_MAKE_COMMAND := $(if $(LIST_TESTS_MAKE_COMMAND),$(LIST_TESTS_MAKE_COMMAND),$(NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND))
 
 # Docker client cli to be used
 NUCLIO_DOCKER_CLIENT_VERSION ?= 23.0.1
@@ -695,12 +699,13 @@ test-docker-nuctl:
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
-	go test \
+	${eval LIST=${shell make --no-print-directory $(LIST_TESTS_MAKE_COMMAND)}}
+	go test  \
 		-tags="test_integration,test_local" \
 		-v \
 		-p 1 \
 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
-		./cmd/... ./pkg/...
+		${LIST}
 
 .PHONY: test-k8s-undockerized
 test-k8s-undockerized: ensure-gopath
@@ -714,16 +719,19 @@ test-k8s-undockerized: ensure-gopath
 
 .PHONY: test-broken-undockerized
 test-broken-undockerized: ensure-gopath
-	go test \
+	${eval LIST=${shell make --no-print-directory $(LIST_TESTS_MAKE_COMMAND)}}
+	go test  \
 		-tags="test_integration,test_broken" \
 		-v \
 		-p 1 \
 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
-		./cmd/... ./pkg/...
+		${LIST}
 
 .PHONY: test
 test: build-test
-	$(eval NUCLIO_TEST_MAKE_TARGET ?= $(if $(NUCLIO_TEST_BROKEN),"test-broken-undockerized","test-undockerized"))
+	$(eval NUCLIO_TEST_MAKE_TARGET ?= $(if $(NUCLIO_TEST_BROKEN),test-broken-undockerized,test-undockerized))
+	$(eval RUN=make $(NUCLIO_TEST_MAKE_TARGET) LIST_TESTS_MAKE_COMMAND=${LIST_TESTS_MAKE_COMMAND})
+
 	@docker run \
 		--rm \
 		--volume /var/run/docker.sock:/var/run/docker.sock \
@@ -740,8 +748,7 @@ test: build-test
 		--env NUCLIO_TEST_HOST_PATH=$(NUCLIO_PATH) \
 		--env NUCLIO_CI_SKIP_STRESS_TEST \
 		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "make $(NUCLIO_TEST_MAKE_TARGET)"
-
+		/bin/bash -c "git config --global --add safe.directory /nuclio && LIST_TESTS_MAKE_COMMAND=${LIST_TESTS_MAKE_COMMAND} make ${NUCLIO_TEST_MAKE_TARGET}"
 .PHONY: test-k8s
 test-k8s: build-test
 	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
@@ -818,6 +825,53 @@ test-python:
 			--file pkg/processor/runtime/python/test/Dockerfile \
 			. ;\
 	done
+
+# list of tests which run for a long time, so it makes sense to run each of those in parallel
+TEST_LIST_RUN_EACH_IN_PARALLEL = pkg/nuctl/test \
+ 								 pkg/processor/build/runtime/dotnetcore/test \
+								 pkg/processor/build/runtime/golang/test  \
+								 pkg/processor/build/runtime/java/test  \
+								 pkg/processor/build/runtime/python/test  \
+								 pkg/processor/runtime/python/test
+
+.PHONY: list-all-dirs-with-tests
+list-all-dirs-with-tests:
+	@go list -f '{{ if .TestGoFiles }}{{.ImportPath }}{{ end }}' -tags="test_integration,test_local" ./cmd/... ./pkg/...  #| sed -r 's/github.com\/nuclio\/nuclio/./g'
+
+.PHONY: list-tests-with-long-execution-time
+list-tests-with-long-execution-time:
+	@(for value in $(TEST_LIST_RUN_EACH_IN_PARALLEL); do pattern+="-e $$value "; done; make list-all-dirs-with-tests | grep $$pattern)
+
+.PHONY: fast-tests
+fast-tests:
+	@for value in $(TEST_LIST_RUN_EACH_IN_PARALLEL); do pattern+="-v -e $$value "; done; make list-all-dirs-with-tests | grep $$pattern
+
+.PHONY: nuctl-tests
+nuctl-tests:
+	@make list-all-dirs-with-tests | grep "pkg/nuctl/test"
+
+.PHONY: dotnet-tests
+dotnet-tests:
+	@make list-all-dirs-with-tests | grep "pkg/processor/build/runtime/dotnetcore/test"
+
+.PHONY: golang-tests
+golang-tests:
+	@make list-all-dirs-with-tests | grep "pkg/processor/build/runtime/golang/test"
+
+.PHONY: java-tests
+java-tests:
+	@make list-all-dirs-with-tests | grep "pkg/processor/build/runtime/java/test"
+
+.PHONY: python-tests
+python-tests:
+	@make list-all-dirs-with-tests | grep "pkg/processor/build/runtime/python/test"
+
+.PHONY: python-runtime-tests
+python-runtime-tests:
+	@make list-all-dirs-with-tests | grep "pkg/processor/runtime/python/test"
+
+.PHONY: run-long-test
+run-long-test:
 
 
 #

@@ -15,8 +15,15 @@
 name: Periodic
 
 on:
-  schedule:
-  - cron:  '0 */12 * * *'
+  pull_request:
+    branches:
+      - development
+      - "[0-9]+.[0-9]+.x"
+
+  # Run CI also on push to master
+  push:
+    branches:
+      - master
 
 env:
   DOCKER_BUILDKIT: 1
@@ -28,8 +35,12 @@ jobs:
     # https://github.com/actions/runner-images/discussions/7188
     runs-on: ubuntu-20.04
 
+    strategy:
+      fail-fast: false
+      matrix:
+        command: [nuctl-tests,dotnet-tests,golang-tests,java-tests,python-tests,python-runtime-tests,fast-tests]
+
     # let's not run this on every fork, comment this out when developing periodic on your fork
-    if: github.repository == 'nuclio/nuclio'
 
     steps:
     - uses: actions/checkout@v3
@@ -48,6 +59,6 @@ jobs:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
 
     - name: Test
-      run: make test
+      run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
       env:
         NUCLIO_CI_SKIP_STRESS_TEST: true
