@@ -44,6 +44,7 @@ type ControlMessageAttributesExplicitAck struct {
 type ControlConsumer struct {
 	Channels []chan *ControlMessage
 	kind     ControlMessageKind
+	mutex    sync.Mutex
 }
 
 // NewControlConsumer creates a new control consumer
@@ -63,11 +64,32 @@ func (c *ControlConsumer) GetKind() ControlMessageKind {
 // Send broadcasts a message to all subscribed channels
 func (c *ControlConsumer) Send(message *ControlMessage) error {
 
+	wg := sync.WaitGroup{}
+	wg.Add(len(c.Channels))
 	for _, channel := range c.Channels {
-		channel <- message
+
+		go func(channel chan *ControlMessage, message *ControlMessage) {
+			channel <- message
+			wg.Done()
+		}(channel, message)
 	}
 
+	wg.Wait()
 	return nil
+}
+
+func (c *ControlConsumer) addChannel(channel chan *ControlMessage) {
+	c.Channels = append(c.Channels, channel)
+}
+
+func (c *ControlConsumer) deleteChannel(channelToDelete chan *ControlMessage) {
+	// remove the channel from the consumer
+	for i, channel := range c.Channels {
+		if channel == channelToDelete {
+			c.Channels = append(c.Channels[:i], c.Channels[i+1:]...)
+			break
+		}
+	}
 }
 
 type ControlMessageBroker interface {
@@ -110,6 +132,9 @@ func (acmb *AbstractControlMessageBroker) ReadControlMessage(reader *bufio.Reade
 }
 
 func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessage) error {
+	acmb.channelLock.Lock()
+	defer acmb.channelLock.Unlock()
+
 	for _, consumer := range acmb.Consumers {
 		if consumer.GetKind() == message.Kind {
 			if err := consumer.Send(message); err != nil {
@@ -135,14 +160,14 @@ func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind, cha
 	// Add the consumer to the list of the relevant kind
 	for _, consumer := range acmb.Consumers {
 		if consumer.GetKind() == kind {
-			consumer.Channels = append(consumer.Channels, channel)
+			consumer.addChannel(channel)
 			return nil
 		}
 	}
 
 	// consumer for the kind doesn't exist, create one
 	consumer := NewControlConsumer(kind)
-	consumer.Channels = append(consumer.Channels, channel)
+	consumer.addChannel(channel)
 	acmb.Consumers = append(acmb.Consumers, consumer)
 
 	return nil
@@ -157,14 +182,7 @@ func (acmb *AbstractControlMessageBroker) Unsubscribe(kind ControlMessageKind, c
 	// Find the consumer with relevant kind
 	for _, consumer := range acmb.Consumers {
 		if consumer.GetKind() == kind {
-
-			// remove the channel from the consumer
-			for i, c := range consumer.Channels {
-				if c == channel {
-					consumer.Channels = append(consumer.Channels[:i], consumer.Channels[i+1:]...)
-					break
-				}
-			}
+			consumer.deleteChannel(channel)
 			return nil
 		}
 	}
