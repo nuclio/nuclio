@@ -44,7 +44,6 @@ type ControlMessageAttributesExplicitAck struct {
 type ControlConsumer struct {
 	Channels []chan *ControlMessage
 	kind     ControlMessageKind
-	mutex    sync.Mutex
 }
 
 // NewControlConsumer creates a new control consumer
