@@ -20,6 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	httpnuclio "github.com/nuclio/nuclio/pkg/processor/trigger/http"
+	"net/http"
 	"os"
 	"os/signal"
 	"path"
@@ -156,6 +158,10 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor.healthCheckServer, err = newProcessor.createAndStartHealthCheckServer(platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create and start health check server")
+	}
+
+	if processorConfiguration.Spec.DisableDefaultHttpTrigger == nil || *processorConfiguration.Spec.DisableDefaultHttpTrigger {
+		startInternalHealthCheck()
 	}
 
 	// create triggers
@@ -446,29 +452,6 @@ func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
 	return false
 }
 
-func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.Configuration) (trigger.Trigger, error) {
-	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Class:      "sync",
-		Kind:       "http",
-		MaxWorkers: 1,
-		URL:        common.GetEnvOrDefaultString("NUCLIO_DEFAULT_HTTP_TRIGGER_URL", ":8080"),
-	}
-
-	p.logger.DebugWith("Creating default HTTP event source",
-		"configuration", &defaultHTTPTriggerConfiguration)
-
-	return trigger.RegistrySingleton.NewTrigger(p.logger,
-		"http",
-		"http",
-		&defaultHTTPTriggerConfiguration,
-		&runtime.Configuration{
-			Configuration:  processorConfiguration,
-			FunctionLogger: p.functionLogger,
-		},
-		p.namedWorkerAllocators,
-		p.restartTriggerChan)
-}
-
 func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Config) (*webadmin.Server, error) {
 
 	// if enabled not passed, default to true
@@ -687,4 +670,13 @@ func (p *Processor) terminateAllTriggers(signal os.Signal) {
 	}
 	wg.Wait()
 	p.logger.Info("All triggers are terminated")
+}
+
+// startInternalHealthCheck runs healthcheck service for internal purposes just in case of disabled default http trigger
+func startInternalHealthCheck() {
+	http.HandleFunc(httpnuclio.InternalHealthPath, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	go http.ListenAndServe(":8080", nil) // nolint: errcheck
 }
