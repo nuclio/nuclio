@@ -105,6 +105,7 @@ func newTrigger(parentLogger logger.Logger,
 		"fetchMax", configuration.FetchMax,
 		"channelBufferSize", configuration.ChannelBufferSize,
 		"maxWaitHandlerDuringRebalance", configuration.maxWaitHandlerDuringRebalance,
+		"waitExplicitAckDuringRebalanceTimeout", configuration.waitExplicitAckDuringRebalanceTimeout,
 		"logLevel", configuration.LogLevel)
 
 	kafkaTrigger.kafkaConfig, err = kafkaTrigger.newKafkaConfig()
@@ -192,9 +193,6 @@ func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
 func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	var submitError error
 
-	// cleared when the consumption should stop
-	consumeMessages := true
-
 	submittedEventInstance := submittedEvent{
 		done: make(chan error),
 	}
@@ -203,12 +201,6 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	submittedEventChan := make(chan *submittedEvent)
 	explicitAckControlMessageChan := make(chan *controlcommunication.ControlMessage)
 	workerDrainingCompleteChan := make(chan bool)
-	readyForRebalanceChan := make(chan bool)
-
-	// indicate whether this partition worker was drained
-	// this is used to avoid race condition where 2 different partitions sharing the same worker
-	// will both try to reset the drain flag needlessly
-	var drainedWorker bool
 
 	// submit the events in a goroutine so that we can unblock immediately
 	go k.eventSubmitter(claim, submittedEventChan)
@@ -228,132 +220,71 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	k.Logger.DebugWith("Starting claim consumption",
 		"partition", claim.Partition(),
 		"ackWindowSize", ackWindowSize)
-
-	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
-	// to stop consumption
-	for message := range claim.Messages() {
-		if !consumeMessages {
-			k.Logger.DebugWith("Stopping message consumption", "partition", claim.Partition())
-			break
-		}
-
-		// allocate a worker for this topic/partition
-		workerInstance, cookie, err := k.partitionWorkerAllocator.AllocateWorker(claim.Topic(),
-			int(claim.Partition()),
-			nil)
-		if err != nil {
-			return errors.Wrap(err, "Failed to allocate worker")
-		}
-
-		submittedEventInstance.event.kafkaMessage = message
-		submittedEventInstance.worker = workerInstance
-
-		// handle in the goroutine so we don't block
-		submittedEventChan <- &submittedEventInstance
-
-		// wait for handling done or indication to stop
+consumptionLoop:
+	for {
 		select {
-		case err := <-submittedEventInstance.done:
+		case message := <-claim.Messages():
 
-			// we successfully submitted the message to the handler. mark it
-			if err == nil {
-				session.MarkOffset(
-					message.Topic,
-					message.Partition,
-					message.Offset+1-ackWindowSize,
-					"",
+			// allocate a worker for this topic/partition
+			workerInstance, cookie, err := k.partitionWorkerAllocator.AllocateWorker(claim.Topic(),
+				int(claim.Partition()),
+				nil)
+			if err != nil {
+				return errors.Wrap(err, "Failed to allocate worker")
+			}
+
+			submittedEventInstance.event.kafkaMessage = message
+			submittedEventInstance.worker = workerInstance
+
+			// handle in the goroutine so we don't block
+			submittedEventChan <- &submittedEventInstance
+
+			select {
+			case err := <-submittedEventInstance.done:
+
+				// we successfully submitted the message to the handler. mark it
+				if err == nil {
+					session.MarkOffset(
+						message.Topic,
+						message.Partition,
+						message.Offset+1-ackWindowSize,
+						"",
+					)
+				}
+				if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
+					return errors.Wrap(err, "Failed to release worker")
+				}
+			case <-session.Context().Done():
+
+				k.Logger.DebugWith("Got signal to stop consumption",
+					"wait", k.configuration.maxWaitHandlerDuringRebalance.String(),
+					"partition", claim.Partition(),
+					"waitForHandler", true,
 				)
+
+				// waitForHandler value is true here because we catch session closure during waiting for event submitting
+				// which means that we start processing msg on this iteration, so during session closure we have to wait for
+				// event to be successfully submitted
+				k.drainOnRebalance(session, claim, workerInstance, &submittedEventInstance, message, true)
+				if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
+					return errors.Wrap(err, "Failed to release worker")
+				}
+				break consumptionLoop
 			}
 
 		case <-session.Context().Done():
 			k.Logger.DebugWith("Got signal to stop consumption",
 				"wait", k.configuration.maxWaitHandlerDuringRebalance.String(),
-				"partition", claim.Partition())
-
-			// don't consume any more messages
-			consumeMessages = false
-
-			// trigger is ready for rebalance if both the handler is done and
-			// the workers are finished draining events
-			go func() {
-				defer common.CatchAndLogPanicWithOptions(k.ctx, // nolint: errcheck
-					k.Logger,
-					"Recover from panic after trying to write into channel, which was closed because of wait for rebalance timeout",
-					&common.CatchAndLogPanicOptions{
-						Args:          []interface{}{"partition", claim.Partition()},
-						CustomHandler: nil,
-					})
-				var wg sync.WaitGroup
-				wg.Add(2)
-				go func() {
-					err := <-submittedEventInstance.done
-
-					// we successfully submitted the message to the handler. mark it
-					if err == nil {
-						session.MarkOffset(
-							message.Topic,
-							message.Partition,
-							message.Offset+1-ackWindowSize,
-							"",
-						)
-					}
-					k.Logger.DebugWith("Handler done", "partition", claim.Partition())
-					wg.Done()
-				}()
-				go func() {
-
-					// this needs to occur once. the reason is that this specific function (ConsumeClaim)
-					// runs in parallel for each partition, and we want to make sure that we only
-					// drain the workers once.
-					if err := k.SignalWorkerDraining(); err != nil {
-						k.Logger.DebugWith("Failed to signal worker draining",
-							"err", err.Error(),
-							"partition", claim.Partition())
-					} else {
-						drainedWorker = true
-					}
-					wg.Done()
-				}()
-
-				wg.Wait()
-				readyForRebalanceChan <- true
-			}()
-
-			// wait a for rebalance readiness or max timeout
-			select {
-			case <-readyForRebalanceChan:
-				k.Logger.DebugWith("Handler done, rebalancing will commence",
-					"partition", claim.Partition())
-
-			case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
-				k.Logger.DebugWith("Timed out waiting for handler to complete",
-					"partition", claim.Partition())
-
-				// mark this as a failure, metric-wise
-				k.UpdateStatistics(false)
-
-				// restart the worker, and having failed that shut down
-				if err := k.cancelEventHandling(workerInstance, claim); err != nil {
-					k.Logger.DebugWith("Failed to cancel event handling",
-						"err", err.Error(),
-						"partition", claim.Partition())
-
-					panic("Failed to cancel event handling")
-				}
-			}
-		}
-
-		// release the worker from whence it came
-		if err := k.partitionWorkerAllocator.ReleaseWorker(cookie, workerInstance); err != nil {
-			return errors.Wrap(err, "Failed to release worker")
+				"partition", claim.Partition(),
+				"waitForHandler", false,
+			)
+			// waitForHandler value is false here because we didn't start msg processing on this iteration
+			k.drainOnRebalance(session, claim, nil, nil, nil, false)
+			break consumptionLoop
 		}
 	}
 
 	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
-
-	if drainedWorker {
-		k.ResetWorkerTerminationState()
-	}
 
 	// unsubscribe channel from the streamAck control message kind before closing it
 	if err := k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
@@ -364,9 +295,111 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
 	close(workerDrainingCompleteChan)
-	close(readyForRebalanceChan)
 
 	return submitError
+}
+
+func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
+	claim sarama.ConsumerGroupClaim,
+	workerInstance *worker.Worker,
+	submittedEventInstance *submittedEvent,
+	message *sarama.ConsumerMessage,
+	waitForHandler bool) {
+
+	readyForRebalanceChan := make(chan bool)
+	defer close(readyForRebalanceChan)
+
+	// indicate whether this partition worker was drained
+	// this is used to avoid race condition where 2 different partitions sharing the same worker
+	// will both try to reset the drain flag needlessly
+	var drainedWorker bool
+
+	go func() {
+		defer common.CatchAndLogPanicWithOptions(k.ctx, // nolint: errcheck
+			k.Logger,
+			"Recover from panic after trying to write into channel, which was closed because of wait for rebalance timeout",
+			&common.CatchAndLogPanicOptions{
+				Args:          []interface{}{"partition", claim.Partition()},
+				CustomHandler: nil,
+			})
+		var wg sync.WaitGroup
+		if waitForHandler {
+			wg.Add(2)
+			go func() {
+				err := <-submittedEventInstance.done
+
+				// we successfully submitted the message to the handler. mark it
+				if err == nil {
+					session.MarkOffset(
+						message.Topic,
+						message.Partition,
+						message.Offset+1-int64(k.configuration.ackWindowSize),
+						"",
+					)
+				}
+				k.Logger.DebugWith("Handler done", "partition", claim.Partition())
+				wg.Done()
+			}()
+		} else {
+			wg.Add(1)
+		}
+
+		go func() {
+			// this needs to occur once. the reason is that this specific function (ConsumeClaim)
+			// runs in parallel for each partition, and we want to make sure that we only
+			// drain the workers once.
+			if err := k.SignalWorkerDraining(); err != nil {
+				k.Logger.DebugWith("Failed to signal worker draining",
+					"err", err.Error(),
+					"partition", claim.Partition())
+			} else {
+				drainedWorker = true
+			}
+			wg.Done()
+		}()
+
+		wg.Wait()
+		readyForRebalanceChan <- true
+	}()
+
+	// wait a for rebalance readiness or max timeout
+	select {
+	case <-readyForRebalanceChan:
+		if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
+			// if we are in explicitAck it means that runtime code sends control messages to processor
+			// sometimes draining happens too fast, so we don't have enough time to process ack control message
+			// this wait time is intended to solve this issue and avoid processing one message twice
+			k.Logger.DebugWith("Waiting for control messages from runtime before rebalance",
+				"waitTimeout", k.configuration.waitExplicitAckDuringRebalanceTimeout,
+				"partition", claim.Partition())
+
+			time.Sleep(k.configuration.waitExplicitAckDuringRebalanceTimeout)
+		}
+		k.Logger.DebugWith("Handler done, rebalancing will commence",
+			"partition", claim.Partition())
+
+	case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
+		k.Logger.DebugWith("Timed out waiting for handler to complete",
+			"partition", claim.Partition())
+
+		// mark this as a failure, metric-wise
+		k.UpdateStatistics(false)
+
+		if waitForHandler {
+			// the rebalance timeout occurred while we waited for the handler, cancel it and restart the worker
+			if err := k.cancelEventHandling(workerInstance, claim); err != nil {
+				k.Logger.DebugWith("Failed to cancel event handling",
+					"err", err.Error(),
+					"partition", claim.Partition())
+
+				panic("Failed to cancel event handling")
+			}
+		}
+	}
+
+	if drainedWorker {
+		k.ResetWorkerTerminationState()
+	}
 }
 
 func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventChan chan *submittedEvent) {
@@ -632,7 +665,8 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 		)
 	}
 
-	k.Logger.InfoWith("Stopped listening for explicit ack control messages")
+	k.Logger.InfoWith("Stopped listening for explicit ack control messages",
+		"partition", partitionNumber)
 }
 
 func (k *kafka) resolveNoAckMessage(response interface{}, submittedEvent *submittedEvent) error {

@@ -234,6 +234,68 @@ func (suite *TestSuite) TestWorkerTimeoutConfiguration() {
 	}
 }
 
+func (suite *TestSuite) TestWaitExplicitAckDuringRebalanceTimeoutConfiguration() {
+	for _, testCase := range []struct {
+		name                                          string
+		timeoutConfig                                 string
+		timeoutAnnotation                             string
+		expectedWaitExplicitAckDuringRebalanceTimeout time.Duration
+	}{
+		{
+			name:          "Timeout specified only in config",
+			timeoutConfig: "2s",
+			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
+		},
+		{
+			name: "Timeout not specified",
+			expectedWaitExplicitAckDuringRebalanceTimeout: 100 * time.Millisecond,
+		},
+		{
+			name:              "Timeout specified only in annotations",
+			timeoutConfig:     "",
+			timeoutAnnotation: "2s",
+			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
+		},
+		{
+			name:              "Timeout specified in both config and annotations",
+			timeoutConfig:     "1s",
+			timeoutAnnotation: "2s",
+			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
+		},
+	} {
+		triggerInstance := &functionconfig.Trigger{
+			WaitExplicitAckDuringRebalanceTimeout: testCase.timeoutConfig,
+			Attributes: map[string]interface{}{
+				"topics": []string{
+					"some-topic",
+				},
+				"consumerGroup": "some-cg",
+				"initialOffset": "earliest",
+				"brokers": []string{
+					"some-broker",
+				},
+			},
+		}
+
+		suite.Run(testCase.name, func() {
+			annotations := make(map[string]string)
+			if testCase.timeoutAnnotation != "" {
+				annotations["nuclio.io/wait-explicit-ack-during-rebalance-timeout"] = testCase.timeoutAnnotation
+			}
+			configuration, err := NewConfiguration(testCase.name,
+				triggerInstance,
+				&runtime.Configuration{
+					Configuration: &processor.Configuration{
+						Config: functionconfig.Config{Meta: functionconfig.Meta{Annotations: annotations}},
+					},
+				},
+				suite.logger)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedWaitExplicitAckDuringRebalanceTimeout, configuration.waitExplicitAckDuringRebalanceTimeout, "Bad timeout value")
+		})
+	}
+}
+
 func TestKafkaSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }

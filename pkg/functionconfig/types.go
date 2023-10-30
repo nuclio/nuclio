@@ -80,6 +80,7 @@ type Trigger struct {
 	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
 	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
+	WaitExplicitAckDuringRebalanceTimeout string            `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
 	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
 
 	// Dealer Information
