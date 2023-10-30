@@ -287,6 +287,14 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 		return errors.Wrap(err, "Failed enriching volumes")
 	}
 
+	if functionConfig.Spec.DisableDefaultHttpTrigger == nil {
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching disable default http trigger",
+			"functionName", functionConfig.Meta.Name,
+			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHttpTrigger)
+		functionConfig.Spec.DisableDefaultHttpTrigger = &ap.Config.DisableDefaultHttpTrigger
+	}
+
 	ap.enrichEnvVars(functionConfig)
 
 	ap.Config.EnrichFunctionContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
