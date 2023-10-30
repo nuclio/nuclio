@@ -259,6 +259,64 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
+	functionConfig := functionconfig.NewConfig()
+	functionConfig.Meta.Name = "f1"
+	functionConfig.Meta.Namespace = "default"
+	functionConfig.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": platform.DefaultProjectName,
+	}
+	trueValue := true
+	falseValue := false
+
+	for _, testCase := range []struct {
+		PlatformDisableDefaultHttpTrigger bool
+		FunctionDisableDefaultHttpTrigger *bool
+		ExpectedValue                     bool
+	}{
+
+		{
+			PlatformDisableDefaultHttpTrigger: true,
+			FunctionDisableDefaultHttpTrigger: nil,
+			ExpectedValue:                     true,
+		},
+		{
+			PlatformDisableDefaultHttpTrigger: false,
+			FunctionDisableDefaultHttpTrigger: nil,
+			ExpectedValue:                     false,
+		},
+		{
+			PlatformDisableDefaultHttpTrigger: false,
+			FunctionDisableDefaultHttpTrigger: &trueValue,
+			ExpectedValue:                     true,
+		},
+		{
+			PlatformDisableDefaultHttpTrigger: true,
+			FunctionDisableDefaultHttpTrigger: &falseValue,
+			ExpectedValue:                     false,
+		},
+	} {
+
+		suite.mockedPlatform.On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: "default",
+			},
+		}).Return([]platform.Project{
+			&platform.AbstractProject{},
+		}, nil).Once()
+
+		suite.Platform.Config.DisableDefaultHttpTrigger = testCase.PlatformDisableDefaultHttpTrigger
+		functionConfig.Spec.DisableDefaultHttpTrigger = testCase.FunctionDisableDefaultHttpTrigger
+
+		// enrich
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
+		suite.Require().NoError(err)
+
+		suite.Require().Equal(testCase.ExpectedValue, *functionConfig.Spec.DisableDefaultHttpTrigger)
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 	for _, testCase := range []struct {
 		name                  string
