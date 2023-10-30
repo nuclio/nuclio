@@ -19,6 +19,7 @@ spec:
   handler: "handler"
   minReplicas: 1
   maxReplicas: 1
+  disableDefaultHttpTrigger: false
   description: >
     Uses moment.js (which is installed as part of the build) to add a specified amount of
     time to "now", and returns this amount as a string.

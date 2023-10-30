@@ -17,6 +17,7 @@ kind: "NuclioFunction"
 spec:
   runtime: "python"
   handler: "face:handler"
+  disableDefaultHttpTrigger: false
   minReplicas: 1
   maxReplicas: 1
   description: >

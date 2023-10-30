@@ -20,3 +20,4 @@ spec:
   handler: "nuclio:reverser"
   minReplicas: 1
   maxReplicas: 1
+  disableDefaultHttpTrigger: false

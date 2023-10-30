@@ -160,7 +160,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create and start health check server")
 	}
 
-	if processorConfiguration.Spec.DisableDefaultHttpTrigger == nil || *processorConfiguration.Spec.DisableDefaultHttpTrigger {
+	if (processorConfiguration.Spec.DisableDefaultHttpTrigger == nil || *processorConfiguration.Spec.DisableDefaultHttpTrigger) &&
+		len(functionconfig.GetTriggersByKind(processorConfiguration.Spec.Triggers, "http")) > 0 {
 		startInternalHealthCheck()
 	}
 
