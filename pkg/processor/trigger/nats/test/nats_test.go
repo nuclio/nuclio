@@ -86,7 +86,7 @@ func (suite *testSuite) getDeployOptions() *platform.CreateFunctionOptions {
 		Attributes: map[string]interface{}{
 			"topic": suite.topicName,
 		},
-		MaxWorkers: 10,
+		MaxWorkers: 3,
 	}
 
 	return createFunctionOptions
