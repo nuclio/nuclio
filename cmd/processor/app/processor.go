@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	httpnuclio "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	"net/http"
 	"os"
 	"os/signal"
@@ -55,7 +54,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
+	httpnuclio "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kickstart"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
