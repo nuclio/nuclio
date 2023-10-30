@@ -89,18 +89,19 @@ type Configuration struct {
 	Version                       string
 
 	// resolved fields
-	brokers                       []string
-	initialOffset                 int64
-	balanceStrategy               sarama.BalanceStrategy
-	sessionTimeout                time.Duration
-	heartbeatInterval             time.Duration
-	maxProcessingTime             time.Duration
-	rebalanceTimeout              time.Duration
-	rebalanceRetryBackoff         time.Duration
-	retryBackoff                  time.Duration
-	maxWaitTime                   time.Duration
-	maxWaitHandlerDuringRebalance time.Duration
-	ackWindowSize                 int
+	brokers                               []string
+	initialOffset                         int64
+	balanceStrategy                       sarama.BalanceStrategy
+	sessionTimeout                        time.Duration
+	heartbeatInterval                     time.Duration
+	maxProcessingTime                     time.Duration
+	rebalanceTimeout                      time.Duration
+	rebalanceRetryBackoff                 time.Duration
+	retryBackoff                          time.Duration
+	maxWaitTime                           time.Duration
+	maxWaitHandlerDuringRebalance         time.Duration
+	waitExplicitAckDuringRebalanceTimeout time.Duration
+	ackWindowSize                         int
 }
 
 func NewConfiguration(id string,
@@ -170,6 +171,9 @@ func NewConfiguration(id string,
 
 		// allow changing explicit ack mode via annotation
 		{Key: "nuclio.io/kafka-explicit-ack-mode", ValueString: &explicitAckModeValue},
+
+		// allow changing explicit ack mode via annotation
+		{Key: "nuclio.io/wait-explicit-ack-during-rebalance-timeout", ValueString: &triggerConfiguration.WaitExplicitAckDuringRebalanceTimeout},
 	})
 
 	if err != nil {
@@ -296,6 +300,12 @@ func NewConfiguration(id string,
 			Value:   newConfiguration.MaxWaitHandlerDuringRebalance,
 			Field:   &newConfiguration.maxWaitHandlerDuringRebalance,
 			Default: 5 * time.Second,
+		},
+		{
+			Name:    "wait explicit ack during rebalance timeout",
+			Value:   newConfiguration.WaitExplicitAckDuringRebalanceTimeout,
+			Field:   &newConfiguration.waitExplicitAckDuringRebalanceTimeout,
+			Default: 100 * time.Millisecond,
 		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {

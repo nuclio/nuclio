@@ -619,6 +619,12 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 	// deploy the function
 	deployResult, deployErr := suite.Platform.CreateFunction(suite.ctx, createFunctionOptions)
 
+	if deployErr != nil {
+		suite.Logger.DebugWith("Function was not created",
+			"deploy result", deployResult,
+			"deploy err", deployErr.Error())
+	}
+
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)
 

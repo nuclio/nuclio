@@ -60,6 +60,10 @@ func (e *Event) GetHeader(key string) interface{} {
 func (e *Event) getHeadersAsMap() map[string]interface{} {
 	headersMap := map[string]interface{}{}
 
+	if e.kafkaMessage == nil {
+		return headersMap
+	}
+
 	if e.kafkaMessage.Headers == nil {
 		return headersMap
 	}

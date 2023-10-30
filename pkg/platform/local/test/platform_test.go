@@ -49,6 +49,14 @@ func (suite *TestSuite) SetupSuite() {
 
 	// we will work on the first one
 	suite.namespace = namespaces[0]
+
+	getProjectsOptions := &platform.CreateProjectOptions{
+		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: platform.DefaultProjectName, Namespace: suite.namespace}, Spec: platform.ProjectSpec{
+			Description: "just a description",
+		}},
+	}
+	err = suite.Platform.CreateProject(suite.ctx, getProjectsOptions)
+	suite.Require().NoError(err, "Failed to create project")
 }
 
 // Test function containers healthiness validation
@@ -101,6 +109,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
 	suite.DeployFunction(createFunctionOptions,
 		func(deployResult *platform.CreateFunctionResult) bool {
+			suite.NotEmpty(deployResult, "Function hasn't been deployed")
 			functionName := deployResult.UpdatedFunctionConfig.Meta.Name
 
 			// Ensure function state is ready

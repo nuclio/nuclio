@@ -47,7 +47,7 @@ type AnnotationConfigField struct {
 }
 
 type Configuration struct {
-	functionconfig.Trigger
+	*functionconfig.Trigger
 
 	// the runtime configuration, for reference
 	RuntimeConfiguration *runtime.Configuration
@@ -61,7 +61,7 @@ func NewConfiguration(id string,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 
 	configuration := &Configuration{
-		Trigger:              *triggerConfiguration,
+		Trigger:              triggerConfiguration,
 		RuntimeConfiguration: runtimeConfiguration,
 		ID:                   id,
 	}
