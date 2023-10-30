@@ -42,7 +42,7 @@ type ControlMessageAttributesExplicitAck struct {
 }
 
 type ControlConsumer struct {
-	Channels []chan *ControlMessage
+	channels []chan *ControlMessage
 	kind     ControlMessageKind
 }
 
@@ -50,7 +50,7 @@ type ControlConsumer struct {
 func NewControlConsumer(kind ControlMessageKind) *ControlConsumer {
 
 	return &ControlConsumer{
-		Channels: make([]chan *ControlMessage, 0),
+		channels: make([]chan *ControlMessage, 0),
 		kind:     kind,
 	}
 }
@@ -64,8 +64,8 @@ func (c *ControlConsumer) GetKind() ControlMessageKind {
 func (c *ControlConsumer) Send(message *ControlMessage) error {
 
 	wg := sync.WaitGroup{}
-	wg.Add(len(c.Channels))
-	for _, channel := range c.Channels {
+	wg.Add(len(c.channels))
+	for _, channel := range c.channels {
 
 		go func(channel chan *ControlMessage, message *ControlMessage) {
 			channel <- message
@@ -78,14 +78,14 @@ func (c *ControlConsumer) Send(message *ControlMessage) error {
 }
 
 func (c *ControlConsumer) addChannel(channel chan *ControlMessage) {
-	c.Channels = append(c.Channels, channel)
+	c.channels = append(c.channels, channel)
 }
 
 func (c *ControlConsumer) deleteChannel(channelToDelete chan *ControlMessage) {
 	// remove the channel from the consumer
-	for i, channel := range c.Channels {
+	for i, channel := range c.channels {
 		if channel == channelToDelete {
-			c.Channels = append(c.Channels[:i], c.Channels[i+1:]...)
+			c.channels = append(c.channels[:i], c.channels[i+1:]...)
 			break
 		}
 	}

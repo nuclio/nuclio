@@ -276,7 +276,7 @@ consumptionLoop:
 			k.Logger.DebugWith("Got signal to stop consumption",
 				"wait", k.configuration.maxWaitHandlerDuringRebalance.String(),
 				"partition", claim.Partition(),
-				"waitForHandler", true,
+				"waitForHandler", false,
 			)
 			// waitForHandler value is false here because we didn't start msg processing on this iteration
 			k.drainOnRebalance(session, claim, nil, nil, nil, false)
