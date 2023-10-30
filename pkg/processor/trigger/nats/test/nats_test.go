@@ -67,7 +67,7 @@ func (suite *testSuite) TestPostEvent() {
 		suite.BrokerHost,
 		suite.getDeployOptions(),
 		map[string]triggertest.TopicMessages{
-			suite.topicName: {NumMessages: 3},
+			suite.topicName: {NumMessages: 20},
 		},
 		nil,
 		suite.publishMessageToTopic)
@@ -86,6 +86,7 @@ func (suite *testSuite) getDeployOptions() *platform.CreateFunctionOptions {
 		Attributes: map[string]interface{}{
 			"topic": suite.topicName,
 		},
+		MaxWorkers: 3,
 	}
 
 	return createFunctionOptions

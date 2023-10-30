@@ -85,7 +85,6 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 			}
 		}
 
-		// TODO: retry until successful
 		var receivedEvents []Event
 		var getEventErr error
 		err := common.RetryUntilSuccessful(10*time.Second,
