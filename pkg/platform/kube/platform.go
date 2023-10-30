@@ -472,6 +472,14 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 		functionConfig.Spec.ServiceAccount = p.Config.Kube.DefaultFunctionServiceAccount
 	}
 
+	if functionConfig.Spec.DisableDefaultHttpTrigger == nil {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching disable default http trigger",
+			"functionName", functionConfig.Meta.Name,
+			"disableDefaultHttpTrigger", p.Config.DisableDefaultHttpTrigger)
+		functionConfig.Spec.DisableDefaultHttpTrigger = &p.Config.DisableDefaultHttpTrigger
+	}
+
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	p.enrichSidecarsSpec(ctx, functionConfig)
 	return nil
