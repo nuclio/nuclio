@@ -289,6 +289,19 @@ func (suite *DeployFunctionTestSuite) TestVolumeOnceMountTwice() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
+	createFunctionOptions := suite.CompileCreateFunctionOptions("disable-default-http")
+	trueValue := true
+	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHttpTrigger = &trueValue
+	suite.DeployFunction(createFunctionOptions,
+
+		// sanity
+		func(deployResult *platform.CreateFunctionResult) bool {
+			suite.Require().NotNil(deployResult)
+			return true
+		})
+}
+
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
 	var resourceVersion string
 
