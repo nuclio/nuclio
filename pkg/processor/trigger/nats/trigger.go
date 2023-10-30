@@ -136,14 +136,27 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 		select {
 		case natsMessage := <-messageChan:
 			n.event.natsMessage = natsMessage
-			// process the event, don't really do anything with response
-			_, submitError, processError := n.AllocateWorkerAndSubmitEvent(&n.event, n.Logger, 10*time.Second)
-			if submitError != nil {
-				n.Logger.ErrorWith("Can't submit event", "error", submitError)
+
+			// allocate a worker
+			workerInstance, err := n.WorkerAllocator.Allocate(10 * time.Second)
+			if err != nil {
+				n.UpdateStatistics(false)
+				n.Logger.ErrorWith("Failed to allocate worker", "error", err)
+				continue
 			}
-			if processError != nil {
-				n.Logger.ErrorWith("Can't process event", "error", processError)
-			}
+
+			// submit the event to the worker and continue, as we don't mark anything when processing is done
+			go func(worker *worker.Worker, event *Event) {
+				// submit the event to the worker, don't really do anything with response
+				_, processErr := n.SubmitEventToWorker(nil, worker, event)
+				if processErr != nil {
+					n.Logger.ErrorWith("Can't process event", "error", processErr)
+				}
+
+				// release the worker
+				n.WorkerAllocator.Release(worker)
+			}(workerInstance, &n.event)
+
 		case <-n.stop:
 			return
 		}
