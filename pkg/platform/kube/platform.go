@@ -1254,7 +1254,7 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return err
 	}
 
-	if *functionConfig.Spec.DisableDefaultHttpTrigger &&
+	if functionConfig.Spec.DisableDefaultHttpTrigger != nil && *functionConfig.Spec.DisableDefaultHttpTrigger &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 &&
 		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
