@@ -454,6 +454,10 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Priority class name validation failed")
 	}
 
+	if err := ap.validateScaleToZero(functionConfig); err != nil {
+		return errors.Wrap(err, "Scaling to zero validation failed")
+	}
+
 	if err := ap.validateAutoScaleMetrics(functionConfig); err != nil {
 		return errors.Wrap(err, "Auto scale metrics validation failed")
 	}
@@ -1422,6 +1426,16 @@ func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Con
 			"Priority class name `%s` is not in valid priority class names list: [%s]",
 			functionConfig.Spec.PriorityClassName,
 			strings.Join(ap.Config.Kube.ValidFunctionPriorityClassNames, ", ")))
+	}
+	return nil
+}
+
+func (ap *Platform) validateScaleToZero(functionConfig *functionconfig.Config) error {
+	if functionConfig.Spec.MinReplicas != nil && *functionConfig.Spec.MinReplicas == 0 &&
+		functionConfig.Spec.DisableDefaultHttpTrigger != nil && *functionConfig.Spec.DisableDefaultHttpTrigger &&
+		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 {
+		return errors.New("Function can not be scaling to zero without http trigger. " +
+			"Either enable default http trigger creation or create custom http trigger")
 	}
 	return nil
 }
