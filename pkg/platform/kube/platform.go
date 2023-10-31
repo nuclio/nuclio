@@ -1256,8 +1256,11 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 
 	if *functionConfig.Spec.DisableDefaultHttpTrigger &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
+		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 &&
 		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
-		return errors.New("Cron trigger creation mode cannot be set to `kube` when default http trigger creation is disabled")
+		return errors.New("Cron trigger in `kube` mode cannot be created when default http trigger " +
+			"creation is disabled and there is no other http trigger. " +
+			"Either enable default http trigger creation or create custom http trigger")
 	}
 
 	if err := p.validateServiceType(functionConfig); err != nil {
