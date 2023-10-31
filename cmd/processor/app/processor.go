@@ -159,11 +159,6 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create and start health check server")
 	}
 
-	if (processorConfiguration.Spec.DisableDefaultHttpTrigger == nil || *processorConfiguration.Spec.DisableDefaultHttpTrigger) &&
-		len(functionconfig.GetTriggersByKind(processorConfiguration.Spec.Triggers, "http")) > 0 {
-		startInternalHealthCheck()
-	}
-
 	// create triggers
 	newProcessor.triggers, err = newProcessor.createTriggers(processorConfiguration)
 	if err != nil {
@@ -195,6 +190,11 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create metric sinks")
 	}
 
+	if (processorConfiguration.Spec.DisableDefaultHttpTrigger == nil && platformConfiguration.DisableDefaultHttpTrigger ||
+		*processorConfiguration.Spec.DisableDefaultHttpTrigger) &&
+		len(functionconfig.GetTriggersByKind(processorConfiguration.Spec.Triggers, "http")) == 0 {
+		startInternalHealthCheck()
+	}
 	return newProcessor, nil
 }
 

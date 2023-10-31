@@ -2,6 +2,7 @@
 
 To help you make the most of Nuclio, the following function examples are provided:
 
+Note: all functions contain field `disableDefaultHttpTrigger: false` to stay deployable even if default http trigger creation is disabled on platform configuration level. 
 ## Go examples
 
 - [Hello World](golang/helloworld) (`helloworld`): A simple function that showcases unstructured logging and a structured response.
@@ -43,3 +44,4 @@ To help you make the most of Nuclio, the following function examples are provide
 
 - [Empty](java/empty) (`empty`): A simple function that returns an empty string.
 - [Reverser](java/reverser) (`reverser`): Returns the reverse of the body received in the event, also shows how to log.
+

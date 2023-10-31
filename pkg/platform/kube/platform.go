@@ -1254,6 +1254,12 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return err
 	}
 
+	if *functionConfig.Spec.DisableDefaultHttpTrigger &&
+		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
+		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		return errors.New("Cron trigger creation mode cannot be set to `kube` when default http trigger creation is disabled")
+	}
+
 	if err := p.validateServiceType(functionConfig); err != nil {
 		return errors.Wrap(err, "Service type validation failed")
 	}
