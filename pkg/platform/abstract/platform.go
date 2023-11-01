@@ -426,7 +426,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Min max replicas validation failed")
 	}
 
-	if err := ap.validateNodeSelector(functionConfig); err != nil {
+	if err := common.ValidateNodeSelector(functionConfig.Spec.NodeSelector); err != nil {
 		return errors.Wrap(err, "Node selector validation failed")
 	}
 
@@ -728,6 +728,10 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 
 // ValidateProjectConfig perform validation on a given project config
 func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig) error {
+	if err := common.ValidateNodeSelector(projectConfig.Spec.DefaultNodeSelector); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
+
 	if projectConfig.Meta.Name == "" {
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
@@ -1370,24 +1374,6 @@ func (ap *Platform) validateMinMaxReplicas(functionConfig *functionconfig.Config
 		return nuclio.NewErrBadRequest("Max replicas must be greater than zero")
 	}
 
-	return nil
-}
-
-func (ap *Platform) validateNodeSelector(functionConfig *functionconfig.Config) error {
-	for labelKey, labelValue := range functionConfig.Spec.NodeSelector {
-		if errs := validation.IsValidLabelValue(labelValue); len(errs) > 0 {
-			errs = append([]string{fmt.Sprintf("Invalid value: %s", labelValue)}, errs...)
-			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
-		}
-
-		// Valid label keys have two segments: an optional prefix and name, separated by a slash (/).
-		// The name segment is required and must conform to the rules of a valid label value.
-		// The prefix is optional. If specified, the prefix must be a DNS subdomain.
-		if errs := validation.IsQualifiedName(labelKey); len(errs) > 0 {
-			errs = append([]string{fmt.Sprintf("Invalid key: %s", labelKey)}, errs...)
-			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
-		}
-	}
 	return nil
 }
 

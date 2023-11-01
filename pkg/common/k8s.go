@@ -18,6 +18,8 @@ package common
 
 import (
 	"fmt"
+	"github.com/nuclio/nuclio-sdk-go"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"os"
 	"path/filepath"
 	"strings"
@@ -162,4 +164,25 @@ func getKubeconfigFromHomeDir() string {
 	}
 
 	return ""
+}
+
+func ValidateNodeSelector(nodeSelector map[string]string) error {
+	if nodeSelector == nil {
+		return nil
+	}
+	for labelKey, labelValue := range nodeSelector {
+		if errs := validation.IsValidLabelValue(labelValue); len(errs) > 0 {
+			errs = append([]string{fmt.Sprintf("Invalid value: %s", labelValue)}, errs...)
+			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
+		}
+
+		// Valid label keys have two segments: an optional prefix and name, separated by a slash (/).
+		// The name segment is required and must conform to the rules of a valid label value.
+		// The prefix is optional. If specified, the prefix must be a DNS subdomain.
+		if errs := validation.IsQualifiedName(labelKey); len(errs) > 0 {
+			errs = append([]string{fmt.Sprintf("Invalid key: %s", labelKey)}, errs...)
+			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
+		}
+	}
+	return nil
 }
