@@ -18,8 +18,6 @@ package common
 
 import (
 	"fmt"
-	"github.com/nuclio/nuclio-sdk-go"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +25,9 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"

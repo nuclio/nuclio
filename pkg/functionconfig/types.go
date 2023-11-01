@@ -18,13 +18,13 @@ package functionconfig
 
 import (
 	"fmt"
-	"github.com/nuclio/errors"
 	"reflect"
 	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 
+	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"

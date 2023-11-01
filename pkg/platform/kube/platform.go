@@ -500,8 +500,8 @@ func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfi
 				functionConfig.Spec.NodeSelector[key] = value
 			}
 		}
-
 	}
+	return nil
 }
 
 func (p *Platform) GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (platform.Project, error) {
