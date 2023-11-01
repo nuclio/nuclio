@@ -433,16 +433,8 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 		return errors.Wrap(err, "Failed to enrich http trigger")
 	}
 
-	// enrich function node selector
-	if functionConfig.Spec.NodeSelector == nil && p.Config.Kube.DefaultFunctionNodeSelector != nil {
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching function node selector",
-			"functionName", functionConfig.Meta.Name,
-			"nodeSelectors", p.Config.Kube.DefaultFunctionNodeSelector)
-		functionConfig.Spec.NodeSelector = map[string]string{}
-		for key, value := range p.Config.Kube.DefaultFunctionNodeSelector {
-			functionConfig.Spec.NodeSelector[key] = value
-		}
+	if err := p.enrichFunctionNodeSelector(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich node selector")
 	}
 
 	// enrich function tolerations
@@ -475,6 +467,62 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	p.enrichSidecarsSpec(ctx, functionConfig)
 	return nil
+}
+
+func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfig *functionconfig.Config) error {
+	// if node selector is not specified in function config, we firstly try to get it from project CRD
+	// If it is missing in project CRD, then we try to get it from platform config
+
+	if functionConfig.Spec.NodeSelector == nil {
+		functionProject, err := p.GetFunctionProject(ctx, functionConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to request project")
+		}
+		if functionProject.GetConfig().Spec.DefaultNodeSelector != nil {
+			p.Logger.DebugWithCtx(ctx,
+				"Enriching function node selector",
+				"functionName", functionConfig.Meta.Name,
+				"nodeSelectors", p.Config.Kube.DefaultFunctionNodeSelector,
+				"from", "project CRD spec")
+			functionConfig.Spec.NodeSelector = map[string]string{}
+			for key, value := range functionProject.GetConfig().Spec.DefaultNodeSelector {
+				functionConfig.Spec.NodeSelector[key] = value
+			}
+
+		} else if p.Config.Kube.DefaultFunctionNodeSelector != nil {
+			p.Logger.DebugWithCtx(ctx,
+				"Enriching function node selector",
+				"functionName", functionConfig.Meta.Name,
+				"nodeSelectors", p.Config.Kube.DefaultFunctionNodeSelector,
+				"from", "platform config")
+			functionConfig.Spec.NodeSelector = map[string]string{}
+			for key, value := range p.Config.Kube.DefaultFunctionNodeSelector {
+				functionConfig.Spec.NodeSelector[key] = value
+			}
+		}
+
+	}
+}
+
+func (p *Platform) GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (platform.Project, error) {
+	projectName, err := functionConfig.GetProjectName()
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not enrich project name")
+	}
+	getProjectsOptions := &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      projectName,
+			Namespace: functionConfig.Meta.Namespace,
+		},
+	}
+	projects, err := p.GetProjects(ctx, getProjectsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
+	}
+	if len(projects) > 1 {
+		return nil, errors.Wrap(err, "More than one project was found for given function")
+	}
+	return projects[0], nil
 }
 
 // GetFunctions will return deployed functions

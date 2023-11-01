@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"fmt"
+	"github.com/nuclio/errors"
 	"reflect"
 	"strconv"
 	"time"
@@ -583,6 +584,16 @@ func (c *Config) CleanFunctionSpec() {
 	if c.Spec.Build.FunctionSourceCode != "" {
 		c.Spec.Image = ""
 	}
+}
+
+func (c *Config) GetProjectName() (string, error) {
+	if c.Meta.Labels == nil {
+		c.Meta.Labels = make(map[string]string)
+	}
+	if name, ok := c.Meta.Labels[common.NuclioResourceLabelKeyProjectName]; ok {
+		return name, nil
+	}
+	return "", errors.New("Project label not found")
 }
 
 func (c *Config) PrepareFunctionForExport(exportOptions *common.ExportFunctionOptions) {
