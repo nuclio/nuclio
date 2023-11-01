@@ -190,6 +190,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create metric sinks")
 	}
 
+	// if default http trigger creation is disabled and there is no any other http trigger we need to start internal
+	// healthcheck service
 	if (processorConfiguration.Spec.DisableDefaultHttpTrigger == nil && platformConfiguration.DisableDefaultHttpTrigger ||
 		*processorConfiguration.Spec.DisableDefaultHttpTrigger) &&
 		len(functionconfig.GetTriggersByKind(processorConfiguration.Spec.Triggers, "http")) == 0 {

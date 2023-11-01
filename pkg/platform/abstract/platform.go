@@ -289,7 +289,7 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	if functionConfig.Spec.DisableDefaultHttpTrigger == nil {
 		ap.Logger.DebugWithCtx(ctx,
-			"Enriching disable default http trigger",
+			"Enriching disable default http trigger flag",
 			"functionName", functionConfig.Meta.Name,
 			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHttpTrigger)
 		functionConfig.Spec.DisableDefaultHttpTrigger = &ap.Config.DisableDefaultHttpTrigger
@@ -322,7 +322,7 @@ func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Conf
 		return
 	}
 	if ap.Config.DisableDefaultHttpTrigger {
-		ap.Logger.Debug("Default http trigger is disabled, skip creation")
+		ap.Logger.Debug("Skipping default http trigger creation")
 		return
 	}
 
@@ -455,7 +455,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 	}
 
 	if err := ap.validateScaleToZero(functionConfig); err != nil {
-		return errors.Wrap(err, "Scaling to zero validation failed")
+		return errors.Wrap(err, "Scale to zero validation failed")
 	}
 
 	if err := ap.validateAutoScaleMetrics(functionConfig); err != nil {
