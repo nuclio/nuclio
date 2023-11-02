@@ -287,12 +287,12 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 		return errors.Wrap(err, "Failed enriching volumes")
 	}
 
-	if functionConfig.Spec.DisableDefaultHttpTrigger == nil {
+	if functionConfig.Spec.DisableDefaultHTTPTrigger == nil {
 		ap.Logger.DebugWithCtx(ctx,
 			"Enriching disable default http trigger flag",
 			"functionName", functionConfig.Meta.Name,
-			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHttpTrigger)
-		functionConfig.Spec.DisableDefaultHttpTrigger = &ap.Config.DisableDefaultHttpTrigger
+			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHTTPTrigger)
+		functionConfig.Spec.DisableDefaultHTTPTrigger = &ap.Config.DisableDefaultHTTPTrigger
 	}
 
 	ap.enrichEnvVars(functionConfig)
@@ -321,7 +321,7 @@ func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Conf
 	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) > 0 {
 		return
 	}
-	if ap.Config.DisableDefaultHttpTrigger {
+	if ap.Config.DisableDefaultHTTPTrigger {
 		ap.Logger.Debug("Skipping default http trigger creation")
 		return
 	}
@@ -920,7 +920,7 @@ func (ap *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 }
 
 func (ap *Platform) GetDisableDefaultHttpTrigger() bool {
-	return ap.Config.DisableDefaultHttpTrigger
+	return ap.Config.DisableDefaultHTTPTrigger
 }
 
 // GetAllowedAuthenticationModes returns allowed authentication modes
@@ -1432,7 +1432,7 @@ func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Con
 
 func (ap *Platform) validateScaleToZero(functionConfig *functionconfig.Config) error {
 	if functionConfig.Spec.MinReplicas != nil && *functionConfig.Spec.MinReplicas == 0 &&
-		functionConfig.Spec.DisableDefaultHttpTrigger != nil && *functionConfig.Spec.DisableDefaultHttpTrigger &&
+		functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 {
 		return errors.New("Function can not be scaling to zero without http trigger. " +
 			"Either enable default http trigger creation or create custom http trigger")

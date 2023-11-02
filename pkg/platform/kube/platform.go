@@ -1749,7 +1749,7 @@ func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) er
 }
 
 func (p *Platform) validateCronTriggers(functionConfig *functionconfig.Config) error {
-	if functionConfig.Spec.DisableDefaultHttpTrigger != nil && *functionConfig.Spec.DisableDefaultHttpTrigger &&
+	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 &&
 		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {

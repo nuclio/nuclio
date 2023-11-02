@@ -306,14 +306,14 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 			&platform.AbstractProject{},
 		}, nil).Once()
 
-		suite.Platform.Config.DisableDefaultHttpTrigger = testCase.PlatformDisableDefaultHttpTrigger
-		functionConfig.Spec.DisableDefaultHttpTrigger = testCase.FunctionDisableDefaultHttpTrigger
+		suite.Platform.Config.DisableDefaultHTTPTrigger = testCase.PlatformDisableDefaultHttpTrigger
+		functionConfig.Spec.DisableDefaultHTTPTrigger = testCase.FunctionDisableDefaultHttpTrigger
 
 		// enrich
 		err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
 		suite.Require().NoError(err)
 
-		suite.Require().Equal(testCase.ExpectedValue, *functionConfig.Spec.DisableDefaultHttpTrigger)
+		suite.Require().Equal(testCase.ExpectedValue, *functionConfig.Spec.DisableDefaultHTTPTrigger)
 	}
 }
 

@@ -300,7 +300,7 @@ func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
 	createFunctionOptions := suite.getDeployOptions("disable-default-http")
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
 	trueValue := true
-	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHttpTrigger = &trueValue
+	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &trueValue
 	localPlatform := suite.Platform.(*local.Platform)
 	suite.DeployFunction(createFunctionOptions,
 

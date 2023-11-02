@@ -357,7 +357,7 @@ type Spec struct {
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
 
 	// If set to nil, the value is taken from the platform configuration. When set explicitly in function config, it has a priority
-	DisableDefaultHttpTrigger *bool `json:"disableDefaultHttpTrigger,omitempty"`
+	DisableDefaultHTTPTrigger *bool `json:"disableDefaultHTTPTrigger,omitempty"`
 
 	// When set to true, the function spec would not be scrubbed
 	DisableSensitiveFieldsMasking bool `json:"disableSensitiveFieldsMasking,omitempty"`

@@ -22,7 +22,7 @@ spec:
   handler: "encrypt:encrypt"
   minReplicas: 1
   maxReplicas: 1
-  disableDefaultHttpTrigger: false
+  disableDefaultHTTPTrigger: false
 
   build:
     commands:

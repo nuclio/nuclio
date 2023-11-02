@@ -292,7 +292,7 @@ func (suite *DeployFunctionTestSuite) TestVolumeOnceMountTwice() {
 func (suite *DeployFunctionTestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
 	createFunctionOptions := suite.CompileCreateFunctionOptions("disable-default-http")
 	trueValue := true
-	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHttpTrigger = &trueValue
+	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &trueValue
 	suite.DeployFunction(createFunctionOptions,
 
 		// sanity
