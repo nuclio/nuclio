@@ -125,6 +125,21 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			},
 			ExpectedProjectName: "a-name",
 		},
+		{
+			Name: "Sanity with node selector",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "a-name",
+					},
+					Spec: platform.ProjectSpec{
+						Description:         "just a description",
+						DefaultNodeSelector: map[string]string{"test": "node-selector"},
+					},
+				},
+			},
+			ExpectedProjectName: "a-name",
+		},
 
 		// bad flows
 		{
@@ -133,6 +148,21 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{
 						Name: "invalid project name ## .. %%",
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
+		{
+			Name: "InvalidName",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "a-name",
+					},
+					Spec: platform.ProjectSpec{
+						Description:         "just a description",
+						DefaultNodeSelector: map[string]string{"test": "node selector not allowed string"},
 					},
 				},
 			},
