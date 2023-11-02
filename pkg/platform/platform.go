@@ -111,6 +111,9 @@ type Platform interface {
 	// WaitForProjectResourcesDeletion waits for all the project's resources to be deleted
 	WaitForProjectResourcesDeletion(ctx context.Context, projectMeta *ProjectMeta, duration time.Duration) error
 
+	// GetFunctionProject returns project instance for specific function
+	GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (Project, error)
+
 	//
 	// Function event
 	//

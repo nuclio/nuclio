@@ -168,6 +168,12 @@ func (mp *Platform) GetProjects(ctx context.Context, getProjectsOptions *platfor
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
+// GetFunctionProject returns project instance for specific function
+func (mp *Platform) GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (platform.Project, error) {
+	args := mp.Called(ctx, functionConfig)
+	return args.Get(0).(platform.Project), args.Error(1)
+}
+
 func (mp *Platform) GetRuntimeBuildArgs(runtime runtime.Runtime) map[string]string {
 	args := mp.Called()
 	return args.Get(0).(map[string]string)

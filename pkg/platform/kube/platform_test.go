@@ -288,8 +288,13 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionNodeSelectorEnrichment()
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			suite.nuclioProjectInterfaceMock.
+				On("Get", suite.ctx, platform.DefaultProjectName, metav1.GetOptions{}).
+				Return(&v1beta1.NuclioProject{Spec: platform.ProjectSpec{}}, nil).Once()
+
 			functionConfig := functionconfig.NewConfig()
 			functionConfig.Spec.NodeSelector = testCase.nodeSelector
+			functionConfig.Meta.Namespace = suite.Namespace
 			err := suite.platform.EnrichFunctionConfig(suite.ctx, functionConfig)
 			suite.Require().NoError(err)
 			suite.Require().Equal(testCase.expectedNodeSelector, functionConfig.Spec.NodeSelector)
@@ -370,6 +375,52 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			} else {
 				suite.Require().NoError(err, "Validation failed unexpectedly")
 			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestValidateNodeSelector() {
+	for _, testCase := range []struct {
+		name                         string
+		functionNodeSelector         map[string]string
+		platformNodeSelector         map[string]string
+		projectNodeSelector          map[string]string
+		expectedFunctionNodeSelector map[string]string
+	}{
+		{name: "get-selector-from-platform",
+			platformNodeSelector:         map[string]string{"test": "test"},
+			expectedFunctionNodeSelector: map[string]string{"test": "test"},
+		},
+		{name: "get-selector-from-project",
+			platformNodeSelector:         map[string]string{"test": "from-platform"},
+			projectNodeSelector:          map[string]string{"test": "from-project"},
+			expectedFunctionNodeSelector: map[string]string{"test": "from-project"},
+		},
+		{name: "get-selector-from-project",
+			platformNodeSelector:         map[string]string{"test": "from-platform"},
+			projectNodeSelector:          map[string]string{"test": "from-project"},
+			functionNodeSelector:         map[string]string{"test": "from-function"},
+			expectedFunctionNodeSelector: map[string]string{"test": "from-function"},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.nuclioProjectInterfaceMock.
+				On("Get", suite.ctx, "default", metav1.GetOptions{}).
+				Return(&v1beta1.NuclioProject{Spec: platform.ProjectSpec{DefaultNodeSelector: testCase.projectNodeSelector}}, nil).Once()
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.NodeSelector = testCase.functionNodeSelector
+
+			functionConfig.Meta.Name = testCase.name
+			functionConfig.Meta.Namespace = suite.Namespace
+			functionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			suite.platform.Config.Kube.DefaultFunctionNodeSelector = testCase.platformNodeSelector
+			suite.Logger.DebugWith("Checking function ", "functionName", testCase.name)
+
+			err := suite.platform.enrichFunctionNodeSelector(suite.ctx, &functionConfig)
+			suite.Require().NoError(err, "Validation failed unexpectedly")
+			suite.Require().Equal(testCase.expectedFunctionNodeSelector, functionConfig.Spec.NodeSelector)
 		})
 	}
 }
@@ -513,6 +564,10 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}).Return([]platform.Project{
 				&platform.AbstractProject{},
 			}, nil).Once()
+
+			suite.nuclioProjectInterfaceMock.
+				On("Get", suite.ctx, platform.DefaultProjectName, metav1.GetOptions{}).
+				Return(&v1beta1.NuclioProject{Spec: platform.ProjectSpec{}}, nil).Once()
 
 			// name it with index and shift with 65 to get A as first letter
 			functionName := string(rune(idx + 65))
@@ -1374,6 +1429,9 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 
 	// inject auth session to context
 	ctx := context.WithValue(suite.ctx, auth.AuthSessionContextKey, authSession)
+	suite.nuclioProjectInterfaceMock.
+		On("Get", ctx, platform.DefaultProjectName, metav1.GetOptions{}).
+		Return(&v1beta1.NuclioProject{Spec: platform.ProjectSpec{}}, nil).Once()
 
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:         suite.Logger,
@@ -1381,6 +1439,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 		AuthSession:    authSession,
 	}
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
 	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 		"nuclio.io/project-name": platform.DefaultProjectName,
 	}
