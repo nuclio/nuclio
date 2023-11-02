@@ -552,6 +552,27 @@ func (p *Platform) CreateProject(ctx context.Context, createProjectOptions *plat
 	return nil
 }
 
+func (p *Platform) GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (platform.Project, error) {
+	projectName, err := functionConfig.GetProjectName()
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not enrich project name")
+	}
+	getProjectsOptions := &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      projectName,
+			Namespace: functionConfig.Meta.Namespace,
+		},
+	}
+	projects, err := p.GetProjects(ctx, getProjectsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
+	}
+	if len(projects) > 1 {
+		return nil, errors.Wrap(err, "More than one project was found for given function")
+	}
+	return projects[0], nil
+}
+
 // UpdateProject will update an existing project
 func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	if err := p.ValidateProjectConfig(&updateProjectOptions.ProjectConfig); err != nil {
