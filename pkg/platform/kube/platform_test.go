@@ -387,16 +387,19 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateNodeSelector() {
 		projectNodeSelector          map[string]string
 		expectedFunctionNodeSelector map[string]string
 	}{
-		{name: "get-selector-from-platform",
+		{
+			name:                         "get-selector-from-platform",
 			platformNodeSelector:         map[string]string{"test": "test"},
 			expectedFunctionNodeSelector: map[string]string{"test": "test"},
 		},
-		{name: "get-selector-from-project",
+		{
+			name:                         "get-selector-from-project",
 			platformNodeSelector:         map[string]string{"test": "from-platform"},
 			projectNodeSelector:          map[string]string{"test": "from-project"},
 			expectedFunctionNodeSelector: map[string]string{"test": "from-project"},
 		},
-		{name: "get-selector-from-project",
+		{
+			name:                         "get-selector-from-project",
 			platformNodeSelector:         map[string]string{"test": "from-platform"},
 			projectNodeSelector:          map[string]string{"test": "from-project"},
 			functionNodeSelector:         map[string]string{"test": "from-function"},

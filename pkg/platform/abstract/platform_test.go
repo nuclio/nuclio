@@ -154,7 +154,7 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			ExpectValidationFailure: true,
 		},
 		{
-			Name: "InvalidName",
+			Name: "InvalidNodeSelector",
 			CreateProjectOptions: &platform.CreateProjectOptions{
 				ProjectConfig: &platform.ProjectConfig{
 					Meta: platform.ProjectMeta{

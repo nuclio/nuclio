@@ -567,10 +567,14 @@ func (p *Platform) GetFunctionProject(ctx context.Context, functionConfig *funct
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
-	if len(projects) > 1 {
+	switch {
+	case len(projects) == 1:
+		return projects[0], nil
+	case len(projects) == 0:
+		return nil, errors.Wrap(err, "Project was not found for given function")
+	default:
 		return nil, errors.Wrap(err, "More than one project was found for given function")
 	}
-	return projects[0], nil
 }
 
 // UpdateProject will update an existing project

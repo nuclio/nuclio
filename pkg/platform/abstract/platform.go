@@ -728,12 +728,13 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 
 // ValidateProjectConfig perform validation on a given project config
 func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig) error {
-	if err := common.ValidateNodeSelector(projectConfig.Spec.DefaultNodeSelector); err != nil {
-		return nuclio.WrapErrBadRequest(err)
-	}
 
 	if projectConfig.Meta.Name == "" {
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
+	}
+
+	if err := common.ValidateNodeSelector(projectConfig.Spec.DefaultNodeSelector); err != nil {
+		return nuclio.WrapErrBadRequest(err)
 	}
 
 	// project name should adhere Kubernetes label restrictions
