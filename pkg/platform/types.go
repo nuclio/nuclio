@@ -228,11 +228,10 @@ type ProjectSpec struct {
 }
 
 func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
-	if ps.DefaultNodeSelector == nil {
-		ps.DefaultNodeSelector = make(map[string]string)
-	}
-	if other.DefaultNodeSelector == nil {
-		other.DefaultNodeSelector = make(map[string]string)
+
+	if ps.DefaultNodeSelector == nil && other.DefaultNodeSelector != nil ||
+		ps.DefaultNodeSelector != nil && other.DefaultNodeSelector == nil {
+		return false
 	}
 
 	for k, v := range other.DefaultNodeSelector {
