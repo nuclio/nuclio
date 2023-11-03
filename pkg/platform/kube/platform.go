@@ -490,7 +490,7 @@ func (p *Platform) GetFunctionProject(ctx context.Context, functionConfig *funct
 	case len(projects) == 0:
 		return nil, errors.Wrap(err, "Project was not found for given function")
 	default:
-		return nil, errors.Wrap(err, "More than one project was found for given function")
+		return nil, errors.Wrap(err, "More than one project were found for given function")
 	}
 }
 
