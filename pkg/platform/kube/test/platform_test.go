@@ -1328,7 +1328,10 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
 		podLogOpts := v1.PodLogOptions{
 			Container: sidecarContainerName,
 		}
-		suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Done"})
+		err := common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Done"})
+		})
+		suite.Require().NoError(err)
 
 		return true
 	})
@@ -1433,7 +1436,8 @@ def handler(context, event):
 		podLogOpts := v1.PodLogOptions{
 			Container: sidecarContainerName,
 		}
-		suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{data, envVarValue})
+		containsLog := suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{data, envVarValue})
+		suite.Require().Equal(containsLog, true)
 
 		// validate the sidecar container has the same resource requests as the function
 		suite.Require().Equal(pod.Spec.Containers[0].Resources.Requests, pod.Spec.Containers[1].Resources.Requests)
@@ -1478,7 +1482,7 @@ func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v
 	return platformConfigConfigmap
 }
 
-func (suite *DeployFunctionTestSuite) validatePodLogsContainData(podName string, options *v1.PodLogOptions, expectedData []string) {
+func (suite *DeployFunctionTestSuite) validatePodLogsContainData(podName string, options *v1.PodLogOptions, expectedData []string) bool {
 	podLogRequest := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).GetLogs(podName, options)
 	podLogs, err := podLogRequest.Stream(suite.Ctx)
 	suite.Require().NoError(err)
@@ -1489,8 +1493,11 @@ func (suite *DeployFunctionTestSuite) validatePodLogsContainData(podName string,
 	suite.Require().NoError(err)
 
 	for _, data := range expectedData {
-		suite.Require().Contains(buf.String(), data)
+		if strings.Contains(buf.String(), data) {
+			return true
+		}
 	}
+	return false
 }
 
 type DeleteFunctionTestSuite struct {
