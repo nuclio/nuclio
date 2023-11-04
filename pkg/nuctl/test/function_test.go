@@ -139,6 +139,16 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 			filename: "empty.py",
 		},
 		{
+			runtime:  "python:3.10",
+			handler:  "empty:handler",
+			filename: "empty.py",
+		},
+		{
+			runtime:  "python:3.11",
+			handler:  "empty:handler",
+			filename: "empty.py",
+		},
+		{
 			runtime:  "ruby",
 			handler:  "empty:main",
 			filename: "empty.rb",
