@@ -469,31 +469,6 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	return nil
 }
 
-func (p *Platform) GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (platform.Project, error) {
-	projectName, err := functionConfig.GetProjectName()
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not enrich project name")
-	}
-	getProjectsOptions := &platform.GetProjectsOptions{
-		Meta: platform.ProjectMeta{
-			Name:      projectName,
-			Namespace: functionConfig.Meta.Namespace,
-		},
-	}
-	projects, err := p.GetProjects(ctx, getProjectsOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get projects")
-	}
-	switch {
-	case len(projects) == 1:
-		return projects[0], nil
-	case len(projects) == 0:
-		return nil, errors.Wrap(err, "Project was not found for given function")
-	default:
-		return nil, errors.Wrap(err, "More than one project were found for given function")
-	}
-}
-
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
@@ -1749,10 +1724,10 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 
 // enrichFunctionNodeSelector enriches function node selector
 // if node selector is not specified in function config, we firstly try to get it from project CRD
-// If it is missing in project CRD, then we try to get it from platform config
+// if it is missing in project CRD, then we try to get it from platform config
 func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfig *functionconfig.Config) error {
 	if functionConfig.Spec.NodeSelector == nil {
-		functionProject, err := p.GetFunctionProject(ctx, functionConfig)
+		functionProject, err := p.Platform.GetFunctionProject(ctx, functionConfig)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function project")
 		}

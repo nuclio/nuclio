@@ -748,6 +748,31 @@ func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig)
 	return nil
 }
 
+func (ap *Platform) GetFunctionProject(ctx context.Context, functionConfig *functionconfig.Config) (platform.Project, error) {
+	projectName, err := functionConfig.GetProjectName()
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not enrich project name")
+	}
+	getProjectsOptions := &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Name:      projectName,
+			Namespace: functionConfig.Meta.Namespace,
+		},
+	}
+	projects, err := ap.platform.GetProjects(ctx, getProjectsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
+	}
+	switch len(projects) {
+	case 1:
+		return projects[0], nil
+	case 0:
+		return nil, errors.Wrap(err, "Project was not found for given function")
+	default:
+		return nil, errors.Wrap(err, "More than one project were found for given function")
+	}
+}
+
 // UpdateProject will update a previously existing project
 func (ap *Platform) UpdateProject(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	return platform.ErrUnsupportedMethod
