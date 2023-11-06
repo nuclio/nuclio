@@ -257,52 +257,6 @@ type FunctionKubePlatformTestSuite struct {
 	KubePlatformTestSuite
 }
 
-func (suite *FunctionKubePlatformTestSuite) TestFunctionNodeSelectorEnrichment() {
-	defaultNodeSelector := map[string]string{
-		"a": "b",
-	}
-	suite.platform.Config.Kube.DefaultFunctionNodeSelector = defaultNodeSelector
-	for _, testCase := range []struct {
-		name                 string
-		nodeSelector         map[string]string
-		expectedNodeSelector map[string]string
-	}{
-		{
-			name:                 "enrich",
-			nodeSelector:         nil,
-			expectedNodeSelector: defaultNodeSelector,
-		},
-		{
-			name:                 "skipEnrichmentEmpty",
-			nodeSelector:         map[string]string{},
-			expectedNodeSelector: map[string]string{},
-		},
-		{
-			name: "skipEnrichmentFilled",
-			nodeSelector: map[string]string{
-				"a": "c",
-			},
-			expectedNodeSelector: map[string]string{
-				"a": "c",
-			},
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			suite.nuclioProjectInterfaceMock.
-				On("Get", suite.ctx, platform.DefaultProjectName, metav1.GetOptions{}).
-				Return(&v1beta1.NuclioProject{Spec: platform.ProjectSpec{}}, nil).Once()
-
-			functionConfig := functionconfig.NewConfig()
-			functionConfig.Spec.NodeSelector = testCase.nodeSelector
-			functionConfig.Meta.Namespace = suite.Namespace
-			err := suite.platform.EnrichFunctionConfig(suite.ctx, functionConfig)
-			suite.Require().NoError(err)
-			suite.Require().Equal(testCase.expectedNodeSelector, functionConfig.Spec.NodeSelector)
-
-		})
-	}
-}
-
 func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 	for idx, testCase := range []struct {
 		name                 string
@@ -379,7 +333,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 	}
 }
 
-func (suite *FunctionKubePlatformTestSuite) TestValidateNodeSelector() {
+func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 	for _, testCase := range []struct {
 		name                         string
 		functionNodeSelector         map[string]string
@@ -407,9 +361,17 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateNodeSelector() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.nuclioProjectInterfaceMock.
-				On("Get", suite.ctx, "default", metav1.GetOptions{}).
-				Return(&v1beta1.NuclioProject{Spec: platform.ProjectSpec{DefaultNodeSelector: testCase.projectNodeSelector}}, nil).Once()
+			suite.mockedPlatform.
+				On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      platform.DefaultProjectName,
+						Namespace: suite.Namespace,
+					},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{ProjectConfig: platform.ProjectConfig{Spec: platform.ProjectSpec{DefaultNodeSelector: testCase.projectNodeSelector}}},
+				}, nil).
+				Once()
 			functionConfig := *functionconfig.NewConfig()
 			functionConfig.Spec.NodeSelector = testCase.functionNodeSelector
 
@@ -566,12 +528,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				},
 			}).Return([]platform.Project{
 				&platform.AbstractProject{},
-			}, nil).Once()
-
-			suite.nuclioProjectInterfaceMock.
-				On("Get", suite.ctx, platform.DefaultProjectName, metav1.GetOptions{}).
-				Return(&v1beta1.NuclioProject{Spec: platform.ProjectSpec{}}, nil).Once()
-
+			}, nil).Twice()
 			// name it with index and shift with 65 to get A as first letter
 			functionName := string(rune(idx + 65))
 			functionConfig := *functionconfig.NewConfig()
@@ -1432,9 +1389,17 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 
 	// inject auth session to context
 	ctx := context.WithValue(suite.ctx, auth.AuthSessionContextKey, authSession)
-	suite.nuclioProjectInterfaceMock.
-		On("Get", ctx, platform.DefaultProjectName, metav1.GetOptions{}).
-		Return(&v1beta1.NuclioProject{Spec: platform.ProjectSpec{}}, nil).Once()
+	suite.mockedPlatform.
+		On("GetProjects", ctx, &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: suite.Namespace,
+			},
+		}).
+		Return([]platform.Project{
+			&platform.AbstractProject{},
+		}, nil).
+		Once()
 
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:         suite.Logger,
