@@ -98,6 +98,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"validFunctionPriorityClassNames": validFunctionPriorityClassNames,
 			"defaultFunctionPodResources":     defaultFunctionPodResources,
 			"autoScaleMetrics":                autoScaleMetrics,
+			"disableDefaultHttpTrigger":       fsr.getPlatform().GetDisableDefaultHttpTrigger(),
 		},
 	}
 

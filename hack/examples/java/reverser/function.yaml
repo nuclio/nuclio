@@ -17,5 +17,6 @@ meta:
 spec:
   runtime: java
   handler: ReverseEventHandler
+  disableDefaultHTTPTrigger: false
   description: Returns the reverse of the body received in the event.
 

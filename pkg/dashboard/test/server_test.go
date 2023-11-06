@@ -3638,6 +3638,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		Return(allowedAuthenticationModes).
 		Once()
 
+	suite.mockPlatform.
+		On("GetDisableDefaultHttpTrigger").
+		Return(false).
+		Once()
+
 	expectedStatusCode := http.StatusOK
 	expectedResponseBody := `{
     "defaultFunctionConfig": {
@@ -3683,6 +3688,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
         }
     },
     "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
+	"disableDefaultHttpTrigger": false,
     "defaultFunctionPodResources": {
         "requests": {},
         "limits": {}

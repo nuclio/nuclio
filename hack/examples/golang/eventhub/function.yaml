@@ -26,6 +26,7 @@ spec:
   handler: main:SensorHandler
   minReplicas: 1
   maxReplicas: 1
+  disableDefaultHTTPTrigger: false
   build:
     commands:
        - apk --update --no-cache add ca-certificates
