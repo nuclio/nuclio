@@ -101,7 +101,9 @@ func NewPlatform(ctx context.Context,
 
 	// init platform
 	newPlatform.Platform = newAbstractPlatform
-	newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
+	if _, err := common.GetKubeConfigClientCmdByKubeconfigPath(platformConfiguration.Kube.KubeConfigPath); err == nil {
+		newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
+	}
 
 	// create consumer
 	newPlatform.consumer, err = client.NewConsumer(ctx, newPlatform.Logger, newPlatform.kubeconfigPath)
