@@ -287,6 +287,14 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 		return errors.Wrap(err, "Failed enriching volumes")
 	}
 
+	if functionConfig.Spec.DisableDefaultHTTPTrigger == nil {
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching disable default http trigger flag",
+			"functionName", functionConfig.Meta.Name,
+			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHTTPTrigger)
+		functionConfig.Spec.DisableDefaultHTTPTrigger = &ap.Config.DisableDefaultHTTPTrigger
+	}
+
 	ap.enrichEnvVars(functionConfig)
 
 	ap.Config.EnrichFunctionContainerResources(ctx, ap.Logger, &functionConfig.Spec.Resources)
@@ -311,6 +319,10 @@ func (ap *Platform) EnrichLabels(ctx context.Context, labels map[string]string) 
 
 func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Config) {
 	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) > 0 {
+		return
+	}
+	if ap.Config.DisableDefaultHTTPTrigger {
+		ap.Logger.Debug("Skipping default http trigger creation")
 		return
 	}
 
@@ -440,6 +452,10 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 
 	if err := ap.validatePriorityClassName(functionConfig); err != nil {
 		return errors.Wrap(err, "Priority class name validation failed")
+	}
+
+	if err := ap.validateScaleToZero(functionConfig); err != nil {
+		return errors.Wrap(err, "Scale to zero validation failed")
 	}
 
 	if err := ap.validateAutoScaleMetrics(functionConfig); err != nil {
@@ -901,6 +917,10 @@ func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 // GetScaleToZeroConfiguration returns scale to zero configuration
 func (ap *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 	return nil
+}
+
+func (ap *Platform) GetDisableDefaultHttpTrigger() bool {
+	return ap.Config.DisableDefaultHTTPTrigger
 }
 
 // GetAllowedAuthenticationModes returns allowed authentication modes
@@ -1406,6 +1426,16 @@ func (ap *Platform) validatePriorityClassName(functionConfig *functionconfig.Con
 			"Priority class name `%s` is not in valid priority class names list: [%s]",
 			functionConfig.Spec.PriorityClassName,
 			strings.Join(ap.Config.Kube.ValidFunctionPriorityClassNames, ", ")))
+	}
+	return nil
+}
+
+func (ap *Platform) validateScaleToZero(functionConfig *functionconfig.Config) error {
+	if functionConfig.Spec.MinReplicas != nil && *functionConfig.Spec.MinReplicas == 0 &&
+		functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger &&
+		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 {
+		return errors.New("Function can not be scaling to zero without http trigger. " +
+			"Either enable default http trigger creation or create custom http trigger")
 	}
 	return nil
 }

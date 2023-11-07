@@ -272,6 +272,11 @@ func (mp *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 	return args.Get(0).(*platformconfig.ScaleToZero)
 }
 
+func (mp *Platform) GetDisableDefaultHttpTrigger() bool {
+	args := mp.Called()
+	return args.Get(0).(bool)
+}
+
 func (mp *Platform) GetAllowedAuthenticationModes() []string {
 	args := mp.Called()
 	return args.Get(0).([]string)

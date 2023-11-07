@@ -60,6 +60,7 @@ type Config struct {
 	Opa                       opa.Config                       `json:"opa,omitempty"`
 	StreamMonitoring          StreamMonitoringConfig           `json:"streamMonitoring,omitempty"`
 	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFields,omitempty"`
+	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
 
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
 

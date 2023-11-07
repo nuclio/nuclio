@@ -296,6 +296,22 @@ func (suite *TestSuite) TestRedeployFunction() {
 	})
 }
 
+func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
+	createFunctionOptions := suite.getDeployOptions("disable-default-http")
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
+	trueValue := true
+	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &trueValue
+	localPlatform := suite.Platform.(*local.Platform)
+	suite.DeployFunction(createFunctionOptions,
+
+		// sanity
+		func(deployResult *platform.CreateFunctionResult) bool {
+			containerId := suite.getFunctionContainerId(localPlatform, &createFunctionOptions.FunctionConfig)
+			suite.Require().NotEqual("", containerId)
+			return true
+		})
+}
+
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
 	functionPath := []string{suite.GetTestFunctionsDir(), "common", "reverser", "python", "reverser.py"}
 	createFunctionOptions := suite.TestSuite.GetDeployOptions(functionName, filepath.Join(functionPath...))

@@ -1254,6 +1254,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return err
 	}
 
+	if err := p.validateCronTriggers(functionConfig); err != nil {
+		return errors.Wrap(err, "Cron triggers validation failed")
+	}
+
 	if err := p.validateServiceType(functionConfig); err != nil {
 		return errors.Wrap(err, "Service type validation failed")
 	}
@@ -1742,6 +1746,18 @@ func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) er
 	default:
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported service type %s", serviceType))
 	}
+}
+
+func (p *Platform) validateCronTriggers(functionConfig *functionconfig.Config) error {
+	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger &&
+		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
+		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 &&
+		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		return errors.New("Cron trigger in `kube` mode cannot be created when default http trigger " +
+			"creation is disabled and there is no other http trigger. " +
+			"Either enable default http trigger creation or create custom http trigger")
+	}
+	return nil
 }
 
 func (p *Platform) enrichHTTPTriggers(ctx context.Context, functionConfig *functionconfig.Config) error {

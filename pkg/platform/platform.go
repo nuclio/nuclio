@@ -168,6 +168,9 @@ type Platform interface {
 	// GetScaleToZeroConfiguration returns scale to zero configuration
 	GetScaleToZeroConfiguration() *platformconfig.ScaleToZero
 
+	// GetDisableDefaultHttpTrigger returns if creation of default http trigger is disabled
+	GetDisableDefaultHttpTrigger() bool
+
 	// GetAllowedAuthenticationModes returns allowed authentication modes
 	GetAllowedAuthenticationModes() []string
 

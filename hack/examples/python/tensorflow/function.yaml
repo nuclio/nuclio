@@ -23,6 +23,7 @@ spec:
   handler: tensor:classify
   minReplicas: 1
   maxReplicas: 1
+  disableDefaultHTTPTrigger: false
   build:
     baseImage: python:3.9-buster
     commands:
