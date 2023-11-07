@@ -101,7 +101,13 @@ func NewPlatform(ctx context.Context,
 
 	// init platform
 	newPlatform.Platform = newAbstractPlatform
-	newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
+
+	// we run GetKubeConfigClientCmdByKubeconfigPath in order to check if we are running in k8s
+	// empty error means that the kubeconfig path was found, the configuration at this path exists and can be loaded successfully
+	// if error is not nil, we leave kubeconfigPath empty and use the in-cluster k8s configuration when creating the consumer below
+	if _, err := common.GetKubeConfigClientCmdByKubeconfigPath(platformConfiguration.Kube.KubeConfigPath); err == nil {
+		newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
+	}
 
 	// create consumer
 	newPlatform.consumer, err = client.NewConsumer(ctx, newPlatform.Logger, newPlatform.kubeconfigPath)
