@@ -1,0 +1,3 @@
+-r common.txt
+msgpack==1.0.7
+pip==23.3.1
