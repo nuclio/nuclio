@@ -1,4 +1,4 @@
-# Copyright 2017 The Nuclio Authors.
+# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ on:
         default: ''
         required: false
       runtimes:
-        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.6, default: all)'
+        description: 'Comma delimited list of runtimes (e.g.: java,golang,python:3.9, default: all)'
         default: 'all'
         required: true
 
@@ -52,7 +52,7 @@ jobs:
         run: |
 
           # map runtimes to desired onbuild-targets
-          # golang,python:3.7 -> golang python
+          # golang,python:3.9 -> golang python
           if [ "$INPUT_RUNTIMES" == "all" ]; then\
             RUNTIMES=(golang java python dotnetcore nodejs);\
           else\

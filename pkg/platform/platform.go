@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -67,6 +67,9 @@ type Platform interface {
 
 	// DeleteFunction will delete a previously deployed function
 	DeleteFunction(ctx context.Context, deleteFunctionOptions *DeleteFunctionOptions) error
+
+	// RedeployFunction will redeploy a previously deployed function
+	RedeployFunction(ctx context.Context, redeployFunctionOptions *RedeployFunctionOptions) error
 
 	// CreateFunctionInvocation will invoke a previously deployed function
 	CreateFunctionInvocation(ctx context.Context, createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
@@ -165,6 +168,9 @@ type Platform interface {
 	// GetScaleToZeroConfiguration returns scale to zero configuration
 	GetScaleToZeroConfiguration() *platformconfig.ScaleToZero
 
+	// GetDisableDefaultHttpTrigger returns if creation of default http trigger is disabled
+	GetDisableDefaultHttpTrigger() bool
+
 	// GetAllowedAuthenticationModes returns allowed authentication modes
 	GetAllowedAuthenticationModes() []string
 
@@ -197,6 +203,9 @@ type Platform interface {
 
 	// GetDefaultRegistryCredentialsSecretName returns secret with credentials to push/pull from docker registry
 	GetDefaultRegistryCredentialsSecretName() string
+
+	// GetRegistryKind returns platform registry kind
+	GetRegistryKind() string
 
 	// GetFunctionSecrets returns all the function's secrets
 	GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]FunctionSecret, error)

@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -493,7 +493,7 @@ func GetRuntimeNameAndVersion(runtime string) (string, string) {
 
 	switch runtimeAndVersion := strings.Split(runtime, ":"); len(runtimeAndVersion) {
 
-	// if both are passed (e.g. python:3.7) - return them both
+	// if both are passed (e.g. python:3.9) - return them both
 	case 2:
 		return runtimeAndVersion[0], runtimeAndVersion[1]
 

@@ -1,7 +1,7 @@
 //go:build test_unit || test_functional || test_integration || test_kube || test_local || test_broken
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -93,6 +93,7 @@ type BlastConfiguration struct {
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
 	var err error
+	common.SetVersionFromEnv()
 
 	if suite.RuntimeDir == "" {
 		suite.RuntimeDir = suite.Runtime
@@ -617,6 +618,12 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 
 	// deploy the function
 	deployResult, deployErr := suite.Platform.CreateFunction(suite.ctx, createFunctionOptions)
+
+	if deployErr != nil {
+		suite.Logger.DebugWith("Function was not created",
+			"deploy result", deployResult,
+			"deploy err", deployErr.Error())
+	}
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)

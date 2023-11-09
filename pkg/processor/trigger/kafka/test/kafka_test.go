@@ -1,7 +1,7 @@
 //go:build test_integration && test_local
 
 /*
-Copyright 2018 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"testing"
@@ -36,6 +37,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type testSuite struct {
@@ -233,7 +235,7 @@ func (suite *testSuite) TestExplicitAck() {
 						"workerAllocationMode": string(partitionworker.AllocationModeStatic),
 					},
 					WorkerTerminationTimeout: "5s",
-					ExplicitAckMode:          functionconfig.ExplicitAckModeEnable,
+					ExplicitAckMode:          testCase.explicitAckMode,
 				},
 				"my-http": {
 					Kind:       "http",
@@ -294,6 +296,146 @@ func (suite *testSuite) TestExplicitAck() {
 				return true
 			})
 		})
+	}
+}
+
+func (suite *testSuite) TestTerminationHook() {
+	topic := "myTopic"
+	functionName := "termination-hook"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"termination-hook",
+		"termination-hook.py")
+
+	// create new topic
+	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
+		TopicDetails: map[string]*sarama.TopicDetail{
+			topic: {
+				NumPartitions:     suite.NumPartitions,
+				ReplicationFactor: 1,
+			},
+		},
+	})
+	suite.Require().NoError(err, "Failed to create topic")
+
+	suite.Logger.InfoWith("Created topic",
+		"topic", topic,
+		"createTopicResponse", createTopicsResponse)
+
+	// create a function
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+
+	platformSpec := functionconfig.Platform{
+		Attributes: map[string]interface{}{
+			"network": suite.BrokerContainerNetworkName,
+		},
+	}
+	createFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
+
+	// configure kafka trigger
+	triggerSpec := map[string]functionconfig.Trigger{
+		"my-kafka": {
+			Kind: "kafka-cluster",
+			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+			Attributes: map[string]interface{}{
+				"topics":               []string{topic},
+				"consumerGroup":        suite.consumerGroup,
+				"initialOffset":        suite.initialOffset,
+				"workerAllocationMode": string(partitionworker.AllocationModeStatic),
+			},
+			WorkerTerminationTimeout: "40s",
+			MaxWorkers:               4,
+		},
+	}
+	createFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
+
+	// create a temp dir, delete it after the test
+	tempDir, err := os.MkdirTemp("", "termination-hook")
+	suite.Require().NoError(err, "Failed to create temp dir")
+	defer os.RemoveAll(tempDir) // nolint: errcheck
+
+	mountPath := "/tmp/nuclio"
+	directoryType := v1.HostPathDirectory
+
+	// mount it to the function
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "termination-hook",
+				VolumeSource: v1.VolumeSource{
+					HostPath: &v1.HostPathVolumeSource{
+						Path: tempDir,
+						Type: &directoryType,
+					},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "termination-hook",
+				ReadOnly:  false,
+				MountPath: mountPath,
+			},
+		},
+	}
+
+	var rebalanceStartedTime time.Time
+
+	// deploy function
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Unexpected empty deploy results")
+
+		// write messages on 4 shards
+		for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+			messageBody := fmt.Sprintf("%s-%d", "messagingCycleA", partitionIdx)
+
+			// send the message
+			err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
+			suite.Require().NoError(err, "Failed to publish message")
+		}
+
+		// create another function that consumes from the same topic and consumer group, to trigger rebalance
+		newCreateFunctionOptions := suite.GetDeployOptions("termination-hook-new", functionPath)
+		newCreateFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
+		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
+
+		suite.Logger.Debug("Creating second function, to trigger rebalance")
+
+		suite.DeployFunction(newCreateFunctionOptions, func(newDeployResult *platform.CreateFunctionResult) bool {
+			suite.Require().NotNil(deployResult, "Unexpected empty second deploy results")
+			rebalanceStartedTime = time.Now()
+
+			suite.Logger.DebugWith("Created second function, producing messages to topic",
+				"topic", topic)
+
+			// write messages to all 4 shards
+			for partitionIdx := int32(0); partitionIdx < suite.NumPartitions; partitionIdx++ {
+				messageBody := fmt.Sprintf("%s-%d", "messagingCycleB", partitionIdx)
+
+				// send the message
+				err := suite.publishMessageToTopicOnSpecificShard(topic, messageBody, partitionIdx)
+				suite.Require().NoError(err, "Failed to publish message")
+			}
+
+			// wait for at least the kafka trigger's WorkerTerminationTimeout to pass from first invocation,
+			// to allow the function to run its termination hook before we delete the function
+			<-time.After(time.Until(rebalanceStartedTime.Add(40 * time.Second)))
+
+			return true
+		})
+
+		return true
+	})
+
+	// check that the function's termination hook was called by reading the file it should have written to
+	// 1 file per worker -> 4 files
+	for workerID := 0; workerID < 4; workerID++ {
+		filePath := path.Join(tempDir, fmt.Sprintf("termination-hook-%d.txt", workerID))
+		suite.Logger.DebugWith("Reading termination hook file", "filePath", filePath)
+		fileBytes, err := os.ReadFile(filePath)
+		suite.Require().NoError(err, "Failed to read termination hook file")
+
+		// check that the file is not empty
+		suite.Logger.DebugWith("Checking termination hook file is not empty", "fileContent", string(fileBytes))
+		suite.Require().NotEmpty(fileBytes, "Termination hook file is empty")
 	}
 }
 

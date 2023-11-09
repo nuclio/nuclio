@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,4 +37,10 @@ func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, e
 		"Body", string(event.GetBody()))
 
 	return "Built in handler called", nil
+}
+
+func InitContext(context *nuclio.Context) error {
+
+	// just a stub
+	return nil
 }

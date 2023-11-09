@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
@@ -79,13 +78,13 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	}
 
 	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
-
+	exportOptions := fr.getExportOptionsFromRequest(request)
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		if exportFunction {
-			response[function.GetConfig().Meta.Name] = fr.export(ctx, function)
+			response[function.GetConfig().Meta.Name] = fr.export(ctx, function, exportOptions)
 		} else {
-			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function)
+			response[function.GetConfig().Meta.Name] = fr.functionToAttributes(function, exportOptions.CleanupSpec)
 		}
 	}
 
@@ -107,12 +106,12 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get get function")
 	}
-
+	exportOptions := fr.getExportOptionsFromRequest(request)
 	if fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
-		return fr.export(ctx, function), nil
+		return fr.export(ctx, function, exportOptions), nil
 	}
 
-	return fr.functionToAttributes(function), nil
+	return fr.functionToAttributes(function, exportOptions.CleanupSpec), nil
 }
 
 // Create and deploy a function
@@ -186,6 +185,10 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 // Patch applies partial modifications to a function
 func (fr *functionResource) Patch(request *http.Request, id string) error {
 
+	// if external registry required, but user has an internal one, then return 412 code (PreconditionFailed)
+	if fr.headerValueIsTrue(request, headers.VerifyExternalRegistry) && fr.getPlatform().GetRegistryKind() == "onCluster" {
+		return nuclio.NewErrPreconditionFailed("Can not patch function because registry is internal")
+	}
 	// get the desired state of the function from the request body
 	patchOptionsInstance, err := fr.getPatchFunctionOptionsFromRequest(request)
 	if err != nil {
@@ -230,12 +233,12 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) export(ctx context.Context, function platform.Function) restful.Attributes {
+func (fr *functionResource) export(ctx context.Context, function platform.Function, exportOptions *common.ExportFunctionOptions) restful.Attributes {
 
 	functionConfig := function.GetConfig()
-
 	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
-	functionConfig.PrepareFunctionForExport(false)
+	exportOptions.PrevState = string(function.GetStatus().State)
+	functionConfig.PrepareFunctionForExport(exportOptions)
 
 	fr.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)
 
@@ -257,10 +260,11 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
 
-	// asynchronously, do the deploy so that the user doesn't wait
+	// deploy asynchronously, so that the user doesn't wait
 	go func() {
 
-		ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
+		// create a cancel function independent of the parent context
+		ctx, cancelCtx := context.WithCancel(context.WithoutCancel(request.Context()))
 		defer cancelCtx()
 
 		// inject auth session to new context
@@ -490,8 +494,8 @@ func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 	authConfig *platform.AuthConfig) error {
 
 	switch *options.DesiredState {
-	case functionconfig.FunctionStateReady:
-		return fr.redeployFunction(request, id, authConfig)
+	case functionconfig.FunctionStateReady, functionconfig.FunctionStateScaledToZero:
+		return fr.redeployFunction(request, id, authConfig, options)
 	default:
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Unsupported desired state in patch request: %s",
 			*options.DesiredState))
@@ -500,7 +504,9 @@ func (fr *functionResource) patchFunctionDesiredState(request *http.Request,
 
 func (fr *functionResource) redeployFunction(request *http.Request,
 	id string,
-	authConfig *platform.AuthConfig) error {
+	authConfig *platform.AuthConfig,
+	options *PatchOptions) error {
+	ctx := request.Context()
 
 	// get function
 	function, err := fr.getFunction(request, id)
@@ -508,33 +514,50 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		return errors.Wrap(err, "Failed to get get function")
 	}
 
-	waitForFunction := fr.headerValueIsTrue(request, headers.WaitFunctionAction)
+	if function.GetConfig().Spec.Image == "" {
+		return nuclio.NewErrPreconditionFailed("No image field in function config spec, unable to redeploy")
+	}
+
+	if *options.DesiredState == functionconfig.FunctionStateScaledToZero &&
+		*function.GetConfig().Spec.MinReplicas > 0 {
+		return nuclio.NewErrPreconditionFailed("Cannot scale to zero a function with non-zero min replicas")
+	}
+
 	importedOnly := fr.headerValueIsTrue(request, headers.ImportedFunctionOnly)
 
 	if importedOnly && function.GetStatus().State != functionconfig.FunctionStateImported {
-		fr.Logger.DebugWithCtx(request.Context(), "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
+		fr.Logger.DebugWithCtx(ctx, "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
 		return nil
 	}
 
-	fr.Logger.DebugWith("Redeploying function", "functionName", id)
+	fr.Logger.DebugWith("Redeploying function",
+		"functionName", id,
+		"desiredState", *options.DesiredState)
 
-	// Deploy function
-	functionInfoInstance := &functionInfo{
-		Meta:   &function.GetConfig().Meta,
-		Spec:   &function.GetConfig().Spec,
-		Status: function.GetStatus(),
+	if err := fr.getPlatform().RedeployFunction(ctx, &platform.RedeployFunctionOptions{
+		FunctionMeta:               &function.GetConfig().Meta,
+		FunctionSpec:               &function.GetConfig().Spec,
+		AuthConfig:                 authConfig,
+		DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
+		AuthSession:                fr.getCtxSession(ctx),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		},
+		DesiredState:                *options.DesiredState,
+		CreationStateUpdatedTimeout: fr.getCreationStateUpdatedTimeout(request),
+	}); err != nil {
+		return errors.Wrap(err, "Failed to redeploy function")
 	}
 
-	if responseErr := fr.storeAndDeployFunction(request, functionInfoInstance, authConfig, waitForFunction); responseErr != nil {
-		return responseErr
-	}
-
-	return nuclio.ErrNoContent
+	return nuclio.ErrAccepted
 }
 
-func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
+func (fr *functionResource) functionToAttributes(function platform.Function, cleanupSpec bool) restful.Attributes {
 	functionConfig := function.GetConfig()
-	functionConfig.CleanFunctionSpec()
+	if cleanupSpec {
+		functionConfig.CleanFunctionSpec()
+	}
 
 	attributes := restful.Attributes{
 		"metadata": functionConfig.Meta,

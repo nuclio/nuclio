@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,11 +50,12 @@ type abstractHandler struct {
 
 func (ah *abstractHandler) load(configuration *runtime.Configuration) error {
 
-	// if configured, use the built in handler
+	// if configured, use the built-in handler
 	if configuration.Spec.Build.Path == "nuclio:builtin" || configuration.Spec.Handler == "nuclio:builtin" {
 		ah.logger.WarnWith("Using built in handler, as configured")
 
 		ah.entrypoint = builtInHandler
+		ah.contextInitializer = InitContext
 	}
 
 	return nil

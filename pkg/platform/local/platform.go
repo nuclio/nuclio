@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -406,6 +406,88 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 
 	// actual function and its resources deletion
 	return p.delete(ctx, deleteFunctionOptions)
+}
+
+func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
+
+	// Check OPA permissions
+	permissionOptions := redeployFunctionOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
+	if _, err := p.QueryOPAFunctionRedeployPermissions(
+		redeployFunctionOptions.FunctionMeta.Labels[common.NuclioResourceLabelKeyProjectName],
+		redeployFunctionOptions.FunctionMeta.Name,
+		&permissionOptions); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+
+	p.Logger.InfoWithCtx(ctx,
+		"Redeploying function",
+		"functionName", redeployFunctionOptions.FunctionMeta.Name)
+
+	// delete existing function containers
+	previousHTTPPort, err := p.deleteOrStopFunctionContainers(&platform.CreateFunctionOptions{
+		Logger: p.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: *redeployFunctionOptions.FunctionMeta,
+			Spec: *redeployFunctionOptions.FunctionSpec,
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete previous containers")
+	}
+	var functionStatus functionconfig.Status
+
+	reportRedeployError := func(creationError error) error {
+		p.Logger.WarnWithCtx(ctx,
+			"Failed to redeploy function; setting the function status",
+			"functionName", redeployFunctionOptions.FunctionMeta.Name,
+			"err", creationError)
+
+		errorStack := bytes.Buffer{}
+		errors.PrintErrorStack(&errorStack, creationError, 20)
+
+		// cut messages that are too big
+		if errorStack.Len() >= 4*Mib {
+			errorStack.Truncate(4 * Mib)
+		}
+
+		// post logs and error
+		return p.localStore.CreateOrUpdateFunction(&functionconfig.ConfigWithStatus{
+			Config: functionconfig.Config{
+				Meta: *redeployFunctionOptions.FunctionMeta,
+				Spec: *redeployFunctionOptions.FunctionSpec,
+			},
+			Status: functionconfig.Status{
+				State:   functionconfig.FunctionStateError,
+				Message: errorStack.String(),
+			},
+		})
+	}
+
+	createFunctionResult, deployErr := p.deployFunction(&platform.CreateFunctionOptions{
+		Logger: p.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: *redeployFunctionOptions.FunctionMeta,
+			Spec: *redeployFunctionOptions.FunctionSpec,
+		},
+		AuthConfig:                 redeployFunctionOptions.AuthConfig,
+		DependantImagesRegistryURL: redeployFunctionOptions.DependantImagesRegistryURL,
+		AuthSession:                redeployFunctionOptions.AuthSession,
+		PermissionOptions:          redeployFunctionOptions.PermissionOptions,
+	}, previousHTTPPort)
+	if deployErr != nil {
+		reportRedeployError(deployErr) // nolint: errcheck
+		return deployErr
+	}
+
+	functionStatus.HTTPPort = createFunctionResult.Port
+	functionStatus.State = functionconfig.FunctionStateReady
+
+	if err := p.populateFunctionInvocationStatus(&functionStatus, createFunctionResult); err != nil {
+		return errors.Wrap(err, "Failed to populate function invocation status")
+	}
+
+	return nil
 }
 
 func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,

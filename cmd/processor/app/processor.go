@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,9 +20,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -51,7 +54,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
+	httpnuclio "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kickstart"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
@@ -187,6 +190,13 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create metric sinks")
 	}
 
+	// if default http trigger creation is disabled and there is no any other http trigger we need to start internal
+	// healthcheck service
+	if (processorConfiguration.Spec.DisableDefaultHTTPTrigger == nil && platformConfiguration.DisableDefaultHTTPTrigger ||
+		*processorConfiguration.Spec.DisableDefaultHTTPTrigger) &&
+		len(functionconfig.GetTriggersByKind(processorConfiguration.Spec.Triggers, "http")) == 0 {
+		startInternalHealthCheck()
+	}
 	return newProcessor, nil
 }
 
@@ -195,6 +205,9 @@ func (p *Processor) Start() error {
 
 	// create a goroutine that restarts a trigger if needed
 	go p.listenOnRestartTriggerChannel()
+
+	// handles system signals (for now only SIGTERM)
+	go p.handleSignals()
 
 	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
 
@@ -441,29 +454,6 @@ func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
 	return false
 }
 
-func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.Configuration) (trigger.Trigger, error) {
-	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Class:      "sync",
-		Kind:       "http",
-		MaxWorkers: 1,
-		URL:        common.GetEnvOrDefaultString("NUCLIO_DEFAULT_HTTP_TRIGGER_URL", ":8080"),
-	}
-
-	p.logger.DebugWith("Creating default HTTP event source",
-		"configuration", &defaultHTTPTriggerConfiguration)
-
-	return trigger.RegistrySingleton.NewTrigger(p.logger,
-		"http",
-		"http",
-		&defaultHTTPTriggerConfiguration,
-		&runtime.Configuration{
-			Configuration:  processorConfiguration,
-			FunctionLogger: p.functionLogger,
-		},
-		p.namedWorkerAllocators,
-		p.restartTriggerChan)
-}
-
 func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Config) (*webadmin.Server, error) {
 
 	// if enabled not passed, default to true
@@ -648,4 +638,47 @@ func (p *Processor) setWorkersStatus(triggerInstance trigger.Trigger, status sta
 	}
 
 	return nil
+}
+
+// handleSignals creates a signal handler, so on signal processor gracefully terminated
+func (p *Processor) handleSignals() {
+	var captureSignal = make(chan os.Signal, 1)
+
+	// when k8s deletes pods, it sends SIGTERM (https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination)
+	// when docker stops container it sends SIGTERM by default (https://docs.docker.com/engine/reference/commandline/stop/)
+	// but you can specify a specific signal with a specific option, so we support SIGABRT and SIGINT as well
+	signal.Notify(captureSignal, syscall.SIGTERM, syscall.SIGABRT, syscall.SIGINT)
+	p.terminateAllTriggers(<-captureSignal)
+	p.Stop()
+}
+
+func (p *Processor) terminateAllTriggers(signal os.Signal) {
+	p.logger.WarnWith("Got system signal", "signal", signal.String())
+
+	wg := &sync.WaitGroup{}
+	for _, triggerInstance := range p.triggers {
+		wg.Add(1)
+
+		// drains all workers in trigger (for each trigger in parallel)
+		go func(triggerInstance trigger.Trigger, wg *sync.WaitGroup) {
+			defer wg.Done()
+			if err := triggerInstance.SignalWorkerDraining(); err != nil {
+				p.logger.WarnWith("Failed to signal worker draining",
+					"triggerKind", triggerInstance.GetKind(),
+					"triggerName", triggerInstance.GetName(),
+					"err", err.Error())
+			}
+		}(triggerInstance, wg)
+	}
+	wg.Wait()
+	p.logger.Info("All triggers are terminated")
+}
+
+// startInternalHealthCheck runs healthcheck service for internal purposes just in case of disabled default http trigger
+func startInternalHealthCheck() {
+	http.HandleFunc(httpnuclio.InternalHealthPath, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	go http.ListenAndServe(":8080", nil) // nolint: errcheck
 }

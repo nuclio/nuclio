@@ -1,7 +1,7 @@
 //go:build test_functional || test_unit || test_integration || test_kube || test_local
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/test/compare"
 
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/stretchr/testify/assert"
 )
 
 // EventFields for events
@@ -76,6 +77,8 @@ type Request struct {
 	RetryUntilSuccessfulStatusCode *int
 	RetryUntilSuccessfulDuration   time.Duration
 	RetryUntilSuccessfulInterval   time.Duration
+
+	containerID string
 }
 
 func (r *Request) Enrich(deployResult *platform.CreateFunctionResult) {
@@ -95,6 +98,8 @@ func (r *Request) Enrich(deployResult *platform.CreateFunctionResult) {
 	if r.RequestMethod == "" {
 		r.RequestMethod = "POST"
 	}
+
+	r.containerID = deployResult.ContainerID
 }
 
 // TestSuite is an HTTP test suite
@@ -136,7 +141,7 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 	requests []*Request) *platform.CreateFunctionResult {
 
 	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		suite.Require().NotNil(deployResult)
+		suite.Require().NotNil(deployResult, "Failed to deploy function")
 		for _, request := range requests {
 			request.Enrich(deployResult)
 			suite.Logger.DebugWith("Sending request",
@@ -188,17 +193,36 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		return false
 	}
 
+	suite.Logger.DebugWith("Got response", "statusCode", httpResponse.StatusCode)
+
 	suite.Require().NoError(err, "Failed to send request")
 
 	body, err := io.ReadAll(httpResponse.Body)
 	suite.Require().NoError(err)
 
 	if request.ExpectedResponseStatusCode != nil {
-		suite.Require().Equal(*request.ExpectedResponseStatusCode,
+		if !assert.New(suite.T()).Equal(*request.ExpectedResponseStatusCode,
 			httpResponse.StatusCode,
-			"Got unexpected status code with request body (%s) and response body (%s)",
+			"Got unexpected status code %d with request body (%s) and response body (%s)",
+			httpResponse.StatusCode,
 			request.RequestBody,
-			body)
+			body) {
+
+			// value is not equal, print the container logs
+			suite.Logger.DebugWith("Failed to send request, fetching container logs",
+				"containerID", request.containerID)
+			functionContainerLogs, err := suite.DockerClient.GetContainerLogs(request.containerID)
+			if err != nil {
+				suite.Logger.WarnWith("Failed to get container logs", "err", err.Error())
+			} else {
+				suite.Logger.DebugWith("Fetched container logs",
+					"containerID", request.containerID,
+					"logs", functionContainerLogs)
+			}
+
+			// if the status code is not as expected, fail the test
+			suite.T().FailNow()
+		}
 	}
 
 	// verify header correctness

@@ -1,7 +1,7 @@
 //go:build test_integration && test_local
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ func (suite *TimeoutTestSuite) TestTimeout() {
 		{
 			Name:                       "handler timeout",
 			RequestBody:                "",
-			ExpectedResponseBody:       "Failed waiting for function execution",
+			ExpectedResponseBody:       `{"error": "handler timed out"}`,
 			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
 		{

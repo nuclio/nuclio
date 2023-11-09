@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -164,7 +163,7 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 
 // Update a project
 func (pr *projectResource) Update(request *http.Request, id string) (restful.Attributes, error) {
-	ctx := nucliocontext.NewDetached(request.Context())
+	ctx := context.WithoutCancel(request.Context())
 
 	// get project config and status from body
 	projectInfo, err := pr.getProjectInfoFromRequest(request)
@@ -297,7 +296,8 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
-		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(ctx, function)
+		exportOptions := pr.getExportOptionsFromRequest(request)
+		functionsMap[function.GetConfig().Meta.Name] = functionResourceInstance.export(ctx, function, exportOptions)
 
 		functionEvents := functionEventResourceInstance.getFunctionEvents(request, function, namespace)
 		for _, functionEvent := range functionEvents {
@@ -312,7 +312,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 func (pr *projectResource) createProject(request *http.Request, projectInfoInstance *projectInfo) (id string,
 	attributes restful.Attributes, responseErr error) {
 
-	ctx := nucliocontext.NewDetached(request.Context())
+	ctx := context.WithoutCancel(request.Context())
 
 	// create a project config
 	projectConfig := platform.ProjectConfig{

@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ type BuildOptions struct {
 	NoCache                 bool
 	Pull                    bool
 	NoBaseImagePull         bool
+	BuildFlags              map[string]bool
 	BuildArgs               map[string]string
 	RegistryURL             string
 	RepoName                string
@@ -65,6 +66,7 @@ type ContainerBuilderConfiguration struct {
 	DefaultRegistryCredentialsSecretName string
 	DefaultBaseRegistryURL               string
 	DefaultOnbuildRegistryURL            string
+	RegistryKind                         string
 	DefaultServiceAccount                string
 	CacheRepo                            string
 	InsecurePushRegistry                 bool
@@ -114,6 +116,9 @@ func NewContainerBuilderConfiguration() (*ContainerBuilderConfiguration, error) 
 
 	containerBuilderConfiguration.DefaultRegistryCredentialsSecretName =
 		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_CREDENTIALS_SECRET_NAME", "")
+
+	containerBuilderConfiguration.RegistryKind =
+		common.GetEnvOrDefaultString("NUCLIO_REGISTRY_KIND", "")
 
 	if containerBuilderConfiguration.DefaultBaseRegistryURL == "" {
 		containerBuilderConfiguration.DefaultBaseRegistryURL =

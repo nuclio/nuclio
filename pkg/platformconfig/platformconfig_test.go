@@ -1,7 +1,7 @@
 //go:build test_unit
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -595,7 +595,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResources() {
 
 	resources := corev1.ResourceRequirements{}
 
-	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
+	platformConfig.EnrichFunctionContainerResources(suite.ctx, suite.logger, &resources)
 
 	suite.Require().Equal(expectedResources["requestsCPU"], resources.Requests["cpu"])
 	suite.Require().Equal(expectedResources["requestsMemory"], resources.Requests["memory"])
@@ -613,7 +613,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesWithoutDefault
 
 	resources := corev1.ResourceRequirements{}
 
-	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
+	platformConfig.EnrichFunctionContainerResources(suite.ctx, suite.logger, &resources)
 
 	suite.Require().Equal(expectedRequestsCPU, resources.Requests["cpu"])
 	suite.Require().Equal(expectedRequestsMemory, resources.Requests["memory"])
@@ -657,7 +657,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialEnrichm
 		},
 	}
 
-	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
+	platformConfig.EnrichFunctionContainerResources(suite.ctx, suite.logger, &resources)
 
 	suite.Require().Equal(expectedResources["requestsCPU"], resources.Requests["cpu"])
 	suite.Require().Equal(expectedResources["requestsMemory"], resources.Requests["memory"])
@@ -687,7 +687,7 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialDefault
 
 	resources := corev1.ResourceRequirements{}
 
-	platformConfig.EnrichContainerResources(suite.ctx, suite.logger, &resources)
+	platformConfig.EnrichFunctionContainerResources(suite.ctx, suite.logger, &resources)
 
 	suite.Require().Equal(expectedRequestsCPU, resources.Requests["cpu"])
 	suite.Require().Equal(expectedRequestsMemory, resources.Requests["memory"])

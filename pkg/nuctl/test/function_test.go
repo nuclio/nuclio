@@ -1,7 +1,7 @@
 //go:build test_integration && (test_kube || test_local)
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -124,11 +124,6 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 			filename: "empty.cs",
 		},
 		{
-			runtime:  "python:3.6",
-			handler:  "empty:handler",
-			filename: "empty.py",
-		},
-		{
 			runtime:  "python:3.7",
 			handler:  "empty:handler",
 			filename: "empty.py",
@@ -140,6 +135,16 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 		},
 		{
 			runtime:  "python:3.9",
+			handler:  "empty:handler",
+			filename: "empty.py",
+		},
+		{
+			runtime:  "python:3.10",
+			handler:  "empty:handler",
+			filename: "empty.py",
+		},
+		{
+			runtime:  "python:3.11",
 			handler:  "empty:handler",
 			filename: "empty.py",
 		},
@@ -1040,7 +1045,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-			"runtime": "python:3.8",
+			"runtime": "python:3.9",
 			"handler": "reverser:handler",
 		})
 	suite.Require().NoError(err)

@@ -225,6 +225,7 @@ Currently, the only supported state is `ready`, which allows redeploying functio
 * Headers:
     * `X-nuclio-wait-function-action`: Set to true to wait for the function to be ready (optional, defaults to `false`)
     * `X-nuclio-function-namespace`: Namespace (required)
+    * `X-Nuclio-Verify-External-Registry`: Set to true to patch function only if registry is external
 * Body:
 
 ```json
@@ -232,6 +233,8 @@ Currently, the only supported state is `ready`, which allows redeploying functio
   "desiredState": "ready"
 }
 ```
+
+Supported desired states: `[ready, scaledToZero]`
 
 #### Response
 

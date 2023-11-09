@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
@@ -117,7 +116,7 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 	defer time.AfterFunc(k.builderConfiguration.JobDeletionTimeout, func() {
 
 		// Create a detached context to avoid cancellation of the deletion process
-		detachedCtx := nucliocontext.NewDetached(ctx)
+		detachedCtx := context.WithoutCancel(ctx)
 		if err := k.deleteJob(detachedCtx, namespace, job.Name); err != nil {
 			k.logger.WarnWithCtx(ctx,
 				"Failed to delete job",
@@ -186,6 +185,10 @@ func (k *Kaniko) TransformOnbuildArtifactPaths(onbuildArtifacts []runtime.Artifa
 
 func (k *Kaniko) GetBaseImageRegistry(registry string) string {
 	return k.builderConfiguration.DefaultBaseRegistryURL
+}
+
+func (k *Kaniko) GetRegistryKind() string {
+	return k.builderConfiguration.RegistryKind
 }
 
 func (k *Kaniko) GetOnbuildImageRegistry(registry string) string {
@@ -262,11 +265,17 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 		buildArgs = append(buildArgs, "--cache=true")
 	}
 
-	if k.builderConfiguration.InsecurePushRegistry {
+	if _, ok := buildOptions.BuildFlags["--insecure"]; !ok && k.builderConfiguration.InsecurePushRegistry {
 		buildArgs = append(buildArgs, "--insecure")
 	}
-	if k.builderConfiguration.InsecurePullRegistry {
+
+	if _, ok := buildOptions.BuildFlags["--insecure-pull"]; !ok && k.builderConfiguration.InsecurePullRegistry {
 		buildArgs = append(buildArgs, "--insecure-pull")
+	}
+
+	// Add user's custom flags
+	for flag := range buildOptions.BuildFlags {
+		buildArgs = append(buildArgs, flag)
 	}
 
 	if k.builderConfiguration.CacheRepo != "" {

@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -62,8 +62,8 @@ type Runtime interface {
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
 
-	// Terminate sends a signal to the runtime process and waits for it to exit
-	Terminate() error
+	// Drain signals to the runtime process to drain its accumulated events and waits for it to finish
+	Drain() error
 
 	// GetControlMessageBroker returns the control message broker
 	GetControlMessageBroker() controlcommunication.ControlMessageBroker
@@ -253,6 +253,6 @@ func (ar *AbstractRuntime) Stop() error {
 	return nil
 }
 
-func (ar *AbstractRuntime) Terminate() error {
+func (ar *AbstractRuntime) Drain() error {
 	return nil
 }

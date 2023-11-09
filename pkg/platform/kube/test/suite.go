@@ -1,7 +1,7 @@
 //go:build test_integration && test_kube
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -716,4 +716,21 @@ func (suite *KubeTestSuite) CompileCreateAPIGatewayOptions(apiGatewayName string
 			},
 		},
 	}
+}
+
+func (suite *KubeTestSuite) GetPodLogs(namespace, name string, opts *v1.PodLogOptions) string {
+
+	req := suite.KubeClientSet.CoreV1().Pods(namespace).GetLogs(name, opts)
+	podLogs, err := req.Do(suite.Ctx).Raw()
+	if err != nil {
+		return ""
+	}
+	return string(podLogs)
+}
+
+func (suite *KubeTestSuite) WaitMessageInPodLog(namespace, name, message string, opts *v1.PodLogOptions, maxDuration time.Duration) error {
+	return common.RetryUntilSuccessful(maxDuration, time.Second, func() bool {
+		logs := suite.GetPodLogs(namespace, name, opts)
+		return strings.Contains(logs, message)
+	})
 }

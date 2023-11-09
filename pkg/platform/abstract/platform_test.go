@@ -1,7 +1,7 @@
 //go:build test_unit
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -256,6 +256,64 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 		} else {
 			suite.Assert().NoError(err)
 		}
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
+	functionConfig := functionconfig.NewConfig()
+	functionConfig.Meta.Name = "f1"
+	functionConfig.Meta.Namespace = "default"
+	functionConfig.Meta.Labels = map[string]string{
+		"nuclio.io/project-name": platform.DefaultProjectName,
+	}
+	trueValue := true
+	falseValue := false
+
+	for _, testCase := range []struct {
+		PlatformDisableDefaultHttpTrigger bool
+		FunctionDisableDefaultHttpTrigger *bool
+		ExpectedValue                     bool
+	}{
+
+		{
+			PlatformDisableDefaultHttpTrigger: true,
+			FunctionDisableDefaultHttpTrigger: nil,
+			ExpectedValue:                     true,
+		},
+		{
+			PlatformDisableDefaultHttpTrigger: false,
+			FunctionDisableDefaultHttpTrigger: nil,
+			ExpectedValue:                     false,
+		},
+		{
+			PlatformDisableDefaultHttpTrigger: false,
+			FunctionDisableDefaultHttpTrigger: &trueValue,
+			ExpectedValue:                     true,
+		},
+		{
+			PlatformDisableDefaultHttpTrigger: true,
+			FunctionDisableDefaultHttpTrigger: &falseValue,
+			ExpectedValue:                     false,
+		},
+	} {
+
+		suite.mockedPlatform.On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
+			Meta: platform.ProjectMeta{
+				Name:      platform.DefaultProjectName,
+				Namespace: "default",
+			},
+		}).Return([]platform.Project{
+			&platform.AbstractProject{},
+		}, nil).Once()
+
+		suite.Platform.Config.DisableDefaultHTTPTrigger = testCase.PlatformDisableDefaultHttpTrigger
+		functionConfig.Spec.DisableDefaultHTTPTrigger = testCase.FunctionDisableDefaultHttpTrigger
+
+		// enrich
+		err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
+		suite.Require().NoError(err)
+
+		suite.Require().Equal(testCase.ExpectedValue, *functionConfig.Spec.DisableDefaultHTTPTrigger)
 	}
 }
 

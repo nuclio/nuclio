@@ -1,7 +1,7 @@
 //go:build test_integration && test_local
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,6 +49,14 @@ func (suite *TestSuite) SetupSuite() {
 
 	// we will work on the first one
 	suite.namespace = namespaces[0]
+
+	getProjectsOptions := &platform.CreateProjectOptions{
+		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: platform.DefaultProjectName, Namespace: suite.namespace}, Spec: platform.ProjectSpec{
+			Description: "just a description",
+		}},
+	}
+	err = suite.Platform.CreateProject(suite.ctx, getProjectsOptions)
+	suite.Require().NoError(err, "Failed to create project")
 }
 
 // Test function containers healthiness validation
@@ -101,6 +109,7 @@ func (suite *TestSuite) TestValidateFunctionContainersHealthiness() {
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
 	suite.DeployFunction(createFunctionOptions,
 		func(deployResult *platform.CreateFunctionResult) bool {
+			suite.NotEmpty(deployResult, "Function hasn't been deployed")
 			functionName := deployResult.UpdatedFunctionConfig.Meta.Name
 
 			// Ensure function state is ready
@@ -248,12 +257,75 @@ func (suite *TestSuite) TestDeleteFunctionMissingVolumeMount() {
 		})
 }
 
+func (suite *TestSuite) TestRedeployFunction() {
+	createFunctionOptions := suite.getDeployOptions("redeployed-func")
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
+	localPlatform := suite.Platform.(*local.Platform)
+
+	isFunctionDeployed := make(chan bool)
+	isRedeploySuccessful := make(chan bool)
+
+	go func() {
+		// redeploy the function once it is deployed
+		<-isFunctionDeployed
+		err := localPlatform.RedeployFunction(suite.ctx, &platform.RedeployFunctionOptions{
+			FunctionSpec: &createFunctionOptions.FunctionConfig.Spec,
+			FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
+		})
+		suite.Require().NoError(err)
+		isRedeploySuccessful <- true
+	}()
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Expected deploy result not to be nil")
+
+		// get container id
+		containerId := suite.getFunctionContainerId(localPlatform, &createFunctionOptions.FunctionConfig)
+
+		// signal that function is deployed
+		isFunctionDeployed <- true
+
+		// wait for redeploy to complete
+		<-isRedeploySuccessful
+
+		// get container id again and check that it is changed
+		newContainerId := suite.getFunctionContainerId(localPlatform, &createFunctionOptions.FunctionConfig)
+		suite.Require().NotEqual(newContainerId, containerId)
+
+		return true
+	})
+}
+
+func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
+	createFunctionOptions := suite.getDeployOptions("disable-default-http")
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
+	trueValue := true
+	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &trueValue
+	localPlatform := suite.Platform.(*local.Platform)
+	suite.DeployFunction(createFunctionOptions,
+
+		// sanity
+		func(deployResult *platform.CreateFunctionResult) bool {
+			containerId := suite.getFunctionContainerId(localPlatform, &createFunctionOptions.FunctionConfig)
+			suite.Require().NotEqual("", containerId)
+			return true
+		})
+}
+
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
 	functionPath := []string{suite.GetTestFunctionsDir(), "common", "reverser", "python", "reverser.py"}
 	createFunctionOptions := suite.TestSuite.GetDeployOptions(functionName, filepath.Join(functionPath...))
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	return createFunctionOptions
+}
 
+func (suite *TestSuite) getFunctionContainerId(localPlatform *local.Platform, config *functionconfig.Config) string {
+	containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+		Name: localPlatform.GetFunctionContainerName(config),
+	})
+	suite.Require().NoError(err, "Failed to get containers")
+	suite.Require().Len(containers, 1, "Expected to get one container")
+	return containers[0].ID
 }
 
 func TestProjectTestSuite(t *testing.T) {

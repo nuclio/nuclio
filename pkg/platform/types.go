@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -86,6 +86,17 @@ type DeleteFunctionOptions struct {
 
 	// whether to ignore the validation where functions being provisioned cannot be deleted
 	IgnoreFunctionStateValidation bool
+}
+
+type RedeployFunctionOptions struct {
+	FunctionMeta                *functionconfig.Meta
+	FunctionSpec                *functionconfig.Spec
+	AuthConfig                  *AuthConfig
+	DependantImagesRegistryURL  string
+	AuthSession                 auth.Session
+	PermissionOptions           opa.PermissionOptions
+	CreationStateUpdatedTimeout time.Duration
+	DesiredState                functionconfig.FunctionState
 }
 
 // CreateFunctionBuildResult holds information detected/generated as a result of a build process

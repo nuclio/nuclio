@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -151,7 +150,9 @@ func (agr *apiGatewayResource) Create(request *http.Request) (string, restful.At
 
 // Update an api gateway
 func (agr *apiGatewayResource) Update(request *http.Request, id string) (restful.Attributes, error) {
-	ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
+
+	// detach the context from its parent and create an independent cancel function
+	ctx, cancelCtx := context.WithCancel(context.WithoutCancel(request.Context()))
 	defer cancelCtx()
 
 	// inject auth session to new context
@@ -270,7 +271,8 @@ func (agr *apiGatewayResource) export(ctx context.Context, apiGateway platform.A
 func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 	apiGatewayInfoInstance *apiGatewayInfo) (string, restful.Attributes, error) {
 
-	ctx, cancelCtx := context.WithCancel(nucliocontext.NewDetached(request.Context()))
+	// create a cancel function independent of the parent context
+	ctx, cancelCtx := context.WithCancel(context.WithoutCancel(request.Context()))
 	defer cancelCtx()
 
 	// inject auth session to new context

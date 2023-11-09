@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	detachcontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
@@ -155,6 +154,38 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			})
 	}
 
+	var prevState string
+
+	// clean the irrelevant annotations from the CRD before adding resources
+	if function.ObjectMeta.Annotations != nil {
+		prevState = function.ObjectMeta.Annotations[functionconfig.FunctionAnnotationPrevState]
+		annotationsToClean := []string{
+			functionconfig.FunctionAnnotationForceUpdate,
+			functionconfig.FunctionAnnotationPrevState,
+			functionconfig.FunctionAnnotationSkipDeploy,
+		}
+		for _, annotation := range annotationsToClean {
+			delete(function.ObjectMeta.Annotations, annotation)
+		}
+	}
+
+	// prevState annotation presents in the function config after function being imported and redeployed
+	// this allows to deploy function right to the state which function had before it was exported
+	if functionconfig.IsPreviousFunctionStateAllowedToBeSet(functionconfig.FunctionState(prevState)) {
+		fo.logger.InfoWith("Previous status of function is set in annotation, so function will be moved to this state.",
+			"function", function.Name,
+			"prevState", prevState)
+		switch prevState {
+		case string(functionconfig.FunctionStateScaledToZero):
+			function.Status.State = functionconfig.FunctionStateWaitingForScaleResourcesToZero
+		case string(functionconfig.FunctionStateImported):
+			return fo.setFunctionStatus(ctx,
+				function, &functionconfig.Status{
+					State: functionconfig.FunctionStateImported,
+				})
+		}
+	}
+
 	//we respond to ready to complete the scale from zero flow. we want to skip flows where once the function
 	// has created or updated and marked as ready, so it will not needlessly run the create or update flow.
 	if functionconfig.FunctionStateInSlice(function.Status.State,
@@ -243,6 +274,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 		var scaleEvent scalertypes.ScaleEvent
 		var finalState functionconfig.FunctionState
+
 		switch function.Status.State {
 		case functionconfig.FunctionStateWaitingForScaleResourcesToZero:
 			scaleEvent = scalertypes.ScaleToZeroCompletedScaleEvent
@@ -312,9 +344,9 @@ func (fo *functionOperator) setFunctionError(ctx context.Context,
 	functionErrorState functionconfig.FunctionState,
 	err error) error {
 
-	// context might timed out, but we still want to set the error,
+	// context might time out, but we still want to set the error,
 	// so we'll use a detached background context
-	detachedContext := detachcontext.NewDetached(ctx)
+	detachedContext := context.WithoutCancel(ctx)
 
 	// whatever the error, try to update the function CR
 	fo.logger.WarnWithCtx(detachedContext,

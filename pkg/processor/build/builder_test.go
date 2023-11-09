@@ -1,7 +1,7 @@
 //go:build test_integration && test_local
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the Licensg.
@@ -100,6 +100,13 @@ func (suite *testSuite) TestGetRuntimeNameFromConfig() {
 	}
 
 	suite.Require().Equal("foo", runtimeName)
+}
+
+func (suite *testSuite) TestGetBuildFlags() {
+	suite.builder.options.FunctionConfig.Spec.Build.Flags = []string{"--insecure-pull", "-f && whoami &&", "--label key=value"}
+	flags := suite.builder.getBuildFlags()
+
+	suite.Require().Equal(map[string]bool{"'--label key=value'": true, "'-f && whoami &&'": true, "--insecure-pull": true}, flags)
 }
 
 // Make sure that "Builder.getRuntimeName" properly reads the runtime name from the build path if not set by the user
@@ -742,7 +749,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 func (suite *testSuite) TestImageNameConfigurationEnrichment() {
 	suite.builder.options.FunctionConfig.Meta.Name = "name"
 	suite.builder.options.FunctionConfig.Spec.Handler = "handler"
-	suite.builder.options.FunctionConfig.Spec.Runtime = "python3.6"
+	suite.builder.options.FunctionConfig.Spec.Runtime = "python3.9"
 
 	type testAttributes struct {
 		inputImageName             string

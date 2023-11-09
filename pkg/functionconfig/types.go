@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -80,6 +80,7 @@ type Trigger struct {
 	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
 	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
 	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
+	WaitExplicitAckDuringRebalanceTimeout string            `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
 	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
 
 	// Dealer Information
@@ -104,7 +105,7 @@ const (
 	ExplicitAckModeExplicitOnly ExplicitAckMode = "explicitOnly"
 
 	// DefaultWorkerTerminationTimeout wait time for workers to drop or ack events before rebalance initiates
-	DefaultWorkerTerminationTimeout string = "5s"
+	DefaultWorkerTerminationTimeout string = "10s"
 )
 
 func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {
@@ -316,6 +317,7 @@ type Build struct {
 	BuildTimeoutSeconds   *int64                 `json:"buildTimeoutSeconds,omitempty"`
 	Mode                  BuildMode              `json:"mode,omitempty"`
 	Args                  map[string]string      `json:"args,omitempty"`
+	Flags                 []string               `json:"flags,omitempty"`
 	BuilderServiceAccount string                 `json:"builderServiceAccount,omitempty"`
 }
 
@@ -353,6 +355,9 @@ type Spec struct {
 	SecurityContext         *v1.PodSecurityContext  `json:"securityContext,omitempty"`
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
+
+	// If set to nil, the value is taken from the platform configuration. When set explicitly in function config, it has a priority
+	DisableDefaultHTTPTrigger *bool `json:"disableDefaultHTTPTrigger,omitempty"`
 
 	// When set to true, the function spec would not be scrubbed
 	DisableSensitiveFieldsMasking bool `json:"disableSensitiveFieldsMasking,omitempty"`
@@ -401,6 +406,10 @@ type Spec struct {
 	// When filled, tolerations, node labels, and affinity would be populated correspondingly to
 	// the platformconfig.PreemptibleNodes values.
 	PreemptionMode RunOnPreemptibleNodeMode `json:"preemptionMode,omitempty"`
+
+	// Sidecars are containers that run alongside the function container in the same pod
+	// the configuration for each sidecar is the same as k8s containers
+	Sidecars map[string]*v1.Container `json:"sidecars,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string
@@ -499,8 +508,10 @@ func (s *Spec) PositiveGPUResourceLimit() bool {
 }
 
 const (
-	FunctionAnnotationSkipBuild  = "skip-build"
-	FunctionAnnotationSkipDeploy = "skip-deploy"
+	FunctionAnnotationSkipBuild   = "skip-build"
+	FunctionAnnotationSkipDeploy  = "skip-deploy"
+	FunctionAnnotationPrevState   = "nuclio.io/previous-state"
+	FunctionAnnotationForceUpdate = "nuclio.io/force-update"
 )
 
 // Meta identifies a function
@@ -577,15 +588,20 @@ func (c *Config) CleanFunctionSpec() {
 	}
 }
 
-func (c *Config) PrepareFunctionForExport(noScrub bool) {
-	if !noScrub {
+func (c *Config) PrepareFunctionForExport(exportOptions *common.ExportFunctionOptions) {
+	if !exportOptions.NoScrub {
 		c.scrubFunctionData()
+	}
+
+	if exportOptions.CleanupSpec {
+		c.CleanFunctionSpec()
 	}
 
 	// resource version should not be exported anyway, as it's a k8s thing
 	c.Meta.ResourceVersion = ""
 
 	c.AddSkipAnnotations()
+	c.AddPrevStateAnnotation(exportOptions.PrevState)
 }
 
 func (c *Config) AddSkipAnnotations() {
@@ -599,9 +615,14 @@ func (c *Config) AddSkipAnnotations() {
 	c.Meta.AddSkipDeployAnnotation()
 }
 
-func (c *Config) scrubFunctionData() {
-	c.CleanFunctionSpec()
+func (c *Config) AddPrevStateAnnotation(state string) {
+	if c.Meta.Annotations == nil {
+		c.Meta.Annotations = map[string]string{}
+	}
+	c.Meta.Annotations[FunctionAnnotationPrevState] = state
+}
 
+func (c *Config) scrubFunctionData() {
 	// scrub namespace from function meta
 	c.Meta.Namespace = ""
 
@@ -801,6 +822,15 @@ func FunctionStateProvisioned(functionState FunctionState) bool {
 
 func FunctionStateProvisioning(functionState FunctionState) bool {
 	return !FunctionStateProvisioned(functionState)
+}
+
+func IsPreviousFunctionStateAllowedToBeSet(prevState FunctionState) bool {
+	allowedPreviousStates := []FunctionState{
+		FunctionStateScaledToZero,
+		FunctionStateReady,
+		FunctionStateImported,
+	}
+	return FunctionStateInSlice(prevState, allowedPreviousStates)
 }
 
 // Status holds the status of the function

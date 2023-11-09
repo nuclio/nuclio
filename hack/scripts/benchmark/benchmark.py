@@ -1,4 +1,4 @@
-# Copyright 2017 The Nuclio Authors.
+# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,12 +61,13 @@ class Runtimes(object):
     dotnetcore = "dotnetcore"
     shell = "shell"
     ruby = "ruby"
-    python36 = "python:3.6"
     python37 = "python:3.7"
     python38 = "python:3.8"
     python39 = "python:3.9"
+    python310 = "python:3.10"
+    python311 = "python:3.11"
 
-    # NOTE: python is just an alias to python3.6
+    # NOTE: python is just an alias to python3.9
     python = "python"
 
     @staticmethod
@@ -74,7 +75,6 @@ class Runtimes(object):
         return {
             "empty": {
                 Runtimes.python: "empty:handler",
-                Runtimes.python36: "empty:handler",
                 Runtimes.python37: "empty:handler",
                 Runtimes.python38: "empty:handler",
                 Runtimes.golang: "empty:Handler",
@@ -91,7 +91,6 @@ class Runtimes(object):
         return {
             "empty": {
                 Runtimes.python: "empty.py",
-                Runtimes.python36: "empty.py",
                 Runtimes.python37: "empty.py",
                 Runtimes.python38: "empty.py",
                 Runtimes.golang: "empty.go",
@@ -107,7 +106,6 @@ class Runtimes(object):
     def all():
         return [
             Runtimes.golang,
-            Runtimes.python36,
             Runtimes.python37,
             Runtimes.python38,
             Runtimes.java,

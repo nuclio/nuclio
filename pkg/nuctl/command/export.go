@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ type exportCommandeer struct {
 	rootCommandeer *RootCommandeer
 	scrubber       *functionconfig.Scrubber
 	noScrub        bool
+	cleanupSpec    bool
 }
 
 func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *exportCommandeer {
@@ -55,6 +56,7 @@ to the standard output, in JSON or YAML format`,
 	}
 
 	cmd.PersistentFlags().BoolVar(&commandeer.noScrub, "no-scrub", false, "Export all function data, including sensitive and unnecessary data")
+	cmd.PersistentFlags().BoolVar(&commandeer.cleanupSpec, "cleanup-spec", false, "Clean up the image info from the function spec")
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
@@ -118,6 +120,9 @@ Arguments:
 				cmd.OutOrStdout().Write([]byte("No functions found\n")) // nolint: errcheck
 				return nil
 			}
+			exportOptions := &common.ExportFunctionOptions{
+				CleanupSpec: commandeer.cleanupSpec,
+			}
 
 			// render the functions
 			return nuctlcommon.RenderFunctions(ctx,
@@ -125,7 +130,9 @@ Arguments:
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				commandeer.renderFunctionConfig)
+				commandeer.renderFunctionConfig,
+				exportOptions,
+			)
 		},
 	}
 
@@ -136,7 +143,7 @@ Arguments:
 	return commandeer
 }
 
-func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
+func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error, exportOptions *common.ExportFunctionOptions) error {
 	functionConfigs := map[string]*functionconfig.Config{}
 	lock := sync.Mutex{}
 	errGroup, errGroupCtx := errgroup.WithContextSemaphore(context.Background(),
@@ -161,7 +168,9 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			} else if err != nil {
 				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
-			functionConfig.PrepareFunctionForExport(e.noScrub)
+			exportOptions.PrevState = string(function.GetStatus().State)
+			exportOptions.NoScrub = e.noScrub
+			functionConfig.PrepareFunctionForExport(exportOptions)
 			lock.Lock()
 			functionConfigs[functionConfig.Meta.Name] = functionConfig
 			lock.Unlock()
@@ -240,7 +249,7 @@ Arguments:
 			}
 
 			// render the projects
-			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig)
+			return nuctlcommon.RenderProjects(ctx, projects, commandeer.output, cmd.OutOrStdout(), commandeer.renderProjectConfig, commandeer.cleanupSpec)
 		},
 	}
 
@@ -294,7 +303,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	return apiGatewaysMap, nil
 }
 
-func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig) (
+func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx context.Context, projectConfig *platform.ProjectConfig, exportOptions *common.ExportFunctionOptions) (
 	map[string]*functionconfig.Config, map[string]*platform.FunctionEventConfig, error) {
 	getFunctionOptions := &platform.GetFunctionsOptions{
 		Namespace: projectConfig.Meta.Namespace,
@@ -330,8 +339,9 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 			functionEventConfig.Meta.Namespace = ""
 			functionEventMap[functionEventConfig.Meta.Name] = functionEventConfig
 		}
+		exportOptions.PrevState = string(function.GetStatus().State)
 
-		functionConfig.PrepareFunctionForExport(e.noScrub)
+		functionConfig.PrepareFunctionForExport(exportOptions)
 		functionMap[functionConfig.Meta.Name] = functionConfig
 	}
 
@@ -339,7 +349,11 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 }
 
 func (e *exportProjectCommandeer) exportProject(ctx context.Context, projectConfig *platform.ProjectConfig) (map[string]interface{}, error) {
-	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx, projectConfig)
+	functions, functionEvents, err := e.exportProjectFunctionsAndFunctionEvents(ctx,
+		projectConfig,
+		&common.ExportFunctionOptions{
+			CleanupSpec: e.cleanupSpec,
+			NoScrub:     e.noScrub})
 	if err != nil {
 		return nil, err
 	}

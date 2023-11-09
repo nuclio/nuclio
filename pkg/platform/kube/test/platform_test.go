@@ -1,7 +1,7 @@
 //go:build test_integration && test_kube
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,9 +19,11 @@ limitations under the License.
 package test
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -44,7 +46,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -285,6 +287,19 @@ func (suite *DeployFunctionTestSuite) TestVolumeOnceMountTwice() {
 		}
 		return true
 	})
+}
+
+func (suite *DeployFunctionTestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
+	createFunctionOptions := suite.CompileCreateFunctionOptions("disable-default-http")
+	trueValue := true
+	createFunctionOptions.FunctionConfig.Spec.DisableDefaultHTTPTrigger = &trueValue
+	suite.DeployFunction(createFunctionOptions,
+
+		// sanity
+		func(deployResult *platform.CreateFunctionResult) bool {
+			suite.Require().NotNil(deployResult)
+			return true
+		})
 }
 
 func (suite *DeployFunctionTestSuite) TestStaleResourceVersion() {
@@ -545,7 +560,7 @@ func (suite *DeployFunctionTestSuite) TestMinMaxReplicas() {
 	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &two
 	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &three
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		hpaInstance := &autoscalingv1.HorizontalPodAutoscaler{}
+		hpaInstance := &autosv2.HorizontalPodAutoscaler{}
 		suite.GetResourceAndUnmarshal("hpa", kube.HPANameFromFunctionName(functionName), hpaInstance)
 		suite.Require().Equal(two, int(*hpaInstance.Spec.MinReplicas))
 		suite.Require().Equal(three, int(hpaInstance.Spec.MaxReplicas))
@@ -667,42 +682,6 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 		return true
 	})
 
-}
-
-func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
-
-	// create a platform config configmap with a json logger sink (this is how it is on production)
-	platformConfigConfigmap, err := suite.KubeClientSet.
-		CoreV1().
-		ConfigMaps(suite.Namespace).
-		Create(suite.Ctx,
-			&v1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "nuclio-platform-config",
-					Namespace: suite.Namespace,
-				},
-				Data: map[string]string{
-					"platform.yaml": `logger:
-  functions:
-  - level: debug
-    sink: myStdoutLoggerSink
-  sinks:
-    myStdoutLoggerSink:
-      attributes:
-        encoding: json
-        timeFieldEncoding: iso8601
-        timeFieldName: time
-        varGroupName: more
-      kind: stdout
-  system:
-  - level: debug
-    sink: myStdoutLoggerSink`,
-				},
-			},
-			metav1.CreateOptions{})
-	suite.Require().NoError(err)
-
-	return platformConfigConfigmap
 }
 
 func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
@@ -1267,6 +1246,273 @@ func (suite *DeployFunctionTestSuite) TestRedeployWithReplicasAndValidateResourc
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestDeployImportedFunctionAsScaledToZero() {
+	zero := 0
+	one := 1
+	functionName := "func-scale-to-zero"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &zero
+	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &one
+	createFunctionOptions.FunctionConfig.AddPrevStateAnnotation(string(functionconfig.FunctionStateScaledToZero))
+	result, deployErr := suite.Platform.CreateFunction(suite.Ctx, createFunctionOptions)
+	suite.NoError(deployErr)
+	suite.Require().Equal(result.FunctionStatus.State, functionconfig.FunctionStateScaledToZero)
+
+	deployment, err := suite.KubeClientSet.AppsV1().Deployments("default").Get(suite.Ctx, "nuclio-func-scale-to-zero", metav1.GetOptions{})
+	suite.NoError(err)
+	suite.Require().Equal(int(*deployment.Spec.Replicas), 0)
+}
+
+func (suite *DeployFunctionTestSuite) TestCreateFunctionWithCustomScalingMetrics() {
+	one := 1
+	four := 4
+	eighty := resource.MustParse("80")
+	gpuMetricName := "DCGM_FI_DEV_GPU_UTIL"
+	functionName := "func-with-custom-scaling-metrics"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.MinReplicas = &one
+	createFunctionOptions.FunctionConfig.Spec.MaxReplicas = &four
+	createFunctionOptions.FunctionConfig.Spec.CustomScalingMetricSpecs = []autosv2.MetricSpec{
+		{
+			Type: autosv2.PodsMetricSourceType,
+			Pods: &autosv2.PodsMetricSource{
+				Metric: autosv2.MetricIdentifier{
+					Name: gpuMetricName,
+				},
+				Target: autosv2.MetricTarget{
+					Type:         autosv2.AverageValueMetricType,
+					AverageValue: &eighty,
+				},
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function's HPA and validate it has the custom scaling metrics
+		hpaName := kube.HPANameFromFunctionName(functionName)
+		hpa, err := suite.KubeClientSet.AutoscalingV2().HorizontalPodAutoscalers(suite.Namespace).Get(suite.Ctx,
+			hpaName, metav1.GetOptions{})
+		suite.Require().NoError(err)
+
+		suite.Require().Len(hpa.Spec.Metrics, 1)
+		suite.Require().Equal(autosv2.PodsMetricSourceType, hpa.Spec.Metrics[0].Type)
+		suite.Require().Equal(gpuMetricName, hpa.Spec.Metrics[0].Pods.Metric.Name)
+		suite.Require().Equal(&eighty, hpa.Spec.Metrics[0].Pods.Target.AverageValue)
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
+	functionName := "func-with-sidecar"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	sidecarContainerName := "sidecar-test"
+	commands := []string{
+		"sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 1; done; echo 'Done'",
+	}
+
+	// create a busybox sidecar
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = map[string]*v1.Container{
+		sidecarContainerName: {
+			Name:    sidecarContainerName,
+			Image:   "busybox",
+			Command: commands,
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal("busybox", pod.Spec.Containers[1].Image)
+		suite.Require().Equal(commands, pod.Spec.Containers[1].Command)
+
+		// get the logs from the sidecar container to validate it ran
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		err := common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Done"})
+		})
+		suite.Require().NoError(err)
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestDeploySidecarEnrichment() {
+	functionName := "func-with-enriched-sidecar"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// create a temp dir to mount as a volume
+	tempDir, err := os.MkdirTemp("", "nuclio-test-*")
+	suite.Require().NoError(err)
+	defer os.RemoveAll(tempDir) // nolint: errcheck
+
+	// create a file in the temp dir
+	tempFile, err := os.CreateTemp(tempDir, "nuclio-test-*")
+	suite.Require().NoError(err)
+
+	// write some data to the file
+	data := "some data"
+	_, err = tempFile.WriteString(data)
+	suite.Require().NoError(err)
+
+	fileName := "temp-file.txt"
+
+	mountPath := "/tmp/volume1"
+	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
+		{
+			Volume: v1.Volume{
+				Name: "volume1",
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			},
+			VolumeMount: v1.VolumeMount{
+				Name:      "volume1",
+				MountPath: mountPath,
+			},
+		},
+	}
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+def init_context(context):
+    context.logger.info("Init context - writing to file")
+    with open("/tmp/volume1/temp-file.txt", "w") as f:
+        f.write("some data")
+
+def handler(context, event):
+    return "Success"
+`))
+
+	createFunctionOptions.FunctionConfig.Spec.Resources = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			"cpu":    resource.MustParse("100m"),
+			"memory": resource.MustParse("128Mi"),
+		},
+	}
+	envVarKey := "MY_ENV_VAR"
+	envVarValue := "my-env-var-value"
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+		{
+			Name:  envVarKey,
+			Value: envVarValue,
+		},
+	}
+
+	sidecarContainerName := "sidecar-test"
+	commands := []string{
+		"sh",
+		"-c",
+		// print the env var, wait for the file to be created, then print the file contents. lastly,
+		// sleep for 20 seconds until the test is over
+		fmt.Sprintf("echo $%[1]v; while [ ! -f \"%[2]v\" ]; do echo \"waiting for file\"; sleep 0.2; done; while true; do echo $(cat %[2]v); sleep 2; done",
+			envVarKey, path.Join(mountPath, fileName)),
+	}
+
+	// create a busybox sidecar
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = map[string]*v1.Container{
+		sidecarContainerName: {
+			Name:    sidecarContainerName,
+			Image:   "busybox",
+			Command: commands,
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// give the function container a chance to write the file
+		time.Sleep(3 * time.Second)
+
+		// get the function pod and validate it has the sidecar
+		pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", "nuclio.io/function-name", functionName),
+		})
+		suite.Require().NoError(err)
+		suite.Require().Len(pods.Items, 1)
+
+		pod := pods.Items[0]
+		suite.Require().Len(pod.Spec.Containers, 2)
+
+		// get the logs from the sidecar container to validate it ran by checking the shared volume
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		containsLog := suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{data, envVarValue})
+		suite.Require().Equal(containsLog, true)
+
+		// validate the sidecar container has the same resource requests as the function
+		suite.Require().Equal(pod.Spec.Containers[0].Resources.Requests, pod.Spec.Containers[1].Resources.Requests)
+
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
+
+	// create a platform config configmap with a json logger sink (this is how it is on production)
+	platformConfigConfigmap, err := suite.KubeClientSet.
+		CoreV1().
+		ConfigMaps(suite.Namespace).
+		Create(suite.Ctx,
+			&v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nuclio-platform-config",
+					Namespace: suite.Namespace,
+				},
+				Data: map[string]string{
+					"platform.yaml": `logger:
+  functions:
+  - level: debug
+    sink: myStdoutLoggerSink
+  sinks:
+    myStdoutLoggerSink:
+      attributes:
+        encoding: json
+        timeFieldEncoding: iso8601
+        timeFieldName: time
+        varGroupName: more
+      kind: stdout
+  system:
+  - level: debug
+    sink: myStdoutLoggerSink`,
+				},
+			},
+			metav1.CreateOptions{})
+	suite.Require().NoError(err)
+
+	return platformConfigConfigmap
+}
+
+func (suite *DeployFunctionTestSuite) validatePodLogsContainData(podName string, options *v1.PodLogOptions, expectedData []string) bool {
+	podLogRequest := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).GetLogs(podName, options)
+	podLogs, err := podLogRequest.Stream(suite.Ctx)
+	suite.Require().NoError(err)
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	suite.Require().NoError(err)
+
+	for _, data := range expectedData {
+		if strings.Contains(buf.String(), data) {
+			return true
+		}
+	}
+	return false
+}
+
 type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }
@@ -1354,6 +1600,27 @@ def handler(context, event):
 	}
 
 	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
+}
+
+func (suite *DeleteFunctionTestSuite) TestProcessorShutdown() {
+	functionName := "func-to-test-processor-shutdown"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotEmpty(deployResult)
+		pods := suite.GetFunctionPods(functionName)
+		firstPod := pods[0]
+		err := suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Processor started", &v1.PodLogOptions{}, 20*time.Second)
+		suite.Require().NoError(err)
+
+		err = suite.KubeClientSet.CoreV1().Pods(firstPod.Namespace).Delete(suite.Ctx, firstPod.Name, metav1.DeleteOptions{})
+		suite.Require().NoError(err)
+
+		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "All triggers are terminated", &v1.PodLogOptions{}, 30*time.Second)
+		suite.Require().NoError(err, "triggers were not drained")
+		return true
+	})
+
 }
 
 type UpdateFunctionTestSuite struct {

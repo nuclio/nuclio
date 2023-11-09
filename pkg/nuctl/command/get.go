@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package command
 import (
 	"context"
 
+	nucliocommon "github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -110,10 +111,10 @@ func newGetFunctionCommandeer(ctx context.Context, getCommandeer *getCommandeer)
 				functions,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				commandeer.renderFunctionConfigWithStatus)
+				commandeer.renderFunctionConfigWithStatus,
+				&nucliocommon.ExportFunctionOptions{})
 		},
 	}
-
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 	commandeer.cmd = cmd
@@ -122,7 +123,7 @@ func newGetFunctionCommandeer(ctx context.Context, getCommandeer *getCommandeer)
 }
 
 func (g *getFunctionCommandeer) renderFunctionConfigWithStatus(functions []platform.Function,
-	renderer func(interface{}) error) error {
+	renderer func(interface{}) error, exportOptions *nucliocommon.ExportFunctionOptions) error {
 	configsWithStatus := make([]functionconfig.ConfigWithStatus, 0, len(functions))
 	for _, function := range functions {
 		functionConfigWithStatus := functionconfig.ConfigWithStatus{
@@ -194,7 +195,8 @@ func newGetProjectCommandeer(ctx context.Context, getCommandeer *getCommandeer) 
 				projects,
 				commandeer.output,
 				cmd.OutOrStdout(),
-				commandeer.renderProjectConfig)
+				commandeer.renderProjectConfig,
+				false)
 		},
 	}
 

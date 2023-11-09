@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,6 +59,10 @@ func (e *Event) GetHeader(key string) interface{} {
 
 func (e *Event) getHeadersAsMap() map[string]interface{} {
 	headersMap := map[string]interface{}{}
+
+	if e.kafkaMessage == nil {
+		return headersMap
+	}
 
 	if e.kafkaMessage.Headers == nil {
 		return headersMap

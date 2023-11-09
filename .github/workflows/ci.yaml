@@ -1,4 +1,4 @@
-# Copyright 2017 The Nuclio Authors.
+# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,9 +58,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
       - name: Check License Lines
-        uses: kt3k/license_checker@v1.0.6
+        run: |
+          deno run --allow-read https://deno.land/x/license_checker@v3.2.3/main.ts
 
       - name: Instructions For Adding Copyright
         if: ${{ failure() }}
@@ -69,7 +72,7 @@ jobs:
           Please add the following lines to the top of your code as a comment:
           
           /*
-            Copyright 2017 The Nuclio Authors.
+            Copyright 2023 The Nuclio Authors.
             
             Licensed under the Apache License, Version 2.0 (the "License");
             you may not use this file except in compliance with the License.
@@ -172,6 +175,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Freeing up disk space
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+
       - uses: azure/setup-helm@v3
         with:
           version: "v3.6.3"
@@ -181,10 +187,10 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@v2.7.1
+      - uses: manusa/actions-setup-minikube@v2.7.2
         with:
-          minikube version: "v1.29.0"
-          kubernetes version: "v1.24.11"
+          minikube version: "v1.31.2"
+          kubernetes version: "v1.27.5"
           driver: docker
           github token: ${{ github.token }}
           start args: "--addons registry --addons ingress"
@@ -308,10 +314,10 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@v2.7.1
+      - uses: manusa/actions-setup-minikube@v2.7.2
         with:
-          minikube version: "v1.29.0"
-          kubernetes version: "v1.24.11"
+          minikube version: "v1.31.2"
+          kubernetes version: "v1.27.5"
           driver: docker
           github token: ${{ github.token }}
           start args: "--addons registry --addons ingress"

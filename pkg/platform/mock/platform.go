@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -101,6 +101,11 @@ func (mp *Platform) UpdateFunction(ctx context.Context, updateFunctionOptions *p
 // DeleteFunction will delete a previously deployed function
 func (mp *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	args := mp.Called(ctx, deleteFunctionOptions)
+	return args.Error(0)
+}
+
+func (mp *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
+	args := mp.Called(ctx, redeployFunctionOptions)
 	return args.Error(0)
 }
 
@@ -267,6 +272,11 @@ func (mp *Platform) GetScaleToZeroConfiguration() *platformconfig.ScaleToZero {
 	return args.Get(0).(*platformconfig.ScaleToZero)
 }
 
+func (mp *Platform) GetDisableDefaultHttpTrigger() bool {
+	args := mp.Called()
+	return args.Get(0).(bool)
+}
+
 func (mp *Platform) GetAllowedAuthenticationModes() []string {
 	args := mp.Called()
 	return args.Get(0).([]string)
@@ -317,6 +327,10 @@ func (mp *Platform) GetBaseImageRegistry(registry string, runtime runtime.Runtim
 
 func (mp *Platform) GetOnbuildImageRegistry(registry string, runtime runtime.Runtime) (string, error) {
 	return "", nil
+}
+
+func (mp *Platform) GetRegistryKind() string {
+	return ""
 }
 
 func (mp *Platform) GetDefaultRegistryCredentialsSecretName() string {

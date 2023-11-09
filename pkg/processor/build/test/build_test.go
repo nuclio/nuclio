@@ -1,7 +1,7 @@
 //go:build test_integration && test_local
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -584,6 +584,65 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 		})
 
 	suite.Equal(deployResult.Image, redeployResult.Image)
+}
+
+func (suite *testSuite) TestBuildWithFlags() {
+	for _, testCase := range []struct {
+		expectError bool
+		flags       []string
+	}{
+		// in this test case we check all possible flag formats (--<long_name>, -<short_name>, --<key>=<value>)
+		// and expect that function deployment is successful
+		{expectError: false,
+			flags: []string{"--pull", "-q", "--memory=100"}},
+		// here we check that injection doesn't work and deployment is failed since such flag doesn't exist
+		{expectError: true,
+			flags: []string{"-q", "& whoami || "}},
+
+		// here we pass 3 valid flags and 4th not valid specifically for Docker, so failure is expected
+		{expectError: true,
+			flags: []string{"--pull", "-q", "--memory=100", "--pull-insecure"}},
+	} {
+
+		createFunctionOptions := &platform.CreateFunctionOptions{
+			Logger: suite.Logger,
+			FunctionConfig: functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      "build-from-local",
+					Namespace: "default",
+				},
+				Spec: functionconfig.Spec{
+					Env: []v1.EnvVar{
+						{
+							Name:  "MANIPULATION_KIND",
+							Value: "reverse",
+						},
+					},
+					Handler: "string-manipulator:handler",
+					Runtime: "python",
+					Build: functionconfig.Build{
+						CodeEntryAttributes: map[string]interface{}{
+							"workDir": "/nuclio-templates-master/string-manipulator",
+						},
+						Path:  "https://github.com/nuclio/nuclio-templates/archive/master.zip",
+						Flags: testCase.flags,
+					},
+				},
+			},
+		}
+
+		if testCase.expectError {
+			suite.DeployFunctionAndExpectError(createFunctionOptions, "Failed to deploy function")
+		} else {
+			deployResult := suite.DeployFunctionAndRequest(createFunctionOptions,
+				&httpsuite.Request{
+					RequestMethod:        "POST",
+					RequestBody:          "abcd",
+					ExpectedResponseBody: "dcba",
+				})
+			suite.Require().NotEmpty(deployResult, "Bad deploy result value")
+		}
+	}
 }
 
 func (suite *testSuite) TestGenerateProcessorDockerfile() {

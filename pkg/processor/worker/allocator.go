@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,35 +17,44 @@ limitations under the License.
 package worker
 
 import (
-	"errors"
+	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errgroup"
+
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
-// errors
 var ErrNoAvailableWorkers = errors.New("No available workers")
 
 type Allocator interface {
 
-	// allocate a worker
+	// Allocate allocates a worker
 	Allocate(timeout time.Duration) (*Worker, error)
 
-	// release a worker
+	// Release releases a worker
 	Release(worker *Worker)
 
-	// true if the several go routines can share this allocator
+	// Shareable returns true if the several go routines can share this allocator
 	Shareable() bool
 
-	// get direct access to all workers for things like management / housekeeping
+	// GetWorkers gets direct access to all workers for things like management / housekeeping
 	GetWorkers() []*Worker
 
-	// get number of workers available in the allocator
+	// GetNumWorkersAvailable gets number of workers available in the allocator
 	GetNumWorkersAvailable() int
 
 	// GetStatistics returns worker allocator statistics
 	GetStatistics() *AllocatorStatistics
+
+	// SignalDraining signals all workers to drain events
+	SignalDraining() error
+
+	// ResetTerminationState resets termination state of all workers
+	ResetTerminationState()
 }
 
 //
@@ -70,19 +79,17 @@ func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (Al
 	}, nil
 }
 
-func (s *singleton) Allocate(timeout time.Duration) (*Worker, error) {
+func (s *singleton) Allocate(time.Duration) (*Worker, error) {
 	return s.worker, nil
 }
 
-func (s *singleton) Release(worker *Worker) {
+func (s *singleton) Release(*Worker) {
 }
 
-// true if the several go routines can share this allocator
 func (s *singleton) Shareable() bool {
 	return false
 }
 
-// get direct access to all workers for things like management / housekeeping
 func (s *singleton) GetWorkers() []*Worker {
 	return []*Worker{s.worker}
 }
@@ -94,6 +101,14 @@ func (s *singleton) GetNumWorkersAvailable() int {
 // GetStatistics returns worker allocator statistics
 func (s *singleton) GetStatistics() *AllocatorStatistics {
 	return &s.statistics
+}
+
+func (s *singleton) SignalDraining() error {
+	return s.worker.Drain()
+}
+
+func (s *singleton) ResetTerminationState() {
+	s.worker.setDrained(false)
 }
 
 //
@@ -176,12 +191,10 @@ func (fp *fixedPool) Release(worker *Worker) {
 	fp.workerChan <- worker
 }
 
-// true if the several go routines can share this allocator
 func (fp *fixedPool) Shareable() bool {
 	return true
 }
 
-// get direct access to all workers for things like management / housekeeping
 func (fp *fixedPool) GetWorkers() []*Worker {
 	return fp.workers
 }
@@ -193,4 +206,32 @@ func (fp *fixedPool) GetNumWorkersAvailable() int {
 // GetStatistics returns worker allocator statistics
 func (fp *fixedPool) GetStatistics() *AllocatorStatistics {
 	return &fp.statistics
+}
+
+func (fp *fixedPool) SignalDraining() error {
+	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
+
+	for _, workerInstance := range fp.GetWorkers() {
+		workerInstance := workerInstance
+
+		errGroup.Go(fmt.Sprintf("Drain worker %d", workerInstance.GetIndex()), func() error {
+			// if worker is not already drained, signal it to drain events
+			if err := workerInstance.Drain(); err != nil {
+				return errors.Wrapf(err, "Failed to signal worker %d to drain events", workerInstance.GetIndex())
+			}
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "At least one worker failed to drain")
+	}
+
+	return nil
+}
+
+func (fp *fixedPool) ResetTerminationState() {
+	for _, workerInstance := range fp.GetWorkers() {
+		workerInstance.setDrained(false)
+	}
 }

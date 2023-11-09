@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ type AnnotationConfigField struct {
 }
 
 type Configuration struct {
-	functionconfig.Trigger
+	*functionconfig.Trigger
 
 	// the runtime configuration, for reference
 	RuntimeConfiguration *runtime.Configuration
@@ -58,10 +58,10 @@ type Configuration struct {
 
 func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) *Configuration {
+	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 
 	configuration := &Configuration{
-		Trigger:              *triggerConfiguration,
+		Trigger:              triggerConfiguration,
 		RuntimeConfiguration: runtimeConfiguration,
 		ID:                   id,
 	}
@@ -71,7 +71,17 @@ func NewConfiguration(id string,
 		configuration.MaxWorkers = 1
 	}
 
-	return configuration
+	if triggerConfiguration.WorkerTerminationTimeout == "" {
+		triggerConfiguration.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
+	}
+
+	workerTerminationTimeout, err := time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
+	if err != nil {
+		return nil, errors.New("Failed to parse worker termination timeout from trigger configuration")
+	}
+	runtimeConfiguration.WorkerTerminationTimeout = workerTerminationTimeout
+
+	return configuration, nil
 }
 
 // PopulateConfigurationFromAnnotations allows setting configuration via annotations, for experimental settings
@@ -136,8 +146,10 @@ func (c *Configuration) PopulateExplicitAckMode(explicitAckModeValue string,
 		c.ExplicitAckMode = functionconfig.ExplicitAckModeExplicitOnly
 	default:
 
-		// default explicit ack mode to 'disable'
-		if triggerConfigurationExplicitAckMode == "" {
+		// default explicit ack mode to 'disable' if not set
+		if triggerConfigurationExplicitAckMode != "" {
+			c.ExplicitAckMode = triggerConfigurationExplicitAckMode
+		} else {
 			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
 	}

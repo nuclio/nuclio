@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ limitations under the License.
 package dockercreds
 
 import (
+	"context"
 	"os"
 	"path"
 	"path/filepath"
@@ -42,6 +43,7 @@ type DockerCreds struct {
 	dockerClient    dockerclient.Client
 	refreshInterval *time.Duration
 	dockerCreds     []*dockerCred
+	cancelFunctions []context.CancelFunc
 }
 
 func NewDockerCreds(parentLogger logger.Logger,
@@ -52,6 +54,7 @@ func NewDockerCreds(parentLogger logger.Logger,
 		logger:          parentLogger.GetChild("dockercreds"),
 		dockerClient:    dockerClient,
 		refreshInterval: refreshInterval,
+		cancelFunctions: make([]context.CancelFunc, 0),
 	}, nil
 }
 
@@ -62,6 +65,9 @@ func (dc *DockerCreds) LoadFromDir(keyDir string) error {
 	}
 
 	for _, dockerKeyFileInfo := range dockerKeyFileInfos {
+
+		ctx, cancel := context.WithCancel(context.Background())
+		dc.cancelFunctions = append(dc.cancelFunctions, cancel)
 
 		// create the full path of the docker credentials
 		dockerKeyFilePath := path.Join(keyDir, dockerKeyFileInfo.Name())
@@ -80,7 +86,7 @@ func (dc *DockerCreds) LoadFromDir(keyDir string) error {
 			continue
 		}
 
-		dockerCred, err := newDockerCred(dc, dockerKeyFilePath, dc.refreshInterval)
+		dockerCred, err := newDockerCred(ctx, dc, dockerKeyFilePath, dc.refreshInterval)
 		if err != nil {
 			dc.logger.WarnWith("Failed to create docker cred", "err", err)
 			continue
@@ -100,4 +106,13 @@ func (dc *DockerCreds) GetCredentials() []Credentials {
 	}
 
 	return credentials
+}
+
+// cancelLogins method stops all refreshCredentials goroutines
+// We use this method for testing purposes to avoid leaving behind zombie goroutines
+func (dc *DockerCreds) cancelLogins() {
+	for _, cancelFunction := range dc.cancelFunctions {
+		cancelFunction()
+	}
+	dc.cancelFunctions = dc.cancelFunctions[:0]
 }

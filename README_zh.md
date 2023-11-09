@@ -55,11 +55,7 @@ All you need to run the dashboard is Docker:
 探索尝试 Nuclio 的最简单方式是通过运行项目提供的图形用户界面（Nuclio [仪表盘](#dashboard)。你可以很轻松的通过 Docker 将它运行起来：
 
 ```sh
-docker run -p 8070:8070 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v /tmp:/tmp \
-  --name nuclio-dashboard \
-  quay.io/nuclio/dashboard:stable-amd64
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock --name nuclio-dashboard quay.io/nuclio/dashboard:stable-amd64
 ```
 
 ![dashboard](/docs/assets/images/dashboard.png)
@@ -170,7 +166,7 @@ def handler(context, event):
   - [命令行工具 `nuctl`](/docs/reference/nuctl/nuctl.md)
   - [函数配置参考文档](/docs/reference/function-configuration/function-configuration-reference.md)
   - [触发器](/docs/reference/triggers)
-  - [运行时 - .NET Core 6.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
+  - [运行时 - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
   - [运行时 - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
 - [示例](hack/examples/README.md)
 - 沙箱环境

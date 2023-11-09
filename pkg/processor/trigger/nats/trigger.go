@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,7 +34,6 @@ import (
 
 type nats struct {
 	trigger.AbstractTrigger
-	event            Event
 	configuration    *Configuration
 	stop             chan bool
 	natsSubscription *natsio.Subscription
@@ -135,15 +134,32 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 	for {
 		select {
 		case natsMessage := <-messageChan:
-			n.event.natsMessage = natsMessage
-			// process the event, don't really do anything with response
-			_, submitError, processError := n.AllocateWorkerAndSubmitEvent(&n.event, n.Logger, 10*time.Second)
-			if submitError != nil {
-				n.Logger.ErrorWith("Can't submit event", "error", submitError)
-			}
-			if processError != nil {
-				n.Logger.ErrorWith("Can't process event", "error", processError)
-			}
+
+			// submit the event to the worker in the background and continue,
+			// as we don't mark anything when processing is done
+			go func() {
+				event := &Event{
+					natsMessage: natsMessage,
+				}
+
+				// allocate a worker
+				workerInstance, err := n.WorkerAllocator.Allocate(time.Duration(*n.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond)
+				if err != nil {
+					n.UpdateStatistics(false)
+					n.Logger.ErrorWith("Failed to allocate worker", "error", err)
+					return
+				}
+
+				// submit the event to the worker, don't really do anything with response
+				_, processErr := n.SubmitEventToWorker(nil, workerInstance, event)
+				if processErr != nil {
+					n.Logger.ErrorWith("Can't process event", "error", processErr)
+				}
+
+				// release the worker
+				n.WorkerAllocator.Release(workerInstance)
+			}()
+
 		case <-n.stop:
 			return
 		}

@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the Licensd.
@@ -54,6 +54,6 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Con
 	processorDockerfileInfo.OnbuildArtifacts = []runtime.Artifact{artifact}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "mcr.microsoft.com/dotnet/runtime:6.0"
+	processorDockerfileInfo.BaseImage = "mcr.microsoft.com/dotnet/runtime:7.0"
 	return &processorDockerfileInfo, nil
 }

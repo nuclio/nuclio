@@ -1,4 +1,4 @@
-# Copyright 2017 The Nuclio Authors.
+# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,6 +26,29 @@ on:
         description: 'Image rules override (comma separated)'
         required: false
         default: ''
+      publish_results:
+        description: 'Whether to publish results to Github or not (default empty - no publish)'
+        required: false
+        default: ''
+      severity_threshold:
+        description: 'The minimum severity of vulnerabilities to report ("negligible", "low", "medium", "high" and "critical".)'
+        required: false
+        default: 'low'
+        type: choice
+        options:
+          - 'negligible'
+          - 'low'
+          - 'medium'
+          - 'high'
+          - 'critical'
+      only_fixed:
+        description: 'Whether to only report vulnerabilities that have a fix available ("true" or "false")'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 env:
   NUCLIO_LABEL: latest
@@ -105,37 +128,32 @@ jobs:
           PRINT_FIRST_IMAGE: true
 
       - name: Define output format
-        id: trivy-output-format
+        id: output-format
         run: |
-          if [[ -z "${{ github.event.inputs.pr_number }}" ]]; then \
+          if [[ -n "${{ github.event.inputs.publish_results }}" ]]; then \
             echo "format=sarif" >> $GITHUB_OUTPUT; \
-            echo "output=trivy-results.sarif" >> $GITHUB_OUTPUT; \
-            echo "exit_code=0" >> $GITHUB_OUTPUT; \
+            echo "fail_build=false" >> $GITHUB_OUTPUT; \
           else \
             echo "format=table" >> $GITHUB_OUTPUT; \
-            echo "output=" >> $GITHUB_OUTPUT; \
-            echo "exit_code=1" >> $GITHUB_OUTPUT; \
+            echo "fail_build=true" >> $GITHUB_OUTPUT; \
           fi
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Scan image
+        uses: anchore/scan-action@v3
+        id: scan
         with:
-          scan-type: image
-          image-ref: ${{ env.image_name }}
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-          ignore-unfixed: true
-          output: ${{ steps.trivy-output-format.outputs.output }}
-          format: ${{ steps.trivy-output-format.outputs.format }}
-          exit-code: ${{ steps.trivy-output-format.outputs.exit_code }}
+          image: ${{ env.image_name }}
+          only-fixed: ${{ github.event.inputs.only_fixed }}
+          output-format: ${{ steps.output-format.outputs.format }}
+          fail-build: ${{ steps.output-format.outputs.fail_build }}
+          severity-cutoff: ${{ github.event.inputs.severity_threshold }}
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        # upload results if not running against pr.
-        # we do not want to manipulate our security reports
-        # with work-in-progress.
-        if: github.event.inputs.pr_number == ''
+      - name: Upload scan results
+        # by default we don't upload results to github
+        if: github.event.inputs.publish_results != ''
         uses: github/codeql-action/upload-sarif@v2
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: ${{ steps.scan.outputs.sarif }}
           category: ${{ matrix.image_rule }}
 
   scale_fs:
@@ -155,32 +173,29 @@ jobs:
           ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
 
       - name: Define output format
-        id: trivy-output-format
+        id: output-format
         run: |
-          if [[ -z "${{ github.event.inputs.pr_number }}" ]]; then \
+          if [[ -n "${{ github.event.inputs.publish_results }}" ]]; then \
             echo "format=sarif" >> $GITHUB_OUTPUT; \
-            echo "output=trivy-results.sarif" >> $GITHUB_OUTPUT; \
-            echo "exit_code=0" >> $GITHUB_OUTPUT; \
+            echo "fail_build=false" >> $GITHUB_OUTPUT; \
           else \
             echo "format=table" >> $GITHUB_OUTPUT; \
-            echo "output=" >> $GITHUB_OUTPUT; \
-            echo "exit_code=1" >> $GITHUB_OUTPUT; \
+            echo "fail_build=true" >> $GITHUB_OUTPUT; \
           fi
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Scan fs
+        uses: anchore/scan-action@v3
+        id: scan
         with:
-          scan-type: fs
-          output: ${{ steps.trivy-output-format.outputs.output }}
-          format: ${{ steps.trivy-output-format.outputs.format }}
-          exit-code: ${{ steps.trivy-output-format.outputs.exit_code }}
+          path: "."
+          only-fixed: ${{ github.event.inputs.only_fixed }}
+          output-format: ${{ steps.output-format.outputs.format }}
+          fail-build: ${{ steps.output-format.outputs.fail_build }}
+          severity-cutoff: ${{ github.event.inputs.severity_threshold }}
 
-      - name: Upload Trivy scan results
-        # upload results if not running against pr.
-        # we do not want to manipulate our security reports
-        # with work-in-progress.
-        if: github.event.inputs.pr_number == ''
+      - name: Upload scan results
+        if: github.event.inputs.publish_results != ''
         uses: github/codeql-action/upload-sarif@v2
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: ${{ steps.scan.outputs.sarif }}
           category: filesystem

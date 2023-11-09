@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -45,7 +45,8 @@ func RenderFunctions(ctx context.Context,
 	functions []platform.Function,
 	format string,
 	writer io.Writer,
-	renderCallback func(functions []platform.Function, renderer func(interface{}) error) error) error {
+	renderCallback func(functions []platform.Function, renderer func(interface{}) error, exportOptions *common.ExportFunctionOptions) error,
+	exportOptions *common.ExportFunctionOptions) error {
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx, logger)
 	var renderNodePort bool
@@ -123,9 +124,9 @@ func RenderFunctions(ctx context.Context,
 
 		rendererInstance.RenderTable(header, functionRecords)
 	case OutputFormatYAML:
-		return renderCallback(functions, rendererInstance.RenderYAML)
+		return renderCallback(functions, rendererInstance.RenderYAML, exportOptions)
 	case OutputFormatJSON:
-		return renderCallback(functions, rendererInstance.RenderJSON)
+		return renderCallback(functions, rendererInstance.RenderJSON, exportOptions)
 	}
 
 	return nil
@@ -187,7 +188,8 @@ func RenderProjects(ctx context.Context,
 	projects []platform.Project,
 	format string,
 	writer io.Writer,
-	renderCallback func(ctx context.Context, functions []platform.Project, renderer func(interface{}) error) error) error {
+	renderCallback func(ctx context.Context, functions []platform.Project, renderer func(interface{}) error) error,
+	skipSpecCleanup bool) error {
 
 	rendererInstance := renderer.NewRenderer(writer)
 

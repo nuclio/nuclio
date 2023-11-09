@@ -5,7 +5,7 @@
 //
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -878,6 +878,7 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	returnedFunction.Config.Meta.Name = "f1"
 	returnedFunction.Config.Meta.Namespace = "f1-namespace"
 	returnedFunction.Config.Spec.Replicas = &replicas
+	returnedFunction.Status.State = functionconfig.FunctionStateReady
 	returnedFunction.Config.Spec.Build.CodeEntryAttributes = map[string]interface{}{
 		"password": passwordReference,
 	}
@@ -904,6 +905,7 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 	"metadata": {
 		"name": "f1",
 		"annotations": {
+			"nuclio.io/previous-state": "ready",
 			"skip-build": "true",
 			"skip-deploy": "true"
 		}
@@ -937,11 +939,13 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 	returnedFunction1.Config.Meta.Name = "f1"
 	returnedFunction1.Config.Meta.Namespace = "f-namespace"
 	returnedFunction1.Config.Spec.Replicas = &replicas
+	returnedFunction1.Status.State = functionconfig.FunctionStateReady
 
 	returnedFunction2 := platform.AbstractFunction{}
 	returnedFunction2.Config.Meta.Name = "f2"
 	returnedFunction2.Config.Meta.Namespace = "f-namespace"
 	returnedFunction2.Config.Spec.Replicas = &replicas
+	returnedFunction2.Status.State = functionconfig.FunctionStateScaledToZero
 
 	// verify
 	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
@@ -966,6 +970,7 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		"metadata": {
 			"name": "f1",
 			"annotations": {
+				"nuclio.io/previous-state": "ready",
 				"skip-build": "true",
 				"skip-deploy": "true"
 			}
@@ -982,6 +987,7 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 		"metadata": {
 			"name": "f2",
 			"annotations": {
+				"nuclio.io/previous-state": "scaledToZero",
 				"skip-build": "true",
 				"skip-deploy": "true"
 			}
@@ -1014,6 +1020,7 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 	returnedFunction.Config.Meta.Name = functionName
 	returnedFunction.Config.Meta.Namespace = namespace
 	returnedFunction.Status.State = functionconfig.FunctionStateImported
+	returnedFunction.Config.Spec.Image = "image"
 
 	// verify
 	verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
@@ -1021,9 +1028,10 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 		suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
 		return true
 	}
-	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
-		suite.Require().Equal(functionName, createFunctionOptions.FunctionConfig.Meta.Name)
-		suite.Require().Equal(namespace, createFunctionOptions.FunctionConfig.Meta.Namespace)
+	verifyRedeployFunctionsOptions := func(redeployFunctionsOptions *platform.RedeployFunctionOptions) bool {
+		suite.Require().Equal(functionName, redeployFunctionsOptions.FunctionMeta.Name)
+		suite.Require().Equal(namespace, redeployFunctionsOptions.FunctionMeta.Namespace)
+		suite.Require().Equal(1*time.Minute, redeployFunctionsOptions.CreationStateUpdatedTimeout)
 		return true
 	}
 
@@ -1034,12 +1042,14 @@ func (suite *functionTestSuite) TestPatchSuccessful() {
 		Once()
 
 	suite.mockPlatform.
-		On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunction)).
-		Return(&platform.CreateFunctionResult{}, nil).
+		On("RedeployFunction",
+			mock.Anything,
+			mock.MatchedBy(verifyRedeployFunctionsOptions)).
+		Return(nil).
 		Once()
 
 	// send request
-	expectedStatusCode := http.StatusNoContent
+	expectedStatusCode := http.StatusAccepted
 	requestHeaders := map[string]string{
 		headers.WaitFunctionAction: "true",
 		headers.FunctionNamespace:  namespace,
@@ -1116,33 +1126,62 @@ func (suite *functionTestSuite) TestPatchFunctionInvalidDesiredState() {
 		nil)
 }
 
-func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
+func (suite *functionTestSuite) TestPatchFunction() {
 	namespace := "some-namespace"
 
 	for _, testCase := range []struct {
-		name                 string
-		functionName         string
-		functionState        functionconfig.FunctionState
-		expectedCreateCalled bool
+		name               string
+		functionName       string
+		functionState      functionconfig.FunctionState
+		expectedStatusCode int
+		importedOnly       string
+		desiredState       string
+		minReplicas        int
 	}{
 		{
-			name:                 "importedFunction",
-			functionName:         "imported-func",
-			functionState:        functionconfig.FunctionStateImported,
-			expectedCreateCalled: true,
+			name:               "importedFunction",
+			functionName:       "imported-func",
+			functionState:      functionconfig.FunctionStateImported,
+			expectedStatusCode: http.StatusAccepted,
+			importedOnly:       "true",
+			desiredState:       "ready",
+			minReplicas:        1,
 		},
 		{
-			name:                 "readyFunction",
-			functionName:         "ready-func",
-			functionState:        functionconfig.FunctionStateReady,
-			expectedCreateCalled: false,
+			name:               "readyFunction",
+			functionName:       "ready-func",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedStatusCode: http.StatusNoContent,
+			importedOnly:       "true",
+			desiredState:       "ready",
+			minReplicas:        1,
+		},
+		{
+			name:               "readyFunctionToScaledToZero",
+			functionName:       "scale-to-zero",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedStatusCode: http.StatusAccepted,
+			importedOnly:       "false",
+			desiredState:       "scaledToZero",
+			minReplicas:        0,
+		},
+		{
+			name:               "readyFunctionToScaledToZero",
+			functionName:       "scale-to-zero",
+			functionState:      functionconfig.FunctionStateReady,
+			expectedStatusCode: http.StatusPreconditionFailed,
+			importedOnly:       "false",
+			desiredState:       "scaledToZero",
+			minReplicas:        1,
 		},
 	} {
 		suite.Run(testCase.name, func() {
 			function := platform.AbstractFunction{}
 			function.Config.Meta.Name = testCase.functionName
 			function.Config.Meta.Namespace = namespace
+			function.GetConfig().Spec.MinReplicas = &testCase.minReplicas
 			function.Status.State = testCase.functionState
+			function.Config.Spec.Image = "image"
 
 			// verifications
 			verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
@@ -1150,9 +1189,10 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 				suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
 				return true
 			}
-			verifyCreateFunctionOptions := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
-				suite.Require().Equal(testCase.functionName, createFunctionOptions.FunctionConfig.Meta.Name)
-				suite.Require().Equal(namespace, createFunctionOptions.FunctionConfig.Meta.Namespace)
+			verifyRedeployFunctionsOptions := func(redeployFunctionsOptions *platform.RedeployFunctionOptions) bool {
+				suite.Require().Equal(testCase.functionName, redeployFunctionsOptions.FunctionMeta.Name)
+				suite.Require().Equal(namespace, redeployFunctionsOptions.FunctionMeta.Namespace)
+				suite.Require().Equal(1*time.Minute, redeployFunctionsOptions.CreationStateUpdatedTimeout)
 				return true
 			}
 
@@ -1162,30 +1202,29 @@ func (suite *functionTestSuite) TestPatchFunctionImportedOnly() {
 				Return([]platform.Function{&function}, nil).
 				Once()
 
-			if testCase.expectedCreateCalled {
-				suite.mockPlatform.
-					On("CreateFunction", mock.Anything, mock.MatchedBy(verifyCreateFunctionOptions)).
-					Return(&platform.CreateFunctionResult{}, nil).
-					Once()
-			}
+			suite.mockPlatform.
+				On("RedeployFunction",
+					mock.Anything,
+					mock.MatchedBy(verifyRedeployFunctionsOptions)).
+				Return(nil).
+				Once()
 
 			// send request
-			expectedStatusCode := http.StatusNoContent
 			requestHeaders := map[string]string{
 				headers.WaitFunctionAction:   "true",
 				headers.FunctionNamespace:    namespace,
-				headers.ImportedFunctionOnly: "true",
+				headers.ImportedFunctionOnly: testCase.importedOnly,
 			}
 
-			requestBody := `{
-	"desiredState": "ready"
-}`
+			requestBody := fmt.Sprintf(`{
+	"desiredState": "%s"
+}`, testCase.desiredState)
 
 			suite.sendRequest("PATCH",
 				fmt.Sprintf("/api/functions/%s", testCase.functionName),
 				requestHeaders,
 				bytes.NewBufferString(requestBody),
-				&expectedStatusCode,
+				&testCase.expectedStatusCode,
 				nil)
 		})
 	}
@@ -1441,6 +1480,7 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 	returnedFunction1.Config.Meta.Name = "f1"
 	returnedFunction1.Config.Meta.Namespace = "f-namespace"
 	returnedFunction1.Config.Spec.Runtime = "r1"
+	returnedFunction1.Status.State = functionconfig.FunctionStateReady
 
 	returnedFunctionEvent := platform.AbstractFunctionEvent{}
 	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
@@ -1455,6 +1495,7 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 	returnedFunction2.Config.Meta.Name = "f2"
 	returnedFunction2.Config.Meta.Namespace = "f-namespace"
 	returnedFunction2.Config.Spec.Runtime = "r2"
+	returnedFunction2.Status.State = functionconfig.FunctionStateReady
 
 	returnedProject1 := platform.AbstractProject{}
 	returnedProject1.ProjectConfig.Meta.Name = "p1"
@@ -1557,6 +1598,7 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
       "metadata": {
         "name": "f1",
         "annotations": {
+          "nuclio.io/previous-state": "ready",
           "skip-build": "true",
           "skip-deploy": "true"
         }
@@ -1573,6 +1615,7 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
       "metadata": {
         "name": "f2",
         "annotations": {
+          "nuclio.io/previous-state": "ready",
           "skip-build": "true",
           "skip-deploy": "true"
         }
@@ -1610,11 +1653,13 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
 	returnedFunction1.Config.Meta.Name = "f1"
 	returnedFunction1.Config.Meta.Namespace = "f-namespace"
 	returnedFunction1.Config.Spec.Runtime = "r1"
+	returnedFunction1.Status.State = functionconfig.FunctionStateReady
 
 	returnedFunction2 := platform.AbstractFunction{}
 	returnedFunction2.Config.Meta.Name = "f2"
 	returnedFunction2.Config.Meta.Namespace = "f-namespace"
 	returnedFunction2.Config.Spec.Runtime = "r2"
+	returnedFunction2.Status.State = functionconfig.FunctionStateReady
 
 	returnedProject1 := platform.AbstractProject{}
 	returnedProject1.ProjectConfig.Meta.Name = "p1"
@@ -1708,6 +1753,7 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
         "metadata": {
           "name": "f1",
           "annotations": {
+            "nuclio.io/previous-state": "ready",
             "skip-build": "true",
             "skip-deploy": "true"
           }
@@ -1744,6 +1790,7 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
         "metadata": {
           "name": "f2",
           "annotations": {
+            "nuclio.io/previous-state": "ready",
             "skip-build": "true",
             "skip-deploy": "true"
           }
@@ -3591,6 +3638,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		Return(allowedAuthenticationModes).
 		Once()
 
+	suite.mockPlatform.
+		On("GetDisableDefaultHttpTrigger").
+		Return(false).
+		Once()
+
 	expectedStatusCode := http.StatusOK
 	expectedResponseBody := `{
     "defaultFunctionConfig": {
@@ -3636,6 +3688,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
         }
     },
     "defaultHTTPIngressHostTemplate": "{{ .FunctionName }}.{{ .ProjectName }}.{{ .Namespace }}.test.com",
+	"disableDefaultHttpTrigger": false,
     "defaultFunctionPodResources": {
         "requests": {},
         "limits": {}

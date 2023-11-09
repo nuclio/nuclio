@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -239,6 +239,10 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(ctx context.Context,
 	for _, projectInstance := range projectsToUpdate {
 		projectInstance := projectInstance
 		updateProjectErrGroup.Go("update projects", func() error {
+
+			// filter out labels that are not allowed by kubernetes
+			projectInstance.Meta.Labels = c.filterInvalidLabels(projectInstance.Meta.Labels)
+
 			c.logger.DebugWith("Updating project from leader sync", "projectInstance", *projectInstance)
 			updateProjectOptions := &platform.UpdateProjectOptions{
 				ProjectConfig: platform.ProjectConfig{

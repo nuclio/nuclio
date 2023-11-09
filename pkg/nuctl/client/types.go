@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,9 @@ import (
 type APIClient interface {
 
 	// GetFunctions returns a map of function name to function config for all functions in the given namespace
-	GetFunctions(ctx context.Context, namespace string) (map[string]functionconfig.Config, error)
+	GetFunctions(ctx context.Context, namespace string) (map[string]*functionconfig.ConfigWithStatus, error)
+
+	GetFunction(ctx context.Context, name, namespace string) (*functionconfig.ConfigWithStatus, error)
 
 	// PatchFunction patches a single function with the given options
 	PatchFunction(ctx context.Context,

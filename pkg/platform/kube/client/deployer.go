@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -552,17 +552,19 @@ func waitForFunctionReadiness(ctx context.Context,
 	var function *nuclioio.NuclioFunction
 
 	// gets the function, checks if ready
-	conditionFunc := func() (bool, error) {
+	conditionFunc := func(conditionCtx context.Context) (bool, error) {
 
 		// get the appropriate function CR
 		function, err = consumer.NuclioClientSet.NuclioV1beta1().
 			NuclioFunctions(namespace).
-			Get(ctx, name, metav1.GetOptions{})
+			Get(conditionCtx, name, metav1.GetOptions{})
 		if err != nil {
 			return true, err
 		}
 
 		switch function.Status.State {
+		case functionconfig.FunctionStateScaledToZero:
+			return true, nil
 		case functionconfig.FunctionStateReady:
 			return true, nil
 		case functionconfig.FunctionStateError, functionconfig.FunctionStateUnhealthy:
@@ -576,6 +578,5 @@ func waitForFunctionReadiness(ctx context.Context,
 		}
 	}
 
-	err = wait.PollInfinite(250*time.Millisecond, conditionFunc)
-	return function, err
+	return function, wait.PollUntilContextCancel(ctx, 250*time.Millisecond, true, conditionFunc)
 }

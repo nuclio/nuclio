@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@ limitations under the License.
 
 package common
 
-import "github.com/v3io/version-go"
+import (
+	"runtime"
+
+	"github.com/v3io/version-go"
+)
 
 // SetVersionFromEnv is being used by tests to override linker injected values
 func SetVersionFromEnv() {
@@ -24,7 +28,7 @@ func SetVersionFromEnv() {
 		Label:     GetEnvOrDefaultString("NUCLIO_LABEL", version.Get().Label),
 		GitCommit: "c",
 		OS:        GetEnvOrDefaultString("NUCLIO_OS", "linux"),
-		Arch:      GetEnvOrDefaultString("NUCLIO_ARCH", "amd64"),
+		Arch:      GetEnvOrDefaultString("NUCLIO_ARCH", runtime.GOARCH),
 		GoVersion: version.Get().GoVersion,
 	})
 }

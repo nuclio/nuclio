@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -89,18 +89,19 @@ type Configuration struct {
 	Version                       string
 
 	// resolved fields
-	brokers                       []string
-	initialOffset                 int64
-	balanceStrategy               sarama.BalanceStrategy
-	sessionTimeout                time.Duration
-	heartbeatInterval             time.Duration
-	maxProcessingTime             time.Duration
-	rebalanceTimeout              time.Duration
-	rebalanceRetryBackoff         time.Duration
-	retryBackoff                  time.Duration
-	maxWaitTime                   time.Duration
-	maxWaitHandlerDuringRebalance time.Duration
-	ackWindowSize                 int
+	brokers                               []string
+	initialOffset                         int64
+	balanceStrategy                       sarama.BalanceStrategy
+	sessionTimeout                        time.Duration
+	heartbeatInterval                     time.Duration
+	maxProcessingTime                     time.Duration
+	rebalanceTimeout                      time.Duration
+	rebalanceRetryBackoff                 time.Duration
+	retryBackoff                          time.Duration
+	maxWaitTime                           time.Duration
+	maxWaitHandlerDuringRebalance         time.Duration
+	waitExplicitAckDuringRebalanceTimeout time.Duration
+	ackWindowSize                         int
 }
 
 func NewConfiguration(id string,
@@ -110,12 +111,16 @@ func NewConfiguration(id string,
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
+	baseConfiguration, err := trigger.NewConfiguration(id, triggerConfiguration, runtimeConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create trigger configuration")
+	}
+	newConfiguration.Configuration = *baseConfiguration
 
 	workerAllocationModeValue := ""
 	explicitAckModeValue := ""
 
-	err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
+	err = newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "nuclio.io/kafka-session-timeout", ValueString: &newConfiguration.SessionTimeout},
 		{Key: "nuclio.io/kafka-heartbeat-interval", ValueString: &newConfiguration.HeartbeatInterval},
 		{Key: "nuclio.io/kafka-max-processing-time", ValueString: &newConfiguration.MaxProcessingTime},
@@ -137,7 +142,7 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-version", ValueString: &newConfiguration.Version},
 		{Key: "nuclio.io/kafka-secret-path", ValueString: &newConfiguration.SecretPath},
 
-		// deprecated. not in use anymore.
+		// use this to enable development logs
 		{Key: "nuclio.io/kafka-log-level", ValueInt: &newConfiguration.LogLevel},
 
 		// tls
@@ -166,6 +171,9 @@ func NewConfiguration(id string,
 
 		// allow changing explicit ack mode via annotation
 		{Key: "nuclio.io/kafka-explicit-ack-mode", ValueString: &explicitAckModeValue},
+
+		// allow changing explicit ack mode via annotation
+		{Key: "nuclio.io/wait-explicit-ack-during-rebalance-timeout", ValueString: &triggerConfiguration.WaitExplicitAckDuringRebalanceTimeout},
 	})
 
 	if err != nil {
@@ -293,28 +301,22 @@ func NewConfiguration(id string,
 			Field:   &newConfiguration.maxWaitHandlerDuringRebalance,
 			Default: 5 * time.Second,
 		},
+		{
+			Name:    "wait explicit ack during rebalance timeout",
+			Value:   newConfiguration.WaitExplicitAckDuringRebalanceTimeout,
+			Field:   &newConfiguration.waitExplicitAckDuringRebalanceTimeout,
+			Default: 100 * time.Millisecond,
+		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err
 		}
 	}
 
-	if triggerConfiguration.WorkerTerminationTimeout == "" {
-		triggerConfiguration.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
-	}
-
-	workerTerminationTimeout, err := time.ParseDuration(triggerConfiguration.WorkerTerminationTimeout)
-	if err != nil {
-		return nil, errors.New("Failed to parse worker termination timeout from trigger configuration")
-	}
-
 	// on rebalance, we want to wait the max timeout so the workers can exit gracefully before killing them
-	if newConfiguration.maxWaitHandlerDuringRebalance < workerTerminationTimeout {
-		newConfiguration.maxWaitHandlerDuringRebalance = workerTerminationTimeout + 3*time.Second
+	if newConfiguration.maxWaitHandlerDuringRebalance < runtimeConfiguration.WorkerTerminationTimeout {
+		newConfiguration.maxWaitHandlerDuringRebalance = runtimeConfiguration.WorkerTerminationTimeout + 3*time.Second
 	}
-
-	// enrich runtime configuration with worker termination timeout
-	runtimeConfiguration.WorkerTerminationTimeout = workerTerminationTimeout
 
 	newConfiguration.WorkerAllocationMode = newConfiguration.ResolveWorkerAllocationMode(newConfiguration.WorkerAllocationMode,
 		partitionworker.AllocationMode(workerAllocationModeValue))

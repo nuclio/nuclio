@@ -1,7 +1,7 @@
 //go:build test_integration && test_local
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ func (suite *testSuite) TestPostEvent() {
 		suite.BrokerHost,
 		suite.getDeployOptions(),
 		map[string]triggertest.TopicMessages{
-			suite.topicName: {NumMessages: 3},
+			suite.topicName: {NumMessages: 20},
 		},
 		nil,
 		suite.publishMessageToTopic)
@@ -86,6 +86,7 @@ func (suite *testSuite) getDeployOptions() *platform.CreateFunctionOptions {
 		Attributes: map[string]interface{}{
 			"topic": suite.topicName,
 		},
+		MaxWorkers: 3,
 	}
 
 	return createFunctionOptions

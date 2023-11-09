@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -83,6 +83,9 @@ type Trigger interface {
 
 	// TimeoutWorker times out a worker
 	TimeoutWorker(worker *worker.Worker) error
+
+	// SignalWorkerDraining drains all workers
+	SignalWorkerDraining() error
 }
 
 // AbstractTrigger implements common trigger operations
@@ -354,6 +357,20 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 	}
 
 	return nil
+}
+
+// SignalWorkerDraining sends a signal to all workers, telling them to drop or ack events
+// that are currently being processed
+func (at *AbstractTrigger) SignalWorkerDraining() error {
+	if err := at.WorkerAllocator.SignalDraining(); err != nil {
+		return errors.Wrap(err, "Failed to signal all workers to drain events")
+	}
+	return nil
+}
+
+// ResetWorkerTerminationState resets the worker termination state
+func (at *AbstractTrigger) ResetWorkerTerminationState() {
+	at.WorkerAllocator.ResetTerminationState()
 }
 
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {

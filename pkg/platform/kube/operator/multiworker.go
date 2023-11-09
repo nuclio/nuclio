@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ func NewMultiWorker(ctx context.Context,
 	newMultiWorker.informer = cache.NewSharedIndexInformer(listWatcher, object, *resyncInterval, cache.Indexers{})
 
 	// register event handlers for the informer
-	newMultiWorker.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	if _, err := newMultiWorker.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
@@ -94,9 +94,12 @@ func NewMultiWorker(ctx context.Context,
 				newMultiWorker.queue.Add(key)
 			}
 		},
-	})
+	}); err != nil {
+		return nil, errors.Wrap(err, "Failed to register event handlers for informer")
+	}
 
 	return newMultiWorker, nil
+
 }
 
 func (mw *MultiWorker) Start(ctx context.Context) error {

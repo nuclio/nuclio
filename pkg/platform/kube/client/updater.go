@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -116,5 +117,60 @@ func (u *Updater) Update(ctx context.Context, updateFunctionOptions *platform.Up
 	}
 
 	u.logger.InfoWithCtx(ctx, "Function updated", "functionName", updatedFunction.Name)
+	return nil
+}
+
+// UpdateState will update a function CRD state
+// we don't require permissions for this operation because it's used internally by the platform
+func (u *Updater) UpdateState(ctx context.Context, functionName, namespace string, authConfig *platform.AuthConfig, state functionconfig.FunctionState) error {
+	u.logger.InfoWithCtx(ctx,
+		"Updating function state",
+		"name", functionName,
+		"state", state)
+
+	// get clientset
+	nuclioClientSet, err := u.consumer.getNuclioClientSet(authConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get nuclio clientset")
+	}
+
+	// get specific function CR
+	function, err := nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(namespace).
+		Get(ctx, functionName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function")
+	}
+
+	// modify the state
+	function.Status.State = state
+
+	// reset scale to zero so that update function won't be ignored by controller
+	function.Status.ScaleToZero = nil
+
+	// create a random annotation so that the controller will update the CR
+	// if the annotation already exists, it will be changed
+	if function.Annotations == nil {
+		function.Annotations = map[string]string{}
+	}
+	function.Annotations[functionconfig.FunctionAnnotationForceUpdate] = strconv.Itoa(int(time.Now().UnixNano()))
+	delete(function.Annotations, functionconfig.FunctionAnnotationSkipDeploy)
+	delete(function.Annotations, functionconfig.FunctionAnnotationSkipBuild)
+
+	// trigger an update
+	updatedFunction, err := nuclioClientSet.
+		NuclioV1beta1().
+		NuclioFunctions(namespace).
+		Update(ctx, function, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to update function CR")
+	}
+
+	u.logger.InfoWithCtx(ctx,
+		"Function state updated",
+		"functionName", updatedFunction.Name,
+		"state", state)
+
 	return nil
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -427,10 +427,11 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
 	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
 	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
-	b.runtimeInfo["python:3.6"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.7"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.8"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.9"] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo["python:3.10"] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo["python:3.11"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
 	b.runtimeInfo["java"] = runtimeInfo{"java", slashSlashParser, 0}
 	b.runtimeInfo["ruby"] = runtimeInfo{"rb", poundParser, 0}
@@ -1025,6 +1026,7 @@ func (b *Builder) cleanupTempDir() error {
 
 func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	buildArgs := b.getBuildArgs()
+	buildFlags := b.getBuildFlags()
 
 	// get override base and onbuild image registries from the platform configuration
 
@@ -1077,6 +1079,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			Pull:                b.options.FunctionConfig.Spec.Build.NoCache,
 			NoCache:             b.options.FunctionConfig.Spec.Build.NoCache,
 			NoBaseImagePull:     b.GetNoBaseImagePull(),
+			BuildFlags:          buildFlags,
 			BuildArgs:           buildArgs,
 			RegistryURL:         registryURL,
 			RepoName:            b.resolveRepoName(registryURL),
@@ -1449,6 +1452,18 @@ func (b *Builder) getBuildArgs() map[string]string {
 	buildArgs["NUCLIO_BUILD_LOCAL_HANDLER_DIR"] = "handler"
 
 	return buildArgs
+}
+
+func (b *Builder) getBuildFlags() map[string]bool {
+	buildFlags := map[string]bool{}
+
+	// all possible flags are here https://github.com/GoogleContainerTools/kaniko
+	// https://docs.docker.com/engine/reference/commandline/image_build/
+
+	for _, flag := range b.options.FunctionConfig.Spec.Build.Flags {
+		buildFlags[common.Quote(flag)] = true
+	}
+	return buildFlags
 }
 
 func (b *Builder) commandsToDirectives(commands []string) (map[string][]functionconfig.Directive, error) {

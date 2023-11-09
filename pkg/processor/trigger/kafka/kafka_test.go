@@ -1,7 +1,7 @@
 //go:build test_unit
 
 /*
-Copyright 2018 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -171,6 +172,126 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 			} else {
 				suite.Require().NoError(err)
 			}
+		})
+	}
+}
+
+func (suite *TestSuite) TestWorkerTimeoutConfiguration() {
+	for _, testCase := range []struct {
+		name                   string
+		timeout                string
+		expectedRuntimeTimeout time.Duration
+		expectedFailure        bool
+	}{
+		{
+			name:                   "Timeout specified",
+			timeout:                "2s",
+			expectedRuntimeTimeout: 2 * time.Second,
+			expectedFailure:        false,
+		},
+		{
+			name:                   "Timeout not specified",
+			timeout:                "",
+			expectedRuntimeTimeout: 10 * time.Second,
+			expectedFailure:        false,
+		},
+		{
+			name:            "Wrong timeout value",
+			timeout:         "timeout",
+			expectedFailure: true,
+		},
+	} {
+		triggerInstance := &functionconfig.Trigger{
+			WorkerTerminationTimeout: testCase.timeout,
+			Attributes: map[string]interface{}{
+				"topics": []string{
+					"some-topic",
+				},
+				"consumerGroup":            "some-cg",
+				"initialOffset":            "earliest",
+				"workerTerminationTimeout": testCase.timeout,
+				"brokers": []string{
+					"some-broker",
+				},
+			},
+		}
+		suite.Run(testCase.name, func() {
+			configuration, err := NewConfiguration(testCase.name,
+				triggerInstance,
+				&runtime.Configuration{
+					Configuration: &processor.Configuration{
+						Config: functionconfig.Config{},
+					},
+				},
+				suite.logger)
+			if testCase.expectedFailure {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(testCase.expectedRuntimeTimeout, configuration.RuntimeConfiguration.WorkerTerminationTimeout, "Bad timeout value")
+			}
+		})
+	}
+}
+
+func (suite *TestSuite) TestWaitExplicitAckDuringRebalanceTimeoutConfiguration() {
+	for _, testCase := range []struct {
+		name                                          string
+		timeoutConfig                                 string
+		timeoutAnnotation                             string
+		expectedWaitExplicitAckDuringRebalanceTimeout time.Duration
+	}{
+		{
+			name:          "Timeout specified only in config",
+			timeoutConfig: "2s",
+			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
+		},
+		{
+			name: "Timeout not specified",
+			expectedWaitExplicitAckDuringRebalanceTimeout: 100 * time.Millisecond,
+		},
+		{
+			name:              "Timeout specified only in annotations",
+			timeoutConfig:     "",
+			timeoutAnnotation: "2s",
+			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
+		},
+		{
+			name:              "Timeout specified in both config and annotations",
+			timeoutConfig:     "1s",
+			timeoutAnnotation: "2s",
+			expectedWaitExplicitAckDuringRebalanceTimeout: 2 * time.Second,
+		},
+	} {
+		triggerInstance := &functionconfig.Trigger{
+			WaitExplicitAckDuringRebalanceTimeout: testCase.timeoutConfig,
+			Attributes: map[string]interface{}{
+				"topics": []string{
+					"some-topic",
+				},
+				"consumerGroup": "some-cg",
+				"initialOffset": "earliest",
+				"brokers": []string{
+					"some-broker",
+				},
+			},
+		}
+
+		suite.Run(testCase.name, func() {
+			annotations := make(map[string]string)
+			if testCase.timeoutAnnotation != "" {
+				annotations["nuclio.io/wait-explicit-ack-during-rebalance-timeout"] = testCase.timeoutAnnotation
+			}
+			configuration, err := NewConfiguration(testCase.name,
+				triggerInstance,
+				&runtime.Configuration{
+					Configuration: &processor.Configuration{
+						Config: functionconfig.Config{Meta: functionconfig.Meta{Annotations: annotations}},
+					},
+				},
+				suite.logger)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedWaitExplicitAckDuringRebalanceTimeout, configuration.waitExplicitAckDuringRebalanceTimeout, "Bad timeout value")
 		})
 	}
 }

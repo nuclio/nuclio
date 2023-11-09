@@ -1,7 +1,7 @@
 //go:build test_unit
 
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,9 +54,9 @@ func (suite *ControlCommunicationTestSuite) TestSubscribeUnsubscribe() {
 
 	// make sure the channel is subscribed
 	suite.Require().Len(suite.broker.Consumers, 1)
-	suite.Require().Len(suite.broker.Consumers[0].Channels, 2)
-	suite.Require().Equal(suite.broker.Consumers[0].Channels[0], controlMessageChannel1)
-	suite.Require().Equal(suite.broker.Consumers[0].Channels[1], controlMessageChannel2)
+	suite.Require().Len(suite.broker.Consumers[0].channels, 2)
+	suite.Require().Equal(suite.broker.Consumers[0].channels[0], controlMessageChannel1)
+	suite.Require().Equal(suite.broker.Consumers[0].channels[1], controlMessageChannel2)
 
 	// close the first channel, then unsubscribe it
 	close(controlMessageChannel1)
@@ -65,8 +65,8 @@ func (suite *ControlCommunicationTestSuite) TestSubscribeUnsubscribe() {
 
 	// make sure the channel is unsubscribed
 	suite.Require().Len(suite.broker.Consumers, 1)
-	suite.Require().Len(suite.broker.Consumers[0].Channels, 1)
-	suite.Require().Equal(suite.broker.Consumers[0].Channels[0], controlMessageChannel2)
+	suite.Require().Len(suite.broker.Consumers[0].channels, 1)
+	suite.Require().Equal(suite.broker.Consumers[0].channels[0], controlMessageChannel2)
 }
 
 func TestControlCommunicationTestSuite(t *testing.T) {

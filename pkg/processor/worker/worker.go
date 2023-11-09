@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package worker
 
 import (
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -43,7 +44,8 @@ type Worker struct {
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time
-	isTerminated         bool
+	isDrained            atomic.Bool
+	drainedLock          sync.Mutex
 }
 
 // NewWorker creates a new worker
@@ -52,9 +54,10 @@ func NewWorker(parentLogger logger.Logger,
 	runtime runtime.Runtime) (*Worker, error) {
 
 	newWorker := Worker{
-		logger:  parentLogger,
-		index:   index,
-		runtime: runtime,
+		logger:      parentLogger,
+		index:       index,
+		runtime:     runtime,
+		drainedLock: sync.Mutex{},
 	}
 
 	// return an instance of the default worker
@@ -148,16 +151,26 @@ func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
 }
 
-func (w *Worker) Terminate() error {
-	err := w.runtime.Terminate()
-	if err == nil {
-		w.isTerminated = true
+func (w *Worker) Drain() error {
+	w.drainedLock.Lock()
+	defer w.drainedLock.Unlock()
+
+	if !w.isDrained.Load() {
+		err := w.runtime.Drain()
+		if err == nil {
+			w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
+			w.isDrained.Store(true)
+		}
+		return err
 	}
-	return err
+	return nil
 }
 
-func (w *Worker) IsTerminated() bool {
-	return w.isTerminated
+func (w *Worker) setDrained(isDrained bool) {
+	w.drainedLock.Lock()
+	defer w.drainedLock.Unlock()
+
+	w.isDrained.Store(isDrained)
 }
 
 // Subscribe subscribes to a control message kind

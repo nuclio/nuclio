@@ -32,11 +32,11 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 Note that the following command also enables role-based access control (RBAC) so that you can get more comfortable working with an RBAC-enabled Kubernetes cluster:
 
 ```sh
-minikube start --kubernetes-version v1.20.11 --driver docker --extra-config=apiserver.authorization-mode=RBAC
+minikube start --kubernetes-version v1.27.5 --driver docker --extra-config=apiserver.authorization-mode=RBAC
 ```
 
 > **Note:** You may want to
-> - Change the Kubernetes version. Currently, the recommended version is 1.20.11.
+> - Change the Kubernetes version. Currently, the recommended version is 1.27.5.
 > - Change the minikube driver according to your environment and needs
 > - Add `--addons ingress` to your `minikube start` command to support creating function ingresses to flexibly
 > [expose your function](/docs/tasks/deploying-functions.md#exposing-a-function).

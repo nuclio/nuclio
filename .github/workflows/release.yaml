@@ -1,4 +1,4 @@
-# Copyright 2017 The Nuclio Authors.
+# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -88,6 +88,12 @@ jobs:
         - arm64
         - amd64
         docker_image_rule: ${{ fromJson(needs.image_matrix_prep.outputs.matrix) }}
+        exclude:
+
+
+          # issues with building on qemu
+          - arch: arm64
+            docker_image_rule: handler-builder-dotnetcore-onbuild
     steps:
     - name: Prepare envs
       run: |
@@ -213,8 +219,8 @@ jobs:
     - name: Build binaries
       run: |
         NUCLIO_OS=linux make tools
+        NUCLIO_OS=darwin make tools
         if [ $NUCLIO_ARCH == "amd64" ]; then \
-          NUCLIO_OS=darwin make tools; \
           NUCLIO_OS=windows make tools; \
         fi;
       env:

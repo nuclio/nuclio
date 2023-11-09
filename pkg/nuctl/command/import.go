@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	nucliocontext "github.com/nuclio/nuclio/pkg/context"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -102,7 +101,7 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 	}
 
 	// create function
-	createFunctionCtx := nucliocontext.NewDetached(ctx)
+	createFunctionCtx := context.WithoutCancel(ctx)
 	_, err = i.rootCommandeer.platform.CreateFunction(createFunctionCtx,
 		&platform.CreateFunctionOptions{
 			Logger:         i.rootCommandeer.loggerInstance,
@@ -141,8 +140,8 @@ func newImportFunctionCommandeer(ctx context.Context, importCommandeer *importCo
 		Use:     "functions [<config file>]",
 		Aliases: []string{"function", "fn", "fu"},
 		Short:   "(or function) Import functions",
-		Long: `(or function) Import the configurations of one or more functions
-from a configurations file or from standard input (default)
+		Long: `Import the configurations of one or more functions from
+a configurations file or from standard input (default)
 
 Note: The command doesn't deploy the imported functions.
       To deploy an imported function, use the 'deploy' command.
@@ -242,8 +241,8 @@ func newImportProjectCommandeer(ctx context.Context, importCommandeer *importCom
 		Use:     "projects [<config file>]",
 		Aliases: []string{"project", "prj", "proj"},
 		Short:   "(or project) Import projects (including all functions, function events, and API gateways)",
-		Long: `(or project) Import the configurations of one or more projects (including
-all project functions, function events, and API gateways) from a configurations file
+		Long: `Import the configurations of one or more projects (including all project 
+functions, function events, and API gateways) from a configurations file
 or from standard input (default)
 
 Note: The command doesn't deploy the functions in the  imported projects.

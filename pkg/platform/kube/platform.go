@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -101,7 +101,13 @@ func NewPlatform(ctx context.Context,
 
 	// init platform
 	newPlatform.Platform = newAbstractPlatform
-	newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
+
+	// we run GetKubeConfigClientCmdByKubeconfigPath in order to check if we are running in k8s
+	// empty error means that the kubeconfig path was found, the configuration at this path exists and can be loaded successfully
+	// if error is not nil, we leave kubeconfigPath empty and use the in-cluster k8s configuration when creating the consumer below
+	if _, err := common.GetKubeConfigClientCmdByKubeconfigPath(platformConfiguration.Kube.KubeConfigPath); err == nil {
+		newPlatform.kubeconfigPath = common.GetKubeconfigPath(platformConfiguration.Kube.KubeConfigPath)
+	}
 
 	// create consumer
 	newPlatform.consumer, err = client.NewConsumer(ctx, newPlatform.Logger, newPlatform.kubeconfigPath)
@@ -473,6 +479,7 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	}
 
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
+	p.enrichSidecarsSpec(ctx, functionConfig)
 	return nil
 }
 
@@ -544,6 +551,39 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 	}
 
 	return p.deleter.Delete(ctx, p.consumer, deleteFunctionOptions)
+}
+
+// RedeployFunction will redeploy a previously deployed function
+func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions *platform.RedeployFunctionOptions) error {
+
+	// Check OPA permissions
+	permissionOptions := redeployFunctionOptions.PermissionOptions
+	permissionOptions.RaiseForbidden = true
+	if _, err := p.QueryOPAFunctionRedeployPermissions(
+		redeployFunctionOptions.FunctionMeta.Labels[common.NuclioResourceLabelKeyProjectName],
+		redeployFunctionOptions.FunctionMeta.Name,
+		&permissionOptions); err != nil {
+		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
+	}
+	var state functionconfig.FunctionState
+
+	switch redeployFunctionOptions.DesiredState {
+	case functionconfig.FunctionStateScaledToZero:
+		state = functionconfig.FunctionStateWaitingForScaleResourcesToZero
+	default:
+		// setting a different function state is not supported so we fallback to ready
+		state = functionconfig.FunctionStateWaitingForResourceConfiguration
+	}
+
+	// update the function CRD state to waiting for resource configuration, so the controller will redeploy its resources
+	if err := p.updater.UpdateState(ctx,
+		redeployFunctionOptions.FunctionMeta.Name,
+		redeployFunctionOptions.FunctionMeta.Namespace,
+		redeployFunctionOptions.AuthConfig,
+		state); err != nil {
+		return errors.Wrap(err, "Failed to update function state")
+	}
+	return nil
 }
 
 func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
@@ -1220,8 +1260,16 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return err
 	}
 
+	if err := p.validateCronTriggers(functionConfig); err != nil {
+		return errors.Wrap(err, "Cron triggers validation failed")
+	}
+
 	if err := p.validateServiceType(functionConfig); err != nil {
 		return errors.Wrap(err, "Service type validation failed")
+	}
+
+	if err := p.validateSidecarSpec(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Sidecar validation failed")
 	}
 
 	return p.validateFunctionIngresses(ctx, functionConfig)
@@ -1465,6 +1513,26 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 	}
 }
 
+func (p *Platform) enrichSidecarsSpec(ctx context.Context, functionConfig *functionconfig.Config) {
+
+	for sidecarName, sidecar := range functionConfig.Spec.Sidecars {
+		if sidecar.Name == "" {
+			sidecar.Name = sidecarName
+		}
+
+		// enrich env vars
+		if sidecar.Env == nil {
+			sidecar.Env = make([]v1.EnvVar, 0)
+		}
+		sidecar.Env = append(sidecar.Env, functionConfig.Spec.Env...)
+
+		// image pull policy
+		if sidecar.ImagePullPolicy == "" {
+			sidecar.ImagePullPolicy = functionConfig.Spec.ImagePullPolicy
+		}
+	}
+}
+
 func (p *Platform) clearCallStack(message string) string {
 	if message == "" {
 		return ""
@@ -1686,6 +1754,18 @@ func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) er
 	}
 }
 
+func (p *Platform) validateCronTriggers(functionConfig *functionconfig.Config) error {
+	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger &&
+		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
+		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) == 0 &&
+		p.Config.CronTriggerCreationMode == platformconfig.KubeCronTriggerCreationMode {
+		return errors.New("Cron trigger in `kube` mode cannot be created when default http trigger " +
+			"creation is disabled and there is no other http trigger. " +
+			"Either enable default http trigger creation or create custom http trigger")
+	}
+	return nil
+}
+
 func (p *Platform) enrichHTTPTriggers(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	serviceType := functionconfig.ResolveFunctionServiceType(&functionConfig.Spec, p.Config.Kube.DefaultServiceType)
@@ -1761,6 +1841,16 @@ func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayCo
 		apiGatewayConfig.Meta.Namespace,
 		apiGatewayIngresses); err != nil {
 		return errors.Wrap(err, "Failed to validate the API-gateway host and path availability")
+	}
+
+	return nil
+}
+
+func (p *Platform) validateSidecarSpec(ctx context.Context, functionConfig *functionconfig.Config) error {
+	for _, sidecar := range functionConfig.Spec.Sidecars {
+		if sidecar.Image == "" {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Sidecar image must be provided for sidecar %s", sidecar.Name))
+		}
 	}
 
 	return nil

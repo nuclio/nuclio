@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Nuclio Authors.
+Copyright 2023 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -108,6 +108,9 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 	}
 
 	buildArgs := ""
+	for buildFlag := range buildOptions.BuildFlags {
+		buildArgs += fmt.Sprintf(buildFlag + " ")
+	}
 	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
 		buildArgs += fmt.Sprintf("--build-arg %s=%s ", buildArgName, buildArgValue)
 	}
