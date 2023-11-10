@@ -1,0 +1,23 @@
+@startuml
+'https://plantuml.com/deployment-diagram
+
+actor Client
+agent Coordinator
+collections FunctionWorkers
+agent Procastinator
+database Queue
+agent Processor
+collections Scheduler
+agent Megavisor
+
+Client -> Coordinator : request
+Coordinator -up-> FunctionWorkers : if(req.type == sync)
+Coordinator --> Procastinator: if(req.type == async)
+Procastinator -> Queue : "insert\nreq"
+Queue <-right- Processor : "get\nreq"
+Processor <-left.. Queue: req
+Scheduler -up-> Processor : activate
+Processor -left-> Coordinator : "done\nreq"
+Megavisor -up-> Scheduler: metrics
+
+@enduml
