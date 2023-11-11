@@ -3,7 +3,6 @@ module github.com/konsumgandalf/mpga-protoype-david
 go 1.21.4
 
 require (
-	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/extra/redisotel/v9 v9.0.5
 	github.com/redis/go-redis/v9 v9.3.0
