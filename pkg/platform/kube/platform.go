@@ -1726,32 +1726,29 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 // if node selector is not specified in function config, we firstly try to get it from project CRD
 // if it is missing in project CRD, then we try to get it from platform config
 func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfig *functionconfig.Config) error {
-	if functionConfig.Spec.NodeSelector == nil {
-		functionProject, err := p.Platform.GetFunctionProject(ctx, functionConfig)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get function project")
-		}
-		if functionProject.GetConfig().Spec.DefaultNodeSelector != nil {
-			p.Logger.DebugWithCtx(ctx,
-				"Enriching function node selector from project",
-				"functionName", functionConfig.Meta.Name,
-				"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-			functionConfig.Spec.NodeSelector = map[string]string{}
-			for key, value := range functionProject.GetConfig().Spec.DefaultNodeSelector {
-				functionConfig.Spec.NodeSelector[key] = value
-			}
+	functionProject, err := p.Platform.GetFunctionProject(ctx, functionConfig)
 
-		} else if p.Config.Kube.DefaultFunctionNodeSelector != nil {
-			p.Logger.DebugWithCtx(ctx,
-				"Enriching function node selector from platform config",
-				"functionName", functionConfig.Meta.Name,
-				"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-			functionConfig.Spec.NodeSelector = map[string]string{}
-			for key, value := range p.Config.Kube.DefaultFunctionNodeSelector {
-				functionConfig.Spec.NodeSelector[key] = value
-			}
+	if functionConfig.Spec.NodeSelector == nil {
+		if functionProject.GetConfig().Spec.DefaultNodeSelector == nil &&
+			p.Config.Kube.DefaultFunctionNodeSelector == nil {
+			return nil
 		}
+		functionConfig.Spec.NodeSelector = make(map[string]string)
 	}
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function project")
+	}
+	p.Logger.DebugWithCtx(ctx,
+		"Enriching function node selector from project",
+		"functionName", functionConfig.Meta.Name,
+		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+	common.PopulateMapWithMap(functionConfig.Spec.NodeSelector, functionProject.GetConfig().Spec.DefaultNodeSelector)
+
+	p.Logger.DebugWithCtx(ctx,
+		"Enriching function node selector from platform config",
+		"functionName", functionConfig.Meta.Name,
+		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+	common.PopulateMapWithMap(functionConfig.Spec.NodeSelector, p.Config.Kube.DefaultFunctionNodeSelector)
 	return nil
 }
 

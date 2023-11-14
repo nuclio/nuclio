@@ -585,3 +585,15 @@ func PopulateFieldsFromValues[T string | bool | int](fieldsToValues map[*T]T) {
 		}
 	}
 }
+
+// PopulateMapWithMap iterates over the key-value pairs in the populateMap and adds them
+// to the mainMap only if the key does not already exist in the mainMap. If a key
+// already exists, the value from the populateMap is not added
+func PopulateMapWithMap(mainMap, populateMap map[string]string) map[string]string {
+	for key, value := range populateMap {
+		if _, ok := mainMap[key]; !ok {
+			mainMap[key] = value
+		}
+	}
+	return mainMap
+}

@@ -342,22 +342,46 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 		expectedFunctionNodeSelector map[string]string
 	}{
 		{
+			name:                         "all-selectors-empty",
+			expectedFunctionNodeSelector: nil,
+		},
+		{
 			name:                         "get-selector-from-platform",
 			platformNodeSelector:         map[string]string{"test": "test"},
 			expectedFunctionNodeSelector: map[string]string{"test": "test"},
 		},
 		{
-			name:                         "get-selector-from-project",
-			platformNodeSelector:         map[string]string{"test": "from-platform"},
-			projectNodeSelector:          map[string]string{"test": "from-project"},
-			expectedFunctionNodeSelector: map[string]string{"test": "from-project"},
+			name: "get-selector-from-project",
+			platformNodeSelector: map[string]string{
+				"test":  "from-platform",
+				"test2": "from-platform2",
+			},
+			projectNodeSelector: map[string]string{
+				"test":  "from-project",
+				"test1": "from-project1",
+			},
+			expectedFunctionNodeSelector: map[string]string{
+				"test":  "from-project",
+				"test1": "from-project1",
+				"test2": "from-platform2",
+			},
 		},
 		{
-			name:                         "get-selector-from-project",
-			platformNodeSelector:         map[string]string{"test": "from-platform"},
-			projectNodeSelector:          map[string]string{"test": "from-project"},
-			functionNodeSelector:         map[string]string{"test": "from-function"},
-			expectedFunctionNodeSelector: map[string]string{"test": "from-function"},
+			name: "get-selector-from-project",
+			platformNodeSelector: map[string]string{
+				"test":  "from-platform",
+				"test2": "from-platform2",
+			},
+			projectNodeSelector: map[string]string{
+				"test":  "from-project",
+				"test1": "from-project1",
+			},
+			functionNodeSelector: map[string]string{"test": "from-function"},
+			expectedFunctionNodeSelector: map[string]string{
+				"test":  "from-function",
+				"test1": "from-project1",
+				"test2": "from-platform2",
+			},
 		},
 	} {
 		suite.Run(testCase.name, func() {
