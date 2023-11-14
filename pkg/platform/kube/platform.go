@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/labels"
 	"net/url"
 	"strings"
 	"sync"
@@ -1742,13 +1743,13 @@ func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfi
 		"Enriching function node selector from project",
 		"functionName", functionConfig.Meta.Name,
 		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-	common.PopulateMapWithMap(functionConfig.Spec.NodeSelector, functionProject.GetConfig().Spec.DefaultNodeSelector)
+	functionConfig.Spec.NodeSelector = labels.Merge(functionProject.GetConfig().Spec.DefaultNodeSelector, functionConfig.Spec.NodeSelector)
 
 	p.Logger.DebugWithCtx(ctx,
 		"Enriching function node selector from platform config",
 		"functionName", functionConfig.Meta.Name,
 		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-	common.PopulateMapWithMap(functionConfig.Spec.NodeSelector, p.Config.Kube.DefaultFunctionNodeSelector)
+	functionConfig.Spec.NodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
 	return nil
 }
 
