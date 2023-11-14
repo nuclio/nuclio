@@ -222,12 +222,25 @@ func (pm ProjectMeta) IsEqual(other ProjectMeta) bool {
 }
 
 type ProjectSpec struct {
-	Description string `json:"description,omitempty"`
-	Owner       string `json:"owner,omitempty"`
+	Description         string            `json:"description,omitempty"`
+	Owner               string            `json:"owner,omitempty"`
+	DefaultNodeSelector map[string]string `json:"defaultNodeSelector,omitempty"`
 }
 
 func (ps ProjectSpec) IsEqual(other ProjectSpec) bool {
-	return ps == other
+
+	if ps.DefaultNodeSelector == nil && other.DefaultNodeSelector != nil ||
+		ps.DefaultNodeSelector != nil && other.DefaultNodeSelector == nil {
+		return false
+	}
+
+	for k, v := range other.DefaultNodeSelector {
+		value, ok := ps.DefaultNodeSelector[k]
+		if !ok || value != v {
+			return false
+		}
+	}
+	return ps.Description == other.Description && ps.Owner == other.Owner
 }
 
 type ProjectStatus struct {

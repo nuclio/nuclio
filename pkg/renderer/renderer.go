@@ -37,7 +37,7 @@ func NewRenderer(output io.Writer) *Renderer {
 	}
 }
 
-func (r *Renderer) RenderTable(header []string, records [][]string) {
+func (r *Renderer) RenderTable(header []interface{}, records [][]interface{}) {
 	tw := table.NewWriter()
 	tw.SetOutputMirror(r.output)
 	tw.SetStyle(table.Style{
@@ -60,7 +60,7 @@ func (r *Renderer) RenderTable(header []string, records [][]string) {
 		HTML:   table.DefaultHTMLOptions,
 		Title:  table.TitleOptionsDefault,
 	})
-	tw.AppendHeader(r.rowStringToTableRow(header), table.RowConfig{})
+	tw.AppendHeader(r.rowInterfaceToTableRow(header), table.RowConfig{})
 	tw.AppendRows(r.rowsStringToTableRows(records), table.RowConfig{})
 	tw.Render()
 }
@@ -92,18 +92,16 @@ func (r *Renderer) RenderJSON(items interface{}) error {
 	return nil
 }
 
-func (r *Renderer) rowsStringToTableRows(rows [][]string) []table.Row {
+func (r *Renderer) rowsStringToTableRows(rows [][]interface{}) []table.Row {
 	tableRows := make([]table.Row, len(rows))
 	for rowIndex, rowValue := range rows {
-		tableRows[rowIndex] = r.rowStringToTableRow(rowValue)
+		tableRows[rowIndex] = r.rowInterfaceToTableRow(rowValue)
 	}
 	return tableRows
 }
 
-func (r *Renderer) rowStringToTableRow(row []string) table.Row {
+func (r *Renderer) rowInterfaceToTableRow(row []interface{}) table.Row {
 	tableRow := make(table.Row, len(row))
-	for cellIndex, cellValue := range row {
-		tableRow[cellIndex] = cellValue
-	}
+	copy(tableRow, row)
 	return tableRow
 }

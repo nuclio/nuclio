@@ -50,6 +50,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/cache"
 )
 
@@ -439,16 +440,8 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 		return errors.Wrap(err, "Failed to enrich http trigger")
 	}
 
-	// enrich function node selector
-	if functionConfig.Spec.NodeSelector == nil && p.Config.Kube.DefaultFunctionNodeSelector != nil {
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching function node selector",
-			"functionName", functionConfig.Meta.Name,
-			"nodeSelectors", p.Config.Kube.DefaultFunctionNodeSelector)
-		functionConfig.Spec.NodeSelector = map[string]string{}
-		for key, value := range p.Config.Kube.DefaultFunctionNodeSelector {
-			functionConfig.Spec.NodeSelector[key] = value
-		}
+	if err := p.enrichFunctionNodeSelector(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich node selector")
 	}
 
 	// enrich function tolerations
@@ -1737,6 +1730,36 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 		return errors.Wrap(err, "Failed to validate a function configuration")
 	}
 
+	return nil
+}
+
+// enrichFunctionNodeSelector enriches function node selector
+// if node selector is not specified in function config, we firstly try to get it from project CRD
+// if it is missing in project CRD, then we try to get it from platform config
+func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfig *functionconfig.Config) error {
+	functionProject, err := p.Platform.GetFunctionProject(ctx, functionConfig)
+
+	if functionConfig.Spec.NodeSelector == nil {
+		if functionProject.GetConfig().Spec.DefaultNodeSelector == nil &&
+			p.Config.Kube.DefaultFunctionNodeSelector == nil {
+			return nil
+		}
+		functionConfig.Spec.NodeSelector = make(map[string]string)
+	}
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function project")
+	}
+	p.Logger.DebugWithCtx(ctx,
+		"Enriching function node selector from project",
+		"functionName", functionConfig.Meta.Name,
+		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+	functionConfig.Spec.NodeSelector = labels.Merge(functionProject.GetConfig().Spec.DefaultNodeSelector, functionConfig.Spec.NodeSelector)
+
+	p.Logger.DebugWithCtx(ctx,
+		"Enriching function node selector from platform config",
+		"functionName", functionConfig.Meta.Name,
+		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+	functionConfig.Spec.NodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
 	return nil
 }
 

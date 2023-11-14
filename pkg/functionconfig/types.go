@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 
+	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"
@@ -586,6 +587,16 @@ func (c *Config) CleanFunctionSpec() {
 	if c.Spec.Build.FunctionSourceCode != "" {
 		c.Spec.Image = ""
 	}
+}
+
+func (c *Config) GetProjectName() (string, error) {
+	if c.Meta.Labels == nil {
+		c.Meta.Labels = make(map[string]string)
+	}
+	if name, ok := c.Meta.Labels[common.NuclioResourceLabelKeyProjectName]; ok {
+		return name, nil
+	}
+	return "", errors.New("Project label not found")
 }
 
 func (c *Config) PrepareFunctionForExport(exportOptions *common.ExportFunctionOptions) {
