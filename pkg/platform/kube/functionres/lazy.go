@@ -942,6 +942,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		container.VolumeMounts = volumeMounts
 
 		deploymentSpec := appsv1.DeploymentSpec{
+
 			Selector: &metav1.LabelSelector{
 				MatchLabels: functionLabels,
 			},
@@ -2148,6 +2149,10 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		container.ImagePullPolicy = v1.PullAlways
 	} else {
 		container.ImagePullPolicy = function.Spec.ImagePullPolicy
+	}
+
+	if function.Spec.EnvFrom != nil {
+		container.EnvFrom = function.Spec.EnvFrom
 	}
 }
 

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -1866,6 +1867,11 @@ func (ap *Platform) enrichEnvVars(config *functionconfig.Config) {
 				if !common.EnvInSlice(newEnvVar, config.Spec.Env) {
 					config.Spec.Env = append(config.Spec.Env, newEnvVar)
 				}
+			}
+			// If EnvFrom is set in the platform config, add the EnvFrom object at the beginning of the list of EnvFrom in the function config.
+			// We add it at the beginning so that the values in the function config take priority over those in the platform config.
+			if !reflect.DeepEqual(ap.Config.Runtime.Common.EnvFrom, v1.EnvFromSource{}) {
+				config.Spec.EnvFrom = append([]v1.EnvFromSource{ap.Config.Runtime.Common.EnvFrom}, config.Spec.EnvFrom...)
 			}
 		}
 	}

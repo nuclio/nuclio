@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"os"
 	"path"
 	"strings"
@@ -1086,6 +1087,81 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		suite.Require().NoError(err, "Validation failed unexpectedly")
 		suite.Equal(testCase.expectedEnrichedTriggers,
 			createFunctionOptions.FunctionConfig.Spec.Triggers)
+	}
+}
+func (suite *AbstractPlatformTestSuite) TestEnrichEnvVars() {
+
+	// we do our docker image test coverage on functionConfig.Spec.Build.Image but other fields, like
+	// functionConfig.Spec.Image are going through the same validation
+	for _, testCase := range []struct {
+		name            string
+		PlatformEnvFrom v1.EnvFromSource
+		FunctionEnvFrom []v1.EnvFromSource
+		ExpectedEnvFrom []v1.EnvFromSource
+	}{
+		{
+			name: "only-platform-config-is-set",
+			PlatformEnvFrom: v1.EnvFromSource{
+				ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+			},
+			ExpectedEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+				},
+			},
+		},
+		{
+			name: "only-platform-config-is-set",
+			PlatformEnvFrom: v1.EnvFromSource{
+				ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+			},
+			FunctionEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test2"}},
+				},
+			},
+			ExpectedEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+				},
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test2"}},
+				},
+			},
+		},
+		{
+			name: "only-platform-config-is-set",
+			PlatformEnvFrom: v1.EnvFromSource{
+				ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+			},
+			FunctionEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test2"}},
+				},
+			},
+			ExpectedEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+				},
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test2"}},
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionConfig := functionconfig.NewConfig()
+
+			functionConfig.Meta.Name = testCase.name
+			functionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			functionConfig.Spec.EnvFrom = testCase.FunctionEnvFrom
+			suite.Platform.Config.Runtime = &runtimeconfig.Config{Common: &runtimeconfig.Common{EnvFrom: testCase.PlatformEnvFrom}}
+
+			suite.Platform.enrichEnvVars(functionConfig)
+			suite.Require().Equal(testCase.ExpectedEnvFrom, functionConfig.Spec.EnvFrom)
+		})
 	}
 }
 
