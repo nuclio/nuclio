@@ -64,7 +64,7 @@ eval $(minikube docker-env)
 ### 4. Build your local Nuclio version
 
 The next step is to build Nuclio. Running this for the first time might (probably will) take some time. 
-For me, this step took about 45 to 50 minutes using eduroam.
+For me, this step took about 45 to 50 minutes using eduroam (bad choice!).
 If you want to avoid frustration, make sure that you have a stable internet connection.
 If you're connection is interrupted while building Nuclio, you get to start (almost) at the beginning.
 
