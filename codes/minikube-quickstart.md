@@ -90,7 +90,7 @@ docker run -d -p 5000:5000 --name function-registry registry:latest
 
 ### 6. Run Nuclio in your local cluster
 
-Now, we want to run the Nuclio we just build inside the cluster.
+Now, we want to run the Nuclio we just built inside the cluster.
 To do so, we use Helm.
 Depending on your machine, you might have to adjust the image tags.
 You can use `docker image ls` to see them; it will likely be either `latest-arm64` or `latest-amd64`.
