@@ -115,6 +115,21 @@ kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{
 
 Now, use your browser and go to [http://127.0.0.1:8070/](http://127.0.0.1:8070/) or use nuctl to create and deploy some functions.
 
+### Optional: Use the Minikube dashboard to check your cluster
+
+Minikube comes with a dashboard that gives a good overview and some control over your current cluster. 
+To open it, start a proxy in one terminal
+
+```shell
+kubectl proxy
+```
+
+and the dashboard in another.
+
+```shell
+minikube dashboard
+```
+
 ----
 
 ## Updating the Nuclio deployment after making changes
