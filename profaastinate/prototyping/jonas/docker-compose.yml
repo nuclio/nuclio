@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: "redis-server --requirepass ${REDIS_HOST_PASSWORD}"
+    env_file:
+      - .env
+
+volumes:
+  redis-data:
+    driver: local
