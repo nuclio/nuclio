@@ -251,15 +251,16 @@ func (suite *RetryUntilSuccessfulOnErrorPatternsTestSuite) TestSucceedIfErrorMes
 		},
 	} {
 		calls = 0
-		err := RetryUntilSuccessfulOnErrorPatterns(50*time.Millisecond,
+		err := RetryUntilSuccessfulOnErrorPatterns(
+			50*time.Millisecond,
 			10*time.Millisecond,
 			testCase.errorPatterns,
-			func() string {
+			func(int) (string, error) {
 				errorMessage := testCase.callbackErrors[calls]
 				if !testCase.shouldTimeout {
 					calls++
 				}
-				return errorMessage
+				return errorMessage, nil
 			})
 		if testCase.shouldFail {
 			suite.Error(err)

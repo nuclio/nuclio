@@ -134,7 +134,7 @@ func RemoveANSIColorsFromString(s string) string {
 
 // RetryUntilSuccessful calls callback every interval for duration until it returns true
 func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callback func() bool) error {
-	return retryUntilSuccessful(duration, interval, func() (bool, error) {
+	return retryUntilSuccessful(duration, interval, func(int) (bool, error) {
 
 		// callback results indicate whether to retry
 		return !callback(), nil
@@ -142,17 +142,19 @@ func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callba
 }
 
 // RetryUntilSuccessfulOnErrorPatterns calls callback every interval for duration as long as error pattern is matched
-func RetryUntilSuccessfulOnErrorPatterns(duration time.Duration,
+func RetryUntilSuccessfulOnErrorPatterns(
+	duration time.Duration,
 	interval time.Duration,
 	errorRegexPatterns []string,
-	callback func() string) error {
+	callback func(retryCounter int) (string, error)) error {
 
-	return retryUntilSuccessful(duration, interval, func() (bool, error) {
-		callbackErrorStr := callback()
+	return retryUntilSuccessful(duration, interval, func(retryCounter int) (bool, error) {
+		callbackErrorStr, err := callback(retryCounter)
+
 		if callbackErrorStr == "" {
 
-			// no error message means no error, succeeded
-			return false, nil
+			// no error message means no retry needed
+			return false, err
 		}
 
 		// find a matching error pattern
@@ -162,7 +164,7 @@ func RetryUntilSuccessfulOnErrorPatterns(duration time.Duration,
 			return false, errors.Errorf("Failed matching an error pattern for callback: %s", callbackErrorStr)
 		}
 
-		return true, nil
+		return true, err
 
 	})
 }
@@ -170,18 +172,20 @@ func RetryUntilSuccessfulOnErrorPatterns(duration time.Duration,
 // retryUntilSuccessful calls callback every interval until duration as long as it should retry
 func retryUntilSuccessful(duration time.Duration,
 	interval time.Duration,
-	callback func() (bool, error)) error {
+	callback func(int) (bool, error)) error {
 	var lastErr error
 	timedOutErrorMessage := "Timed out waiting until successful"
 	deadline := time.Now().Add(duration)
 
 	// while we haven't passed the deadline
+	var retryCounter int
 	for !time.Now().After(deadline) {
-		shouldRetry, err := callback()
+		shouldRetry, err := callback(retryCounter)
 		lastErr = err
 		if !shouldRetry {
 			return err
 		}
+		retryCounter++
 		time.Sleep(interval)
 		continue
 

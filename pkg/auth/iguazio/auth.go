@@ -25,6 +25,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -87,6 +88,11 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		url = a.config.Iguazio.VerificationDataEnrichmentURL
 	}
 
+	method := a.config.Iguazio.VerificationMethod
+	if method == "" {
+		method = http.MethodPost
+	}
+
 	cacheKey := sha256.Sum256([]byte(cookie + authorization + url))
 
 	// try resolve from cache
@@ -95,7 +101,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 	}
 
 	response, err := a.performHTTPRequest(request.Context(),
-		http.MethodPost,
+		method,
 		url,
 		nil,
 		map[string]string{
@@ -207,23 +213,56 @@ func (a *Auth) performHTTPRequest(ctx context.Context,
 	headers map[string]string) (*http.Response, error) {
 
 	// create request
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
+	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create http request")
 	}
 
 	// attach headers
 	for headerKey, headerValue := range headers {
-		req.Header.Set(headerKey, headerValue)
+		request.Header.Set(headerKey, headerValue)
 	}
 
-	// fire request
-	resp, err := a.httpClient.Do(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to send HTTP request")
+	var lastResponse *http.Response
+	var lastError error
+	if err := common.RetryUntilSuccessfulOnErrorPatterns(
+		time.Second*60,
+		time.Second*3,
+		[]string{
+
+			// usually when service is not up yet
+			"EOF",
+			"connection reset by peer",
+
+			// tl;dr: we should actively retry on such errors, because Go won't as request might not be idempotent
+			"server closed idle connection",
+		},
+		func(retryCounter int) (string, error) {
+
+			// stop now if context is done
+			if err := ctx.Err(); err != nil {
+				return "", errors.Wrap(err, "Context is done")
+			}
+
+			if retryCounter > 0 {
+				a.logger.WarnWithCtx(ctx,
+					"Retrying HTTP request",
+					"retryCounter", retryCounter,
+					"lastError", lastError)
+			}
+
+			// fire request
+			lastResponse, err = a.httpClient.Do(request)
+			if err != nil {
+				lastError = err
+				return err.Error(), errors.Wrap(err, "Failed to send HTTP request")
+			}
+			return "", nil
+		}); err != nil {
+		return lastResponse, errors.Wrap(err, "Failed to perform HTTP request")
 	}
 
-	return resp, nil
+	return lastResponse, nil
 }
 
 func (a *Auth) resolveUserAndGroupIDsFromResponseBody(responseBody map[string]interface{}) (string, []string, error) {
