@@ -9,7 +9,7 @@
 
 ## Overview
 
-If you followed the [Getting Started with Nuclio on Kubernetes](getting-started-k8s.md) or [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md) guide, you invoked functions using their HTTP interface with `nuctl` and the Nuclio dashboard.
+If you followed the [Getting Started with Nuclio on Kubernetes](../../setup/k8s/getting-started-k8s.md) or [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](../../setup/gke/getting-started-gke.md) guide, you invoked functions using their HTTP interface with `nuctl` and the Nuclio dashboard.
 By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port.
 To invoke the function externally, using `nuctl`, you probably exposed your function by using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that is assigned to the function.
 
@@ -67,7 +67,7 @@ curl $(minikube ip):30019/helloworld/latest
 
 ## Customizing function ingress
 
-By default, functions initialize the HTTP trigger and register `<function name>/latest`. However, you might want to add paths for functions to organize them in namespaces/groups, or even choose through which domain your functions can be triggered. To do this, you can configure your HTTP trigger in the [function's configuration](/docs/reference/function-configuration/function-configuration-reference.md). For example:
+By default, functions initialize the HTTP trigger and register `<function name>/latest`. However, you might want to add paths for functions to organize them in namespaces/groups, or even choose through which domain your functions can be triggered. To do this, you can configure your HTTP trigger in the [function's configuration](../../reference/function-configuration/function-configuration-reference.md). For example:
 
 ```yaml
   ...
@@ -102,7 +102,7 @@ Note that since the `i1` configuration explicitly specifies `some.host.com` as t
 
 ## Deploying an ingress example
 
-Let's put this into practice and deploy the [ingress example](/hack/examples/golang/ingress/ingress.go). This is the **function.yaml** file for the example:
+Let's put this into practice and deploy the [ingress example](https://github.com/nuclio/nuclio/tree/development/hack/examples/golang/ingress/ingress.go). This is the **function.yaml** file for the example:
 
 ```yaml
 apiVersion: "nuclio.io/v1"

@@ -23,6 +23,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
     'python_docs_theme',
+    'sphinx_markdown_tables',
 ]
 
 templates_path = ['_templates']
@@ -33,6 +34,7 @@ language = 'go'
 source_suffix = {
     ".rst": "restructuredtext",
     '.md': 'markdown',
+    '.html': 'html',
 }
 
 

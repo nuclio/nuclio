@@ -168,5 +168,5 @@ em-esrever
 
 ## See also
 
-- [Deploying Functions](/docs/tasks/deploying-functions.md)
-- [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
+- [Deploying Functions](../../../tasks/deploying-functions.md)
+- [Function-Configuration Reference](../../../reference/function-configuration/function-configuration-reference.md)

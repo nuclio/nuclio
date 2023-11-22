@@ -119,7 +119,7 @@ files at this time, but it's very easy to create run/debug targets and use the d
 4. Run configurations are (currently) available for tests only
 
 
-For developing in nuclio locally, see [Local development](/docs/devel/local-development.md).
+For developing in nuclio locally, see [Local development](local-development.md).
 
 <a id="goland-versioning-note"></a>
 ### Versioning note
@@ -175,9 +175,9 @@ Create these two configuration files in your preferred location, and pass `--con
 --platform-config <path to platform-config.yaml` as `Program arguments` in the Run/Debug configuration.
 
 For more information about the platform configuration,
-see [Configuring a Platform](/docs/tasks/configuring-a-platform.md#configuration-elements). For information about the
+see [Configuring a Platform](../tasks/configuring-a-platform.md#configuration-elements). For information about the
 function configuration, see
-the [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md).
+the [Function-Configuration Reference](../reference/function-configuration/function-configuration-reference.md).
 
 <a id="goland-run-cli"></a>
 ### Running the Nuclio CLI (nuctl)
