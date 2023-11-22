@@ -9,12 +9,17 @@ Welcome to Nuclio documentation!
 .. toctree::
    :maxdepth: 2
 
+   setup/index
+
+.. toctree::
+   :maxdepth: 2
+
    concepts/index
 
 .. toctree::
    :maxdepth: 2
 
-   devel/index
+   tasks/index
 
 .. toctree::
    :maxdepth: 2
@@ -24,15 +29,7 @@ Welcome to Nuclio documentation!
 .. toctree::
    :maxdepth: 2
 
-   setup/index
-
-
-.. toctree::
-   :maxdepth: 2
-
-   tasks/index
-
-
+   devel/index
 
 Indices and tables
 ==================
