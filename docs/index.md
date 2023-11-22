@@ -21,8 +21,6 @@ You can find links to additional articles and tutorials on the [Nuclio web site]
 
 Nuclio is secure: Nuclio is integrated with [Kaniko](https://github.com/GoogleContainerTools/kaniko) to allow a secure and production-ready way of building Docker images at run time.
 
-For further questions and support, [click to join](https://lit-oasis-83353.herokuapp.com) the [Nuclio Slack](https://nuclio-io.slack.com) workspace.
-
 ### Why another "serverless" project?
 
 None of the existing cloud and open-source serverless solutions addressed all the desired capabilities of a serverless framework:
