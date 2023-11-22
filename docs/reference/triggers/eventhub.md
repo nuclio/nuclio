@@ -4,14 +4,14 @@ Reads events from [Microsoft Azure Event Hubs](https://azure.microsoft.com/servi
 
 ## Attributes
 
-| **Path** | **Type** | **Description** |
-| :--- | :--- | :--- |
-| sharedAccessKeyName | string | Required by Azure Event Hubs |
-| sharedAccessKeyValue | string | Required by Azure Event Hubs |
-| namespace | string | Required by Azure Event Hubs |
-| eventHubName | string | Required by Azure Event Hubs |
-| consumerGroup | string | Required by Azure Event Hubs |
-| partitions | list of int | List of partitions on which this function receives events |
+| **Path**             | **Type**    | **Description**                                           |
+|:---------------------|:------------|:----------------------------------------------------------|
+| sharedAccessKeyName  | string      | Required by Azure Event Hubs                              |
+| sharedAccessKeyValue | string      | Required by Azure Event Hubs                              |
+| namespace            | string      | Required by Azure Event Hubs                              |
+| eventHubName         | string      | Required by Azure Event Hubs                              |
+| consumerGroup        | string      | Required by Azure Event Hubs                              |
+| partitions           | list of int | List of partitions on which this function receives events |
 
 ### Example
 
