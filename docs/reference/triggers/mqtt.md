@@ -1,4 +1,4 @@
-# mqtt: MQTT Trigger
+# MQTT trigger
 
 Reads messages from [MQTT](http://mqtt.org/) topics.
 

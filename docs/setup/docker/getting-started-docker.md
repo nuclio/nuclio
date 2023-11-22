@@ -18,7 +18,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
     docker version
     ```
 
-- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli-nuctl).
+- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli-nuctl).
     To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 
 <a id="run-nuclio"></a>
@@ -32,7 +32,6 @@ docker run \
   --detach \
   --publish 8070:8070 \
   --volume /var/run/docker.sock:/var/run/docker.sock \
-  --volume /tmp:/tmp \
   --name nuclio-dashboard \
   quay.io/nuclio/dashboard:stable-amd64
 ```
@@ -41,7 +40,7 @@ docker run \
 
 See the following resources to make the best of your new Nuclio environment:
 
-- [Deploying Functions](/docs/tasks/deploying-functions.md)
-- [More function examples](/hack/examples/README.md)
-- [References](/docs/reference)
-- [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
+- [Deploying Functions](../../tasks/deploying-functions.md)
+- [More function examples](../../examples/README.md)
+- [References](../../reference)
+- [Best Practices and Common Pitfalls](../../concepts/best-practices-and-common-pitfalls.md)

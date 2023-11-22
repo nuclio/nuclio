@@ -1,4 +1,4 @@
-# Python Reference
+# Python
 
 This document describes the specific Python build and deploy configurations.
 
@@ -27,7 +27,7 @@ For asynchronous support (e.g.: `asyncio`), you may want to decorate your functi
 
 Important to note:
   - Nuclio, at the moment, does not support concurrent requests handling for a single working. Each working may handle
-    one request at a time, for more information see [here](/docs/concepts/architecture.md#runtime-engine).
+    one request at a time, for more information see [here](../../../concepts/architecture.md#runtime-engine).
   - However, using an async handler can still be beneficial in some scenarios; Since the event loop would keep running while listening on more incoming requests, it allows functions to asynchronously perform
     I/O bound background tasks.
 
@@ -47,7 +47,7 @@ async def update_db(context, event):
 
 ## Dockerfile
 
-Following is sample Dockerfile code for deploying a Python function. For more information, see [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+Following is sample Dockerfile code for deploying a Python function. For more information, see [Deploying Functions from a Dockerfile](../../../tasks/deploy-functions-from-dockerfile.md).
 
 > **Note:** Make sure to replace `my-function-code` and `my-function.yaml` in the following example with the names of your function and function-configuration file.
 
@@ -163,7 +163,7 @@ However, it is advisable to transition to Python 3.9, as mentioned earlier.
 <a id="function-configuration"></a>
 ## Function configuration
 
-Your function-configuration file (for example, **my-function.yaml** for the [example Dockerfile](#dockerfile)) must include the name of your handler function and Python runtime. For more information, see the [function-configuration reference](/docs/reference/function-configuration/function-configuration-reference.md). For example:
+Your function-configuration file (for example, **my-function.yaml** for the [example Dockerfile](#dockerfile)) must include the name of your handler function and Python runtime. For more information, see the [function-configuration reference](../../../reference/function-configuration/function-configuration-reference.md). For example:
 
 ```yaml
 meta:

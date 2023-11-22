@@ -1,0 +1,4 @@
+recommonmark
+python_docs_theme
+sphinx_book_theme
+sphinx-markdown-tables

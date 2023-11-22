@@ -139,7 +139,7 @@ def handler(context, event):
                             status_code=201)
 ```
 
-More examples can be found in the **[hack/examples](hack/examples/README.md)** Nuclio GitHub directory.
+More examples can be found in the **[Examples page](docs/examples/README.md)**.
 
 ## Further reading
 
@@ -165,8 +165,8 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
   - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
   - [Triggers](/docs/reference/triggers)
   - [Runtime - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
-  - [Runtime - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
-- [Examples](hack/examples/README.md)
+  - [Runtime - Shell](/docs/reference/runtimes/shell/shell-reference.md)
+- [Examples](docs/examples/README.md)
 - Sandbox
   - [Install Nuclio and run functions. Explore and experiment on a free Kubernetes cluster.](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 - Contributing
