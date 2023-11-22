@@ -1,4 +1,12 @@
-## Nuclio overview
+# Nuclio Overview 
+Learn how to use Nuclio to quickly develop "serverless" applications.
+
+To download Nuclio and view full product release notes, visit the Nuclio GitHub Releases page.
+
+For support and additional product information, join the active Nuclio Slack workspace.
+
+
+## What is Nuclio?
 
 Nuclio is a high-performance "serverless" framework focused on data, I/O, and compute intensive workloads. It is well integrated with popular data science tools, such as [Jupyter](https://jupyter.org/) and [Kubeflow](https://www.kubeflow.org/); supports a variety of data and streaming sources; and supports execution over CPUs and GPUs. The Nuclio project began in 2017 and is constantly and rapidly evolving; many start-ups and enterprises are now using Nuclio in production.
 
@@ -15,7 +23,7 @@ Nuclio is secure: Nuclio is integrated with [Kaniko](https://github.com/GoogleCo
 
 For further questions and support, [click to join](https://lit-oasis-83353.herokuapp.com) the [Nuclio Slack](https://nuclio-io.slack.com) workspace.
 
-## Why another "serverless" project?
+### Why another "serverless" project?
 
 None of the existing cloud and open-source serverless solutions addressed all the desired capabilities of a serverless framework:
 
