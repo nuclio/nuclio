@@ -32,3 +32,7 @@ None of the existing cloud and open-source serverless solutions addressed all th
 - Open-source but designed for the enterprise (including logging, monitoring, security, and usability)
 
 Nuclio was created to fulfill these requirements.  It was intentionally designed as an extendable open-source framework, using a modular and layered approach that supports constant addition of triggers and runtimes, with the hope that many will join the effort of developing new modules, developer tools, and platforms for Nuclio.
+
+Try it for yourself by following the [Quick-Start](tasks/quick-start.md) guide!
+
+

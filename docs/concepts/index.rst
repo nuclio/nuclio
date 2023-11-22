@@ -11,5 +11,4 @@ Concepts
 
    best-practices-and-common-pitfalls
    architecture
-   configuring-a-function.md
    k8s/function-ingress
