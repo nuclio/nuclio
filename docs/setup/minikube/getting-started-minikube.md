@@ -18,7 +18,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
     - [Docker](https://docs.docker.com/get-docker/)
     - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
     - [Helm](https://helm.sh/docs/intro/install/)
-- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli-nuctl).
+- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli-nuctl).
     To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 - It's recommended that you use these drivers:
 
@@ -51,7 +51,7 @@ minikube start --kubernetes-version v1.27.5 --driver docker --extra-config=apise
 > **Note:** We are bringing up a local, simple, insecure docker registry. Instead, you can skip this step, 
 > and use any other docker registry, such as [Docker Hub](https://hub.docker.com/), [Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/),
 > or [Google Container Registry (GCR)](https://cloud.google.com/container-registry/).
-> See [Getting started with Kubernetes](/docs/setup/k8s/getting-started-k8s.md) for instructions. 
+> See [Getting started with Kubernetes](../../setup/k8s/getting-started-k8s.md) for instructions. 
 
 SSH into the minikube machine, and run the registry using `docker`:
 
@@ -94,7 +94,7 @@ Use the command `minikube kubectl -- get pods --namespace nuclio` to verify both
 <a id="deploy-a-function-with-the-nuclio-cli-nuctl"></a>
 ## Deploy a function with the Nuclio CLI (nuctl)
 
-Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](/hack/examples/golang/helloworld/helloworld.go) Go function.
+Run the following Nuclio CLI (`nuctl`) command from a command-line shell to deploy the example [`helloworld`](https://github.com/nuclio/nuclio/tree/development/hack/examples/golang/helloworld/helloworld.go) Go function.
 You can add the `--verbose` flag if you want to peek under the hood.
 ```sh
 nuctl deploy helloworld \
@@ -105,7 +105,7 @@ nuctl deploy helloworld \
     --run-registry localhost:5000
 ```
 >**Note:** The command above exposes the function externally using a `nodePort`. This is done for demonstration
-> purposes only. Please read more about [exposing your function](/docs/tasks/deploying-functions.md#exposing-a-function)
+> purposes only. Please read more about [exposing your function](../../tasks/deploying-functions.md#exposing-a-function)
 > for more information.
 
 >**Note:** The difference between the two registries specified in this command, and the reason for their addresses being different is as follows:
@@ -147,8 +147,8 @@ Hello, from Nuclio :]
 
 See the following resources to make the best of your new Nuclio environment:
 
-- [Deploying Functions](/docs/tasks/deploying-functions.md)
-- [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
-- [More function examples](/docs/examples/README.md)
-- [References](/docs/reference)
-- [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
+- [Deploying Functions](../../tasks/deploying-functions.md)
+- [Invoking Functions by Name with a Kubernetes Ingress](../../concepts/k8s/function-ingress.md)
+- [More function examples](../../examples/README.md)
+- [References](../../reference)
+- [Best Practices and Common Pitfalls](../../concepts/best-practices-and-common-pitfalls.md)

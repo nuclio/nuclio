@@ -1,6 +1,6 @@
 # Running Nuclio Over Kubernetes in Production
 
-After familiarizing yourself with Nuclio and [deploying it over Kubernetes](/docs/setup/k8s/getting-started-k8s.md), you might find yourself in need of more information pertaining to running Nuclio in production.
+After familiarizing yourself with Nuclio and [deploying it over Kubernetes](../../setup/k8s/getting-started-k8s.md), you might find yourself in need of more information pertaining to running Nuclio in production.
 Nuclio is integrated, for example, within the [Iguazio Data Science Platform](https://www.iguazio.com), which is used extensively in production, both by Iguazio and its customers, running various workloads.
 This document describes advanced configuration options and best-practice guidelines for using Nuclio in a production environment.
 
@@ -15,7 +15,7 @@ This document describes advanced configuration options and best-practice guideli
 <a id="the-preferred-deployment-method"></a>
 ## The preferred deployment method
 
-There are several alternatives to deploying (installing) Nuclio in production, but the recommended method is by using [Helm charts](/hack/k8s/helm/nuclio/).
+There are several alternatives to deploying (installing) Nuclio in production, but the recommended method is by using [Helm charts](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/).
 This is currently the preferred deployment method at Iguazio as it's the most tightly maintained, it's best suited for "heavy lifting" over Kubernetes, and it's often used to roll out new production-oriented features.
 
 Following is a quick example of how to use Helm charts to set up a specific stable version of Nuclio.
@@ -52,7 +52,7 @@ Following is a quick example of how to use Helm charts to set up a specific stab
         nuclio/nuclio
     ```
 
-> **Note:** For a full list of configuration parameters, see the Helm values file ([**values.yaml**](/hack/k8s/helm/nuclio/values.yaml))
+> **Note:** For a full list of configuration parameters, see the Helm values file ([**values.yaml**](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml))
 
 <a id="multi-tenancy"></a>
 ## Multi-Tenancy
@@ -63,7 +63,7 @@ Note:
 
 - To achieve tenant separation for various Nuclio projects and functions, and to avoid cross-tenant contamination and resource races, a fully functioning Nuclio deployment is used in each namespace and the Nuclio controller is configured to be namespaced.
   This means that the controller handles Nuclio resources (functions, function events, and projects) only within its own namespace.
-  This is supported by using the `controller.namespace` and `rbac.crdAccessMode` [Helm values](/hack/k8s/helm/nuclio/values.yaml) configurations.
+  This is supported by using the `controller.namespace` and `rbac.crdAccessMode` [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) configurations.
 - To provide ample separation at the level of the container registry, it's highly recommended that the Nuclio deployments of multiple tenants either don't share container registries, or that they don't share a tenant when using a multi-tenant registry (such as `registry.hub.docker.com` or `quay.io`).
 
 <a id="freezing-a-qualified-version"></a>
@@ -74,7 +74,7 @@ It's therefore recommended that you don't use the latest stable version, but rat
 Stick with this version until you qualify a newer version for your system.
 Because Nuclio adheres to backwards-compatibility standards between patch versions, and even minor version updates don't typically break major functionality, the process of qualifying a newer Nuclio version should generally be short and easy.
 
-To use Helm to freeze a specific Nuclio version, set all of the `*.image.repository` and `*.image.tag` [Helm values](/hack/k8s/helm/nuclio/values.yaml) to the names and tags that represent the images for your chosen version.
+To use Helm to freeze a specific Nuclio version, set all of the `*.image.repository` and `*.image.tag` [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) to the names and tags that represent the images for your chosen version.
 Note the configured images must be accessible to your Kubernetes deployment (which is especially relevant for [air-gapped deployments](#air-gapped-deployment)).
 
 <a id="air-gapped-deployment"></a>
@@ -83,7 +83,7 @@ Note the configured images must be accessible to your Kubernetes deployment (whi
 Nuclio is fully compatible with execution in air-gapped environments ("dark sites"), and supports the appropriate configuration to avoid any outside access.
 The following guidelines refer to more advanced use cases and are based on the assumption that you can handle the related DevOps tasks.
 Note that such implementations can get a bit tricky; to access a fully-managed, air-gap friendly, "batteries-included", Nuclio deployment, which also offers plenty of other tools and features, check out the enterprise-grade [Iguazio Data Science Platform](https://www.iguazio.com/platform/).
-If you select to handle the implementation yourself, follow these guidelines; the referenced configurations are all [Helm values](/hack/k8s/helm/nuclio/values.yaml):
+If you select to handle the implementation yourself, follow these guidelines; the referenced configurations are all [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml):
 
 - Set `*.image.repository` and `*.image.tag` to [freeze a qualified version](#version-freezing), and ensure that the configured images are accessible to the Kubernetes deployment.
 - Set `*.image.pullPolicy` to `Never` or to `IfNotPresent` to ensure that Kubernetes doesn't try to fetch the images from the web.
@@ -111,7 +111,7 @@ While there are several alternatives to bind-mounting the Docker socket, the sel
 Kaniko is well maintained, stable, easy to use, and provides an extensive set of features.
 Nuclio currently supports Kaniko only on Kubernetes.
 
-To deploy Nuclio and direct it to use the Kaniko engine to build images, use the following [Helm values](/hack/k8s/helm/nuclio/values.yaml) parameters; replace the `<...>` placeholders with your specific values:
+To deploy Nuclio and direct it to use the Kaniko engine to build images, use the following [Helm values](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio/values.yaml) parameters; replace the `<...>` placeholders with your specific values:
 
 ```sh
 helm upgrade --install --reuse-values nuclio \
