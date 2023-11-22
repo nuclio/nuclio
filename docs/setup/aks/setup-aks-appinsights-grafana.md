@@ -55,7 +55,7 @@ kubectl create configmap platform-config  --namespace nuclio --from-file platfor
 ```
 
 At this stage, all metrics will be sent to application insights custom metrics table.
-To read more about platform configuration [click here](../../docs/tasks/configuring-a-platform.md)
+To read more about platform configuration [click here](../../tasks/configuring-a-platform.md)
 
 ## Configure Nuclio Logger to send logs to Application Insights
 
