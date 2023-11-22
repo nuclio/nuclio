@@ -165,7 +165,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
   - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
   - [Triggers](/docs/reference/triggers)
   - [Runtime - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
-  - [Runtime - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
+  - [Runtime - Shell](/docs/reference/runtimes/shell/shell-reference.md)
 - [Examples](hack/examples/README.md)
 - Sandbox
   - [Install Nuclio and run functions. Explore and experiment on a free Kubernetes cluster.](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)

@@ -167,7 +167,7 @@ def handler(context, event):
   - [函数配置参考文档](/docs/reference/function-configuration/function-configuration-reference.md)
   - [触发器](/docs/reference/triggers)
   - [运行时 - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
-  - [运行时 - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
+  - [运行时 - Shell](/docs/reference/runtimes/shell/shell-reference.md)
 - [示例](hack/examples/README.md)
 - 沙箱环境
   - [在免费的 Kubernetes 集群中安装 Nuclio 并运行函数，以进行各种探索和试验](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
