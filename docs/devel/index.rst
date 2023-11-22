@@ -10,8 +10,8 @@ Development
    :maxdepth: 1
    :caption: Development
 
-   minikube/developing-on-minikube
-   coding-conventions
    contributing
+   coding-conventions
    local-development
    troubleshooting
+   minikube/developing-on-minikube
