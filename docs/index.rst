@@ -7,6 +7,11 @@ Welcome to Nuclio documentation!
 ==================================
 
 .. toctree::
+   :maxdepth: 0
+
+   intro.md
+
+.. toctree::
    :maxdepth: 2
 
    setup/index
@@ -30,6 +35,11 @@ Welcome to Nuclio documentation!
    :maxdepth: 2
 
    devel/index
+
+.. toctree::
+   :maxdepth: 1
+
+   examples/README
 
 Indices and tables
 ==================

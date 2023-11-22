@@ -13,5 +13,6 @@ Development
    contributing
    coding-conventions
    local-development
+   local-docker-development
    troubleshooting
    minikube/developing-on-minikube

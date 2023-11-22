@@ -140,7 +140,7 @@ def handler(context, event):
                             status_code=201)
 ```
 
-更多的示例请访问 Nuclio 项目中的 **[hack/examples](hack/examples/README.md)** 目录。
+更多的示例请访问 Nuclio 项目中的 **[hack/examples](docs/examples/README.md)** 目录。
 
 
 ## 推荐阅读
@@ -168,7 +168,7 @@ def handler(context, event):
   - [触发器](/docs/reference/triggers)
   - [运行时 - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
   - [运行时 - Shell](/docs/reference/runtimes/shell/shell-reference.md)
-- [示例](hack/examples/README.md)
+- [示例](docs/examples/README.md)
 - 沙箱环境
   - [在免费的 Kubernetes 集群中安装 Nuclio 并运行函数，以进行各种探索和试验](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 - 贡献指南

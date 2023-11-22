@@ -4,6 +4,7 @@ User guide
 .. toctree::
    :maxdepth: 1
 
+   quick-start
    benchmarking
    configuring-a-platform
    deploy-functions-from-dockerfile

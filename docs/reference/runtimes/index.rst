@@ -8,4 +8,4 @@ Runtimes
   dotnetcore/dotnetcore-reference.md
   java/java-reference
   nodejs/nodejs-reference
-  shell/writing-a-shell-function
+  shell/shell-reference

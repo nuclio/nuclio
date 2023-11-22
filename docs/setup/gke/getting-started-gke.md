@@ -104,6 +104,6 @@ See the following resources to make the best of your new Nuclio environment:
 
 - [Deploying Functions](/docs/tasks/deploying-functions.md)
 - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
-- [More function examples](/hack/examples/README.md)
+- [More function examples](/docs/examples/README.md)
 - [References](/docs/reference)
 - [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
