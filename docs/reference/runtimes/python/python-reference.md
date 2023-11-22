@@ -47,7 +47,7 @@ async def update_db(context, event):
 
 ## Dockerfile
 
-Following is sample Dockerfile code for deploying a Python function. For more information, see [Deploying Functions from a Dockerfile](../tasks/deploy-functions-from-dockerfile.md).
+Following is sample Dockerfile code for deploying a Python function. For more information, see [Deploying Functions from a Dockerfile](../../../tasks/deploy-functions-from-dockerfile.md).
 
 > **Note:** Make sure to replace `my-function-code` and `my-function.yaml` in the following example with the names of your function and function-configuration file.
 
@@ -163,7 +163,7 @@ However, it is advisable to transition to Python 3.9, as mentioned earlier.
 <a id="function-configuration"></a>
 ## Function configuration
 
-Your function-configuration file (for example, **my-function.yaml** for the [example Dockerfile](#dockerfile)) must include the name of your handler function and Python runtime. For more information, see the [function-configuration reference](/docs/reference/function-configuration/function-configuration-reference.md). For example:
+Your function-configuration file (for example, **my-function.yaml** for the [example Dockerfile](#dockerfile)) must include the name of your handler function and Python runtime. For more information, see the [function-configuration reference](../../../reference/function-configuration/function-configuration-reference.md). For example:
 
 ```yaml
 meta:
