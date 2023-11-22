@@ -1,4 +1,4 @@
-# Minikube
+# Getting started with Nuclio on Minikube
 
 Follow this step-by-step guide to set up Nuclio on [Minikube](https://github.com/kubernetes/minikube/), which is a tool that lets you run Kubernetes locally.
 

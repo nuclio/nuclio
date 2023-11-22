@@ -1,4 +1,4 @@
-# UI
+# API Gateway via the UI
 
 ## In This Section
 

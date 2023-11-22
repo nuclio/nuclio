@@ -10,8 +10,8 @@ Setup
    :maxdepth: 2
    :caption: Setup
 
-   aks/index
    docker/getting-started-docker
-   gke/getting-started-gke
    k8s/index
    minikube/getting-started-minikube
+   aks/index
+   gke/getting-started-gke

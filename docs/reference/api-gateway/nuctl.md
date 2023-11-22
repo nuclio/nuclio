@@ -1,4 +1,4 @@
-# Nuctl
+# API Gateway with Nuctl
 
 #### In This Section
 

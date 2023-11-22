@@ -9,7 +9,7 @@ Concepts
 .. toctree::
    :maxdepth: 1
 
-   k8s/function-ingress
-   architecture
    best-practices-and-common-pitfalls
+   architecture
    configuring-a-function.md
+   k8s/function-ingress
