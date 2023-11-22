@@ -5,9 +5,9 @@ User guide
    :maxdepth: 1
 
    quick-start
-   benchmarking
    configuring-a-platform
-   deploy-functions-from-dockerfile
    deploying-functions
    deploying-pre-built-functions
+   deploy-functions-from-dockerfile
    exporting-and-importing
+   benchmarking
