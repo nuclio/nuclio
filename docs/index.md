@@ -1,9 +1,9 @@
 # Nuclio Overview 
 Learn how to use Nuclio to quickly develop "serverless" applications.
 
-To download Nuclio and view full product release notes, visit the Nuclio GitHub Releases page.
+To download Nuclio and view full product release notes, visit the Nuclio GitHub [Releases](https://github.com/nuclio/nuclio/releases) page.
 
-For support and additional product information, join the active Nuclio Slack workspace.
+For support and additional product information, join the active [Nuclio Slack](https://nuclio-io.slack.com/) workspace.
 
 
 ## What is Nuclio?
