@@ -1,4 +1,4 @@
-# NATS
+# NATS trigger
 
 Reads messages from [NATS](https://nats.io/) topics. Function replicas are subscribed to a worker group (queue), and messages are load-balanced across replicas. To join a specific worker group, specify a queue-name attribute in the trigger configuration.
 

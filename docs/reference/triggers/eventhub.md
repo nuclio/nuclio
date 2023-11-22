@@ -1,4 +1,4 @@
-# Azure Event Hub
+# Azure Event Hub trigger
 
 Reads events from [Microsoft Azure Event Hubs](https://azure.microsoft.com/services/event-hubs/).
 

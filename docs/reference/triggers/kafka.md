@@ -1,4 +1,4 @@
-# Kafka
+# Kafka trigger
 
 **In This Document**
 - [Overview](#overview)

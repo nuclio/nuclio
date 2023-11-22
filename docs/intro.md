@@ -8,7 +8,7 @@ If you wish to create and manage Nuclio functions through code - for example, fr
 Nuclio is also an integral part of the new open-source [MLRun](https://github.com/mlrun/mlrun) library for data science automation and tracking and of the open-source [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/) framework for building and deploying portable, scalable ML workflows.
 
 Nuclio is extremely fast: a single function instance can process hundreds of thousands of HTTP requests or data records per second.
-This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](/docs/concepts/architecture.md) documentation, read this review of [Nuclio vs. AWS Lambda](https://theburningmonk.com/2019/04/comparing-nuclio-and-aws-lambda/), or watch the [Nuclio serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A).
+This is 10-100 times faster than some other frameworks. To learn more about how Nuclio works, see the Nuclio [architecture](./concepts/architecture.md) documentation, read this review of [Nuclio vs. AWS Lambda](https://theburningmonk.com/2019/04/comparing-nuclio-and-aws-lambda/), or watch the [Nuclio serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A).
 You can find links to additional articles and tutorials on the [Nuclio web site](https://nuclio.io/).
 
 Nuclio is secure: Nuclio is integrated with [Kaniko](https://github.com/GoogleContainerTools/kaniko) to allow a secure and production-ready way of building Docker images at run time.
