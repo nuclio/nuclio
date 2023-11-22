@@ -140,7 +140,7 @@ def handler(context, event):
                             status_code=201)
 ```
 
-更多的示例请访问 Nuclio 项目中的 **[hack/examples](docs/examples/README.md)** 目录。
+更多的示例请访问 Nuclio 项目中的 **[Examples page](docs/examples/README.md)** 目录。
 
 
 ## 推荐阅读
