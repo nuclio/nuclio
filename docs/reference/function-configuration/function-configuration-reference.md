@@ -4,13 +4,13 @@ This document provides a reference of the Nuclio function configuration.
 
 #### In This Document
 
-  - [Basic configuration structure](#basic-configuration-structure)
-  - [Function Metadata (`metadata`)](#function-metadata-metadata)
+  - [Basic configuration structure](#basic-structure)
+  - [Function Metadata (`metadata`)](#metadata)
     - [Example](#example)
-  - [Function Specification (`spec`)](#function-specification-spec)
-    - [Example](#example-1)
-  - [Function Status (`status`)](#function-status-spec)
-    - [Example](#example-2)
+  - [Function Specification (`spec`)](#specification)
+    - [Example](#spec-example)
+  - [Function Status (`status`)](#status)
+    - [Example](#status-example)
   - [See also](#see-also)
 
 <a id="basic-structure"></a>
@@ -221,7 +221,7 @@ The `status` section contains the requirements and attributes and has the follow
 | internalInvocationUrls | []string | A list of internal urls to invoke the function                                                    |
 | externalInvocationUrls | []string | A list of external urls to invoke the function, including ingresses and external-ip:function-port |
 
-<a id="stats-example"></a>
+<a id="status-example"></a>
 
 ### Example
 
