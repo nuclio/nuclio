@@ -4,14 +4,12 @@ This document provides a reference of the Nuclio function configuration.
 
 #### In This Document
 
-- [Function-Configuration Reference](#function-configuration-reference)
-      - [In This Document](#in-this-document)
   - [Basic configuration structure](#basic-configuration-structure)
   - [Function Metadata (`metadata`)](#function-metadata-metadata)
     - [Example](#example)
   - [Function Specification (`spec`)](#function-specification-spec)
     - [Example](#example-1)
-  - [Function Status (`spec`)](#function-status-spec)
+  - [Function Status (`status`)](#function-status-spec)
     - [Example](#example-2)
   - [See also](#see-also)
 
