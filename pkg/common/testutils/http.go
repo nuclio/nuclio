@@ -16,12 +16,20 @@ limitations under the License.
 
 package testutils
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/nuclio/errors"
+)
 
 type roundTripFunc func(req *http.Request) *http.Response
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req), nil
+	response := f(req)
+	if response == nil {
+		return nil, errors.New("EOF")
+	}
+	return response, nil
 }
 
 func newHTTPClient(fn roundTripFunc) *http.Client { // nolint: interfacer

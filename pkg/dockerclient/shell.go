@@ -972,16 +972,16 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string) error 
 	common.RetryUntilSuccessfulOnErrorPatterns(c.buildTimeout, // nolint: errcheck
 		c.buildRetryInterval,
 		retryOnErrorMessages,
-		func() string {
+		func(int) (string, error) {
 			runResults, err := c.runCommand(runOptions, buildCommand)
 
 			// preserve error
 			lastBuildErr = err
 
 			if err != nil {
-				return runResults.Stderr
+				return runResults.Stderr, err
 			}
-			return ""
+			return "", err
 		})
 	return lastBuildErr
 }
@@ -1006,7 +1006,7 @@ func (c *ShellClient) createContainer(imageName string) (string, error) {
 	common.RetryUntilSuccessfulOnErrorPatterns(10*time.Second, // nolint: errcheck
 		2*time.Second,
 		retryOnErrorMessages,
-		func() string {
+		func(int) (string, error) {
 
 			// create container from image
 			runResults, err := c.runCommand(nil, "docker create %s /bin/sh", imageName)
@@ -1015,11 +1015,11 @@ func (c *ShellClient) createContainer(imageName string) (string, error) {
 			lastCreateContainerError = err
 
 			if err != nil {
-				return runResults.Stderr
+				return runResults.Stderr, err
 			}
 			containerID = runResults.Output
 			containerID = strings.TrimSpace(containerID)
-			return ""
+			return "", err
 		})
 
 	return containerID, lastCreateContainerError
