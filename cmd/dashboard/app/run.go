@@ -205,7 +205,7 @@ func enrichAuthConfig(authConfig *auth.Config,
 		authConfig.Iguazio.VerificationURL = authConfigIguazioVerificationURL
 	}
 
-	if authConfigIguazioVerificationURL != "" {
+	if authConfigIguazioVerificationMethod != "" {
 		authConfig.Iguazio.VerificationMethod = authConfigIguazioVerificationMethod
 	}
 

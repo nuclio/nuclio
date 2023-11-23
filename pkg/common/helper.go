@@ -142,6 +142,7 @@ func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callba
 }
 
 // RetryUntilSuccessfulOnErrorPatterns calls callback every interval for duration as long as error pattern is matched
+// the callback argument retryCounter is the number of times the callback was called
 func RetryUntilSuccessfulOnErrorPatterns(
 	duration time.Duration,
 	interval time.Duration,

@@ -246,7 +246,7 @@ func (a *Auth) performHTTPRequest(ctx context.Context,
 
 			if retryCounter > 0 {
 				a.logger.WarnWithCtx(ctx,
-					"Retrying HTTP request",
+					"Retrying authentication HTTP request",
 					"retryCounter", retryCounter,
 					"lastError", lastError)
 			}
