@@ -4,6 +4,7 @@
 - [Function processors](#function-processors)
 - [Event sources and mapping](#event-sources-and-mapping)
 - [Function build and deployment flow](#function-build-and-deployment-flow)
+- [Function versioning](#function-versioning)
 
 ## Function processors
 
