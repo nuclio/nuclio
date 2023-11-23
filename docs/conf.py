@@ -7,9 +7,9 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'nuclio'
-copyright = '2023, nuclio'
+copyright = '2023, Iguazio'
 author = 'nuclio'
-release = '1.12.3'
+release = '1.12.7'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
