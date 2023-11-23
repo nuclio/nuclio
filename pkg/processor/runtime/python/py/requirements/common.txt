@@ -1,2 +1,3 @@
 mock==2.0.0
 nuclio-sdk==0.5.6
+pip==23.3.1
