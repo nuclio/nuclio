@@ -1,6 +1,6 @@
 # API Gateway via the UI
 
-#### In This Section
+## In This Section
 
 - [No Authentication](#none-auth)
 - [Basic Authentication](#basic-auth)
@@ -22,13 +22,13 @@ There, you can create an API Gateway with the following parameters:
 <a id="none-auth"></a>
 ### No Authentication
 
-![api-gateway](/docs/assets/images/api-gateway-ui-none.png)
+![api-gateway](../../../docs/assets/images/api-gateway-ui-none.png)
 
-To invoke the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none).
+To invoke the function using the api gateway, see [invoking API Gateways](./http.md#invoke-none).
 
 <a id="basic-auth"></a>
 ### With Basic Authentication
 
-![api-gateway-basic-auth](/docs/assets/images/api-gateway-ui-basic-auth.png)
+![api-gateway-basic-auth](../../../docs/assets/images/api-gateway-ui-basic-auth.png)
 
-To invoke the function using the api gateway, see [invoking API Gateways with basic authentication](/docs/references/api-gateway/http.md#invoke-basic).
+To invoke the function using the api gateway, see [invoking API Gateways with basic authentication](./http.md#invoke-basic).

@@ -1,4 +1,4 @@
-# API Gateway with nuctl
+# API Gateway with Nuctl
 
 #### In This Section
 
@@ -20,7 +20,7 @@ $ nuctl create apigateway <api-gateway-name> \
 			--namespace <namespace>
 ```
 
-For invoking the function using the api gateway, see [invoking API Gateways](/docs/references/api-gateway/http.md#invoke-none).
+For invoking the function using the api gateway, see [invoking API Gateways](./http.md#invoke-none).
 
 <a id="basic-auth"></a>
 ## Basic authentication
@@ -39,7 +39,7 @@ $ nuctl create apigateway <api-gateway-name> \
 			--namespace <namespace>
 ```
 
-To invoke the function using the API gateway, see [invoking API Gateways with basic authentication](/docs/references/api-gateway/http.md#invoke-basic).
+To invoke the function using the API gateway, see [invoking API Gateways with basic authentication](./http.md#invoke-basic).
 
 <a id="delete"></a>
 ## Delete an API Gateway
