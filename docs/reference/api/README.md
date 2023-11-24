@@ -1023,7 +1023,7 @@ Invoking an API gateway is done by calling endpoint that is given in the api get
 ## V3IO Streams
 
 A V3IO stream can be configured as a function trigger. 
-More information can be found in [v3ioStream: Iguazio Data Science Platform Stream Trigger](/docs/reference/triggers/v3iostream.md).
+More information can be found in [v3ioStream: Iguazio Data Science Platform Stream Trigger](../triggers/v3iostream.md).
 
 ### Listing all v3io streams in a project
 

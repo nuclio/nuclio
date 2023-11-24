@@ -1,6 +1,6 @@
 # Deploying Functions from a Dockerfile
 
-This tutorial guides you through the process of deploying functions whose build process is solely defined in a user-supplied Dockerfile. The tutorial assumes that you followed the [source-based deployment tutorial](/docs/tasks/deploying-functions.md), which provides an introduction to function signatures, configuration, and more.
+This tutorial guides you through the process of deploying functions whose build process is solely defined in a user-supplied Dockerfile. The tutorial assumes that you followed the [source-based deployment tutorial](../tasks/deploying-functions.md), which provides an introduction to function signatures, configuration, and more.
 
 #### In this document
 
@@ -30,7 +30,7 @@ Create an empty directory in your preferred location. Then, download a simple Go
 curl -LO https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go
 ```
 
-Now, create a Dockerfile by following the guidelines in the [Go reference](/docs/reference/runtimes/golang/golang-reference.md#dockerfile).
+Now, create a Dockerfile by following the guidelines in the [Go reference](../reference/runtimes/golang/golang-reference.md#dockerfile).
 
 > **Note:** Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python`, which will create a Dockerfile, a **function.yaml** file, and an empty Python handler.
 
@@ -75,11 +75,11 @@ It is up to you to customize this Dockerfile, if you so choose (for example, by 
 docker build -t helloworld-from-df .
 ```
 
-> **Note:** Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](/docs/reference/runtimes) to understand the specific nuances.
+> **Note:** Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](../reference/runtimes) to understand the specific nuances.
 
 ## Deploying a function built with Docker
 
-Now that you have a function image, you can use Nuclio's ability to [deploy pre-built functions](/docs/tasks/deploying-pre-built-functions.md). This is no different than if you had used `nuctl build` to build the function image:
+Now that you have a function image, you can use Nuclio's ability to [deploy pre-built functions](../tasks/deploying-pre-built-functions.md). This is no different than if you had used `nuctl build` to build the function image:
 
 ```sh
 nuctl deploy helloworld --run-image helloworld-from-df:latest \

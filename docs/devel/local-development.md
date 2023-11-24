@@ -20,7 +20,7 @@ Ensure that your setup includes the following prerequisite components:
 - Docker version 19.03+
 - The Go toolchain (CI tests with 1.21, best use that)
 - Kubernetes version 1.24+ (mostly for testing) - `minikube` recommended; (you can follow
-  the [Minikube getting-started guide](/docs/setup/minikube/getting-started-minikube.md))
+  the [Minikube getting-started guide](../setup/minikube/getting-started-minikube.md))
 - Node version 10.x
 - Goland IDE
 

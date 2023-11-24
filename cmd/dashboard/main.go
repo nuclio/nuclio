@@ -67,6 +67,7 @@ func main() {
 	// auth options
 	authConfigKind := flag.String("auth-config-kind", common.GetEnvOrDefaultString("NUCLIO_AUTH_KIND", "nop"), "Authentication kind, either nop or iguazio")
 	authConfigIguazioVerificationURL := flag.String("auth-config-iguazio-verification-url", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_VERIFICATION_URL", ""), "Iguazio authentication verification url")
+	authConfigIguazioVerificationMethod := flag.String("auth-config-iguazio-verification-method", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_VERIFICATION_METHOD", "POST"), "Iguazio authentication verification method")
 	authConfigIguazioVerificationDataEnrichmentURL := flag.String("auth-config-iguazio-verification-data-enrichment-url", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_VERIFICATION_DATA_ENRICHMENT_URL", ""), "Iguazio authentication verification and data enrichment url")
 	authConfigIguazioTimeout := flag.String("auth-config-iguazio-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_TIMEOUT", ""), "Iguazio authentication request timeout (golang duration string)")
 	authConfigIguazioCacheSize := flag.String("auth-config-iguazio-cache-size", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_CACHE_SIZE", ""), "Iguazio authentication cache size")
@@ -107,7 +108,9 @@ func main() {
 		*authConfigIguazioVerificationURL,
 		*authConfigIguazioVerificationDataEnrichmentURL,
 		*authConfigIguazioCacheSize,
-		*authConfigIguazioCacheTimeout); err != nil {
+		*authConfigIguazioCacheTimeout,
+		*authConfigIguazioVerificationMethod,
+	); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

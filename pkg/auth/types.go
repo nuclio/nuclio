@@ -50,6 +50,7 @@ func ContextKeyByKind(kind Kind) SessionContextKey {
 type IguazioConfig struct {
 	Timeout                       time.Duration
 	VerificationURL               string
+	VerificationMethod            string
 	VerificationDataEnrichmentURL string
 	CacheSize                     int
 	CacheExpirationTimeout        time.Duration

@@ -5,13 +5,13 @@ This guide will guide you through the process of deploying and running your loca
 ## Working assumptions
 
 This guide assumes that:
-- You set up your Minikube VM as described in the [Minikube getting started guide](/docs/setup/minikube/getting-started-minikube.md)
+- You set up your Minikube VM as described in the [Minikube getting started guide](../../setup/minikube/getting-started-minikube.md)
 - You have previously deployed a _released_ Nuclio version on top of it and interacted with it
 - You have a working Nuclio development environment, and you're on a branch containing changes you made which pertain to the Kubernetes platform
 
 ## Get your local images onto Minikube
 
-When you install Nuclio's services onto Minikube (using the [Helm chart](../../../hack/k8s/helm/nuclio)), Kubernetes examines the given resource specification to determine which images to use for Nuclio's controller and dashboard services. To get it to take your images, we must first push them onto the local Docker registry running inside the Minikube VM. To do this:
+When you install Nuclio's services onto Minikube (using the [Helm chart](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio)), Kubernetes examines the given resource specification to determine which images to use for Nuclio's controller and dashboard services. To get it to take your images, we must first push them onto the local Docker registry running inside the Minikube VM. To do this:
 - Make sure you've built container images with your changes (`make build`)
 - Push them by running the script located at `hack/scripts/minikube/push_images.py`. Keep in mind the script assumes the local Docker registry to be listening on port 5000 of the Minikube VM. It does the following:
    - Iterates over the existing Nuclio container images on the host machine
@@ -27,7 +27,7 @@ This will make the latest versions of our locally-built images available from th
 
 ## Deploy a custom version of the Nuclio services
 
-The usual [Nuclio Helm chart](../../../hack/k8s/helm/nuclio) always points to controller and dashboard images fixed to some version,
+The usual [Nuclio Helm chart](https://github.com/nuclio/nuclio/tree/development/hack/k8s/helm/nuclio) always points to controller and dashboard images fixed to some version,
 but in our case, we must use a modified version.
 From the project root run the following:
 ```sh
