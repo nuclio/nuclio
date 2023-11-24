@@ -339,6 +339,26 @@ spec:
 	suite.Require().Equal([]string{"--insecure-pull", "--label key=value"}, build.Flags, "Bad build flags value")
 }
 
+func (suite *ReaderTestSuite) TestEnvFrom() {
+	configData := `
+metadata:
+  name: python handler
+spec:
+  runtime: python
+  handler: reverser:handler
+  envFrom:
+    - secretRef:
+        name: test-secret
+`
+	config := Config{}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &config)
+	suite.Require().NoError(err, "Can't reader configuration")
+	envFrom := config.Spec.EnvFrom[0]
+	suite.Require().Equal("test-secret", envFrom.SecretRef.Name)
+}
+
 func TestRegistryTestSuite(t *testing.T) {
 	suite.Run(t, new(ReaderTestSuite))
 }
