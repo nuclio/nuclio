@@ -23,7 +23,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"os"
 	"path"
 	"strings"
@@ -36,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"

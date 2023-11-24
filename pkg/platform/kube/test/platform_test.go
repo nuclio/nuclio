@@ -355,6 +355,57 @@ def handler(context, event):
 	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
 }
 
+func (suite *DeployFunctionTestSuite) TestDeployWithEnvFrom() {
+	functionName := "test-env-from"
+	_, _ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
+		suite.Ctx, &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: suite.Namespace, Name: "test-platform"},
+			StringData: map[string]string{
+				"SECRET_1": "platform",
+				"SECRET_2": "platform"},
+		},
+		metav1.CreateOptions{})
+
+	_, _ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
+		suite.Ctx, &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Namespace: suite.Namespace, Name: "test-function"},
+			StringData: map[string]string{
+				"SECRET_2": "function"},
+		},
+		metav1.CreateOptions{})
+
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.EnvFrom = []v1.EnvFromSource{{
+		SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-platform"}},
+	}, {
+		SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-function"}},
+	}}
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+import os
+def handler(context, event):
+  return "hello world"
+def init_context(context):
+  secret = os.getenv("SECRET_1")
+  context.logger.info(f"secret1:{secret}")
+  secret = os.getenv("SECRET_2")
+  context.logger.info(f"secret2:{secret}")
+
+`))
+	suite.DeployFunction(createFunctionOptions,
+
+		// sanity
+		func(deployResult *platform.CreateFunctionResult) bool {
+			suite.Require().NotNil(deployResult)
+			pods := suite.GetFunctionPods(functionName)
+			firstPod := pods[0]
+			err := suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "secret1:platform", &v1.PodLogOptions{}, 20*time.Second)
+			suite.Require().NoError(err)
+			err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "secret2:function", &v1.PodLogOptions{}, 20*time.Second)
+			suite.Require().NoError(err)
+			return true
+		})
+}
+
 func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 	runAsUserID := int64(1000)
 	runAsGroupID := int64(2000)
