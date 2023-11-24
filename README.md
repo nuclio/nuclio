@@ -1,22 +1,15 @@
-![Periodic](https://github.com/nuclio/nuclio/workflows/Periodic/badge.svg)
+[![Periodic](https://github.com/nuclio/nuclio/actions/workflows/periodic.yaml/badge.svg?branch=development)](https://github.com/nuclio/nuclio/actions/workflows/periodic.yaml)
+[![Documentation Status](https://readthedocs.org/projects/nuclio/badge/?version=latest)](https://nuclio.readthedocs.io/en/latest/?badge=latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
-[![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
+[![Slack](https://img.shields.io/badge/slack-chat-blueviolet.svg?label=Slack&logo=slack)](https://nuclio-io.slack.com)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/nuclio)](https://artifacthub.io/packages/search?repo=nuclio)
 [![Iguazio Careers](https://img.shields.io/badge/careers-We're%20Hiring!-informational?style=square-flat-square)](https://www.iguazio.com/careers)
 
 <p align="center"><img src="/docs/assets/images/logo.png" width="180" alt="nuclio"/></p>
 
-# Nuclio - "Serverless" for Real-Time Events and Data Processing
+# Nuclio - "Serverless" framework for Real-Time Events and Data Processing
 
-<p align="center">
-Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news and a friendly web presentation of the Nuclio <a href="https://nuclio.io/docs/latest/">documentation</a>.
-</p>
-
-Translations: 
-
-- [简体中文](./README_zh.md)
-
-#### In this document
+## In this document
 
 - [Overview](#overview)
 - [Why another "serverless" project?](#why-another-serverless-project)
@@ -24,6 +17,10 @@ Translations:
 - [How it works](#how-it-works)
 - [Function examples](#function-examples)
 - [Further reading](#further-reading)
+
+Translations: 
+
+- [简体中文](./README_zh.md)
 
 ## Overview
 
@@ -139,7 +136,7 @@ def handler(context, event):
                             status_code=201)
 ```
 
-More examples can be found in the **[hack/examples](hack/examples/README.md)** Nuclio GitHub directory.
+More examples can be found in the **[Examples page](docs/examples/README.md)**.
 
 ## Further reading
 
@@ -165,8 +162,8 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** N
   - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
   - [Triggers](/docs/reference/triggers)
   - [Runtime - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
-  - [Runtime - Shell](/docs/reference/runtimes/shell/writing-a-shell-function.md)
-- [Examples](hack/examples/README.md)
+  - [Runtime - Shell](/docs/reference/runtimes/shell/shell-reference.md)
+- [Examples](docs/examples/README.md)
 - Sandbox
   - [Install Nuclio and run functions. Explore and experiment on a free Kubernetes cluster.](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 - Contributing

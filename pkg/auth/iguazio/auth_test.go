@@ -36,12 +36,20 @@ import (
 type AuthTestSuite struct {
 	suite.Suite
 	logger logger.Logger
+
+	httpRetryCounter int
 }
 
 func (suite *AuthTestSuite) SetupSuite() {
 	var err error
 	suite.logger, err = nucliozap.NewNuclioZapTest("iguazio-auth")
 	suite.Require().NoError(err)
+}
+
+func (suite *AuthTestSuite) TearDownTest() {
+	if suite.httpRetryCounter > 0 {
+		suite.FailNow("http client missed retrying an HTTP request")
+	}
 }
 
 func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
@@ -140,6 +148,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 		incomingRequest     *http.Request
 		invalidRequest      bool
 		includeResponseBody bool
+		retryCounter        int
 	}{
 		{
 			name: "sanity",
@@ -156,6 +165,24 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 				},
 			},
 			includeResponseBody: true,
+		},
+		{
+			name: "sanityRetry",
+			auth: NewAuth(suite.logger, func() *auth.Config {
+				authConfig := auth.NewConfig(auth.KindIguazio)
+				authConfig.Iguazio.VerificationURL = "http://somewhere.local"
+				authConfig.Iguazio.VerificationMethod = http.MethodGet
+				return authConfig
+			}()),
+			authOptions: auth.Options{},
+			incomingRequest: &http.Request{
+				Header: map[string][]string{
+					"Authorization": {"Basic YWJjOmVmZwo="},
+					"Cookie":        {"session=some-session"},
+				},
+			},
+			includeResponseBody: true,
+			retryCounter:        1,
 		},
 		{
 			name: "backwardsCompatibilitySanity",
@@ -225,6 +252,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			suite.httpRetryCounter = testCase.retryCounter
 			testCase.auth.(*Auth).httpClient = testutils.CreateDummyHTTPClient(suite.resolveMockHttpClientHandler(testCase.includeResponseBody))
 			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest, &testCase.authOptions)
 			if testCase.invalidRequest {
@@ -240,8 +268,8 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 	}
 }
 
-func (suite *AuthTestSuite) resolveMockHttpClientHandler(includeResponseBody bool) func(r *http.Request) *http.Response {
-
+func (suite *AuthTestSuite) resolveMockHttpClientHandler(
+	includeResponseBody bool) func(r *http.Request) *http.Response {
 	response := &http.Response{
 		StatusCode: http.StatusOK,
 		Header: map[string][]string{
@@ -282,7 +310,11 @@ func (suite *AuthTestSuite) resolveMockHttpClientHandler(includeResponseBody boo
 	return func(r *http.Request) *http.Response {
 		authorization := r.Header.Get("Authorization")
 		cookie := r.Header.Get("Cookie")
-		if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
+		if suite.httpRetryCounter > 0 {
+			suite.httpRetryCounter -= 1
+			r.Close = true
+			return nil
+		} else if authorization != "Basic YWJjOmVmZwo=" || cookie != "session=some-session" {
 			return &http.Response{
 				StatusCode: http.StatusUnauthorized,
 			}

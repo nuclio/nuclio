@@ -1,4 +1,4 @@
-# The Nuclio CLI (nuctl)
+# Nuclio CLI
 
 #### In this document
 
@@ -50,7 +50,7 @@ You can also use the `--platform` CLI flag to ensure that you're running against
 
 To force `nuctl` to run locally, using a Docker daemon, add `--platform local` to the CLI command.
 
-For an example of function deployment using `nuctl` against Docker, see the Nuclio [Docker getting-started guide](/docs/setup/docker/getting-started-docker.md).
+For an example of function deployment using `nuctl` against Docker, see the Nuclio [Docker getting-started guide](../../setup/docker/getting-started-docker.md).
 
 <a id="kubernetes"></a>
 ### Kubernetes
@@ -59,7 +59,7 @@ To force `nuctl` to run against a Kubernetes instance of Nuclio, add `--platform
 
 When running on Kubernetes, `nuctl` requires a running registry on your Kubernetes cluster and access to a kubeconfig file.
 
-For an example of function deployment using `nuctl` against a Kubernetes cluster, see the Nuclio [Kubernetes getting-started guide](/docs/setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli).
+For an example of function deployment using `nuctl` against a Kubernetes cluster, see the Nuclio [Kubernetes getting-started guide](../../setup/k8s/getting-started-k8s.md#deploy-a-function-with-the-nuclio-cli).
 
 #### Invoking a function using nuctl on Kubernetes
 
@@ -68,7 +68,7 @@ While in most cases using `nuctl` on the [Local Docker](#docker) platform enable
 by default for some configurations. This means, for example, that `nuctl invoke` command will not be able to work
 unless your function is explicitly exposed or reachable from wherever you run `nuctl invoke`.
 
-See [exposing a function](/docs/tasks/deploying-functions.md#exposing-a-function) for more details.
+See [exposing a function](../../tasks/deploying-functions.md#exposing-a-function) for more details.
 
 For your convenience, when deploying a function using `nuctl`, exposing it via a `NodePort` can be easily done by using the
 CLI arg `--http-trigger-service-type=nodePort`.

@@ -73,7 +73,8 @@ func Run(listenAddress string,
 	authConfigIguazioVerificationURL string,
 	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
-	authConfigIguazioCacheExpirationTimeout string) error {
+	authConfigIguazioCacheExpirationTimeout string,
+	authConfigIguazioVerificationMethod string) error {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -112,7 +113,8 @@ func Run(listenAddress string,
 			authConfigIguazioVerificationDataEnrichmentURL,
 			authConfigIguazioCacheSize,
 			authConfigIguazioCacheExpirationTimeout,
-			authConfigIguazioTimeout); err != nil {
+			authConfigIguazioTimeout,
+			authConfigIguazioVerificationMethod); err != nil {
 			return errors.Wrap(err, "Failed to enrich auth config")
 		}
 	}
@@ -195,11 +197,16 @@ func enrichAuthConfig(authConfig *auth.Config,
 	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
 	authConfigIguazioCacheExpirationTimeout string,
-	authConfigIguazioTimeout string) error {
+	authConfigIguazioTimeout string,
+	authConfigIguazioVerificationMethod string) error {
 	var err error
 
 	if authConfigIguazioVerificationURL != "" {
 		authConfig.Iguazio.VerificationURL = authConfigIguazioVerificationURL
+	}
+
+	if authConfigIguazioVerificationMethod != "" {
+		authConfig.Iguazio.VerificationMethod = authConfigIguazioVerificationMethod
 	}
 
 	if authConfigIguazioVerificationDataEnrichmentURL != "" {

@@ -27,7 +27,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 
 - The [Google Container Registry (GCR)](https://cloud.google.com/container-registry/) API is [enabled](https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com) on your project.
 
-- The [Nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
+- The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli).
     To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
 
 ## Set up a Kubernetes cluster and a local environment
@@ -65,8 +65,8 @@ kubectl get pods --all-namespaces
 
 > **Note:** You can use any private Docker registry:
 >
-> - To use the Azure Container Registry (ACR), see [Getting Started with Nuclio on Azure Container Service (AKS)](/docs/setup/aks/getting-started-aks.md).
-> - To use the Docker Hub, see [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md).
+> - To use the Azure Container Registry (ACR), see [Getting Started with Nuclio on Azure Container Service (AKS)](../../setup/aks/getting-started-aks.md).
+> - To use the Docker Hub, see [Getting Started with Nuclio on Kubernetes](../../setup/k8s/getting-started-k8s.md).
 > - For other registries, create a Docker-registry secret named `registry-credentials` for storing your registry credentials. If the registry URL differs from the URL in the credentials, create a ConfigMap file named **nuclio-registry** that contains the URL, as demonstrated in the [Nuclio installation](#install-nuclio) instructions later in this guide.
 
 **Create a service-to-service key that allows GKE to access the GCR:** this guide uses the key `gcr.io`. You can replace this with any of the supported sub domains, such as `us.gcr.io` if you want to force the US region:
@@ -81,7 +81,7 @@ At this stage you should have a functioning Kubernetes cluster, credentials to a
 
 **Create a Kubernetes Docker-registry secret** from service-key file that you created as part of the [Kubernetes cluster setup](#set-up-a-kubernetes-cluster-and-a-local-environment)
 
-And then follow the instructions of [How to run nuclio in Production](/docs/setup/k8s/running-in-production-k8s.md#the-preferred-deployment-method)
+And then follow the instructions of [How to run nuclio in Production](../../setup/k8s/running-in-production-k8s.md#the-preferred-deployment-method)
 
 > NOTE: use the below  docker registry secret creation command:
 
@@ -102,8 +102,8 @@ Use the command `kubectl --namespace nuclio get pods` to verify both the control
 
 See the following resources to make the best of your new Nuclio environment:
 
-- [Deploying Functions](/docs/tasks/deploying-functions.md)
-- [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
-- [More function examples](/hack/examples/README.md)
-- [References](/docs/reference)
-- [Best Practices and Common Pitfalls](/docs/concepts/best-practices-and-common-pitfalls.md)
+- [Deploying Functions](../../tasks/deploying-functions.md)
+- [Invoking Functions by Name with a Kubernetes Ingress](../../concepts/k8s/function-ingress.md)
+- [More function examples](../../examples/README.md)
+- [References](../../reference)
+- [Best Practices and Common Pitfalls](../../concepts/best-practices-and-common-pitfalls.md)
