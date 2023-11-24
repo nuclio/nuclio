@@ -1575,6 +1575,11 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[
 		annotations[annotationKey] = annotationValue
 	}
 
+	// if a sidecar is defined, configure the processor container as default
+	if len(function.Spec.Sidecars) > 0 {
+		annotations["kubectl.kubernetes.io/default-container"] = client.FunctionContainerName
+	}
+
 	return annotations, nil
 }
 
