@@ -23,7 +23,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"io"
 	"os"
 	"path"
@@ -38,6 +37,7 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
 	"github.com/gobuffalo/flect"
