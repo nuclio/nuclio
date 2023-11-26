@@ -23,6 +23,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"io"
 	"os"
 	"path"
@@ -356,6 +357,17 @@ def handler(context, event):
 }
 
 func (suite *DeployFunctionTestSuite) TestDeployWithEnvFrom() {
+	// deleting created secrets
+	defer func() {
+		_ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(
+			suite.Ctx,
+			"test-platform",
+			metav1.DeleteOptions{})
+		_ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(
+			suite.Ctx,
+			"test-function",
+			metav1.DeleteOptions{})
+	}()
 	functionName := "test-env-from"
 	_, _ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
 		suite.Ctx, &v1.Secret{
@@ -365,7 +377,6 @@ func (suite *DeployFunctionTestSuite) TestDeployWithEnvFrom() {
 				"SECRET_2": "platform"},
 		},
 		metav1.CreateOptions{})
-
 	_, _ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
 		suite.Ctx, &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: suite.Namespace, Name: "test-function"},
@@ -374,10 +385,17 @@ func (suite *DeployFunctionTestSuite) TestDeployWithEnvFrom() {
 		},
 		metav1.CreateOptions{})
 
+	suite.Platform.GetConfig().Runtime = &runtimeconfig.Config{
+		Common: &runtimeconfig.Common{
+			EnvFrom: []v1.EnvFromSource{{
+				SecretRef: &v1.SecretEnvSource{
+					LocalObjectReference: v1.LocalObjectReference{Name: "test-platform"}},
+			},
+			},
+		},
+	}
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.EnvFrom = []v1.EnvFromSource{{
-		SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-platform"}},
-	}, {
 		SecretRef: &v1.SecretEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test-function"}},
 	}}
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`

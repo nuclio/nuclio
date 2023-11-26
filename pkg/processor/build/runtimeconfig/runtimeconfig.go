@@ -29,9 +29,9 @@ type Config struct {
 }
 
 type Common struct {
-	Env       map[string]string `json:"env,omitempty"`
-	BuildArgs map[string]string `json:"buildArgs,omitempty"`
-	EnvFrom   v1.EnvFromSource  `json:"envFrom,omitempty"`
+	Env       map[string]string  `json:"env,omitempty"`
+	BuildArgs map[string]string  `json:"buildArgs,omitempty"`
+	EnvFrom   []v1.EnvFromSource `json:"envFrom,omitempty"`
 }
 
 type Python struct {

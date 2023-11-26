@@ -330,6 +330,7 @@ type Spec struct {
 	Handler                 string                  `json:"handler,omitempty"`
 	Runtime                 string                  `json:"runtime,omitempty"`
 	Env                     []v1.EnvVar             `json:"env,omitempty"`
+	EnvFrom                 []v1.EnvFromSource      `json:"envFrom,omitempty"`
 	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
 	Image                   string                  `json:"image,omitempty"`
 	ImageHash               string                  `json:"imageHash,omitempty"`
@@ -411,8 +412,6 @@ type Spec struct {
 	// Sidecars are containers that run alongside the function container in the same pod
 	// the configuration for each sidecar is the same as k8s containers
 	Sidecars map[string]*v1.Container `json:"sidecars,omitempty"`
-
-	EnvFrom []v1.EnvFromSource `json:"envFrom,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string
