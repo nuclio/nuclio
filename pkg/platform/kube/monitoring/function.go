@@ -75,7 +75,8 @@ func NewFunctionMonitor(ctx context.Context,
 
 	newFunctionMonitor.logger.DebugWithCtx(ctx, "Created function monitor",
 		"namespace", namespace,
-		"interval", interval)
+		"interval", interval.String(),
+		"scalingGracePeriod", scalingGracePeriod.String())
 
 	return newFunctionMonitor, nil
 }
@@ -175,6 +176,9 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 	// if it is, we should not change its state just yet, but give it some time to finish scaling before we change its state
 	if !functionIsAvailable {
 		if isScaling, err := fm.isScaling(ctx, function, functionDeployment); err == nil && isScaling {
+			fm.logger.DebugWithCtx(ctx,
+				"Function is unavailable but still scaling, skipping",
+				"functionName", function.Name)
 			return nil
 		} else if err != nil {
 			fm.logger.WarnWithCtx(ctx,
@@ -280,7 +284,7 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 		return false, nil
 	}
 
-	// get the function HPA
+	// get the function's HPA
 	hpa, err := fm.kubeClientSet.AutoscalingV2().
 		HorizontalPodAutoscalers(function.Namespace).
 		Get(context.Background(), kube.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
@@ -288,13 +292,24 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 		return false, errors.Wrap(err, "Failed to get function HPA")
 	}
 
-	// could be the case if function is currently scaled to zero or HPA is not yet created
+	// this could happen if function is currently scaled to zero or HPA is not yet created
 	if hpa == nil {
 		return false, nil
 	}
 
 	// check if HPA is in progress of scaling
 	if hpa.Status.CurrentReplicas != hpa.Status.DesiredReplicas {
+
+		// if there is an error in the HPA, it is possible that the desired replicas are not achieved,
+		// but the HPA is not scaling anymore
+		if hpa.Status.LastScaleTime == nil {
+			fm.logger.WarnWithCtx(ctx,
+				"Function's desired replicas were not achieved but HPA has no last scale time",
+				"functionName", function.Name,
+				"currentReplicas", hpa.Status.CurrentReplicas,
+				"desiredReplicas", hpa.Status.DesiredReplicas)
+			return false, nil
+		}
 
 		// get the previous last scale time of this function, if exists
 		if previousLastScaleTime, ok := fm.lastScaleTimeMap.Load(function.Name); ok {
@@ -306,7 +321,7 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 			// check if the LastScaleTime has changed since the previous monitoring interval
 			if !hpa.Status.LastScaleTime.Equal(previousLastScaleTimeInstance) {
 
-				// set the last scale time of this function
+				// save the last scale time of this function
 				fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
 
 				// function is still scaling but grace period has not passed yet
@@ -317,7 +332,7 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 		// either the previous last scale time doesn't exist or it has not changed since the previous monitoring interval
 		// check if the scaling grace period has passed since the last scale time
 		if hpa.Status.LastScaleTime.Add(fm.scalingGracePeriod).Before(time.Now()) {
-			fm.logger.DebugWithCtx(context.Background(),
+			fm.logger.WarnWithCtx(context.Background(),
 				"Function is still scaling passed the scaling grace period",
 				"functionName", function.Name,
 				"scalingGracePeriod", fm.scalingGracePeriod)
@@ -326,7 +341,7 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 			return false, nil
 		}
 
-		// set the last scale time of this function
+		// save the last scale time of this function
 		fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
 
 		return true, nil
