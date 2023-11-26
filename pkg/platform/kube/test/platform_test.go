@@ -369,7 +369,7 @@ func (suite *DeployFunctionTestSuite) TestDeployWithEnvFrom() {
 			metav1.DeleteOptions{})
 	}()
 	functionName := "test-env-from"
-	_, _ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
+	_, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
 		suite.Ctx, &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: suite.Namespace, Name: "test-platform"},
 			StringData: map[string]string{
@@ -377,14 +377,15 @@ func (suite *DeployFunctionTestSuite) TestDeployWithEnvFrom() {
 				"SECRET_2": "platform"},
 		},
 		metav1.CreateOptions{})
-	_, _ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
+	suite.Require().NoError(err, "Failed to create secret")
+	_, err = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
 		suite.Ctx, &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{Namespace: suite.Namespace, Name: "test-function"},
 			StringData: map[string]string{
 				"SECRET_2": "function"},
 		},
 		metav1.CreateOptions{})
-
+	suite.Require().NoError(err, "Failed to create secret")
 	suite.Platform.GetConfig().Runtime = &runtimeconfig.Config{
 		Common: &runtimeconfig.Common{
 			EnvFrom: []v1.EnvFromSource{{
@@ -410,8 +411,6 @@ def init_context(context):
 
 `))
 	suite.DeployFunction(createFunctionOptions,
-
-		// sanity
 		func(deployResult *platform.CreateFunctionResult) bool {
 			suite.Require().NotNil(deployResult)
 			pods := suite.GetFunctionPods(functionName)
