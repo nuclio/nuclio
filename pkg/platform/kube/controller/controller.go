@@ -69,6 +69,7 @@ func NewController(parentLogger logger.Logger,
 	apigatewayresClient apigatewayres.Client,
 	resyncInterval time.Duration,
 	functionMonitoringInterval time.Duration,
+	scalingGracePeriod time.Duration,
 	cronJobStaleResourcesCleanupInterval time.Duration,
 	evictedPodsCleanupInterval time.Duration,
 	platformConfiguration *platformconfig.Config,
@@ -156,7 +157,8 @@ func NewController(parentLogger logger.Logger,
 		namespace,
 		kubeClientSet,
 		nuclioClientSet,
-		functionMonitoringInterval)
+		functionMonitoringInterval,
+		scalingGracePeriod)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function monitor")
 	}
