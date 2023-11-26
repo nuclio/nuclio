@@ -1,14 +1,10 @@
 package task
 
-import (
-	"time"
-)
-
 type Task struct {
-	Name     string
-	Deadline time.Time
+	Name  string
+	Score float64
 }
 
-func NewTask(name string, deadline time.Time) *Task {
-	return &Task{name, deadline}
+func NewTask(name string, score float64) *Task {
+	return &Task{name, score}
 }
