@@ -45,7 +45,8 @@ func Run(kubeconfigPath string,
 	platformConfigurationName string,
 	functionOperatorNumWorkersStr string,
 	resyncIntervalStr string,
-	functionMonitorIntervalStr,
+	functionMonitorIntervalStr string,
+	scalingGracePeriodStr string,
 	cronJobStaleResourcesCleanupIntervalStr string,
 	evictedPodsCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
@@ -60,6 +61,7 @@ func Run(kubeconfigPath string,
 		functionOperatorNumWorkersStr,
 		resyncIntervalStr,
 		functionMonitorIntervalStr,
+		scalingGracePeriodStr,
 		cronJobStaleResourcesCleanupIntervalStr,
 		evictedPodsCleanupIntervalStr,
 		functionEventOperatorNumWorkersStr,
@@ -86,6 +88,7 @@ func createController(kubeconfigPath string,
 	functionOperatorNumWorkersStr string,
 	resyncIntervalStr string,
 	functionMonitorIntervalStr string,
+	scalingGracePeriodStr string,
 	cronJobStaleResourcesCleanupIntervalStr string,
 	evictedPodsCleanupIntervalStr string,
 	functionEventOperatorNumWorkersStr string,
@@ -110,6 +113,11 @@ func createController(kubeconfigPath string,
 	functionMonitorInterval, err := time.ParseDuration(functionMonitorIntervalStr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse function monitor interval")
+	}
+
+	scalingGracePeriod, err := time.ParseDuration(scalingGracePeriodStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse function scaling grace period")
 	}
 
 	cronJobStaleResourcesCleanupInterval, err := time.ParseDuration(cronJobStaleResourcesCleanupIntervalStr)
@@ -194,6 +202,7 @@ func createController(kubeconfigPath string,
 		apigatewayresClient,
 		resyncInterval,
 		functionMonitorInterval,
+		scalingGracePeriod,
 		cronJobStaleResourcesCleanupInterval,
 		evictedPodsCleanupInterval,
 		platformConfiguration,

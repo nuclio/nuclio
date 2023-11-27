@@ -53,6 +53,7 @@ func main() {
 	}
 
 	functionMonitorIntervalStr := flag.String("function-monitor-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_MONITOR_INTERVAL", "3m"), "Set function monitor interval (optional)")
+	scalingGracePeriodStr := flag.String("scaling-grace-period", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_SCALING_GRACE_PERIOD", "3m"), "Set function scaling grace period (optional)")
 	cronJobStaleResourcesCleanupIntervalStr := flag.String("cron-job-stale-resources-cleanup-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_JOB_STALE_RESOURCES_CLEANUP_INTERVAL", "1m"), "Set interval for the cleanup of stale cron job resources (optional)")
 	evictedPodsCleanupIntervalStr := flag.String("evicted-pods-cleanup-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_EVICTED_PODS_CLEANUP_INTERVAL", "30m"), "Set interval for the cleanup of evicted function pods (optional)")
 	functionEventOperatorNumWorkersStr := flag.String("function-event-operator-num-workers", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_EVENT_OPERATOR_NUM_WORKERS", "2"), "Set number of workers for the function event operator (optional)")
@@ -72,6 +73,7 @@ func main() {
 		*functionOperatorNumWorkersStr,
 		*resyncIntervalStr,
 		*functionMonitorIntervalStr,
+		*scalingGracePeriodStr,
 		*cronJobStaleResourcesCleanupIntervalStr,
 		*evictedPodsCleanupIntervalStr,
 		*functionEventOperatorNumWorkersStr,

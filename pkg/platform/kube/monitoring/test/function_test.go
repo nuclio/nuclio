@@ -222,7 +222,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 	functionName := "function-recovery"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 
-	// for some reasons, some time minikube misses resource quota limitation of 0 pods while there's a single replica
+	// for some reason, sometimes minikube misses resource quota limitation of 0 pods while there's a single replica
 	two := 2
 	createFunctionOptions.FunctionConfig.Spec.Replicas = &two
 	getFunctionOptions := &platform.GetFunctionsOptions{
@@ -230,7 +230,7 @@ func (suite *FunctionMonitoringTestSuite) TestRecoverErrorStateFunctionWhenResou
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
-	functionMonitoringSleepTimeout := 2*suite.Controller.GetFunctionMonitoringInterval() +
+	functionMonitoringSleepTimeout := 3*suite.Controller.GetFunctionMonitoringInterval() +
 		monitoring.PostDeploymentMonitoringBlockingInterval
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 

@@ -43,13 +43,16 @@ var (
 )
 
 type FunctionMonitor struct {
-	logger                     logger.Logger
-	namespace                  string
-	kubeClientSet              kubernetes.Interface
-	nuclioClientSet            nuclioioclient.Interface
-	interval                   time.Duration
-	stopChan                   chan struct{}
-	lastProvisioningTimestamps sync.Map
+	logger                          logger.Logger
+	namespace                       string
+	kubeClientSet                   kubernetes.Interface
+	nuclioClientSet                 nuclioioclient.Interface
+	interval                        time.Duration
+	scalingGracePeriod              time.Duration
+	defaultFunctionReadinessTimeout time.Duration
+	stopChan                        chan struct{}
+	lastProvisioningTimestamps      sync.Map
+	lastScaleTimeMap                sync.Map
 }
 
 func NewFunctionMonitor(ctx context.Context,
@@ -57,20 +60,26 @@ func NewFunctionMonitor(ctx context.Context,
 	namespace string,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioioclient.Interface,
-	interval time.Duration) (*FunctionMonitor, error) {
+	interval,
+	scalingGracePeriod,
+	defaultFunctionReadinessTimeout time.Duration) (*FunctionMonitor, error) {
 
 	newFunctionMonitor := &FunctionMonitor{
-		logger:                     parentLogger.GetChild("function_monitor"),
-		namespace:                  namespace,
-		kubeClientSet:              kubeClientSet,
-		nuclioClientSet:            nuclioClientSet,
-		interval:                   interval,
-		lastProvisioningTimestamps: sync.Map{},
+		logger:                          parentLogger.GetChild("function_monitor"),
+		namespace:                       namespace,
+		kubeClientSet:                   kubeClientSet,
+		nuclioClientSet:                 nuclioClientSet,
+		interval:                        interval,
+		scalingGracePeriod:              scalingGracePeriod,
+		defaultFunctionReadinessTimeout: defaultFunctionReadinessTimeout,
+		lastProvisioningTimestamps:      sync.Map{},
+		lastScaleTimeMap:                sync.Map{},
 	}
 
 	newFunctionMonitor.logger.DebugWithCtx(ctx, "Created function monitor",
 		"namespace", namespace,
-		"interval", interval)
+		"interval", interval.String(),
+		"scalingGracePeriod", scalingGracePeriod.String())
 
 	return newFunctionMonitor, nil
 }
@@ -165,6 +174,25 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 
 	stateChanged := false
 	functionIsAvailable := fm.isAvailable(functionDeployment)
+
+	// if the function is not available, check if it is currently scaling up/down.
+	// if it is, we should not change its state just yet, but give it some time to finish scaling before we change its state
+	if !functionIsAvailable {
+		if isScaling, err := fm.isScaling(ctx, function); err == nil && isScaling {
+			fm.logger.DebugWithCtx(ctx,
+				"Function is unavailable but still scaling, skipping",
+				"functionName", function.Name)
+			return nil
+		} else if err != nil {
+			fm.logger.WarnWithCtx(ctx,
+				"Failed to check if function is scaling",
+				"functionName", function.Name,
+				"functionNamespace", function.Namespace,
+				"err", errors.Cause(err))
+			return nil
+		}
+	}
+
 	if functionIsAvailable && function.Status.State == functionconfig.FunctionStateUnhealthy {
 		function.Status.State = functionconfig.FunctionStateReady
 		function.Status.Message = ""
@@ -179,6 +207,9 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 	if !stateChanged {
 		return nil
 	}
+
+	// remove the last scale time of this function
+	fm.lastScaleTimeMap.Delete(function.Name)
 
 	// function state has changed, update CRD correspondingly
 	fm.logger.InfoWithCtx(ctx,
@@ -209,8 +240,8 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 		return false
 	}
 
-	// Since we considered function as ready when it reaches its minimum replicas available (see pkg/platform/kube/functionres/lazy.go:240
-	// WaitAvailable() for more information.), we might hit a situation where a "ready" function is still in progress,
+	// Since we considered function as ready when it reaches its minimum replicas available (see WaitAvailable() in
+	// pkg/platform/kube/functionres/lazy.go for more information), we might hit a situation where a "ready" function is still in progress,
 	// as it reaches its "minimum available replicas" condition from an earlier deployment, while still deploying a new replica,
 	// and hence we cannot resolve this condition as a failure but rather let it run until the recently
 	// deployed replica-set hits a failure (as suggested by the failures below).
@@ -247,6 +278,88 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 
 	// at this stage, all conditions are not a failure as they are either available or progressing
 	return true
+}
+
+func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.NuclioFunction) (bool, error) {
+
+	// check if scaling is at all possible
+	if function.Spec.MinReplicas == nil ||
+		function.Spec.MaxReplicas == nil ||
+		*function.Spec.MinReplicas == *function.Spec.MaxReplicas {
+		return false, nil
+	}
+
+	scalingTimeout := fm.scalingGracePeriod
+
+	// if function is scaling up from zero, we want to give it more time to scale
+	if function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
+		scalingTimeout = max(fm.scalingGracePeriod, fm.defaultFunctionReadinessTimeout)
+	}
+
+	// get the function's HPA
+	hpa, err := fm.kubeClientSet.AutoscalingV2().
+		HorizontalPodAutoscalers(function.Namespace).
+		Get(context.Background(), kube.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to get function HPA")
+	}
+
+	// this could happen if function is currently scaled to zero or HPA is not yet created
+	if hpa == nil {
+		return false, nil
+	}
+
+	// check if HPA is in progress of scaling
+	if hpa.Status.CurrentReplicas != hpa.Status.DesiredReplicas {
+
+		// if there is an error in the HPA, it is possible that the desired replicas are not achieved,
+		// but the HPA is not scaling anymore
+		if hpa.Status.LastScaleTime == nil {
+			fm.logger.WarnWithCtx(ctx,
+				"Function's desired replicas were not achieved but HPA has no last scale time",
+				"functionName", function.Name,
+				"currentReplicas", hpa.Status.CurrentReplicas,
+				"desiredReplicas", hpa.Status.DesiredReplicas)
+			return false, nil
+		}
+
+		// get the previous last scale time of this function, if exists
+		if previousLastScaleTime, ok := fm.lastScaleTimeMap.Load(function.Name); ok {
+			previousLastScaleTimeInstance, ok := previousLastScaleTime.(*metav1.Time)
+			if !ok {
+				return false, errors.New(fmt.Sprintf("Failed to cast previous last scale time of function %s to time.Time", function.Name))
+			}
+
+			// check if the LastScaleTime has changed since the previous monitoring interval
+			if !hpa.Status.LastScaleTime.Equal(previousLastScaleTimeInstance) {
+
+				// save the last scale time of this function
+				fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
+
+				// the HPA is still scaling, we should not change the function state just yet
+				return true, nil
+			}
+		}
+
+		// either the previous last scale time doesn't exist or it has not changed since the previous monitoring interval
+		// check if the scaling timeout has passed since the last scale time
+		if hpa.Status.LastScaleTime.Add(scalingTimeout).Before(time.Now()) {
+			fm.logger.WarnWithCtx(context.Background(),
+				"Function is still scaling passed the scaling timeout",
+				"functionName", function.Name,
+				"scalingTimeout", scalingTimeout)
+
+			// we return false so the function will be set as unhealthy
+			return false, nil
+		}
+
+		// save the last scale time of this function
+		fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
+
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // We monitor functions that meet the following conditions:
