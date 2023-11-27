@@ -357,7 +357,9 @@ def handler(context, event):
 }
 
 func (suite *DeployFunctionTestSuite) TestDeployWithEnvFrom() {
-	// deleting created secrets
+	// saving runtime value to set it back after the test
+	oldRuntime := suite.Platform.GetConfig().Runtime
+
 	defer func() {
 		_ = suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(
 			suite.Ctx,
@@ -367,7 +369,9 @@ func (suite *DeployFunctionTestSuite) TestDeployWithEnvFrom() {
 			suite.Ctx,
 			"test-function",
 			metav1.DeleteOptions{})
+		suite.Platform.GetConfig().Runtime = oldRuntime
 	}()
+
 	functionName := "test-env-from"
 	_, err := suite.KubeClientSet.CoreV1().Secrets(suite.Namespace).Create(
 		suite.Ctx, &v1.Secret{
