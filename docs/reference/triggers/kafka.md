@@ -25,7 +25,7 @@ In the real world, however, you may want to scale your message processing up and
 
 To this end, Nuclio leverages Kafka consumer groups. When one or more Nuclio replica joins a consumer group, Kafka informs Nuclio which part of the stream it should handle. It does so by using a process known as "rebalancing" to assign each Nuclio replica one or more Kafka partitions to read from and handle; Nuclio's role in the rebalancing process is discussed later in this document (see [Rebalancing](#rebalancing)).
 
-<p align="center"><img src="/docs/assets/images/kafka-high-level.png" alt="Nuclio and Kafka consumer groups illustration" width="400"/></p>
+<p align="center"><img src="../../assets/images/kafka-high-level.png" alt="Nuclio and Kafka consumer groups illustration" width="400"/></p>
 
 When a Nuclio replica is assigned its set of partitions, it can start using Nuclio workers to read from the partitions and handle them. It's currently guaranteed that a given partition is handled only by one replica and that the messages are processed sequentially; that is, a message will only be read and handled after the handling of the previous message in the partition is completed. During rebalancing, however, the responsibility for a partition may be migrated to another Nuclio replica while still preserving the guarantee of sequential processing (in-order-execution).
 
@@ -189,7 +189,7 @@ Nuclio leverages the [Sarama](https://pkg.go.dev/github.com/Shopify/sarama?tab=d
 
 Upon its creation, the Nuclio trigger configures Sarama to start reading messages from a given broker, topics, or consumer group. At this point, Sarama calculates which partitions the Nuclio replica must handle, communicates the results to the Nuclio trigger, and then starts dispatching messages.
 
-<p align="center"><img src="/docs/assets/images/kafka-message-flow.png" alt="Nuclio Kafka-trigger message flow" width="400"/></p>
+<p align="center"><img src="../../assets/images/kafka-message-flow.png" alt="Nuclio Kafka-trigger message flow" width="400"/></p>
 
 As the first step, Sarama reads a chunk of data from all partitions that are assigned to it, across all topics `(1)`. The amount of data to read per partition is determined in bytes and controlled by the function configuration. Ideally, each read returns data across all partitions, but this is highly dependant on the configuration and the size of messages in the partitions (see the following explanation).
 
