@@ -43,15 +43,16 @@ var (
 )
 
 type FunctionMonitor struct {
-	logger                     logger.Logger
-	namespace                  string
-	kubeClientSet              kubernetes.Interface
-	nuclioClientSet            nuclioioclient.Interface
-	interval                   time.Duration
-	scalingGracePeriod         time.Duration
-	stopChan                   chan struct{}
-	lastProvisioningTimestamps sync.Map
-	lastScaleTimeMap           sync.Map
+	logger                          logger.Logger
+	namespace                       string
+	kubeClientSet                   kubernetes.Interface
+	nuclioClientSet                 nuclioioclient.Interface
+	interval                        time.Duration
+	scalingGracePeriod              time.Duration
+	defaultFunctionReadinessTimeout time.Duration
+	stopChan                        chan struct{}
+	lastProvisioningTimestamps      sync.Map
+	lastScaleTimeMap                sync.Map
 }
 
 func NewFunctionMonitor(ctx context.Context,
@@ -60,17 +61,19 @@ func NewFunctionMonitor(ctx context.Context,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioioclient.Interface,
 	interval,
-	scalingGracePeriod time.Duration) (*FunctionMonitor, error) {
+	scalingGracePeriod,
+	defaultFunctionReadinessTimeout time.Duration) (*FunctionMonitor, error) {
 
 	newFunctionMonitor := &FunctionMonitor{
-		logger:                     parentLogger.GetChild("function_monitor"),
-		namespace:                  namespace,
-		kubeClientSet:              kubeClientSet,
-		nuclioClientSet:            nuclioClientSet,
-		interval:                   interval,
-		scalingGracePeriod:         scalingGracePeriod,
-		lastProvisioningTimestamps: sync.Map{},
-		lastScaleTimeMap:           sync.Map{},
+		logger:                          parentLogger.GetChild("function_monitor"),
+		namespace:                       namespace,
+		kubeClientSet:                   kubeClientSet,
+		nuclioClientSet:                 nuclioClientSet,
+		interval:                        interval,
+		scalingGracePeriod:              scalingGracePeriod,
+		defaultFunctionReadinessTimeout: defaultFunctionReadinessTimeout,
+		lastProvisioningTimestamps:      sync.Map{},
+		lastScaleTimeMap:                sync.Map{},
 	}
 
 	newFunctionMonitor.logger.DebugWithCtx(ctx, "Created function monitor",
@@ -175,7 +178,7 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 	// if the function is not available, check if it is currently scaling up/down.
 	// if it is, we should not change its state just yet, but give it some time to finish scaling before we change its state
 	if !functionIsAvailable {
-		if isScaling, err := fm.isScaling(ctx, function, functionDeployment); err == nil && isScaling {
+		if isScaling, err := fm.isScaling(ctx, function); err == nil && isScaling {
 			fm.logger.DebugWithCtx(ctx,
 				"Function is unavailable but still scaling, skipping",
 				"functionName", function.Name)
@@ -277,11 +280,20 @@ func (fm *FunctionMonitor) isAvailable(deployment *appsv1.Deployment) bool {
 	return true
 }
 
-func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.NuclioFunction, deployment *appsv1.Deployment) (bool, error) {
+func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.NuclioFunction) (bool, error) {
 
 	// check if scaling is at all possible
-	if *function.Spec.MinReplicas == *function.Spec.MaxReplicas {
+	if function.Spec.MinReplicas == nil ||
+		function.Spec.MaxReplicas == nil ||
+		*function.Spec.MinReplicas == *function.Spec.MaxReplicas {
 		return false, nil
+	}
+
+	scalingTimeout := fm.scalingGracePeriod
+
+	// if function is scaling up from zero, we want to give it more time to scale
+	if function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
+		scalingTimeout = max(fm.scalingGracePeriod, fm.defaultFunctionReadinessTimeout)
 	}
 
 	// get the function's HPA
@@ -324,18 +336,18 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 				// save the last scale time of this function
 				fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
 
-				// function is still scaling but grace period has not passed yet
+				// the HPA is still scaling, we should not change the function state just yet
 				return true, nil
 			}
 		}
 
 		// either the previous last scale time doesn't exist or it has not changed since the previous monitoring interval
-		// check if the scaling grace period has passed since the last scale time
-		if hpa.Status.LastScaleTime.Add(fm.scalingGracePeriod).Before(time.Now()) {
+		// check if the scaling timeout has passed since the last scale time
+		if hpa.Status.LastScaleTime.Add(scalingTimeout).Before(time.Now()) {
 			fm.logger.WarnWithCtx(context.Background(),
-				"Function is still scaling passed the scaling grace period",
+				"Function is still scaling passed the scaling timeout",
 				"functionName", function.Name,
-				"scalingGracePeriod", fm.scalingGracePeriod)
+				"scalingTimeout", scalingTimeout)
 
 			// we return false so the function will be set as unhealthy
 			return false, nil

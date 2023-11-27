@@ -69,7 +69,8 @@ func (suite *FunctionMonitoringTestSuite) SetupTest() {
 		suite.kubeClientSet,
 		suite.nuclioioClientSet,
 		time.Second,
-		suite.scalingGracePeriod)
+		suite.scalingGracePeriod,
+		2*time.Minute)
 	suite.Require().NoError(err)
 }
 

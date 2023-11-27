@@ -158,7 +158,8 @@ func NewController(parentLogger logger.Logger,
 		kubeClientSet,
 		nuclioClientSet,
 		functionMonitoringInterval,
-		scalingGracePeriod)
+		scalingGracePeriod,
+		platformConfiguration.GetDefaultFunctionReadinessTimeout())
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function monitor")
 	}
