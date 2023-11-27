@@ -2105,6 +2105,9 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		&container.Resources)
 
 	container.Env = lc.getFunctionEnvironment(functionLabels, function)
+	if function.Spec.EnvFrom != nil {
+		container.EnvFrom = function.Spec.EnvFrom
+	}
 	container.Ports = []v1.ContainerPort{
 		{
 			Name:          ContainerHTTPPortName,

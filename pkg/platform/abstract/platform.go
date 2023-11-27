@@ -1867,6 +1867,11 @@ func (ap *Platform) enrichEnvVars(config *functionconfig.Config) {
 					config.Spec.Env = append(config.Spec.Env, newEnvVar)
 				}
 			}
+			// If EnvFrom is set in the platform config, add the EnvFrom object at the beginning of the list of EnvFrom in the function config.
+			// We add it at the beginning so that the values in the function config take priority over those in the platform config.
+			if ap.Config.Runtime.Common.EnvFrom != nil && len(ap.Config.Runtime.Common.EnvFrom) > 0 {
+				config.Spec.EnvFrom = append(ap.Config.Runtime.Common.EnvFrom, config.Spec.EnvFrom...)
+			}
 		}
 	}
 }

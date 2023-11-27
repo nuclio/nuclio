@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	mockedplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
@@ -1086,6 +1087,74 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		suite.Require().NoError(err, "Validation failed unexpectedly")
 		suite.Equal(testCase.expectedEnrichedTriggers,
 			createFunctionOptions.FunctionConfig.Spec.Triggers)
+	}
+}
+func (suite *AbstractPlatformTestSuite) TestEnrichEnvVars() {
+	for _, testCase := range []struct {
+		name            string
+		PlatformEnvFrom []v1.EnvFromSource
+		FunctionEnvFrom []v1.EnvFromSource
+		ExpectedEnvFrom []v1.EnvFromSource
+	}{
+		{
+			name: "from-function-only",
+
+			PlatformEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+				},
+			},
+			ExpectedEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+				},
+			},
+		},
+		{
+			name: "from-platform-and-function",
+			PlatformEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+				},
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test1"}},
+				},
+			},
+			FunctionEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test2"}},
+				},
+			},
+			ExpectedEnvFrom: []v1.EnvFromSource{
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test"}},
+				},
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test1"}},
+				},
+				{
+					ConfigMapRef: &v1.ConfigMapEnvSource{LocalObjectReference: v1.LocalObjectReference{Name: "test2"}},
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionConfig := functionconfig.NewConfig()
+
+			functionConfig.Meta.Name = testCase.name
+			functionConfig.Meta.Labels = map[string]string{
+				"nuclio.io/project-name": platform.DefaultProjectName,
+			}
+			functionConfig.Spec.EnvFrom = testCase.FunctionEnvFrom
+			suite.Platform.Config.Runtime = &runtimeconfig.Config{
+				Common: &runtimeconfig.Common{
+					EnvFrom: testCase.PlatformEnvFrom,
+				},
+			}
+
+			suite.Platform.enrichEnvVars(functionConfig)
+			suite.Require().Equal(testCase.ExpectedEnvFrom, functionConfig.Spec.EnvFrom)
+		})
 	}
 }
 

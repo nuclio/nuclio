@@ -330,6 +330,7 @@ type Spec struct {
 	Handler                 string                  `json:"handler,omitempty"`
 	Runtime                 string                  `json:"runtime,omitempty"`
 	Env                     []v1.EnvVar             `json:"env,omitempty"`
+	EnvFrom                 []v1.EnvFromSource      `json:"envFrom,omitempty"`
 	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
 	Image                   string                  `json:"image,omitempty"`
 	ImageHash               string                  `json:"imageHash,omitempty"`

@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
 
 type Config struct {
@@ -28,8 +29,9 @@ type Config struct {
 }
 
 type Common struct {
-	Env       map[string]string `json:"env,omitempty"`
-	BuildArgs map[string]string `json:"buildArgs,omitempty"`
+	Env       map[string]string  `json:"env,omitempty"`
+	BuildArgs map[string]string  `json:"buildArgs,omitempty"`
+	EnvFrom   []v1.EnvFromSource `json:"envFrom,omitempty"`
 }
 
 type Python struct {
