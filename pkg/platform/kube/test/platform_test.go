@@ -1313,7 +1313,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
 	commands := []string{
 		"sh",
 		"-c",
-		"for i in {1..10}; do echo $i; sleep 1; done; echo 'Done'",
+		"for i in {1..10}; do echo $i; sleep 10; done; echo 'Done'",
 	}
 
 	// create a busybox sidecar
@@ -1341,7 +1341,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
 		podLogOpts := v1.PodLogOptions{
 			Container: sidecarContainerName,
 		}
-		err := common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
 			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Done"})
 		})
 		suite.Require().NoError(err)
