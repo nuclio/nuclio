@@ -306,7 +306,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 				Return([]platform.Project{
 					&platform.AbstractProject{},
 				}, nil).
-				Once()
+				Twice()
 
 			// name it with index and shift with 65 to get A as first letter
 			functionName := string(rune(idx + 65))
@@ -322,8 +322,10 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 				"nuclio.io/project-name": platform.DefaultProjectName,
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
+			err := suite.platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err)
 
-			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err = suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
