@@ -577,6 +577,13 @@ func NewConfig() *Config {
 		Meta: Meta{
 			Namespace: "default",
 		},
+		Spec: Spec{Triggers: map[string]Trigger{
+			"some-trigger": {
+				Kind:       "http",
+				MaxWorkers: 1,
+				Name:       "some-trigger",
+			},
+		}},
 	}
 }
 

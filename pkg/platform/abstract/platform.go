@@ -1572,8 +1572,7 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 
 	// validate that at least one trigger exists
 	if len(functionConfig.Spec.Triggers) == 0 {
-		return nuclio.NewErrBadRequest("Function must contain at least one trigger, " +
-			"but no triggers were found in the function configuration")
+		return nuclio.NewErrBadRequest("Function must have at least one trigger")
 	}
 
 	// validate ingresses structure correctness
