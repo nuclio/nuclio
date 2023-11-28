@@ -223,7 +223,8 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
 	var cookies []*http.Cookie
 
-	c.logger.DebugWithCtx(ctx, "Sending update project request to leader",
+	c.logger.DebugWithCtx(ctx,
+		"Sending update project request to leader",
 		"name", updateProjectOptions.ProjectConfig.Meta.Name,
 		"namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
 
@@ -381,7 +382,6 @@ func (c *Client) generateCommonRequestHeaders() map[string]string {
 func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	project := NewProjectFromProjectConfig(projectConfig)
 	c.enrichProjectWithNuclioFields(&project)
-
 	return json.Marshal(project)
 }
 

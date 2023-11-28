@@ -198,11 +198,11 @@ func (fsr *frontendSpecResource) resolveFunctionReadinessTimeoutSeconds() int {
 }
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionNodeSelector() map[string]string {
-	var defaultNodeSelector map[string]string
+	var defaultFunctionNodeSelector map[string]string
 	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
-		defaultNodeSelector = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector
+		defaultFunctionNodeSelector = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector
 	}
-	return defaultNodeSelector
+	return defaultFunctionNodeSelector
 }
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionTolerations() []v1.Toleration {

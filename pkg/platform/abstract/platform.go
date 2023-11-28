@@ -749,7 +749,7 @@ func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig)
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
-	if err := common.ValidateNodeSelector(projectConfig.Spec.DefaultNodeSelector); err != nil {
+	if err := common.ValidateNodeSelector(projectConfig.Spec.DefaultFunctionNodeSelector); err != nil {
 		return nuclio.WrapErrBadRequest(err)
 	}
 
