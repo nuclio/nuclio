@@ -1211,8 +1211,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			}).
 			Return([]platform.Project{&platform.AbstractProject{}}, nil).
 			Once()
+		err := suite.Platform.enrichTriggers(suite.ctx, &functionConfig)
+		suite.Require().NoError(err)
 
-		err := suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
