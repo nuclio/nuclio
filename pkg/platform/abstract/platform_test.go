@@ -133,8 +133,8 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 						Name: "a-name",
 					},
 					Spec: platform.ProjectSpec{
-						Description:         "just a description",
-						DefaultNodeSelector: map[string]string{"test": "node-selector"},
+						Description:                 "just a description",
+						DefaultFunctionNodeSelector: map[string]string{"test": "node-selector"},
 					},
 				},
 			},
@@ -161,8 +161,8 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 						Name: "a-name",
 					},
 					Spec: platform.ProjectSpec{
-						Description:         "just a description",
-						DefaultNodeSelector: map[string]string{"test": "node selector not allowed string"},
+						Description:                 "just a description",
+						DefaultFunctionNodeSelector: map[string]string{"test": "node selector not allowed string"},
 					},
 				},
 			},

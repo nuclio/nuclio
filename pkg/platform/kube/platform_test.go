@@ -393,7 +393,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 					},
 				}).
 				Return([]platform.Project{
-					&platform.AbstractProject{ProjectConfig: platform.ProjectConfig{Spec: platform.ProjectSpec{DefaultNodeSelector: testCase.projectNodeSelector}}},
+					&platform.AbstractProject{ProjectConfig: platform.ProjectConfig{Spec: platform.ProjectSpec{DefaultFunctionNodeSelector: testCase.projectNodeSelector}}},
 				}, nil).
 				Once()
 			functionConfig := *functionconfig.NewConfig()

@@ -200,7 +200,7 @@ func RenderProjects(ctx context.Context,
 			header = append(header, []interface{}{
 				"Description",
 				"Owner",
-				"DefaultNodeSelector",
+				"DefaultFunctionNodeSelector",
 			}...)
 		}
 

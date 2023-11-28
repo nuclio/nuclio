@@ -1740,7 +1740,7 @@ func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfi
 	functionProject, err := p.Platform.GetFunctionProject(ctx, functionConfig)
 
 	if functionConfig.Spec.NodeSelector == nil {
-		if functionProject.GetConfig().Spec.DefaultNodeSelector == nil &&
+		if functionProject.GetConfig().Spec.DefaultFunctionNodeSelector == nil &&
 			p.Config.Kube.DefaultFunctionNodeSelector == nil {
 			return nil
 		}
@@ -1753,7 +1753,7 @@ func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfi
 		"Enriching function node selector from project",
 		"functionName", functionConfig.Meta.Name,
 		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-	functionConfig.Spec.NodeSelector = labels.Merge(functionProject.GetConfig().Spec.DefaultNodeSelector, functionConfig.Spec.NodeSelector)
+	functionConfig.Spec.NodeSelector = labels.Merge(functionProject.GetConfig().Spec.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
 
 	p.Logger.DebugWithCtx(ctx,
 		"Enriching function node selector from platform config",
