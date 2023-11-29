@@ -191,17 +191,19 @@ kubectl --namespace default port-forward <REPLACE-WITH-GRAFANA-POD-NAME> 3000
 ```
 Now, browse to http://127.0.0.1:3000/ and log in using the admin username and password you provided in the `values.yaml` file.
 
+
 Verify that `Azure Monitor` exists in the plugins page.
 
 Configure a data source using the [plugin support page](https://github.com/grafana/azure-monitor-datasource#configure-the-data-source).
 
-Finally, see the provided sample Grafana JSON file (**[grafana-sample-dashboard.json](../../assets/grafana-sample-dashboard.json)**), which you can import from the Grafana dashboard: from the menu (plus icon - `+`) select **Create > Import** and upload the sample JSON file.
+You can import a sample Grafana JSON file from the Grafana dashboard: from the menu (plus icon - `+`) select **Create > Import** and upload the sample JSON file.
+
 
 ![Grafana Dashboard](../../assets/images/grafana-dashboard.jpg)
 
 ### Further metric analysis using Application Insights
 
-Go to your Application Insights account. You'll be able to query your tables for information. The query language is using Kusto.
+Go to your Application Insights account. You'll be able to query your tables for information. The query language uses Kusto.
 
 Following are a few samples to quickly start querying:
 

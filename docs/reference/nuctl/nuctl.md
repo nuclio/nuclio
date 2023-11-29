@@ -77,14 +77,14 @@ CLI arg `--http-trigger-service-type=nodePort`.
 ### Redeploying functions
 
 Redeploy is the way to deploy functions without building them. This is useful when function images are prebuilt, and you change your 
-platform (e.g. Kubernetes) environment. Backup and restore purposes, and so on.
+platform (e.g. Kubernetes) environment, and for backup and restore purposes, and so on.
 In case a full deployment is needed, along with rebuilding the function images, use `nuctl deploy` command.
 
-Currently `redeploy` command is the only command which uses dashboard API. Namely, it uses `Patch` request.
+Currently `redeploy` command is the only command that uses dashboard API. Namely, it uses `Patch` request.
 
 Use-cases:
-* to [redeploy imported functions](#redeploying-imported-functions) (for instance, after platform migration, backup and restore, etc.)
-* simply redeploy already existing function
+* [redeploy an imported functions](#redeploying-imported-functions) (for instance, after platform migration, backup and restore, etc.)
+* simply redeploy an already existing function
 
 Functions can be successfully redeployed to either `ready` (default) or `scaledToZero` states. 
 To be able to redeploy function as `scaledToZero`, minimum replicas of function should be equal to zero.
@@ -104,12 +104,12 @@ Command flags:
 
 #### Redeployment report interpretation
 Redeployment report contains 3 lists with function names - `Success, Skipped, Failed`.
-`Success` list contains names of functions which were successfully redeployed.
-`Skipped` list contains functions redeployment process for which was skipped.
-`Failed` list contains function which weren't successfully redeployed and for each failed function report contains fail 
-descriptions and boolean variable which shows if command rerun can help.
+`Success` list contains the names of functions that were successfully redeployed.
+`Skipped` list contains the functions redeployment process that were skipped.
+`Failed` list contains the functions that weren't successfully redeployed. For each failed function, the report contains fail 
+descriptions and a boolean variable that shows if the rerun command can help.
 
-If `retryable == false` in your report there are possible reasons:
+If `retryable == false` in your report, there are possible reasons:
 
 * No image field found in function config spec (check `spec.image`)
 * Desired state is `scaledToZero` but `minReplicas > 0`
@@ -119,5 +119,5 @@ If `retryable == false` in your report there are possible reasons:
 
 To redeploy only imported functions use `--imported-only` flag.
 
-Imported function can be redeployed to the state it had before being imported. To be able to do so, function should
-be exported with previous state which means that function will have a `nuclio.io/previous-state` annotation.
+An imported function can be redeployed to the state it had before being imported. To do so, the function should
+be exported with its previous state, meaning the function has a `nuclio.io/previous-state` annotation.

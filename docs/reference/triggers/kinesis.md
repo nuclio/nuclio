@@ -2,7 +2,7 @@
 
 Reads records from [Amazon Kinesis](https://aws.amazon.com/kinesis/) streams.
 
-**In This Document**
+## In this document
 - [Attributes](#attributes)
 - [Example](#example)
 - [IAM Configuration](#iam-configuration)

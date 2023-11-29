@@ -1,6 +1,7 @@
 # Kafka trigger
 
-**In This Document**
+## In this document
+
 - [Overview](#overview)
   - [Workers and Worker Allocation modes](#workers)
   - [Multiple topics](#multiple-topics)

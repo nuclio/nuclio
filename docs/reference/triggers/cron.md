@@ -1,6 +1,6 @@
 # Cron trigger
 
-**In This Document**
+## In this document
 - [Overview](#overview)
 - [Attributes](#attributes)
 - [Examples](#examples)

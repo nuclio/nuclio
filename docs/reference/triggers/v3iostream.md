@@ -1,6 +1,6 @@
 # v3ioStream trigger
 
-**In This Document**
+## In this document
 - [Overview](#overview)
 - [Consuming messages through a consumer group](#consume-messages)
   - [Consumption example](#consumption-example)
