@@ -196,7 +196,7 @@ Verify that `Azure Monitor` exists in the plugins page.
 
 Configure a data source using the [plugin support page](https://github.com/grafana/azure-monitor-datasource#configure-the-data-source).
 
-You can import a sample Grafana JSON file from the Grafana dashboard: from the menu (plus icon - `+`) select **Create > Import** and upload the sample JSON file.
+You can import a [sample Grafana JSON file](https://raw.githubusercontent.com/nuclio/nuclio/development/docs/assets/grafana-sample-dashboard.json) from the Grafana dashboard: from the menu (plus icon - `+`) select **Create > Import** and upload the sample JSON file.
 
 
 ![Grafana Dashboard](../../assets/images/grafana-dashboard.jpg)
