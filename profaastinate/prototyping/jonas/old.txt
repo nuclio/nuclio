@@ -1,0 +1,86 @@
+func (n *Node) popLowestDeadline(amount int) ([]*task.Task, bool) {
+	if n == nil {
+		return nil, false
+	}
+
+	var tasks []*task.Task
+
+	if n.Left != nil {
+
+		tmp, done := n.Left.popLowestDeadline(amount)
+		tasks = append(tasks, tmp...)
+		println(len(tasks), done)
+		if done {
+			return tasks, true
+		}
+	}
+
+	println(len(tasks), amount)
+
+	if len(n.Tasks) >= amount {
+		tasks = append(tasks, n.Tasks[:amount]...)
+		n.Tasks = n.Tasks[amount:]
+		return tasks, true
+	} else {
+		tasks = append(tasks, n.Tasks...)
+		n.Tasks = nil
+	}
+
+	if n.Right != nil {
+		tmp, done := n.Right.popLowestDeadline(amount)
+		tasks = append(tasks, tmp...)
+		if done {
+			return tasks, true
+		}
+	}
+
+	return tasks, false
+}
+
+// Function to pop the tasks with the lowest deadline from the tree
+func (t *Tree) PopLowestDeadline(amount int) []*task.Task {
+	if t.Root == nil {
+		return nil
+	}
+
+	tasks, _ := t.Root.popLowestDeadline(amount)
+	return tasks
+}
+
+// Function to remove a task from a node
+func (n *Node) RemoveTask(tsk *task.Task, deadline int64) bool {
+	if n == nil {
+		return false
+	}
+
+	if n.Deadline == deadline {
+		for i, t := range n.Tasks {
+			if t == tsk {
+				n.Tasks[i] = n.Tasks[0]
+				n.Tasks = n.Tasks[1:]
+				return true
+			}
+		}
+		return false
+	}
+
+	if n.Deadline < deadline {
+		if n.Right == nil {
+			return false
+		}
+		return n.Right.RemoveTask(tsk, deadline)
+	} else {
+		if n.Left == nil {
+			return false
+		}
+		return n.Left.RemoveTask(tsk, deadline)
+	}
+}
+
+// Function to remove a task from the tree
+func (t *Tree) RemoveTask(tsk *task.Task) bool {
+	if t.Root == nil {
+		return false
+	}
+	return t.Root.RemoveTask(tsk, tsk.Deadline.Unix())
+}
