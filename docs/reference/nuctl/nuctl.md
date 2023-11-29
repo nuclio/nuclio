@@ -76,14 +76,14 @@ CLI arg `--http-trigger-service-type=nodePort`.
 
 ### Redeploying functions
 
-Redeploy is the way to deploy functions without building them. This is useful when function images are prebuilt, and you change your 
-platform (e.g. Kubernetes) environment, and for backup and restore purposes, and so on.
+Redeploy allows deploying functions that have pre-built images, and have been deployed in the past.
+This is useful in cases when you change your platform (e.g. Kubernetes) environment, for backup and restore purposes, and so on.
 In case a full deployment is needed, along with rebuilding the function images, use `nuctl deploy` command.
 
-Currently `redeploy` command is the only command that uses dashboard API. Namely, it uses `Patch` request.
+Currently `redeploy` command is the only command that uses dashboard API. Namely, it uses a `Patch` request.
 
 Use-cases:
-* [redeploy an imported functions](#redeploying-imported-functions) (for instance, after platform migration, backup and restore, etc.)
+* [redeploy imported functions](#redeploying-imported-functions) (for instance, after platform migration, backup and restore, etc.)
 * simply redeploy an already existing function
 
 Functions can be successfully redeployed to either `ready` (default) or `scaledToZero` states. 
@@ -104,10 +104,10 @@ Command flags:
 
 #### Redeployment report interpretation
 Redeployment report contains 3 lists with function names - `Success, Skipped, Failed`.
-`Success` list contains the names of functions that were successfully redeployed.
-`Skipped` list contains the functions redeployment process that were skipped.
-`Failed` list contains the functions that weren't successfully redeployed. For each failed function, the report contains fail 
-descriptions and a boolean variable that shows if the rerun command can help.
+- `Success`: a list containing the names of functions that were successfully redeployed.
+- `Skipped`: a list containing function names that the redeployment process has skipped.
+- `Failed`: a list containing the functions that failed redeploying. For each failed function, the report contains a failure 
+descriptions and a boolean variable that shows whether rerunning the command can help.
 
 If `retryable == false` in your report, there are possible reasons:
 
