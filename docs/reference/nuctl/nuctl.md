@@ -83,7 +83,7 @@ In case a full deployment is needed, along with rebuilding the function images, 
 Currently `redeploy` command is the only command that uses dashboard API. Namely, it uses a `Patch` request.
 
 Use-cases:
-* [redeploy an imported functions](#redeploying-imported-functions) (for instance, after platform migration, backup and restore, etc.)
+* [redeploy imported functions](#redeploying-imported-functions) (for instance, after platform migration, backup and restore, etc.)
 * simply redeploy an already existing function
 
 Functions can be successfully redeployed to either `ready` (default) or `scaledToZero` states. 
