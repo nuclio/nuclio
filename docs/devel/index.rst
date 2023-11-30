@@ -8,7 +8,6 @@ Development
 
 .. toctree::
    :maxdepth: 1
-   :caption: Development
 
    contributing
    coding-conventions

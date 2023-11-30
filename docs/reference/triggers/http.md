@@ -1,6 +1,6 @@
 # HTTP trigger
 
-**In This Document**
+## In this document
 
 - [Overview](#overview)
 - [Attributes](#attributes)

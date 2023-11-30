@@ -9,8 +9,7 @@ Reference
 .. toctree::
    :glob:
    :maxdepth: 1
-   :caption: Reference
-
+  
    function-configuration/code-entry-types
    function-configuration/function-configuration-reference
    api-gateway/index

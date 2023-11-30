@@ -1,5 +1,5 @@
-Kubernetes
-==================================
+Getting Started with Nuclio on Kubernetes
+==========================================
 
 .. toctree::
    :maxdepth: 1

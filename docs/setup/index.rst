@@ -8,7 +8,6 @@ Setup
 
 .. toctree::
    :maxdepth: 2
-   :caption: Setup
 
    docker/getting-started-docker
    k8s/index

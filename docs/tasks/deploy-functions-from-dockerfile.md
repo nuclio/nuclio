@@ -75,7 +75,7 @@ It is up to you to customize this Dockerfile, if you so choose (for example, by 
 docker build -t helloworld-from-df .
 ```
 
-> **Note:** Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](../reference/runtimes) to understand the specific nuances.
+> **Note:** Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](../reference/runtimes/index.html) to understand the specific nuances.
 
 ## Deploying a function built with Docker
 

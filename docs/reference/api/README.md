@@ -1,6 +1,6 @@
 # Dashboard HTTP API
 
-Table of contents:
+## In this document
 - [Function](#function)
 - [Project](#project)
 - [Function event](#function-event)
@@ -11,8 +11,8 @@ Table of contents:
 
 ## Notes
 
-1. `metadata.name` is mandatory in all bodies (required to identify the resource). If you omit `namespace`, the
-   dashboard will use the default namespace, as configured in its command line arguments
+- `metadata.name` is mandatory in all bodies (required to identify the resource). 
+- If you omit `namespace`, the dashboard uses the default namespace, as configured in its command line arguments
 
 ## Function
 

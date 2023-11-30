@@ -1,4 +1,4 @@
-# Getting started with Nuclio on Azure Container Service (AKS)
+# Setting up your AKS cluster and installing Nuclio
 
 Microsoft's [Azure Container Service (AKS)](https://azure.microsoft.com/services/container-service/) manages your hosted Kubernetes environment, making it quick and easy to deploy and manage containerized applications without container orchestration expertise. 
 It also eliminates the burden of ongoing operations and maintenance by provisioning, upgrading, and scaling resources on demand, without taking your applications offline. 
@@ -13,7 +13,7 @@ Follow this step-by-step guide to set up a Nuclio development environment that u
 - [Create a container registry using the Azure CLI](#create-a-container-registry-using-the-azure-cli)
 - [Grant Kubernetes and Nuclio access to the ACR](#grant-kubernetes-and-nuclio-access-to-the-acr)
 - [Install Nuclio](#install-nuclio)
-- [What's next](#whats-next)
+- [What's next](#what-s-next)
 
 ## Prerequisites
 
@@ -156,5 +156,5 @@ See the following resources to make the best of your new Nuclio environment:
 - [Deploying Functions](../../tasks/deploying-functions.md)
 - [Invoking Functions by Name with a Kubernetes Ingress](../../concepts/k8s/function-ingress.md)
 - [More function examples](../../examples/README.md)
-- [References](../../reference)
+- [References](../../reference/index.html)
 - [Best Practices and Common Pitfalls](../../concepts/best-practices-and-common-pitfalls.md)
