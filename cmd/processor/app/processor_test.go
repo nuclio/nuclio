@@ -236,6 +236,11 @@ func (t *testTrigger) SignalWorkerDraining() error {
 	return nil
 }
 
+func (t *testTrigger) SignalWorkerTermination() error {
+	t.Called()
+	return nil
+}
+
 func TestTriggerTestSuite(t *testing.T) {
 	suite.Run(t, new(TriggerTestSuite))
 }

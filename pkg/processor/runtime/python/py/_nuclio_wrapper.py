@@ -120,6 +120,7 @@ class Wrapper(object):
 
         # initialize flags
         self._is_drain_needed = False
+        self._is_termination_needed = False
         self._is_waiting_for_event = False
 
     async def serve_requests(self, num_requests=None):
@@ -165,6 +166,9 @@ class Wrapper(object):
                 if self._is_drain_needed:
                     self._logger.debug('Calling platform drain handler')
                     self._call_drain_handler()
+                if self._is_termination_needed:
+                    self._logger.debug('Calling platform termination handler')
+                    self._call_termination_handler()
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None:
@@ -211,8 +215,9 @@ class Wrapper(object):
 
     def _register_to_signal(self):
         signal.signal(signal.SIGUSR1, self._on_sigterm)
+        signal.signal(signal.SIGUSR2, self._on_drain_signal)
 
-    def _on_sigterm(self, signal_number, frame):
+    def _on_drain_signal(self, signal_number, frame):
         self._logger.debug_with('Received signal, calling draining callback', signal=signal_number)
 
         if self._is_waiting_for_event:
@@ -227,16 +232,38 @@ class Wrapper(object):
             # after the current event is handled
             self._is_drain_needed = True
 
+    def _on_sigterm(self, signal_number, frame):
+        self._logger.debug_with('Received signal, calling termination callback', signal=signal_number)
+
+        if self._is_waiting_for_event:
+            self._logger.debug('Wrapper is waiting for an event, calling terminate handler')
+
+            # call the drain handler here as the event loop is stuck waiting for an event
+            self._call_drain_handler()
+        else:
+            self._logger.debug('Wrapper is handling an event, setting drain flag to true')
+
+            # set the flag to true so the event loop will call the drain handler
+            # after the current event is handled
+            self._is_termination_needed = True
+
     def _call_drain_handler(self):
+        self._logger.debug('Calling platform draining handler')
+
+        # set the flag to False so the drain handler will not be called more than once
+        self._is_drain_needed = False
+        self._platform._on_signal(callback_type="drain")
+
+    def _call_termination_handler(self):
         self._logger.debug('Calling platform termination handler')
 
         # set the flag to False so the termination handler will not be called more than once
-        self._is_drain_needed = False
+        self._is_termination_needed = False
 
         # call termination handler
         # TODO: send a control message to the processor after this line,
         # to indicate that the termination handler has finished, and the processor can exit early
-        self._platform._on_signal()
+        self._platform._on_signal(callback_type="termination")
 
     async def _send_data_on_control_socket(self, data):
         self._logger.debug_with('Sending data on control socket', data_length=len(data))

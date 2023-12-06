@@ -86,6 +86,9 @@ type Trigger interface {
 
 	// SignalWorkerDraining drains all workers
 	SignalWorkerDraining() error
+
+	// SignalWorkerTermination signal to all workers that the processor is about to stop working
+	SignalWorkerTermination() error
 }
 
 // AbstractTrigger implements common trigger operations
@@ -364,6 +367,13 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 func (at *AbstractTrigger) SignalWorkerDraining() error {
 	if err := at.WorkerAllocator.SignalDraining(); err != nil {
 		return errors.Wrap(err, "Failed to signal all workers to drain events")
+	}
+	return nil
+}
+
+func (at *AbstractTrigger) SignalWorkerTermination() error {
+	if err := at.WorkerAllocator.SignalTermination(); err != nil {
+		return errors.Wrap(err, "Failed to signal all workers to terminate")
 	}
 	return nil
 }
