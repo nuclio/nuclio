@@ -214,7 +214,7 @@ class Wrapper(object):
                 raise
 
     def _register_to_signal(self):
-        signal.signal(signal.SIGUSR1, self._on_sigterm)
+        signal.signal(signal.SIGUSR1, self._on_termination_signal)
         signal.signal(signal.SIGUSR2, self._on_drain_signal)
 
     def _on_drain_signal(self, signal_number, frame):
@@ -232,7 +232,7 @@ class Wrapper(object):
             # after the current event is handled
             self._is_drain_needed = True
 
-    def _on_sigterm(self, signal_number, frame):
+    def _on_termination_signal(self, signal_number, frame):
         self._logger.debug_with('Received signal, calling termination callback', signal=signal_number)
 
         if self._is_waiting_for_event:
