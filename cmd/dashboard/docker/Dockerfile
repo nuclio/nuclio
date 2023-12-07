@@ -15,7 +15,7 @@
 #
 # Build assets stage: builds the dashboard assets (js, html, css, etc)
 #
-ARG NGINX_IMAGE=nginx
+ARG NGINX_IMAGE=gcr.io/iguazio/nginx:1.25-alpine
 ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG UHTTPC_ARCH=amd64
 ARG NUCLIO_DOCKER_ALPINE_IMAGE
