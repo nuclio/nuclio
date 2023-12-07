@@ -239,7 +239,7 @@ class Wrapper(object):
             self._logger.debug('Wrapper is waiting for an event, calling terminate handler')
 
             # call the drain handler here as the event loop is stuck waiting for an event
-            self._call_drain_handler()
+            self._call_termination_handler()
         else:
             self._logger.debug('Wrapper is handling an event, setting drain flag to true')
 
