@@ -214,3 +214,16 @@ docker run \
 
 That way, you can build your function once, deploy it as much as desired, 
 without being needed to volumize the function configuration upon each deployment.
+
+## Termination callback
+
+As of now, this feature is exclusively supported in the Python runtime. It enables the definition of a termination callback within user code through the following:
+```py
+context.platform.set_drain_termination(callback)  # where 'callback' is a user-defined function
+```
+Termination callback is triggered by processor when processor is about to stop working. 
+The termination callback serves the purpose of facilitating a graceful shutdown.
+
+Additionally, we offer a [drain callback](../../triggers/kafka.md#drain-callback) option for stream triggers.
+
+
