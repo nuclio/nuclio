@@ -29,7 +29,7 @@ nuctl deploy helloworld-go -n nuclio -p https://raw.githubusercontent.com/nuclio
 
 Run the benchmark:
 ```sh
->>> wrk -c 36 -t 36 -d 10 http://172.17.0.1:39150
+$ wrk -c 36 -t 36 -d 10 http://172.17.0.1:39150
 Running 10s test @ http://172.17.0.1:39150
   36 threads and 36 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
@@ -48,7 +48,7 @@ nuctl deploy helloworld-py -n nuclio -p https://raw.githubusercontent.com/nuclio
 
 Run the benchmark:
 ```sh
->>> wrk -c 36 -t 36 -d 10 http://172.17.0.1:31466
+$ wrk -c 36 -t 36 -d 10 http://172.17.0.1:31466
 Running 10s test @ http://172.17.0.1:31466
   36 threads and 36 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
@@ -68,7 +68,7 @@ nuctl deploy helloworld-dotnetcore -n nuclio -p https://raw.githubusercontent.co
 
 Run the benchmark:
 ```sh
->>> wrk -c 36 -t 36 -d 10 http://172.17.0.1:39741
+$ wrk -c 36 -t 36 -d 10 http://172.17.0.1:39741
 Running 10s test @ http://172.17.0.1:45044
   36 threads and 36 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
@@ -88,7 +88,7 @@ nuctl deploy helloworld-java -n nuclio -p https://raw.githubusercontent.com/nucl
 
 Run the benchmark:
 ```sh
->>> wrk -c 36 -t 36 -d 10 http://172.17.0.1:45906
+$ wrk -c 36 -t 36 -d 10 http://172.17.0.1:45906
 Running 10s test @ http://172.17.0.1:45906
   36 threads and 36 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
@@ -108,7 +108,7 @@ nuctl deploy helloworld-njs -n nuclio -p https://raw.githubusercontent.com/nucli
 
 Run the benchmark:
 ```sh
->>> wrk -c 36 -t 36 -d 10 http://172.17.0.1:39061
+$ wrk -c 36 -t 36 -d 10 http://172.17.0.1:39061
 Running 10s test @ http://172.17.0.1:39061
   36 threads and 36 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev

@@ -29,16 +29,15 @@ Following is a quick example of how to use Helm charts to set up a specific stab
 2. Create a secret with valid credentials for logging into your target container (Docker) registry:
 
     ```sh
-    # <enter your password>
-    >>> read -s mypassword
+    read -s mypassword # <enter your password>
 
-    >>> kubectl --namespace nuclio create secret docker-registry registry-credentials \
+    kubectl --namespace nuclio create secret docker-registry registry-credentials \
         --docker-username <username> \
         --docker-password $mypassword \
         --docker-server <URL> \
         --docker-email <some email>
 
-    >>> unset mypassword
+    unset mypassword
     ```
    > **Note:** If you are using Amazon's ECR see [using kaniko with ECR](#Using kaniko with amazon elastic container registry (ECR)) section.
 
