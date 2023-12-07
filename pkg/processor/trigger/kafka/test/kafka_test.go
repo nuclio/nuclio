@@ -299,13 +299,13 @@ func (suite *testSuite) TestExplicitAck() {
 	}
 }
 
-func (suite *testSuite) TestTerminationHook() {
+func (suite *testSuite) TestDrainHook() {
 	topic := "myTopic"
-	functionName := "termination-hook"
+	functionName := "drain-hook"
 	functionPath := path.Join(suite.GetTestFunctionsDir(),
 		"python",
-		"termination-hook",
-		"termination-hook.py")
+		"drain-hook",
+		"drain-hook.py")
 
 	// create new topic
 	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
@@ -350,7 +350,7 @@ func (suite *testSuite) TestTerminationHook() {
 	createFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
 
 	// create a temp dir, delete it after the test
-	tempDir, err := os.MkdirTemp("", "termination-hook")
+	tempDir, err := os.MkdirTemp("", "drain-hook")
 	suite.Require().NoError(err, "Failed to create temp dir")
 	defer os.RemoveAll(tempDir) // nolint: errcheck
 
@@ -361,7 +361,7 @@ func (suite *testSuite) TestTerminationHook() {
 	createFunctionOptions.FunctionConfig.Spec.Volumes = []functionconfig.Volume{
 		{
 			Volume: v1.Volume{
-				Name: "termination-hook",
+				Name: "drain-hook",
 				VolumeSource: v1.VolumeSource{
 					HostPath: &v1.HostPathVolumeSource{
 						Path: tempDir,
@@ -370,7 +370,7 @@ func (suite *testSuite) TestTerminationHook() {
 				},
 			},
 			VolumeMount: v1.VolumeMount{
-				Name:      "termination-hook",
+				Name:      "drain-hook",
 				ReadOnly:  false,
 				MountPath: mountPath,
 			},
@@ -393,7 +393,7 @@ func (suite *testSuite) TestTerminationHook() {
 		}
 
 		// create another function that consumes from the same topic and consumer group, to trigger rebalance
-		newCreateFunctionOptions := suite.GetDeployOptions("termination-hook-new", functionPath)
+		newCreateFunctionOptions := suite.GetDeployOptions("drain-hook-new", functionPath)
 		newCreateFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
 		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
 
@@ -425,17 +425,17 @@ func (suite *testSuite) TestTerminationHook() {
 		return true
 	})
 
-	// check that the function's termination hook was called by reading the file it should have written to
+	// check that the function's drain hook was called by reading the file it should have written to
 	// 1 file per worker -> 4 files
 	for workerID := 0; workerID < 4; workerID++ {
-		filePath := path.Join(tempDir, fmt.Sprintf("termination-hook-%d.txt", workerID))
-		suite.Logger.DebugWith("Reading termination hook file", "filePath", filePath)
+		filePath := path.Join(tempDir, fmt.Sprintf("drain-hook-%d.txt", workerID))
+		suite.Logger.DebugWith("Reading drain hook file", "filePath", filePath)
 		fileBytes, err := os.ReadFile(filePath)
-		suite.Require().NoError(err, "Failed to read termination hook file")
+		suite.Require().NoError(err, "Failed to read drain hook file")
 
 		// check that the file is not empty
-		suite.Logger.DebugWith("Checking termination hook file is not empty", "fileContent", string(fileBytes))
-		suite.Require().NotEmpty(fileBytes, "Termination hook file is empty")
+		suite.Logger.DebugWith("Checking drain hook file is not empty", "fileContent", string(fileBytes))
+		suite.Require().NotEmpty(fileBytes, "Drain hook file is empty")
 	}
 }
 
