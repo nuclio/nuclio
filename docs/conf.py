@@ -24,6 +24,7 @@ extensions = [
     "sphinx.ext.viewcode",
     'python_docs_theme',
     'sphinx_markdown_tables',
+    'sphinx_copybutton',
 ]
 
 templates_path = ['_templates']
