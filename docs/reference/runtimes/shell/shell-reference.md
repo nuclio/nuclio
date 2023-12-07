@@ -49,7 +49,7 @@ nuctl deploy -p /tmp/nuclio-shell-script/reverser.sh rev
 
 And now, use the `nuctl` CLI to invoke the function:
 ```sh
-nuctl invoke rev -m POST -b reverse-me
+>>> nuctl invoke rev -m POST -b reverse-me
 
 > Response headers:
 Date = Sun, 03 Dec 2017 12:53:51 GMT

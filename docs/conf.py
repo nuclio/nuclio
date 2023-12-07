@@ -32,6 +32,9 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 language = 'go'
 
+# https://sphinx-copybutton.readthedocs.io/en/latest/use.html#strip-and-configure-input-prompts-for-code-cells
+copybutton_prompt_text = ">>> "
+
 source_suffix = {
     ".rst": "restructuredtext",
     '.md': 'markdown',

@@ -36,7 +36,7 @@ In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, b
 
 Verify that the controller is up by running the `kubectl --namespace=kube-system get pods` command, and then run the `kubectl describe service --namespace=kube-system traefik-ingress-service` command to get the ingress NodePort. Following is a sample output for NodePort 30019:
 
-```sh
+```text
 ...
 Port:                     web  80/TCP
 TargetPort:               80/TCP
@@ -154,7 +154,7 @@ Invoke the function with `nuctl`, which will use the configured NodePort:
 nuctl invoke ingress
 ```
 Following is a sample output for this command:
-```sh
+```text
 > Response headers:
 Server = nuclio
 Date = Thu, 02 Nov 2017 02:11:32 GMT

@@ -3,12 +3,12 @@
 The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio dashboard. All you need to run the dashboard is Docker:
 
 ```sh
-docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock --name nuclio-dashboard quay.io/nuclio/dashboard:stable-amd64
+docker run --detach --publish 8070:8070 --volume /var/run/docker.sock:/var/run/docker.sock --name nuclio-dashboard quay.io/nuclio/dashboard:stable-amd64
 ```
 
 ![dashboard](../../docs/assets/images/dashboard.png)
 
-Browse to http://localhost:8070, create a project, and add a function. When run outside of an orchestration platform (for example, Kubernetes), the dashboard will simply deploy to the local Docker daemon.
+Browse to <a href="http://localhost:8070/" target="_blank">http://localhost:8070</a>, create a project, and add a function. When run outside of an orchestration platform (for example, Kubernetes), the dashboard will simply deploy to the local Docker daemon.
 
 Assuming you are running Nuclio with Docker, as an example, create a project and deploy the pre-existing template "dates (nodejs)".
 With `docker ps`, you should see that the function was deployed in its own container.
