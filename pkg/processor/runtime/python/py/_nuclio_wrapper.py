@@ -236,14 +236,14 @@ class Wrapper(object):
         self._logger.debug_with('Received signal, calling termination callback', signal=signal_number)
 
         if self._is_waiting_for_event:
-            self._logger.debug('Wrapper is waiting for an event, calling terminate handler')
+            self._logger.debug('Wrapper is waiting for an event, calling termination handler')
 
-            # call the drain handler here as the event loop is stuck waiting for an event
+            # call the termination handler here as the event loop is stuck waiting for an event
             self._call_termination_handler()
         else:
-            self._logger.debug('Wrapper is handling an event, setting drain flag to true')
+            self._logger.debug('Wrapper is handling an event, setting termination flag to true')
 
-            # set the flag to true so the event loop will call the drain handler
+            # set the flag to true so the event loop will call the termination handler
             # after the current event is handled
             self._is_termination_needed = True
 

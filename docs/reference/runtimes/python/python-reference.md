@@ -221,7 +221,7 @@ As of now, this feature is exclusively supported in the Python runtime. It enabl
 ```py
 context.platform.set_drain_termination(callback)  # where 'callback' is a user-defined function
 ```
-Termination callback is triggered by processor when processor is about to stop working. 
+Termination callback is triggered by processor when processor is about to exit. 
 The termination callback serves the purpose of facilitating a graceful shutdown.
 
 Additionally, we offer a [drain callback](../../triggers/kafka.md#drain-callback) option for stream triggers.
