@@ -6,35 +6,39 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'nuclio'
-copyright = '2023, Iguazio'
-author = 'nuclio'
-release = '1.12.7'
+project = "nuclio"
+copyright = "2023, Iguazio"
+author = "nuclio"
+release = "1.12.8"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-
     "sphinx.ext.napoleon",
     "recommonmark",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
-    'python_docs_theme',
-    'sphinx_markdown_tables',
+    "python_docs_theme",
+    "sphinx_markdown_tables",
+    "sphinx_copybutton",
 ]
 
-templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+templates_path = ["_templates"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-language = 'go'
+language = "go"
+
+# https://sphinx-copybutton.readthedocs.io/en/latest/use.html#strip-and-configure-input-prompts-for-code-cells
+copybutton_exclude = ".linenos, .gp, .go"
+copybutton_prompt_text = "$ "
 
 source_suffix = {
     ".rst": "restructuredtext",
-    '.md': 'markdown',
-    '.html': 'html',
+    ".md": "markdown",
+    ".html": "html",
 }
 
 master_doc = "contents"

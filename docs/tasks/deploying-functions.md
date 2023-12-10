@@ -80,7 +80,7 @@ the function that you wrote in the previous step to a `/tmp/nuclio/my_function.p
 verify with `nuctl` that everything is properly configured by getting all functions deployed in the "nuclio" namespace:
 
 ```sh
-nuctl get function --namespace nuclio
+$ nuctl get function --namespace nuclio
 
 No functions found
 ```
@@ -108,7 +108,7 @@ nuctl deploy my-function \
 Once the function deploys, you should see `Function deploy complete` and an HTTP port through which you can invoke it. If there's a problem, invoke the above with `--verbose` and try to understand what went wrong. You can see your function through `nuctl get`:
 
 ```sh
-nuctl get function --namespace nuclio
+$ nuctl get function --namespace nuclio
 
   NAMESPACE |    NAME     | VERSION | STATE | NODE PORT | REPLICAS
   nuclio    | my-function | latest  | ready |     ?     | 1/1
@@ -135,7 +135,7 @@ A string response
 You can use `nuctl invoke` to invoke the function by name, and even get function logs in the process:
 
 ```sh
-nuctl invoke my-function --namespace nuclio --via external-ip
+$ nuctl invoke my-function --namespace nuclio --via external-ip
 
     nuctl.platform.invoker (I) Executing function {"method": "GET", "url": "http://192.168.64.8:30521", "body": {}}
     nuctl.platform.invoker (I) Got response {"status": "200 OK"}
@@ -174,7 +174,7 @@ While there are several mechanisms to provide the configuration, there is only o
 After you provide this configuration, you can invoke the function and notes that `MY_ENV_VALUE` is now set to `my value`:
 
 ```sh
-nuctl invoke my-function --namespace nuclio --via external-ip
+$ nuctl invoke my-function --namespace nuclio --via external-ip
 
     nuctl.platform.invoker (I) Executing function {"method": "GET", "url": "http://192.168.64.8:30521", "body": {}}
     nuctl.platform.invoker (I) Got response {"status": "200 OK"}
@@ -194,7 +194,7 @@ A string response
 
 If you were to look at the function logs through `kubectl` (assuming you're deploying to Kubernetes), you'd see the function being invoked periodically, where `Invoked from cron` is logged as well:
 
-```sh
+```text
 ...
     processor.cron (I) Got invoked {"trigger_kind": "cron", "some_env": "my value", "event_body": ""}
     processor.cron (I) Invoked from cron

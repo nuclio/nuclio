@@ -81,12 +81,12 @@ To run Kubernetes platform integration test locally:
 ```sh
 
 # Installing nuclio CRDs
-sh test/k8s/ci_assets/install_nuclio_crds.sh
+$ sh test/k8s/ci_assets/install_nuclio_crds.sh
 
 # Running local Docker registry
-docker run --rm -d -p 5000:5000 registry:2
+$ docker run --rm -d -p 5000:5000 registry:2
 
-make test-k8s
+$ make test-k8s
 ```
 
 To run integration tests for docker platform, run:

@@ -29,8 +29,7 @@ Following is a quick example of how to use Helm charts to set up a specific stab
 2. Create a secret with valid credentials for logging into your target container (Docker) registry:
 
     ```sh
-    read -s mypassword
-    <enter your password>
+    read -s mypassword # <enter your password>
 
     kubectl --namespace nuclio create secret docker-registry registry-credentials \
         --docker-username <username> \
