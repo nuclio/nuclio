@@ -4,6 +4,9 @@ package main
 import (
 	"container/heap"
 	"fmt"
+	"github.com/brianvoe/gofakeit/v6"
+	"sync"
+	"time"
 )
 
 // An NexusEntry is something we manage in a priority queue.
@@ -47,6 +50,10 @@ func (nxs *Nexus) Pop() any {
 	return NexusEntry
 }
 
+<<<<<<< HEAD
+=======
+// TODO immutablity is violated here, why do not overwrite the value before?
+>>>>>>> d1194cc3d (test(profaastinate-jonas): queue-nexus)
 // update modifies the priority and value of an NexusEntry in the queue.
 func (nxs *Nexus) update(NexusEntry *NexusEntry, value string, priority int) {
 	NexusEntry.value = value
@@ -54,6 +61,10 @@ func (nxs *Nexus) update(NexusEntry *NexusEntry, value string, priority int) {
 	heap.Fix(nxs, NexusEntry.index)
 }
 
+<<<<<<< HEAD
+=======
+// TODO why is this an exported function?
+>>>>>>> d1194cc3d (test(profaastinate-jonas): queue-nexus)
 func (nxs *Nexus) Remove(NexusEntry *NexusEntry) {
 	heap.Remove(nxs, NexusEntry.index)
 }
@@ -151,4 +162,84 @@ func main() {
 		fmt.Printf("%.2d:%s ", item.Deadline, item.value)
 	}
 
+<<<<<<< HEAD
+=======
+	mainDavid()
+
+}
+
+var nxsMutex sync.Mutex
+
+func mainDavid() {
+	gofakeit.Seed(100)
+
+	nxs := make(Nexus, 0)
+	heap.Init(&nxs)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	startTime := time.Now()
+
+	go addItems(&nxs, &wg)
+	time.Sleep(time.Millisecond * 300)
+	go scheduledRemoveItems(&nxs, &wg)
+
+	wg.Wait()
+
+	endTime := time.Now()
+	elapsedTime := endTime.Sub(startTime)
+	fmt.Printf("Elapsed Time: %v\n", elapsedTime)
+}
+
+func addItems(nxs *Nexus, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for i := 0; i < 1000; i++ {
+		value := gofakeit.Word()
+		priority := gofakeit.IntRange(1, 10)
+
+		nxsMutex.Lock()
+		heap.Push(nxs, &NexusEntry{
+			value:    value,
+			Deadline: priority,
+		})
+		nxsMutex.Unlock()
+	}
+}
+
+var stopChannel = make(chan struct{})
+
+func scheduledRemoveItems(nxs *Nexus, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	ticker := time.NewTicker(1 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if !removeItems(nxs) {
+				// Stop the goroutine when there are no more items.
+				return
+			}
+		case <-stopChannel:
+			return
+		}
+	}
+}
+
+// Modified removeItems function to return a boolean indicating if there are more items.
+func removeItems(nxs *Nexus) bool {
+	nxsMutex.Lock()
+	defer nxsMutex.Unlock()
+
+	if nxs.Len() > 0 {
+		item := heap.Pop(nxs).(*NexusEntry)
+		fmt.Printf("Removed: %.2d:%s\n", item.Deadline, item.value)
+		return true
+	}
+
+	return false
+>>>>>>> d1194cc3d (test(profaastinate-jonas): queue-nexus)
 }

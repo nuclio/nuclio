@@ -21,7 +21,7 @@ type NexusRegistry struct {
 	NewEntries map[string]chan []*NexusEntry
 }
 
-// entrie in the galactic timeline that contains a task
+// entry in the galactic timeline that contains a task
 // and some metadata
 type NexusEntry struct {
 	Index int
