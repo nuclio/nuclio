@@ -126,38 +126,59 @@ class Vegeta(object):
         with open(self._workdir / body_size_filename, 'w') as f:
             f.truncate(body_size)
 
-        vegeta_cmd = "vegeta attack" \
-                     f" -name {function_name}" \
-                     " -duration 10s" \
-                     " -rate 0" \
-                     f" -body {body_size_filename}" \
-                     f" -connections {concurrent_requests}" \
-                     f" -workers {concurrent_requests}" \
-                     f" -max-workers {concurrent_requests}" \
-                     f" -output {self._resolve_bin_name(function_name, body_size)}"
-        self._logger.debug(f"Attacking command - {vegeta_cmd}")
+        vegeta_cmd = [
+            "vegeta",
+            "attack",
+            f"-name",
+            function_name,
+            "-duration",
+            "10s",
+            "-rate"
+            "0",
+            f"-body",
+            body_size_filename,
+            f"-connections",
+            concurrent_requests,
+            f"-workers",
+            concurrent_requests,
+            f"-max-workers",
+            concurrent_requests,
+            f"-output",
+            self._resolve_bin_name(function_name, body_size),
+        ]
+        self._logger.debug(f"Attacking command - {' '.join(vegeta_cmd)}")
         try:
-            subprocess.run(shlex.split(vegeta_cmd),
+            subprocess.run(vegeta_cmd,
                            cwd=self._workdir,
                            check=True,
                            stdout=subprocess.PIPE,
                            input=f"POST {function_url}".encode(),
                            timeout=30)
         finally:
-            os.remove(path=self._workdir / body_size_filename)
+            os.remove(path=os.path.join(self._workdir, body_size_filename))
 
     def plot(self, function_names, body_size):
         encoded_bin_names = " ".join(f"{self._resolve_bin_name(function_name, body_size)}"
                                      for function_name in function_names)
-        plot_cmd = f"vegeta plot --title 'Nuclio functions benchmarking' {encoded_bin_names}"
+        plot_cmd = [
+            "vegeta",
+            "plot",
+            "--title",
+            "'Nuclio functions benchmarking'",
+            encoded_bin_names,
+        ]
         self._logger.debug(f"Plotting command - {plot_cmd}")
         with open(self._workdir / "plot.html", "w") as outfile:
-            subprocess.run(shlex.split(plot_cmd), cwd=self._workdir, check=True, stdout=outfile)
+            subprocess.run(plot_cmd, cwd=self._workdir, check=True, stdout=outfile)
 
     def report(self, function_name, body_size):
-        report_cmd = f"vegeta report {self._resolve_bin_name(function_name, body_size)}"
+        report_cmd = [
+            "vegeta",
+            "report",
+            self._resolve_bin_name(function_name, body_size),
+        ]
         self._logger.debug(f"Reporting command - {report_cmd}")
-        subprocess.run(shlex.split(report_cmd), cwd=self._workdir, check=True)
+        subprocess.run(report_cmd, cwd=self._workdir, check=True)
 
     def _resolve_bin_name(self, function_name, body_size):
         return f"{function_name}_{body_size}.bin"
