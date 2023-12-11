@@ -344,7 +344,7 @@ func (g *Generator) getFunctionConfigAndSource(functionDir string) (*functioncon
 			// we found our source code, read it
 			sourcePath := filepath.Join(functionDir, file.Name())
 
-			sourceBytes, err := os.ReadFile(sourcePath)
+			sourceBytes, err := os.ReadFile(filepath.Clean(sourcePath))
 			if err != nil {
 				return nil, "", errors.Wrapf(err, "Failed to read function source code at %s", sourcePath)
 			}

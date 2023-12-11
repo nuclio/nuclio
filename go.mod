@@ -16,10 +16,10 @@ require (
 	github.com/fatih/structs v1.1.0
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/go-chi/cors v1.2.1
-	github.com/go-git/go-git/v5 v5.8.1
+	github.com/go-git/go-git/v5 v5.10.1
 	github.com/gobuffalo/flect v1.0.2
 	github.com/golang-jwt/jwt/v4 v4.5.0
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.3.1
 	github.com/heptiolabs/healthcheck v0.0.0-20211123025425-613501dd5deb
 	github.com/icza/dyno v0.0.0-20230330125955-09f820a8d9c0
@@ -45,7 +45,7 @@ require (
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
-	github.com/tsenart/vegeta/v12 v12.11.0
+	github.com/tsenart/vegeta/v12 v12.11.1
 	github.com/v3io/scaler v0.5.4
 	github.com/v3io/v3io-go v0.3.1
 	github.com/v3io/v3io-go-http v0.0.1
@@ -55,7 +55,7 @@ require (
 	github.com/xdg-go/scram v1.1.2
 	golang.org/x/oauth2 v0.11.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/text v0.13.0
+	golang.org/x/text v0.14.0
 	google.golang.org/api v0.138.0
 	google.golang.org/grpc v1.57.2
 	gopkg.in/yaml.v3 v3.0.1
@@ -73,13 +73,13 @@ require (
 	cloud.google.com/go/iam v1.1.2 // indirect
 	code.cloudfoundry.org/clock v1.1.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/ProtonMail/go-crypto v0.0.0-20230717121422-5aa5874ade95 // indirect
-	github.com/acomagu/bufpipe v1.0.4 // indirect
+	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/eapache/go-resiliency v1.3.0 // indirect
@@ -89,7 +89,7 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.4.1 // indirect
+	github.com/go-git/go-billy/v5 v5.5.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
@@ -143,12 +143,12 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
-	github.com/prometheus/procfs v0.10.1 // indirect
+	github.com/prometheus/procfs v0.11.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rs/dnscache v0.0.0-20211102005908-e0241e321417 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
-	github.com/skeema/knownhosts v1.2.0 // indirect
+	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.1 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
@@ -161,15 +161,15 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.25.0 // indirect
-	golang.org/x/crypto v0.14.0 // indirect
+	golang.org/x/crypto v0.15.0 // indirect
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
 	golang.org/x/image v0.11.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/term v0.13.0 // indirect
+	golang.org/x/net v0.18.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/term v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.12.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230803162519-f966b187b2e5 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230803162519-f966b187b2e5 // indirect
