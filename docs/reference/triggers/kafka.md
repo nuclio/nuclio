@@ -307,7 +307,7 @@ using the following method (Note that the registered callback is a nullary callb
 context.platform.set_drain_callback(callback)
 ```
 
-Also, as part of this feature, a new customizable timeout `WaitExplicitAckDuringRebalanceTimeout` was added. Its main purpose is to help avoid processing the same message twice.
+This feature includes a customizable timeout  `WaitExplicitAckDuringRebalanceTimeout`. Its purpose is to prevent processing the same message twice.
 This timeout allows to configure the waiting time for a control message from runtime after a rebalance happened and before we unsubscribe from control messages from runtime and completely disconnect.
 Default value is `100ms`. It can be also set via function annotation `nuclio.io/wait-explicit-ack-during-rebalance-timeout`.
 
