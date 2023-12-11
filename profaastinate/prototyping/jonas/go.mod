@@ -3,7 +3,7 @@ module github.com/Persists/profaastinate-queue
 go 1.21.4
 
 require (
-	github.com/brianvoe/gofakeit/v6 v6.26.3
+	github.com/brianvoe/gofakeit/v6 v6.26.0
 	github.com/redis/go-redis/v9 v9.3.0
 )
 
