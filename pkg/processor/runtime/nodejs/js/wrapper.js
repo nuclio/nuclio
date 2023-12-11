@@ -19,7 +19,7 @@ const events = require('events')
 
 const jsonCtype = 'application/json'
 const initContextFunctionName = 'initContext'
-const isValidPathRegex = /^[a-zA-Z0-9_\-\/\.\\]+$/
+const isValidPathRegex = /^[a-zA-Z0-9_\-/.\\]+$/
 
 const messageTypes = {
     LOG: 'l',
