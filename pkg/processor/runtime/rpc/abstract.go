@@ -236,7 +236,22 @@ func (r *AbstractRuntime) Drain() error {
 	}
 	r.isDrained = true
 
-	// we use SIGUSR1 to signal the wrapper process to drain events
+	// we use SIGUSR2 to signal the wrapper process to drain events
+	if err := r.signal(syscall.SIGUSR2); err != nil {
+		return errors.Wrap(err, "Failed to signal wrapper process")
+	}
+
+	// wait for process to finish event handling or timeout
+	// TODO: replace the following function with one that waits for a control communication message or timeout
+	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
+
+	return nil
+}
+
+// Terminate signals to the runtime process that processor is about to stop working
+func (r *AbstractRuntime) Terminate() error {
+
+	// we use SIGUSR1 to signal the wrapper process to terminate
 	if err := r.signal(syscall.SIGUSR1); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process")
 	}

@@ -65,6 +65,9 @@ type Runtime interface {
 	// Drain signals to the runtime process to drain its accumulated events and waits for it to finish
 	Drain() error
 
+	// Terminate signals to the runtime process that processor is about to stop working
+	Terminate() error
+
 	// GetControlMessageBroker returns the control message broker
 	GetControlMessageBroker() controlcommunication.ControlMessageBroker
 }
@@ -254,5 +257,9 @@ func (ar *AbstractRuntime) Stop() error {
 }
 
 func (ar *AbstractRuntime) Drain() error {
+	return nil
+}
+
+func (ar *AbstractRuntime) Terminate() error {
 	return nil
 }

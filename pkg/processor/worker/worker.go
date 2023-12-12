@@ -151,6 +151,14 @@ func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
 }
 
+func (w *Worker) Terminate() error {
+	if err := w.runtime.Terminate(); err != nil {
+		return err
+	}
+	w.logger.DebugWith("Successfully terminated worker", "workerIndex", w.index)
+	return nil
+}
+
 func (w *Worker) Drain() error {
 	w.drainedLock.Lock()
 	defer w.drainedLock.Unlock()

@@ -81,6 +81,11 @@ func (mr *MockRuntime) Drain() error {
 	return args.Error(0)
 }
 
+func (mr *MockRuntime) Terminate() error {
+	args := mr.Called()
+	return args.Error(0)
+}
+
 func (mr *MockRuntime) SupportsControlCommunication() bool {
 	args := mr.Called()
 	return args.Bool(0)

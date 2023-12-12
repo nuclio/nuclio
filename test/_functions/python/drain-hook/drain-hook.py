@@ -15,8 +15,8 @@ import time
 import os
 
 
-class TerminationHandler:
-    file_path_template = '/tmp/nuclio/termination-hook-{}.txt'
+class DrainHandler:
+    file_path_template = '/tmp/nuclio/drain-hook-{}.txt'
 
     def __init__(self, worker_id, logger):
         self.worker_id = worker_id
@@ -38,10 +38,10 @@ class TerminationHandler:
 
 def init_context(context):
     context.logger.info_with('Initializing', worker_id=context.worker_id)
-    termination_handler = TerminationHandler(context.worker_id, logger=context.logger)
+    drain_handler = DrainHandler(context.worker_id, logger=context.logger)
 
-    # register a callback to be called when the function is terminated
-    context.platform.set_termination_callback(termination_handler.write_results)
+    # register a callback to be called when the function is drained
+    context.platform.set_drain_callback(drain_handler.write_results)
 
 
 def handler(context, event):

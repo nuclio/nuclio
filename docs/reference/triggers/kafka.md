@@ -299,14 +299,15 @@ qualified_offset = nuclio.QualifiedOffset.from_event(event)
 await context.platform.explicit_ack(qualified_offset)
 ```
 
+### Drain callback
 During [rebalance](#rebalancing), the function can still be processing events. 
-We can register a callback to run before the workers are terminated, e.g. to drop or commit events being handled when the rebalancing is about to happen, 
+We can register a callback to run before the workers are drained, e.g. to drop or commit events being handled when the rebalancing is about to happen, 
 using the following method (Note that the registered callback is a nullary callback (doesn't accept arguments)):
 ```py
-context.platform.set_termination_callback(callback)
+context.platform.set_drain_callback(callback)
 ```
 
-Also, as part of this feature, a new customizable timeout `WaitExplicitAckDuringRebalanceTimeout` was added. Its main purpose is to help avoid processing the same message twice.
+This feature includes a customizable timeout  `WaitExplicitAckDuringRebalanceTimeout`. Its purpose is to prevent processing the same message twice.
 This timeout allows to configure the waiting time for a control message from runtime after a rebalance happened and before we unsubscribe from control messages from runtime and completely disconnect.
 Default value is `100ms`. It can be also set via function annotation `nuclio.io/wait-explicit-ack-during-rebalance-timeout`.
 

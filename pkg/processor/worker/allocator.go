@@ -53,6 +53,9 @@ type Allocator interface {
 	// SignalDraining signals all workers to drain events
 	SignalDraining() error
 
+	// SignalTermination signals all workers to terminate
+	SignalTermination() error
+
 	// ResetTerminationState resets termination state of all workers
 	ResetTerminationState()
 }
@@ -104,6 +107,10 @@ func (s *singleton) GetStatistics() *AllocatorStatistics {
 }
 
 func (s *singleton) SignalDraining() error {
+	return s.worker.Drain()
+}
+
+func (s *singleton) SignalTermination() error {
 	return s.worker.Drain()
 }
 
@@ -225,6 +232,28 @@ func (fp *fixedPool) SignalDraining() error {
 
 	if err := errGroup.Wait(); err != nil {
 		return errors.Wrap(err, "At least one worker failed to drain")
+	}
+
+	return nil
+}
+
+func (fp *fixedPool) SignalTermination() error {
+	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
+
+	for _, workerInstance := range fp.GetWorkers() {
+		workerInstance := workerInstance
+
+		errGroup.Go(fmt.Sprintf("Terminate worker %d", workerInstance.GetIndex()), func() error {
+
+			if err := workerInstance.Terminate(); err != nil {
+				return errors.Wrapf(err, "Failed to signal worker %d to terminate", workerInstance.GetIndex())
+			}
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "At least one worker failed to terminate")
 	}
 
 	return nil
