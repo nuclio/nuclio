@@ -300,7 +300,7 @@ func (suite *testSuite) TestExplicitAck() {
 }
 
 func (suite *testSuite) TestDrainHook() {
-	topic := "myTopic"
+	topic := "myTopicDraining"
 	defer func() {
 		// delete topic
 		_, err := suite.broker.DeleteTopics(&sarama.DeleteTopicsRequest{
