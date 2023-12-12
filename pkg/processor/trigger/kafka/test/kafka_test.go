@@ -301,6 +301,13 @@ func (suite *testSuite) TestExplicitAck() {
 
 func (suite *testSuite) TestDrainHook() {
 	topic := "myTopic"
+	defer func() {
+		// create new topic
+		_, err := suite.broker.DeleteTopics(&sarama.DeleteTopicsRequest{
+			Topics: []string{topic},
+		})
+		suite.Require().NoError(err, "Failed to delete topic")
+	}()
 	functionName := "drain-hook"
 	functionPath := path.Join(suite.GetTestFunctionsDir(),
 		"python",
