@@ -155,6 +155,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 
 			functionConfig := function.GetConfig()
 
+			// restore the function config, if it was scrubbed
 			if scrubbed, err := e.scrubber.HasScrubbedConfig(functionConfig,
 				e.rootCommandeer.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex()); err == nil && scrubbed {
 				var restoreErr error
@@ -168,6 +169,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			} else if err != nil {
 				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
+
 			exportOptions.PrevState = string(function.GetStatus().State)
 			exportOptions.NoScrub = e.noScrub
 			functionConfig.PrepareFunctionForExport(exportOptions)

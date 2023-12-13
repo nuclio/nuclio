@@ -37,6 +37,7 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
@@ -1531,6 +1532,29 @@ def handler(context, event):
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestDeployFromGitSanity() {
+	functionName := "func-from-git"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:Handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "golang"
+
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.GitEntryType
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = "https://github.com/sahare92/test-nuclio-cet.git"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"branch":  "go-func",
+		"workDir": "go-function/main.go",
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		suite.Require().Empty(deployResult.UpdatedFunctionConfig.Spec.Build.FunctionSourceCode)
+
+		return true
+	})
+}
 func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
 
 	// create a platform config configmap with a json logger sink (this is how it is on production)

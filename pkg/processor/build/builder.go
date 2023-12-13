@@ -206,14 +206,16 @@ func (b *Builder) Build(ctx context.Context, options *platform.CreateFunctionBui
 		// see if there are any inline blocks in the code. ignore errors during parse / load / whatever
 		b.parseInlineBlocks() // nolint: errcheck
 
-		// dont fail on parseInlineBlocks so that if the parser fails on something we won't block deployments. the only
+		// don't fail on parseInlineBlocks so that if the parser fails on something we won't block deployments. the only
 		// exception is if the user provided a block with improper contents
 		if b.inlineConfigurationBlock.Error != nil {
 			return nil, errors.Wrap(b.inlineConfigurationBlock.Error, "Failed to parse inline configuration")
 		}
 
-		// populate function source code
-		b.populateFunctionSourceCodeFromFilePath()
+		// populate function source code only if needed
+		if b.options.FunctionConfig.Spec.Build.CodeEntryType == SourceCodeEntryType {
+			b.populateFunctionSourceCodeFromFilePath()
+		}
 	}
 
 	// prepare configuration from both configuration files and things builder infers
