@@ -2,8 +2,9 @@ package queue
 
 import (
 	"container/heap"
-	"github.com/konsumgandalf/mpga-protoype-david/pkg/nexus/common/structs"
 	"time"
+
+	"github.com/konsumgandalf/mpga-protoype-david/pkg/nexus/common/structs"
 )
 
 type DeadlineItem struct {
@@ -28,9 +29,8 @@ func (p *DeadlineQueue) Push(el *DeadlineItem) {
 }
 
 func (p *DeadlineQueue) Update(el *DeadlineItem, deadline time.Time) {
-	heap.Remove(p.impl, el.Index)
 	el.Deadline = deadline
-	heap.Push(p.impl, el)
+	heap.Fix(p.impl, el.Index)
 }
 
 func (p *DeadlineQueue) Pop() *DeadlineItem {
