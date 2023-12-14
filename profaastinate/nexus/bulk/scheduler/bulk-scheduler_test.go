@@ -21,7 +21,6 @@ func Init(minAmountOfBulkItems int, sleepDuration time.Duration) (*BulkScheduler
 
 	baseScheduler := &common.BaseNexusScheduler{
 		Queue:                    mockNexus.Queue,
-		Mu:                       mockNexus.Mu,
 		BaseNexusSchedulerConfig: baseSchedulerConfig,
 	}
 
@@ -81,6 +80,7 @@ func TestBulkScheduler(t *testing.T) {
 	mockNexus.Push(&structs.NexusItem{
 		Name: task_2,
 	})
+
 	if bs.Queue.Len() != 6 {
 		t.Errorf("Expected the queue to contain 6 items, but it has %d items", bs.Queue.Len())
 	}
