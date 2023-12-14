@@ -3,7 +3,6 @@ package common
 import (
 	"container/heap"
 	common "nexus/common/models/structs"
-	"sort"
 	"sync"
 	"time"
 )
@@ -55,52 +54,44 @@ func (p *NexusQueue) Peek() *common.NexusItem {
 	return (*p.impl)[0]
 }
 
-func (p *NexusQueue) Remove(index int) {
+func (p *NexusQueue) Remove(item *common.NexusItem) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	heap.Remove(p.impl, index)
+	heap.Remove(p.impl, item.Index)
 }
 
-// RemoveAll removes all items with the given indices
-func (p *NexusQueue) RemoveAll(nexusIndices []int) {
+// RemoveAll removes all given items from the queue
+func (p *NexusQueue) RemoveAll(nexusItems []*common.NexusItem) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// we need to sort the indices in descending order
-	// because otherwise the indices will be shifted
-	sort.Ints(nexusIndices)
-	for i := len(nexusIndices) - 1; i >= 0; i-- {
-
-		// cant use p.Remove, since it will it will block itself
-		heap.Remove(p.impl, nexusIndices[i])
+	for _, item := range nexusItems {
+		heap.Remove(p.impl, item.Index)
 	}
 }
 
-// TODO: this is not thread safe
-// since the indices might change while we are iterating over them
-// we should return a pointer to the items instead so the indices are always up to date
-func (p *NexusQueue) GetMostCommonEntryIndices() []int {
+func (p *NexusQueue) GetMostCommonEntryItems() []*common.NexusItem {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	counts := make(map[string][]int)
+	counts := make(map[string][]*common.NexusItem)
 
 	for _, item := range *p.impl {
-		counts[item.Name] = append(counts[item.Name], item.Index)
+		counts[item.Name] = append(counts[item.Name], item)
 	}
 
 	maxCount := 0
-	var maxEntryIndices []int
+	var maxEntryItems []*common.NexusItem
 
-	for _, itemIndices := range counts {
-		if numberOfEntries := len(itemIndices); numberOfEntries > maxCount {
+	for _, items := range counts {
+		if numberOfEntries := len(items); numberOfEntries > maxCount {
 			maxCount = numberOfEntries
-			maxEntryIndices = itemIndices
+			maxEntryItems = items
 		}
 	}
 	counts = nil // free memory
-	return maxEntryIndices
+	return maxEntryItems
 }
 
 type deadlineHeap []*common.NexusItem
