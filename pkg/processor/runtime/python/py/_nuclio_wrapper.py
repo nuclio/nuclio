@@ -164,10 +164,8 @@ class Wrapper(object):
 
             finally:
                 if self._is_drain_needed:
-                    self._logger.debug('Calling platform drain handler')
                     self._call_drain_handler()
                 if self._is_termination_needed:
-                    self._logger.debug('Calling platform termination handler')
                     self._call_termination_handler()
 
             # for testing, we can ask wrapper to only read a set number of requests
@@ -248,7 +246,7 @@ class Wrapper(object):
             self._is_termination_needed = True
 
     def _call_drain_handler(self):
-        self._logger.debug('Calling platform draining handler')
+        self._logger.debug('Calling platform drain handler')
 
         # set the flag to False so the drain handler will not be called more than once
         self._is_drain_needed = False
