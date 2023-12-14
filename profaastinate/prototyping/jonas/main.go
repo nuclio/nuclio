@@ -50,10 +50,7 @@ func (nxs *Nexus) Pop() any {
 	return NexusEntry
 }
 
-<<<<<<< HEAD
-=======
 // TODO immutablity is violated here, why do not overwrite the value before?
->>>>>>> d1194cc3d (test(profaastinate-jonas): queue-nexus)
 // update modifies the priority and value of an NexusEntry in the queue.
 func (nxs *Nexus) update(NexusEntry *NexusEntry, value string, priority int) {
 	NexusEntry.value = value
@@ -61,10 +58,7 @@ func (nxs *Nexus) update(NexusEntry *NexusEntry, value string, priority int) {
 	heap.Fix(nxs, NexusEntry.index)
 }
 
-<<<<<<< HEAD
-=======
 // TODO why is this an exported function?
->>>>>>> d1194cc3d (test(profaastinate-jonas): queue-nexus)
 func (nxs *Nexus) Remove(NexusEntry *NexusEntry) {
 	heap.Remove(nxs, NexusEntry.index)
 }
@@ -162,8 +156,6 @@ func main() {
 		fmt.Printf("%.2d:%s ", item.Deadline, item.value)
 	}
 
-<<<<<<< HEAD
-=======
 	mainDavid()
 
 }
@@ -241,5 +233,4 @@ func removeItems(nxs *Nexus) bool {
 	}
 
 	return false
->>>>>>> d1194cc3d (test(profaastinate-jonas): queue-nexus)
 }
