@@ -37,8 +37,8 @@ func (ds *BulkScheduler) executeSchedule() {
 			continue
 		}
 
-		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems {
-			ds.Queue.RemoveAll(itemsToPop)
+		if indicesToPop := ds.Queue.GetMostCommonEntryIndices(); len(indicesToPop) >= ds.MinAmountOfBulkItems {
+			ds.Queue.RemoveAll(indicesToPop)
 		}
 	}
 }
