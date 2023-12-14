@@ -179,7 +179,7 @@ class Wrapper(object):
         # call init_context
         await self._initialize_context()
 
-        # register to the SIGUSR1 signal, used to signal draining
+        # register to the SIGUSR1 and SIGUSR2 signals, used to signal termination/draining respectively
         self._register_to_signal()
 
         # indicate that we're ready
