@@ -21,7 +21,6 @@ func Init(deadlineRemovalThreshold time.Duration, sleepDuration time.Duration) (
 
 	baseScheduler := &models.BaseNexusScheduler{
 		Queue:                    mockNexus.Queue,
-		Mu:                       mockNexus.Mu,
 		BaseNexusSchedulerConfig: baseSchedulerConfig,
 	}
 
