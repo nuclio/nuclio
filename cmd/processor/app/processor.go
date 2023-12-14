@@ -193,7 +193,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	// if default http trigger creation is disabled and there is no any other http trigger we need to start internal
 	// healthcheck service
 	if (processorConfiguration.Spec.DisableDefaultHTTPTrigger == nil && platformConfiguration.DisableDefaultHTTPTrigger ||
-		*processorConfiguration.Spec.DisableDefaultHTTPTrigger) &&
+		processorConfiguration.Spec.DisableDefaultHTTPTrigger != nil && *processorConfiguration.Spec.DisableDefaultHTTPTrigger) &&
 		len(functionconfig.GetTriggersByKind(processorConfiguration.Spec.Triggers, "http")) == 0 {
 		startInternalHealthCheck()
 	}
