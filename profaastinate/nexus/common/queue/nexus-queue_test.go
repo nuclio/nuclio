@@ -58,7 +58,7 @@ func TestPriorityQueue(t *testing.T) {
 	}
 
 	// Test Remove
-	mockPriorityQueue.Remove(0)
+	mockPriorityQueue.Remove(mockPriorityQueue.Peek())
 	if mockPriorityQueue.Len() != 0 {
 		t.Errorf("Expected length 0, got %d", mockPriorityQueue.Len())
 	}
@@ -117,7 +117,7 @@ func TestDeadlineImpl(t *testing.T) {
 }
 
 // this will test if the queue can handle a index change after Geting the most common entry indices
-func TestGetMostCommonEntryIndicesPushRemove(t *testing.T) {
+func TestGetMostCommonEntryItemsPushRemove(t *testing.T) {
 
 	mockPriorityQueue := Init()
 
@@ -149,10 +149,9 @@ func TestGetMostCommonEntryIndicesPushRemove(t *testing.T) {
 		t.Errorf("Expected length 3, got %d", mockPriorityQueue.Len())
 	}
 
-	// Test GetMostCommonEntryIndices
-	indices := mockPriorityQueue.GetMostCommonEntryIndices()
-	if len(indices) != 3 {
-		t.Errorf("Expected length 2, got %d", len(indices))
+	items := mockPriorityQueue.GetMostCommonEntryItems()
+	if len(items) != 3 {
+		t.Errorf("Expected length 2, got %d", len(items))
 	}
 
 	PushItem := &common.NexusItem{
@@ -161,7 +160,7 @@ func TestGetMostCommonEntryIndicesPushRemove(t *testing.T) {
 	}
 	mockPriorityQueue.Push(PushItem)
 
-	mockPriorityQueue.RemoveAll(indices)
+	mockPriorityQueue.RemoveAll(items)
 
 	count := 0
 	for _, item := range *mockPriorityQueue.impl {
