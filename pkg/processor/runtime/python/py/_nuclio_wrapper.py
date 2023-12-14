@@ -216,7 +216,7 @@ class Wrapper(object):
         signal.signal(signal.SIGUSR2, self._on_drain_signal)
 
     def _on_drain_signal(self, signal_number, frame):
-        self._logger.debug_with('Received signal, calling draining callback', signal=signal_number)
+        self._logger.debug_with('Received signal, calling draining callback', signal=signal_number.name)
 
         if self._is_waiting_for_event:
             self._logger.debug('Wrapper is waiting for an event, calling drain handler')
@@ -231,7 +231,7 @@ class Wrapper(object):
             self._is_drain_needed = True
 
     def _on_termination_signal(self, signal_number, frame):
-        self._logger.debug_with('Received signal, calling termination callback', signal=signal_number)
+        self._logger.debug_with('Received signal, calling termination callback', signal=signal_number.name)
 
         if self._is_waiting_for_event:
             self._logger.debug('Wrapper is waiting for an event, calling termination handler')
