@@ -235,6 +235,7 @@ func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = "sourceCode"
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
