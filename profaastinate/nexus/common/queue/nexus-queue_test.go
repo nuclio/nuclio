@@ -115,3 +115,62 @@ func TestDeadlineImpl(t *testing.T) {
 		t.Errorf("Expected length 1, got %d", mockDeadlineHeap.Len())
 	}
 }
+
+// this will test if the queue can handle a index change after Geting the most common entry indices
+func TestGetMostCommonEntryIndicesPushRemove(t *testing.T) {
+
+	mockPriorityQueue := Init()
+
+	mockItemList := []*common.NexusItem{
+		{
+			Deadline: time.Now(),
+			Name:     "LessCommon",
+		},
+		{
+			Deadline: time.Now().Add(20 * time.Second),
+			Name:     "MostCommon",
+		},
+		{
+			Deadline: time.Now().Add(20 * time.Second),
+			Name:     "MostCommon",
+		},
+		{
+			Deadline: time.Now().Add(20 * time.Second),
+			Name:     "MostCommon",
+		},
+	}
+
+	// Test Push
+	for _, item := range mockItemList {
+		mockPriorityQueue.Push(item)
+	}
+
+	if mockPriorityQueue.Len() != 4 {
+		t.Errorf("Expected length 3, got %d", mockPriorityQueue.Len())
+	}
+
+	// Test GetMostCommonEntryIndices
+	indices := mockPriorityQueue.GetMostCommonEntryIndices()
+	if len(indices) != 3 {
+		t.Errorf("Expected length 2, got %d", len(indices))
+	}
+
+	PushItem := &common.NexusItem{
+		Deadline: time.Now(),
+		Name:     "LessCommon",
+	}
+	mockPriorityQueue.Push(PushItem)
+
+	mockPriorityQueue.RemoveAll(indices)
+
+	count := 0
+	for _, item := range *mockPriorityQueue.impl {
+		if item.Name == "MostCommon" {
+			count++
+		}
+	}
+
+	if count > 0 {
+		t.Errorf("Expected to remove all MostCommon items, but there are still %d left", count)
+	}
+}

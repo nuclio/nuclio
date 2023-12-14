@@ -71,10 +71,15 @@ func (p *NexusQueue) RemoveAll(nexusIndices []int) {
 	// because otherwise the indices will be shifted
 	sort.Ints(nexusIndices)
 	for i := len(nexusIndices) - 1; i >= 0; i-- {
+
+		// cant use p.Remove, since it will it will block itself
 		heap.Remove(p.impl, nexusIndices[i])
 	}
 }
 
+// TODO: this is not thread safe
+// since the indices might change while we are iterating over them
+// we should return a pointer to the items instead so the indices are always up to date
 func (p *NexusQueue) GetMostCommonEntryIndices() []int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
