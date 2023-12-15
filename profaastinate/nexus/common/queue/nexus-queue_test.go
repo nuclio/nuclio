@@ -116,7 +116,7 @@ func TestDeadlineImpl(t *testing.T) {
 	}
 }
 
-// this will test if the queue can handle a index change after Geting the most common entry indices
+// this will test if the queue can handle an index change after Getting the most common entry indices
 func TestGetMostCommonEntryItemsPushRemove(t *testing.T) {
 
 	mockPriorityQueue := Init()
