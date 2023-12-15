@@ -22,7 +22,12 @@ func Init() *NexusQueue {
 	return &NexusQueue{impl: mh, mu: mutex}
 }
 
-func (p NexusQueue) Len() int { return p.impl.Len() }
+func (p NexusQueue) Len() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.impl.Len()
+}
 
 func (p *NexusQueue) Push(el *common.NexusItem) {
 	p.mu.Lock()
