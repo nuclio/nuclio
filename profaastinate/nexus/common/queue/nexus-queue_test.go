@@ -65,7 +65,7 @@ func TestPriorityQueue(t *testing.T) {
 }
 
 func TestDeadlineImpl(t *testing.T) {
-	mockDeadlineHeap := &deadlineHeap{}
+	mockDeadlineHeap := &nexusHeap{}
 
 	// Test Len
 	if mockDeadlineHeap.Len() != 0 {
