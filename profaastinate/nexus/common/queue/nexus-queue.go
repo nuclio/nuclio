@@ -8,13 +8,13 @@ import (
 )
 
 type NexusQueue struct {
-	impl *deadlineHeap
+	impl *nexusHeap
 
 	mu *sync.RWMutex
 }
 
 func Init() *NexusQueue {
-	mh := &deadlineHeap{}
+	mh := &nexusHeap{}
 	heap.Init(mh)
 
 	mutex := &sync.RWMutex{}
@@ -45,8 +45,8 @@ func (p *NexusQueue) Update(el *common.NexusItem, deadline time.Time) {
 }
 
 func (p *NexusQueue) Pop() *common.NexusItem {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	el := heap.Pop(p.impl)
 	return el.(*common.NexusItem)
@@ -99,24 +99,24 @@ func (p *NexusQueue) GetMostCommonEntryItems() []*common.NexusItem {
 	return maxEntryItems
 }
 
-type deadlineHeap []*common.NexusItem
+type nexusHeap []*common.NexusItem
 
-func (nxs deadlineHeap) Len() int { return len(nxs) }
+func (nxs nexusHeap) Len() int { return len(nxs) }
 
-func (nxs deadlineHeap) Swap(i, j int) {
+func (nxs nexusHeap) Swap(i, j int) {
 	nxs[i], nxs[j] = nxs[j], nxs[i]
 	nxs[i].Index = i
 	nxs[j].Index = j
 }
 
-func (nxs *deadlineHeap) Push(x any) {
+func (nxs *nexusHeap) Push(x any) {
 	n := len(*nxs)
 	NexusEntry := x.(*common.NexusItem)
 	NexusEntry.Index = n
 	*nxs = append(*nxs, NexusEntry)
 }
 
-func (nxs *deadlineHeap) Pop() any {
+func (nxs *nexusHeap) Pop() any {
 	old := *nxs
 	n := len(old)
 	NexusEntry := old[n-1]
@@ -126,6 +126,6 @@ func (nxs *deadlineHeap) Pop() any {
 	return NexusEntry
 }
 
-func (nxs deadlineHeap) Less(i, j int) bool {
+func (nxs nexusHeap) Less(i, j int) bool {
 	return nxs[i].Deadline.Before(nxs[j].Deadline)
 }
