@@ -245,7 +245,7 @@ func (suite *KubeTestSuite) InvokeFunction(method string, port int, path string,
 }
 
 func (suite *KubeTestSuite) GetNuclioExternalIP() string {
-	return common.GetEnvOrDefaultString("NUCLIO_EXTERNAL_IP_ADDRESSES", "127.0.0.1")
+	return common.GetEnvOrDefaultString("NUCLIO_EXTERNAL_IP_ADDRESS", "127.0.0.1")
 }
 
 func (suite *KubeTestSuite) CompileCreateFunctionEventOptions(functionEventName, functionName string) *platform.CreateFunctionEventOptions {
