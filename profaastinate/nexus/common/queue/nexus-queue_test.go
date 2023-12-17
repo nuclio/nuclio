@@ -116,6 +116,87 @@ func TestDeadlineImpl(t *testing.T) {
 	}
 }
 
+// this test will test if the queue gives all items until the given deadline
+func TestGetAllItemsUntilDeadline(t *testing.T) {
+
+	mockPriorityQueue := Init()
+
+	mockItemList := []*common.NexusItem{
+		{
+			Deadline: time.Now(),
+			Name:     "Now",
+		},
+		{
+			Deadline: time.Now().Add(21 * time.Second),
+			Name:     "Future",
+		},
+		{
+			Deadline: time.Now(),
+			Name:     "Now",
+		},
+		{
+			Deadline: time.Now().Add(22 * time.Second),
+			Name:     "Future",
+		},
+		{
+			Deadline: time.Now(),
+			Name:     "Now",
+		},
+		{
+			Deadline: time.Now().Add(23 * time.Second),
+			Name:     "Future",
+		},
+	}
+
+	// Test Push
+	for _, item := range mockItemList {
+		mockPriorityQueue.Push(item)
+	}
+
+	if mockPriorityQueue.Len() != 6 {
+		t.Errorf("Expected length 3, got %d", mockPriorityQueue.Len())
+	}
+
+	items := mockPriorityQueue.GetAllItemsUntilDeadline(time.Now().Add(10 * time.Second))
+	if len(items) != 3 {
+		t.Errorf("Expected length 3, got %d", len(items))
+	}
+
+	for _, item := range items {
+		if item.Name != "Now" {
+			t.Errorf("Expected to get only items with name 'Now', got %s", item.Name)
+		}
+	}
+
+	mockPriorityQueue.RemoveAll(items)
+
+	for _, item := range *mockPriorityQueue.impl {
+		if item.Name == "Now" {
+			t.Errorf("Expected to remove all Now items, but there are still %s left", item.Name)
+		}
+	}
+
+	items = mockPriorityQueue.GetAllItemsUntilDeadline(time.Now().Add(30 * time.Second))
+	if len(items) != 3 {
+		t.Errorf("Expected length 3, got %d", len(items))
+	}
+
+	if mockPriorityQueue.Len() != 3 {
+		t.Errorf("Expected length 3, got %d", mockPriorityQueue.Len())
+	}
+
+	mockPriorityQueue.RemoveAll(items)
+
+	if mockPriorityQueue.Len() != 0 {
+		t.Errorf("Expected length 0, got %d", mockPriorityQueue.Len())
+	}
+
+	items = mockPriorityQueue.GetAllItemsUntilDeadline(time.Now().Add(30 * time.Second))
+	if len(items) != 0 {
+		t.Errorf("Expected length 0, got %d", len(items))
+	}
+}
+
 // this will test if the queue can handle an index change after Getting the most common entry indices
 func TestGetMostCommonEntryItemsPushRemove(t *testing.T) {
 
