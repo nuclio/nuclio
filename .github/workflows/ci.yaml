@@ -347,7 +347,7 @@ jobs:
 
       - name: Export env
         run: |
-          echo "NUCTL_EXTERNAL_IP_ADDRESSES=$(minikube ip)" >> $GITHUB_ENV
+          echo "NUCLIO_EXTERNAL_IP_ADDRESS=$(minikube ip)" >> $GITHUB_ENV
           echo "NUCLIO_TEST_REGISTRY_URL=localhost:5000" >> $GITHUB_ENV
           echo "NUCLIO_TEST_KUBECONFIG=$(pwd)/kubeconfig_flatten" >> $GITHUB_ENV
           echo "NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=nuclio-test-function-host.info" >> $GITHUB_ENV

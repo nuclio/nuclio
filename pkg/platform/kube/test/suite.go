@@ -19,10 +19,12 @@ limitations under the License.
 package test
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"time"
@@ -69,6 +71,8 @@ type KubeTestSuite struct {
 
 	DisableControllerStart bool
 	Ctx                    context.Context
+
+	httpClient *http.Client
 }
 
 // SetupSuite To run this test suite you should:
@@ -129,6 +133,9 @@ func (suite *KubeTestSuite) SetupSuite() {
 		if err := suite.Controller.Start(suite.Ctx); err != nil {
 			suite.Require().NoError(err, "Failed to start controller")
 		}
+	}
+	suite.httpClient = &http.Client{
+		Timeout: 10 * time.Second,
 	}
 }
 
@@ -225,6 +232,20 @@ def handler(context, event):
 	// don't explicitly pull base images before building
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	return createFunctionOptions
+}
+
+// InvokeFunction invokes function via HTTP trigger
+func (suite *KubeTestSuite) InvokeFunction(method string, port int, path string, requestBody []byte) {
+	url := fmt.Sprintf("http://%s:%d%s", suite.GetNuclioExternalIP(), port, path)
+	request, err := http.NewRequest(method, url, bytes.NewBuffer(requestBody))
+	suite.Require().NoError(err)
+
+	_, err = suite.httpClient.Do(request)
+	suite.Require().NoError(err)
+}
+
+func (suite *KubeTestSuite) GetNuclioExternalIP() string {
+	return common.GetEnvOrDefaultString("NUCLIO_EXTERNAL_IP_ADDRESSES", "127.0.0.1")
 }
 
 func (suite *KubeTestSuite) CompileCreateFunctionEventOptions(functionEventName, functionName string) *platform.CreateFunctionEventOptions {

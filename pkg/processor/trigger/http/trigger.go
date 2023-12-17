@@ -472,7 +472,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		switch errors.Cause(submitError) {
 
 		// no available workers
-		case worker.ErrNoAvailableWorkers:
+		case worker.ErrNoAvailableWorkers, worker.ErrAllWorkersAreTerminated:
 			ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 
 			// something else - most likely a bug

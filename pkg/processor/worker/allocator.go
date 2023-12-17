@@ -29,6 +29,7 @@ import (
 )
 
 var ErrNoAvailableWorkers = errors.New("No available workers")
+var ErrAllWorkersAreTerminated = errors.New("All workers are terminated")
 
 type Allocator interface {
 
@@ -70,8 +71,9 @@ type singleton struct {
 	// accessed atomically, keep as first field for alignment
 	statistics AllocatorStatistics
 
-	logger logger.Logger
-	worker *Worker
+	logger       logger.Logger
+	worker       *Worker
+	isTerminated bool
 }
 
 func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (Allocator, error) {
@@ -83,6 +85,9 @@ func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (Al
 }
 
 func (s *singleton) Allocate(time.Duration) (*Worker, error) {
+	if s.isTerminated {
+		return nil, ErrAllWorkersAreTerminated
+	}
 	return s.worker, nil
 }
 
@@ -128,9 +133,10 @@ type fixedPool struct {
 	// accessed atomically, keep as first field for alignment
 	statistics AllocatorStatistics
 
-	logger     logger.Logger
-	workerChan chan *Worker
-	workers    []*Worker
+	logger       logger.Logger
+	workerChan   chan *Worker
+	workers      []*Worker
+	isTerminated bool
 }
 
 func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (Allocator, error) {
@@ -151,6 +157,9 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 }
 
 func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
+	if fp.isTerminated {
+		return nil, ErrAllWorkersAreTerminated
+	}
 
 	// we don't want to completely lock here, but we'll use atomic to inc counters where possible
 	atomic.AddUint64(&fp.statistics.WorkerAllocationCount, 1)
@@ -239,7 +248,7 @@ func (fp *fixedPool) SignalDraining() error {
 
 func (fp *fixedPool) SignalTermination() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
-
+	fp.isTerminated = true
 	for _, workerInstance := range fp.GetWorkers() {
 		workerInstance := workerInstance
 
