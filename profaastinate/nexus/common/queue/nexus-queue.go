@@ -99,6 +99,23 @@ func (p *NexusQueue) GetMostCommonEntryItems() []*common.NexusItem {
 	return maxEntryItems
 }
 
+func (p *NexusQueue) GetAllItemsUntilDeadline(deadline time.Time) []*common.NexusItem {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	var items []*common.NexusItem
+
+	for _, item := range *p.impl {
+		if item.Deadline.Before(deadline) {
+			items = append(items, item)
+		} else {
+			break
+		}
+	}
+
+	return items
+}
+
 type nexusHeap []*common.NexusItem
 
 func (nxs nexusHeap) Len() int { return len(nxs) }
