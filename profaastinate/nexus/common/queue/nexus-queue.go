@@ -3,24 +3,8 @@ package common
 import (
 	"container/heap"
 	common "nexus/common/models/structs"
-	"sync"
 	"time"
 )
-
-type NexusQueue struct {
-	impl *nexusHeap
-
-	mu *sync.RWMutex
-}
-
-func Init() *NexusQueue {
-	mh := &nexusHeap{}
-	heap.Init(mh)
-
-	mutex := &sync.RWMutex{}
-
-	return &NexusQueue{impl: mh, mu: mutex}
-}
 
 func (p NexusQueue) Len() int {
 	p.mu.Lock()
@@ -52,6 +36,18 @@ func (p *NexusQueue) Pop() *common.NexusItem {
 	return el.(*common.NexusItem)
 }
 
+// PopBulkUntilDeadline pops all items from the queue until the deadline
+func (p *NexusQueue) PopBulkUntilDeadline(deadline time.Time) []*common.NexusItem {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	items := p.getAllItemsUntilDeadlineNotBlocking(deadline)
+
+	p.removeAllNotBlocking(items)
+
+	return items
+}
+
 func (p *NexusQueue) Peek() *common.NexusItem {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -71,9 +67,7 @@ func (p *NexusQueue) RemoveAll(nexusItems []*common.NexusItem) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for _, item := range nexusItems {
-		heap.Remove(p.impl, item.Index)
-	}
+	p.removeAllNotBlocking(nexusItems)
 }
 
 func (p *NexusQueue) GetMostCommonEntryItems() []*common.NexusItem {
@@ -103,46 +97,5 @@ func (p *NexusQueue) GetAllItemsUntilDeadline(deadline time.Time) []*common.Nexu
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	var items []*common.NexusItem
-
-	for _, item := range *p.impl {
-		if item.Deadline.Before(deadline) {
-			items = append(items, item)
-		} else {
-			break
-		}
-	}
-
-	return items
-}
-
-type nexusHeap []*common.NexusItem
-
-func (nxs nexusHeap) Len() int { return len(nxs) }
-
-func (nxs nexusHeap) Swap(i, j int) {
-	nxs[i], nxs[j] = nxs[j], nxs[i]
-	nxs[i].Index = i
-	nxs[j].Index = j
-}
-
-func (nxs *nexusHeap) Push(x any) {
-	n := len(*nxs)
-	NexusEntry := x.(*common.NexusItem)
-	NexusEntry.Index = n
-	*nxs = append(*nxs, NexusEntry)
-}
-
-func (nxs *nexusHeap) Pop() any {
-	old := *nxs
-	n := len(old)
-	NexusEntry := old[n-1]
-	old[n-1] = nil        // avoid memory leak
-	NexusEntry.Index = -1 // for safety
-	*nxs = old[0 : n-1]
-	return NexusEntry
-}
-
-func (nxs nexusHeap) Less(i, j int) bool {
-	return nxs[i].Deadline.Before(nxs[j].Deadline)
+	return p.getAllItemsUntilDeadlineNotBlocking(deadline)
 }
