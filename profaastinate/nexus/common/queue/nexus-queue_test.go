@@ -197,6 +197,46 @@ func TestGetAllItemsUntilDeadline(t *testing.T) {
 	}
 }
 
+// Test PopBulkUntilDeadline
+func TestPopBulkUntilDeadline(t *testing.T) {
+	mockPriorityQueue := Init()
+
+	mockItemList := []*common.NexusItem{
+		{
+			Deadline: time.Now(),
+			Name:     "Item1",
+		},
+		{
+			Deadline: time.Now().Add(20 * time.Second),
+			Name:     "Item2",
+		},
+		{
+			Deadline: time.Now().Add(20 * time.Second),
+			Name:     "Item3",
+		},
+	}
+
+	// Test Push
+	for _, item := range mockItemList {
+		mockPriorityQueue.Push(item)
+	}
+
+	items := mockPriorityQueue.PopBulkUntilDeadline(time.Now().Add(30 * time.Second))
+	if len(items) != 3 {
+		t.Errorf("Expected length 3, got %d", len(items))
+	}
+
+	if mockPriorityQueue.Len() != 0 {
+		t.Errorf("Expected length 0, got %d", mockPriorityQueue.Len())
+	}
+
+	items = mockPriorityQueue.PopBulkUntilDeadline(time.Now().Add(30 * time.Second))
+
+	if len(items) != 0 {
+		t.Errorf("Expected length 0, got %d", len(items))
+	}
+}
+
 // this will test if the queue can handle an index change after Getting the most common entry indices
 func TestGetMostCommonEntryItemsPushRemove(t *testing.T) {
 
