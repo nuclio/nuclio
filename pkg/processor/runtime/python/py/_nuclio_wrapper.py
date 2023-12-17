@@ -422,7 +422,7 @@ class Wrapper(object):
 
         # call the entrypoint
         entrypoint_output = self._entrypoint(self._context, event)
-        if self._is_entrypoint_coroutine:
+        if asyncio.iscoroutine(entrypoint_output):
             entrypoint_output = await entrypoint_output
 
         # measure duration, set to minimum float in case execution was too fast
