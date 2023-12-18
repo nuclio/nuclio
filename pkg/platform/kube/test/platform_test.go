@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -1734,12 +1733,9 @@ def init_context(context):
 		ctx, cancel := context.WithCancel(suite.Ctx)
 		go func() {
 			ticker := time.Tick(500 * time.Millisecond)
-			testHost := suite.GetNuclioExternalIP()
-			url := fmt.Sprintf("http://%s:%d", testHost, deployResult.Port)
 			select {
 			case <-ticker:
-				_, err = http.Get(url)
-				suite.Require().NoError(err)
+				suite.InvokeFunction("GET", deployResult.Port, "", nil)
 			case <-ctx.Done():
 				break
 			}
