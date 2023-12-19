@@ -1732,9 +1732,10 @@ def init_context(context):
 		// bombing function with requests to check that event won't be processed after worker termination
 		ctx, cancel := context.WithCancel(suite.Ctx)
 		go func() {
-			ticker := time.Tick(500 * time.Millisecond)
+			ticker := time.NewTicker(500 * time.Millisecond)
+			defer ticker.Stop()
 			select {
-			case <-ticker:
+			case <-ticker.C:
 				suite.InvokeFunction("GET", deployResult.Port, "", nil)
 			case <-ctx.Done():
 				break
