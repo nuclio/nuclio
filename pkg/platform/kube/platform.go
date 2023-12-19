@@ -472,6 +472,7 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	}
 
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
+	p.enrichInitContainersSpec(functionConfig)
 	p.enrichSidecarsSpec(ctx, functionConfig)
 	return nil
 }
@@ -1261,7 +1262,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Service type validation failed")
 	}
 
-	if err := p.validateSidecarSpec(ctx, functionConfig); err != nil {
+	if err := p.validateInitContainersSpec(functionConfig); err != nil {
+		return errors.Wrap(err, "Init containers validation failed")
+	}
+	if err := p.validateSidecarSpec(functionConfig); err != nil {
 		return errors.Wrap(err, "Sidecar validation failed")
 	}
 
@@ -1506,6 +1510,12 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 	}
 }
 
+func (p *Platform) enrichInitContainersSpec(functionConfig *functionconfig.Config) {
+	for _, initContainer := range functionConfig.Spec.InitContainers {
+		p.enrichContainerSpec(initContainer, functionConfig)
+	}
+}
+
 func (p *Platform) enrichSidecarsSpec(ctx context.Context, functionConfig *functionconfig.Config) {
 
 	for sidecarName, sidecar := range functionConfig.Spec.Sidecars {
@@ -1513,16 +1523,20 @@ func (p *Platform) enrichSidecarsSpec(ctx context.Context, functionConfig *funct
 			sidecar.Name = sidecarName
 		}
 
-		// enrich env vars
-		if sidecar.Env == nil {
-			sidecar.Env = make([]v1.EnvVar, 0)
-		}
-		sidecar.Env = append(sidecar.Env, functionConfig.Spec.Env...)
+		p.enrichContainerSpec(sidecar, functionConfig)
+	}
+}
 
-		// image pull policy
-		if sidecar.ImagePullPolicy == "" {
-			sidecar.ImagePullPolicy = functionConfig.Spec.ImagePullPolicy
-		}
+func (p *Platform) enrichContainerSpec(container *v1.Container, functionConfig *functionconfig.Config) {
+	// enrich env vars
+	if container.Env == nil {
+		container.Env = make([]v1.EnvVar, 0)
+	}
+	container.Env = append(container.Env, functionConfig.Spec.Env...)
+
+	// image pull policy
+	if container.ImagePullPolicy == "" {
+		container.ImagePullPolicy = functionConfig.Spec.ImagePullPolicy
 	}
 }
 
@@ -1869,13 +1883,34 @@ func (p *Platform) validateAPIGatewayIngresses(ctx context.Context, apiGatewayCo
 	return nil
 }
 
-func (p *Platform) validateSidecarSpec(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (p *Platform) validateSidecarSpec(functionConfig *functionconfig.Config) error {
 	for _, sidecar := range functionConfig.Spec.Sidecars {
-		if sidecar.Image == "" {
-			return nuclio.NewErrBadRequest(fmt.Sprintf("Sidecar image must be provided for sidecar %s", sidecar.Name))
+		if err := p.validateContainerSpec(sidecar); err != nil {
+			return nuclio.WrapErrBadRequest(err)
 		}
 	}
 
+	return nil
+}
+
+func (p *Platform) validateInitContainersSpec(functionConfig *functionconfig.Config) error {
+	for _, initContainer := range functionConfig.Spec.InitContainers {
+		if err := p.validateContainerSpec(initContainer); err != nil {
+			return nuclio.WrapErrBadRequest(err)
+		}
+	}
+
+	return nil
+}
+
+func (p *Platform) validateContainerSpec(container *v1.Container) error {
+	if container.Name == "" {
+		return nuclio.NewErrBadRequest("Container name must be provided")
+	}
+
+	if container.Image == "" {
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Container image must be provided for container %s", container.Name))
+	}
 	return nil
 }
 
