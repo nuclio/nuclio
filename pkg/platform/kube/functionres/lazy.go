@@ -665,8 +665,10 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 	// checking that the number of pods is equal to expected replicas, otherwise checking init container
 	// statuses doesn't make sense; need to wait more time
 	if *functionDeployment.Spec.Replicas != int32(len(functionPods.Items)) {
-		notReadyReason = "Not all replicas are deployed yet"
-		return false, "", nil
+		notReadyReason = fmt.Sprintf("Not all pod replicas are deployed yet. Expected replicas: %d. Actual replicas: %d",
+			*functionDeployment.Spec.Replicas,
+			len(functionPods.Items))
+		return false, notReadyReason, nil
 	}
 
 	// going thought each pod's init containers and check that they all were terminated with exit code 0
