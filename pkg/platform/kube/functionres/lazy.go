@@ -629,11 +629,11 @@ func (lc *lazyClient) getFunctionPods(ctx context.Context,
 }
 
 // checkFunctionInitContainersDone checks that all function init containers are in terminated status
-// returns pair (IsDone, error)
+// returns (IsDone, reasonNotDone, error)
 // Each pair explanation:
-// (true, nil) - all init containers are terminated with 0 exit code, we can proceed to other checks
-// (false, nil) - some init containers are still waiting/running OR required number of pods hasn't been created yet, so need to wait
-// (false, err) - we can stop waiting here since something is broken, so function won't be successfully started
+// (true, "", nil) - all init containers are terminated with 0 exit code, we can proceed to other checks
+// (false, notReadyReason, nil) - some init containers are still waiting/running OR required number of pods hasn't been created yet, so need to wait
+// (false, "", err) - we can stop waiting here since something is broken, so function won't be successfully started
 // (true, err) - impossible
 func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, function *nuclioio.NuclioFunction) (bool, string, error) {
 	functionDeployment, err := lc.getFunctionDeployment(ctx, function)
