@@ -671,7 +671,7 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 		return false, notReadyReason, nil
 	}
 
-	// going thought each pod's init containers and check that they all were terminated with exit code 0
+	// going through each pod's init containers and check that they all were terminated with exit code 0
 	for _, pod := range functionPods.Items {
 		for _, initContainer := range pod.Status.InitContainerStatuses {
 			switch {
