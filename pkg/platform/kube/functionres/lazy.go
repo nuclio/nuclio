@@ -1119,16 +1119,16 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		// create init containers if provided
 		if len(function.Spec.InitContainers) > 0 {
 			deploymentSpec.Template.Spec.InitContainers = make([]v1.Container, 0, len(function.Spec.InitContainers))
-			for _, initContainerSpec := range function.Spec.InitContainers {
+			for _, initContainer := range function.Spec.InitContainers {
 				lc.logger.DebugWithCtx(ctx,
 					"Creating init container",
 					"functionName", function.Name,
-					"initContainer", initContainerSpec.Name)
-				initContainer := v1.Container{}
-				lc.populateContainer(ctx, initContainerSpec, &initContainer)
+					"initContainer", initContainer.Name)
+				lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
+					lc.logger,
+					&initContainer.Resources)
 				initContainer.VolumeMounts = volumeMounts
-
-				deploymentSpec.Template.Spec.InitContainers = append(deploymentSpec.Template.Spec.InitContainers, initContainer)
+				deploymentSpec.Template.Spec.InitContainers = append(deploymentSpec.Template.Spec.InitContainers, *initContainer)
 			}
 		}
 
@@ -1138,10 +1138,11 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 				"Creating sidecar container",
 				"functionName", function.Name,
 				"sidecarName", sidecarName)
-			sidecarContainer := v1.Container{}
-			lc.populateContainer(ctx, sidecarSpec, &sidecarContainer)
-			sidecarContainer.VolumeMounts = volumeMounts
-			deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, sidecarContainer)
+			lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
+				lc.logger,
+				&sidecarSpec.Resources)
+			sidecarSpec.VolumeMounts = volumeMounts
+			deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, *sidecarSpec)
 		}
 
 		deployment := &appsv1.Deployment{
@@ -2311,33 +2312,6 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	} else {
 		container.ImagePullPolicy = function.Spec.ImagePullPolicy
 	}
-}
-
-func (lc *lazyClient) populateContainer(ctx context.Context,
-	containerSpec *v1.Container,
-	container *v1.Container) {
-	container.Name = containerSpec.Name
-	container.Env = containerSpec.Env
-
-	container.Image = containerSpec.Image
-	if containerSpec.ImagePullPolicy != "" {
-		container.ImagePullPolicy = containerSpec.ImagePullPolicy
-	}
-	container.Ports = containerSpec.Ports
-
-	// resources
-	container.Resources = containerSpec.Resources
-	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
-		lc.logger,
-		&container.Resources)
-
-	// entrypoint
-	container.Command = containerSpec.Command
-	container.Args = containerSpec.Args
-
-	// probes
-	container.ReadinessProbe = containerSpec.ReadinessProbe
-	container.LivenessProbe = containerSpec.LivenessProbe
 }
 
 func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
