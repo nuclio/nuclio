@@ -548,9 +548,8 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
 
 	// get the deployment. if it doesn't exist yet, retry a bit later
-	functionDeployment, err := lc.kubeClientSet.AppsV1().
-		Deployments(function.Namespace).
-		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+	functionDeployment, err := lc.getFunctionDeployment(ctx, function)
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function deployment"), ""
 	}
@@ -614,37 +613,25 @@ func (lc *lazyClient) getFunctionDeployment(ctx context.Context, function *nucli
 		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
 }
 
-func (lc *lazyClient) getFunctionPods(ctx context.Context,
-	function *nuclioio.NuclioFunction) (*v1.PodList, error) {
-	labelSelector := fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, function.Name)
-	if functionPods, err := lc.kubeClientSet.CoreV1().Pods(function.Namespace).List(ctx,
-		metav1.ListOptions{
-			LabelSelector: labelSelector,
-		},
-	); err == nil {
-		return functionPods, nil
-	} else {
-		return nil, errors.Wrap(err, "Failed to get function deployment's pods")
-	}
-}
-
 // checkFunctionInitContainersDone checks that all function init containers are in terminated status
 // returns (IsDone, reasonNotDone, error)
-// Each pair explanation:
+// Possible combinations and their meaning:
 // (true, "", nil) - all init containers are terminated with 0 exit code, we can proceed to other checks
 // (false, notReadyReason, nil) - some init containers are still waiting/running OR required number of pods hasn't been created yet, so need to wait
 // (false, "", err) - we can stop waiting here since something is broken, so function won't be successfully started
 // (true, err) - impossible
 func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, function *nuclioio.NuclioFunction) (bool, string, error) {
 	functionDeployment, err := lc.getFunctionDeployment(ctx, function)
-	notReadyReason := ""
 	if err != nil {
 		return false, "", err
 	}
+
+	notDoneReason := ""
+
 	// deployment doesn't exist yet
 	if functionDeployment == nil {
-		notReadyReason = "deployment doesn't exist yet"
-		return false, notReadyReason, nil
+		notDoneReason = "deployment doesn't exist yet"
+		return false, notDoneReason, nil
 	}
 
 	// if initContainers aren't defined or replicas number is equal to 0, skip
@@ -659,16 +646,16 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 	// since we are here, it means that we have already checked that the expected number of pods isn't zero
 	// so at least one is expected
 	if functionPods == nil {
-		return false, "", errors.New("No any pods found")
+		return false, "", errors.New(fmt.Sprintf("Couldn't find any pods for function %s", function.Name))
 	}
 
 	// checking that the number of pods is equal to expected replicas, otherwise checking init container
 	// statuses doesn't make sense; need to wait more time
 	if *functionDeployment.Spec.Replicas != int32(len(functionPods.Items)) {
-		notReadyReason = fmt.Sprintf("Not all pod replicas are deployed yet. Expected replicas: %d. Actual replicas: %d",
+		notDoneReason = fmt.Sprintf("Not all pod replicas are deployed yet. Expected replicas: %d. Actual replicas: %d",
 			*functionDeployment.Spec.Replicas,
 			len(functionPods.Items))
-		return false, notReadyReason, nil
+		return false, notDoneReason, nil
 	}
 
 	// going through each pod's init containers and check that they all were terminated with exit code 0
@@ -689,22 +676,36 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 					if pod.Spec.RestartPolicy == v1.RestartPolicyNever {
 						return false, "", errors.New(errorMessage)
 					} else {
-						notReadyReason = fmt.Sprintf("Init container %s was failed with non-zero code, "+
-							"but it will be retried", initContainer.Name)
-						return false, notReadyReason, nil
+						notDoneReason = fmt.Sprintf("Init container %s has failed with non-zero code, "+
+							"but it will be restarted", initContainer.Name)
+						return false, notDoneReason, nil
 					}
 				}
 			case initContainer.State.Running != nil:
-				notReadyReason = fmt.Sprintf("Init container %s is still running", initContainer.Name)
-				return false, notReadyReason, nil
+				notDoneReason = fmt.Sprintf("Init container %s is still running", initContainer.Name)
+				return false, notDoneReason, nil
 			case initContainer.State.Waiting != nil:
-				notReadyReason = fmt.Sprintf("Init container %s hasn't started yet", initContainer.Name)
-				return false, notReadyReason, nil
+				notDoneReason = fmt.Sprintf("Init container %s hasn't started yet", initContainer.Name)
+				return false, notDoneReason, nil
 			}
 
 		}
 	}
 	return true, "", nil
+}
+
+func (lc *lazyClient) getFunctionPods(ctx context.Context,
+	function *nuclioio.NuclioFunction) (*v1.PodList, error) {
+	labelSelector := fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, function.Name)
+	if functionPods, err := lc.kubeClientSet.CoreV1().Pods(function.Namespace).List(ctx,
+		metav1.ListOptions{
+			LabelSelector: labelSelector,
+		},
+	); err == nil {
+		return functionPods, nil
+	} else {
+		return nil, errors.Wrap(err, "Failed to get function deployment's pods")
+	}
 }
 
 func (lc *lazyClient) createOrUpdateCronJobs(ctx context.Context,
@@ -1125,10 +1126,6 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 					"initContainer", initContainerSpec.Name)
 				initContainer := v1.Container{}
 				lc.populateContainer(ctx, initContainerSpec, &initContainer)
-				lc.logger.DebugWithCtx(ctx,
-					"Creating init container",
-					"functionName", function.Name,
-					"initContainerSpec", initContainer)
 				initContainer.VolumeMounts = volumeMounts
 
 				deploymentSpec.Template.Spec.InitContainers = append(deploymentSpec.Template.Spec.InitContainers, initContainer)

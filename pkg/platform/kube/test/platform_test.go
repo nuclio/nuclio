@@ -1442,7 +1442,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithInitContainers() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotNil(deployResult)
 
-		// get the function pod and validate it has the sidecar
+		// get the function pod and validate it has the init container
 		pods := suite.GetFunctionPods(functionName)
 		pod := pods[0]
 
@@ -1452,7 +1452,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithInitContainers() {
 		suite.Require().Equal("busybox", pod.Spec.InitContainers[0].Image)
 		suite.Require().Equal(command, pod.Spec.InitContainers[0].Command)
 
-		// get the logs from the sidecar container to validate it ran
+		// get the logs from the init container to validate it ran
 		podLogOpts := v1.PodLogOptions{
 			Container: initContainerName,
 		}
@@ -1460,10 +1460,8 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithInitContainers() {
 			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"The init container is running!"})
 		})
 		suite.Require().NoError(err)
-
 		return true
 	})
-
 }
 
 func (suite *DeployFunctionTestSuite) TestDeploySidecarEnrichment() {

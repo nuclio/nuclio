@@ -413,6 +413,8 @@ type Spec struct {
 	// the configuration for each sidecar is the same as k8s containers
 	Sidecars map[string]*v1.Container `json:"sidecars,omitempty"`
 
+	// InitContainers are specialized containers that run before app containers in a Pod
+	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
 }
 
