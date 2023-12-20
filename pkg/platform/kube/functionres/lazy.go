@@ -696,7 +696,7 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 
 func (lc *lazyClient) getFunctionPods(ctx context.Context,
 	function *nuclioio.NuclioFunction) (*v1.PodList, error) {
-	labelSelector := fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, function.Name)
+	labelSelector := common.CompileListFunctionPodsLabelSelector(function.Name)
 	if functionPods, err := lc.kubeClientSet.CoreV1().Pods(function.Namespace).List(ctx,
 		metav1.ListOptions{
 			LabelSelector: labelSelector,
