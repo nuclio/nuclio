@@ -20,6 +20,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -1698,9 +1699,28 @@ def handler(context, event):
 	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
 }
 
-func (suite *DeleteFunctionTestSuite) TestProcessorShutdown() {
+func (suite *DeployFunctionTestSuite) TestProcessorShutdown() {
 	functionName := "func-to-test-processor-shutdown"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	// change source code
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
+terminated = False
+def handler(context, event):
+    if terminated:
+        context.logger.info("Got event after termination")
+    else:
+        context.logger.info("Got http event")
+    return "got http event!"
+
+def callback():
+    import time
+    time.sleep(3)
+    terminated = True
+
+def init_context(context):
+    context.platform.set_termination_callback(callback)
+`))
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		suite.Require().NotEmpty(deployResult)
@@ -1709,14 +1729,33 @@ func (suite *DeleteFunctionTestSuite) TestProcessorShutdown() {
 		err := suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Processor started", &v1.PodLogOptions{}, 20*time.Second)
 		suite.Require().NoError(err)
 
+		// bombing function with requests to check that event won't be processed after worker termination
+		ctx, cancel := context.WithCancel(suite.Ctx)
+		go func() {
+			ticker := time.NewTicker(500 * time.Millisecond)
+			defer ticker.Stop()
+			select {
+			case <-ticker.C:
+				suite.InvokeFunction("GET", deployResult.Port, "", nil)
+			case <-ctx.Done():
+				break
+			}
+		}()
+
+		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Got http event", &v1.PodLogOptions{}, 20*time.Second)
+		suite.Require().NoError(err)
+
 		err = suite.KubeClientSet.CoreV1().Pods(firstPod.Namespace).Delete(suite.Ctx, firstPod.Name, metav1.DeleteOptions{})
 		suite.Require().NoError(err)
 
 		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "All triggers are terminated", &v1.PodLogOptions{}, 30*time.Second)
-		suite.Require().NoError(err, "triggers were not drained")
+		suite.Require().NoError(err, "triggers were not terminated")
+		cancel()
+
+		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Got event after termination", &v1.PodLogOptions{}, 20*time.Second)
+		suite.Require().NotNil(err)
 		return true
 	})
-
 }
 
 type UpdateFunctionTestSuite struct {
