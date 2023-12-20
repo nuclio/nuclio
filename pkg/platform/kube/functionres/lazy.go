@@ -660,16 +660,16 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 
 	// going through each pod's init containers and check that they all were terminated with exit code 0
 	for _, pod := range functionPods.Items {
-		for _, initContainer := range pod.Status.InitContainerStatuses {
+		for _, initContainerStatus := range pod.Status.InitContainerStatuses {
 			switch {
-			case initContainer.State.Terminated != nil:
-				if initContainer.State.Terminated.ExitCode == 0 {
+			case initContainerStatus.State.Terminated != nil:
+				if initContainerStatus.State.Terminated.ExitCode == 0 {
 					continue
 				} else {
 					errorMessage := fmt.Sprintf("Init container has been terminated"+
 						"with non zero error code. ExitCode: %d. Reason %s",
-						initContainer.State.Terminated.ExitCode,
-						initContainer.State.Terminated.Reason,
+						initContainerStatus.State.Terminated.ExitCode,
+						initContainerStatus.State.Terminated.Reason,
 					)
 					// if init container is terminated, but exit with non-zero exit code, then we check
 					// pod's restart policy and if it's `Never`, we exit with error; otherwise we wait
@@ -677,15 +677,15 @@ func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, funct
 						return false, "", errors.New(errorMessage)
 					} else {
 						notDoneReason = fmt.Sprintf("Init container %s has failed with non-zero code, "+
-							"but it will be restarted", initContainer.Name)
+							"but it will be restarted", initContainerStatus.Name)
 						return false, notDoneReason, nil
 					}
 				}
-			case initContainer.State.Running != nil:
-				notDoneReason = fmt.Sprintf("Init container %s is still running", initContainer.Name)
+			case initContainerStatus.State.Running != nil:
+				notDoneReason = fmt.Sprintf("Init container %s is still running", initContainerStatus.Name)
 				return false, notDoneReason, nil
-			case initContainer.State.Waiting != nil:
-				notDoneReason = fmt.Sprintf("Init container %s hasn't started yet", initContainer.Name)
+			case initContainerStatus.State.Waiting != nil:
+				notDoneReason = fmt.Sprintf("Init container %s hasn't started yet", initContainerStatus.Name)
 				return false, notDoneReason, nil
 			}
 
