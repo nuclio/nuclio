@@ -261,13 +261,13 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	var deploymentReady bool
 	var ingressReady bool
 	var timeDeploymentReady time.Time
-	var reasonInitContainersNotReady string
+	var reasonInitContainersNotDone string
 
 	// readiness flag for init containers
-	var initContainersReady bool
+	var initContainersDone bool
 	if len(function.Spec.InitContainers) == 0 {
 		// if there are no any init containers defined, then set to true (so we don't wait for any)
-		initContainersReady = true
+		initContainersDone = true
 	}
 
 	counter := 0
@@ -286,7 +286,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		case <-ctx.Done():
 
 			// for an edge-case where context exceeded deadline/cancelled right when resources got ready
-			if initContainersReady && deploymentReady && ingressReady {
+			if initContainersDone && deploymentReady && ingressReady {
 
 				lc.logger.DebugWithCtx(ctx,
 					"Function reached availability right when context is cancelled",
@@ -295,14 +295,14 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					"functionName", function.Name)
 				return nil, functionconfig.FunctionStateReady
 			}
-			if !initContainersReady {
+			if !initContainersDone {
 				lc.logger.WarnWithCtx(ctx,
 					"Function available wait is cancelled due to context timeout",
-					"reason", reasonInitContainersNotReady,
+					"reason", reasonInitContainersNotDone,
 					"err", ctx.Err(),
 					"namespace", function.Namespace,
 					"functionName", function.Name)
-				return errors.New(fmt.Sprintf("Init containers are not done yet. Reason: %s. Increasing readiness timeout may help", reasonInitContainersNotReady)),
+				return errors.New(fmt.Sprintf("Init containers are not done yet. Reason: %s. Increasing readiness timeout may help", reasonInitContainersNotDone)),
 					functionconfig.FunctionStateUnhealthy
 			} else {
 				lc.logger.WarnWithCtx(ctx,
@@ -331,15 +331,19 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			readinessVerifierTicker.Reset(time.Duration(waitMs) * time.Millisecond)
 
 			// waiting for init containers to be ready
-			if !initContainersReady {
+			if !initContainersDone {
 				var err error
 
-				initContainersReady, reasonInitContainersNotReady, err = lc.checkFunctionInitContainersDone(ctx, function)
+				initContainersDone, reasonInitContainersNotDone, err = lc.checkFunctionInitContainersDone(ctx, function)
 				if err != nil {
 					return errors.Wrap(err, "Function init containers check failed"), functionconfig.FunctionStateUnhealthy
 				}
-				if !initContainersReady {
-					continue
+				if !initContainersDone {
+					lc.logger.DebugWithCtx(ctx,
+						"Function init containers are not done yet, continuing",
+						"namespace", function.Namespace,
+						"name", function.Name,
+						"reason", reasonInitContainersNotDone)
 				} else {
 					lc.logger.DebugWithCtx(ctx,
 						"Function init containers finished successfully",
@@ -617,7 +621,7 @@ func (lc *lazyClient) getFunctionDeployment(ctx context.Context, function *nucli
 // returns (IsDone, reasonNotDone, error)
 // Possible combinations and their meaning:
 // (true, "", nil) - all init containers are terminated with 0 exit code, we can proceed to other checks
-// (false, notReadyReason, nil) - some init containers are still waiting/running OR required number of pods hasn't been created yet, so need to wait
+// (false, notDoneReason, nil) - some init containers are still waiting/running OR required number of pods hasn't been created yet, so need to wait
 // (false, "", err) - we can stop waiting here since something is broken, so function won't be successfully started
 // (true, err) - impossible
 func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, function *nuclioio.NuclioFunction) (bool, string, error) {
