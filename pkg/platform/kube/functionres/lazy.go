@@ -261,6 +261,14 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	var deploymentReady bool
 	var ingressReady bool
 	var timeDeploymentReady time.Time
+	var reasonInitContainersNotDone string
+
+	// readiness flag for init containers
+	var initContainersDone bool
+	if len(function.Spec.InitContainers) == 0 {
+		// if there are no any init containers defined, then set to true (so we don't wait for any)
+		initContainersDone = true
+	}
 
 	counter := 0
 	waitMs := 250
@@ -278,7 +286,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		case <-ctx.Done():
 
 			// for an edge-case where context exceeded deadline/cancelled right when resources got ready
-			if deploymentReady && ingressReady {
+			if initContainersDone && deploymentReady && ingressReady {
 
 				lc.logger.DebugWithCtx(ctx,
 					"Function reached availability right when context is cancelled",
@@ -287,12 +295,22 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					"functionName", function.Name)
 				return nil, functionconfig.FunctionStateReady
 			}
-
-			lc.logger.WarnWithCtx(ctx,
-				"Function available wait is cancelled due to context timeout",
-				"err", ctx.Err(),
-				"namespace", function.Namespace,
-				"functionName", function.Name)
+			if !initContainersDone {
+				lc.logger.WarnWithCtx(ctx,
+					"Function available wait is cancelled due to context timeout",
+					"reason", reasonInitContainersNotDone,
+					"err", ctx.Err(),
+					"namespace", function.Namespace,
+					"functionName", function.Name)
+				return errors.New(fmt.Sprintf("Init containers are not done yet. Reason: %s. Increasing readiness timeout may help", reasonInitContainersNotDone)),
+					functionconfig.FunctionStateUnhealthy
+			} else {
+				lc.logger.WarnWithCtx(ctx,
+					"Function available wait is cancelled due to context timeout",
+					"err", ctx.Err(),
+					"namespace", function.Namespace,
+					"functionName", function.Name)
+			}
 			return ctx.Err(), functionconfig.FunctionStateUnhealthy
 
 		// verify availability
@@ -311,6 +329,30 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				waitMs = 2000
 			}
 			readinessVerifierTicker.Reset(time.Duration(waitMs) * time.Millisecond)
+
+			// waiting for init containers to be ready
+			if !initContainersDone {
+				var err error
+
+				initContainersDone, reasonInitContainersNotDone, err = lc.checkFunctionInitContainersDone(ctx, function)
+				if err != nil {
+					return errors.Wrap(err, "Function init containers check failed"), functionconfig.FunctionStateUnhealthy
+				}
+				if !initContainersDone {
+					lc.logger.DebugWithCtx(ctx,
+						"Function init containers are not done yet, continuing",
+						"namespace", function.Namespace,
+						"name", function.Name,
+						"reason", reasonInitContainersNotDone)
+					continue
+				} else {
+					lc.logger.DebugWithCtx(ctx,
+						"Function init containers finished successfully",
+						"namespace", function.Namespace,
+						"name", function.Name)
+
+				}
+			}
 
 			// deployment is ready
 			// ingress is not yet (being too slow I guess, marking as unhealthy)
@@ -511,9 +553,8 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
 
 	// get the deployment. if it doesn't exist yet, retry a bit later
-	functionDeployment, err := lc.kubeClientSet.AppsV1().
-		Deployments(function.Namespace).
-		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+	functionDeployment, err := lc.getFunctionDeployment(ctx, function)
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function deployment"), ""
 	}
@@ -568,6 +609,108 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 	}
 
 	return errors.New("Function deployment is not ready yet"), ""
+}
+
+// getFunctionDeployment returns function's deployment
+func (lc *lazyClient) getFunctionDeployment(ctx context.Context, function *nuclioio.NuclioFunction) (*appsv1.Deployment, error) {
+	return lc.kubeClientSet.AppsV1().
+		Deployments(function.Namespace).
+		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+}
+
+// checkFunctionInitContainersDone checks that all function init containers are in terminated status
+// returns (IsDone, reasonNotDone, error)
+// Possible combinations and their meaning:
+// (true, "", nil) - all init containers are terminated with 0 exit code, we can proceed to other checks
+// (false, notDoneReason, nil) - some init containers are still waiting/running OR required number of pods hasn't been created yet, so need to wait
+// (false, "", err) - we can stop waiting here since something is broken, so function won't be successfully started
+// (true, err) - impossible
+func (lc *lazyClient) checkFunctionInitContainersDone(ctx context.Context, function *nuclioio.NuclioFunction) (bool, string, error) {
+	functionDeployment, err := lc.getFunctionDeployment(ctx, function)
+	if err != nil {
+		return false, "", err
+	}
+
+	notDoneReason := ""
+
+	// deployment doesn't exist yet
+	if functionDeployment == nil {
+		notDoneReason = "deployment doesn't exist yet"
+		return false, notDoneReason, nil
+	}
+
+	// if initContainers aren't defined or replicas number is equal to 0, skip
+	if len(function.Spec.InitContainers) == 0 || functionDeployment.Spec.Replicas == nil {
+		return true, "", nil
+	}
+
+	functionPods, err := lc.getFunctionPods(ctx, function)
+	if err != nil {
+		return false, "", err
+	}
+	// since we are here, it means that we have already checked that the expected number of pods isn't zero
+	// so at least one is expected
+	if functionPods == nil {
+		return false, "", errors.New(fmt.Sprintf("Couldn't find any pods for function %s", function.Name))
+	}
+
+	// checking that the number of pods is equal to expected replicas, otherwise checking init container
+	// statuses doesn't make sense; need to wait more time
+	if *functionDeployment.Spec.Replicas != int32(len(functionPods.Items)) {
+		notDoneReason = fmt.Sprintf("Not all pod replicas are deployed yet. Expected replicas: %d. Actual replicas: %d",
+			*functionDeployment.Spec.Replicas,
+			len(functionPods.Items))
+		return false, notDoneReason, nil
+	}
+
+	// going through each pod's init containers and check that they all were terminated with exit code 0
+	for _, pod := range functionPods.Items {
+		for _, initContainerStatus := range pod.Status.InitContainerStatuses {
+			switch {
+			case initContainerStatus.State.Terminated != nil:
+				if initContainerStatus.State.Terminated.ExitCode == 0 {
+					continue
+				} else {
+					errorMessage := fmt.Sprintf("Init container has been terminated"+
+						"with non zero error code. ExitCode: %d. Reason %s",
+						initContainerStatus.State.Terminated.ExitCode,
+						initContainerStatus.State.Terminated.Reason,
+					)
+					// if init container is terminated, but exit with non-zero exit code, then we check
+					// pod's restart policy and if it's `Never`, we exit with error; otherwise we wait
+					if pod.Spec.RestartPolicy == v1.RestartPolicyNever {
+						return false, "", errors.New(errorMessage)
+					} else {
+						notDoneReason = fmt.Sprintf("Init container %s has failed with non-zero code, "+
+							"but it will be restarted", initContainerStatus.Name)
+						return false, notDoneReason, nil
+					}
+				}
+			case initContainerStatus.State.Running != nil:
+				notDoneReason = fmt.Sprintf("Init container %s is still running", initContainerStatus.Name)
+				return false, notDoneReason, nil
+			case initContainerStatus.State.Waiting != nil:
+				notDoneReason = fmt.Sprintf("Init container %s hasn't started yet", initContainerStatus.Name)
+				return false, notDoneReason, nil
+			}
+
+		}
+	}
+	return true, "", nil
+}
+
+func (lc *lazyClient) getFunctionPods(ctx context.Context,
+	function *nuclioio.NuclioFunction) (*v1.PodList, error) {
+	labelSelector := common.CompileListFunctionPodsLabelSelector(function.Name)
+	if functionPods, err := lc.kubeClientSet.CoreV1().Pods(function.Namespace).List(ctx,
+		metav1.ListOptions{
+			LabelSelector: labelSelector,
+		},
+	); err == nil {
+		return functionPods, nil
+	} else {
+		return nil, errors.Wrap(err, "Failed to get function deployment's pods")
+	}
 }
 
 func (lc *lazyClient) createOrUpdateCronJobs(ctx context.Context,
@@ -978,16 +1121,33 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			}
 		}
 
+		// create init containers if provided
+		if len(function.Spec.InitContainers) > 0 {
+			deploymentSpec.Template.Spec.InitContainers = make([]v1.Container, 0, len(function.Spec.InitContainers))
+			for _, initContainer := range function.Spec.InitContainers {
+				lc.logger.DebugWithCtx(ctx,
+					"Creating init container",
+					"functionName", function.Name,
+					"initContainer", initContainer.Name)
+				lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
+					lc.logger,
+					&initContainer.Resources)
+				initContainer.VolumeMounts = volumeMounts
+				deploymentSpec.Template.Spec.InitContainers = append(deploymentSpec.Template.Spec.InitContainers, *initContainer)
+			}
+		}
+
 		// create sidecars if provided
 		for sidecarName, sidecarSpec := range function.Spec.Sidecars {
 			lc.logger.DebugWithCtx(ctx,
 				"Creating sidecar container",
 				"functionName", function.Name,
 				"sidecarName", sidecarName)
-			sidecarContainer := v1.Container{}
-			lc.populateSidecarContainer(ctx, sidecarSpec, &sidecarContainer)
-			sidecarContainer.VolumeMounts = volumeMounts
-			deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, sidecarContainer)
+			lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
+				lc.logger,
+				&sidecarSpec.Resources)
+			sidecarSpec.VolumeMounts = volumeMounts
+			deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, *sidecarSpec)
 		}
 
 		deployment := &appsv1.Deployment{
@@ -2157,33 +2317,6 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	} else {
 		container.ImagePullPolicy = function.Spec.ImagePullPolicy
 	}
-}
-
-func (lc *lazyClient) populateSidecarContainer(ctx context.Context,
-	sidecarSpec *v1.Container,
-	container *v1.Container) {
-	container.Name = sidecarSpec.Name
-	container.Env = sidecarSpec.Env
-
-	container.Image = sidecarSpec.Image
-	if sidecarSpec.ImagePullPolicy != "" {
-		container.ImagePullPolicy = sidecarSpec.ImagePullPolicy
-	}
-	container.Ports = sidecarSpec.Ports
-
-	// resources
-	container.Resources = sidecarSpec.Resources
-	lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSidecarContainerResources(ctx,
-		lc.logger,
-		&container.Resources)
-
-	// entrypoint
-	container.Command = sidecarSpec.Command
-	container.Args = sidecarSpec.Args
-
-	// probes
-	container.ReadinessProbe = sidecarSpec.ReadinessProbe
-	container.LivenessProbe = sidecarSpec.LivenessProbe
 }
 
 func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,

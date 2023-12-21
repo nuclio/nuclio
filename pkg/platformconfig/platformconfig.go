@@ -319,9 +319,9 @@ func (c *Config) EnrichFunctionContainerResources(ctx context.Context,
 		true)
 }
 
-// EnrichSidecarContainerResources enriches the sidecar's container requests and limits with the default
+// EnrichSupplementaryContainerResources enriches the sidecar/init container's requests and limits with the default
 // resources defined in the platform config, only if they are not already configured
-func (c *Config) EnrichSidecarContainerResources(ctx context.Context,
+func (c *Config) EnrichSupplementaryContainerResources(ctx context.Context,
 	logger logger.Logger,
 	resources *v1.ResourceRequirements) {
 	c.enrichContainerResources(ctx,

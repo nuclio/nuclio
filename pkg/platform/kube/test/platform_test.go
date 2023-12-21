@@ -1424,6 +1424,47 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestDeployFunctionWithInitContainers() {
+	functionName := "func-with-init-containers"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	command := []string{
+		"sh",
+		"-c",
+		"echo The init container is running! && sleep 60",
+	}
+	initContainerName := "init-container-test"
+	createFunctionOptions.FunctionConfig.Spec.InitContainers = []*v1.Container{
+		{Name: initContainerName,
+			Image:   "busybox",
+			Command: command,
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the init container
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+
+		suite.Require().Len(pod.Spec.InitContainers, 1)
+
+		suite.Require().Equal(initContainerName, pod.Spec.InitContainers[0].Name)
+		suite.Require().Equal("busybox", pod.Spec.InitContainers[0].Image)
+		suite.Require().Equal(command, pod.Spec.InitContainers[0].Command)
+
+		// get the logs from the init container to validate it ran
+		podLogOpts := v1.PodLogOptions{
+			Container: initContainerName,
+		}
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"The init container is running!"})
+		})
+		suite.Require().NoError(err)
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) TestDeploySidecarEnrichment() {
 	functionName := "func-with-enriched-sidecar"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
