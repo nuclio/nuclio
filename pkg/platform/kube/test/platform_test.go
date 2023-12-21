@@ -1434,7 +1434,8 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithInitContainers() {
 	}
 	initContainerName := "init-container-test"
 	createFunctionOptions.FunctionConfig.Spec.InitContainers = []*v1.Container{
-		{Name: initContainerName,
+		{
+			Name:    initContainerName,
 			Image:   "busybox",
 			Command: command,
 		},
