@@ -344,6 +344,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 						"namespace", function.Namespace,
 						"name", function.Name,
 						"reason", reasonInitContainersNotDone)
+					continue
 				} else {
 					lc.logger.DebugWithCtx(ctx,
 						"Function init containers finished successfully",
