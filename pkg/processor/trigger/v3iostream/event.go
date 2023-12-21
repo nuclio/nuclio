@@ -17,6 +17,8 @@ limitations under the License.
 package v3iostream
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/v3io-go/pkg/dataplane"
 )
@@ -40,4 +42,8 @@ func (e *Event) GetShardID() int {
 
 func (e *Event) GetOffset() int {
 	return int(e.record.SequenceNumber)
+}
+
+func (e *Event) GetTimestamp() time.Time {
+	return time.Unix(int64(e.record.ArrivalTimeSec), int64(e.record.ArrivalTimeNSec))
 }
