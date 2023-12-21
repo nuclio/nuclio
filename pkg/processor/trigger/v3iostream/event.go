@@ -45,5 +45,5 @@ func (e *Event) GetOffset() int {
 }
 
 func (e *Event) GetTimestamp() time.Time {
-	return time.Unix(int64(e.record.ArrivalTimeSec), 0)
+	return time.Unix(int64(e.record.ArrivalTimeSec), int64(e.record.ArrivalTimeNSec))
 }
