@@ -34,7 +34,7 @@ require (
 	github.com/nuclio/gosecretive v0.0.3
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.2
-	github.com/nuclio/nuclio-sdk-go v0.4.0
+	github.com/nuclio/nuclio-sdk-go v0.5.0
 	github.com/nuclio/zap v0.2.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rabbitmq/amqp091-go v1.5.0
@@ -50,7 +50,7 @@ require (
 	github.com/v3io/v3io-go v0.3.1
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
-	github.com/valyala/fasthttp v1.49.0
+	github.com/valyala/fasthttp v1.51.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.1.2
 	golang.org/x/oauth2 v0.11.0
@@ -121,7 +121,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.16.7 // indirect
+	github.com/klauspost/compress v1.17.0 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/logrusorgru/aurora/v4 v4.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
