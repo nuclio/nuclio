@@ -473,7 +473,7 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	p.enrichInitContainersSpec(functionConfig)
-	p.enrichSidecarsSpec(ctx, functionConfig)
+	p.enrichSidecarsSpec(functionConfig)
 	return nil
 }
 
@@ -1516,13 +1516,8 @@ func (p *Platform) enrichInitContainersSpec(functionConfig *functionconfig.Confi
 	}
 }
 
-func (p *Platform) enrichSidecarsSpec(ctx context.Context, functionConfig *functionconfig.Config) {
-
-	for sidecarName, sidecar := range functionConfig.Spec.Sidecars {
-		if sidecar.Name == "" {
-			sidecar.Name = sidecarName
-		}
-
+func (p *Platform) enrichSidecarsSpec(functionConfig *functionconfig.Config) {
+	for _, sidecar := range functionConfig.Spec.Sidecars {
 		p.enrichContainerSpec(sidecar, functionConfig)
 	}
 }

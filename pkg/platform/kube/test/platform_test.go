@@ -1391,8 +1391,8 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithSidecarSanity() {
 	}
 
 	// create a busybox sidecar
-	createFunctionOptions.FunctionConfig.Spec.Sidecars = map[string]*v1.Container{
-		sidecarContainerName: {
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{
 			Name:    sidecarContainerName,
 			Image:   "busybox",
 			Command: commands,
@@ -1434,7 +1434,8 @@ func (suite *DeployFunctionTestSuite) TestDeployFunctionWithInitContainers() {
 	}
 	initContainerName := "init-container-test"
 	createFunctionOptions.FunctionConfig.Spec.InitContainers = []*v1.Container{
-		{Name: initContainerName,
+		{
+			Name:    initContainerName,
 			Image:   "busybox",
 			Command: command,
 		},
@@ -1536,9 +1537,8 @@ def handler(context, event):
 	}
 
 	// create a busybox sidecar
-	createFunctionOptions.FunctionConfig.Spec.Sidecars = map[string]*v1.Container{
-		sidecarContainerName: {
-			Name:    sidecarContainerName,
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{Name: sidecarContainerName,
 			Image:   "busybox",
 			Command: commands,
 		},

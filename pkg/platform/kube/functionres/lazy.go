@@ -1138,11 +1138,11 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		}
 
 		// create sidecars if provided
-		for sidecarName, sidecarSpec := range function.Spec.Sidecars {
+		for _, sidecarSpec := range function.Spec.Sidecars {
 			lc.logger.DebugWithCtx(ctx,
 				"Creating sidecar container",
 				"functionName", function.Name,
-				"sidecarName", sidecarName)
+				"sidecarName", sidecarSpec.Name)
 			lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
 				lc.logger,
 				&sidecarSpec.Resources)
