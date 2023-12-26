@@ -41,13 +41,18 @@ Following is a quick example of how to use Helm charts to set up a specific stab
     ```
    > **Note:** If you are using Amazon's ECR see [using kaniko with ECR](#Using kaniko with amazon elastic container registry (ECR)) section.
 
-3. Add and Install `nuclio` Helm chart:
+3. Add the `nuclio` Helm chart:
 
     ```sh
     helm repo add nuclio https://nuclio.github.io/nuclio/charts
+    ```
+   Then install it:
+
+    ```sh
     helm install nuclio \
         --set registry.secretName=registry-credentials \
         --set registry.pushPullUrl=<your registry URL> \
+        --namespace nuclio \
         nuclio/nuclio
     ```
 
