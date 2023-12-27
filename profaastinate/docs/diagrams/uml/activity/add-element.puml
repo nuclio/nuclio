@@ -1,0 +1,17 @@
+@startuml
+
+|User|
+start
+:Http function request;
+
+|Nexus|
+:Push(NexusItem);
+
+note left
+    Initialized Nexus.
+end note
+|NexusQueue|
+:Push(NexusItem);
+|NexusHeap|
+:Push(NexusItem);
+@enduml

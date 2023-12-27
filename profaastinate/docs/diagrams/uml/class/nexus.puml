@@ -1,0 +1,80 @@
+@startuml
+interface INexusScheduler {
+        + CreateNewScheduler(any, BaseNexusSchedulerConfig): BaseNexusScheduler
+        + Start()
+        + Stop()
+
+        - executeSchedule()
+}
+
+class BaseNexusScheduler {
+    - Queue: NexusQueue
+
+    + CreateBaseNexusScheduler(queue: NexusQueue, mu: *sync.RWMutex, config: BaseNexusSchedulerConfig): BaseNexusScheduler
+    + Push(elem: *NexusItem): void
+    + Pop(): interface{}
+}
+
+class BaseNexusSchedulerConfig {
+    - RunFlag: bool
+    - SleepDuration: time.Duration
+}
+
+BaseNexusScheduler -- BaseNexusSchedulerConfig
+
+class BulkSchedulerConfig {
+    + MinAmountOfBulkItems: int
+}
+
+class BulkScheduler {
+    + CreateNewScheduler(BaseNexusScheduler, BulkSchedulerConfig): BulkScheduler
+}
+
+BulkScheduler *-- BaseNexusScheduler
+BulkScheduler -- BulkSchedulerConfig
+
+ class DeadlineSchedulerConfig {
+        + DeadlineRemovalThreshold: time.Duration
+ }
+
+ class DeadlineScheduler {
+     + CreateNewScheduler(BaseNexusScheduler, DeadlineSchedulerConfig): DeadlineScheduler
+ }
+
+DeadlineScheduler *-- BaseNexusScheduler
+DeadlineScheduler -- DeadlineSchedulerConfig
+
+
+
+class NexusQueue {
+    - mu: *sync.RWMutex
+
+    + Init(): NexusQueue
+    + removeAllNotBlocking(nexusItems: []*NexusItem): void
+    + getAllItemsUntilDeadlineNotBlocking(deadline: time.Time): []*NexusItem
+}
+
+class NexusHeap {
+    + Len(): int
+    + Push(interface{}): void
+    + Pop(): interface{}
+    + Peek(): interface{}
+    + Remove(elem: *NexusItem): void
+    + RemoveAllNotBlocking(nexusItems: []*NexusItem): void
+    + GetAllItemsUntilDeadlineNotBlocking(deadline: time.Time): []*NexusItem
+}
+
+NexusQueue --* NexusHeap
+
+class Nexus {
+    + Init(): Nexus
+    + Push(elem: *common.NexusItem): void
+    + Pop(): interface{}
+}
+
+Nexus *-- NexusQueue
+Nexus *-- INexusScheduler
+INexusScheduler <|-- BulkScheduler
+INexusScheduler <|-- DeadlineScheduler
+
+@enduml
