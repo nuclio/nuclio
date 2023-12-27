@@ -1,0 +1,28 @@
+@startuml
+
+@startuml
+|BulkScheduler|
+start
+while (should scheduler continue to run?)
+    if (Does the queue have any items?) then (no)
+        :Sleep for a bit;
+        note left
+            This is to avoid CPU hogging
+            and to allow other processes
+            to run.
+        end note
+    else (yes)
+        if (Does the most common entry have enough items?) then (yes)
+            :Execute the most common entry;
+            note left
+                This also removes the entry from the queue
+            end note
+        else (no)
+        endif
+    endif
+endwhile
+stop
+@enduml
+
+
+@enduml

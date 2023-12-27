@@ -1,0 +1,24 @@
+@startuml
+|DeadlineScheduler|
+start
+while (Should scheduler continue to run?)
+    if (Does the queue have any items?) then (no)
+        :Sleep for a bit;
+        note left
+            This is to avoid CPU hogging
+            and to allow other processes
+            to run.
+        end note
+    else (yes)
+        if (Does any item needs to be executed?) then (yes)
+            :Execute item;
+            note left
+                Removes and execute the item from the queue
+                since it has reached its deadline.
+            end note
+        else (no)
+        endif
+    endif
+endwhile
+stop
+@enduml
