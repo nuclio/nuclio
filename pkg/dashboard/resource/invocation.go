@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	nexusCommon "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -94,6 +95,26 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	skipTLSVerification := strings.ToLower(request.Header.Get(headers.SkipTLSVerification)) == "true"
 
+	if processDeadline := strings.ToLower(request.Header.Get(headers.ProcessDeadline)); processDeadline != "" {
+		deadline := common.GetDeadlineTime(processDeadline)
+
+		if deadline.IsZero() {
+			tr.Logger.WarnWithCtx(ctx, "Invalid process deadline", "deadline", processDeadline)
+			tr.writeErrorHeader(responseWriter, http.StatusBadRequest)
+			tr.writeErrorMessage(responseWriter, fmt.Sprintf("Invalid process deadline: %s", processDeadline))
+			return
+		}
+
+		tr.getDashboard().Nexus.Push(
+			nexusCommon.NewNexusItem(request, deadline, functionName),
+		)
+
+		responseWriter.WriteHeader(http.StatusNoContent)
+		responseWriter.Write([]byte("Deadline at " + deadline.String())) // nolint: errcheck
+		tr.Logger.Info("Set Deadline to", deadline.String())
+		return
+	}
+
 	// resolve the function host
 	invocationResult, err := tr.getPlatform().CreateFunctionInvocation(ctx, &platform.CreateFunctionInvocationOptions{
 		Name:                functionName,
@@ -133,6 +154,11 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	responseWriter.WriteHeader(invocationResult.StatusCode)
 	responseWriter.Write(invocationResult.Body) // nolint: errcheck
+}
+
+func (tr *invocationResource) asyncHeaderResponse(responseWriter http.ResponseWriter, request *http.Request) {
+	responseWriter.Header().Set("Content-Type", "application/json")
+	responseWriter.WriteHeader(http.StatusAccepted)
 }
 
 func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWriter, statusCode int) {
