@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  nuclio-dashboard:
+    container_name: nuclio-dashboard
+    image: quay.io/nuclio/dashboard:latest-arm64
+    environment:
+      - NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES=true
+      - NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES=host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8070:8070"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
