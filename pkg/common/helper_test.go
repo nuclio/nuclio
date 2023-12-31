@@ -444,6 +444,65 @@ func (suite *LabelsMapMatcherTestSuite) Test() {
 	}
 }
 
+type DurationToDeadlineTestSuite struct {
+	suite.Suite
+	t *testing.T
+}
+
+func (suite *DurationToDeadlineTestSuite) TestDurationToDeadline() {
+	tests := []struct {
+		input    int64
+		expected time.Time
+	}{
+		{0, time.Now()},
+		{1000, time.Now().Add(1000 * time.Millisecond)},
+	}
+
+	// Iterate over test cases
+	for _, test := range tests {
+		result := DurationToDeadline(test.input)
+
+		// Check if the result matches the expected output
+		if result.Round(time.Millisecond) != test.expected.Round(time.Millisecond) {
+			suite.t.Errorf("For input %d, expected %v, but got %v", test.input, test.expected, result)
+		}
+	}
+}
+
+type testTimeStruct struct {
+	input    string
+	expected time.Time
+}
+
+func (suite *DurationToDeadlineTestSuite) testTimeFunction(testName string, testFunc func(string) time.Time, tests []testTimeStruct) {
+	for _, test := range tests {
+		result := testFunc(test.input)
+
+		if result.Round(time.Millisecond) != test.expected.Round(time.Millisecond) {
+			suite.t.Errorf("%s: For input %s, expected %v, but got %v", testName, test.input, test.expected, result)
+		}
+	}
+}
+
+func (suite *DurationToDeadlineTestSuite) TestFormatTimeWithDefault() {
+	tests := []testTimeStruct{
+		{"2023-12-24", time.Date(2023, 12, 24, 0, 0, 0, 0, time.UTC)},
+		{"2023-12-24T14:00", time.Date(2023, 12, 24, 14, 0, 0, 0, time.UTC)},
+		{"2023-12-24T14:00:22.000Z", time.Date(2023, 12, 24, 14, 0, 22, 0, time.UTC)},
+	}
+
+	suite.testTimeFunction("TestFormatTimeWithDefault", FormatTimeWithDefault, tests)
+}
+
+func (suite *DurationToDeadlineTestSuite) TestGetDeadlineTime() {
+	tests := []testTimeStruct{
+		{"2023-12-24T14:00", time.Date(2023, 12, 24, 14, 0, 0, 0, time.UTC)},
+		{"1000", time.Now().Add(1000 * time.Millisecond)},
+	}
+
+	suite.testTimeFunction("TestGetDeadlineTime", GetDeadlineTime, tests)
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
@@ -453,4 +512,5 @@ func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(IsFileTestSuite))
 	suite.Run(t, new(StripPrefixesTestSuite))
 	suite.Run(t, new(LabelsMapMatcherTestSuite))
+	suite.Run(t, new(DurationToDeadlineTestSuite))
 }
