@@ -2,11 +2,7 @@ package common
 
 import (
 	"container/heap"
-<<<<<<<< HEAD:pkg/nexus/common/queue/nexus-queue.go
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
-========
 	common "github.com/konsumgandalf/profaastinate/nexus/common/models/structs"
->>>>>>>> bc0af35f3 (refactor(profaastinate): nexus):profaastinate/deprecated/nexus/common/queue/nexus-queue.go
 	"time"
 )
 
