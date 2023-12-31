@@ -1,7 +1,11 @@
 package deadline
 
 import (
+<<<<<<< HEAD
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+=======
+	common "github.com/nuclio/nuclio/pkg/nexus/common/models"
+>>>>>>> ed6969168 (feat(pkg-restful): nexus)
 	"github.com/nuclio/nuclio/pkg/nexus/deadline/models"
 	"log"
 	"time"
@@ -25,7 +29,10 @@ func NewDefaultScheduler(baseNexusScheduler *common.BaseNexusScheduler) *Deadlin
 }
 
 func (ds *DeadlineScheduler) Start() {
+<<<<<<< HEAD
 	log.Println("Starting DeadlineScheduler...")
+=======
+>>>>>>> ed6969168 (feat(pkg-restful): nexus)
 	ds.RunFlag = true
 
 	ds.executeSchedule()
@@ -35,7 +42,10 @@ func (ds *DeadlineScheduler) Stop() {
 	ds.RunFlag = false
 }
 
+<<<<<<< HEAD
 // TODO: fix this please sleep -> something todo until next awakening (do it) -> sleep
+=======
+>>>>>>> ed6969168 (feat(pkg-restful): nexus)
 func (ds *DeadlineScheduler) executeSchedule() {
 	for ds.RunFlag {
 		if ds.Queue.Len() == 0 {
@@ -43,7 +53,13 @@ func (ds *DeadlineScheduler) executeSchedule() {
 			continue
 		}
 
+<<<<<<< HEAD
 		timeUntilDeadline := ds.Queue.Peek().Deadline.Sub(time.Now())
+=======
+		log.Println("Checking for expired deadlines...")
+		timeUntilDeadline := ds.Queue.Peek().Deadline.Sub(time.Now())
+		log.Println(timeUntilDeadline)
+>>>>>>> ed6969168 (feat(pkg-restful): nexus)
 		if timeUntilDeadline < ds.DeadlineRemovalThreshold {
 			ds.Pop()
 		}

@@ -1,9 +1,15 @@
 package deadline
 
 import (
+<<<<<<< HEAD
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+=======
+	"github.com/nuclio/nuclio/pkg/nexus/common/models"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
+	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
+>>>>>>> ed6969168 (feat(pkg-restful): nexus)
 	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/models"
 	"github.com/nuclio/nuclio/pkg/nexus/nexus"
 	"github.com/stretchr/testify/suite"
@@ -29,7 +35,11 @@ func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 
 	suite.MockNexus = nexus.Initialize()
 
+<<<<<<< HEAD
 	baseScheduler := &scheduler.BaseNexusScheduler{
+=======
+	baseScheduler := &models.BaseNexusScheduler{
+>>>>>>> ed6969168 (feat(pkg-restful): nexus)
 		Queue:                    suite.MockNexus.Queue,
 		BaseNexusSchedulerConfig: baseSchedulerConfig,
 	}
