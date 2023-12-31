@@ -17,6 +17,8 @@ limitations under the License.
 package restful
 
 import (
+	"github.com/nuclio/nuclio/pkg/nexus/nexus"
+	"log"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -47,6 +49,7 @@ type AbstractServer struct {
 	ListenAddress    string
 	Router           chi.Router
 	resourceRegistry *registry.Registry
+	Nexus            nexus.Nexus
 	server           Server
 }
 
@@ -76,6 +79,9 @@ func (s *AbstractServer) Initialize(configuration *platformconfig.WebServer) err
 	if err := s.server.InstallMiddleware(s.Router); err != nil {
 		return errors.Wrap(err, "Failed to install middleware")
 	}
+
+	s.Nexus = nexus.Initialize()
+	log.Println("Nexus initialized")
 
 	if err := s.readConfiguration(configuration); err != nil {
 		return errors.Wrap(err, "Failed to read configuration")
@@ -109,6 +115,7 @@ func (s *AbstractServer) Start() error {
 		return nil
 	}
 
+	go s.Nexus.Start()
 	go http.ListenAndServe(s.ListenAddress, s.Router) // nolint: errcheck
 
 	s.Logger.InfoWith("Listening", "listenAddress", s.ListenAddress)
