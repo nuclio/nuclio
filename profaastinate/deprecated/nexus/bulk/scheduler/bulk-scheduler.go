@@ -1,8 +1,8 @@
 package scheduler
 
 import (
-	"nexus/bulk/models"
-	common "nexus/common/models"
+	"github.com/konsumgandalf/profaastinate/nexus/bulk/models"
+	common "github.com/konsumgandalf/profaastinate/nexus/common/models"
 	"time"
 )
 

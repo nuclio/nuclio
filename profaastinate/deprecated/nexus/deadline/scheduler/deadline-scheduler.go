@@ -1,8 +1,8 @@
 package deadline
 
 import (
-	common "nexus/common/models"
-	"nexus/deadline/models"
+	common "github.com/konsumgandalf/profaastinate/nexus/common/models"
+	"github.com/konsumgandalf/profaastinate/nexus/deadline/models"
 	"time"
 )
 

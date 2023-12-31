@@ -1,8 +1,8 @@
 package interfaces
 
 import (
-	"nexus/common/models"
-	common "nexus/common/models/configs"
+	"github.com/konsumgandalf/profaastinate/nexus/common/models"
+	common "github.com/konsumgandalf/profaastinate/nexus/common/models/configs"
 )
 
 // *nexus.Nexus

@@ -2,7 +2,7 @@ package common
 
 import (
 	"container/heap"
-	common "nexus/common/models/structs"
+	common "github.com/konsumgandalf/profaastinate/nexus/common/models/structs"
 	"sync"
 	"time"
 )
@@ -44,7 +44,7 @@ type NexusQueue struct {
 	mu *sync.RWMutex
 }
 
-func Init() *NexusQueue {
+func Initialize() *NexusQueue {
 	mh := &nexusHeap{}
 	heap.Init(mh)
 

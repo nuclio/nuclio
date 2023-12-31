@@ -1,11 +1,11 @@
 package deadline
 
 import (
-	"nexus/common/models"
-	"nexus/common/models/configs"
-	common "nexus/common/models/structs"
-	deadline "nexus/deadline/models"
-	"nexus/nexus"
+	"github.com/konsumgandalf/profaastinate/nexus/common/models"
+	"github.com/konsumgandalf/profaastinate/nexus/common/models/configs"
+	common "github.com/konsumgandalf/profaastinate/nexus/common/models/structs"
+	deadline "github.com/konsumgandalf/profaastinate/nexus/deadline/models"
+	"github.com/konsumgandalf/profaastinate/nexus/nexus"
 	"testing"
 	"time"
 )
@@ -17,7 +17,7 @@ func Init(deadlineRemovalThreshold time.Duration, sleepDuration time.Duration) (
 
 	baseSchedulerConfig := configs.CreateBaseNexusSchedulerConfig(true, sleepDuration)
 
-	mockNexus := nexus.Init()
+	mockNexus := nexus.Initialize()
 
 	baseScheduler := &models.BaseNexusScheduler{
 		Queue:                    mockNexus.Queue,

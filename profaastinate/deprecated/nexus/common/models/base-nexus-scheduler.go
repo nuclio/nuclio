@@ -1,9 +1,9 @@
 package models
 
 import (
-	"nexus/common/models/configs"
-	"nexus/common/models/structs"
-	queue "nexus/common/queue"
+	"github.com/konsumgandalf/profaastinate/nexus/common/models/configs"
+	"github.com/konsumgandalf/profaastinate/nexus/common/models/structs"
+	queue "github.com/konsumgandalf/profaastinate/nexus/common/queue"
 	"sync"
 )
 

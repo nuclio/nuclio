@@ -2,7 +2,7 @@ package common
 
 import (
 	"container/heap"
-	common "nexus/common/models/structs"
+	common "github.com/konsumgandalf/profaastinate/nexus/common/models/structs"
 	"time"
 )
 

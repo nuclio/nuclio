@@ -1,11 +1,11 @@
 package scheduler
 
 import (
-	"nexus/bulk/models"
-	common "nexus/common/models"
-	"nexus/common/models/configs"
-	"nexus/common/models/structs"
-	"nexus/nexus"
+	"github.com/konsumgandalf/profaastinate/nexus/bulk/models"
+	common "github.com/konsumgandalf/profaastinate/nexus/common/models"
+	"github.com/konsumgandalf/profaastinate/nexus/common/models/configs"
+	"github.com/konsumgandalf/profaastinate/nexus/common/models/structs"
+	"github.com/konsumgandalf/profaastinate/nexus/nexus"
 	"testing"
 	"time"
 )
@@ -17,7 +17,7 @@ func Init(minAmountOfBulkItems int, sleepDuration time.Duration) (*BulkScheduler
 
 	baseSchedulerConfig := configs.CreateBaseNexusSchedulerConfig(true, sleepDuration)
 
-	mockNexus := nexus.Init()
+	mockNexus := nexus.Initialize()
 
 	baseScheduler := &common.BaseNexusScheduler{
 		Queue:                    mockNexus.Queue,

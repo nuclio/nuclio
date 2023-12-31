@@ -1,13 +1,13 @@
 package common
 
 import (
-	common "nexus/common/models/structs"
+	common "github.com/konsumgandalf/profaastinate/nexus/common/models/structs"
 	"testing"
 	"time"
 )
 
 func TestPriorityQueue(t *testing.T) {
-	mockPriorityQueue := Init()
+	mockPriorityQueue := Initialize()
 
 	startTime := time.Now()
 
@@ -119,7 +119,7 @@ func TestDeadlineImpl(t *testing.T) {
 // this test will test if the queue gives all items until the given deadline
 func TestGetAllItemsUntilDeadline(t *testing.T) {
 
-	mockPriorityQueue := Init()
+	mockPriorityQueue := Initialize()
 
 	mockItemList := []*common.NexusItem{
 		{
@@ -199,7 +199,7 @@ func TestGetAllItemsUntilDeadline(t *testing.T) {
 
 // Test PopBulkUntilDeadline
 func TestPopBulkUntilDeadline(t *testing.T) {
-	mockPriorityQueue := Init()
+	mockPriorityQueue := Initialize()
 
 	mockItemList := []*common.NexusItem{
 		{
@@ -240,7 +240,7 @@ func TestPopBulkUntilDeadline(t *testing.T) {
 // this will test if the queue can handle an index change after Getting the most common entry indices
 func TestGetMostCommonEntryItemsPushRemove(t *testing.T) {
 
-	mockPriorityQueue := Init()
+	mockPriorityQueue := Initialize()
 
 	mockItemList := []*common.NexusItem{
 		{
