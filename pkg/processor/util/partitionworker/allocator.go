@@ -73,9 +73,10 @@ func (wa *PooledWorkerAllocator) Stop() error {
 	return nil
 }
 
-// StaticWorkerAllocator statically maps a given partition to a given. this guarantees that a given partition in a given topic will
-// *always* be handled by the same worker of this replica. for functions that benefit from holding in-order state
-// this will be useful. however, the cost is throughput - it segments the worker pool such that it's possible
+// StaticWorkerAllocator statically maps a given partition to a given worker.
+// this guarantees that a given partition in a given topic will *always* be handled by the same worker of this replica.
+// for functions that benefit from holding in-order state this will be useful.
+// however, the cost is throughput - it segments the worker pool such that it's possible
 // that a partition mapped to a busy worker will wait processing an event even though there are free workers (which
 // are mapped to other partitions)
 type StaticWorkerAllocator struct {
@@ -101,7 +102,9 @@ func NewStaticWorkerAllocator(parentLogger logger.Logger,
 
 	// given a worker allocator and a topic/partition map - divide the workers we have between all partitions across
 	// all topics. there will be most likely many partitions across different topics sharing the same worker
-	newStaticWorkerAllocator.workerChans, newStaticWorkerAllocator.topicPartitionWorkers, err = newStaticWorkerAllocator.assignTopicPartitionWorkers(newStaticWorkerAllocator.workerAllocator,
+	newStaticWorkerAllocator.workerChans,
+		newStaticWorkerAllocator.topicPartitionWorkers,
+		err = newStaticWorkerAllocator.assignTopicPartitionWorkers(newStaticWorkerAllocator.workerAllocator,
 		topicPartitionIDs)
 
 	if err != nil {
@@ -116,6 +119,10 @@ func NewStaticWorkerAllocator(parentLogger logger.Logger,
 func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 	partitionID int,
 	timeout *time.Duration) (*worker.Worker, interface{}, error) {
+
+	if wa.workerAllocator.IsTerminated() {
+		return nil, nil, worker.ErrAllWorkersAreTerminated
+	}
 
 	// get the channel from which we need to allocate
 	workerChan, workerChanFound := wa.topicPartitionWorkers[topic][partitionID]

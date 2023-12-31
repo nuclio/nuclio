@@ -378,9 +378,9 @@ func (at *AbstractTrigger) SignalWorkerTermination() error {
 	return nil
 }
 
-// ResetWorkerTerminationState resets the worker termination state
-func (at *AbstractTrigger) ResetWorkerTerminationState() {
-	at.WorkerAllocator.ResetTerminationState()
+// ResetWorkerDrainState resets the worker draining state
+func (at *AbstractTrigger) ResetWorkerDrainState() {
+	at.WorkerAllocator.ResetDrainState()
 }
 
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {

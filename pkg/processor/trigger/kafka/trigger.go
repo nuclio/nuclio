@@ -307,7 +307,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	waitForHandler bool) {
 
 	readyForRebalanceChan := make(chan bool)
-	defer close(readyForRebalanceChan)
 
 	// indicate whether this partition worker was drained
 	// this is used to avoid race condition where 2 different partitions sharing the same worker
@@ -360,6 +359,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 
 		wg.Wait()
 		readyForRebalanceChan <- true
+		close(readyForRebalanceChan)
 	}()
 
 	// wait a for rebalance readiness or max timeout
@@ -398,7 +398,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	}
 
 	if drainedWorker {
-		k.ResetWorkerTerminationState()
+		k.ResetWorkerDrainState()
 	}
 }
 
