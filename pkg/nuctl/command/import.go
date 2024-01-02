@@ -122,7 +122,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 	for _, functionConfig := range functionConfigs {
 		wg.Add(1)
 		go func(function *functionconfig.Config) {
-			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Import function",
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing function",
 				"function", function.Meta.Name,
 				"project", project.Meta.Name)
 			if err := i.importFunction(ctx, function, project); err != nil {
@@ -134,7 +134,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 					"project", project.Meta.Name,
 					"error", err)
 			} else {
-				i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function has been successfully imported",
+				i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function was imported successfully",
 					"function", function.Meta.Name,
 					"project", project.Meta.Name)
 			}
@@ -144,7 +144,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 	wg.Wait()
 
 	if importFailed.Load() {
-		return errors.New("Import was failed for some of the functions")
+		return errors.New("Import failed for some of the functions")
 	}
 	return nil
 }
