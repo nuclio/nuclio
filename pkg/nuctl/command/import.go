@@ -18,6 +18,8 @@ package command
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -114,17 +116,37 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 func (i *importCommandeer) importFunctions(ctx context.Context,
 	functionConfigs map[string]*functionconfig.Config,
 	project *platform.ProjectConfig) error {
-	errGroup, _ := errgroup.WithContext(ctx, i.rootCommandeer.loggerInstance)
-
+	importFailed := atomic.Bool{}
 	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing functions", "functions", functionConfigs)
+	wg := sync.WaitGroup{}
 	for _, functionConfig := range functionConfigs {
-		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
-		errGroup.Go("Import function", func() error {
-			return i.importFunction(ctx, functionConfig, project)
-		})
+		wg.Add(1)
+		go func(function *functionconfig.Config) {
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Import function",
+				"function", function.Meta.Name,
+				"project", project.Meta.Name)
+			if err := i.importFunction(ctx, function, project); err != nil {
+				if !importFailed.Load() {
+					importFailed.Store(true)
+				}
+				i.rootCommandeer.loggerInstance.ErrorWithCtx(ctx, "Failed to import function",
+					"function", function.Meta.Name,
+					"project", project.Meta.Name,
+					"error", err)
+			} else {
+				i.rootCommandeer.loggerInstance.ErrorWithCtx(ctx, "Function has been successfully imported",
+					"function", function.Meta.Name,
+					"project", project.Meta.Name)
+			}
+			wg.Done()
+		}(functionConfig)
 	}
+	wg.Wait()
 
-	return errGroup.Wait()
+	if importFailed.Load() {
+		return errors.New("Import was failed for some of the functions")
+	}
+	return nil
 }
 
 type importFunctionCommandeer struct {
