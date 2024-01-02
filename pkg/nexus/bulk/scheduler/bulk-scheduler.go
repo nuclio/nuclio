@@ -2,15 +2,7 @@ package scheduler
 
 import (
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
-<<<<<<< HEAD
-<<<<<<< HEAD
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
-=======
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models"
->>>>>>> ed6969168 (feat(pkg-restful): nexus)
-=======
-	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
->>>>>>> bbe05e095 (feat(pkg-nexus): models, scheduler, utils)
 	"log"
 	"time"
 )
@@ -33,14 +25,6 @@ func NewDefaultScheduler(baseNexusScheduler *common.BaseNexusScheduler) *BulkSch
 }
 
 func (ds *BulkScheduler) Start() {
-<<<<<<< HEAD
-<<<<<<< HEAD
-	log.Println("Starting BulkScheduler...")
-=======
->>>>>>> ed6969168 (feat(pkg-restful): nexus)
-=======
-	log.Println("Starting BulkScheduler...")
->>>>>>> 51b03bcaa (refactor(pkg-nexus): logging)
 	ds.RunFlag = true
 
 	ds.executeSchedule()
@@ -58,17 +42,9 @@ func (ds *BulkScheduler) executeSchedule() {
 			continue
 		}
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems {
-=======
 		log.Println("Checking for bulking")
 		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems {
 			log.Println("items with name: " + itemsToPop[0].Name)
->>>>>>> ed6969168 (feat(pkg-restful): nexus)
-=======
-		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems {
->>>>>>> 51b03bcaa (refactor(pkg-nexus): logging)
 			ds.Queue.RemoveAll(itemsToPop)
 		}
 	}

@@ -2,30 +2,11 @@ package scheduler
 
 import (
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
-<<<<<<< HEAD
-<<<<<<< HEAD
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
-<<<<<<< HEAD
-	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
-=======
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
->>>>>>> ed6969168 (feat(pkg-restful): nexus)
-=======
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
->>>>>>> bbe05e095 (feat(pkg-nexus): models, scheduler, utils)
 	"github.com/nuclio/nuclio/pkg/nexus/nexus"
-=======
-	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
-	scheduler "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
->>>>>>> 12c8c8e9d (test(pkg-nexus): fix tests remove circular dependencies)
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/url"
 	"testing"
 	"time"
 )
@@ -38,89 +19,76 @@ const (
 
 type BulkSchedulerTestSuite struct {
 	suite.Suite
-	bs *BulkScheduler
-}
-
-var mockRequest = &http.Request{
-	Method: "GET",
-	URL: &url.URL{
-		Path:   "/api",
-		Scheme: "http",
-		Host:   "localhost:8070",
-	},
-	Header: make(http.Header),
+	BulkScheduler *BulkScheduler
+	MockNexus     *nexus.Nexus
 }
 
 func (suite *BulkSchedulerTestSuite) SetupTest() {
 	minAmountOfBulkItems, sleepDuration := 3, 1*time.Millisecond
 
 	bulkConfig := models.BulkSchedulerConfig{
-		MinAmountOfBulkItems:  minAmountOfBulkItems,
-		MaxPercentageUsageCPU: 90,
-		MaxPercentageUsageRAM: 90,
+		MinAmountOfBulkItems: minAmountOfBulkItems,
 	}
 
 	baseSchedulerConfig := configs.NewBaseNexusSchedulerConfig(true, sleepDuration)
-	defaultQueue := common.Initialize()
 
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, baseSchedulerConfig)
+	suite.MockNexus = nexus.Initialize()
 
-	suite.bs = NewScheduler(baseScheduler, bulkConfig)
+	baseScheduler := &common.BaseNexusScheduler{
+		Queue:                    suite.MockNexus.Queue,
+		BaseNexusSchedulerConfig: baseSchedulerConfig,
+	}
+
+	suite.BulkScheduler = NewScheduler(baseScheduler, bulkConfig)
 }
 
 func (suite *BulkSchedulerTestSuite) pushTasksToQueue() {
 	// Normally tasks with the same name would have different Values
 	task1_1 := &structs.NexusItem{
-		Name:    task_1,
-		Request: mockRequest,
+		Name: task_1,
 	}
-	suite.bs.Push(task1_1)
+	suite.MockNexus.Push(task1_1)
 	task1_2 := &structs.NexusItem{
-		Name:    task_1,
-		Request: mockRequest,
+		Name: task_1,
 	}
-	suite.bs.Push(task1_2)
+	suite.MockNexus.Push(task1_2)
 
 	task2_1 := &structs.NexusItem{
-		Name:    task_2,
-		Request: mockRequest,
+		Name: task_2,
 	}
-	suite.bs.Push(task2_1)
+	suite.MockNexus.Push(task2_1)
 	task2_2 := &structs.NexusItem{
-		Name:    task_2,
-		Request: mockRequest,
+		Name: task_2,
 	}
-	suite.bs.Push(task2_2)
+	suite.MockNexus.Push(task2_2)
 
 	task3_1 := &structs.NexusItem{
-		Name:    task_3,
-		Request: mockRequest,
+		Name: task_3,
 	}
-	suite.bs.Push(task3_1)
+	suite.MockNexus.Push(task3_1)
 }
 
 func (suite *BulkSchedulerTestSuite) TestBulkScheduler() {
 	suite.pushTasksToQueue()
 
 	// Start scheduling to remove tasks that have passed their deadline
-	go suite.bs.Start()
+	go suite.BulkScheduler.Start()
 
 	// Wait for a sufficient time to allow the scheduler to process the tasks
 	time.Sleep(1 * time.Millisecond)
 
-	suite.Equal(5, suite.bs.Queue.Len())
+	suite.Equal(5, suite.BulkScheduler.Queue.Len())
 
-	suite.bs.Push(&structs.NexusItem{
-		Name:    task_2,
-		Request: mockRequest,
+	suite.MockNexus.Push(&structs.NexusItem{
+		Name: task_2,
 	})
 
-	suite.Equal(6, suite.bs.Queue.Len())
+	suite.Equal(6, suite.BulkScheduler.Queue.Len())
 
 	// Wait for a sufficient time to allow the scheduler to process the tasks
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(1 * time.Millisecond)
 
-	suite.Equal(3, suite.bs.Queue.Len())
+	suite.Equal(3, suite.BulkScheduler.Queue.Len())
 }
 
 func TestBulkSchedulerTestSuite(t *testing.T) {
