@@ -2,9 +2,9 @@ package scheduler
 
 import (
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
+	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/nexus"
 	"github.com/stretchr/testify/suite"
 	"testing"

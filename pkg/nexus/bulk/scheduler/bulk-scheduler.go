@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models"
+	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	"log"
 	"time"
 )

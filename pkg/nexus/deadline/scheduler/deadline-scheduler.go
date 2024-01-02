@@ -1,7 +1,7 @@
 package deadline
 
 import (
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models"
+	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/deadline/models"
 	"log"
 	"time"

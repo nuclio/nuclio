@@ -2,10 +2,10 @@ package nexus
 
 import (
 	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
+	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/scheduler"
 	"log"
 	"sync"
@@ -24,7 +24,7 @@ func Initialize() (nexus Nexus) {
 		Queue: &nexusQueue,
 	}
 
-	baseScheduler := models.NewDefaultBaseNexusScheduler(&nexusQueue)
+	baseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue)
 
 	deadlineScheduler := deadline.NewDefaultScheduler(baseScheduler)
 	nexus.schedulers = append(nexus.schedulers, deadlineScheduler)
