@@ -117,24 +117,30 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 	functionConfigs map[string]*functionconfig.Config,
 	project *platform.ProjectConfig) error {
 	importFailed := atomic.Bool{}
-	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing functions", "functions", functionConfigs)
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+		"Importing functions",
+		"functions", functionConfigs)
 	wg := sync.WaitGroup{}
 	for _, functionConfig := range functionConfigs {
 		wg.Add(1)
 		go func(function *functionconfig.Config) {
-			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing function",
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+				"Importing function",
 				"function", function.Meta.Name,
 				"project", project.Meta.Name)
+
 			if err := i.importFunction(ctx, function, project); err != nil {
 				if !importFailed.Load() {
 					importFailed.Store(true)
 				}
-				i.rootCommandeer.loggerInstance.ErrorWithCtx(ctx, "Failed to import function",
+				i.rootCommandeer.loggerInstance.ErrorWithCtx(ctx,
+					"Failed to import function",
 					"function", function.Meta.Name,
 					"project", project.Meta.Name,
 					"error", err)
 			} else {
-				i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function was imported successfully",
+				i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+					"Function was imported successfully",
 					"function", function.Meta.Name,
 					"project", project.Meta.Name)
 			}
