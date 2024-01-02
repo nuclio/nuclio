@@ -134,7 +134,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 					"project", project.Meta.Name,
 					"error", err)
 			} else {
-				i.rootCommandeer.loggerInstance.ErrorWithCtx(ctx, "Function has been successfully imported",
+				i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function has been successfully imported",
 					"function", function.Meta.Name,
 					"project", project.Meta.Name)
 			}
