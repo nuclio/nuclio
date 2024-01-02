@@ -1,22 +1,19 @@
-package models
+package scheduler
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/nuclio/nuclio/pkg/common/headers"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
+	"github.com/nuclio/nuclio/pkg/nexus/common/utils"
 	"log"
 	"net/http"
-	"strings"
+	"net/url"
 	"time"
-)
-
-const (
-	NUCLIO_NEXUS_REQUEST_URL = "http://host.docker.internal:8070/api/function_invocations"
-	EVALUATION_URL           = "http://host.docker.internal:8888/evaluation/invocation"
 )
 
 type BaseNexusScheduler struct {
@@ -30,7 +27,7 @@ func NewBaseNexusScheduler(queue *queue.NexusQueue, config configs.BaseNexusSche
 	return &BaseNexusScheduler{
 		Queue:                    queue,
 		BaseNexusSchedulerConfig: config,
-		requestUrl:               NUCLIO_NEXUS_REQUEST_URL,
+		requestUrl:               models.NUCLIO_NEXUS_REQUEST_URL,
 		client:                   &http.Client{},
 	}
 }
@@ -50,16 +47,18 @@ func (bs *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 
 	nexusItem.Request.Header.Del(headers.ProcessDeadline)
 
-	if strings.ToLower(nexusItem.Request.URL.Host) == "localhost" {
-		// TODO add darwin support
-		nexusItem.Request.URL.Host = "docker.host.internal"
-	}
+	var requestUrl url.URL
+	requestUrl.Scheme = models.HTTP_SCHEME
+	requestUrl.Path = models.NUCLIO_PATH
+	requestUrl.Host = fmt.Sprintf("%s:%s", utils.GetEnvironmentHost(), models.PORT)
 
-	log.Println(nexusItem.Request.URL)
+	newRequest, _ := http.NewRequest(nexusItem.Request.Method, requestUrl.String(), nexusItem.Request.Body)
+	newRequest.Header = nexusItem.Request.Header
 
-	_, err := bs.client.Do(nexusItem.Request)
+	_, err := bs.client.Do(newRequest)
 	if err != nil {
-		log.Println("Error sending request to Nuclio:", err)
+		fmt.Println(nexusItem.Request.URL)
+		fmt.Println("Error sending request to Nuclio:", err)
 	} else {
 		log.Println("Successfully sent request to Nuclio")
 	}
@@ -74,7 +73,14 @@ func (bs *BaseNexusScheduler) evaluateInvocation(nexusItem *structs.NexusItem) {
 		return
 	}
 
-	bs.client.Post(EVALUATION_URL, "application/json", bytes.NewBuffer(jsonData))
+	var evaluationUrl url.URL
+	evaluationUrl.Scheme = models.HTTP_SCHEME
+	evaluationUrl.Path = models.EVALUATION_PATH
+	evaluationUrl.Host = fmt.Sprintf("%s:%s", utils.GetEnvironmentHost(), models.PORT)
+	fmt.Println(evaluationUrl)
+	log.Println(evaluationUrl)
+
+	bs.client.Post(evaluationUrl.String(), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		fmt.Println("Error sending POST request:", err)
 		return
