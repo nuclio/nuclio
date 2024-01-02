@@ -2,10 +2,14 @@ package deadline
 
 import (
 <<<<<<< HEAD
+<<<<<<< HEAD
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 =======
 	common "github.com/nuclio/nuclio/pkg/nexus/common/models"
 >>>>>>> ed6969168 (feat(pkg-restful): nexus)
+=======
+	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+>>>>>>> bbe05e095 (feat(pkg-nexus): models, scheduler, utils)
 	"github.com/nuclio/nuclio/pkg/nexus/deadline/models"
 	"log"
 	"time"

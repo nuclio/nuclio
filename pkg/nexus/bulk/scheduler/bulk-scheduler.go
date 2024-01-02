@@ -3,10 +3,14 @@ package scheduler
 import (
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
 <<<<<<< HEAD
+<<<<<<< HEAD
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 =======
 	common "github.com/nuclio/nuclio/pkg/nexus/common/models"
 >>>>>>> ed6969168 (feat(pkg-restful): nexus)
+=======
+	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+>>>>>>> bbe05e095 (feat(pkg-nexus): models, scheduler, utils)
 	"log"
 	"time"
 )
