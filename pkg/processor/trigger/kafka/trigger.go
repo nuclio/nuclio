@@ -307,6 +307,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	waitForHandler bool) {
 
 	readyForRebalanceChan := make(chan bool)
+	defer close(readyForRebalanceChan)
 
 	// indicate whether this partition worker was drained
 	// this is used to avoid race condition where 2 different partitions sharing the same worker
@@ -316,7 +317,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	go func() {
 		defer common.CatchAndLogPanicWithOptions(k.ctx, // nolint: errcheck
 			k.Logger,
-			"Recover from panic after trying to write into channel, which was closed because of wait for rebalance timeout",
+			"trying to write into channel, which was closed because of wait for rebalance timeout",
 			&common.CatchAndLogPanicOptions{
 				Args:          []interface{}{"partition", claim.Partition()},
 				CustomHandler: nil,
@@ -359,7 +360,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 
 		wg.Wait()
 		readyForRebalanceChan <- true
-		close(readyForRebalanceChan)
 	}()
 
 	// wait a for rebalance readiness or max timeout

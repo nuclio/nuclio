@@ -57,7 +57,7 @@ type Allocator interface {
 	// SignalTermination signals all workers to terminate
 	SignalTermination() error
 
-	// ResetDrainState resets draining state of all workers
+	// ResetDrainState resets drain state of all workers
 	ResetDrainState()
 
 	// IsTerminated returns true if all workers are terminated
