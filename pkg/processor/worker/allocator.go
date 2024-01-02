@@ -57,8 +57,11 @@ type Allocator interface {
 	// SignalTermination signals all workers to terminate
 	SignalTermination() error
 
-	// ResetTerminationState resets termination state of all workers
-	ResetTerminationState()
+	// ResetDrainState resets drain state of all workers
+	ResetDrainState()
+
+	// IsTerminated returns true if all workers are terminated
+	IsTerminated() bool
 }
 
 //
@@ -116,11 +119,16 @@ func (s *singleton) SignalDraining() error {
 }
 
 func (s *singleton) SignalTermination() error {
-	return s.worker.Drain()
+	s.isTerminated = true
+	return s.worker.Terminate()
 }
 
-func (s *singleton) ResetTerminationState() {
+func (s *singleton) ResetDrainState() {
 	s.worker.setDrained(false)
+}
+
+func (s *singleton) IsTerminated() bool {
+	return s.isTerminated
 }
 
 //
@@ -268,8 +276,12 @@ func (fp *fixedPool) SignalTermination() error {
 	return nil
 }
 
-func (fp *fixedPool) ResetTerminationState() {
+func (fp *fixedPool) ResetDrainState() {
 	for _, workerInstance := range fp.GetWorkers() {
 		workerInstance.setDrained(false)
 	}
+}
+
+func (fp *fixedPool) IsTerminated() bool {
+	return fp.isTerminated
 }
