@@ -10,7 +10,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/utils"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -57,10 +56,7 @@ func (bs *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 
 	_, err := bs.client.Do(newRequest)
 	if err != nil {
-		fmt.Println(nexusItem.Request.URL)
 		fmt.Println("Error sending request to Nuclio:", err)
-	} else {
-		log.Println("Successfully sent request to Nuclio")
 	}
 
 	return
@@ -77,12 +73,9 @@ func (bs *BaseNexusScheduler) evaluateInvocation(nexusItem *structs.NexusItem) {
 	evaluationUrl.Scheme = models.HTTP_SCHEME
 	evaluationUrl.Path = models.EVALUATION_PATH
 	evaluationUrl.Host = fmt.Sprintf("%s:%s", utils.GetEnvironmentHost(), models.PORT)
-	fmt.Println(evaluationUrl)
-	log.Println(evaluationUrl)
 
 	bs.client.Post(evaluationUrl.String(), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		fmt.Println("Error sending POST request:", err)
 		return
 	}
 }

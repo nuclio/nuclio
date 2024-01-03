@@ -25,6 +25,7 @@ func NewDefaultScheduler(baseNexusScheduler *common.BaseNexusScheduler) *Deadlin
 }
 
 func (ds *DeadlineScheduler) Start() {
+	log.Println("Starting DeadlineScheduler...")
 	ds.RunFlag = true
 
 	ds.executeSchedule()
@@ -42,9 +43,7 @@ func (ds *DeadlineScheduler) executeSchedule() {
 			continue
 		}
 
-		log.Println("Checking for expired deadlines...")
 		timeUntilDeadline := ds.Queue.Peek().Deadline.Sub(time.Now())
-		log.Println(timeUntilDeadline)
 		if timeUntilDeadline < ds.DeadlineRemovalThreshold {
 			ds.Pop()
 		}

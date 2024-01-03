@@ -35,7 +35,7 @@ func Initialize() (nexus Nexus) {
 }
 
 func (nexus *Nexus) Start() {
-	log.Println("Starting Scheduler...")
+	log.Println("Starting Nexus...")
 
 	nexus.wg.Add(len(nexus.schedulers))
 	for _, scheduler := range nexus.schedulers {
