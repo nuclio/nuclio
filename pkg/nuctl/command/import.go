@@ -18,6 +18,8 @@ package command
 
 import (
 	"context"
+	"golang.org/x/sync/semaphore"
+	"runtime"
 	"sync"
 	"sync/atomic"
 
@@ -121,8 +123,10 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 		"Importing functions",
 		"functions", functionConfigs)
 	wg := sync.WaitGroup{}
+	var sem = semaphore.NewWeighted(int64(runtime.NumCPU()))
 	for _, functionConfig := range functionConfigs {
 		wg.Add(1)
+		sem.Acquire(ctx, 1)
 		go func(function *functionconfig.Config) {
 			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
 				"Importing function",
@@ -144,6 +148,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 					"function", function.Meta.Name,
 					"project", project.Meta.Name)
 			}
+			sem.Release(1)
 			wg.Done()
 		}(functionConfig)
 	}
