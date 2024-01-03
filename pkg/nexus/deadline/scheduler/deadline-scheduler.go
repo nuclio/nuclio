@@ -47,9 +47,13 @@ func (ds *DeadlineScheduler) Stop() {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // TODO: fix this please sleep -> something todo until next awakening (do it) -> sleep
 =======
 >>>>>>> ed6969168 (feat(pkg-restful): nexus)
+=======
+// TODO: fix this please sleep -> something todo until next awakening (do it) -> sleep
+>>>>>>> bf909479b (Changes by jonas)
 func (ds *DeadlineScheduler) executeSchedule() {
 	for ds.RunFlag {
 		if ds.Queue.Len() == 0 {
