@@ -34,6 +34,7 @@ func (ds *DeadlineScheduler) Stop() {
 	ds.RunFlag = false
 }
 
+// TODO: fix this please sleep -> something todo until next awakening (do it) -> sleep
 func (ds *DeadlineScheduler) executeSchedule() {
 	for ds.RunFlag {
 		if ds.Queue.Len() == 0 {
