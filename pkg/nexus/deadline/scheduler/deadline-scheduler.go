@@ -34,9 +34,13 @@ func NewDefaultScheduler(baseNexusScheduler *common.BaseNexusScheduler) *Deadlin
 
 func (ds *DeadlineScheduler) Start() {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	log.Println("Starting DeadlineScheduler...")
 =======
 >>>>>>> ed6969168 (feat(pkg-restful): nexus)
+=======
+	log.Println("Starting DeadlineScheduler...")
+>>>>>>> 51b03bcaa (refactor(pkg-nexus): logging)
 	ds.RunFlag = true
 
 	ds.executeSchedule()
@@ -62,12 +66,16 @@ func (ds *DeadlineScheduler) executeSchedule() {
 		}
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 		timeUntilDeadline := ds.Queue.Peek().Deadline.Sub(time.Now())
 =======
 		log.Println("Checking for expired deadlines...")
 		timeUntilDeadline := ds.Queue.Peek().Deadline.Sub(time.Now())
 		log.Println(timeUntilDeadline)
 >>>>>>> ed6969168 (feat(pkg-restful): nexus)
+=======
+		timeUntilDeadline := ds.Queue.Peek().Deadline.Sub(time.Now())
+>>>>>>> 51b03bcaa (refactor(pkg-nexus): logging)
 		if timeUntilDeadline < ds.DeadlineRemovalThreshold {
 			ds.Pop()
 		}

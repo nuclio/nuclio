@@ -58,10 +58,14 @@ func Initialize() (nexus Nexus) {
 
 func (nexus *Nexus) Start() {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	log.Println("Starting Nexus...")
 =======
 	log.Println("Starting Scheduler...")
 >>>>>>> ed6969168 (feat(pkg-restful): nexus)
+=======
+	log.Println("Starting Nexus...")
+>>>>>>> 51b03bcaa (refactor(pkg-nexus): logging)
 
 	nexus.wg.Add(len(nexus.schedulers))
 	for _, scheduler := range nexus.schedulers {

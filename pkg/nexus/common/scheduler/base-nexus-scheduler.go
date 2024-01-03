@@ -11,9 +11,12 @@ import (
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/utils"
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 	"log"
 >>>>>>> b56877031 (feat(pkg-nexus): models, scheduler, utils)
+=======
+>>>>>>> 51b03bcaa (refactor(pkg-nexus): logging)
 	"net/http"
 	"net/url"
 	"time"
@@ -61,6 +64,7 @@ func (bs *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 	_, err := bs.client.Do(newRequest)
 	if err != nil {
 <<<<<<< HEAD
+<<<<<<< HEAD
 		fmt.Println("Error sending request to Nuclio:", err)
 =======
 		fmt.Println(nexusItem.Request.URL)
@@ -68,6 +72,9 @@ func (bs *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 	} else {
 		log.Println("Successfully sent request to Nuclio")
 >>>>>>> b56877031 (feat(pkg-nexus): models, scheduler, utils)
+=======
+		fmt.Println("Error sending request to Nuclio:", err)
+>>>>>>> 51b03bcaa (refactor(pkg-nexus): logging)
 	}
 
 	return
@@ -85,6 +92,7 @@ func (bs *BaseNexusScheduler) evaluateInvocation(nexusItem *structs.NexusItem) {
 	evaluationUrl.Path = models.EVALUATION_PATH
 	evaluationUrl.Host = fmt.Sprintf("%s:%s", utils.GetEnvironmentHost(), models.PORT)
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 	bs.client.Post(evaluationUrl.String(), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -96,6 +104,11 @@ func (bs *BaseNexusScheduler) evaluateInvocation(nexusItem *structs.NexusItem) {
 	if err != nil {
 		fmt.Println("Error sending POST request:", err)
 >>>>>>> b56877031 (feat(pkg-nexus): models, scheduler, utils)
+=======
+
+	bs.client.Post(evaluationUrl.String(), "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+>>>>>>> 51b03bcaa (refactor(pkg-nexus): logging)
 		return
 	}
 }
