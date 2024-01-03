@@ -18,7 +18,7 @@ package command
 
 import (
 	"context"
-	"runtime"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -123,7 +123,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 		"Importing functions",
 		"functions", functionConfigs)
 	wg := sync.WaitGroup{}
-	var sem = semaphore.NewWeighted(int64(runtime.NumCPU()))
+	var sem = semaphore.NewWeighted(int64(i.rootCommandeer.concurrency))
 	for _, functionConfig := range functionConfigs {
 		wg.Add(1)
 		_ = sem.Acquire(ctx, 1)
@@ -153,9 +153,12 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 		}(functionConfig)
 	}
 	wg.Wait()
-
 	if importFailed.Load() {
-		return errors.New("Import failed for some of the functions")
+		// TODO: add error log for each failed import
+		return errors.New(fmt.Sprintf(
+			"Import failed for some of the functions. Project: %s",
+			project.Meta.Name),
+		)
 	}
 	return nil
 }

@@ -32,7 +32,6 @@ type betaCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
 	apiClient      client.APIClient
-	concurrency    int
 	apiURL         string
 	username       string
 	accessKey      string
@@ -56,7 +55,6 @@ func newBetaCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *bet
 	cmd.PersistentFlags().StringVar(&commandeer.accessKey, "access-key", "", "Access Key of a user with permissions to the nuclio API")
 	cmd.PersistentFlags().StringVar(&commandeer.requestTimeout, "request-timeout", "60s", "Request timeout")
 	cmd.PersistentFlags().BoolVar(&commandeer.skipTLSVerify, "skip-tls-verify", false, "Skip TLS verification")
-	cmd.PersistentFlags().IntVar(&commandeer.concurrency, "concurrency", DefaultConcurrency, "Max number of parallel patches")
 
 	cmd.MarkPersistentFlagRequired("api-url") // nolint: errcheck
 

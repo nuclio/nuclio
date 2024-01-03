@@ -199,7 +199,7 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 		return errors.New(fmt.Sprintf("Desired state %s is not supported", d.desiredState))
 	}
 
-	patchErrGroup, _ := errgroup.WithContextSemaphore(ctx, d.rootCommandeer.loggerInstance, uint(d.betaCommandeer.concurrency))
+	patchErrGroup, _ := errgroup.WithContextSemaphore(ctx, d.rootCommandeer.loggerInstance, uint(d.rootCommandeer.concurrency))
 	for _, function := range functionNames {
 		function := function
 		patchErrGroup.Go("patch function", func() error {
