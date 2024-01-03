@@ -25,8 +25,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const DefaultConcurrency = 10
-
 // betaCommandeer is the BETA version of nuctl as an API client
 type betaCommandeer struct {
 	cmd            *cobra.Command
