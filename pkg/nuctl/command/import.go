@@ -18,7 +18,6 @@ package command
 
 import (
 	"context"
-	"golang.org/x/sync/semaphore"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -33,6 +32,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/semaphore"
 )
 
 type importCommandeer struct {
@@ -126,7 +126,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 	var sem = semaphore.NewWeighted(int64(runtime.NumCPU()))
 	for _, functionConfig := range functionConfigs {
 		wg.Add(1)
-		sem.Acquire(ctx, 1)
+		_ = sem.Acquire(ctx, 1)
 		go func(function *functionconfig.Config) {
 			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
 				"Importing function",
