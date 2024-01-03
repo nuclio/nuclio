@@ -1,0 +1,29 @@
+@startuml
+
+actor Client
+
+component Dashboard {
+
+    component RESTServer
+    Client .(0- RESTServer : "calls push async\nrequest"
+
+    frame Profaastinate {
+        component Nexus
+        component NexusQueue
+        component BulkScheduler
+        component DeadlineScheduler
+
+
+        Nexus -left-> BulkScheduler : "activate"
+        Nexus -right-> DeadlineScheduler : "activate"
+        Nexus -down-> NexusQueue : "store request"
+
+        BulkScheduler -up(0- RESTServer : "calls sync\nrequest"
+        DeadlineScheduler -up(0- RESTServer : "calls sync\nrequest"
+        BulkScheduler -down-> NexusQueue : "use items"
+        DeadlineScheduler -down-> NexusQueue : "use items"
+    }
+    RESTServer -down-> Nexus : "push async\nrequest"
+}
+
+@enduml
