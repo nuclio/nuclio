@@ -17,9 +17,10 @@ limitations under the License.
 package restful
 
 import (
-	"github.com/nuclio/nuclio/pkg/nexus/nexus"
 	"log"
 	"net/http"
+
+	"github.com/nuclio/nuclio/pkg/nexus/nexus"
 
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/registry"
@@ -49,7 +50,7 @@ type AbstractServer struct {
 	ListenAddress    string
 	Router           chi.Router
 	resourceRegistry *registry.Registry
-	Nexus            nexus.Nexus
+	Nexus            *nexus.Nexus
 	server           Server
 }
 
@@ -82,6 +83,11 @@ func (s *AbstractServer) Initialize(configuration *platformconfig.WebServer) err
 
 	s.Nexus = nexus.Initialize()
 	log.Println("Nexus initialized")
+
+	nexusRouter := nexus.NewNexusRouter(s.Nexus)
+	nexusRouter.Initialize()
+
+	s.Router.Mount("/api/nexus", nexusRouter.Router)
 
 	if err := s.readConfiguration(configuration); err != nil {
 		return errors.Wrap(err, "Failed to read configuration")

@@ -1,15 +1,16 @@
 package nexus
 
 import (
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
-	"github.com/stretchr/testify/suite"
 	"net/http"
 	"testing"
+
+	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
+	"github.com/stretchr/testify/suite"
 )
 
 type NexusSuite struct {
 	suite.Suite
-	mockNexus Nexus
+	mockNexus *Nexus
 }
 
 func (suite *NexusSuite) SetupTest() {
