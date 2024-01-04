@@ -585,3 +585,54 @@ func PopulateFieldsFromValues[T string | bool | int](fieldsToValues map[*T]T) {
 		}
 	}
 }
+
+// Translates time in string format to Deadline time
+func GetDeadlineTime(stringTime string) time.Time {
+	duration, noNumberError := strconv.ParseInt(stringTime, 10, 64)
+	if noNumberError != nil {
+		return FormatTimeWithDefault(stringTime)
+	} else {
+		return DurationToDeadline(duration)
+	}
+}
+
+func FormatTimeWithDefault(input string) time.Time {
+	parts := strings.Split(input, "T")
+	datePart := parts[0]
+
+	var timePart string
+	if len(parts) > 1 {
+		timePart = parts[1]
+	}
+
+	var (
+		year, month, day       int
+		hour, minutes, sec, ms int
+	)
+
+	fmt.Sscanf(datePart, "%d-%d-%d", &year, &month, &day)
+
+	if timePart != "" {
+		timeParts := strings.Split(timePart, ":")
+
+		hour, _ = strconv.Atoi(timeParts[0])
+		if len(timeParts) > 1 {
+			minutes, _ = strconv.Atoi(timeParts[1])
+		}
+		if len(timeParts) > 2 {
+			millisecondsPart := strings.Split(timeParts[2], ".")
+
+			sec, _ = strconv.Atoi(millisecondsPart[0])
+			if len(millisecondsPart) > 1 {
+				ms, _ = strconv.Atoi(millisecondsPart[1])
+			}
+		}
+	}
+
+	return time.Date(year, time.Month(month), day, hour, minutes, sec, ms*int(time.Millisecond), time.UTC)
+}
+
+// Transforms a duration time given in milliseconds to a Deadline time
+func DurationToDeadline(number int64) time.Time {
+	return time.Now().Add(time.Duration(number) * time.Millisecond)
+}

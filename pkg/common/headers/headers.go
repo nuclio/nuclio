@@ -65,6 +65,10 @@ const (
 	FilterContains = "X-Nuclio-Filter-Contains"
 	StreamNoAck    = "X-Nuclio-Stream-No-Ack"
 	Arguments      = "X-Nuclio-Arguments"
+
+	// Profaastinate headers
+	ProfaastinateHeader = "X-Profaastinate-"
+	ProcessDeadline     = ProfaastinateHeader + "Process-Deadline"
 )
 
 func IsNuclioHeader(headerName string) bool {
