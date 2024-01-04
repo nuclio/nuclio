@@ -1,10 +1,12 @@
 package scheduler
 
 import (
-	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
-	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	"log"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
+	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 )
 
 type BulkScheduler struct {
@@ -32,6 +34,14 @@ func (ds *BulkScheduler) Start() {
 
 func (ds *BulkScheduler) Stop() {
 	ds.RunFlag = false
+}
+
+func (ds *BulkScheduler) GetStatus() interfaces.SchedulerStatus {
+	if ds.RunFlag {
+		return interfaces.Running
+	} else {
+		return interfaces.Stopped
+	}
 }
 
 func (ds *BulkScheduler) executeSchedule() {

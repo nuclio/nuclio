@@ -661,7 +661,7 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 		)
 
 		// https://docs.docker.com/desktop/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
-		dockerHostAddresses, err := net.LookupIP("host.docker.internal")
+		dockerHostAddresses, err := net.LookupIP("localhost")
 		if err == nil {
 			for _, address := range dockerHostAddresses {
 				addresses = append(addresses, address.String())
