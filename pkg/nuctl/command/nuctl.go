@@ -19,6 +19,7 @@ package command
 import (
 	"context"
 	"os"
+	"runtime"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -43,6 +44,7 @@ type RootCommandeer struct {
 	namespace      string
 	verbose        bool
 	KubeconfigPath string
+	concurrency    int
 
 	platformConfiguration *platformconfig.Config
 }
@@ -64,6 +66,7 @@ func NewRootCommandeer() *RootCommandeer {
 	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")
 	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\"")
 	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", defaultNamespace, "Namespace")
+	cmd.PersistentFlags().IntVar(&commandeer.concurrency, "concurrency", runtime.NumCPU(), "Max number of parallel patches. The default value is equal to the number of CPUs.")
 
 	// platform specific
 	cmd.PersistentFlags().StringVarP(&commandeer.KubeconfigPath, "kubeconfig", "k", "", "Path to a Kubernetes configuration file (admin.conf)")

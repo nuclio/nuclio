@@ -18,6 +18,9 @@ package command
 
 import (
 	"context"
+	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -29,6 +32,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/semaphore"
 )
 
 type importCommandeer struct {
@@ -114,17 +118,49 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 func (i *importCommandeer) importFunctions(ctx context.Context,
 	functionConfigs map[string]*functionconfig.Config,
 	project *platform.ProjectConfig) error {
-	errGroup, _ := errgroup.WithContext(ctx, i.rootCommandeer.loggerInstance)
-
-	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Importing functions", "functions", functionConfigs)
+	importFailed := atomic.Bool{}
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+		"Importing functions",
+		"functions", functionConfigs)
+	wg := sync.WaitGroup{}
+	var sem = semaphore.NewWeighted(int64(i.rootCommandeer.concurrency))
 	for _, functionConfig := range functionConfigs {
-		functionConfig := functionConfig // https://golang.org/doc/faq#closures_and_goroutines
-		errGroup.Go("Import function", func() error {
-			return i.importFunction(ctx, functionConfig, project)
-		})
-	}
+		wg.Add(1)
+		_ = sem.Acquire(ctx, 1)
+		go func(function *functionconfig.Config) {
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+				"Importing function",
+				"function", function.Meta.Name,
+				"project", project.Meta.Name)
 
-	return errGroup.Wait()
+			if err := i.importFunction(ctx, function, project); err != nil {
+				if !importFailed.Load() {
+					importFailed.Store(true)
+				}
+				i.rootCommandeer.loggerInstance.ErrorWithCtx(ctx,
+					"Failed to import function",
+					"function", function.Meta.Name,
+					"project", project.Meta.Name,
+					"error", err)
+			} else {
+				i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
+					"Function was imported successfully",
+					"function", function.Meta.Name,
+					"project", project.Meta.Name)
+			}
+			sem.Release(1)
+			wg.Done()
+		}(functionConfig)
+	}
+	wg.Wait()
+	if importFailed.Load() {
+		// TODO: add error log for each failed import
+		return errors.New(fmt.Sprintf(
+			"Import failed for some of the functions. Project: %s",
+			project.Meta.Name),
+		)
+	}
+	return nil
 }
 
 type importFunctionCommandeer struct {
