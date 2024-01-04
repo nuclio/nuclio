@@ -143,7 +143,7 @@ func (s *Store) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunction
 	var functionEvents []platform.FunctionEvent
 
 	// get function filter
-	functionName := getFunctionEventsOptions.Meta.Labels["nuclio.io/function-name"]
+	functionName := getFunctionEventsOptions.Meta.Labels[common.NuclioResourceLabelKeyFunctionName]
 	functionNames := getFunctionEventsOptions.FunctionNames
 	if len(functionNames) > 0 {
 
@@ -163,7 +163,7 @@ func (s *Store) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunction
 		// the desired filter, skip
 		if functionName != "" &&
 			newFunctionEvent.GetConfig().Meta.Labels != nil &&
-			functionName != newFunctionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"] {
+			functionName != newFunctionEvent.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyFunctionName] {
 			return nil
 		}
 
@@ -268,7 +268,7 @@ func (s *Store) DeleteFunction(ctx context.Context, functionMeta *functionconfig
 		Meta: platform.FunctionEventMeta{
 			Namespace: functionMeta.Namespace,
 			Labels: map[string]string{
-				"nuclio.io/function-name": functionMeta.Name,
+				common.NuclioResourceLabelKeyFunctionName: functionMeta.Name,
 			},
 		},
 	})

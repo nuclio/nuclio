@@ -334,7 +334,7 @@ func newGetFunctionEventCommandeer(ctx context.Context, getCommandeer *getComman
 
 			if commandeer.functionName != "" {
 				commandeer.getFunctionEventsOptions.Meta.Labels = map[string]string{
-					"nuclio.io/function-name": commandeer.functionName,
+					nucliocommon.NuclioResourceLabelKeyFunctionName: commandeer.functionName,
 				}
 			}
 

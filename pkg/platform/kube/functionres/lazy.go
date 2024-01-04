@@ -114,7 +114,7 @@ func NewLazyClient(parentLogger logger.Logger,
 
 func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, error) {
 	listOptions := metav1.ListOptions{
-		LabelSelector: "nuclio.io/class=function",
+		LabelSelector: fmt.Sprintf("%s=function", common.NuclioLabelKeyClass),
 	}
 
 	result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).List(ctx, listOptions)
@@ -175,12 +175,12 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 	functionLabels := lc.getFunctionLabels(function)
 
 	// set a few constants
-	functionLabels["nuclio.io/function-name"] = function.Name
+	functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
 
 	// TODO: remove when versioning is back in
 	function.Spec.Version = -1
 	function.Spec.Alias = "latest"
-	functionLabels["nuclio.io/function-version"] = "latest"
+	functionLabels[common.NuclioLabelKeyFunctionVersion] = "latest"
 
 	resources := lazyResources{}
 
@@ -758,8 +758,8 @@ func (lc *lazyClient) createOrUpdateCronTriggerCronJobs(ctx context.Context,
 		}
 
 		extraMetaLabels := labels.Set{
-			"nuclio.io/component":                  "cron-trigger",
-			"nuclio.io/function-cron-trigger-name": triggerName,
+			common.NuclioLabelKeyComponent:               "cron-trigger",
+			common.NuclioLabelKeyFunctionCronTriggerName: triggerName,
 		}
 		cronJob, err := lc.createOrUpdateCronJob(ctx,
 			functionLabels,
@@ -1557,7 +1557,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 func (lc *lazyClient) deleteCronJobs(ctx context.Context, functionName, functionNamespace string) error {
 	lc.logger.InfoWithCtx(ctx, "Deleting function cron jobs", "functionName", functionName)
 
-	functionNameLabel := fmt.Sprintf("nuclio.io/function-name=%s", functionName)
+	functionNameLabel := fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName)
 
 	zero := int64(0)
 	deleteInBackground := metav1.DeletePropagationBackground
@@ -1618,7 +1618,7 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 
 	// prepare pod template labels
 	podTemplateLabels := labels.Set{
-		"nuclio.io/function-cron-job-pod": "true",
+		common.NuclioLabelKeyFunctionCronJobPod: "true",
 	}
 	podTemplateLabels = labels.Merge(podTemplateLabels, functionLabels)
 	cronJobSpec.JobTemplate.Spec.Template.Labels = podTemplateLabels
@@ -1676,8 +1676,8 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 
 func (lc *lazyClient) compileCronTriggerLabelSelector(functionName, additionalLabels string) string {
 	labelSelector := labels.Set{
-		"nuclio.io/component":     "cron-trigger",
-		"nuclio.io/function-name": functionName,
+		common.NuclioLabelKeyComponent:            "cron-trigger",
+		common.NuclioResourceLabelKeyFunctionName: functionName,
 	}.String()
 
 	if additionalLabels != "" {
@@ -1691,7 +1691,7 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 		return "", nil
 	}
 
-	labelSet, err := labels.NewRequirement("nuclio.io/function-cron-trigger-name",
+	labelSet, err := labels.NewRequirement(common.NuclioLabelKeyFunctionCronTriggerName,
 		selection.NotIn,
 		slice)
 	if err != nil {
@@ -1701,8 +1701,8 @@ func (lc *lazyClient) compileCronTriggerNotInSliceLabels(slice []string) (string
 }
 
 func (lc *lazyClient) initClassLabels() {
-	lc.classLabels["nuclio.io/class"] = "function"
-	lc.classLabels["nuclio.io/app"] = "functionres"
+	lc.classLabels[common.NuclioLabelKeyClass] = "function"
+	lc.classLabels[common.NuclioLabelKeyApp] = "functionres"
 }
 
 func (lc *lazyClient) getFunctionLabels(function *nuclioio.NuclioFunction) labels.Set {
@@ -1777,8 +1777,8 @@ func (lc *lazyClient) getFunctionEnvironment(functionLabels labels.Set,
 	function *nuclioio.NuclioFunction) []v1.EnvVar {
 	env := function.Spec.Env
 
-	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: functionLabels["nuclio.io/function-name"]})
-	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: functionLabels["nuclio.io/function-version"]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: functionLabels[common.NuclioResourceLabelKeyFunctionName]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: functionLabels[common.NuclioLabelKeyFunctionVersion]})
 	env = append(env, v1.EnvVar{
 		Name: "NUCLIO_FUNCTION_INSTANCE",
 		ValueFrom: &v1.EnvVarSource{
@@ -1825,7 +1825,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
 
 		// pass all further requests to DLX service
-		spec.Selector = map[string]string{"nuclio.io/app": "dlx"}
+		spec.Selector = map[string]string{common.NuclioLabelKeyApp: "dlx"}
 	} else {
 		spec.Selector = functionLabels
 	}
@@ -2179,7 +2179,7 @@ func (lc *lazyClient) formatIngressPattern(ingressPattern string,
 	}{
 		Name:      function.Name,
 		Namespace: function.Namespace,
-		Version:   functionLabels["nuclio.io/function-version"],
+		Version:   functionLabels[common.NuclioLabelKeyFunctionVersion],
 	}
 
 	if err := parsedTemplate.Execute(&ingressPatternBuffer, templateVars); err != nil {
@@ -2638,7 +2638,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 	errGroup, _ := errgroup.WithContext(ctx, lc.logger)
 
 	listOptions := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
 	}
 
 	result, err := lc.nuclioClientSet.NuclioV1beta1().NuclioFunctionEvents(namespace).List(ctx, listOptions)

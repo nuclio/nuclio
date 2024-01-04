@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -101,7 +102,7 @@ func (f *Function) Initialize(ctx context.Context, str []string) error {
 	waitGroup.Add(3)
 
 	listOptions := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", f.Config.Meta.Name),
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, f.Config.Meta.Name),
 	}
 
 	// get deployment info

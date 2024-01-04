@@ -267,7 +267,7 @@ func (e *exportProjectCommandeer) getFunctionEvents(ctx context.Context, functio
 			Name:      "",
 			Namespace: functionConfig.Meta.Namespace,
 			Labels: map[string]string{
-				"nuclio.io/function-name": functionConfig.Meta.Name,
+				common.NuclioResourceLabelKeyFunctionName: functionConfig.Meta.Name,
 			},
 		},
 	}

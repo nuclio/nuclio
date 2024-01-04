@@ -492,8 +492,8 @@ func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec
 }
 
 func (m *Manager) enrichLabels(spec Spec, labels map[string]string) {
-	labels["nuclio.io/class"] = "apigateway"
-	labels["nuclio.io/app"] = "ingress-manager"
+	labels[common.NuclioLabelKeyClass] = "apigateway"
+	labels[common.NuclioLabelKeyApp] = "ingress-manager"
 	labels[common.NuclioResourceLabelKeyApiGatewayName] = spec.APIGatewayName
 	labels[common.NuclioResourceLabelKeyProjectName] = spec.ProjectName
 }

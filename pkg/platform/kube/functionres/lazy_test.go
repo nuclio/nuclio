@@ -199,7 +199,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 				},
 			}
 			functionLabels := suite.client.getFunctionLabels(&function)
-			functionLabels["nuclio.io/function-name"] = function.Name
+			functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
 
 			// "create the ingress
 			ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
@@ -354,7 +354,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			Labels: map[string]string{
 
 				// we want the created ingress host to exceed the length limitation
-				"nuclio.io/project-name": common.GenerateRandomString(60, common.SmallLettersAndNumbers),
+				common.NuclioResourceLabelKeyProjectName: common.GenerateRandomString(60, common.SmallLettersAndNumbers),
 			},
 		},
 		Spec: functionconfig.Spec{
@@ -386,7 +386,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 		},
 	}
 	functionLabels := suite.client.getFunctionLabels(&function)
-	functionLabels["nuclio.io/function-name"] = function.Name
+	functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
 
 	// mock volume secret creation
 	_, err := suite.client.kubeClientSet.CoreV1().Secrets("test-namespace").Create(suite.ctx, &v1.Secret{
@@ -394,7 +394,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 			Name: "my-volume-secret",
 			Labels: map[string]string{
 				common.NuclioResourceLabelKeyFunctionName: function.Name,
-				common.NuclioResourceLabelKeyProjectName:  function.Labels["nuclio.io/project-name"],
+				common.NuclioResourceLabelKeyProjectName:  function.Labels[common.NuclioResourceLabelKeyProjectName],
 				common.NuclioResourceLabelKeyVolumeName:   volumeName,
 			},
 			CreationTimestamp: metav1.Time{
@@ -476,7 +476,7 @@ func (suite *lazyTestSuite) TestNoTriggers() {
 
 	// get labels
 	labels := map[string]string{
-		"nuclio.io/function-version": "latest",
+		common.NuclioLabelKeyFunctionVersion: "latest",
 	}
 
 	err := suite.client.populateIngressConfig(suite.ctx,
@@ -504,7 +504,7 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 
 	// get labels
 	labels := map[string]string{
-		"nuclio.io/function-version": "latest",
+		common.NuclioLabelKeyFunctionVersion: "latest",
 	}
 
 	// ensure no ingress rules are populated
@@ -601,7 +601,7 @@ func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 
 	// get labels
 	labels := map[string]string{
-		"nuclio.io/function-version": "latest",
+		common.NuclioLabelKeyFunctionVersion: "latest",
 	}
 
 	err := suite.client.populateIngressConfig(suite.ctx,
@@ -697,7 +697,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "function",
+							common.NuclioLabelKeyClass: "function",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -706,7 +706,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "function",
+							common.NuclioLabelKeyClass: "function",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -721,7 +721,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 				{
 					LabelSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"nuclio.io/class": "notfunction",
+							common.NuclioLabelKeyClass: "notfunction",
 						},
 					},
 					FunctionConfig: functionconfig.Config{},
@@ -759,7 +759,7 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 	functionInstance.Name = "func-name"
 	functionInstance.Namespace = "func-namespace"
 	functionInstance.Labels = map[string]string{
-		"nuclio.io/class": "function",
+		common.NuclioLabelKeyClass: "function",
 	}
 
 	deployment := appsv1.Deployment{}
