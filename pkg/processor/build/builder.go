@@ -1375,16 +1375,18 @@ func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string
 			return runtimeDefaultBaseImage
 		}
 
-		// if a non empty baseImageRegistry was passed, use it as a registry prefix for the default base image
+		// if a non-empty baseImageRegistry was passed, use it as a registry prefix for the default base image
 		sepIndex := strings.Index(runtimeDefaultBaseImage, "/")
 		if sepIndex != -1 {
 			runtimeDefaultBaseImage = runtimeDefaultBaseImage[sepIndex+1:]
 		}
 		return strings.Join([]string{baseImageRegistry, runtimeDefaultBaseImage}, "/")
 
-	// if user specified something - use that, as is
+	// if user specified something - use that, as is.
 	// see description on https://github.com/nuclio/nuclio/pull/1544 - we don't implicitly mutate the given baseimage
 	default:
+		b.logger.WarnWith("Using user provided base image, runtime configuration will be ignored",
+			"baseImage", b.options.FunctionConfig.Spec.Build.BaseImage)
 		return b.options.FunctionConfig.Spec.Build.BaseImage
 	}
 }
