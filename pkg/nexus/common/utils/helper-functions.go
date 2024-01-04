@@ -2,21 +2,15 @@ package utils
 
 import (
 	"fmt"
-	"github.com/go-ping/ping"
-	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models"
 	"net/http"
 	"net/url"
+
+	"github.com/nuclio/nuclio/pkg/common/headers"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models"
 )
 
 func GetEnvironmentHost() (host string) {
-	_, err := ping.NewPinger("host.docker.internal")
-	if err != nil {
-		host = models.DEFAULT_HOST
-	} else {
-		host = models.DARWIN_HOST
-	}
-	return
+	return "host.docker.internal"
 }
 
 func TransformRequestToClientRequest(nexusItemRequest *http.Request) (newRequest *http.Request) {
