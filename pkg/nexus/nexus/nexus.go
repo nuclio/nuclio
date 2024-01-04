@@ -3,8 +3,10 @@ package nexus
 import (
 	"log"
 	"sync"
+	"time"
 
 	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
@@ -25,10 +27,14 @@ func Initialize() (nexus *Nexus) {
 		Queue: &nexusQueue,
 	}
 
-	baseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue)
+	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue)
 
-	deadlineScheduler := deadline.NewDefaultScheduler(baseScheduler)
-	bulkScheduler := bulk.NewDefaultScheduler(baseScheduler)
+	// deadline scheduler config
+	deadlineBaseSchedulerConfig := configs.NewBaseNexusSchedulerConfig(false, 10*time.Second)
+	deadlineBaseScheduler := scheduler.NewBaseNexusScheduler(&nexusQueue, deadlineBaseSchedulerConfig)
+	deadlineScheduler := deadline.NewDefaultScheduler(deadlineBaseScheduler)
+
+	bulkScheduler := bulk.NewDefaultScheduler(defaultBaseScheduler)
 
 	nexus.schedulers = map[string]interfaces.INexusScheduler{
 		"deadline": deadlineScheduler,

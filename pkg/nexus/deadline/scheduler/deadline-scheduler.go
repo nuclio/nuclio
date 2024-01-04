@@ -1,7 +1,7 @@
 package deadline
 
 import (
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
@@ -24,6 +24,7 @@ func NewScheduler(baseNexusScheduler *common.BaseNexusScheduler, deadlineConfig 
 }
 
 func NewDefaultScheduler(baseNexusScheduler *common.BaseNexusScheduler) *DeadlineScheduler {
+
 	return NewScheduler(baseNexusScheduler, *models.NewDefaultDeadlineSchedulerConfig())
 }
 
@@ -48,19 +49,17 @@ func (ds *DeadlineScheduler) GetStatus() interfaces.SchedulerStatus {
 // TODO: fix this please sleep -> something todo until next awakening (do it) -> sleep
 func (ds *DeadlineScheduler) executeSchedule() {
 	for ds.RunFlag {
-		if ds.Queue.Len() == 0 {
-			println("Sleeping for ", ds.SleepDuration.Milliseconds(), " milliseconds")
-			time.Sleep(ds.SleepDuration)
-			continue
+		nextWakeUpTime := time.Now().Add(ds.SleepDuration)
 
-		}
+		removeUntil := time.Now().Add(ds.DeadlineRemovalThreshold)
 
-		log.Println("Checking for expired deadlines...")
-		timeUntilDeadline := ds.Queue.Peek().Deadline.Sub(time.Now())
-		log.Println(timeUntilDeadline)
-		if timeUntilDeadline < ds.DeadlineRemovalThreshold {
-			println("Removing item from queue")
+		for ds.Queue.Len() > 0 &&
+			ds.Queue.Peek().Deadline.Before(removeUntil) {
+
 			ds.Pop()
 		}
+
+		fmt.Println("Sleeping:", time.Until(nextWakeUpTime).Seconds(), "seconds")
+		time.Sleep(time.Until(nextWakeUpTime))
 	}
 }
