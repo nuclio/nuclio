@@ -312,7 +312,7 @@ func newCreateFunctionEventCommandeer(ctx context.Context, createCommandeer *cre
 			commandeer.functionEventConfig.Meta.Name = args[0]
 			commandeer.functionEventConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 			commandeer.functionEventConfig.Meta.Labels = map[string]string{
-				"nuclio.io/function-name": commandeer.functionName,
+				common.NuclioResourceLabelKeyFunctionName: commandeer.functionName,
 			}
 
 			// decode the JSON attributes

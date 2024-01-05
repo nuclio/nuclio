@@ -641,7 +641,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 		functions[functionUniqueName] = projectImportConfig.Functions[functionName]
 		functions[functionUniqueName].Meta.Name = functionName + uniqueSuffix
 		functions[functionUniqueName].Meta.Namespace = suite.namespace
-		functions[functionUniqueName].Meta.Labels["nuclio.io/project-name"] += uniqueSuffix
+		functions[functionUniqueName].Meta.Labels[common.NuclioResourceLabelKeyProjectName] += uniqueSuffix
 	}
 	projectImportConfig.Functions = functions
 
@@ -651,7 +651,7 @@ func (suite *projectExportImportTestSuite) addUniqueSuffixToImportConfig(configP
 		functionEvents[functionEventUniqueName] = projectImportConfig.FunctionEvents[functionEventName]
 		functionEvents[functionEventUniqueName].Spec.DisplayName = functionEventName + uniqueSuffix
 		functionEvents[functionEventUniqueName].Meta.Namespace = suite.namespace
-		functionEvents[functionEventUniqueName].Meta.Labels["nuclio.io/function-name"] += uniqueSuffix
+		functionEvents[functionEventUniqueName].Meta.Labels[common.NuclioResourceLabelKeyFunctionName] += uniqueSuffix
 	}
 	projectImportConfig.FunctionEvents = functionEvents
 
@@ -785,7 +785,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(functionEventDisplayName, functionEvent.Spec.DisplayName)
-	suite.Assert().Equal(functionName, functionEvent.Meta.Labels["nuclio.io/function-name"])
+	suite.Assert().Equal(functionName, functionEvent.Meta.Labels[common.NuclioResourceLabelKeyFunctionName])
 	return functionEvent.Meta.Name
 }
 

@@ -1552,7 +1552,7 @@ def handler(context, event):
 
 		// get the function pod and validate it has the sidecar
 		pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", "nuclio.io/function-name", functionName),
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
 		})
 		suite.Require().NoError(err)
 		suite.Require().Len(pods.Items, 1)
@@ -1977,13 +1977,13 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		},
 	})
 	suite.Require().NoError(err, "Failed to create project")
-	createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+	createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		beforeUpdateHostValue := "before-update-host.com"
 		createAPIGatewayOptions.APIGatewayConfig.Spec.Host = beforeUpdateHostValue
-		createAPIGatewayOptions.APIGatewayConfig.Meta.Labels["nuclio.io/project-name"] = projectName
+		createAPIGatewayOptions.APIGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
 		createAPIGatewayOptions.APIGatewayConfig.Meta.Annotations = map[string]string{
 			"some/annotation": "some-value",
 		}
@@ -2006,10 +2006,10 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 		suite.Require().Equal(beforeUpdateHostValue, ingressInstance.Spec.Rules[0].Host)
 
 		// ensure ingress labels were created correctly
-		suite.Require().Equal("apigateway", ingressInstance.Labels["nuclio.io/class"])
-		suite.Require().Equal("ingress-manager", ingressInstance.Labels["nuclio.io/app"])
-		suite.Require().Equal(apiGatewayName, ingressInstance.Labels["nuclio.io/apigateway-name"])
-		suite.Require().Equal(projectName, ingressInstance.Labels["nuclio.io/project-name"])
+		suite.Require().Equal("apigateway", ingressInstance.Labels[common.NuclioLabelKeyClass])
+		suite.Require().Equal("ingress-manager", ingressInstance.Labels[common.NuclioLabelKeyApp])
+		suite.Require().Equal(apiGatewayName, ingressInstance.Labels[common.NuclioResourceLabelKeyApiGatewayName])
+		suite.Require().Equal(projectName, ingressInstance.Labels[common.NuclioResourceLabelKeyProjectName])
 		suite.Require().Equal("some-value", ingressInstance.Annotations["some/annotation"])
 
 		// change host, update
@@ -2210,7 +2210,7 @@ func (suite *ProjectTestSuite) TestDeleteCascading() {
 	// create api gateway for function A (deleted along with `projectToDeleteConfig`)
 	createAPIGatewayOptions := suite.CompileCreateAPIGatewayOptions("apigw-to-delete",
 		functionToDeleteA.Meta.Name)
-	createAPIGatewayOptions.APIGatewayConfig.Meta.Labels["nuclio.io/project-name"] = projectToDeleteConfig.Meta.Name
+	createAPIGatewayOptions.APIGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectToDeleteConfig.Meta.Name
 	err = suite.Platform.CreateAPIGateway(suite.Ctx, createAPIGatewayOptions)
 	suite.Require().NoError(err)
 	defer suite.Platform.DeleteAPIGateway(suite.Ctx, &platform.DeleteAPIGatewayOptions{ // nolint: errcheck

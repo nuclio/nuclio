@@ -74,7 +74,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 	functionName := fer.getFunctionNameFromRequest(request)
 	if functionName != "" {
 		getFunctionEventOptions.Meta.Labels = map[string]string{
-			"nuclio.io/function-name": functionName,
+			common.NuclioResourceLabelKeyFunctionName: functionName,
 		}
 	}
 
@@ -209,7 +209,7 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 			Name:      "",
 			Namespace: namespace,
 			Labels: map[string]string{
-				"nuclio.io/function-name": function.GetConfig().Meta.Name,
+				common.NuclioResourceLabelKeyFunctionName: function.GetConfig().Meta.Name,
 			},
 		},
 		AuthSession: fer.getCtxSession(ctx),

@@ -155,7 +155,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 		// delete leftovers if controller was not able to delete them
 		suite.executeKubectl([]string{"delete", "all"}, // nolint: errcheck
 			map[string]string{
-				"selector": "nuclio.io/app",
+				"selector": common.NuclioLabelKeyApp,
 			})
 	}()
 
@@ -190,7 +190,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 			results, err := suite.executeKubectl(
 				[]string{"get", "all"},
 				map[string]string{
-					"selector": "nuclio.io/app",
+					"selector": common.NuclioLabelKeyApp,
 				})
 			if err != nil {
 				suite.Logger.DebugWithCtx(suite.Ctx,
@@ -255,7 +255,7 @@ func (suite *KubeTestSuite) CompileCreateFunctionEventOptions(functionEventName,
 				Name:      functionEventName,
 				Namespace: suite.Namespace,
 				Labels: map[string]string{
-					"nuclio.io/function-name": functionName,
+					common.NuclioResourceLabelKeyFunctionName: functionName,
 				},
 			},
 			Spec: platform.FunctionEventSpec{
@@ -399,7 +399,7 @@ func (suite *KubeTestSuite) WithResourceQuota(rq *v1.ResourceQuota, handler func
 
 func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 	pods, err := suite.KubeClientSet.CoreV1().Pods(suite.Namespace).List(suite.Ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
 	})
 
 	suite.Require().NoError(err, "Failed to list function pods")
