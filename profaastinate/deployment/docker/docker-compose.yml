@@ -4,7 +4,7 @@ services:
   nuclio-dashboard:
     container_name: nuclio-dashboard
     # ensure that its latest-amd64 or latest-arm64
-    image: quay.io/nuclio/dashboard:latest-amd64 
+    image: quay.io/nuclio/dashboard:latest-arm64
     environment:
       - NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES=true
       - NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES=host.docker.internal
