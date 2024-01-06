@@ -46,7 +46,9 @@ func (ds *DeadlineScheduler) GetStatus() interfaces.SchedulerStatus {
 	}
 }
 
-// TODO: fix this please sleep -> something todo until next awakening (do it) -> sleep
+// This scheduler is a simple scheduler that sleeps for a given duration
+// when awake, it checks if there are any tasks that are due until the given threshold
+// if there are, it pops which results in the task being executed
 func (ds *DeadlineScheduler) executeSchedule() {
 	for ds.RunFlag {
 		nextWakeUpTime := time.Now().Add(ds.SleepDuration)
