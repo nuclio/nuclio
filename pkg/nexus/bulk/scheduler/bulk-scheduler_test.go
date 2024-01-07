@@ -119,7 +119,7 @@ func (suite *BulkSchedulerTestSuite) TestBulkScheduler() {
 	suite.Equal(6, suite.bs.Queue.Len())
 
 	// Increase the max parallel requests to 1 to start the scheduler
-	suite.bs.MaxParallelRequests.Store(1)
+	suite.bs.MaxParallelRequests.Store(int32(suite.bs.MinAmountOfBulkItems))
 
 	time.Sleep(suite.bs.SleepDuration + 200*time.Millisecond)
 	suite.Equal(3, suite.bs.Queue.Len())

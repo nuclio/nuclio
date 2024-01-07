@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	"log"
 	"time"
 
@@ -46,16 +47,32 @@ func (ds *BulkScheduler) GetStatus() interfaces.SchedulerStatus {
 
 func (ds *BulkScheduler) executeSchedule() {
 	for ds.RunFlag {
-		if ds.Queue.Len() == 0 {
+		if ds.Queue.Len() == 0 && ds.BaseNexusScheduler.MaxParallelRequests.Load() < int32(ds.MinAmountOfBulkItems) {
 			// TODO: sleep take care of offset due to processing
 			time.Sleep(ds.SleepDuration)
 			continue
 		}
 
 		log.Println("Checking for bulking")
-		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems && ds.BaseNexusScheduler.MaxParallelRequests.Load() > 0 {
-			log.Println("items with name: " + itemsToPop[0].Name)
-			ds.Queue.RemoveAll(itemsToPop)
+		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems && ds.BaseNexusScheduler.MaxParallelRequests.Load() >= int32(len(itemsToPop)) {
+			ds.callAndRemoveItems(itemsToPop)
 		}
 	}
+}
+
+func (ds *BulkScheduler) callAndRemoveItems(items []*structs.NexusItem) {
+	copiedItems := make([]*structs.NexusItem, len(items))
+	copy(copiedItems, items)
+
+	for _, item := range copiedItems {
+
+		go func(item *structs.NexusItem) {
+			ds.MaxParallelRequests.Add(1)
+			defer ds.MaxParallelRequests.Add(-1)
+
+			ds.CallSynchronized(item)
+		}(item)
+
+	}
+	ds.Queue.RemoveAll(items)
 }
