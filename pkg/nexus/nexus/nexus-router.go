@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
@@ -25,6 +26,7 @@ func (nexusRouter *NexusRouter) Initialize() {
 	nexusRouter.Router.Post("/scheduler/{schedulerName}/start", nexusRouter.StartScheduler)
 	nexusRouter.Router.Post("/scheduler/{schedulerName}/stop", nexusRouter.StopScheduler)
 	nexusRouter.Router.Get("/scheduler", nexusRouter.GetAllSchedulersWithStatus)
+	nexusRouter.Router.Put("/nexus-config", nexusRouter.ModifyNexusConfig)
 
 	println("NexusRouter initialized")
 }
@@ -95,4 +97,23 @@ func (nexusRouter *NexusRouter) StopScheduler(w http.ResponseWriter, r *http.Req
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Scheduler %s stopped", schedulerName)))
+}
+
+func (nexusRouter *NexusRouter) ModifyNexusConfig(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	if maxParallelRequests := query.Get("maxParallelRequests"); maxParallelRequests != "" {
+		maxParallelRequestsInt, err := strconv.ParseInt(maxParallelRequests, 10, 32)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(fmt.Sprintf("Invalid value for maxParallelRequests: %s", maxParallelRequests)))
+			return
+		}
+		nexusRouter.Nexus.SetMaxParallelRequests(int32(maxParallelRequestsInt))
+
+		w.WriteHeader(http.StatusAccepted)
+		w.Write([]byte(fmt.Sprintf("Max parallel requests set to %s", maxParallelRequests)))
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

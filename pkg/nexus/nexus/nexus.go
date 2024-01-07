@@ -1,39 +1,41 @@
 package nexus
 
 import (
-	"log"
-	"sync"
-	"time"
-
 	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/scheduler"
+	"log"
+	"sync"
+	"sync/atomic"
 )
 
 type Nexus struct {
-	Queue      *queue.NexusQueue
-	wg         sync.WaitGroup
-	schedulers map[string]interfaces.INexusScheduler
+	queue            *queue.NexusQueue
+	wg               sync.WaitGroup
+	schedulers       map[string]interfaces.INexusScheduler
+	parallelRequests *atomic.Int32
+	nexusConfig      *config.NexusConfig
 }
 
 func Initialize() (nexus *Nexus) {
 	nexusQueue := *queue.Initialize()
 
+	var maxParallelRequests atomic.Int32
+	maxParallelRequests.Store(1)
+	nexusConfig := config.NewNexusConfig(&maxParallelRequests)
+
 	nexus = &Nexus{
-		Queue: &nexusQueue,
+		queue:       &nexusQueue,
+		nexusConfig: &nexusConfig,
 	}
 
-	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue)
+	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue, &nexusConfig)
 
-	// deadline scheduler config
-	deadlineBaseSchedulerConfig := configs.NewBaseNexusSchedulerConfig(false, 10*time.Second)
-	deadlineBaseScheduler := scheduler.NewBaseNexusScheduler(&nexusQueue, deadlineBaseSchedulerConfig)
-	deadlineScheduler := deadline.NewDefaultScheduler(deadlineBaseScheduler)
-
+	deadlineScheduler := deadline.NewDefaultScheduler(defaultBaseScheduler)
 	bulkScheduler := bulk.NewDefaultScheduler(defaultBaseScheduler)
 
 	nexus.schedulers = map[string]interfaces.INexusScheduler{
@@ -54,6 +56,10 @@ func (nexus *Nexus) StopScheduler(name string) {
 	nexus.schedulers[name].Stop()
 }
 
+func (nexus *Nexus) SetMaxParallelRequests(maxParallelRequests int32) {
+	nexus.nexusConfig.MaxParallelRequests.Store(maxParallelRequests)
+}
+
 func (nexus *Nexus) Start() {
 	log.Println("Starting Scheduler...")
 
@@ -68,7 +74,7 @@ func (nexus *Nexus) Start() {
 }
 
 func (n *Nexus) Push(elem *common.NexusItem) {
-	n.Queue.Push(elem)
+	n.queue.Push(elem)
 }
 
 func (n *Nexus) GetAllSchedulers() map[string]interfaces.INexusScheduler {
