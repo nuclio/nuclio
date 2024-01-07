@@ -30,11 +30,11 @@ jobs:
       - name: Install golangci-lint
         run: go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
       - name: Run Profaastinate Lint
-        run: cd pkg/nexus && golangci-lint run ./...
+        run: cd ../pkg/nexus && golangci-lint run ./...
 
   Test:
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
       - name: Run Profaastinate Tests
-        run: cd pkg/nexus && go test -v -cover ./...
+        run: cd ../pkg/nexus && go test -v -cover ./...
