@@ -28,8 +28,8 @@ const (
 
 func (nexusRouter *NexusRouter) Initialize() {
 	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}/start", nexusRouter.StartScheduler)
-	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/scheduler/{schedulerName}/stop", nexusRouter.StopScheduler)
-	nexusRouter.Router.Get(SCHEDULER_BASE_PATH+"/scheduler", nexusRouter.GetAllSchedulersWithStatus)
+	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}/stop", nexusRouter.StopScheduler)
+	nexusRouter.Router.Get(SCHEDULER_BASE_PATH, nexusRouter.GetAllSchedulersWithStatus)
 	nexusRouter.Router.Put("/config", nexusRouter.ModifyNexusConfig)
 
 	println("NexusRouter initialized")
