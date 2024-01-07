@@ -204,7 +204,7 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 	functionConfig.Meta.Name = "f1"
 	functionConfig.Meta.Namespace = "default"
 	functionConfig.Meta.Labels = map[string]string{
-		"nuclio.io/project-name": platform.DefaultProjectName,
+		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 	}
 
 	for _, testCase := range []struct {
@@ -295,7 +295,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 	functionConfig.Meta.Name = "f1"
 	functionConfig.Meta.Namespace = "default"
 	functionConfig.Meta.Labels = map[string]string{
-		"nuclio.io/project-name": platform.DefaultProjectName,
+		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 	}
 	trueValue := true
 	falseValue := false
@@ -881,7 +881,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 
 		createFunctionOptions.FunctionConfig.Meta.Name = functionName
 		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-			"nuclio.io/project-name": platform.DefaultProjectName,
+			common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 		}
 		createFunctionOptions.FunctionConfig.Spec.MinReplicas = MinMaxReplicas.MinReplicas
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = MinMaxReplicas.MaxReplicas
@@ -1060,7 +1060,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		}
 		createFunctionOptions.FunctionConfig.Meta.Name = functionName
 		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-			"nuclio.io/project-name": platform.DefaultProjectName,
+			common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 		}
 		createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 		suite.Logger.DebugWith("Checking function ", "functionName", functionName)
@@ -1143,7 +1143,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichEnvVars() {
 
 			functionConfig.Meta.Name = testCase.name
 			functionConfig.Meta.Labels = map[string]string{
-				"nuclio.io/project-name": platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			functionConfig.Spec.EnvFrom = testCase.FunctionEnvFrom
 			suite.Platform.Config.Runtime = &runtimeconfig.Config{
@@ -1442,7 +1442,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				"nuclio.io/project-name": platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
@@ -1521,7 +1521,7 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				"nuclio.io/project-name": platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			suite.Platform.Config.Kube.ValidFunctionPriorityClassNames = testCase.validFunctionPriorityClassNames
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
@@ -1688,7 +1688,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				"nuclio.io/project-name": platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			suite.Logger.DebugWith("Checking function", "functionName", functionName)
 
@@ -1821,7 +1821,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				"nuclio.io/project-name": platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			createFunctionOptions.FunctionConfig.Spec.AutoScaleMetrics = testCase.AutoScaleMetrics
 

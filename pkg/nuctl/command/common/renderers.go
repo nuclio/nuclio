@@ -158,7 +158,7 @@ func RenderFunctionEvents(functionEvents []platform.FunctionEvent,
 				functionEvent.GetConfig().Meta.Namespace,
 				functionEvent.GetConfig().Meta.Name,
 				functionEvent.GetConfig().Spec.DisplayName,
-				functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"],
+				functionEvent.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyFunctionName],
 				functionEvent.GetConfig().Spec.TriggerName,
 				functionEvent.GetConfig().Spec.TriggerKind,
 			}

@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
@@ -197,7 +198,7 @@ func (suite *functionTestSuite) TestCreateDeploymentError() {
 	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
 		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
 		suite.Require().Equal("f1-namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
-		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
 
 		return true
 	}
@@ -260,7 +261,7 @@ func (suite *functionTestSuite) TestCreateDeploymentErrorWithStatus() {
 	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
 		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
 		suite.Require().Equal("f1-namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
-		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
 
 		return true
 	}
@@ -465,7 +466,7 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
 		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
 		suite.Require().Equal("f1-namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
-		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
 
 		return true
 	}
@@ -1485,7 +1486,7 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
 	returnedFunctionEvent := platform.AbstractFunctionEvent{}
 	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
 	returnedFunctionEvent.FunctionEventConfig.Meta.Namespace = "f-namespace"
-	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "f1"}
+	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{common.NuclioResourceLabelKeyFunctionName: "f1"}
 	returnedFunctionEvent.FunctionEventConfig.Spec.DisplayName = "fe1DisplayName"
 	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
 	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
@@ -2117,7 +2118,7 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
 		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
 		suite.Require().Equal("p1-namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
-		suite.Require().Equal("p1", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
+		suite.Require().Equal("p1", createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName])
 
 		return true
 	}
@@ -2129,7 +2130,7 @@ func (suite *projectTestSuite) TestImportSuccessful() {
 	verifyCreateFunctionEvent := func(createFunctionOptions *platform.CreateFunctionEventOptions) bool {
 		suite.Require().NotEqual("fe1", createFunctionOptions.FunctionEventConfig.Meta.Name)
 		suite.Require().Equal("p1-namespace", createFunctionOptions.FunctionEventConfig.Meta.Namespace)
-		suite.Require().Equal("f1", createFunctionOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"])
+		suite.Require().Equal("f1", createFunctionOptions.FunctionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName])
 
 		return true
 	}
@@ -2518,7 +2519,7 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 	returnedFunctionEvent := platform.AbstractFunctionEvent{}
 	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
 	returnedFunctionEvent.FunctionEventConfig.Meta.Namespace = "fe1-namespace"
-	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "fe1Func"}
+	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{common.NuclioResourceLabelKeyFunctionName: "fe1Func"}
 	returnedFunctionEvent.FunctionEventConfig.Spec.DisplayName = "fe1DisplayName"
 	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
 	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
@@ -2593,7 +2594,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	returnedFunctionEvent1 := platform.AbstractFunctionEvent{}
 	returnedFunctionEvent1.FunctionEventConfig.Meta.Name = "fe1"
 	returnedFunctionEvent1.FunctionEventConfig.Meta.Namespace = "fe-namespace"
-	returnedFunctionEvent1.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "feFunc"}
+	returnedFunctionEvent1.FunctionEventConfig.Meta.Labels = map[string]string{common.NuclioResourceLabelKeyFunctionName: "feFunc"}
 	returnedFunctionEvent1.FunctionEventConfig.Spec.DisplayName = "fe1DisplayName"
 	returnedFunctionEvent1.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
 	returnedFunctionEvent1.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
@@ -2606,7 +2607,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	returnedFunctionEvent2 := platform.AbstractFunctionEvent{}
 	returnedFunctionEvent2.FunctionEventConfig.Meta.Name = "fe2"
 	returnedFunctionEvent2.FunctionEventConfig.Meta.Namespace = "fe-namespace"
-	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "feFunc"}
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{common.NuclioResourceLabelKeyFunctionName: "feFunc"}
 	returnedFunctionEvent2.FunctionEventConfig.Spec.DisplayName = "fe2DisplayName"
 	returnedFunctionEvent2.FunctionEventConfig.Spec.TriggerName = "fe2TriggerName"
 	returnedFunctionEvent2.FunctionEventConfig.Spec.TriggerKind = "fe2TriggerKind"
@@ -2619,7 +2620,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
 		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
 		suite.Require().Equal("fe-namespace", getFunctionEventsOptions.Meta.Namespace)
-		suite.Require().Equal("feFunc", getFunctionEventsOptions.Meta.Labels["nuclio.io/function-name"])
+		suite.Require().Equal("feFunc", getFunctionEventsOptions.Meta.Labels[common.NuclioResourceLabelKeyFunctionName])
 
 		return true
 	}
@@ -2705,7 +2706,7 @@ func (suite *functionEventTestSuite) TestCreateSuccessful() {
 	verifyCreateFunctionEvent := func(createFunctionEventOptions *platform.CreateFunctionEventOptions) bool {
 		suite.Require().Equal("fe1", createFunctionEventOptions.FunctionEventConfig.Meta.Name)
 		suite.Require().Equal("fe1-namespace", createFunctionEventOptions.FunctionEventConfig.Meta.Namespace)
-		suite.Require().Equal("fe1Func", createFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"])
+		suite.Require().Equal("fe1Func", createFunctionEventOptions.FunctionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName])
 		suite.Require().Equal("fe1DisplayName", createFunctionEventOptions.FunctionEventConfig.Spec.DisplayName)
 		suite.Require().Equal("fe1TriggerName", createFunctionEventOptions.FunctionEventConfig.Spec.TriggerName)
 		suite.Require().Equal("fe1TriggerKind", createFunctionEventOptions.FunctionEventConfig.Spec.TriggerKind)
@@ -2817,7 +2818,7 @@ func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 	verifyUpdateFunctionEvent := func(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) bool {
 		suite.Require().Equal("fe1", updateFunctionEventOptions.FunctionEventConfig.Meta.Name)
 		suite.Require().Equal("fe1-namespace", updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace)
-		suite.Require().Equal("fe1Func", updateFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"])
+		suite.Require().Equal("fe1Func", updateFunctionEventOptions.FunctionEventConfig.Meta.Labels[common.NuclioResourceLabelKeyFunctionName])
 		suite.Require().Equal("fe1DisplayName", updateFunctionEventOptions.FunctionEventConfig.Spec.DisplayName)
 		suite.Require().Equal("fe1TriggerName", updateFunctionEventOptions.FunctionEventConfig.Spec.TriggerName)
 		suite.Require().Equal("fe1TriggerKind", updateFunctionEventOptions.FunctionEventConfig.Spec.TriggerKind)

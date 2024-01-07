@@ -601,7 +601,7 @@ func (pr *projectResource) importProjectFunctionEvents(request *http.Request,
 	var failedFunctionEvents []restful.Attributes
 
 	for _, functionEvent := range projectImportInfoInstance.FunctionEvents {
-		switch functionName, found := functionEvent.Meta.Labels["nuclio.io/function-name"]; {
+		switch functionName, found := functionEvent.Meta.Labels[common.NuclioResourceLabelKeyFunctionName]; {
 		case !found:
 			failedFunctionEvents = append(failedFunctionEvents, restful.Attributes{
 				"functionEvent": functionEvent.Spec.DisplayName,

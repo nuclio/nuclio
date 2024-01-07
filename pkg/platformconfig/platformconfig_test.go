@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
 
@@ -543,7 +544,7 @@ functionAugmentedConfigs:
 			// all function matches `nuclio.io/class: function` should have deployment spec of MinReadySeconds: 90
 			v1.LabelSelector{
 				MatchLabels: map[string]string{
-					"nuclio.io/class": "function",
+					common.NuclioLabelKeyClass: "function",
 				},
 			},
 			functionconfig.Config{},

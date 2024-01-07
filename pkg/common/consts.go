@@ -33,12 +33,18 @@ const (
 	FunctionStateMessageUnhealthy FunctionStateMessage = "Function is not healthy"
 )
 
-type NuclioResourceLabelKey string
+// Nuclio Labels
 
 const NuclioResourceLabelKeyProjectName = "nuclio.io/project-name"
 const NuclioResourceLabelKeyFunctionName = "nuclio.io/function-name"
 const NuclioResourceLabelKeyApiGatewayName = "nuclio.io/apigateway-name"
 const NuclioResourceLabelKeyVolumeName = "nuclio.io/volume-name"
+const NuclioLabelKeyFunctionVersion = "nuclio.io/function-version"
+const NuclioLabelKeyClass = "nuclio.io/class"
+const NuclioLabelKeyApp = "nuclio.io/app"
+const NuclioLabelKeyComponent = "nuclio.io/component"
+const NuclioLabelKeyFunctionCronTriggerName = "nuclio.io/function-cron-trigger-name"
+const NuclioLabelKeyFunctionCronJobPod = "nuclio.io/function-cron-job-pod"
 
 // KubernetesDomainLevelMaxLength DNS domain level limitation is 63 chars
 // https://en.wikipedia.org/wiki/Subdomain#Overview

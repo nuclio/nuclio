@@ -107,7 +107,7 @@ func ResolveDefaultNamespace(namespace string) string {
 }
 
 func CompileListFunctionPodsLabelSelector(functionName string) string {
-	return fmt.Sprintf("nuclio.io/function-name=%s,nuclio.io/function-cron-job-pod!=true", functionName)
+	return fmt.Sprintf("%s=%s,%s!=true", NuclioResourceLabelKeyFunctionName, functionName, NuclioLabelKeyFunctionCronJobPod)
 }
 
 type KubernetesClientWarningHandler struct {

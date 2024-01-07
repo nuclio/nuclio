@@ -319,7 +319,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				"nuclio.io/project-name": platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
@@ -402,7 +402,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 			functionConfig.Meta.Name = testCase.name
 			functionConfig.Meta.Namespace = suite.Namespace
 			functionConfig.Meta.Labels = map[string]string{
-				"nuclio.io/project-name": platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			suite.platform.Config.Kube.DefaultFunctionNodeSelector = testCase.platformNodeSelector
 			suite.Logger.DebugWith("Checking function ", "functionName", testCase.name)
@@ -564,7 +564,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				"nuclio.io/project-name": platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
@@ -753,7 +753,7 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 					Namespace: suite.Namespace,
 					Name:      functionName,
 					Labels: map[string]string{
-						"nuclio.io/project-name": projectName,
+						common.NuclioResourceLabelKeyProjectName: projectName,
 					},
 				},
 			}
@@ -833,7 +833,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 					Namespace: suite.Namespace,
 					Name:      functionName,
 					Labels: map[string]string{
-						"nuclio.io/project-name": projectName,
+						common.NuclioResourceLabelKeyProjectName: projectName,
 					},
 				},
 				Status: functionconfig.Status{
@@ -930,7 +930,7 @@ func (suite *FunctionKubePlatformTestSuite) TestDeleteFunctionPermissions() {
 						Namespace: suite.Namespace,
 						Name:      functionName,
 						Labels: map[string]string{
-							"nuclio.io/project-name": projectName,
+							common.NuclioResourceLabelKeyProjectName: projectName,
 						},
 					},
 				},
@@ -1433,7 +1433,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
 	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-		"nuclio.io/project-name": platform.DefaultProjectName,
+		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 	}
 
 	suite.Logger.DebugWith("Enriching function", "functionName", functionName)
@@ -1492,8 +1492,8 @@ func (suite *FunctionEventKubePlatformTestSuite) TestGetFunctionEventsPermission
 					Namespace: suite.Namespace,
 					Name:      functionEventName,
 					Labels: map[string]string{
-						"nuclio.io/function-name": functionName,
-						"nuclio.io/project-name":  projectName,
+						common.NuclioResourceLabelKeyFunctionName: functionName,
+						common.NuclioResourceLabelKeyProjectName:  projectName,
 					},
 				},
 			}
@@ -1576,8 +1576,8 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 					Namespace: suite.Namespace,
 					Name:      functionEventName,
 					Labels: map[string]string{
-						"nuclio.io/function-name": functionName,
-						"nuclio.io/project-name":  projectName,
+						common.NuclioResourceLabelKeyFunctionName: functionName,
+						common.NuclioResourceLabelKeyProjectName:  projectName,
 					},
 				},
 			}
@@ -1631,8 +1631,8 @@ func (suite *FunctionEventKubePlatformTestSuite) TestUpdateFunctionEventPermissi
 						Name:      functionEventName,
 						Namespace: suite.Namespace,
 						Labels: map[string]string{
-							"nuclio.io/function-name": functionName,
-							"nuclio.io/project-name":  functionName,
+							common.NuclioResourceLabelKeyFunctionName: functionName,
+							common.NuclioResourceLabelKeyProjectName:  functionName,
 						},
 					},
 					Spec: platform.FunctionEventSpec{},
@@ -1677,8 +1677,8 @@ func (suite *FunctionEventKubePlatformTestSuite) TestDeleteFunctionEventPermissi
 					Namespace: suite.Namespace,
 					Name:      functionEventName,
 					Labels: map[string]string{
-						"nuclio.io/function-name": functionName,
-						"nuclio.io/project-name":  projectName,
+						common.NuclioResourceLabelKeyFunctionName: functionName,
+						common.NuclioResourceLabelKeyProjectName:  projectName,
 					},
 				},
 			}
