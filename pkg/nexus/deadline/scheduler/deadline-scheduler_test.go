@@ -66,14 +66,14 @@ func (suite *DeadlineSchedulerTestSuite) TestDeadlineScheduler() {
 	// For example, you can check if the task was removed from the queue as expected
 	suite.Equal(1, suite.ds.Queue.Len())
 
-	time.Sleep(suite.ds.SleepDuration + 4*time.Millisecond)
+	time.Sleep(suite.ds.SleepDuration + 1*time.Millisecond)
 	suite.Equal(0, suite.ds.Queue.Len())
 
 	// Stop the scheduler
 	suite.ds.Stop()
 	suite.ds.Push(mockTask)
 
-	time.Sleep(suite.ds.DeadlineRemovalThreshold + 4*time.Millisecond)
+	time.Sleep(suite.ds.DeadlineRemovalThreshold + 1*time.Millisecond)
 	suite.Equal(1, suite.ds.Queue.Len())
 }
 
