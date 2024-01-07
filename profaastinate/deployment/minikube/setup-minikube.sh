@@ -25,7 +25,7 @@ helm install nuclio \
 	./hack/k8s/helm/nuclio/
 
 # Forward the Nuclio dashboard port
-kubectl -n nuclio port-forward $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
+kubectl -n default port-forward $(kubectl get pods -n default -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 
 
 
