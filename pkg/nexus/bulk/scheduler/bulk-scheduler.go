@@ -47,7 +47,7 @@ func (ds *BulkScheduler) GetStatus() interfaces.SchedulerStatus {
 
 func (ds *BulkScheduler) executeSchedule() {
 	for ds.RunFlag {
-		if ds.Queue.Len() == 0 && ds.BaseNexusScheduler.MaxParallelRequests.Load() < int32(ds.MinAmountOfBulkItems) {
+		if ds.Queue.Len() == 0 || ds.BaseNexusScheduler.MaxParallelRequests.Load() < int32(ds.MinAmountOfBulkItems) {
 			// TODO: sleep take care of offset due to processing
 			time.Sleep(ds.SleepDuration)
 			continue
@@ -56,6 +56,8 @@ func (ds *BulkScheduler) executeSchedule() {
 		log.Println("Checking for bulking")
 		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems && ds.BaseNexusScheduler.MaxParallelRequests.Load() >= int32(len(itemsToPop)) {
 			ds.callAndRemoveItems(itemsToPop)
+		} else if ds.BaseNexusScheduler.MaxParallelRequests.Load() >= int32(len(itemsToPop)) {
+			time.Sleep(ds.SleepDuration)
 		}
 	}
 }
