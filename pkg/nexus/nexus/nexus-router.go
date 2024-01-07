@@ -22,11 +22,15 @@ func NewNexusRouter(nexus *Nexus) *NexusRouter {
 	}
 }
 
+const (
+	SCHEDULER_BASE_PATH = "/scheduler"
+)
+
 func (nexusRouter *NexusRouter) Initialize() {
-	nexusRouter.Router.Post("/scheduler/{schedulerName}/start", nexusRouter.StartScheduler)
-	nexusRouter.Router.Post("/scheduler/{schedulerName}/stop", nexusRouter.StopScheduler)
-	nexusRouter.Router.Get("/scheduler", nexusRouter.GetAllSchedulersWithStatus)
-	nexusRouter.Router.Put("/nexus-config", nexusRouter.ModifyNexusConfig)
+	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}/start", nexusRouter.StartScheduler)
+	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/scheduler/{schedulerName}/stop", nexusRouter.StopScheduler)
+	nexusRouter.Router.Get(SCHEDULER_BASE_PATH+"/scheduler", nexusRouter.GetAllSchedulersWithStatus)
+	nexusRouter.Router.Put("/config", nexusRouter.ModifyNexusConfig)
 
 	println("NexusRouter initialized")
 }

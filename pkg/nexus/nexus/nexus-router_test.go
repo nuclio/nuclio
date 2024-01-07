@@ -42,7 +42,7 @@ func (helperSuite *HelperSuite) TestInitialize() {
 		{"StartScheduler", http.MethodPost, "/scheduler/deadline/start", http.StatusOK},
 		{"StopScheduler", http.MethodPost, "/scheduler/deadline/stop", http.StatusOK},
 		{"GetAllSchedulersWithStatus", http.MethodGet, "/scheduler", http.StatusOK},
-		{"ModifyNexusConfig", http.MethodPut, "/nexus-config", http.StatusOK},
+		{"ModifyNexusConfig", http.MethodPut, "/config", http.StatusOK},
 	}
 
 	for _, tc := range testCases {
@@ -63,7 +63,7 @@ func (helperSuite *HelperSuite) TestModifyNexusConfig() {
 	queryParams := url.Values{}
 	queryParams.Add("maxParallelRequests", "10")
 
-	pathWithQuery := fmt.Sprintf("/nexus-config?%s", queryParams.Encode())
+	pathWithQuery := fmt.Sprintf("/config?%s", queryParams.Encode())
 	req, err := http.NewRequest(http.MethodPut, helperSuite.testServer.URL+pathWithQuery, nil)
 	assert.NoError(helperSuite.T(), err)
 
