@@ -53,7 +53,7 @@ func (ds *BulkScheduler) executeSchedule() {
 		}
 
 		log.Println("Checking for bulking")
-		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems {
+		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems && ds.BaseNexusScheduler.MaxParallelRequests.Load() > 0 {
 			log.Println("items with name: " + itemsToPop[0].Name)
 			ds.Queue.RemoveAll(itemsToPop)
 		}
