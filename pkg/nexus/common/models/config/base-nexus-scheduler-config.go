@@ -1,6 +1,8 @@
-package configs
+package config
 
-import "time"
+import (
+	"time"
+)
 
 type BaseNexusSchedulerConfig struct {
 	RunFlag       bool

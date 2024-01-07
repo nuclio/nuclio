@@ -10,30 +10,34 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/utils"
 )
 
 type BaseNexusScheduler struct {
-	Queue *queue.NexusQueue
-	configs.BaseNexusSchedulerConfig
+	*config.BaseNexusSchedulerConfig
+	*config.NexusConfig
+
+	Queue      *queue.NexusQueue
 	requestUrl string
 	client     *http.Client
 }
 
-func NewBaseNexusScheduler(queue *queue.NexusQueue, config configs.BaseNexusSchedulerConfig) *BaseNexusScheduler {
+func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig) *BaseNexusScheduler {
 	return &BaseNexusScheduler{
-		Queue:                    queue,
 		BaseNexusSchedulerConfig: config,
+		Queue:                    queue,
 		requestUrl:               models.NUCLIO_NEXUS_REQUEST_URL,
 		client:                   &http.Client{},
+		NexusConfig:              nexusConfig,
 	}
 }
 
-func NewDefaultBaseNexusScheduler(queue *queue.NexusQueue) *BaseNexusScheduler {
-	return NewBaseNexusScheduler(queue, configs.NewDefaultBaseNexusSchedulerConfig())
+func NewDefaultBaseNexusScheduler(queue *queue.NexusQueue, nexusConfig *config.NexusConfig) *BaseNexusScheduler {
+	baseSchedulerConfig := config.NewDefaultBaseNexusSchedulerConfig()
+	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig)
 }
 
 func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
@@ -41,6 +45,9 @@ func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
 }
 
 func (bs *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
+	bs.NexusConfig.MaxParallelRequests.Add(-1)
+	defer bs.NexusConfig.MaxParallelRequests.Add(1)
+
 	nexusItem = bs.Queue.Pop()
 
 	bs.evaluateInvocation(nexusItem)
