@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -72,7 +72,7 @@ func (helperSuite *HelperSuite) TestModifyNexusConfig() {
 
 	assert.Equal(helperSuite.T(), http.StatusAccepted, resp.StatusCode)
 
-	body, readErr := ioutil.ReadAll(resp.Body)
+	body, readErr := io.ReadAll(resp.Body)
 	assert.NoError(helperSuite.T(), readErr)
 	assert.Equal(helperSuite.T(), "Max parallel requests set to 10", string(body))
 }
