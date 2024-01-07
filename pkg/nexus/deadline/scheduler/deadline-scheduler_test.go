@@ -1,7 +1,7 @@
 package deadline
 
 import (
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	structsCommon "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
@@ -25,10 +25,11 @@ func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 		DeadlineRemovalThreshold: deadlineRemovalThreshold,
 	}
 
-	baseSchedulerConfig := configs.NewBaseNexusSchedulerConfig(true, sleepDuration)
-
 	defaultQueue := common.Initialize()
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, baseSchedulerConfig)
+	baseSchedulerConfig := config.NewBaseNexusSchedulerConfig(true, sleepDuration)
+	nexusConfig := config.NewDefaultNexusConfig()
+
+	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig)
 
 	suite.ds = NewScheduler(baseScheduler, deadlineConfig)
 }
