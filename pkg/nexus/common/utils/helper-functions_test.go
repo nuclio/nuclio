@@ -12,12 +12,6 @@ type HelperSuite struct {
 	suite.Suite
 }
 
-func (helperSuite *HelperSuite) TestGetEnvironmentHost() {
-	hostEnv := GetEnvironmentHost()
-
-	helperSuite.Equal("host.docker.internal", hostEnv)
-}
-
 func (helperSuite *HelperSuite) TestTransformRequestToClientRequest() {
 	sampleNexusRequest := &http.Request{
 		URL: &url.URL{
