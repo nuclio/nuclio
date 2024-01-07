@@ -82,8 +82,8 @@ func (bs *BaseNexusScheduler) evaluateInvocation(nexusItem *structs.NexusItem) {
 	evaluationUrl.Path = models.EVALUATION_PATH
 	evaluationUrl.Host = fmt.Sprintf("%s:%s", utils.GetEnvironmentHost(), models.PORT)
 
-	bs.client.Post(evaluationUrl.String(), "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
+	_, postErr := bs.client.Post(evaluationUrl.String(), "application/json", bytes.NewBuffer(jsonData))
+	if postErr != nil {
 		return
 	}
 }

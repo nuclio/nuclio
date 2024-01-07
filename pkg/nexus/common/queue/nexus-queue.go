@@ -89,7 +89,6 @@ func (p *NexusQueue) GetMostCommonEntryItems() []*common.NexusItem {
 			maxEntryItems = items
 		}
 	}
-	counts = nil // free memory
 	return maxEntryItems
 }
 

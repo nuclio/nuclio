@@ -14,11 +14,10 @@ import (
 )
 
 type Nexus struct {
-	queue            *queue.NexusQueue
-	wg               sync.WaitGroup
-	schedulers       map[string]interfaces.INexusScheduler
-	parallelRequests *atomic.Int32
-	nexusConfig      *config.NexusConfig
+	queue       *queue.NexusQueue
+	wg          sync.WaitGroup
+	schedulers  map[string]interfaces.INexusScheduler
+	nexusConfig *config.NexusConfig
 }
 
 func Initialize() (nexus *Nexus) {
