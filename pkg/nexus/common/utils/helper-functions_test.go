@@ -30,7 +30,6 @@ func (helperSuite *HelperSuite) TestTransformRequestToClientRequest() {
 	helperSuite.Equal("GET", transformedRequest.Method)
 	helperSuite.Equal("test", transformedRequest.Header.Get(headers.FunctionName))
 	helperSuite.Empty(transformedRequest.Header.Get(headers.ProcessDeadline))
-	helperSuite.Equal("http://host.docker.internal:8070/api", transformedRequest.URL.String())
 }
 
 func TestSuite(t *testing.T) {

@@ -2,18 +2,13 @@ package utils
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
-	"runtime"
-
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models"
+	"net/http"
+	"net/url"
 )
 
 func GetEnvironmentHost() (host string) {
-	if runtime.GOOS == "linux" {
-		return "localhost"
-	}
 	return "host.docker.internal"
 }
 
