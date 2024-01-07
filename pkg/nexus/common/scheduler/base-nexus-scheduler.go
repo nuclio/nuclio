@@ -61,8 +61,6 @@ func (bns *BaseNexusScheduler) CallSynchronized(nexusItem *structs.NexusItem) {
 	if err != nil {
 		fmt.Println("Error sending request to Nuclio:", err)
 	}
-
-	return
 }
 
 func (bns *BaseNexusScheduler) evaluateInvocation(nexusItem *structs.NexusItem) {
