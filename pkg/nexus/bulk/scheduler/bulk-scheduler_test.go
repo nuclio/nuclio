@@ -1,16 +1,20 @@
-package scheduler
+package scheduler_test
 
 import (
+	"bytes"
+	"io"
+	"net/http"
+	"net/url"
+	"testing"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
+	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	scheduler "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	"github.com/stretchr/testify/suite"
-	"net/http"
-	"net/url"
-	"testing"
-	"time"
 )
 
 const (
@@ -21,7 +25,17 @@ const (
 
 type BulkSchedulerTestSuite struct {
 	suite.Suite
-	bs *BulkScheduler
+	bs *bulk.BulkScheduler
+}
+
+type MockRoundTripper struct{}
+
+func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewBufferString("Mocked response")),
+		Header:     make(http.Header),
+	}, nil
 }
 
 var mockRequest = &http.Request{
@@ -47,9 +61,14 @@ func (suite *BulkSchedulerTestSuite) SetupTest() {
 	baseSchedulerConfig := config.NewBaseNexusSchedulerConfig(true, sleepDuration)
 	nexusConfig := config.NewDefaultNexusConfig()
 
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig)
+	Client := &http.Client{
+		Transport: &MockRoundTripper{},
+	}
 
-	suite.bs = NewScheduler(baseScheduler, bulkConfig)
+	baseScheduler := scheduler.
+		NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client)
+
+	suite.bs = bulk.NewScheduler(baseScheduler, bulkConfig)
 }
 
 func (suite *BulkSchedulerTestSuite) pushTasksToQueue() {

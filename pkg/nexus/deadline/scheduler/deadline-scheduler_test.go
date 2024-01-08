@@ -1,27 +1,41 @@
-package deadline
+package deadline_test
 
 import (
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
-	structsCommon "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
-	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
-	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
-	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/models"
-	"github.com/stretchr/testify/suite"
+	"bytes"
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
+	structsCommon "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
+	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
+	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+	models "github.com/nuclio/nuclio/pkg/nexus/deadline/models"
+	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/scheduler"
+	"github.com/stretchr/testify/suite"
 )
 
 type DeadlineSchedulerTestSuite struct {
 	suite.Suite
-	ds *DeadlineScheduler
+	ds *deadline.DeadlineScheduler
+}
+
+type MockRoundTripper struct{}
+
+func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(bytes.NewBufferString("Mocked response")),
+		Header:     make(http.Header),
+	}, nil
 }
 
 func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 	deadlineRemovalThreshold, sleepDuration := 2*time.Millisecond, 1*time.Millisecond
 
-	deadlineConfig := deadline.DeadlineSchedulerConfig{
+	deadlineConfig := models.DeadlineSchedulerConfig{
 		DeadlineRemovalThreshold: deadlineRemovalThreshold,
 	}
 
@@ -29,9 +43,13 @@ func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 	baseSchedulerConfig := config.NewBaseNexusSchedulerConfig(true, sleepDuration)
 	nexusConfig := config.NewDefaultNexusConfig()
 
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig)
+	Client := &http.Client{
+		Transport: &MockRoundTripper{},
+	}
 
-	suite.ds = NewScheduler(baseScheduler, deadlineConfig)
+	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client)
+
+	suite.ds = deadline.NewScheduler(baseScheduler, deadlineConfig)
 }
 
 func (suite *DeadlineSchedulerTestSuite) TestDeadlineScheduler() {

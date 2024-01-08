@@ -24,19 +24,19 @@ type BaseNexusScheduler struct {
 	client     *http.Client
 }
 
-func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig) *BaseNexusScheduler {
+func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig, client *http.Client) *BaseNexusScheduler {
 	return &BaseNexusScheduler{
 		BaseNexusSchedulerConfig: config,
 		Queue:                    queue,
 		requestUrl:               models.NUCLIO_NEXUS_REQUEST_URL,
-		client:                   &http.Client{},
+		client:                   client,
 		NexusConfig:              nexusConfig,
 	}
 }
 
 func NewDefaultBaseNexusScheduler(queue *queue.NexusQueue, nexusConfig *config.NexusConfig) *BaseNexusScheduler {
 	baseSchedulerConfig := config.NewDefaultBaseNexusSchedulerConfig()
-	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig)
+	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig, &http.Client{})
 }
 
 func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
@@ -47,6 +47,14 @@ func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 	bns.NexusConfig.MaxParallelRequests.Add(-1)
 	defer bns.NexusConfig.MaxParallelRequests.Add(1)
 
+	nexusItem = bns.Queue.Pop()
+
+	bns.evaluateInvocation(nexusItem)
+	bns.CallSynchronized(nexusItem)
+	return
+}
+
+func (bns *BaseNexusScheduler) DefaultPop() (nexusItem *structs.NexusItem) {
 	nexusItem = bns.Queue.Pop()
 
 	bns.evaluateInvocation(nexusItem)
