@@ -19,6 +19,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -83,7 +84,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
-func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *functionconfig.Config, project *platform.ProjectConfig) error {
+func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *functionconfig.Config, project *platform.ProjectConfig, autofix bool) error {
 
 	// populate namespace
 	functionConfig.Meta.Namespace = project.Meta.Namespace
@@ -112,7 +113,41 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 			FunctionConfig: *functionConfig,
 		})
 
+	if err != nil && autofix {
+		switch typedErr := err.(type) {
+		case *errors.Error:
+			return i.retryImportWithAutofix(ctx, functionConfig, typedErr)
+		}
+	}
+
 	return err
+}
+
+func (i *importCommandeer) retryImportWithAutofix(ctx context.Context, functionConfig *functionconfig.Config, err *errors.Error) error {
+	// TODO: add maxRetry value
+	i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Function import was failed, it will be retried",
+		"function", functionConfig.Meta.Name,
+		"error", err.Error())
+
+	if strings.Contains(errors.GetErrorStackString(err, 10), "V3IO Stream trigger does not support autoscaling") {
+		i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Setting maxReplicas to minReplicas for function",
+			"function", functionConfig.Meta.Name)
+		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
+	}
+	_, creationErr := i.rootCommandeer.platform.CreateFunction(ctx,
+		&platform.CreateFunctionOptions{
+			Logger:         i.rootCommandeer.loggerInstance,
+			FunctionConfig: *functionConfig,
+		})
+	if creationErr == nil {
+		i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was succeeded from second attempt",
+			"function", functionConfig.Meta.Name)
+	} else {
+		i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was failed from second attempt",
+			"function", functionConfig.Meta.Name,
+			"error", creationErr.Error())
+	}
+	return creationErr
 }
 
 func (i *importCommandeer) importFunctions(ctx context.Context,
@@ -133,7 +168,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 				"function", function.Meta.Name,
 				"project", project.Meta.Name)
 
-			if err := i.importFunction(ctx, function, project); err != nil {
+			if err := i.importFunction(ctx, function, project, true); err != nil {
 				if !importFailed.Load() {
 					importFailed.Store(true)
 				}
