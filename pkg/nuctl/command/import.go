@@ -114,10 +114,8 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 		})
 
 	if err != nil && autofix {
-		switch typedErr := err.(type) {
-		case *errors.Error:
-			return i.retryImportWithAutofix(ctx, functionConfig, typedErr)
-		}
+		typedErr := err.(*errors.Error)
+		return i.retryImportWithAutofix(ctx, functionConfig, typedErr)
 	}
 
 	return err
