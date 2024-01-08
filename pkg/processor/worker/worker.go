@@ -32,6 +32,14 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+type State string
+
+const (
+	StateAvailable  State = "available"
+	StateDrained    State = "drain"
+	StateTerminated State = "terminated"
+)
+
 // Worker holds all the required state and context to handle a single request
 type Worker struct {
 
@@ -44,8 +52,12 @@ type Worker struct {
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time
-	isDrained            atomic.Bool
-	drainedLock          sync.Mutex
+	state                StateWithLock
+}
+
+type StateWithLock struct {
+	State
+	sync.Mutex
 }
 
 // NewWorker creates a new worker
@@ -54,10 +66,10 @@ func NewWorker(parentLogger logger.Logger,
 	runtime runtime.Runtime) (*Worker, error) {
 
 	newWorker := Worker{
-		logger:      parentLogger,
-		index:       index,
-		runtime:     runtime,
-		drainedLock: sync.Mutex{},
+		logger:  parentLogger,
+		index:   index,
+		runtime: runtime,
+		state:   StateWithLock{State: StateAvailable, Mutex: sync.Mutex{}},
 	}
 
 	// return an instance of the default worker
@@ -66,6 +78,19 @@ func NewWorker(parentLogger logger.Logger,
 
 // ProcessEvent sends the event to the associated runtime
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+
+	// locking worker state for the entire event processing duration to prevent concurrent draining
+	w.state.Lock()
+	defer w.state.Unlock()
+
+	// return an error if the worker is not available (e.g., terminated or drained).
+	switch w.state.State {
+	case StateDrained:
+		return nil, ErrWorkerIsDrained
+	case StateTerminated:
+		return nil, ErrWorkerIsTerminated
+	}
+
 	w.eventTime = clock.Now()
 
 	// process the event at the runtime
@@ -152,6 +177,9 @@ func (w *Worker) SupportsRestart() bool {
 }
 
 func (w *Worker) Terminate() error {
+	w.state.Lock()
+	defer w.state.Unlock()
+
 	if err := w.runtime.Terminate(); err != nil {
 		return err
 	}
@@ -160,25 +188,22 @@ func (w *Worker) Terminate() error {
 }
 
 func (w *Worker) Drain() error {
-	w.drainedLock.Lock()
-	defer w.drainedLock.Unlock()
+	w.state.Lock()
+	defer w.state.Unlock()
 
-	if !w.isDrained.Load() {
-		err := w.runtime.Drain()
-		if err == nil {
-			w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
-			w.isDrained.Store(true)
-		}
+	if err := w.runtime.Drain(); err == nil {
+		w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
+		w.state.State = StateDrained
 		return err
 	}
 	return nil
 }
 
-func (w *Worker) setDrained(isDrained bool) {
-	w.drainedLock.Lock()
-	defer w.drainedLock.Unlock()
+func (w *Worker) setState(state State) {
+	w.state.Lock()
+	defer w.state.Unlock()
 
-	w.isDrained.Store(isDrained)
+	w.state.State = state
 }
 
 // Subscribe subscribes to a control message kind

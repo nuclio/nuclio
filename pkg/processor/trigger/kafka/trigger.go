@@ -415,7 +415,7 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 		if processErr != nil {
 			k.Logger.DebugWith("Process error",
 				"partition", submittedEvent.event.kafkaMessage.Partition,
-				"err", processErr)
+				"err", processErr.Error())
 		}
 
 		switch k.configuration.ExplicitAckMode {

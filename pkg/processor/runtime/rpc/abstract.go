@@ -78,7 +78,6 @@ type AbstractRuntime struct {
 	cancelHandlerChan chan struct{}
 	socketType        SocketType
 	processWaiter     *processwaiter.ProcessWaiter
-	isDrained         bool
 }
 
 type rpcLogRecord struct {
@@ -231,11 +230,6 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 
 // Drain signals to the runtime to drain its accumulated events and waits for it to finish
 func (r *AbstractRuntime) Drain() error {
-	if r.isDrained {
-		return nil
-	}
-	r.isDrained = true
-
 	// we use SIGUSR2 to signal the wrapper process to drain events
 	if err := r.signal(syscall.SIGUSR2); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process")

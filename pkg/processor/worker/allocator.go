@@ -30,6 +30,8 @@ import (
 
 var ErrNoAvailableWorkers = errors.New("No available workers")
 var ErrAllWorkersAreTerminated = errors.New("All workers are terminated")
+var ErrWorkerIsDrained = errors.New("Worker is drained")
+var ErrWorkerIsTerminated = errors.New("Worker is terminated")
 
 type Allocator interface {
 
@@ -124,7 +126,7 @@ func (s *singleton) SignalTermination() error {
 }
 
 func (s *singleton) ResetDrainState() {
-	s.worker.setDrained(false)
+	s.worker.setState(StateAvailable)
 }
 
 func (s *singleton) IsTerminated() bool {
@@ -278,7 +280,7 @@ func (fp *fixedPool) SignalTermination() error {
 
 func (fp *fixedPool) ResetDrainState() {
 	for _, workerInstance := range fp.GetWorkers() {
-		workerInstance.setDrained(false)
+		workerInstance.setState(StateAvailable)
 	}
 }
 
