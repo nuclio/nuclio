@@ -127,11 +127,12 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 
 func (i *importCommandeer) retryImportWithAutofix(ctx context.Context, functionConfig *functionconfig.Config, err *errors.Error) error {
 	// TODO: add maxRetry value
-	i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Function import was failed, it will be retried",
+	i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Function import failed, retrying",
 		"function", functionConfig.Meta.Name,
 		"error", err.Error())
 	var fixable bool
 
+	// TODO: move this block to separate function
 	if strings.Contains(errors.GetErrorStackString(err, 10), "V3IO Stream trigger does not support autoscaling") {
 		i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Setting maxReplicas to minReplicas for function",
 			"function", functionConfig.Meta.Name)
@@ -145,10 +146,10 @@ func (i *importCommandeer) retryImportWithAutofix(ctx context.Context, functionC
 				FunctionConfig: *functionConfig,
 			})
 		if creationErr == nil {
-			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was succeeded from second attempt",
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was successful on second attempt",
 				"function", functionConfig.Meta.Name)
 		} else {
-			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was failed from second attempt",
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import has failed on second attempt",
 				"function", functionConfig.Meta.Name,
 				"error", creationErr.Error())
 		}
