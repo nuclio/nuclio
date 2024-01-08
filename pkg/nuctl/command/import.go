@@ -39,6 +39,8 @@ import (
 type importCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
+
+	skipAutofix bool
 }
 
 func newImportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *importCommandeer {
@@ -52,6 +54,8 @@ func newImportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 		Long: `Import the configurations of one or more functions or projects
 from a configuration file or from the standard input (default)`,
 	}
+
+	cmd.PersistentFlags().BoolVar(&commandeer.skipAutofix, "skip-autofix", false, "Skip config autofix if error occurred")
 
 	importFunctionCommand := newImportFunctionCommandeer(ctx, commandeer).cmd
 	importProjectCommand := newImportProjectCommandeer(ctx, commandeer).cmd
@@ -84,7 +88,7 @@ func (i *importCommandeer) resolveInputData(args []string) ([]byte, error) {
 	return nuctlcommon.ReadFromInOrStdin(i.cmd.InOrStdin())
 }
 
-func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *functionconfig.Config, project *platform.ProjectConfig, autofix bool) error {
+func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *functionconfig.Config, project *platform.ProjectConfig, skipAutofix bool) error {
 
 	// populate namespace
 	functionConfig.Meta.Namespace = project.Meta.Namespace
@@ -113,7 +117,7 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 			FunctionConfig: *functionConfig,
 		})
 
-	if err != nil && autofix {
+	if err != nil && !skipAutofix {
 		typedErr := err.(*errors.Error)
 		return i.retryImportWithAutofix(ctx, functionConfig, typedErr)
 	}
@@ -126,26 +130,31 @@ func (i *importCommandeer) retryImportWithAutofix(ctx context.Context, functionC
 	i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Function import was failed, it will be retried",
 		"function", functionConfig.Meta.Name,
 		"error", err.Error())
+	var fixable bool
 
 	if strings.Contains(errors.GetErrorStackString(err, 10), "V3IO Stream trigger does not support autoscaling") {
 		i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Setting maxReplicas to minReplicas for function",
 			"function", functionConfig.Meta.Name)
 		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
+		fixable = true
 	}
-	_, creationErr := i.rootCommandeer.platform.CreateFunction(ctx,
-		&platform.CreateFunctionOptions{
-			Logger:         i.rootCommandeer.loggerInstance,
-			FunctionConfig: *functionConfig,
-		})
-	if creationErr == nil {
-		i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was succeeded from second attempt",
-			"function", functionConfig.Meta.Name)
-	} else {
-		i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was failed from second attempt",
-			"function", functionConfig.Meta.Name,
-			"error", creationErr.Error())
+	if fixable {
+		_, creationErr := i.rootCommandeer.platform.CreateFunction(ctx,
+			&platform.CreateFunctionOptions{
+				Logger:         i.rootCommandeer.loggerInstance,
+				FunctionConfig: *functionConfig,
+			})
+		if creationErr == nil {
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was succeeded from second attempt",
+				"function", functionConfig.Meta.Name)
+		} else {
+			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import was failed from second attempt",
+				"function", functionConfig.Meta.Name,
+				"error", creationErr.Error())
+		}
+		return creationErr
 	}
-	return creationErr
+	return err
 }
 
 func (i *importCommandeer) importFunctions(ctx context.Context,
@@ -166,7 +175,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 				"function", function.Meta.Name,
 				"project", project.Meta.Name)
 
-			if err := i.importFunction(ctx, function, project, true); err != nil {
+			if err := i.importFunction(ctx, function, project, i.skipAutofix); err != nil {
 				if !importFailed.Load() {
 					importFailed.Store(true)
 				}
