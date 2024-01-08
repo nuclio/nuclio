@@ -87,10 +87,6 @@ func (r *resource) getRequestAuthConfig(request *http.Request) (*platform.AuthCo
 	return nil, nil
 }
 
-func (r *resource) getListenAddress() string {
-	return r.getDashboard().ListenAddress
-}
-
 func (r *resource) headerValueIsTrue(request *http.Request, headerName string) bool {
 	return strings.ToLower(request.Header.Get(headerName)) == "true"
 }

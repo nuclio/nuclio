@@ -815,40 +815,6 @@ func (b *Builder) resolveUserSpecifiedWorkdir(mainDir string) (string, error) {
 	return mainDir, nil
 }
 
-func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
-
-	// read the file once for logging
-	functionConfigContents, err := os.ReadFile(functionConfigPath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to read function configuration file")
-	}
-
-	// log
-	b.logger.DebugWith("Read function configuration file", "contents", string(functionConfigContents))
-
-	functionConfigFile, err := os.Open(functionConfigPath)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to open function configuration file: %s", functionConfigPath)
-	}
-
-	defer functionConfigFile.Close() // nolint: errcheck
-
-	functionconfigReader, err := functionconfig.NewReader(b.logger)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create functionconfig reader")
-	}
-
-	// read the configuration
-	if err := functionconfigReader.Read(functionConfigFile,
-		"yaml",
-		&b.options.FunctionConfig); err != nil {
-
-		return errors.Wrap(err, "Failed to read function configuration file")
-	}
-
-	return nil
-}
-
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	runtimeName, err := b.getRuntimeName()
 	if err != nil {
@@ -1670,21 +1636,6 @@ func (b *Builder) getS3FunctionItemKey() (string, error) {
 	}
 
 	return s3Attributes["s3ItemKey"], nil
-}
-
-func (b *Builder) resolveCodeEntryAttributeAsString(attribute string) string {
-	if value, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes[attribute]; found {
-		switch typedValue := value.(type) {
-		case string:
-			return typedValue
-		case int, int8, int16, int32, int64:
-			return fmt.Sprintf("%d", typedValue)
-		case float32, float64:
-			return fmt.Sprintf("%f", typedValue)
-		}
-	}
-
-	return ""
 }
 
 func (b *Builder) parseGitAttributes() (*gitcommon.Attributes, error) {

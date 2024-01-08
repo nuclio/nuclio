@@ -397,15 +397,6 @@ func (s *Scrubber) validateReference(functionConfig *Config,
 	return errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
 }
 
-func (s *Scrubber) validateSecretName(secretName string) string {
-	if len(secretName) > common.KubernetesDomainLevelMaxLength {
-		secretName = secretName[:common.KubernetesDomainLevelMaxLength]
-	}
-
-	// remove trailing non-alphanumeric characters
-	return strings.TrimRight(secretName, "-_")
-}
-
 func (s *Scrubber) convertMapToConfig(mapConfig interface{}) (*Config, error) {
 
 	// marshal and unmarshal the map object back to function config

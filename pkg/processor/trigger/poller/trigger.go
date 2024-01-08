@@ -166,7 +166,3 @@ func (ap *AbstractPoller) waitForEventBatch(eventsChan chan nuclio.Event,
 
 	return events, eventCycleCompleted, nil
 }
-
-func (ap *AbstractPoller) onV3ioLog(formattedRecord string) {
-	ap.Logger.Debug(formattedRecord)
-}

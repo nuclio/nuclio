@@ -621,12 +621,6 @@ func (r *AbstractRuntime) resolveFunctionLogger(functionLogger logger.Logger) lo
 	return functionLogger
 }
 
-func (r *AbstractRuntime) newResultChan() {
-
-	// We create the channel buffered so we won't block on sending
-	r.resultChan = make(chan *result, 1)
-}
-
 func (r *AbstractRuntime) watchWrapperProcess() {
 
 	// whatever happens, clear wrapper process
