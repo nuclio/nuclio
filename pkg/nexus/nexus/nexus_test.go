@@ -28,8 +28,16 @@ func (suite *NexusSuite) TestPush() {
 	suite.mockNexus.Push(nexusItem)
 
 	// Assert that the pushed item is the same as the popped item
-	suite.Equal(suite.mockNexus.Queue.Peek(), nexusItem)
-	suite.Equal(suite.mockNexus.Queue.Len(), 1)
+	suite.Equal(suite.mockNexus.queue.Peek(), nexusItem)
+	suite.Equal(suite.mockNexus.queue.Len(), 1)
+}
+
+func (suite *NexusSuite) TestSetMaxParallelRequests() {
+	expectedValue := int32(10)
+
+	suite.mockNexus.SetMaxParallelRequests(expectedValue)
+
+	suite.Equal(expectedValue, suite.mockNexus.nexusConfig.MaxParallelRequests.Load())
 }
 
 func TestNexusSuite(t *testing.T) {

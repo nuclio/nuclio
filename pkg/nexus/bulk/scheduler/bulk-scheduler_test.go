@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	scheduler "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
@@ -43,10 +43,11 @@ func (suite *BulkSchedulerTestSuite) SetupTest() {
 		MaxPercentageUsageRAM: 90,
 	}
 
-	baseSchedulerConfig := configs.NewBaseNexusSchedulerConfig(true, sleepDuration)
 	defaultQueue := common.Initialize()
+	baseSchedulerConfig := config.NewBaseNexusSchedulerConfig(true, sleepDuration)
+	nexusConfig := config.NewDefaultNexusConfig()
 
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, baseSchedulerConfig)
+	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig)
 
 	suite.bs = NewScheduler(baseScheduler, bulkConfig)
 }
@@ -103,6 +104,24 @@ func (suite *BulkSchedulerTestSuite) TestBulkScheduler() {
 	// Wait for a sufficient time to allow the scheduler to process the tasks
 	time.Sleep(20 * time.Millisecond)
 
+	suite.Equal(3, suite.bs.Queue.Len())
+
+	// Set the max parallel requests to 0 to stop the scheduler
+	suite.bs.MaxParallelRequests.Store(0)
+
+	for i := 0; i < suite.bs.MinAmountOfBulkItems; i++ {
+		suite.bs.Push(&structs.NexusItem{
+			Name:    task_2,
+			Request: mockRequest,
+		})
+	}
+
+	suite.Equal(6, suite.bs.Queue.Len())
+
+	// Increase the max parallel requests to 1 to start the scheduler
+	suite.bs.MaxParallelRequests.Store(int32(suite.bs.MinAmountOfBulkItems))
+
+	time.Sleep(suite.bs.SleepDuration + 200*time.Millisecond)
 	suite.Equal(3, suite.bs.Queue.Len())
 }
 

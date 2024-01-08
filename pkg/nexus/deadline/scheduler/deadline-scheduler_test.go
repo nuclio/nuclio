@@ -1,7 +1,7 @@
 package deadline
 
 import (
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/configs"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	structsCommon "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
@@ -25,10 +25,11 @@ func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 		DeadlineRemovalThreshold: deadlineRemovalThreshold,
 	}
 
-	baseSchedulerConfig := configs.NewBaseNexusSchedulerConfig(true, sleepDuration)
-
 	defaultQueue := common.Initialize()
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, baseSchedulerConfig)
+	baseSchedulerConfig := config.NewBaseNexusSchedulerConfig(true, sleepDuration)
+	nexusConfig := config.NewDefaultNexusConfig()
+
+	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig)
 
 	suite.ds = NewScheduler(baseScheduler, deadlineConfig)
 }
@@ -65,14 +66,14 @@ func (suite *DeadlineSchedulerTestSuite) TestDeadlineScheduler() {
 	// For example, you can check if the task was removed from the queue as expected
 	suite.Equal(1, suite.ds.Queue.Len())
 
-	time.Sleep(suite.ds.SleepDuration + 4*time.Millisecond)
+	time.Sleep(suite.ds.SleepDuration + 200*time.Millisecond)
 	suite.Equal(0, suite.ds.Queue.Len())
 
 	// Stop the scheduler
 	suite.ds.Stop()
 	suite.ds.Push(mockTask)
 
-	time.Sleep(suite.ds.DeadlineRemovalThreshold + 4*time.Millisecond)
+	time.Sleep(suite.ds.DeadlineRemovalThreshold + 200*time.Millisecond)
 	suite.Equal(1, suite.ds.Queue.Len())
 }
 

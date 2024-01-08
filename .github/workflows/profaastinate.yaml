@@ -1,0 +1,50 @@
+name: Validate Profaastinate Nexus
+
+on:
+  pull_request:
+    branches: [ mpga-development ]
+
+  workflow_dispatch:
+
+jobs:
+  install-deps:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version: [ 1.21.x ]  # Add other versions if needed
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Install dependencies
+        run: go mod tidy
+
+  Lint:
+    runs-on: ubuntu-latest
+    needs: install-deps
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Install golangci-lint
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+      - name: Run Profaastinate Lint
+        run: golangci-lint run ./pkg/nexus/...
+
+  Test:
+    runs-on: ubuntu-latest
+    needs: install-deps
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Run Profaastinate Tests
+        run: go test -cover ./pkg/nexus/...
