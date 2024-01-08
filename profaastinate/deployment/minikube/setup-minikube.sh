@@ -10,11 +10,11 @@ minikube start
 # Set docker env to minikube, so that we can push images to the minikube registry
 eval $(minikube docker-env)
 
-# Build nuclio inside minikube
-make build
-
 # Run a Docker container to expose Minikube's registry
 docker run -d -p 5000:5000 --name function-registry registry:latest
+
+# Build nuclio inside minikube
+make build
 
 # Deploy nuclio to the cluster
 helm install nuclio \
