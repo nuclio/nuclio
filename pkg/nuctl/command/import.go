@@ -127,9 +127,6 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 
 func (i *importCommandeer) retryImportWithAutofix(ctx context.Context, functionConfig *functionconfig.Config, err *errors.Error) error {
 	// TODO: add maxRetry value
-	i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Function import failed, retrying",
-		"function", functionConfig.Meta.Name,
-		"error", err.Error())
 	var fixable bool
 
 	// TODO: move this block to separate function
@@ -140,6 +137,10 @@ func (i *importCommandeer) retryImportWithAutofix(ctx context.Context, functionC
 		fixable = true
 	}
 	if fixable {
+		i.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Function import failed, retrying",
+			"function", functionConfig.Meta.Name,
+			"error", err.Error())
+
 		_, creationErr := i.rootCommandeer.platform.CreateFunction(ctx,
 			&platform.CreateFunctionOptions{
 				Logger:         i.rootCommandeer.loggerInstance,
@@ -155,6 +156,9 @@ func (i *importCommandeer) retryImportWithAutofix(ctx context.Context, functionC
 		}
 		return creationErr
 	}
+	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Function import failed and config cannot be auto fixed",
+		"function", functionConfig.Meta.Name)
+
 	return err
 }
 
