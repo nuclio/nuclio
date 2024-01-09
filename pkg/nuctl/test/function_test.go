@@ -1528,11 +1528,11 @@ func (suite *functionExportImportTestSuite) TestAutofixWhenImportFunction() {
 	functionName := "test-function"
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
-	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil) // nolint: errcheck
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil)
 	suite.Require().NoError(err)
 	suite.assertFunctionImported(functionName, true)
 
-	err = suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--skip-autofix"}, nil) // nolint: errcheck
+	err = suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--skip-autofix"}, nil)
 	suite.Require().NotNil(err)
 }
 
