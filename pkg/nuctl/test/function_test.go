@@ -1526,7 +1526,7 @@ func (suite *functionExportImportTestSuite) TestAutofixWhenImportFunction() {
 
 	// this name is defined within function.yaml
 	functionName := "test-function"
-	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil) // nolint: errcheck
 	suite.Require().NoError(err)
