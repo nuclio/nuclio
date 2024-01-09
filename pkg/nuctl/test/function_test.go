@@ -1521,6 +1521,21 @@ func (suite *functionExportImportTestSuite) TestImportFunction() {
 	suite.assertFunctionImported(functionName, true)
 }
 
+func (suite *functionExportImportTestSuite) TestAutofixWhenImportFunction() {
+	functionConfigPath := path.Join(suite.GetImportsDir(), "autofixable_function.yaml")
+
+	// this name is defined within function.yaml
+	functionName := "test-function"
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
+
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil) // nolint: errcheck
+	suite.Require().NoError(err)
+	suite.assertFunctionImported(functionName, true)
+
+	err = suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--skip-autofix"}, nil) // nolint: errcheck
+	suite.Require().NotNil(err)
+}
+
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "export-import-stdin" + uniqueSuffix

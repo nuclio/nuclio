@@ -1,0 +1,65 @@
+# Copyright 2023 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+metadata:
+  annotations:
+    nuclio.io/previous-state: error
+    skip-build: "true"
+    skip-deploy: "true"
+  name: test-function
+spec:
+  alias: latest
+  build:
+    codeEntryType: sourceCode
+    functionSourceCode: ZWNobyAidGVzdDEi
+    noBaseImagesPull: true
+  description: Showcases unstructured logging and a structured response.
+  disableDefaultHTTPTrigger: false
+  eventTimeout: ""
+  image: image
+  handler: helloworld:handler
+  imageHash: "1704710816667929389"
+  maxReplicas: 1
+  minReplicas: 10
+  platform: {}
+  runtime: python:3.9
+  priorityClassName: igz-workload-medium
+  triggers:
+    default-http:
+      attributes:
+        serviceType: ClusterIP
+      class: ""
+      kind: http
+      maxWorkers: 1
+      name: default-http
+    v3io:
+      attributes:
+        consumerGroup: group
+        containerName: bigdata
+        heartbeatInterval: 3s
+        pollingIntervalMs: 500
+        readBatchSize: 64
+        seekTo: latest
+        sequenceNumberCommitInterval: 1s
+        sessionTimeout: 10s
+        streamPath: path
+        workerAllocationMode: pool
+      class: ""
+      explicitAckMode: disable
+      kind: v3ioStream
+      maxWorkers: 1
+      name: v3io
+      url: http://v3io-webapi:8081
+      workerTerminationTimeout: 10s
+  version: -1
