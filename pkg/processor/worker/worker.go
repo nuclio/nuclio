@@ -192,10 +192,13 @@ func (w *Worker) Drain() error {
 	w.state.Lock()
 	defer w.state.Unlock()
 
-	if err := w.runtime.Drain(); err == nil {
-		w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
-		w.state.State = StateDrained
-		return err
+	// drain if is not drained yet
+	if w.state.State != StateDrained {
+		if err := w.runtime.Drain(); err == nil {
+			w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
+			w.state.State = StateDrained
+			return err
+		}
 	}
 	return nil
 }
