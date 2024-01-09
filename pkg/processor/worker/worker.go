@@ -183,6 +183,7 @@ func (w *Worker) Terminate() error {
 	if err := w.runtime.Terminate(); err != nil {
 		return err
 	}
+	w.state.State = StateTerminated
 	w.logger.DebugWith("Successfully terminated worker", "workerIndex", w.index)
 	return nil
 }
