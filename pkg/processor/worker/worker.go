@@ -40,6 +40,11 @@ const (
 	StateTerminated State = "terminated"
 )
 
+type StateWithLock struct {
+	State
+	sync.Mutex
+}
+
 // Worker holds all the required state and context to handle a single request
 type Worker struct {
 
@@ -53,11 +58,6 @@ type Worker struct {
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time
 	state                StateWithLock
-}
-
-type StateWithLock struct {
-	State
-	sync.Mutex
 }
 
 // NewWorker creates a new worker
