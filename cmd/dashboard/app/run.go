@@ -35,13 +35,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
-	// load all sinks
-	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
 	"k8s.io/client-go/rest"
+
+	// load all sinks
+	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
 func Run(listenAddress string,

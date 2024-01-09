@@ -38,14 +38,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	// load runtimes so that they register to runtime registry
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/ruby"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/mholt/archiver/v3"
@@ -55,6 +47,15 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/version-go"
 	"gopkg.in/yaml.v3"
+
+	// load runtimes so that they register to runtime registry
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/ruby"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 )
 
 const (

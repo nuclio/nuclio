@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
+
 	// enable OIDC plugin
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )

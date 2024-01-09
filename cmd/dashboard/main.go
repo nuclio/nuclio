@@ -22,9 +22,10 @@ import (
 
 	"github.com/nuclio/nuclio/cmd/dashboard/app"
 	"github.com/nuclio/nuclio/pkg/common"
-	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 
 	"github.com/nuclio/errors"
+
+	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 )
 
 func main() {

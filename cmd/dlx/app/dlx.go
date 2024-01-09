@@ -22,12 +22,13 @@ import (
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/resourcescaler"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	// load all sinks
-	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/dlx"
 	"k8s.io/client-go/rest"
+
+	// load all sinks
+	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
 func Run(platformConfigurationPath string,
