@@ -212,7 +212,7 @@ func (suite *PlatformTestSuite) executeHelm(runOptions *cmdrunner.RunOptions,
 	return results.Output
 }
 
-func (suite *PlatformTestSuite) executeMinikube(positionalArgs []string,
+func (suite *PlatformTestSuite) executeMinikube(positionalArgs []string, // nolint: unused
 	namedArgs map[string]string) string {
 
 	if len(positionalArgs) == 0 {

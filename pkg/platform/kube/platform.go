@@ -1618,14 +1618,6 @@ func (p *Platform) getFunctionInstanceAndConfig(ctx context.Context,
 	return nil, nil, nil
 }
 
-func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.NuclioProject) {
-	project.Name = platformProject.Meta.Name
-	project.Namespace = platformProject.Meta.Namespace
-	project.Labels = platformProject.Meta.Labels
-	project.Annotations = platformProject.Meta.Annotations
-	project.Spec = platformProject.Spec
-}
-
 func (p *Platform) platformAPIGatewayToAPIGateway(platformAPIGateway *platform.APIGatewayConfig, apiGateway *nuclioio.NuclioAPIGateway) {
 	apiGateway.Name = platformAPIGateway.Meta.Name
 	apiGateway.Namespace = platformAPIGateway.Meta.Namespace

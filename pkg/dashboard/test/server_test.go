@@ -3425,21 +3425,6 @@ func (suite *apiGatewayTestSuite) TestDeleteSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *apiGatewayTestSuite) sendRequestWithInvalidBody(method string, body string, expectedError string) {
-	expectedStatusCode := http.StatusBadRequest
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{expectedError})
-	requestBody := body
-
-	suite.sendRequest(method,
-		"/api/api_gateways",
-		nil,
-		bytes.NewBufferString(requestBody),
-		&expectedStatusCode,
-		ecv.Verify)
-
-	suite.mockPlatform.AssertExpectations(suite.T())
-}
-
 //
 // Stream
 //

@@ -286,21 +286,3 @@ func (vip *v3ioItemPoller) encloseStrings(inputStrings []string, start string, e
 
 	return enclosedStrings
 }
-
-func (vip *v3ioItemPoller) createEventsFromItems(path string,
-	items []interface{},
-	eventsChan chan nuclio.Event) {
-
-	//for _, item := range items {
-	//	name := item["__name"].(string)
-	//
-	//	event := Event{
-	//		item: &item,
-	//		url:  vip.v3ioClient.URL + "/" + path + "/" + name,
-	//		path: path + "/" + name,
-	//	}
-	//
-	//	// shove event to channe
-	//	eventsChan <- &event
-	//}
-}

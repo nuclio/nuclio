@@ -29,6 +29,7 @@ linters:
     - govet
     - typecheck
     - gocritic
+    - unused
 
 run:
 

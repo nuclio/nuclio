@@ -391,40 +391,6 @@ func (r *Release) getGithubWorkflowsReleaseStatus() (string, error) {
 	return status, nil
 }
 
-func (r *Release) getTravisReleaseStatus() (string, error) {
-	travisBuildsURL := fmt.Sprintf("%s/repos/nuclio/%s/builds", travisAPIURL, r.repositoryOwnerName)
-	request, err := http.NewRequest(http.MethodGet, travisBuildsURL, nil)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create new request")
-	}
-	request.Header.Set("Content-Type", "application/vnd.travis-ci.2.1+json")
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to perform request")
-	}
-	responseBody, err := io.ReadAll(response.Body)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to read all response body")
-	}
-
-	type Build struct {
-		Branch string `json:"branch,omitempty"`
-		State  string `json:"state,omitempty"`
-	}
-	var BuildsResponse []Build
-	if err := json.Unmarshal(responseBody, &BuildsResponse); err != nil {
-		return "", errors.Wrap(err, "Failed to unmarshal builds response")
-	}
-	releaseBuildState := ""
-	for _, buildResponse := range BuildsResponse {
-		if buildResponse.Branch == r.targetVersion.String() {
-			releaseBuildState = buildResponse.State
-			break
-		}
-	}
-	return releaseBuildState, nil
-}
-
 func (r *Release) compileGithubAPIURL() string {
 	return fmt.Sprintf("%s/repos/%s/nuclio", githubAPIURL, r.repositoryOwnerName)
 }

@@ -679,7 +679,7 @@ func (suite *testSuite) publishMessageToTopicOnSpecificShard(topic string, body 
 	return nil
 }
 
-func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.CreateFunctionResult) []string {
+func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.CreateFunctionResult) []string { // nolint: unused
 
 	receivedEvents, err := triggertest.GetEventRecorderReceivedEvents(suite.Logger, suite.BrokerHost, deployResult.Port)
 	suite.Require().NoError(err)

@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -168,15 +167,6 @@ func (suite *resourceTestSuite) sendRequest(method string,
 	}
 
 	return response, decodedResponseBody
-}
-
-// remove tabs and newlines
-func (suite *resourceTestSuite) cleanJSONstring(input string) string {
-	for _, char := range []string{"\n", "\t"} {
-		input = strings.ReplaceAll(input, char, "")
-	}
-
-	return input
 }
 
 // send error triggering requests

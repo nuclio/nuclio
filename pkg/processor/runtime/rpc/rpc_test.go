@@ -23,8 +23,6 @@ import (
 	"encoding/json"
 	"io"
 	"net"
-	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -78,14 +76,6 @@ func (suite *RPCSuite) emitLog(message string, conn io.Writer) {
 	suite.Require().NoError(err, "Can't encode log record")
 	_, err = io.Copy(conn, &buf)
 	suite.Require().NoError(err)
-}
-
-func (suite *RPCSuite) dummyProcess() *os.Process {
-	var buf bytes.Buffer
-	cmd := exec.Command("ls")
-	cmd.Stdout = &buf
-	suite.Require().NoError(cmd.Run(), "Can't run")
-	return cmd.Process
 }
 
 func (suite *RPCSuite) runtimeConfiguration(loggerInstance logger.Logger) *runtime.Configuration {

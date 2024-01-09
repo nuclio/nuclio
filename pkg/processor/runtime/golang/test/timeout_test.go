@@ -19,9 +19,7 @@ limitations under the License.
 package test
 
 import (
-	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path"
 	"testing"
@@ -73,17 +71,6 @@ func (suite *TimeoutTestSuite) TestTimeout() {
 			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
 	})
-}
-
-func (suite *TimeoutTestSuite) createRequest(timeout time.Duration) io.Reader {
-	var buf bytes.Buffer
-	request := map[string]string{
-		"timeout": timeout.String(),
-	}
-
-	err := json.NewEncoder(&buf).Encode(request)
-	suite.Require().NoError(err, "Can't encode request")
-	return &buf
 }
 
 func (suite *TimeoutTestSuite) genTimeoutRequest(timeout time.Duration) string {

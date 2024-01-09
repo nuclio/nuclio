@@ -444,16 +444,6 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 	return triggers, nil
 }
 
-func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
-	for _, existingTrigger := range triggers {
-		if existingTrigger.GetKind() == "http" {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Config) (*webadmin.Server, error) {
 
 	// if enabled not passed, default to true
