@@ -3,50 +3,84 @@ package docker
 import (
 	"fmt"
 	docker "github.com/fsouza/go-dockerclient"
+	deployer_models "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/models"
+	"strings"
+	"time"
+)
+
+const (
+	running = "running"
+	paused  = "paused"
 )
 
 type DockerDeployer struct {
+	*deployer_models.ProElasticDeployerConfig
 	*docker.Client
 
-	baseContainerName string
+	baseContainerName          string
+	durationFunctionsContainer *map[string]time.Time
 }
 
-func NewDockerDeployer(baseContainerName string) *DockerDeployer {
+func NewDockerDeployer(baseContainerName string, config *deployer_models.ProElasticDeployerConfig, durationFunctionsContainer *map[string]time.Time) *DockerDeployer {
 	return &DockerDeployer{
-		baseContainerName: baseContainerName,
+		baseContainerName:          baseContainerName,
+		ProElasticDeployerConfig:   config,
+		durationFunctionsContainer: durationFunctionsContainer,
 	}
 }
 
 func (ds *DockerDeployer) Initialize() {
 	ds.Client, _ = docker.NewClientFromEnv()
 
-	imgs, err := ds.ListContainers(docker.ListContainersOptions{All: true})
+	container, err := ds.GetNuclioFunctionContainer()
 	if err != nil {
 		panic(err)
 	}
-	for _, container := range imgs {
-		fmt.Println("ID: ", container.ID)
-		fmt.Println("RepoTags: ", container.Names)
-		fmt.Println("Created: ", container.Created)
-		fmt.Println("Size: ", container.Image)
+
+	fmt.Println("The Nucleo function containers are:", container)
+	for _, container := range *container {
+		pauseTime := time.Now().Add(ds.MaxIdleTime)
+		functionName := strings.TrimPrefix(container, "/")
+		functionName = strings.TrimPrefix(functionName, ds.baseContainerName)
+		(*ds.durationFunctionsContainer)[functionName] = pauseTime
 	}
+
+	fmt.Println("The durationFunctionContainer is:", ds.durationFunctionsContainer)
 }
 
-func (ds *DockerDeployer) Start(functionName string) error {
-	container := ds.getFunctionContainer(functionName, false)
+func (ds *DockerDeployer) GetNuclioFunctionContainer() (*[]string, error) {
+	options := &docker.ListContainersOptions{
+		Filters: map[string][]string{"name": {ds.baseContainerName}},
+	}
+
+	container, err := ds.ListContainers(*options)
+	if err != nil {
+		return nil, err
+	}
+
+	nexusContainer := make([]string, len(container))
+	for i, c := range container {
+		nexusContainer[i] = c.Names[0]
+	}
+	return &nexusContainer, nil
+}
+
+func (ds *DockerDeployer) Unpause(functionName string) error {
+	container := ds.getFunctionContainer(functionName)
 	if ds.IsRunning(functionName) {
 		fmt.Printf("Container %s has been running already\n", ds.getContainerName(functionName))
 		return nil
 	}
 
 	fmt.Println("Container state: ", container.State)
-	if container.State == "paused" {
-		fmt.Println("Try to start container", container.ID)
-		err := ds.StartContainer(container.ID, nil)
+	if container.State == paused {
+		err := ds.UnpauseContainer(container.ID)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Container %s started\n", ds.getContainerName(functionName))
+		fmt.Printf("Container %s unpaused\n", ds.getContainerName(functionName))
+		(*ds.durationFunctionsContainer)[functionName] = time.Now().Add(ds.MaxIdleTime)
+
 		return nil
 	}
 
@@ -55,19 +89,18 @@ func (ds *DockerDeployer) Start(functionName string) error {
 }
 
 func (ds *DockerDeployer) Pause(functionName string) error {
-	container := ds.getFunctionContainer(functionName, true)
-	if container.State == "paused" {
+	container := ds.getFunctionContainer(functionName)
+	if container.State == paused {
 		fmt.Printf("Container %s has been paused already\n", ds.getContainerName(functionName))
 		return nil
 	}
 
-	container = ds.getFunctionContainer(functionName, false)
-	if container.State != "running" {
+	if container.State == running {
 		err := ds.PauseContainer(container.ID)
 		if err != nil {
 			return err
 		}
-		fmt.Println("Container %s paused", ds.getContainerName(functionName))
+		fmt.Printf("Container %s paused\n", ds.getContainerName(functionName))
 		return nil
 	}
 
@@ -76,13 +109,13 @@ func (ds *DockerDeployer) Pause(functionName string) error {
 }
 
 func (ds *DockerDeployer) IsRunning(functionName string) bool {
-	container := ds.getFunctionContainer(functionName, false)
-	return container.State == "running"
+	container := ds.getFunctionContainer(functionName)
+	return container.State == running
 }
 
-func (ds *DockerDeployer) getFunctionContainer(functionName string, stopped bool) *docker.APIContainers {
+func (ds *DockerDeployer) getFunctionContainer(functionName string) *docker.APIContainers {
 	options := &docker.ListContainersOptions{
-		Filters: map[string][]string{"name": {ds.getContainerName(functionName)}},
+		Filters: map[string][]string{"name": {ds.getContainerName(functionName)}}, // Names
 		Limit:   1,
 	}
 
