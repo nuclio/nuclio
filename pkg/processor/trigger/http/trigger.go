@@ -389,18 +389,18 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
 
+	// internal endpoint to allow clients the information whether the http server is taking requests in
+	// this is an internal endpoint, we do not want to update statistics here
+	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthPath) {
+		ctx.Response.SetStatusCode(nethttp.StatusOK)
+		return
+	}
+
 	// perform pre request handling validation
 	if !h.preHandleRequestValidation(ctx) {
 
 		// in case validation failed, stop here
 		h.UpdateStatistics(false)
-		return
-	}
-
-	// internal endpoint to allow clients the information whether the http server is taking requests in
-	// this is an internal endpoint, we do not want to update statistics here
-	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthPath) {
-		ctx.Response.SetStatusCode(nethttp.StatusOK)
 		return
 	}
 
