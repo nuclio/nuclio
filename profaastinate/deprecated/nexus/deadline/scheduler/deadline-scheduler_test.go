@@ -64,7 +64,7 @@ func TestDeadlineScheduler(t *testing.T) {
 		t.Fatalf("Expected the queue to now contain 0 items, but it has %d items", ds.Queue.Len())
 	}
 
-	// Stop the scheduler
+	// Pause the scheduler
 	ds.Stop()
 	mockNexus.Push(mockTask)
 

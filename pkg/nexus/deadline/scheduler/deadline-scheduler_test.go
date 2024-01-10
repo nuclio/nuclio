@@ -69,7 +69,7 @@ func (suite *DeadlineSchedulerTestSuite) TestDeadlineScheduler() {
 	time.Sleep(suite.ds.SleepDuration + 200*time.Millisecond)
 	suite.Equal(0, suite.ds.Queue.Len())
 
-	// Stop the scheduler
+	// Pause the scheduler
 	suite.ds.Stop()
 	suite.ds.Push(mockTask)
 

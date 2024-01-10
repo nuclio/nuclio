@@ -19,7 +19,7 @@ func main() {
 	// Run the scheduler for 1 minute
 	time.Sleep(1 * time.Minute)
 
-	// Stop the scheduler after 1 minute
+	// Pause the scheduler after 1 minute
 	s.Stop()
 }
 

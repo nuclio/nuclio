@@ -20,7 +20,7 @@ func TransformRequestToClientRequest(nexusItemRequest *http.Request) (newRequest
 	var requestUrl url.URL
 	requestUrl.Scheme = nexusItemRequest.URL.Scheme
 	requestUrl.Path = nexusItemRequest.URL.Path
-	// Needs to be set to the port of the environment the default port is 8080
+	// Needs to be set to the port of the env the default port is 8080
 	requestUrl.Host = fmt.Sprintf("%s:%s", GetEnvironmentHost(), models.PORT)
 
 	newRequest, _ = http.NewRequest(nexusItemRequest.Method, requestUrl.String(), nexusItemRequest.Body)

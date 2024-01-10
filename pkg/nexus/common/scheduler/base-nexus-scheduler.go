@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	elastic_deploy "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy"
 	"net/http"
 	"net/url"
 	"time"
@@ -22,21 +23,23 @@ type BaseNexusScheduler struct {
 	Queue      *queue.NexusQueue
 	requestUrl string
 	client     *http.Client
+	deployer   *elastic_deploy.ProElasticDeploy
 }
 
-func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig) *BaseNexusScheduler {
+func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig, deployer *elastic_deploy.ProElasticDeploy) *BaseNexusScheduler {
 	return &BaseNexusScheduler{
 		BaseNexusSchedulerConfig: config,
 		Queue:                    queue,
 		requestUrl:               models.NUCLIO_NEXUS_REQUEST_URL,
 		client:                   &http.Client{},
 		NexusConfig:              nexusConfig,
+		deployer:                 deployer,
 	}
 }
 
-func NewDefaultBaseNexusScheduler(queue *queue.NexusQueue, nexusConfig *config.NexusConfig) *BaseNexusScheduler {
+func NewDefaultBaseNexusScheduler(queue *queue.NexusQueue, nexusConfig *config.NexusConfig, deployer *elastic_deploy.ProElasticDeploy) *BaseNexusScheduler {
 	baseSchedulerConfig := config.NewDefaultBaseNexusSchedulerConfig()
-	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig)
+	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig, deployer)
 }
 
 func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
@@ -49,8 +52,22 @@ func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 
 	nexusItem = bns.Queue.Pop()
 
-	bns.evaluateInvocation(nexusItem)
+	//bns.evaluateInvocation(nexusItem)
+	bns.EnsureFunctionContainerIsRunning(nexusItem.Name)
 	bns.CallSynchronized(nexusItem)
+	return
+}
+
+func (bns *BaseNexusScheduler) EnsureFunctionContainerIsRunning(functionName string) {
+	err := bns.deployer.Start(functionName)
+	if err != nil {
+		fmt.Println("Error starting function container:", err)
+	}
+
+	for !bns.deployer.IsRunning(functionName) {
+		time.Sleep(200 * time.Millisecond)
+		fmt.Println("Waiting for function container to start...")
+	}
 	return
 }
 

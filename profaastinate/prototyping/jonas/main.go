@@ -212,7 +212,7 @@ func scheduledRemoveItems(nxs *Nexus, wg *sync.WaitGroup) {
 		select {
 		case <-ticker.C:
 			if !removeItems(nxs) {
-				// Stop the goroutine when there are no more items.
+				// Pause the goroutine when there are no more items.
 				return
 			}
 		case <-stopChannel:

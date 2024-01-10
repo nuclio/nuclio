@@ -8,6 +8,8 @@ services:
     environment:
       - NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES=true
       - NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES=host.docker.internal
+      - DEPLOY_ENVIRONMENT=local
+      - NUCTL_NAMESPACE=nuclio
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

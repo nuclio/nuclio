@@ -17,6 +17,7 @@ limitations under the License.
 package restful
 
 import (
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"log"
 	"net/http"
 
@@ -51,12 +52,14 @@ type AbstractServer struct {
 	Router           chi.Router
 	resourceRegistry *registry.Registry
 	Nexus            *nexus.Nexus
+	dockerClient     dockerclient.Client
 	server           Server
 }
 
 func NewAbstractServer(parentLogger logger.Logger,
 	resourceRegistry *registry.Registry,
-	server Server) (*AbstractServer, error) {
+	server Server,
+	client dockerclient.Client) (*AbstractServer, error) {
 
 	var err error
 
@@ -64,6 +67,7 @@ func NewAbstractServer(parentLogger logger.Logger,
 		Logger:           parentLogger.GetChild("server"),
 		resourceRegistry: resourceRegistry,
 		server:           server,
+		dockerClient:     client,
 	}
 
 	newServer.Router, err = newServer.createRouter()
@@ -81,7 +85,8 @@ func (s *AbstractServer) Initialize(configuration *platformconfig.WebServer) err
 		return errors.Wrap(err, "Failed to install middleware")
 	}
 
-	s.Nexus = nexus.Initialize()
+	log.Println(s.dockerClient)
+	s.Nexus = nexus.Initialize(s.dockerClient)
 	log.Println("Nexus initialized")
 
 	nexusRouter := nexus.NewNexusRouter(s.Nexus)

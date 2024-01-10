@@ -1,13 +1,16 @@
 package nexus
 
 import (
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
+	"github.com/nuclio/nuclio/pkg/nexus/common/env"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/scheduler"
+	elastic_deploy "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -18,9 +21,10 @@ type Nexus struct {
 	wg          sync.WaitGroup
 	schedulers  map[string]interfaces.INexusScheduler
 	nexusConfig *config.NexusConfig
+	envRegistry *env.EnvRegistry
 }
 
-func Initialize() (nexus *Nexus) {
+func Initialize(dockerClient dockerclient.Client) (nexus *Nexus) {
 	nexusQueue := *queue.Initialize()
 
 	var maxParallelRequests atomic.Int32
@@ -32,7 +36,13 @@ func Initialize() (nexus *Nexus) {
 		nexusConfig: &nexusConfig,
 	}
 
-	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue, &nexusConfig)
+	nexus.envRegistry = env.NewEnvRegistry()
+	nexus.envRegistry.Initialize()
+
+	proElasticDeployer := elastic_deploy.NewProElasticDeploy(nexus.envRegistry, dockerClient)
+	proElasticDeployer.Initialize()
+
+	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue, &nexusConfig, proElasticDeployer)
 
 	deadlineScheduler := deadline.NewDefaultScheduler(defaultBaseScheduler)
 	bulkScheduler := bulk.NewDefaultScheduler(defaultBaseScheduler)

@@ -10,7 +10,7 @@ import (
 	"strconv"
 )
 
-// SetupRedis sets up the redis client based on the environment variables
+// SetupRedis sets up the redis client based on the env variables
 func SetupRedis(ctx context.Context) *redis.Client {
 	errEnv := godotenv.Load("envs/.redis.env")
 	if errEnv != nil {
