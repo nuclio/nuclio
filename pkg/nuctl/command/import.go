@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -39,8 +38,9 @@ import (
 type importCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-
-	skipAutofix bool
+	saveReport     bool
+	reportFilePath string
+	skipAutofix    bool
 }
 
 func newImportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *importCommandeer {
@@ -55,6 +55,8 @@ func newImportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *i
 from a configuration file or from the standard input (default)`,
 	}
 
+	cmd.PersistentFlags().BoolVar(&commandeer.saveReport, "save-report", false, "Save importing report to a file")
+	cmd.PersistentFlags().StringVar(&commandeer.reportFilePath, "report-file-path", "nuctl-import-report.json", "Path to import report")
 	cmd.PersistentFlags().BoolVar(&commandeer.skipAutofix, "skip-autofix", false, "Skip config autofix if error occurred")
 
 	importFunctionCommand := newImportFunctionCommandeer(ctx, commandeer).cmd
@@ -94,6 +96,9 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 	functionConfig.Meta.Namespace = project.Meta.Namespace
 
 	if project.Meta.Name != "" {
+		if functionConfig.Meta.Labels == nil {
+			functionConfig.Meta.Labels = make(map[string]string)
+		}
 		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = project.Meta.Name
 	}
 
@@ -164,8 +169,8 @@ func (i *importCommandeer) retryImportWithAutofix(ctx context.Context, functionC
 
 func (i *importCommandeer) importFunctions(ctx context.Context,
 	functionConfigs map[string]*functionconfig.Config,
-	project *platform.ProjectConfig) error {
-	importFailed := atomic.Bool{}
+	project *platform.ProjectConfig,
+	report *nuctlcommon.FunctionReports) error {
 	i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
 		"Importing functions",
 		"functions", functionConfigs)
@@ -181,15 +186,14 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 				"project", project.Meta.Name)
 
 			if err := i.importFunction(ctx, function, project, i.skipAutofix); err != nil {
-				if !importFailed.Load() {
-					importFailed.Store(true)
-				}
+				report.AddFailure(function.Meta.Name, err)
 				i.rootCommandeer.loggerInstance.ErrorWithCtx(ctx,
 					"Failed to import function",
 					"function", function.Meta.Name,
 					"project", project.Meta.Name,
 					"error", err)
 			} else {
+				report.AddSuccess(function.Meta.Name)
 				i.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
 					"Function was imported successfully",
 					"function", function.Meta.Name,
@@ -200,10 +204,11 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 		}(functionConfig)
 	}
 	wg.Wait()
-	if importFailed.Load() {
-		// TODO: add error log for each failed import
+
+	errorReport := report.SprintfError()
+	if errorReport != "" {
 		return errors.New(fmt.Sprintf(
-			"Import failed for some of the functions. Project: %s",
+			"Import failed for some of the functions. Project: `%s`.",
 			project.Meta.Name),
 		)
 	}
@@ -212,11 +217,13 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 
 type importFunctionCommandeer struct {
 	*importCommandeer
+	report *nuctlcommon.FunctionReports
 }
 
 func newImportFunctionCommandeer(ctx context.Context, importCommandeer *importCommandeer) *importFunctionCommandeer {
 	commandeer := &importFunctionCommandeer{
 		importCommandeer: importCommandeer,
+		report:           nuctlcommon.NewFunctionReports(),
 	}
 
 	cmd := &cobra.Command{
@@ -270,7 +277,7 @@ Use --help for more information`)
 				},
 			}
 
-			return commandeer.importFunctions(ctx, functionConfigs, platformConfig)
+			return commandeer.importFunctions(ctx, functionConfigs, platformConfig, commandeer.report)
 		},
 	}
 
@@ -310,6 +317,7 @@ type importProjectCommandeer struct {
 	*importCommandeer
 	skipProjectNames   []string
 	skipLabelSelectors string
+	report             *nuctlcommon.ProjectReports
 
 	// Deprecated.
 	skipTransformDisplayName bool
@@ -318,6 +326,7 @@ type importProjectCommandeer struct {
 func newImportProjectCommandeer(ctx context.Context, importCommandeer *importCommandeer) *importProjectCommandeer {
 	commandeer := &importProjectCommandeer{
 		importCommandeer: importCommandeer,
+		report:           nuctlcommon.NewProjectReports(),
 	}
 
 	cmd := &cobra.Command{
@@ -365,7 +374,11 @@ Use --help for more information`)
 				return errors.Wrap(err, "Failed to resolve the imported project configuration")
 			}
 
-			return commandeer.importProjects(ctx, importProjectsOptions)
+			err = commandeer.importProjects(ctx, importProjectsOptions)
+			if commandeer.saveReport {
+				commandeer.report.SaveToFile(ctx, commandeer.rootCommandeer.loggerInstance, commandeer.reportFilePath)
+			}
+			return err
 		},
 	}
 
@@ -460,7 +473,9 @@ func (i *importProjectCommandeer) importAPIGateways(ctx context.Context,
 }
 
 func (i *importProjectCommandeer) importProject(ctx context.Context,
-	projectImportOptions *ProjectImportOptions) error {
+	projectImportOptions *ProjectImportOptions,
+	projectReport *nuctlcommon.ProjectReport) error {
+
 	var err error
 	project, err := i.importProjectIfMissing(ctx, projectImportOptions)
 	if err != nil {
@@ -472,11 +487,12 @@ func (i *importProjectCommandeer) importProject(ctx context.Context,
 
 	// enrich
 	i.enrichProjectImportConfig(projectImportOptions.projectImportConfig)
-
 	// import functions
 	functionImportErr := i.importFunctions(ctx,
 		projectImportOptions.projectImportConfig.Functions,
-		projectImportOptions.projectImportConfig.Project)
+		projectImportOptions.projectImportConfig.Project,
+		projectReport.FunctionReports,
+	)
 	if functionImportErr != nil {
 		i.rootCommandeer.loggerInstance.WarnWithCtx(ctx,
 			"Failed to import all project functions",
@@ -527,16 +543,20 @@ func (i *importProjectCommandeer) importProjects(ctx context.Context,
 	// TODO: parallel this with errorGroup, mutex is required due to multi map writers
 	for projectName, projectImportOptions := range projectsImportOptions {
 		projectImportConfig := projectImportOptions.projectImportConfig
-
+		projectReport := nuctlcommon.NewProjectReport(projectName)
+		i.report.AddReport(projectReport)
 		// skip project?
 		skipProject, err := i.shouldSkipProject(projectImportConfig)
 		if err != nil {
-			return errors.Wrap(err, "Failed to check whether project needs to be skipped")
+			projectReport.SetFailed(&nuctlcommon.FailReport{
+				FailReason: errors.Wrap(err, "Failed to check whether project needs to be skipped").Error()})
+			continue
 		}
 		if skipProject {
 			i.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Skipping import for project",
 				"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 				"projectName", projectImportConfig.Project.Meta.Name)
+			projectReport.Skipped = true
 			continue
 		}
 
@@ -550,13 +570,20 @@ func (i *importProjectCommandeer) importProjects(ctx context.Context,
 		}
 
 		// import project
-		if err := i.importProject(ctx, projectImportOptions); err != nil {
-			return errors.Wrap(err, "Failed to import project")
+		if err := i.importProject(ctx, projectImportOptions, projectReport); err != nil {
+			projectReport.SetFailed(&nuctlcommon.FailReport{
+				FailReason: err.Error()})
+			continue
 		}
 
+		projectReport.Success = true
 		i.rootCommandeer.loggerInstance.InfoWithCtx(ctx, "Successfully imported project",
 			"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 			"projectName", projectName)
+	}
+	errorReport := i.report.SprintfError()
+	if errorReport != "" {
+		return errors.New(errorReport)
 	}
 	return nil
 }

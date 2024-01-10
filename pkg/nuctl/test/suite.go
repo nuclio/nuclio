@@ -60,6 +60,7 @@ type Suite struct {
 	stdinReader          *strings.Reader
 	defaultWaitDuration  time.Duration
 	defaultWaitInterval  time.Duration
+	tempDir              string
 	namespace            string
 	ctx                  context.Context
 }
@@ -103,6 +104,8 @@ func (suite *Suite) SetupSuite() {
 		suite.Require().NoError(err)
 	}
 
+	suite.tempDir, _ = os.MkdirTemp("", "nuctl-tests")
+
 	suite.ctx = context.Background()
 }
 
@@ -118,6 +121,8 @@ func (suite *Suite) TearDownSuite() {
 	// restore platform kind
 	err := os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformKind)
 	suite.Require().NoError(err)
+
+	_ = os.RemoveAll(suite.tempDir)
 }
 
 // ExecuteNuctl populates os.Args and executes nuctl as if it were executed from shell

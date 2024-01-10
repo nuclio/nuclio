@@ -142,19 +142,7 @@ func (m *PatchManifest) SaveToFile(ctx context.Context, loggerInstance logger.Lo
 	loggerInstance.InfoWithCtx(ctx, "Saving redeploy report to file",
 		"path", path)
 
-	file, err := json.Marshal(m.patchManifest)
-	if err != nil {
-		loggerInstance.ErrorWithCtx(ctx,
-			"Failed to marshal report to json",
-			"err", err,
-			"path", path)
-	}
-	if err := os.WriteFile(path, file, 0644); err != nil {
-		loggerInstance.ErrorWithCtx(ctx,
-			"Failed to write report to file",
-			"err", err,
-			"path", path)
-	}
+	saveReportToFile(ctx, loggerInstance, m.patchManifest, path)
 
 	if len(m.GetRetryableFunctionNames()) > 0 {
 		loggerInstance.WarnWithCtx(ctx,

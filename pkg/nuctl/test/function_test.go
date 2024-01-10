@@ -1536,6 +1536,30 @@ func (suite *functionExportImportTestSuite) TestAutofixWhenImportFunction() {
 	suite.Require().NotNil(err)
 }
 
+func (suite *functionExportImportTestSuite) TestImportWithReport() {
+	functionConfigPath := path.Join(suite.GetImportsDir(), "project_with_wrong_conf.yaml")
+	projectName := "test-project"
+	functionNames := []string{"incorrect-fixable-test-function", "incorrect-not-fixable-test-function", "correct-test-function"}
+	defer func() {
+		// delete project
+		suite.ExecuteNuctl([]string{"delete", "project", projectName}, nil) // nolint: errcheck
+		// delete functions
+		for _, funcName := range functionNames {
+			suite.ExecuteNuctl([]string{"delete", "fu", funcName}, nil) // nolint: errcheck
+		}
+	}()
+	// generate report path
+	reportPath := suite.tempDir + "/nuctl-import-report.json"
+	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose", "--save-report", "--report-file-path", reportPath, functionConfigPath}, nil)
+	suite.Require().NotNil(err)
+
+	reportBytes, err := os.ReadFile(reportPath)
+	suite.Require().NoError(err)
+
+	expectedReport := "{\"test-project\":{\"Name\":\"test-project\",\"Skipped\":false,\"Success\":false,\"Failed\":{\"FailReason\":\"Import failed for some of the functions. Project: `test-project`.\",\"CanBeAutoFixed\":false},\"FunctionReports\":{\"Success\":[\"correct-test-function\",\"incorrect-fixable-test-function\"],\"Failed\":{\"incorrect-not-fixable-test-function\":{\"FailReason\":\"If image is passed, runtime must be specified\",\"CanBeAutoFixed\":false}}}}}"
+	suite.Require().Equal(expectedReport, string(reportBytes))
+}
+
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "export-import-stdin" + uniqueSuffix
