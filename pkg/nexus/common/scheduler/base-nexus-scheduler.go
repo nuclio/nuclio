@@ -44,17 +44,8 @@ func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
 }
 
 func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
-	bns.NexusConfig.MaxParallelRequests.Add(-1)
-	defer bns.NexusConfig.MaxParallelRequests.Add(1)
-
-	nexusItem = bns.Queue.Pop()
-
-	bns.evaluateInvocation(nexusItem)
-	bns.CallSynchronized(nexusItem)
-	return
-}
-
-func (bns *BaseNexusScheduler) DefaultPop() (nexusItem *structs.NexusItem) {
+	bns.MaxParallelRequests.Add(-1)
+	defer bns.MaxParallelRequests.Add(1)
 	nexusItem = bns.Queue.Pop()
 
 	bns.evaluateInvocation(nexusItem)

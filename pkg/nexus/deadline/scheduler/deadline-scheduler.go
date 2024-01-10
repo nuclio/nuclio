@@ -58,7 +58,13 @@ func (ds *DeadlineScheduler) executeSchedule() {
 		for ds.Queue.Len() > 0 &&
 			ds.Queue.Peek().Deadline.Before(removeUntil) {
 
-			ds.Pop()
+			ds.MaxParallelRequests.Add(-1)
+			task := ds.Queue.Pop()
+
+			go func() {
+				defer ds.MaxParallelRequests.Add(1)
+				ds.CallSynchronized(task)
+			}()
 		}
 
 		fmt.Println("Sleeping:", time.Until(nextWakeUpTime).Seconds(), "seconds")

@@ -1,35 +1,22 @@
 package deadline_test
 
 import (
-	"bytes"
-	"io"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
-	structsCommon "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	models "github.com/nuclio/nuclio/pkg/nexus/deadline/models"
 	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/scheduler"
+	utils "github.com/nuclio/nuclio/pkg/nexus/utils"
 	"github.com/stretchr/testify/suite"
 )
 
 type DeadlineSchedulerTestSuite struct {
 	suite.Suite
 	ds *deadline.DeadlineScheduler
-}
-
-type MockRoundTripper struct{}
-
-func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: 200,
-		Body:       io.NopCloser(bytes.NewBufferString("Mocked response")),
-		Header:     make(http.Header),
-	}, nil
 }
 
 func (suite *DeadlineSchedulerTestSuite) SetupTest() {
@@ -44,7 +31,7 @@ func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 	nexusConfig := config.NewDefaultNexusConfig()
 
 	Client := &http.Client{
-		Transport: &MockRoundTripper{},
+		Transport: &utils.MockRoundTripper{},
 	}
 
 	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client)
@@ -53,21 +40,9 @@ func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 }
 
 func (suite *DeadlineSchedulerTestSuite) TestDeadlineScheduler() {
-	mockTask := &structsCommon.NexusItem{
-		Request: &http.Request{
-			Method: "GET",
-			URL: &url.URL{
-				Path:   "/api",
-				Scheme: "http",
-				Host:   "localhost:8070",
-			},
-			Header: make(http.Header),
-		},
-		Deadline: time.Now().Add(2 * time.Millisecond),
-	}
 
 	// Push a task to the queue
-	suite.ds.Push(mockTask)
+	utils.PushMockedTasksToQueue(&suite.ds.BaseNexusScheduler, []string{"task1"}, 2)
 
 	// Start scheduling to remove tasks that have passed their deadline
 	go suite.ds.Start()
@@ -76,7 +51,7 @@ func (suite *DeadlineSchedulerTestSuite) TestDeadlineScheduler() {
 	time.Sleep(suite.ds.DeadlineRemovalThreshold + 1*time.Millisecond)
 
 	// Push another task to the queue which is expected not to be removed in time since the scheduler currently sleeps for 2 seconds
-	suite.ds.Push(mockTask)
+	utils.PushMockedTasksToQueue(&suite.ds.BaseNexusScheduler, []string{"task1"}, 2)
 
 	time.Sleep(1 * time.Microsecond)
 
@@ -89,7 +64,7 @@ func (suite *DeadlineSchedulerTestSuite) TestDeadlineScheduler() {
 
 	// Stop the scheduler
 	suite.ds.Stop()
-	suite.ds.Push(mockTask)
+	utils.PushMockedTasksToQueue(&suite.ds.BaseNexusScheduler, []string{"task1"}, 2)
 
 	time.Sleep(suite.ds.DeadlineRemovalThreshold + 200*time.Millisecond)
 	suite.Equal(1, suite.ds.Queue.Len())

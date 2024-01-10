@@ -7,8 +7,6 @@ import (
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 )
 
-// this is the simplest scheduler, it has no configuration
-// it simply pops items from the queue when they are available until the max parallel requests is reached
 type IdleScheduler struct {
 	common.BaseNexusScheduler
 }
@@ -47,9 +45,10 @@ func (ds *IdleScheduler) executeSchedule() {
 
 		for ds.Queue.Len() > 0 && ds.MaxParallelRequests.Load() > 0 {
 			ds.MaxParallelRequests.Add(-1)
+			task := ds.Queue.Pop()
 			go func() {
 				defer ds.MaxParallelRequests.Add(1)
-				ds.Pop()
+				ds.CallSynchronized(task)
 			}()
 		}
 

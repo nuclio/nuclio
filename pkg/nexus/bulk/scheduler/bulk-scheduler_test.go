@@ -1,19 +1,16 @@
 package scheduler_test
 
 import (
-	"bytes"
-	"io"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
 	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	scheduler "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+	utils "github.com/nuclio/nuclio/pkg/nexus/utils"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -26,26 +23,6 @@ const (
 type BulkSchedulerTestSuite struct {
 	suite.Suite
 	bs *bulk.BulkScheduler
-}
-
-type MockRoundTripper struct{}
-
-func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: 200,
-		Body:       io.NopCloser(bytes.NewBufferString("Mocked response")),
-		Header:     make(http.Header),
-	}, nil
-}
-
-var mockRequest = &http.Request{
-	Method: "GET",
-	URL: &url.URL{
-		Path:   "/api",
-		Scheme: "http",
-		Host:   "localhost:8070",
-	},
-	Header: make(http.Header),
 }
 
 func (suite *BulkSchedulerTestSuite) SetupTest() {
@@ -62,7 +39,7 @@ func (suite *BulkSchedulerTestSuite) SetupTest() {
 	nexusConfig := config.NewDefaultNexusConfig()
 
 	Client := &http.Client{
-		Transport: &MockRoundTripper{},
+		Transport: &utils.MockRoundTripper{},
 	}
 
 	baseScheduler := scheduler.
@@ -71,39 +48,17 @@ func (suite *BulkSchedulerTestSuite) SetupTest() {
 	suite.bs = bulk.NewScheduler(baseScheduler, bulkConfig)
 }
 
-func (suite *BulkSchedulerTestSuite) pushTasksToQueue() {
-	// Normally tasks with the same name would have different Values
-	task1_1 := &structs.NexusItem{
-		Name:    task_1,
-		Request: mockRequest,
-	}
-	suite.bs.Push(task1_1)
-	task1_2 := &structs.NexusItem{
-		Name:    task_1,
-		Request: mockRequest,
-	}
-	suite.bs.Push(task1_2)
-
-	task2_1 := &structs.NexusItem{
-		Name:    task_2,
-		Request: mockRequest,
-	}
-	suite.bs.Push(task2_1)
-	task2_2 := &structs.NexusItem{
-		Name:    task_2,
-		Request: mockRequest,
-	}
-	suite.bs.Push(task2_2)
-
-	task3_1 := &structs.NexusItem{
-		Name:    task_3,
-		Request: mockRequest,
-	}
-	suite.bs.Push(task3_1)
-}
-
 func (suite *BulkSchedulerTestSuite) TestBulkScheduler() {
-	suite.pushTasksToQueue()
+
+	names := []string{
+		task_1,
+		task_1,
+		task_2,
+		task_2,
+		task_3,
+	}
+
+	utils.PushMockedTasksToQueue(&suite.bs.BaseNexusScheduler, names, 2)
 
 	// Start scheduling to remove tasks that have passed their deadline
 	go suite.bs.Start()
@@ -113,10 +68,7 @@ func (suite *BulkSchedulerTestSuite) TestBulkScheduler() {
 
 	suite.Equal(5, suite.bs.Queue.Len())
 
-	suite.bs.Push(&structs.NexusItem{
-		Name:    task_2,
-		Request: mockRequest,
-	})
+	utils.PushMockedTasksToQueue(&suite.bs.BaseNexusScheduler, []string{task_2}, 2)
 
 	suite.Equal(6, suite.bs.Queue.Len())
 
@@ -129,10 +81,7 @@ func (suite *BulkSchedulerTestSuite) TestBulkScheduler() {
 	suite.bs.MaxParallelRequests.Store(0)
 
 	for i := 0; i < suite.bs.MinAmountOfBulkItems; i++ {
-		suite.bs.Push(&structs.NexusItem{
-			Name:    task_2,
-			Request: mockRequest,
-		})
+		utils.PushMockedTasksToQueue(&suite.bs.BaseNexusScheduler, []string{task_2}, 2)
 	}
 
 	suite.Equal(6, suite.bs.Queue.Len())

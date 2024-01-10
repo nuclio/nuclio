@@ -4,10 +4,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
-
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 )
 
