@@ -53,22 +53,20 @@ func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 	nexusItem = bns.Queue.Pop()
 
 	//bns.evaluateInvocation(nexusItem)
-	bns.EnsureFunctionContainerIsRunning(nexusItem.Name)
+	bns.Unpause(nexusItem.Name)
 	bns.CallSynchronized(nexusItem)
 	return
 }
 
-func (bns *BaseNexusScheduler) EnsureFunctionContainerIsRunning(functionName string) {
-	err := bns.deployer.Start(functionName)
-	if err != nil {
-		fmt.Println("Error starting function container:", err)
+func (bns *BaseNexusScheduler) Unpause(functionName string) {
+	if bns.deployer == nil {
+		return
 	}
 
-	for !bns.deployer.IsRunning(functionName) {
-		time.Sleep(200 * time.Millisecond)
-		fmt.Println("Waiting for function container to start...")
+	err := bns.deployer.Unpause(functionName)
+	if err != nil {
+		fmt.Println("Error unpausing function:", err)
 	}
-	return
 }
 
 func (bns *BaseNexusScheduler) CallSynchronized(nexusItem *structs.NexusItem) {

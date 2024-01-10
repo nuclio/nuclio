@@ -1,6 +1,7 @@
 package deadline
 
 import (
+	"fmt"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	structsCommon "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
@@ -18,6 +19,12 @@ type DeadlineSchedulerTestSuite struct {
 	ds *DeadlineScheduler
 }
 
+type MockDeployer struct{}
+
+func (bns *MockDeployer) Unpause(functionName string) {
+	fmt.Printf("Unpausing function %s\n", functionName)
+}
+
 func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 	deadlineRemovalThreshold, sleepDuration := 2*time.Millisecond, 1*time.Millisecond
 
@@ -29,7 +36,7 @@ func (suite *DeadlineSchedulerTestSuite) SetupTest() {
 	baseSchedulerConfig := config.NewBaseNexusSchedulerConfig(true, sleepDuration)
 	nexusConfig := config.NewDefaultNexusConfig()
 
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig)
+	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, nil)
 
 	suite.ds = NewScheduler(baseScheduler, deadlineConfig)
 }

@@ -47,7 +47,7 @@ func (suite *BulkSchedulerTestSuite) SetupTest() {
 	baseSchedulerConfig := config.NewBaseNexusSchedulerConfig(true, sleepDuration)
 	nexusConfig := config.NewDefaultNexusConfig()
 
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig)
+	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, nil)
 
 	suite.bs = NewScheduler(baseScheduler, bulkConfig)
 }

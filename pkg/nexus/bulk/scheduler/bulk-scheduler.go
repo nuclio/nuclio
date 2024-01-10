@@ -64,7 +64,7 @@ func (ds *BulkScheduler) executeSchedule() {
 func (ds *BulkScheduler) callAndRemoveItems(items []*structs.NexusItem) {
 	copiedItems := make([]*structs.NexusItem, len(items))
 	copy(copiedItems, items)
-	ds.EnsureFunctionContainerIsRunning(copiedItems[0].Name)
+	ds.Unpause(copiedItems[0].Name)
 
 	for _, item := range copiedItems {
 

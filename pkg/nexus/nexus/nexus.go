@@ -1,7 +1,6 @@
 package nexus
 
 import (
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/common/env"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
@@ -22,9 +21,10 @@ type Nexus struct {
 	schedulers  map[string]interfaces.INexusScheduler
 	nexusConfig *config.NexusConfig
 	envRegistry *env.EnvRegistry
+	deployer    *elastic_deploy.ProElasticDeploy
 }
 
-func Initialize(dockerClient dockerclient.Client) (nexus *Nexus) {
+func Initialize() (nexus *Nexus) {
 	nexusQueue := *queue.Initialize()
 
 	var maxParallelRequests atomic.Int32
@@ -39,10 +39,10 @@ func Initialize(dockerClient dockerclient.Client) (nexus *Nexus) {
 	nexus.envRegistry = env.NewEnvRegistry()
 	nexus.envRegistry.Initialize()
 
-	proElasticDeployer := elastic_deploy.NewProElasticDeploy(nexus.envRegistry, dockerClient)
-	proElasticDeployer.Initialize()
+	nexus.deployer = elastic_deploy.NewProElasticDeployDefault(nexus.envRegistry)
+	nexus.deployer.Initialize()
 
-	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue, &nexusConfig, proElasticDeployer)
+	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue, &nexusConfig, nexus.deployer)
 
 	deadlineScheduler := deadline.NewDefaultScheduler(defaultBaseScheduler)
 	bulkScheduler := bulk.NewDefaultScheduler(defaultBaseScheduler)
@@ -70,6 +70,9 @@ func (nexus *Nexus) SetMaxParallelRequests(maxParallelRequests int32) {
 }
 
 func (nexus *Nexus) Start() {
+	log.Printf("Starting deployer...\n")
+	go nexus.deployer.PauseUnusedFunctionContainers()
+
 	log.Println("Starting Scheduler...")
 
 	nexus.wg.Add(len(nexus.schedulers))
