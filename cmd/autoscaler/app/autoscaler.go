@@ -22,8 +22,6 @@ import (
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/resourcescaler"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	// load all sinks
-	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/autoscaler"
@@ -32,6 +30,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/metrics/pkg/client/custom_metrics"
+
+	// load all sinks
+	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
 func Run(platformConfigurationPath string, namespace string, kubeconfigPath string) error {

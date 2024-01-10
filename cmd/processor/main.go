@@ -24,10 +24,11 @@ import (
 
 	"github.com/nuclio/nuclio/cmd/processor/app"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	_ "github.com/nuclio/nuclio/pkg/processor/webadmin/resource"
 
 	"github.com/nuclio/errors"
 	"github.com/v3io/version-go"
+
+	_ "github.com/nuclio/nuclio/pkg/processor/webadmin/resource"
 )
 
 func run() error {

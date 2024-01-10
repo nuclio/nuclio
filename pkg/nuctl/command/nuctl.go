@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
+
 	// load authentication modes
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"

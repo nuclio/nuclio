@@ -42,6 +42,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/timeout"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	httpnuclio "github.com/nuclio/nuclio/pkg/processor/trigger/http"
+	"github.com/nuclio/nuclio/pkg/processor/util/clock"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
+
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
+	"github.com/v3io/version-go"
+
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
@@ -50,11 +61,8 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
-	"github.com/nuclio/nuclio/pkg/processor/timeout"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
-	httpnuclio "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kickstart"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
@@ -66,15 +74,8 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/pubsub"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/v3iostream"
-	"github.com/nuclio/nuclio/pkg/processor/util/clock"
-	"github.com/nuclio/nuclio/pkg/processor/webadmin"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
-
-	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
-	"github.com/v3io/version-go"
 )
 
 // Processor is responsible to process events

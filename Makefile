@@ -619,25 +619,8 @@ fmt:
 .PHONY: lint
 lint: modules ensure-test-files-annotated
 	@echo Installing linters...
-	@test -e $(GOPATH)/bin/impi || \
-		(mkdir -p $(GOPATH)/bin && \
-		curl -s https://api.github.com/repos/pavius/impi/releases/latest \
-		| grep -i "browser_download_url.*impi.*$(OS_NAME)" \
-		| cut -d : -f 2,3 \
-		| tr -d \" \
-		| wget -O $(GOPATH)/bin/impi -qi - \
-		&& chmod +x $(GOPATH)/bin/impi)
-
 	@test -e $(GOPATH)/bin/golangci-lint || \
 	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.54.2)
-
-	@echo Verifying imports...
-	$(GOPATH)/bin/impi \
-		--local github.com/nuclio/nuclio/ \
-		--scheme stdLocalThirdParty \
-		--skip pkg/platform/kube/apis \
-		--skip pkg/platform/kube/client \
-		./cmd/... ./pkg/... ./hack/...
 
 	@echo Linting...
 	$(GOPATH)/bin/golangci-lint run -v

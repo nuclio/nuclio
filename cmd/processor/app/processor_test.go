@@ -29,14 +29,15 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	// load cron trigger for tests purposes
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+
+	// load cron trigger for tests purposes
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 )
 
 type TriggerTestSuite struct {

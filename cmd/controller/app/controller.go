@@ -30,12 +30,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	// load all sinks
-	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	// load all sinks
+	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
 func Run(kubeconfigPath string,
