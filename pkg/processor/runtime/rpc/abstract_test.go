@@ -64,9 +64,6 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 
 	newTestRuntime.AbstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(nil, parentLogger, nil)
 
-	// set the runtime's isDrained to true, so it won't send a signal to the wrapper process
-	newTestRuntime.isDrained = true
-
 	return newTestRuntime, nil
 }
 
