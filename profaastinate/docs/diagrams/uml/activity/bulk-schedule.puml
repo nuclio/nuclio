@@ -1,28 +1,24 @@
 @startuml
-
-@startuml
 |BulkScheduler|
 start
 while (should scheduler continue to run?)
-    if (Does the queue have any items?) then (no)
-        :Sleep for a bit;
+    if (Is the queue empty or parallel requests below minimum?) then (yes)
+        :Sleep for a duration;
         note left
-            This is to avoid CPU hogging
-            and to allow other processes
-            to run.
+            This prevents CPU hogging
+            and allows other processes to run.
         end note
-    else (yes)
-        if (Does the most common entry have enough items?) then (yes)
+    else (no)
+        :Get items from the most common entry;
+        if (Are there enough items and sufficient parallel requests available?) then (yes)
             :Execute the most common entry;
             note left
-                This also removes the entry from the queue
+                This also removes the items from the queue
+                and adjusts the available parallel requests.
             end note
         else (no)
         endif
     endif
 endwhile
 stop
-@enduml
-
-
 @enduml

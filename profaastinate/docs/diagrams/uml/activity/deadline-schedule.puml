@@ -2,19 +2,20 @@
 |DeadlineScheduler|
 start
 while (Should scheduler continue to run?)
-    if (Does the queue have any items?) then (no)
-        :Sleep for a bit;
+    if (Is the queue empty?) then (yes)
+        :Sleep for a duration;
         note left
             This is to avoid CPU hogging
             and to allow other processes
             to run.
         end note
-    else (yes)
-        if (Does any item needs to be executed?) then (yes)
+    else (no)
+        if (Is any item due for execution?) then (yes)
             :Execute item;
             note left
-                Removes and execute the item from the queue
+                Removes and executes the item from the queue
                 since it has reached its deadline.
+                Also adjust number of parallel requests.
             end note
         else (no)
         endif
