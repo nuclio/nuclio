@@ -25,6 +25,7 @@ import (
 )
 
 type ProjectReports struct {
+	Report
 	Reports map[string]*ProjectReport
 }
 
@@ -56,6 +57,7 @@ func (psr *ProjectReports) SprintfError() string {
 }
 
 type ProjectReport struct {
+	Report
 	Name            string
 	Skipped         bool
 	Success         bool
@@ -89,6 +91,7 @@ func (pr *ProjectReport) SprintfError() string {
 }
 
 type FunctionReports struct {
+	Report
 	Success []string
 	Failed  map[string]*FailReport
 
