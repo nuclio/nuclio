@@ -124,8 +124,7 @@ func NewServer(parentLogger logger.Logger,
 	// create server
 	newServer.AbstractServer, err = restful.NewAbstractServer(parentLogger,
 		DashboardResourceRegistrySingleton,
-		newServer,
-		newDockerClient)
+		newServer)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}

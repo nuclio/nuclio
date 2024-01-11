@@ -1,4 +1,4 @@
-name: Validate Profaastinate Nexus
+name: Build and push dashboard image
 
 on:
   push:
