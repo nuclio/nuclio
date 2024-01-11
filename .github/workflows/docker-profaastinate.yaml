@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: nuclio/dashboard
+  IMAGE_NAME: quay.io/nuclio/dashboard
   SET_IMAGE_NAME: nuclio-dashboard-profaastintate
 
 jobs:
