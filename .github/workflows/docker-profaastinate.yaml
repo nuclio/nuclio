@@ -2,9 +2,8 @@ name: Build and push dashboard image
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - mpga-development
+  pull_request:
+    branches: [ mpga-development ]
 
 env:
   REGISTRY: ghcr.io
