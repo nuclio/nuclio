@@ -2,7 +2,7 @@ name: Build and push dashboard image
 
 on:
   workflow_dispatch:
-  pull_request:
+  push:
     branches: [ mpga-development ]
 
 env:
@@ -11,19 +11,6 @@ env:
   SET_IMAGE_NAME: nuclio-dashboard-profaastintate
 
 jobs:
-  # Install Go 1.21.x
-  install-deps:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v4
-      - name: Install dependencies
-        run: go mod tidy
-
-  # Build and push dashboard image
   build:
     runs-on: ubuntu-latest
     steps:
