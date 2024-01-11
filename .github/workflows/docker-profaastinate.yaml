@@ -52,4 +52,4 @@ jobs:
       - name: Tag and push dashboard image
         run: |
             docker tag ${{ env.IMAGE_NAME }}:latest-amd64 ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/${{ github.ref_name }}
-            docker push ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/${{ tag_suffix }}
+            docker push ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/${{ github.ref_name }}
