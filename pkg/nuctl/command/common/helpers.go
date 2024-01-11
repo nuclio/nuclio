@@ -17,6 +17,7 @@ limitations under the License.
 package common
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -24,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"sigs.k8s.io/yaml"
 )
 
@@ -97,4 +99,26 @@ func ConvertMapToFunctionConfigWithStatus(functionMap map[string]interface{}) (*
 	}
 
 	return functionConfigWithStatus, nil
+}
+
+// saveReportToFile saves the report to the file
+// It does not return any errors if they occur; instead, it logs an error for the best effort
+func saveReportToFile(ctx context.Context, loggerInstance logger.Logger, report interface{}, path string) {
+	file, err := json.Marshal(report)
+	if err != nil {
+		loggerInstance.ErrorWithCtx(ctx,
+			"Failed to marshal report to json",
+			"err", err,
+			"path", path)
+	}
+	if err := os.WriteFile(path, file, 0644); err != nil {
+		loggerInstance.ErrorWithCtx(ctx,
+			"Failed to write report to file",
+			"err", err,
+			"path", path)
+	} else {
+		loggerInstance.InfoWithCtx(ctx,
+			"Saved import report",
+			"reportPath", path)
+	}
 }

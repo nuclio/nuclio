@@ -1536,6 +1536,42 @@ func (suite *functionExportImportTestSuite) TestAutofixWhenImportFunction() {
 	suite.Require().NotNil(err)
 }
 
+func (suite *functionExportImportTestSuite) TestImportWithReport() {
+	functionConfigPath := path.Join(suite.GetImportsDir(), "project_with_wrong_conf.yaml")
+	projectName := "test-project"
+
+	defer func() {
+		// delete project
+		suite.ExecuteNuctl([]string{"delete", "project", projectName, "--strategy", "cascading"}, nil) // nolint: errcheck
+
+	}()
+
+	// generate report path
+	reportPath := suite.tempDir + "/nuctl-import-report.json"
+	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose", "--save-report", "--report-file-path", reportPath, functionConfigPath}, nil)
+	suite.Require().NotNil(err)
+
+	// read a generated report
+	reportBytes, err := os.ReadFile(reportPath)
+	suite.Require().NoError(err)
+
+	projectsReport := &nuctlcommon.ProjectReports{}
+	err = json.Unmarshal(reportBytes, &projectsReport.Reports)
+	suite.Require().NoError(err)
+
+	projectReport, _ := projectsReport.GetReport(projectName)
+	suite.Require().NotNil(projectsReport)
+	suite.Require().Contains(projectReport.Failed.FailReason, "Import failed for some of the functions. Project: `test-project`")
+
+	suite.Require().Equal(2, len(projectReport.FunctionReports.Success))
+	suite.Require().Contains(projectReport.FunctionReports.Success, "correct-test-function")
+	suite.Require().Contains(projectReport.FunctionReports.Success, "incorrect-fixable-test-function")
+
+	suite.Require().Contains(projectReport.FunctionReports.Failed, "incorrect-not-fixable-test-function")
+	suite.Require().Equal("If image is passed, runtime must be specified", projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].FailReason)
+	suite.Require().Equal(false, projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].CanBeAutoFixed)
+}
+
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "export-import-stdin" + uniqueSuffix
