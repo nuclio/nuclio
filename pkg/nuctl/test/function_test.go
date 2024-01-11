@@ -1569,8 +1569,9 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	suite.Require().Contains(projectReport.FunctionReports.Success, "correct-test-function")
 	suite.Require().Contains(projectReport.FunctionReports.Success, "incorrect-fixable-test-function")
 
-	suite.Require().Equal("If image is passed, runtime must be specified", projectReport.FunctionReports.Failed["incorrect-fixable-test-function"].FailReason)
-	suite.Require().Equal(false, projectReport.FunctionReports.Failed["incorrect-fixable-test-function"].CanBeAutoFixed)
+	suite.Require().Contains(projectReport.FunctionReports.Failed, "incorrect-not-fixable-test-function")
+	suite.Require().Equal("If image is passed, runtime must be specified", projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].FailReason)
+	suite.Require().Equal(false, projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].CanBeAutoFixed)
 }
 
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
