@@ -1,0 +1,55 @@
+name: Validate Profaastinate Nexus
+
+on:
+  push:
+    branches:
+      - mpga-development
+
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: nuclio/dashboard
+  SET_IMAGE_NAME: nuclio-dashboard-profaastintate
+  TAG_SUFFIXES: ${{ github.ref_slug }},latest,${{ github.sha }}
+
+jobs:
+  install-deps:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go-version: [ 1.21.x ]  # Add other versions if needed
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Install dependencies
+        run: go mod tidy
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Make dashboard
+        run: make dashboard
+
+      - name: Tag and push dashboard image
+        run: |
+          for tag_suffix in $(echo "${{ env.TAG_SUFFIXES }}" | tr ',' ' '); do
+            docker tag ${{ env.IMAGE_NAME }}:unstable-arm64-cache ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/:${{ tag_suffix }}
+            docker push ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/:${{ tag_suffix }}
+          done
