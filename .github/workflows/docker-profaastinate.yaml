@@ -9,7 +9,6 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: nuclio/dashboard
   SET_IMAGE_NAME: nuclio-dashboard-profaastintate
-  TAG_SUFFIXES: ${{ github.ref_name }},latest,${{ github.sha }}
 
 jobs:
   # Install Go 1.21.x
@@ -52,7 +51,5 @@ jobs:
 
       - name: Tag and push dashboard image
         run: |
-          for tag_suffix in $(echo "${{ env.TAG_SUFFIXES }}" | tr ',' ' '); do
-            docker tag ${{ env.IMAGE_NAME }}:latest-amd64 ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/${{ tag_suffix }}
+            docker tag ${{ env.IMAGE_NAME }}:latest-amd64 ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/${{ github.ref_name }}
             docker push ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/${{ tag_suffix }}
-          done
