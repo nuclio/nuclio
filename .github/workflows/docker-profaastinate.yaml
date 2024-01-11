@@ -48,6 +48,6 @@ jobs:
       - name: Tag and push dashboard image
         run: |
           for tag_suffix in $(echo "${{ env.TAG_SUFFIXES }}" | tr ',' ' '); do
-            docker tag ${{ env.IMAGE_NAME }}:latest-arm64 ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/:${{ tag_suffix }}
-            docker push ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/:${{ tag_suffix }}
+            docker tag ${{ env.IMAGE_NAME }}:latest-amd64 ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/${{ tag_suffix }}
+            docker push ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/${{ tag_suffix }}
           done
