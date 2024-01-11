@@ -580,8 +580,7 @@ func (i *importProjectCommandeer) importProjects(ctx context.Context,
 			"projectNamespace", projectImportConfig.Project.Meta.Namespace,
 			"projectName", projectName)
 	}
-	errorReport := i.report.SprintfError()
-	if errorReport != "" {
+	if errorReport := i.report.SprintfError(); errorReport != "" {
 		return errors.New(errorReport)
 	}
 	return nil
