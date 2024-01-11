@@ -1,11 +1,10 @@
 name: Build and push dashboard image
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - mpga-development
-
-  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -50,6 +49,6 @@ jobs:
       - name: Tag and push dashboard image
         run: |
           for tag_suffix in $(echo "${{ env.TAG_SUFFIXES }}" | tr ',' ' '); do
-            docker tag ${{ env.IMAGE_NAME }}:unstable-arm64-cache ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/:${{ tag_suffix }}
+            docker tag ${{ env.IMAGE_NAME }}:latest-arm64 ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/:${{ tag_suffix }}
             docker push ${{ env.REGISTRY }}/${{ env.SET_IMAGE_NAME }}/:${{ tag_suffix }}
           done
