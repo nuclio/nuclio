@@ -15,21 +15,13 @@ jobs:
   install-deps:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        go-version: [ 1.21.x ]
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up Go ${{ matrix.go-version }}
+      - name: Set up Go
         uses: actions/setup-go@v4
-        with:
-          go-version: ${{ matrix.go-version }}
       - name: Install dependencies
-        run: |
-          go version
-          go mod tidy
+        run: go mod tidy
 
   # Build and push dashboard image
   build:
@@ -46,8 +38,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build dashboard image
-        run: |
-          docker build -t ${{ env.IMAGE_NAME }}:latest-amd64 .
+        run: make dashboard
 
       - name: Tag and push dashboard image
         run: |
