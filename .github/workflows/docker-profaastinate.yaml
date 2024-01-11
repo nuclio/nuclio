@@ -9,15 +9,16 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: nuclio/dashboard
   SET_IMAGE_NAME: nuclio-dashboard-profaastintate
-  TAG_SUFFIXES: ${{ github.ref_slug }},latest,${{ github.sha }}
+  TAG_SUFFIXES: ${{ github.ref_name }},latest,${{ github.sha }}
 
 jobs:
+  # Install Go 1.21.x
   install-deps:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        go-version: [ 1.21.x ]  # Add other versions if needed
+        go-version: [ 1.21.x ]
 
     steps:
       - name: Checkout repository
@@ -27,8 +28,11 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: Install dependencies
-        run: go mod tidy
+        run: |
+          go version
+          go mod tidy
 
+  # Build and push dashboard image
   build:
     runs-on: ubuntu-latest
     steps:
@@ -42,8 +46,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Make dashboard
-        run: make dashboard
+      - name: Build dashboard image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:latest-amd64 .
 
       - name: Tag and push dashboard image
         run: |
