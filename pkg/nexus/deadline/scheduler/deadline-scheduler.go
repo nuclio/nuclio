@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
+	structs "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/deadline/models"
 )
@@ -61,10 +62,10 @@ func (ds *DeadlineScheduler) executeSchedule() {
 			ds.MaxParallelRequests.Add(-1)
 			task := ds.Queue.Pop()
 
-			go func() {
+			go func(taskInFunction *structs.NexusItem) {
 				defer ds.MaxParallelRequests.Add(1)
-				ds.CallSynchronized(task)
-			}()
+				ds.CallSynchronized(taskInFunction)
+			}(task)
 		}
 
 		fmt.Println("Sleeping:", time.Until(nextWakeUpTime).Seconds(), "seconds")

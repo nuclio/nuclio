@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
+	structs "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 )
 
@@ -46,10 +47,10 @@ func (ds *IdleScheduler) executeSchedule() {
 		for ds.Queue.Len() > 0 && ds.MaxParallelRequests.Load() > 0 {
 			ds.MaxParallelRequests.Add(-1)
 			task := ds.Queue.Pop()
-			go func() {
+			go func(taskInFunction *structs.NexusItem) {
 				defer ds.MaxParallelRequests.Add(1)
-				ds.CallSynchronized(task)
-			}()
+				ds.CallSynchronized(taskInFunction)
+			}(task)
 		}
 
 		// sleep until the next wake up time
