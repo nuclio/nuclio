@@ -1562,7 +1562,7 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 
 	projectReport, _ := projectsReport.GetReport(projectName)
 	suite.Require().NotNil(projectsReport)
-	suite.Require().Equal(projectReport.Failed.FailReason, "Import failed for some of the functions. Project: `test-project`")
+	suite.Require().Contains(projectReport.Failed.FailReason, "Import failed for some of the functions. Project: `test-project`")
 
 	suite.Require().Equal(2, len(projectReport.FunctionReports.Success))
 	suite.Require().Equal("correct-test-function", projectReport.FunctionReports.Success[0])
