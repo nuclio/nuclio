@@ -1556,11 +1556,12 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	reportBytes, err := os.ReadFile(reportPath)
 	suite.Require().NoError(err)
 
-	projectsReport := nuctlcommon.ProjectReports{}
-	err = json.Unmarshal(reportBytes, &projectsReport)
+	projectsReport := &nuctlcommon.ProjectReports{}
+	err = json.Unmarshal(reportBytes, &projectsReport.Reports)
 	suite.Require().NoError(err)
 
 	projectReport, _ := projectsReport.GetReport(projectName)
+	suite.Require().NotNil(projectsReport)
 	suite.Require().Equal(projectReport.Failed.FailReason, "Import failed for some of the functions. Project: `test-project`")
 
 	suite.Require().Equal(2, len(projectReport.FunctionReports.Success))

@@ -25,31 +25,31 @@ import (
 )
 
 type ProjectReports struct {
-	projectReports map[string]*ProjectReport
+	Reports map[string]*ProjectReport
 }
 
 func NewProjectReports() *ProjectReports {
 	return &ProjectReports{
-		projectReports: make(map[string]*ProjectReport),
+		Reports: make(map[string]*ProjectReport),
 	}
 }
 
 func (psr *ProjectReports) AddReport(report *ProjectReport) {
-	psr.projectReports[report.Name] = report
+	psr.Reports[report.Name] = report
 }
 
 func (psr *ProjectReports) GetReport(projectName string) (report *ProjectReport, exists bool) {
-	report, exists = psr.projectReports[projectName]
+	report, exists = psr.Reports[projectName]
 	return
 }
 
 func (psr *ProjectReports) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
-	saveReportToFile(ctx, loggerInstance, psr.projectReports, path)
+	saveReportToFile(ctx, loggerInstance, psr.Reports, path)
 }
 
 func (psr *ProjectReports) SprintfError() string {
 	report := ""
-	for _, projectReport := range psr.projectReports {
+	for _, projectReport := range psr.Reports {
 		report += projectReport.SprintfError()
 	}
 	return report
