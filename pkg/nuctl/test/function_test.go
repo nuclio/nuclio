@@ -1539,14 +1539,11 @@ func (suite *functionExportImportTestSuite) TestAutofixWhenImportFunction() {
 func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	functionConfigPath := path.Join(suite.GetImportsDir(), "project_with_wrong_conf.yaml")
 	projectName := "test-project"
-	functionNames := []string{"incorrect-fixable-test-function", "incorrect-not-fixable-test-function", "correct-test-function"}
+
 	defer func() {
 		// delete project
-		suite.ExecuteNuctl([]string{"delete", "project", projectName}, nil) // nolint: errcheck
-		// delete functions
-		for _, funcName := range functionNames {
-			suite.ExecuteNuctl([]string{"delete", "fu", funcName}, nil) // nolint: errcheck
-		}
+		suite.ExecuteNuctl([]string{"delete", "project", projectName, "--strategy", "cascading"}, nil) // nolint: errcheck
+
 	}()
 
 	// generate report path
