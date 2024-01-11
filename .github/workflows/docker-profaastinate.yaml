@@ -2,7 +2,7 @@ name: Build and push dashboard image
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
     branches: [ mpga-development ]
 
 env:
