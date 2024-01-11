@@ -35,22 +35,22 @@ func NewProjectReports() *ProjectReports {
 	}
 }
 
-func (psr *ProjectReports) AddReport(report *ProjectReport) {
-	psr.Reports[report.Name] = report
+func (pr *ProjectReports) AddReport(report *ProjectReport) {
+	pr.Reports[report.Name] = report
 }
 
-func (psr *ProjectReports) GetReport(projectName string) (report *ProjectReport, exists bool) {
-	report, exists = psr.Reports[projectName]
+func (pr *ProjectReports) GetReport(projectName string) (report *ProjectReport, exists bool) {
+	report, exists = pr.Reports[projectName]
 	return
 }
 
-func (psr *ProjectReports) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
-	saveReportToFile(ctx, loggerInstance, psr.Reports, path)
+func (pr *ProjectReports) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
+	saveReportToFile(ctx, loggerInstance, pr.Reports, path)
 }
 
-func (psr *ProjectReports) SprintfError() string {
+func (pr *ProjectReports) SprintfError() string {
 	report := ""
-	for _, projectReport := range psr.Reports {
+	for _, projectReport := range pr.Reports {
 		report += projectReport.SprintfError()
 	}
 	return report
@@ -99,36 +99,39 @@ type FunctionReports struct {
 }
 
 func NewFunctionReports() *FunctionReports {
-	return &FunctionReports{Failed: make(map[string]*FailReport), mutex: sync.Mutex{}}
+	return &FunctionReports{
+		Failed: make(map[string]*FailReport),
+		mutex:  sync.Mutex{},
+	}
 }
 
-func (frs *FunctionReports) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
-	saveReportToFile(ctx, loggerInstance, frs, path)
+func (fr *FunctionReports) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
+	saveReportToFile(ctx, loggerInstance, fr, path)
 }
 
-func (frs *FunctionReports) SprintfError() string {
+func (fr *FunctionReports) SprintfError() string {
 	report := ""
-	for name, failReason := range frs.Failed {
+	for name, failReason := range fr.Failed {
 		report += fmt.Sprintf("Failed to import function `%s`. Reason: %s.", name, failReason.FailReason)
 	}
 
 	return report
 }
 
-func (frs *FunctionReports) AddFailure(name string, err error) {
-	frs.mutex.Lock()
-	defer frs.mutex.Unlock()
+func (fr *FunctionReports) AddFailure(name string, err error) {
+	fr.mutex.Lock()
+	defer fr.mutex.Unlock()
 
-	frs.Failed[name] = &FailReport{
+	fr.Failed[name] = &FailReport{
 		FailReason: err.Error(),
 	}
 }
 
-func (frs *FunctionReports) AddSuccess(name string) {
-	frs.mutex.Lock()
-	defer frs.mutex.Unlock()
+func (fr *FunctionReports) AddSuccess(name string) {
+	fr.mutex.Lock()
+	defer fr.mutex.Unlock()
 
-	frs.Success = append(frs.Success, name)
+	fr.Success = append(fr.Success, name)
 }
 
 type FailReport struct {

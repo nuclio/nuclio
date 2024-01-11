@@ -1548,6 +1548,7 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 			suite.ExecuteNuctl([]string{"delete", "fu", funcName}, nil) // nolint: errcheck
 		}
 	}()
+
 	// generate report path
 	reportPath := suite.tempDir + "/nuctl-import-report.json"
 	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose", "--save-report", "--report-file-path", reportPath, functionConfigPath}, nil)
