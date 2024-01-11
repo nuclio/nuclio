@@ -38,6 +38,11 @@ func (psr *ProjectReports) AddReport(report *ProjectReport) {
 	psr.projectReports[report.Name] = report
 }
 
+func (psr *ProjectReports) GetReport(projectName string) (report *ProjectReport, exists bool) {
+	report, exists = psr.projectReports[projectName]
+	return
+}
+
 func (psr *ProjectReports) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
 	saveReportToFile(ctx, loggerInstance, psr.projectReports, path)
 }

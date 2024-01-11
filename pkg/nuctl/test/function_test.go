@@ -1556,8 +1556,19 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	reportBytes, err := os.ReadFile(reportPath)
 	suite.Require().NoError(err)
 
-	expectedReport := "{\"test-project\":{\"Name\":\"test-project\",\"Skipped\":false,\"Success\":false,\"Failed\":{\"FailReason\":\"Import failed for some of the functions. Project: `test-project`.\",\"CanBeAutoFixed\":false},\"FunctionReports\":{\"Success\":[\"correct-test-function\",\"incorrect-fixable-test-function\"],\"Failed\":{\"incorrect-not-fixable-test-function\":{\"FailReason\":\"If image is passed, runtime must be specified\",\"CanBeAutoFixed\":false}}}}}"
-	suite.Require().Equal(expectedReport, string(reportBytes))
+	projectsReport := nuctlcommon.ProjectReports{}
+	err = json.Unmarshal(reportBytes, &projectsReport)
+	suite.Require().NoError(err)
+
+	projectReport, _ := projectsReport.GetReport(projectName)
+	suite.Require().Equal(projectReport.Failed.FailReason, "Import failed for some of the functions. Project: `test-project`")
+
+	suite.Require().Equal(2, len(projectReport.FunctionReports.Success))
+	suite.Require().Equal("correct-test-function", projectReport.FunctionReports.Success[0])
+	suite.Require().Equal("incorrect-fixable-test-function", projectReport.FunctionReports.Success[0])
+
+	suite.Require().Equal("If image is passed, runtime must be specified", projectReport.FunctionReports.Failed["incorrect-fixable-test-function"].FailReason)
+	suite.Require().Equal(false, projectReport.FunctionReports.Failed["incorrect-fixable-test-function"].CanBeAutoFixed)
 }
 
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
