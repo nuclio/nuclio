@@ -242,6 +242,16 @@ func (r *AbstractRuntime) Drain() error {
 	return nil
 }
 
+// Continue signals to the runtime to continue event processing
+func (r *AbstractRuntime) Continue() error {
+	// we use SIGCONT to signal the wrapper process to continue event processing
+	if err := r.signal(syscall.SIGCONT); err != nil {
+		return errors.Wrap(err, "Failed to signal wrapper process")
+	}
+
+	return nil
+}
+
 // Terminate signals to the runtime process that processor is about to stop working
 func (r *AbstractRuntime) Terminate() error {
 

@@ -122,6 +122,7 @@ class Wrapper(object):
         self._is_drain_needed = False
         self._is_termination_needed = False
         self._is_waiting_for_event = False
+        self.discard_events = False
 
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
@@ -135,16 +136,18 @@ class Wrapper(object):
 
                 self._is_waiting_for_event = False
 
-                # resolve event message
-                event = await self._resolve_event(self._event_sock, event_message_length)
+                # do not process event if worker is drained
+                if not self.discard_events:
+                    # resolve event message
+                    event = await self._resolve_event(self._event_sock, event_message_length)
 
-                try:
+                    try:
 
-                    # handle event
-                    await self._handle_event(event)
+                        # handle event
+                        await self._handle_event(event)
 
-                except BaseException as exc:
-                    await self._on_handle_event_error(exc)
+                    except BaseException as exc:
+                        await self._on_handle_event_error(exc)
 
             except WrapperFatalException as exc:
                 await self._on_serving_error(exc)
@@ -214,6 +217,7 @@ class Wrapper(object):
     def _register_to_signal(self):
         signal.signal(signal.SIGUSR1, self._on_termination_signal)
         signal.signal(signal.SIGUSR2, self._on_drain_signal)
+        signal.signal(signal.SIGCONT, self._on_continue_signal)
 
     def _on_drain_signal(self, signal_number, frame):
         self._logger.debug_with('Received signal, calling draining callback',
@@ -246,6 +250,13 @@ class Wrapper(object):
             # set the flag to true so the event loop will call the termination handler
             # after the current event is handled
             self._is_termination_needed = True
+
+    def _on_continue_signal(self, signal_number, frame):
+        self._logger.debug_with('Received continue signal',
+                                signal=signal.Signals(signal_number).name)
+
+        # set this flag to False, so continue normal event processing flow
+        self.discard_events = False
 
     def _call_drain_handler(self):
         self._logger.debug('Calling platform drain handler')

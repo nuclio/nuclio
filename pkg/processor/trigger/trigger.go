@@ -371,16 +371,19 @@ func (at *AbstractTrigger) SignalWorkerDraining() error {
 	return nil
 }
 
+// SignalWorkerContinue sends a signal to all workers, telling them to resume event processing
+func (at *AbstractTrigger) SignalWorkerContinue() error {
+	if err := at.WorkerAllocator.SignalContinue(); err != nil {
+		return errors.Wrap(err, "Failed to signal all workers to drain events")
+	}
+	return nil
+}
+
 func (at *AbstractTrigger) SignalWorkerTermination() error {
 	if err := at.WorkerAllocator.SignalTermination(); err != nil {
 		return errors.Wrap(err, "Failed to signal all workers to terminate")
 	}
 	return nil
-}
-
-// ResetWorkerDrainState resets the worker draining state
-func (at *AbstractTrigger) ResetWorkerDrainState() {
-	at.WorkerAllocator.ResetDrainState()
 }
 
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {

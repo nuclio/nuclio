@@ -126,6 +126,10 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 
 	k.shutdownSignal = make(chan struct{}, 1)
 
+	if err = k.SignalWorkerContinue(); err != nil {
+		return errors.Wrap(err, "Failed to signal worker to continue")
+	}
+
 	// start consumption in the background
 	go func() {
 		for {
@@ -309,11 +313,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	readyForRebalanceChan := make(chan bool)
 	defer close(readyForRebalanceChan)
 
-	// indicate whether this partition worker was drained
-	// this is used to avoid race condition where 2 different partitions sharing the same worker
-	// will both try to reset the drain flag needlessly
-	var drainedWorker bool
-
 	go func() {
 		defer common.CatchAndLogPanicWithOptions(k.ctx, // nolint: errcheck
 			k.Logger,
@@ -352,8 +351,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 				k.Logger.DebugWith("Failed to signal worker draining",
 					"err", err.Error(),
 					"partition", claim.Partition())
-			} else {
-				drainedWorker = true
 			}
 			wg.Done()
 		}()
@@ -395,10 +392,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 				panic("Failed to cancel event handling")
 			}
 		}
-	}
-
-	if drainedWorker {
-		k.ResetWorkerDrainState()
 	}
 }
 
