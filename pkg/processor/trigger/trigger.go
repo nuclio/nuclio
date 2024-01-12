@@ -371,10 +371,10 @@ func (at *AbstractTrigger) SignalWorkerDraining() error {
 	return nil
 }
 
-// SignalWorkerContinue sends a signal to all workers, telling them to resume event processing
+// SignalWorkerContinue sends a signal to all workers, telling them to continue event processing
 func (at *AbstractTrigger) SignalWorkerContinue() error {
 	if err := at.WorkerAllocator.SignalContinue(); err != nil {
-		return errors.Wrap(err, "Failed to signal all workers to drain events")
+		return errors.Wrap(err, "Failed to signal all workers to continue event processing")
 	}
 	return nil
 }
