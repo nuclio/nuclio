@@ -36,6 +36,9 @@ class Constants:
     # in msgpack protoctol, binary messages' length is 4 bytes long
     msgpack_message_length_bytes = 4
 
+    drain_signal = signal.SIGUSR1
+    termination_signal = signal.SIGUSR1
+
 
 class WrapperFatalException(Exception):
     """
@@ -223,11 +226,11 @@ class Wrapper(object):
                 raise
 
     def _register_to_signal(self):
-        on_termination_signal = functools.partial(self._on_termination_signal, "SIGUSR1")
-        on_drain_signal = functools.partial(self._on_drain_signal, "SIGUSR2")
+        on_termination_signal = functools.partial(self._on_termination_signal, Constants.termination_signal.name)
+        on_drain_signal = functools.partial(self._on_drain_signal, Constants.drain_signal.name)
 
-        asyncio.get_running_loop().add_signal_handler(signal.SIGUSR1, on_termination_signal)
-        asyncio.get_running_loop().add_signal_handler(signal.SIGUSR2, on_drain_signal)
+        asyncio.get_running_loop().add_signal_handler(Constants.termination_signal, on_termination_signal)
+        asyncio.get_running_loop().add_signal_handler(Constants.drain_signal, on_drain_signal)
 
     def _on_drain_signal(self, signal_name):
         self._logger.debug_with('Received signal, calling draining callback', signal=signal_name)
