@@ -36,8 +36,8 @@ class Constants:
     # in msgpack protoctol, binary messages' length is 4 bytes long
     msgpack_message_length_bytes = 4
 
-    drain_signal = signal.SIGUSR1
     termination_signal = signal.SIGUSR1
+    drain_signal = signal.SIGUSR2
 
 
 class WrapperFatalException(Exception):
