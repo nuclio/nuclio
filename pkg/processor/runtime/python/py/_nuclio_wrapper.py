@@ -232,12 +232,14 @@ class Wrapper(object):
     def _on_drain_signal(self, signal_name):
         self._logger.debug_with('Received signal, calling draining callback', signal=signal_name)
         self._is_drain_needed = True
+        # if serving loop is waiting for an event, unblock this operation to allow the drain callback to be called
         if self._event_message_length_task:
             self._event_message_length_task.cancel()
 
     def _on_termination_signal(self, signal_name):
         self._logger.debug_with('Received signal, calling termination callback', signal=signal_name)
         self._is_termination_needed = True
+        # if serving loop is waiting for an event, unblock this operation to allow the termination callback to be called
         if self._event_message_length_task:
             self._event_message_length_task.cancel()
 
