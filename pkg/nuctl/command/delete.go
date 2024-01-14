@@ -30,6 +30,7 @@ import (
 type deleteCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
+	forceDelete    bool
 }
 
 func newDeleteCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *deleteCommandeer {
@@ -42,6 +43,8 @@ func newDeleteCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 		Aliases: []string{"del"},
 		Short:   "Delete resources",
 	}
+
+	cmd.PersistentFlags().BoolVarP(&commandeer.forceDelete, "force", "f", false, "Force delete resources")
 
 	deleteFunctionCommand := newDeleteFunctionCommandeer(ctx, commandeer).cmd
 	deleteProjectCommand := newDeleteProjectCommandeer(ctx, commandeer).cmd
@@ -90,9 +93,14 @@ func newDeleteFunctionCommandeer(ctx context.Context, deleteCommandeer *deleteCo
 			commandeer.functionConfig.Meta.Name = args[0]
 			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(ctx, &platform.DeleteFunctionOptions{
+			deleteFunctionOptions := &platform.DeleteFunctionOptions{
 				FunctionConfig: commandeer.functionConfig,
-			})
+			}
+			if deleteCommandeer.forceDelete {
+				deleteFunctionOptions.IgnoreFunctionStateValidation = true
+			}
+
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(ctx, deleteFunctionOptions)
 		},
 	}
 
@@ -133,9 +141,14 @@ func newDeleteProjectCommandeer(ctx context.Context, deleteCommandeer *deleteCom
 			commandeer.projectMeta.Name = args[0]
 			commandeer.projectMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
+			deletionStrategy := platform.ResolveProjectDeletionStrategyOrDefault(commandeer.deletionStrategy)
+			if commandeer.forceDelete {
+				deletionStrategy = platform.DeleteProjectStrategyCascading
+			}
+
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(ctx, &platform.DeleteProjectOptions{
 				Meta:     commandeer.projectMeta,
-				Strategy: platform.ResolveProjectDeletionStrategyOrDefault(commandeer.deletionStrategy),
+				Strategy: deletionStrategy,
 
 				// wait until all project related resources would be removed
 				WaitForResourcesDeletionCompletion:         commandeer.wait,
