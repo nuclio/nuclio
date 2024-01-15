@@ -251,9 +251,8 @@ class Wrapper(object):
         if self._event_message_length_task:
             self._event_message_length_task.cancel()
 
-    def _on_continue_signal(self, signal_number, frame):
-        self._logger.debug_with('Received continue signal',
-                                signal=signal.Signals(signal_number).name)
+    def _on_continue_signal(self, signal_name):
+        self._logger.debug_with('Received continue signal', signal=signal_name)
 
         # set this flag to False, so continue normal event processing flow
         self._discard_events = False
