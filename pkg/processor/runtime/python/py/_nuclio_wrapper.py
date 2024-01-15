@@ -166,7 +166,7 @@ class Wrapper(object):
                 await self._on_serving_error(exc)
 
             except asyncio.CancelledError:
-                self._logger.debug(f'Waiting for event message was interrupted by a signal')
+                self._logger.debug('Waiting for event message was interrupted by a signal')
 
             except Exception as exc:
                 await self._on_serving_error(exc)
