@@ -323,7 +323,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, false)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -579,7 +579,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}
 
 			// run validation
-			err = suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err = suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, false)
 			if testCase.validationError != "" {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 				suite.Require().Equal(testCase.validationError, errors.RootCause(err).Error())

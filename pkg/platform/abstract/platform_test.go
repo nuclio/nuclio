@@ -280,7 +280,7 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 		suite.Require().NoError(err)
 
 		// validate
-		err = suite.Platform.ValidateFunctionConfig(suite.ctx, functionConfig)
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, functionConfig, false)
 		if testCase.ExpectedError != "" {
 			suite.Assert().Error(err)
 			suite.Assert().Equal(testCase.ExpectedError, errors.RootCause(err).Error())
@@ -890,7 +890,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function config")
 
-		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, false)
 		if MinMaxReplicas.shouldFailValidation {
 			suite.Error(err, "Validation should fail")
 			suite.Logger.DebugWith("Validation failed as expected ", "functionName", functionName)
@@ -1078,7 +1078,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 		suite.Require().NoError(err, "Failed to enrich function")
 
-		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+		err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, false)
 		if testCase.shouldFailValidation {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			continue
@@ -1209,7 +1209,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 			Return([]platform.Project{&platform.AbstractProject{}}, nil).
 			Once()
 
-		err := suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig)
+		err := suite.Platform.ValidateFunctionConfig(suite.ctx, &functionConfig, false)
 		if !testCase.valid {
 			suite.Require().Error(err, "Validation passed unexpectedly")
 			suite.Logger.InfoWith("Expected error received", "err", err, "functionConfig", functionConfig)
@@ -1449,7 +1449,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
-			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, false)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -1529,7 +1529,7 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
-			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, false)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -1695,7 +1695,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err)
 
-			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, false)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -1830,7 +1830,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 			err := suite.Platform.EnrichFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			suite.Require().NoError(err, "Failed to enrich function")
 
-			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err = suite.Platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig, false)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {

@@ -418,7 +418,7 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 }
 
 // ValidateFunctionConfig validates and enforces of required function creation logic
-func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
 
 	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
 		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
@@ -430,7 +430,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Docker image fields validation failed")
 	}
 
-	if err := ap.validateTriggers(functionConfig); err != nil {
+	if err := ap.validateTriggers(ctx, functionConfig, autofix); err != nil {
 		return errors.Wrap(err, "Triggers validation failed")
 	}
 
@@ -1567,7 +1567,7 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 	return nil
 }
 
-func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) error {
+func (ap *Platform) validateTriggers(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
 	var httpTriggerExists bool
 
 	// validate ingresses structure correctness
@@ -1639,7 +1639,13 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 			maxReplicas := functionConfig.Spec.MaxReplicas
 			if minReplicas != nil {
 				if maxReplicas != nil && *minReplicas != *maxReplicas {
-					return nuclio.NewErrBadRequest("V3IO Stream trigger does not support autoscaling")
+					if autofix {
+						ap.Logger.WarnWithCtx(ctx, "Setting maxReplicas to minReplicas for function",
+							"function", functionConfig.Meta.Name)
+						functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
+					} else {
+						return nuclio.NewErrBadRequest("V3IO Stream trigger does not support autoscaling")
+					}
 				}
 			}
 		}

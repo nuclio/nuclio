@@ -115,12 +115,13 @@ func (fr *FunctionReports) SprintfError() string {
 	return report
 }
 
-func (fr *FunctionReports) AddFailure(name string, err error) {
+func (fr *FunctionReports) AddFailure(name string, err error, canBeAutoFixed bool) {
 	fr.mutex.Lock()
 	defer fr.mutex.Unlock()
 
 	fr.Failed[name] = &FailReport{
-		FailReason: err.Error(),
+		FailReason:     err.Error(),
+		CanBeAutoFixed: canBeAutoFixed,
 	}
 }
 

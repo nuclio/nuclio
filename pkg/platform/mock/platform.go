@@ -87,7 +87,7 @@ func (mp *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	return args.Error(0)
 }
 
-func (mp *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (mp *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
 	args := mp.Called(ctx, functionConfig)
 	return args.Error(0)
 }
