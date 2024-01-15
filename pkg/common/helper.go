@@ -123,6 +123,23 @@ func StringSliceContainsStringCaseInsensitive(slice []string, str string) bool {
 	return false
 }
 
+// PrependStringToStringSlice prepends a string to a string slice
+func PrependStringToStringSlice(slice []string, str string) []string {
+	slice = append(slice, "")
+	copy(slice[1:], slice)
+	slice[0] = str
+	return slice
+}
+
+// PrependStringsToStringSlice prepends multiple strings to a string slice
+func PrependStringsToStringSlice(slice []string, strs ...string) []string {
+	totalLen := len(slice) + len(strs)
+	slice = append(slice, make([]string, len(strs))...)
+	copy(slice[len(strs):], slice)
+	copy(slice, strs)
+	return slice[:totalLen]
+}
+
 // RemoveANSIColorsFromString strips out ANSI Colors chars from string
 // example: "\u001b[31mHelloWorld" -> "HelloWorld"
 func RemoveANSIColorsFromString(s string) string {
