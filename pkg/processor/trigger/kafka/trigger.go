@@ -126,15 +126,19 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 
 	k.shutdownSignal = make(chan struct{}, 1)
 
-	if err = k.SignalWorkerContinue(); err != nil {
-		return errors.Wrap(err, "Failed to signal worker to continue")
-	}
-
 	// start consumption in the background
 	go func() {
 		for {
 			k.ctx = context.Background()
 			k.Logger.DebugWith("Starting to consume from broker", "topics", k.configuration.Topics)
+
+			// signal workers to continue event processing
+			if err = k.SignalWorkerContinue(); err != nil {
+				k.Logger.WarnWith("Failed to signal worker to continue event processing",
+					"err", err)
+				time.Sleep(1 * time.Second)
+				continue
+			}
 
 			// start consuming. this will exit without error if a rebalancing occurs
 			if err := k.consumerGroup.Consume(k.ctx, k.configuration.Topics, k); err != nil {

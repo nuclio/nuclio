@@ -242,7 +242,7 @@ func (r *AbstractRuntime) Drain() error {
 	return nil
 }
 
-// Continue signals to the runtime to continue event processing
+// Continue signals the runtime to continue event processing
 func (r *AbstractRuntime) Continue() error {
 	// we use SIGCONT to signal the wrapper process to continue event processing
 	if err := r.signal(syscall.SIGCONT); err != nil {

@@ -65,7 +65,7 @@ type Runtime interface {
 	// Drain signals to the runtime process to drain its accumulated events and waits for it to finish
 	Drain() error
 
-	// Continue signals to the runtime process to continue event processing
+	// Continue signals the runtime process to continue event processing
 	Continue() error
 
 	// Terminate signals to the runtime process that processor is about to stop working

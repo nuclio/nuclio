@@ -38,6 +38,7 @@ class Constants:
 
     termination_signal = signal.SIGUSR1
     drain_signal = signal.SIGUSR2
+    continue_signal = signal.SIGCONT
 
 
 class WrapperFatalException(Exception):
@@ -125,7 +126,7 @@ class Wrapper(object):
         # initialize flags
         self._is_drain_needed = False
         self._is_termination_needed = False
-        self.discard_events = False
+        self._discard_events = False
 
         self._event_message_length_task = None
 
@@ -143,7 +144,7 @@ class Wrapper(object):
                 self._event_message_length_task = None
 
                 # do not process event if worker is drained
-                if not self.discard_events:
+                if not self._discard_events:
                     # resolve event message
                     event = await self._resolve_event(self._event_sock, event_message_length)
 
@@ -179,6 +180,8 @@ class Wrapper(object):
                     result = self._call_drain_handler()
                     if asyncio.iscoroutine(result):
                         await result
+                    self._discard_events = True
+
                 if self._is_termination_needed:
                     result = self._call_termination_handler()
                     if asyncio.iscoroutine(result):
@@ -234,6 +237,7 @@ class Wrapper(object):
         on_continue_signal = functools.partial(self._on_continue_signal, Constants.continue_signal.name)
         asyncio.get_running_loop().add_signal_handler(Constants.termination_signal, on_termination_signal)
         asyncio.get_running_loop().add_signal_handler(Constants.drain_signal, on_drain_signal)
+        asyncio.get_running_loop().add_signal_handler(Constants.continue_signal, on_continue_signal)
 
     def _on_drain_signal(self, signal_name):
         self._logger.debug_with('Received signal, calling draining callback', signal=signal_name)
@@ -254,7 +258,7 @@ class Wrapper(object):
                                 signal=signal.Signals(signal_number).name)
 
         # set this flag to False, so continue normal event processing flow
-        self.discard_events = False
+        self._discard_events = False
 
     def _call_drain_handler(self):
         self._logger.debug('Calling platform drain handler')
