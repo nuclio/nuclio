@@ -1412,7 +1412,7 @@ func (suite *functionGetTestSuite) TestGet() {
 		parsedFunction, err := suite.getFunctionInFormat(testCase.FunctionName, testCase.OutputFormat)
 
 		// ensure parsing went well, and response is valid (json/yaml)
-		suite.Require().NoError(err, "Failed to unmarshal function")
+		suite.Require().NoError(err, "Failed to unmarshal function", testCase.OutputFormat)
 
 		// sanity, we got the function we asked for
 		suite.Assert().Equal(testCase.FunctionName, parsedFunction.Meta.Name)
@@ -1423,7 +1423,7 @@ type functionDeleteTestSuite struct {
 	Suite
 }
 
-func (suite *functionGetTestSuite) TestDelete() {
+func (suite *functionDeleteTestSuite) TestDelete() {
 	var err error
 
 	uniqueSuffix := "-" + xid.New().String()
@@ -1476,7 +1476,7 @@ func (suite *functionGetTestSuite) TestDelete() {
 	suite.Require().NoError(err, "Function was suppose to be deleted!")
 }
 
-func (suite *functionGetTestSuite) TestForceDelete() {
+func (suite *functionDeleteTestSuite) TestForceDelete() {
 	var err error
 
 	uniqueSuffix := "-" + xid.New().String()
