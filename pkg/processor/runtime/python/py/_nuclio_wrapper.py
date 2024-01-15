@@ -176,9 +176,9 @@ class Wrapper(object):
             finally:
                 if self._is_drain_needed and not self._discard_events:
                     result = self._call_drain_handler()
+                    self._discard_events = True
                     if asyncio.iscoroutine(result):
                         await result
-                    self._discard_events = True
                 self._is_drain_needed = False
 
                 if self._is_termination_needed:
