@@ -143,16 +143,14 @@ class Wrapper(object):
 
                 self._event_message_length_task = None
 
-                # do not process event if worker is drained
+                # resolve event message
+                event = await self._resolve_event(self._event_sock, event_message_length)
+
+                # do not handle an event if a worker is drained
                 if not self._discard_events:
-                    # resolve event message
-                    event = await self._resolve_event(self._event_sock, event_message_length)
-
                     try:
-
                         # handle event
                         await self._handle_event(event)
-
                     except BaseException as exc:
                         await self._on_handle_event_error(exc)
 
