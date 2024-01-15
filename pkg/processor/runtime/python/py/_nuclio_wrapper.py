@@ -174,11 +174,12 @@ class Wrapper(object):
                 await self._on_serving_error(exc)
 
             finally:
-                if self._is_drain_needed:
+                if self._is_drain_needed and not self._discard_events:
                     result = self._call_drain_handler()
                     if asyncio.iscoroutine(result):
                         await result
                     self._discard_events = True
+                self._is_drain_needed = False
 
                 if self._is_termination_needed:
                     result = self._call_termination_handler()
@@ -233,6 +234,7 @@ class Wrapper(object):
         on_termination_signal = functools.partial(self._on_termination_signal, Constants.termination_signal.name)
         on_drain_signal = functools.partial(self._on_drain_signal, Constants.drain_signal.name)
         on_continue_signal = functools.partial(self._on_continue_signal, Constants.continue_signal.name)
+
         asyncio.get_running_loop().add_signal_handler(Constants.termination_signal, on_termination_signal)
         asyncio.get_running_loop().add_signal_handler(Constants.drain_signal, on_drain_signal)
         asyncio.get_running_loop().add_signal_handler(Constants.continue_signal, on_continue_signal)
