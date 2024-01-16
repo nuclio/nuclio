@@ -141,10 +141,7 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 		rootCommandeer.GetCmd().SetIn(suite.stdinReader)
 	}
 
-	// since args[0] is the executable name, just shove something there
-	argsStringSlice := []string{
-		"nuctl",
-	}
+	var argsStringSlice []string
 
 	// add positional arguments
 	argsStringSlice = append(argsStringSlice, positionalArgs...)
@@ -152,6 +149,14 @@ func (suite *Suite) ExecuteNuctl(positionalArgs []string,
 	for argName, argValue := range namedArgs {
 		argsStringSlice = append(argsStringSlice, fmt.Sprintf("--%s", argName), argValue)
 	}
+
+	if suite.isNamespaceRequired() && !suite.namespaceInArgs(positionalArgs, namedArgs) {
+		// prepend namespace to args
+		argsStringSlice = common.PrependStringsToStringSlice(argsStringSlice, "--namespace", suite.namespace)
+	}
+
+	// since args[0] is the executable name, just shove the binary there
+	argsStringSlice = common.PrependStringToStringSlice(argsStringSlice, "nuctl")
 
 	// override os.Args (this can't go wrong horribly, can it?)
 	os.Args = argsStringSlice
@@ -379,4 +384,20 @@ func (suite *Suite) ensureRunningOnPlatform(expectedPlatformKind string) {
 			expectedPlatformKind,
 			suite.origPlatformKind)
 	}
+}
+
+func (suite *Suite) namespaceInArgs(positionalArgs []string, namedArgs map[string]string) bool {
+	if common.StringSliceContainsString(positionalArgs, "--namespace") || common.StringSliceContainsString(positionalArgs, "-n") {
+		return true
+	}
+
+	if _, ok := namedArgs["namespace"]; ok {
+		return true
+	}
+
+	return false
+}
+
+func (suite *Suite) isNamespaceRequired() bool {
+	return suite.namespace != "" && common.GetKubeconfigPath("") != ""
 }
