@@ -244,9 +244,11 @@ class Wrapper(object):
 
         self._logger.debug_with('Received signal, calling draining callback', signal=signal_name)
         self._is_drain_needed = True
-        # if serving loop is waiting for an event, unblock this operation to allow the drain callback to be called
+
         # set the flag to True to stop processing events which are received after draining
         self._discard_events = True
+
+        # if serving loop is waiting for an event, unblock this operation to allow the drain callback to be called
         if self._event_message_length_task:
             self._event_message_length_task.cancel()
 
