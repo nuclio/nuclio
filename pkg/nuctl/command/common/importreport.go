@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
 type ProjectReports struct {
-	Reports map[string]*ProjectReport
+	Reports map[string]*ProjectReport `json:"reports,omitempty"`
 }
 
 func NewProjectReports() *ProjectReports {
@@ -56,11 +57,11 @@ func (pr *ProjectReports) SprintfError() string {
 }
 
 type ProjectReport struct {
-	Name            string
-	Skipped         bool
-	Success         bool
-	Failed          *FailReport
-	FunctionReports *FunctionReports
+	Name            string           `json:"name,omitempty"`
+	Skipped         bool             `json:"skipped,omitempty"`
+	Success         bool             `json:"success,omitempty"`
+	Failed          *FailReport      `json:"failed,omitempty"`
+	FunctionReports *FunctionReports `json:"functionReports,omitempty"`
 }
 
 func NewProjectReport(name string) *ProjectReport {
@@ -89,8 +90,8 @@ func (pr *ProjectReport) SprintfError() string {
 }
 
 type FunctionReports struct {
-	Success []string
-	Failed  map[string]*FailReport
+	Success []string               `json:"success,omitempty"`
+	Failed  map[string]*FailReport `json:"failed,omitempty"`
 
 	mutex sync.Mutex
 }
@@ -119,8 +120,10 @@ func (fr *FunctionReports) AddFailure(name string, err error) {
 	fr.mutex.Lock()
 	defer fr.mutex.Unlock()
 
+	typedErr := err.(*errors.Error)
+
 	fr.Failed[name] = &FailReport{
-		FailReason: err.Error(),
+		FailReason: typedErr.Cause().Error(),
 	}
 }
 
@@ -132,6 +135,6 @@ func (fr *FunctionReports) AddSuccess(name string) {
 }
 
 type FailReport struct {
-	FailReason     string
-	CanBeAutoFixed bool
+	FailReason     string `json:"failReason,omitempty"`
+	CanBeAutoFixed bool   `json:"canBeAutoFixed,omitempty"`
 }
