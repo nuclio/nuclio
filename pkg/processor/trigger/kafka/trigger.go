@@ -133,7 +133,7 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 			k.Logger.DebugWith("Starting to consume from broker", "topics", k.configuration.Topics)
 
 			// signal workers to continue event processing
-			if err = k.SignalWorkerContinue(); err != nil {
+			if err = k.SignalWorkersToContinue(); err != nil {
 				k.Logger.WarnWith("Failed to signal worker to continue event processing",
 					"err", err)
 				continue
@@ -350,7 +350,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			// this needs to occur once. the reason is that this specific function (ConsumeClaim)
 			// runs in parallel for each partition, and we want to make sure that we only
 			// drain the workers once.
-			if err := k.SignalWorkerDraining(); err != nil {
+			if err := k.SignalWorkersToDrain(); err != nil {
 				k.Logger.DebugWith("Failed to signal worker draining",
 					"err", err.Error(),
 					"partition", claim.Partition())

@@ -232,7 +232,7 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 func (r *AbstractRuntime) Drain() error {
 	// we use SIGUSR2 to signal the wrapper process to drain events
 	if err := r.signal(syscall.SIGUSR2); err != nil {
-		return errors.Wrap(err, "Failed to signal wrapper process")
+		return errors.Wrap(err, "Failed to signal wrapper process to drain")
 	}
 
 	// wait for process to finish event handling or timeout
@@ -246,7 +246,7 @@ func (r *AbstractRuntime) Drain() error {
 func (r *AbstractRuntime) Continue() error {
 	// we use SIGCONT to signal the wrapper process to continue event processing
 	if err := r.signal(syscall.SIGCONT); err != nil {
-		return errors.Wrap(err, "Failed to signal wrapper process")
+		return errors.Wrap(err, "Failed to signal wrapper process to continue")
 	}
 
 	return nil
@@ -257,7 +257,7 @@ func (r *AbstractRuntime) Terminate() error {
 
 	// we use SIGUSR1 to signal the wrapper process to terminate
 	if err := r.signal(syscall.SIGUSR1); err != nil {
-		return errors.Wrap(err, "Failed to signal wrapper process")
+		return errors.Wrap(err, "Failed to signal wrapper process to terminate")
 	}
 
 	// wait for process to finish event handling or timeout

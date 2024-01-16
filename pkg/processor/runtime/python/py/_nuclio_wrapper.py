@@ -176,7 +176,6 @@ class Wrapper(object):
             finally:
                 if self._is_drain_needed and not self._discard_events:
                     result = self._call_drain_handler()
-                    self._discard_events = True
                     if asyncio.iscoroutine(result):
                         await result
                 self._is_drain_needed = False
@@ -264,6 +263,9 @@ class Wrapper(object):
 
         # set the flag to False so the drain handler will not be called more than once
         self._is_drain_needed = False
+
+        # set the flag to True to stop processing events which are received after draining
+        self._discard_events = True
         return self._platform._on_signal(callback_type="drain")
 
     def _call_termination_handler(self):
