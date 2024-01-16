@@ -120,10 +120,8 @@ func (fr *FunctionReports) AddFailure(name string, err error) {
 	fr.mutex.Lock()
 	defer fr.mutex.Unlock()
 
-	typedErr := err.(*errors.Error)
-
 	fr.Failed[name] = &FailReport{
-		FailReason: typedErr.Cause().Error(),
+		FailReason: errors.RootCause(err).Error(),
 	}
 }
 
