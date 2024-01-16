@@ -1107,6 +1107,11 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 		return createFunctionOptions.FunctionConfig.Spec.GetHTTPPort(), nil
 	}
 
+	// check http trigger annotations for avoiding port publishing
+	if p.disablePortPublishing(createFunctionOptions) {
+		return dockerclient.RunOptionsNoPort, nil
+	}
+
 	// if there was a previous deployment and no configuration - use that
 	if previousHTTPPort != 0 {
 		createFunctionOptions.Logger.DebugWith("Using previous deployment HTTP port ",
@@ -1114,13 +1119,26 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 		return previousHTTPPort, nil
 	}
 
+	return dockerclient.RunOptionsRandomPort, nil
+}
+
+func (p *Platform) disablePortPublishing(createFunctionOptions *platform.CreateFunctionOptions) bool {
+
 	// HACK: to allow users to use existing configuration to disable exposing the function on the host network,
 	// we use the service type to determine whether to expose the function on the host network or not
 	if createFunctionOptions.FunctionConfig.Spec.ServiceType == v1.ServiceTypeNodePort {
-		return dockerclient.RunOptionsNoPort, nil
+		return true
 	}
 
-	return dockerclient.RunOptionsRandomPort, nil
+	// since service type is not exposed in the UI for local platform, we use annotations to determine whether to expose
+	// the function on the host network or not
+	if annotations := createFunctionOptions.FunctionConfig.Meta.Annotations; annotations != nil {
+		if _, ok := annotations["nuclio.io/disable-port-publishing"]; ok {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, error) {

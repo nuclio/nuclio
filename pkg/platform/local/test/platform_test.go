@@ -313,26 +313,53 @@ func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
 		})
 }
 
-func (suite *TestSuite) TestDeployFunctionWithoutPublishingPorts() {
+func (suite *TestSuite) TestDeployFunctionDisablePublishingPorts() {
 	createFunctionOptions := suite.getDeployOptions("no-publish-ports")
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
-
-	// use the hack and set service type to NodePort to avoid publishing ports
-	createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
 	localPlatform := suite.Platform.(*local.Platform)
-	suite.DeployFunction(createFunctionOptions,
-		func(deployResult *platform.CreateFunctionResult) bool {
-			containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
-				Name: localPlatform.GetFunctionContainerName(&createFunctionOptions.FunctionConfig),
-			})
-			suite.Require().NoError(err, "Failed to get containers")
-			suite.Require().Len(containers, 1, "Expected to get one container")
 
-			// check that the container is not published
-			suite.Require().Empty(containers[0].NetworkSettings.Ports)
+	for _, testCase := range []struct {
+		name           string
+		useServiceType bool
+	}{
+		{
+			name:           "DisableWithServiceTypeNodePort",
+			useServiceType: true,
+		},
+		{
+			name:           "DisableWithAnnotation",
+			useServiceType: false,
+		},
+	} {
+		suite.Run(testCase.name, func() {
 
-			return true
+			if testCase.useServiceType {
+				// use the hack and set service type to NodePort to avoid publishing ports
+				createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
+			} else {
+				// use the annotation to avoid publishing ports
+				createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
+					"nuclio.io/disable-port-publishing": "true",
+				}
+				// reset service type to ClusterIP
+				createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
+			}
+
+			suite.DeployFunction(createFunctionOptions,
+				func(deployResult *platform.CreateFunctionResult) bool {
+					containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+						Name: localPlatform.GetFunctionContainerName(&createFunctionOptions.FunctionConfig),
+					})
+					suite.Require().NoError(err, "Failed to get containers")
+					suite.Require().Len(containers, 1, "Expected to get one container")
+
+					// check that the container is not published
+					suite.Require().Empty(containers[0].NetworkSettings.Ports)
+
+					return true
+				})
 		})
+	}
 }
 
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
