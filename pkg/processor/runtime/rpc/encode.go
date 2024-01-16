@@ -47,6 +47,7 @@ func eventAsMap(event nuclio.Event) map[string]interface{} {
 		"type_version": event.GetTypeVersion(),
 		"version":      event.GetVersion(),
 		"offset":       event.GetOffset(),
+		"topic":        event.GetPath(),
 	}
 	return eventToEncode
 }
