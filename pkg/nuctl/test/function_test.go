@@ -1412,7 +1412,7 @@ func (suite *functionGetTestSuite) TestGet() {
 		parsedFunction, err := suite.getFunctionInFormat(testCase.FunctionName, testCase.OutputFormat)
 
 		// ensure parsing went well, and response is valid (json/yaml)
-		suite.Require().NoError(err, "Failed to unmarshal function")
+		suite.Require().NoError(err, "Failed to unmarshal function", testCase.OutputFormat)
 
 		// sanity, we got the function we asked for
 		suite.Assert().Equal(testCase.FunctionName, parsedFunction.Meta.Name)
@@ -1423,7 +1423,7 @@ type functionDeleteTestSuite struct {
 	Suite
 }
 
-func (suite *functionGetTestSuite) TestDelete() {
+func (suite *functionDeleteTestSuite) TestDelete() {
 	var err error
 
 	uniqueSuffix := "-" + xid.New().String()
@@ -1465,7 +1465,51 @@ func (suite *functionGetTestSuite) TestDelete() {
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
 	suite.Require().NoError(err)
 
-	// try invoke, it should failed
+	// try invoking, it should fail
+	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+			"via":    "external-ip",
+		},
+		true)
+	suite.Require().NoError(err, "Function was suppose to be deleted!")
+}
+
+func (suite *functionDeleteTestSuite) TestForceDelete() {
+	var err error
+
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime": "golang",
+		"handler": "main:Reverse",
+	}
+
+	// deploy function in goroutine
+	go func() {
+		err = suite.ExecuteNuctl([]string{
+			"deploy",
+			functionName,
+			"--verbose",
+			"--no-pull",
+		}, namedArgs)
+		suite.Require().Error(err)
+	}()
+
+	// wait for function deployment to start, then force delete the function
+	time.Sleep(3 * time.Second)
+	// function removed
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName, "--force"}, nil)
+	suite.Require().NoError(err)
+
+	// cleanup
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	// try invoking, it should fail
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
 		map[string]string{
 			"method": "POST",

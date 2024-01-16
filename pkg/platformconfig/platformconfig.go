@@ -379,7 +379,7 @@ func (c *Config) enrichContainerResources(ctx context.Context,
 
 	logger.DebugWithCtx(ctx,
 		"Populated resources with default values",
-		"resources", resources)
+		"resources", resources.String())
 }
 
 func (c *Config) getMetricSinks(metricSinkNames []string) (map[string]MetricSink, error) {
