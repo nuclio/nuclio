@@ -178,7 +178,6 @@ class Wrapper(object):
                     result = self._call_drain_handler()
                     if asyncio.iscoroutine(result):
                         await result
-                self._is_drain_needed = False
 
                 if self._is_termination_needed:
                     result = self._call_termination_handler()
@@ -239,9 +238,15 @@ class Wrapper(object):
         asyncio.get_running_loop().add_signal_handler(Constants.continue_signal, on_continue_signal)
 
     def _on_drain_signal(self, signal_name):
+        # do not perform draining if discarding events
+        if self._discard_events:
+            return
+
         self._logger.debug_with('Received signal, calling draining callback', signal=signal_name)
         self._is_drain_needed = True
         # if serving loop is waiting for an event, unblock this operation to allow the drain callback to be called
+        # set the flag to True to stop processing events which are received after draining
+        self._discard_events = True
         if self._event_message_length_task:
             self._event_message_length_task.cancel()
 
@@ -263,9 +268,6 @@ class Wrapper(object):
 
         # set the flag to False so the drain handler will not be called more than once
         self._is_drain_needed = False
-
-        # set the flag to True to stop processing events which are received after draining
-        self._discard_events = True
         return self._platform._on_signal(callback_type="drain")
 
     def _call_termination_handler(self):
