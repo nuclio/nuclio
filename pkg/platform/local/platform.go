@@ -50,6 +50,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -1113,7 +1114,13 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 		return previousHTTPPort, nil
 	}
 
-	return dockerclient.RunOptionsNoPort, nil
+	// HACK: to allow users to use existing configuration to disable exposing the function on the host network,
+	// we use the service type to determine whether to expose the function on the host network or not
+	if createFunctionOptions.FunctionConfig.Spec.ServiceType == v1.ServiceTypeNodePort {
+		return dockerclient.RunOptionsNoPort, nil
+	}
+
+	return dockerclient.RunOptionsRandomPort, nil
 }
 
 func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, error) {

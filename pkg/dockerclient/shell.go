@@ -215,9 +215,12 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	var dockerArguments []string
 
 	for localPort, dockerPort := range runOptions.Ports {
-		if localPort == RunOptionsNoPort {
+		switch localPort {
+		case RunOptionsRandomPort:
 			dockerArguments = append(dockerArguments, fmt.Sprintf("--publish '%d'", dockerPort))
-		} else {
+		case RunOptionsNoPort:
+			continue
+		default:
 			dockerArguments = append(dockerArguments, fmt.Sprintf("--publish '%d:%d'", localPort, dockerPort))
 		}
 	}
