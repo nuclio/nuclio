@@ -1130,11 +1130,15 @@ func (p *Platform) disablePortPublishing(createFunctionOptions *platform.CreateF
 		return true
 	}
 
-	// since service type is not exposed in the UI for local platform, we use annotations to determine whether to expose
-	// the function on the host network or not
-	if annotations := createFunctionOptions.FunctionConfig.Meta.Annotations; annotations != nil {
-		if _, ok := annotations["nuclio.io/disable-port-publishing"]; ok {
-			return true
+	// since service type is not exposed in the UI for local platform, we also use trigger annotations
+	// to determine whether to expose the function on the host network or not
+	for _, trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+		if trigger.Kind == "http" {
+			if annotations := trigger.Annotations; annotations != nil {
+				if disable, ok := annotations["nuclio.io/disable-port-publishing"]; ok && disable == "true" {
+					return true
+				}
+			}
 		}
 	}
 

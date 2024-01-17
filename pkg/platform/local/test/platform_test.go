@@ -334,13 +334,19 @@ func (suite *TestSuite) TestDeployFunctionDisablePublishingPorts() {
 		suite.Run(testCase.name, func() {
 
 			if testCase.useServiceType {
-				// use the hack and set service type to NodePort to avoid publishing ports
+				// use the hack and set service type to NodePort to disable publishing ports
 				createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
 			} else {
-				// use the annotation to avoid publishing ports
-				createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
-					"nuclio.io/disable-port-publishing": "true",
+				// use trigger annotation to disable publishing ports
+				createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+					"http": {
+						Kind: "http",
+						Annotations: map[string]string{
+							"nuclio.io/disable-port-publishing": "true",
+						},
+					},
 				}
+
 				// reset service type to ClusterIP
 				createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
 			}
