@@ -208,6 +208,7 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 			}
 
 			submittedEventInstance.event.record = record
+			submittedEventInstance.event.StreamPath = claim.GetStreamPath()
 			submittedEventInstance.worker = workerInstance
 
 			// handle in the goroutine so we don't block
