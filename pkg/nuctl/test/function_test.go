@@ -1612,7 +1612,7 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	suite.Require().Contains(projectReport.FunctionReports.Success, "incorrect-fixable-test-function")
 
 	suite.Require().Contains(projectReport.FunctionReports.Failed, "incorrect-not-fixable-test-function")
-	suite.Require().Equal("If image is passed, runtime must be specified", projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].FailReason)
+	suite.Require().Equal("There's more than one http trigger (unsupported)", projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].FailReason)
 	suite.Require().Equal(false, projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].CanBeAutoFixed)
 }
 

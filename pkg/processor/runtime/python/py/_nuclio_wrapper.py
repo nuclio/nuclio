@@ -38,6 +38,7 @@ class Constants:
 
     termination_signal = signal.SIGUSR1
     drain_signal = signal.SIGUSR2
+    continue_signal = signal.SIGCONT
 
 
 class WrapperFatalException(Exception):
@@ -125,6 +126,7 @@ class Wrapper(object):
         # initialize flags
         self._is_drain_needed = False
         self._is_termination_needed = False
+        self._discard_events = False
 
         self._event_message_length_task = None
 
@@ -144,13 +146,15 @@ class Wrapper(object):
                 # resolve event message
                 event = await self._resolve_event(self._event_sock, event_message_length)
 
-                try:
-
-                    # handle event
-                    await self._handle_event(event)
-
-                except BaseException as exc:
-                    await self._on_handle_event_error(exc)
+                # do not handle an event if a worker is drained
+                if not self._discard_events:
+                    try:
+                        # handle event
+                        await self._handle_event(event)
+                    except BaseException as exc:
+                        await self._on_handle_event_error(exc)
+                else:
+                    self._logger.debug_with('Event has been discarded', event=event)
 
             except WrapperFatalException as exc:
                 await self._on_serving_error(exc)
@@ -176,6 +180,7 @@ class Wrapper(object):
                     result = self._call_drain_handler()
                     if asyncio.iscoroutine(result):
                         await result
+
                 if self._is_termination_needed:
                     result = self._call_termination_handler()
                     if asyncio.iscoroutine(result):
@@ -228,23 +233,40 @@ class Wrapper(object):
     def _register_to_signal(self):
         on_termination_signal = functools.partial(self._on_termination_signal, Constants.termination_signal.name)
         on_drain_signal = functools.partial(self._on_drain_signal, Constants.drain_signal.name)
+        on_continue_signal = functools.partial(self._on_continue_signal, Constants.continue_signal.name)
 
         asyncio.get_running_loop().add_signal_handler(Constants.termination_signal, on_termination_signal)
         asyncio.get_running_loop().add_signal_handler(Constants.drain_signal, on_drain_signal)
+        asyncio.get_running_loop().add_signal_handler(Constants.continue_signal, on_continue_signal)
 
     def _on_drain_signal(self, signal_name):
-        self._logger.debug_with('Received signal, calling draining callback', signal=signal_name)
+        # do not perform draining if discarding events
+        if self._discard_events:
+            self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
+            return
+
+        self._logger.debug_with('Received signal', signal=signal_name)
         self._is_drain_needed = True
+
+        # set the flag to True to stop processing events which are received after draining
+        self._discard_events = True
+
         # if serving loop is waiting for an event, unblock this operation to allow the drain callback to be called
         if self._event_message_length_task:
             self._event_message_length_task.cancel()
 
     def _on_termination_signal(self, signal_name):
-        self._logger.debug_with('Received signal, calling termination callback', signal=signal_name)
+        self._logger.debug_with('Received signal', signal=signal_name)
         self._is_termination_needed = True
         # if serving loop is waiting for an event, unblock this operation to allow the termination callback to be called
         if self._event_message_length_task:
             self._event_message_length_task.cancel()
+
+    def _on_continue_signal(self, signal_name):
+        self._logger.debug_with('Received signal', signal=signal_name)
+
+        # set this flag to False, so continue normal event processing flow
+        self._discard_events = False
 
     def _call_drain_handler(self):
         self._logger.debug('Calling platform drain handler')

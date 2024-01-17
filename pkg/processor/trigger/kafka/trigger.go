@@ -126,11 +126,30 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 
 	k.shutdownSignal = make(chan struct{}, 1)
 
+	// sendSignalCounter is a counter to track how many times a processor attempted to send a SIGCONT to the wrapper
+	// If the counter exceeds 3, we panic and restart the function to prevent entering a zombie state
+	sendSignalCounter := 0
+
 	// start consumption in the background
 	go func() {
 		for {
 			k.ctx = context.Background()
 			k.Logger.DebugWith("Starting to consume from broker", "topics", k.configuration.Topics)
+
+			if sendSignalCounter > 3 {
+				panic("Exceeded 3 failed attempts to send SIGCONT to the wrapper")
+			}
+			sendSignalCounter += 1
+
+			// signal workers to continue event processing
+			if err := k.SignalWorkersToContinue(); err != nil {
+				k.Logger.WarnWith("Failed to signal worker to continue event processing",
+					"err", errors.GetErrorStackString(err, 10))
+				continue
+			}
+
+			// reset the counter
+			sendSignalCounter = 0
 
 			// start consuming. this will exit without error if a rebalancing occurs
 			if err := k.consumerGroup.Consume(k.ctx, k.configuration.Topics, k); err != nil {
@@ -309,11 +328,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	readyForRebalanceChan := make(chan bool)
 	defer close(readyForRebalanceChan)
 
-	// indicate whether this partition worker was drained
-	// this is used to avoid race condition where 2 different partitions sharing the same worker
-	// will both try to reset the drain flag needlessly
-	var drainedWorker bool
-
 	go func() {
 		defer common.CatchAndLogPanicWithOptions(k.ctx, // nolint: errcheck
 			k.Logger,
@@ -348,12 +362,10 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			// this needs to occur once. the reason is that this specific function (ConsumeClaim)
 			// runs in parallel for each partition, and we want to make sure that we only
 			// drain the workers once.
-			if err := k.SignalWorkerDraining(); err != nil {
+			if err := k.SignalWorkersToDrain(); err != nil {
 				k.Logger.DebugWith("Failed to signal worker draining",
 					"err", err.Error(),
 					"partition", claim.Partition())
-			} else {
-				drainedWorker = true
 			}
 			wg.Done()
 		}()
@@ -395,10 +407,6 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 				panic("Failed to cancel event handling")
 			}
 		}
-	}
-
-	if drainedWorker {
-		k.ResetWorkerDrainState()
 	}
 }
 

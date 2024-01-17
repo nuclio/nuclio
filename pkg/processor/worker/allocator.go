@@ -54,11 +54,11 @@ type Allocator interface {
 	// SignalDraining signals all workers to drain events
 	SignalDraining() error
 
+	// SignalContinue signals all workers to continue event processing
+	SignalContinue() error
+
 	// SignalTermination signals all workers to terminate
 	SignalTermination() error
-
-	// ResetDrainState resets drain state of all workers
-	ResetDrainState()
 
 	// IsTerminated returns true if all workers are terminated
 	IsTerminated() bool
@@ -118,13 +118,13 @@ func (s *singleton) SignalDraining() error {
 	return s.worker.Drain()
 }
 
+func (s *singleton) SignalContinue() error {
+	return s.worker.Continue()
+}
+
 func (s *singleton) SignalTermination() error {
 	s.isTerminated = true
 	return s.worker.Terminate()
-}
-
-func (s *singleton) ResetDrainState() {
-	s.worker.setDrained(false)
 }
 
 func (s *singleton) IsTerminated() bool {
@@ -254,6 +254,27 @@ func (fp *fixedPool) SignalDraining() error {
 	return nil
 }
 
+func (fp *fixedPool) SignalContinue() error {
+	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
+
+	for _, workerInstance := range fp.GetWorkers() {
+		workerInstance := workerInstance
+
+		errGroup.Go(fmt.Sprintf("Send continue signal to worker %d", workerInstance.GetIndex()), func() error {
+			if err := workerInstance.Continue(); err != nil {
+				return errors.Wrapf(err, "Failed to signal worker %d to continue event processing", workerInstance.GetIndex())
+			}
+			return nil
+		})
+	}
+
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "At least one worker failed to continue")
+	}
+
+	return nil
+}
+
 func (fp *fixedPool) SignalTermination() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), fp.logger)
 	fp.isTerminated = true
@@ -274,12 +295,6 @@ func (fp *fixedPool) SignalTermination() error {
 	}
 
 	return nil
-}
-
-func (fp *fixedPool) ResetDrainState() {
-	for _, workerInstance := range fp.GetWorkers() {
-		workerInstance.setDrained(false)
-	}
 }
 
 func (fp *fixedPool) IsTerminated() bool {

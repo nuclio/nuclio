@@ -72,6 +72,13 @@ functions:
         skip-deploy: "true"
       name: incorrect-not-fixable-test-function
     spec:
+      triggers:
+        myHttpTrigger:
+          maxWorkers: 1
+          kind: "http"
+        anotherHTTP:
+          maxWorkers: 1
+          kind: "http"
       alias: latest
       build:
         codeEntryType: sourceCode

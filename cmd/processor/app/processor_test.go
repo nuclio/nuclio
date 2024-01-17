@@ -232,12 +232,17 @@ func (t *testTrigger) TimeoutWorker(worker *worker.Worker) error {
 	return nil
 }
 
-func (t *testTrigger) SignalWorkerDraining() error {
+func (t *testTrigger) SignalWorkersToDrain() error {
 	t.Called()
 	return nil
 }
 
-func (t *testTrigger) SignalWorkerTermination() error {
+func (t *testTrigger) SignalWorkersToTerminate() error {
+	t.Called()
+	return nil
+}
+
+func (t *testTrigger) SignalWorkersToContinue() error {
 	t.Called()
 	return nil
 }
