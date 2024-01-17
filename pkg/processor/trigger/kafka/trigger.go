@@ -126,11 +126,20 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 
 	k.shutdownSignal = make(chan struct{}, 1)
 
+	// sendSignalCounter is a counter to track how many times a processor attempted to send a SIGCONT to the wrapper
+	// If the counter exceeds 3, we panic and restart the function to prevent entering a zombie state
+	sendSignalCounter := 0
+
 	// start consumption in the background
 	go func() {
 		for {
 			k.ctx = context.Background()
 			k.Logger.DebugWith("Starting to consume from broker", "topics", k.configuration.Topics)
+
+			if sendSignalCounter > 3 {
+				panic("Exceeded 3 failed attempts to send SIGCONT to the wrapper")
+			}
+			sendSignalCounter += 1
 
 			// signal workers to continue event processing
 			if err = k.SignalWorkersToContinue(); err != nil {
@@ -138,6 +147,9 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 					"err", err)
 				continue
 			}
+
+			// reset the counter
+			sendSignalCounter = 0
 
 			// start consuming. this will exit without error if a rebalancing occurs
 			if err := k.consumerGroup.Consume(k.ctx, k.configuration.Topics, k); err != nil {
