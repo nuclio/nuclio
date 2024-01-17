@@ -207,7 +207,7 @@ func (i *importCommandeer) importFunctions(ctx context.Context,
 
 	if errorReport := report.SprintfError(); errorReport != "" {
 		return errors.New(fmt.Sprintf(
-			"Import failed for some of the functions. Project: `%s`.",
+			"Import failed for some of the functions in project `%s`.",
 			project.Meta.Name),
 		)
 	}

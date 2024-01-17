@@ -19,6 +19,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"sync"
 
 	"github.com/nuclio/errors"
@@ -45,7 +46,7 @@ func (pr *ProjectReports) GetReport(projectName string) (report *ProjectReport, 
 }
 
 func (pr *ProjectReports) SaveToFile(ctx context.Context, loggerInstance logger.Logger, path string) {
-	saveReportToFile(ctx, loggerInstance, pr.Reports, path)
+	saveReportToFile(ctx, loggerInstance, pr, path)
 }
 
 func (pr *ProjectReports) SprintfError() string {
@@ -54,6 +55,13 @@ func (pr *ProjectReports) SprintfError() string {
 		report += projectReport.SprintfError()
 	}
 	return report
+}
+
+func (pr *ProjectReports) PrintAsTable(t table.Writer, onlyFailed bool) {
+	t.AppendHeader(table.Row{"type", "name", "status", "fail description", "auto-fixable"})
+	for _, report := range pr.Reports {
+		report.PrintAsTable(t, onlyFailed)
+	}
 }
 
 type ProjectReport struct {
@@ -89,6 +97,32 @@ func (pr *ProjectReport) SprintfError() string {
 	return ""
 }
 
+func (pr *ProjectReport) PrintAsTable(t table.Writer, onlyFailed bool) {
+	status := pr.getStatus()
+	switch status {
+	case "failed":
+		t.AppendRow(table.Row{"project", pr.Name, pr.getStatus(), pr.Failed.FailReason, pr.Failed.CanBeAutoFixed})
+	default:
+		if !onlyFailed {
+			t.AppendRow(table.Row{"project", pr.Name, pr.getStatus(), "", ""})
+		}
+	}
+	pr.FunctionReports.PrintAsTable(t, onlyFailed)
+}
+
+func (pr *ProjectReport) getStatus() string {
+	switch {
+	case pr.Skipped:
+		return "skipped"
+	case pr.Failed != nil:
+		return "failed"
+	case pr.Success:
+		return "success"
+	default:
+		return "unknown"
+	}
+}
+
 type FunctionReports struct {
 	Success []string               `json:"success,omitempty"`
 	Failed  map[string]*FailReport `json:"failed,omitempty"`
@@ -114,6 +148,24 @@ func (fr *FunctionReports) SprintfError() string {
 	}
 
 	return report
+}
+
+func (fr *FunctionReports) PrintAsTable(t table.Writer, onlyFailed bool) {
+	t.ResetHeaders()
+	t.AppendHeader(table.Row{"type", "name", "status", "fail description", "auto-fixable"})
+	if !onlyFailed {
+		for _, name := range fr.Success {
+			t.AppendRow(table.Row{
+				"function", name, "success", "", "",
+			})
+		}
+	}
+	for name, failReason := range fr.Failed {
+		t.AppendRow(table.Row{
+			"function", name, "failed", failReason.FailReason, failReason.CanBeAutoFixed,
+		})
+	}
+	t.AppendSeparator()
 }
 
 func (fr *FunctionReports) AddFailure(name string, err error) {

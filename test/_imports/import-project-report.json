@@ -1,0 +1,40 @@
+{
+  "reports": {
+    "default": {
+      "name": "default",
+      "skipped": false,
+      "success": false,
+      "failed": {
+        "failReason": "Import failed for some of the functions. Project: `default`.",
+        "canBeAutoFixed": false
+      },
+      "functionReports": {
+        "success": null,
+        "failed": {
+          "fff": {
+            "failReason": "Function with the name: fff already exists",
+            "canBeAutoFixed": false
+          }
+        }
+      }
+    },
+    "project-2": {
+      "name": "project-2",
+      "skipped": false,
+      "success": false,
+      "failed": {
+        "failReason": "Import failed for some of the functions",
+        "canBeAutoFixed": false
+      },
+      "functionReports": {
+        "success": ["function-name"],
+        "failed": {
+          "fff": {
+            "failReason": "Function with the name: fff already exists",
+            "canBeAutoFixed": false
+          }
+        }
+      }
+    }
+  }
+}

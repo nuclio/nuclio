@@ -1600,7 +1600,7 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	suite.Require().NoError(err)
 
 	projectsReport := &nuctlcommon.ProjectReports{}
-	err = json.Unmarshal(reportBytes, &projectsReport.Reports)
+	err = json.Unmarshal(reportBytes, &projectsReport)
 	suite.Require().NoError(err)
 
 	projectReport, _ := projectsReport.GetReport(projectName)
