@@ -242,6 +242,7 @@ class Wrapper(object):
     def _on_drain_signal(self, signal_name):
         # do not perform draining if discarding events
         if self._discard_events:
+            self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
             return
 
         self._logger.debug_with('Received signal', signal=signal_name)
