@@ -91,8 +91,3 @@ func (s *Binary) GetLastInBatch() bool {
 func (s *Binary) GetOffset() int {
 	return s.event.GetOffset()
 }
-
-// GetTopic returns the topic of the event
-func (s *Binary) GetTopic() string {
-	return s.event.GetTopic()
-}

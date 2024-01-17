@@ -155,3 +155,8 @@ func (we *wrappedEvent) GetTypeVersion() string {
 func (we *wrappedEvent) GetVersion() string {
 	return we.event.GetVersion()
 }
+
+// GetTopic returns the topic of the event
+func (we *wrappedEvent) GetTopic() string {
+	return we.event.GetTopic()
+}

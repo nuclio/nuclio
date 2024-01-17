@@ -118,8 +118,3 @@ func (s *Structured) GetLastInBatch() bool {
 func (s *Structured) GetOffset() int {
 	return s.cloudEvent.Offset
 }
-
-// GetTopic returns the topic of the event
-func (s *Structured) GetTopic() string {
-	return s.event.GetTopic()
-}
