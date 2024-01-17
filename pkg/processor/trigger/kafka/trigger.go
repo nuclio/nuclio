@@ -142,9 +142,9 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 			sendSignalCounter += 1
 
 			// signal workers to continue event processing
-			if err = k.SignalWorkersToContinue(); err != nil {
+			if err := k.SignalWorkersToContinue(); err != nil {
 				k.Logger.WarnWith("Failed to signal worker to continue event processing",
-					"err", err)
+					"err", errors.GetErrorStackString(err, 10))
 				continue
 			}
 

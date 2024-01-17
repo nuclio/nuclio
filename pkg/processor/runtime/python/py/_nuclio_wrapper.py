@@ -154,7 +154,7 @@ class Wrapper(object):
                     except BaseException as exc:
                         await self._on_handle_event_error(exc)
                 else:
-                    self._logger.debug('Event has been discarded', event=event)
+                    self._logger.debug_with('Event has been discarded', event=event)
 
             except WrapperFatalException as exc:
                 await self._on_serving_error(exc)
