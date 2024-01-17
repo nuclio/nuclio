@@ -19,9 +19,9 @@ package common
 import (
 	"context"
 	"fmt"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"sync"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )

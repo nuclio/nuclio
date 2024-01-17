@@ -19,12 +19,13 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"os"
+
+	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
+
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
-	"os"
-
 	"github.com/spf13/cobra"
 )
 
