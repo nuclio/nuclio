@@ -84,11 +84,14 @@ type Trigger interface {
 	// TimeoutWorker times out a worker
 	TimeoutWorker(worker *worker.Worker) error
 
-	// SignalWorkerDraining drains all workers
-	SignalWorkerDraining() error
+	// SignalWorkersToDrain drains all workers
+	SignalWorkersToDrain() error
 
-	// SignalWorkerTermination signal to all workers that the processor is about to stop working
-	SignalWorkerTermination() error
+	// SignalWorkersToContinue signal all workers to continue processing
+	SignalWorkersToContinue() error
+
+	// SignalWorkersToTerminate signal to all workers that the processor is about to stop working
+	SignalWorkersToTerminate() error
 }
 
 // AbstractTrigger implements common trigger operations
@@ -362,25 +365,28 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 	return nil
 }
 
-// SignalWorkerDraining sends a signal to all workers, telling them to drop or ack events
+// SignalWorkersToDrain sends a signal to all workers, telling them to drop or ack events
 // that are currently being processed
-func (at *AbstractTrigger) SignalWorkerDraining() error {
+func (at *AbstractTrigger) SignalWorkersToDrain() error {
 	if err := at.WorkerAllocator.SignalDraining(); err != nil {
 		return errors.Wrap(err, "Failed to signal all workers to drain events")
 	}
 	return nil
 }
 
-func (at *AbstractTrigger) SignalWorkerTermination() error {
-	if err := at.WorkerAllocator.SignalTermination(); err != nil {
-		return errors.Wrap(err, "Failed to signal all workers to terminate")
+// SignalWorkersToContinue sends a signal to all workers, telling them to continue event processing
+func (at *AbstractTrigger) SignalWorkersToContinue() error {
+	if err := at.WorkerAllocator.SignalContinue(); err != nil {
+		return errors.Wrap(err, "Failed to signal all workers to continue event processing")
 	}
 	return nil
 }
 
-// ResetWorkerDrainState resets the worker draining state
-func (at *AbstractTrigger) ResetWorkerDrainState() {
-	at.WorkerAllocator.ResetDrainState()
+func (at *AbstractTrigger) SignalWorkersToTerminate() error {
+	if err := at.WorkerAllocator.SignalTermination(); err != nil {
+		return errors.Wrap(err, "Failed to signal all workers to terminate")
+	}
+	return nil
 }
 
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {

@@ -18,7 +18,6 @@ package worker
 
 import (
 	"net/http"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -44,8 +43,6 @@ type Worker struct {
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
 	eventTime            *time.Time
-	isDrained            atomic.Bool
-	drainedLock          sync.Mutex
 }
 
 // NewWorker creates a new worker
@@ -54,10 +51,9 @@ func NewWorker(parentLogger logger.Logger,
 	runtime runtime.Runtime) (*Worker, error) {
 
 	newWorker := Worker{
-		logger:      parentLogger,
-		index:       index,
-		runtime:     runtime,
-		drainedLock: sync.Mutex{},
+		logger:  parentLogger,
+		index:   index,
+		runtime: runtime,
 	}
 
 	// return an instance of the default worker
@@ -160,25 +156,19 @@ func (w *Worker) Terminate() error {
 }
 
 func (w *Worker) Drain() error {
-	w.drainedLock.Lock()
-	defer w.drainedLock.Unlock()
-
-	if !w.isDrained.Load() {
-		err := w.runtime.Drain()
-		if err == nil {
-			w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
-			w.isDrained.Store(true)
-		}
+	if err := w.runtime.Drain(); err != nil {
 		return err
 	}
+	w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)
 	return nil
 }
 
-func (w *Worker) setDrained(isDrained bool) {
-	w.drainedLock.Lock()
-	defer w.drainedLock.Unlock()
-
-	w.isDrained.Store(isDrained)
+func (w *Worker) Continue() error {
+	if err := w.runtime.Continue(); err != nil {
+		return err
+	}
+	w.logger.DebugWith("Successfully continued worker", "workerIndex", w.index)
+	return nil
 }
 
 // Subscribe subscribes to a control message kind
