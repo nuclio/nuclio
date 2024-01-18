@@ -529,6 +529,14 @@ func (suite *functionDeployTestSuite) TestDeployFailsOnShellMissingPathAndHandle
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
 }
 
+func (suite *functionDeployTestSuite) TestDeployFailsOnInvalidFunctionName() {
+	functionName := "invalid function name"
+
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, nil)
+	suite.Require().Error(err, "Function name should not have been deployed")
+	suite.Require().Contains(errors.RootCause(err).Error(), "Function name doesn't conform to k8s naming convention")
+}
+
 func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "shell-handler" + uniqueSuffix
