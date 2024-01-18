@@ -246,7 +246,11 @@ Use --help for more information`)
 				},
 			}
 
-			return commandeer.importFunctions(ctx, functionConfigs, platformConfig, commandeer.report)
+			err = commandeer.importFunctions(ctx, functionConfigs, platformConfig, commandeer.report)
+			if commandeer.saveReport {
+				commandeer.report.SaveToFile(ctx, commandeer.rootCommandeer.loggerInstance, commandeer.reportFilePath)
+			}
+			return err
 		},
 	}
 
