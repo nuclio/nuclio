@@ -121,8 +121,8 @@ func (fr *FunctionReports) AddFailure(name string, err error, canBeAutoFixed boo
 	defer fr.mutex.Unlock()
 
 	fr.Failed[name] = &FailReport{
-		FailReason: errors.RootCause(err).Error(),
 		CanBeAutoFixed: canBeAutoFixed,
+		FailReason:     errors.RootCause(err).Error(),
 	}
 }
 
