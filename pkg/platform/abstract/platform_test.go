@@ -1196,6 +1196,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 	} {
 
 		functionConfig := *functionconfig.NewConfig()
+		functionConfig.Meta.Name = "some-function-name"
 		functionConfig.Spec.Build.Image = testCase.buildImage
 
 		suite.Logger.InfoWith("Running function spec sanitization case",
@@ -1835,6 +1836,62 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
 				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateFunctionName() {
+	for _, testCase := range []struct {
+		name         string
+		functionName string
+		valid        bool
+	}{
+		{
+			name:         "ValidFunctionName",
+			functionName: "valid-function-name",
+			valid:        true,
+		},
+		{
+			name:         "FunctionNameWithUnderscore",
+			functionName: "function_name_with_underscore",
+			valid:        true,
+		},
+		{
+			name:         "FunctionNameWithDot",
+			functionName: "function.name.with.dot",
+			valid:        true,
+		},
+		{
+			name:         "FunctionNameWithSpaces",
+			functionName: "function name with spaces",
+		},
+		{
+			name:         "FunctionNameWithInvalidChars",
+			functionName: "function-name&with%invalid-chars!",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
+				Meta: platform.ProjectMeta{
+					Name:      platform.DefaultProjectName,
+					Namespace: "default",
+				},
+			}).Return([]platform.Project{
+				&platform.AbstractProject{},
+			}, nil).Once()
+
+			functionConfig := functionconfig.NewConfig()
+			functionConfig.Meta.Name = testCase.functionName
+			functionConfig.Meta.Labels = map[string]string{
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+			}
+
+			err := suite.Platform.ValidateFunctionConfig(suite.ctx, functionConfig)
+			if testCase.valid {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			} else {
+				suite.Require().Error(err, "Validation passed unexpectedly")
 			}
 		})
 	}
