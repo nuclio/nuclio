@@ -1739,7 +1739,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 		if err == nil {
 			return nil
 		}
-		if isFixed := p.AutoFixConfiguration(err, functionConfig); isFixed {
+		if isFixed := p.AutoFixConfiguration(ctx, err, functionConfig); isFixed {
 			err = p.ValidateFunctionConfig(ctx, functionConfig)
 		} else {
 			return errors.Wrap(err, "Failed to validate a function configuration")
@@ -1748,8 +1748,8 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 	return err
 }
 
-func (p *Platform) AutoFixConfiguration(err error, functionConfig *functionconfig.Config) bool {
-	if fixed := p.Platform.AutoFixConfiguration(err, functionConfig); fixed {
+func (p *Platform) AutoFixConfiguration(ctx context.Context, err error, functionConfig *functionconfig.Config) bool {
+	if fixed := p.Platform.AutoFixConfiguration(ctx, err, functionConfig); fixed {
 		return fixed
 	}
 	return false

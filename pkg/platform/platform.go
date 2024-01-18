@@ -63,7 +63,7 @@ type Platform interface {
 	ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error
 
 	// AutoFixConfiguration tries to fix configuration if validation failed
-	AutoFixConfiguration(err error, functionConfig *functionconfig.Config) bool
+	AutoFixConfiguration(ctx context.Context, err error, functionConfig *functionconfig.Config) bool
 
 	// UpdateFunction will update a previously deployed function
 	UpdateFunction(ctx context.Context, updateFunctionOptions *UpdateFunctionOptions) error

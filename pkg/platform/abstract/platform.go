@@ -430,7 +430,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Docker image fields validation failed")
 	}
 
-	if err := ap.validateTriggers(ctx, functionConfig); err != nil {
+	if err := ap.validateTriggers(functionConfig); err != nil {
 		return errors.Wrap(err, "Triggers validation failed")
 	}
 
@@ -465,8 +465,10 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 	return nil
 }
 
-func (ap *Platform) AutoFixConfiguration(err error, functionConfig *functionconfig.Config) bool {
+func (ap *Platform) AutoFixConfiguration(ctx context.Context, err error, functionConfig *functionconfig.Config) bool {
 	if errors.RootCause(err).Error() == "V3IO Stream trigger does not support autoscaling" {
+		ap.Logger.WarnWithCtx(ctx, "Setting maxReplicas to minReplicas for function",
+			"function", functionConfig.Meta.Name)
 		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
 		return true
 	}
@@ -1575,7 +1577,7 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 	return nil
 }
 
-func (ap *Platform) validateTriggers(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) error {
 	var httpTriggerExists bool
 
 	// validate ingresses structure correctness

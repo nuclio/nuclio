@@ -92,8 +92,8 @@ func (mp *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 	return args.Error(0)
 }
 
-func (mp *Platform) AutoFixConfiguration(err error, functionConfig *functionconfig.Config) bool {
-	args := mp.Called(err, functionConfig)
+func (mp *Platform) AutoFixConfiguration(ctx context.Context, err error, functionConfig *functionconfig.Config) bool {
+	args := mp.Called(ctx, err, functionConfig)
 	return args.Bool(0)
 }
 
