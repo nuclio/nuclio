@@ -31,7 +31,6 @@ import (
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/stretchr/testify/suite"
-	v1 "k8s.io/api/core/v1"
 )
 
 type TestSuite struct {
@@ -319,23 +318,30 @@ func (suite *TestSuite) TestDeployFunctionDisablePublishingPorts() {
 	localPlatform := suite.Platform.(*local.Platform)
 
 	for _, testCase := range []struct {
-		name           string
-		useServiceType bool
+		name          string
+		useAttributes bool
 	}{
 		{
-			name:           "DisableWithServiceTypeNodePort",
-			useServiceType: true,
+			name:          "DisableWithTriggerAttributes",
+			useAttributes: true,
 		},
 		{
-			name:           "DisableWithAnnotation",
-			useServiceType: false,
+			name:          "DisableWithAnnotation",
+			useAttributes: false,
 		},
 	} {
 		suite.Run(testCase.name, func() {
 
-			if testCase.useServiceType {
-				// use the hack and set service type to NodePort to disable publishing ports
-				createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeNodePort
+			if testCase.useAttributes {
+				// use trigger attributes to disable publishing ports
+				createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+					"http": {
+						Kind: "http",
+						Attributes: map[string]interface{}{
+							"disablePortPublishing": true,
+						},
+					},
+				}
 			} else {
 				// use trigger annotation to disable publishing ports
 				createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -346,9 +352,6 @@ func (suite *TestSuite) TestDeployFunctionDisablePublishingPorts() {
 						},
 					},
 				}
-
-				// reset service type to ClusterIP
-				createFunctionOptions.FunctionConfig.Spec.ServiceType = v1.ServiceTypeClusterIP
 			}
 
 			suite.DeployFunction(createFunctionOptions,

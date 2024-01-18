@@ -40,6 +40,9 @@ type Configuration struct {
 	MaxRequestBodySize int
 	ReduceMemoryUsage  bool
 	CORS               *cors.CORS
+
+	// Used to disable port publishing for the HTTP trigger on docker platform
+	DisablePortPublishing bool
 }
 
 func NewConfiguration(id string,

@@ -45,12 +45,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/local/client"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
-	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -1123,17 +1124,24 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 }
 
 func (p *Platform) disablePortPublishing(createFunctionOptions *platform.CreateFunctionOptions) bool {
+	triggerAttributes := http.Configuration{}
 
-	// HACK: to allow users to use existing configuration to disable exposing the function on the host network,
-	// we use the service type to determine whether to expose the function on the host network or not
-	if createFunctionOptions.FunctionConfig.Spec.ServiceType == v1.ServiceTypeNodePort {
-		return true
-	}
-
-	// since service type is not exposed in the UI for local platform, we also use trigger annotations
-	// to determine whether to expose the function on the host network or not
+	// iterate over triggers and check if there is a http trigger with disable port publishing
 	for _, trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 		if trigger.Kind == "http" {
+
+			// parse attributes
+			if err := mapstructure.Decode(trigger.Attributes, &triggerAttributes); err != nil {
+				p.Logger.WarnWith("Failed to decode trigger attributes", "err", err.Error())
+				return false
+			}
+
+			if triggerAttributes.DisablePortPublishing {
+				return true
+			}
+
+			// since this feature is not exposed in the UI for local platform, we also check trigger annotations
+			// to determine whether to expose the function on the host network or not
 			if annotations := trigger.Annotations; annotations != nil {
 				if disable, ok := annotations["nuclio.io/disable-port-publishing"]; ok && disable == "true" {
 					return true
