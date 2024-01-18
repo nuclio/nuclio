@@ -29,8 +29,12 @@ const (
 	RestartPolicyNameOnFailure     RestartPolicyName = "on-failure"
 )
 
-// RunOptionsNoPort urge docker shell client not to map an explicit source port (but rather a random one)
-const RunOptionsNoPort int = -1
+const (
+	// RunOptionsRandomPort urge docker shell client not to map an explicit source port (but rather a random one)
+	RunOptionsRandomPort int = -1
+	// RunOptionsNoPort urge docker shell client not to map any port
+	RunOptionsNoPort int = -2
+)
 
 // LogInOptions are options for logging in
 type LogInOptions struct {
