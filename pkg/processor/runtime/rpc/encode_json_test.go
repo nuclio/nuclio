@@ -126,6 +126,10 @@ func (te *TestEvent) GetOffset() int {
 	return 0
 }
 
+func (te *TestEvent) GetTopic() string {
+	return ""
+}
+
 func (te *TestEvent) GetTriggerInfo() nuclio.TriggerInfoProvider {
 	return testTriggerInfoProvider
 }

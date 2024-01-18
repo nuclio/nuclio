@@ -420,9 +420,8 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 // ValidateFunctionConfig validates and enforces of required function creation logic
 func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 
-	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
-		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
-			functionConfig.Meta.Name))
+	if err := ap.validateFunctionName(functionConfig); err != nil {
+		return errors.Wrap(err, "Function name validation failed")
 	}
 
 	// check function config for possible malicious content
@@ -462,6 +461,23 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Auto scale metrics validation failed")
 	}
 
+	return nil
+}
+
+func (ap *Platform) validateFunctionName(functionConfig *functionconfig.Config) error {
+
+	// validate function name against k8s naming conventions
+	errorMessages := validation.IsQualifiedName(functionConfig.Meta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " +
+			joinedErrorMessage)
+	}
+
+	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
+		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
+			functionConfig.Meta.Name))
+	}
 	return nil
 }
 

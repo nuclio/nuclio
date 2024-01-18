@@ -79,3 +79,7 @@ func (e *Event) getHeadersAsMap() map[string]interface{} {
 func (e *Event) GetOffset() int {
 	return int(e.kafkaMessage.Offset)
 }
+
+func (e *Event) GetTopic() string {
+	return e.kafkaMessage.Topic
+}

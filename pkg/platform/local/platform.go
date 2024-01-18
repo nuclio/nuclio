@@ -45,7 +45,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/local/client"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -1106,6 +1108,11 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 		return createFunctionOptions.FunctionConfig.Spec.GetHTTPPort(), nil
 	}
 
+	// check http trigger annotations for avoiding port publishing
+	if p.disablePortPublishing(createFunctionOptions) {
+		return dockerclient.RunOptionsNoPort, nil
+	}
+
 	// if there was a previous deployment and no configuration - use that
 	if previousHTTPPort != 0 {
 		createFunctionOptions.Logger.DebugWith("Using previous deployment HTTP port ",
@@ -1113,7 +1120,37 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 		return previousHTTPPort, nil
 	}
 
-	return dockerclient.RunOptionsNoPort, nil
+	return dockerclient.RunOptionsRandomPort, nil
+}
+
+func (p *Platform) disablePortPublishing(createFunctionOptions *platform.CreateFunctionOptions) bool {
+
+	// iterate over triggers and check if there is a http trigger with disable port publishing
+	for _, trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
+		if trigger.Kind == "http" {
+			triggerAttributes := http.Configuration{}
+
+			// parse attributes
+			if err := mapstructure.Decode(trigger.Attributes, &triggerAttributes); err != nil {
+				p.Logger.WarnWith("Failed to decode trigger attributes", "err", err.Error())
+				return false
+			}
+
+			if triggerAttributes.DisablePortPublishing {
+				return true
+			}
+
+			// since this feature is not exposed in the UI for local platform, we also check trigger annotations
+			// to determine whether to expose the function on the host network or not
+			if annotations := trigger.Annotations; annotations != nil {
+				if disable, ok := annotations["nuclio.io/disable-port-publishing"]; ok && disable == "true" {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func (p *Platform) resolveDeployedFunctionHTTPPort(containerID string) (int, error) {
