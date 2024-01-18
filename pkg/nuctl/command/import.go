@@ -43,8 +43,6 @@ type importCommandeer struct {
 	skipAutofix    bool
 }
 
-var fixableErrors = []string{"V3IO Stream trigger does not support autoscaling"}
-
 func newImportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *importCommandeer {
 	commandeer := &importCommandeer{
 		rootCommandeer: rootCommandeer,
@@ -129,7 +127,7 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 }
 
 func (i *importCommandeer) isAutoFixable(err error) bool {
-	for _, fixableError := range fixableErrors {
+	for _, fixableError := range functionconfig.FixableValidationErrors {
 		if strings.Contains(strings.ToLower(errors.GetErrorStackString(err, 10)),
 			strings.ToLower(fixableError)) {
 			return true

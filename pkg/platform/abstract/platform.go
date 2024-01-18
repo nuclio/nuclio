@@ -497,11 +497,14 @@ func (ap *Platform) ValidateFunctionConfigWithRetry(ctx context.Context, functio
 	err := ap.platform.ValidateFunctionConfig(ctx, functionConfig)
 
 	if !autofix {
-		return err
+		if err != nil {
+			return errors.Wrap(err, "Failed to validate a function configuration")
+		}
+		return nil
 	}
 
 	// defines the maximum number of attempts to autofix the configuration
-	maxRetries := 1
+	maxRetries := len(functionconfig.FixableValidationErrors)
 
 	for i := 0; i < maxRetries; i++ {
 		if err == nil {
@@ -513,7 +516,10 @@ func (ap *Platform) ValidateFunctionConfigWithRetry(ctx context.Context, functio
 			return errors.Wrap(err, "Failed to validate a function configuration")
 		}
 	}
-	return err
+	if err != nil {
+		return errors.Wrap(err, "Failed to validate a function configuration")
+	}
+	return nil
 }
 
 // ValidateDeleteProjectOptions validates and enforces of required project deletion logic
