@@ -87,9 +87,14 @@ func (mp *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 	return args.Error(0)
 }
 
-func (mp *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
+func (mp *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 	args := mp.Called(ctx, functionConfig)
 	return args.Error(0)
+}
+
+func (mp *Platform) AutoFixConfiguration(err error, functionConfig *functionconfig.Config) bool {
+	args := mp.Called(err, functionConfig)
+	return args.Bool(0)
 }
 
 // UpdateFunction will update a previously deployed function

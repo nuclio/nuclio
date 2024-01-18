@@ -418,7 +418,7 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 }
 
 // ValidateFunctionConfig validates and enforces of required function creation logic
-func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
+func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
 		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
@@ -430,7 +430,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Docker image fields validation failed")
 	}
 
-	if err := ap.validateTriggers(ctx, functionConfig, autofix); err != nil {
+	if err := ap.validateTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Triggers validation failed")
 	}
 
@@ -463,6 +463,14 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 	}
 
 	return nil
+}
+
+func (ap *Platform) AutoFixConfiguration(err error, functionConfig *functionconfig.Config) bool {
+	if errors.RootCause(err).Error() == "V3IO Stream trigger does not support autoscaling" {
+		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
+		return true
+	}
+	return false
 }
 
 // ValidateDeleteProjectOptions validates and enforces of required project deletion logic
@@ -1567,7 +1575,7 @@ func (ap *Platform) validateProjectExists(ctx context.Context, functionConfig *f
 	return nil
 }
 
-func (ap *Platform) validateTriggers(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
+func (ap *Platform) validateTriggers(ctx context.Context, functionConfig *functionconfig.Config) error {
 	var httpTriggerExists bool
 
 	// validate ingresses structure correctness
@@ -1639,13 +1647,7 @@ func (ap *Platform) validateTriggers(ctx context.Context, functionConfig *functi
 			maxReplicas := functionConfig.Spec.MaxReplicas
 			if minReplicas != nil {
 				if maxReplicas != nil && *minReplicas != *maxReplicas {
-					if autofix {
-						ap.Logger.WarnWithCtx(ctx, "Setting maxReplicas to minReplicas for function",
-							"function", functionConfig.Meta.Name)
-						functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
-					} else {
-						return nuclio.NewErrBadRequest("V3IO Stream trigger does not support autoscaling")
-					}
+					return nuclio.NewErrBadRequest("V3IO Stream trigger does not support autoscaling")
 				}
 			}
 		}

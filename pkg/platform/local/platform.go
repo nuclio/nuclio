@@ -1351,11 +1351,33 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 
-	if err := p.ValidateFunctionConfig(ctx, functionConfig, autofix); err != nil {
-		return errors.Wrap(err, "Failed to validate a function configuration")
+	err := p.ValidateFunctionConfig(ctx, functionConfig)
+
+	if !autofix {
+		return err
 	}
 
-	return nil
+	// defines the maximum number of attempts to autofix the configuration
+	maxRetries := 1
+
+	for i := 0; i < maxRetries; i++ {
+		if err == nil {
+			return nil
+		}
+		if isFixed := p.AutoFixConfiguration(err, functionConfig); isFixed {
+			err = p.ValidateFunctionConfig(ctx, functionConfig)
+		} else {
+			return errors.Wrap(err, "Failed to validate a function configuration")
+		}
+	}
+	return err
+}
+
+func (p *Platform) AutoFixConfiguration(err error, functionConfig *functionconfig.Config) bool {
+	if fixed := p.Platform.AutoFixConfiguration(err, functionConfig); fixed {
+		return fixed
+	}
+	return false
 }
 
 func (p *Platform) populateFunctionInvocationStatus(functionInvocation *functionconfig.Status,
