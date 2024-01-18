@@ -1726,33 +1726,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
-	err := p.ValidateFunctionConfig(ctx, functionConfig)
-
-	if !autofix {
-		return err
-	}
-
-	// defines the maximum number of attempts to autofix the configuration
-	maxRetries := 1
-
-	for i := 0; i < maxRetries; i++ {
-		if err == nil {
-			return nil
-		}
-		if isFixed := p.AutoFixConfiguration(ctx, err, functionConfig); isFixed {
-			err = p.ValidateFunctionConfig(ctx, functionConfig)
-		} else {
-			return errors.Wrap(err, "Failed to validate a function configuration")
-		}
-	}
-	return err
-}
-
-func (p *Platform) AutoFixConfiguration(ctx context.Context, err error, functionConfig *functionconfig.Config) bool {
-	if fixed := p.Platform.AutoFixConfiguration(ctx, err, functionConfig); fixed {
-		return fixed
-	}
-	return false
+	return p.Platform.ValidateFunctionConfigWithRetry(ctx, functionConfig, autofix)
 }
 
 // enrichFunctionNodeSelector enriches function node selector

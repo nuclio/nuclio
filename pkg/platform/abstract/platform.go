@@ -492,6 +492,30 @@ func (ap *Platform) AutoFixConfiguration(ctx context.Context, err error, functio
 	return false
 }
 
+func (ap *Platform) ValidateFunctionConfigWithRetry(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
+
+	err := ap.platform.ValidateFunctionConfig(ctx, functionConfig)
+
+	if !autofix {
+		return err
+	}
+
+	// defines the maximum number of attempts to autofix the configuration
+	maxRetries := 1
+
+	for i := 0; i < maxRetries; i++ {
+		if err == nil {
+			return nil
+		}
+		if isFixed := ap.AutoFixConfiguration(ctx, err, functionConfig); isFixed {
+			err = ap.platform.ValidateFunctionConfig(ctx, functionConfig)
+		} else {
+			return errors.Wrap(err, "Failed to validate a function configuration")
+		}
+	}
+	return err
+}
+
 // ValidateDeleteProjectOptions validates and enforces of required project deletion logic
 func (ap *Platform) ValidateDeleteProjectOptions(ctx context.Context,
 	deleteProjectOptions *platform.DeleteProjectOptions) error {
