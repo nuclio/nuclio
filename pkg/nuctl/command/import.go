@@ -130,7 +130,8 @@ func (i *importCommandeer) importFunction(ctx context.Context, functionConfig *f
 
 func (i *importCommandeer) isAutoFixable(err error) bool {
 	for _, fixableError := range fixableErrors {
-		if strings.Contains(errors.GetErrorStackString(err, 10), fixableError) {
+		if strings.Contains(strings.ToLower(errors.GetErrorStackString(err, 10)),
+			strings.ToLower(fixableError)) {
 			return true
 		}
 	}

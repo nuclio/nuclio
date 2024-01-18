@@ -483,7 +483,8 @@ func (ap *Platform) validateFunctionName(functionConfig *functionconfig.Config) 
 
 func (ap *Platform) AutoFixConfiguration(ctx context.Context, err error, functionConfig *functionconfig.Config) bool {
 	if errors.RootCause(err).Error() == "V3IO Stream trigger does not support autoscaling" {
-		ap.Logger.WarnWithCtx(ctx, "Setting maxReplicas to minReplicas for function",
+		ap.Logger.WarnWithCtx(ctx, "V3IO Stream trigger does not support autoscaling - "+
+			"Auto fixing by setting maxReplicas to minReplicas for function",
 			"function", functionConfig.Meta.Name)
 		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
 		return true
