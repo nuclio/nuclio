@@ -1124,11 +1124,11 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 }
 
 func (p *Platform) disablePortPublishing(createFunctionOptions *platform.CreateFunctionOptions) bool {
-	triggerAttributes := http.Configuration{}
 
 	// iterate over triggers and check if there is a http trigger with disable port publishing
 	for _, trigger := range createFunctionOptions.FunctionConfig.Spec.Triggers {
 		if trigger.Kind == "http" {
+			triggerAttributes := http.Configuration{}
 
 			// parse attributes
 			if err := mapstructure.Decode(trigger.Attributes, &triggerAttributes); err != nil {

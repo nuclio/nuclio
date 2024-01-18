@@ -326,8 +326,7 @@ func (suite *TestSuite) TestDeployFunctionDisablePublishingPorts() {
 			useAttributes: true,
 		},
 		{
-			name:          "DisableWithAnnotation",
-			useAttributes: false,
+			name: "DisableWithAnnotation",
 		},
 	} {
 		suite.Run(testCase.name, func() {
