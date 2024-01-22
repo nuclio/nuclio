@@ -34,7 +34,7 @@ type parseCommandeer struct {
 	rootCommandeer *RootCommandeer
 	reportFilePath string
 	onlyFailed     bool
-	output         string
+	outputPath     string
 }
 
 func newParseCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *parseCommandeer {
@@ -52,38 +52,38 @@ func newParseCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *pa
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return ParseReport(ctx, rootCommandeer.loggerInstance, commandeer.reportFilePath, commandeer.onlyFailed, commandeer.output)
+			return commandeer.ParseReport(ctx, rootCommandeer.loggerInstance)
 		},
 	}
 
 	cmd.Flags().StringVar(&commandeer.reportFilePath, "report-file-path", "nuctl-import-report.json", "Path to report")
-	cmd.Flags().BoolVar(&commandeer.onlyFailed, "only-failed", false, "Show only failures")
-	cmd.Flags().StringVarP(&commandeer.output, "output", "o", "", "Path to save output")
+	cmd.Flags().BoolVar(&commandeer.onlyFailed, "failed", false, "Show only failures")
+	cmd.Flags().StringVarP(&commandeer.outputPath, "output-path", "", "", "Path to save outputPath")
 
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
-func ParseReport(ctx context.Context, logger logger.Logger, reportPath string, onlyFailed bool, outputPath string) error {
-	reportData, err := os.ReadFile(reportPath)
+func (pc *parseCommandeer) ParseReport(ctx context.Context, logger logger.Logger) error {
+	reportData, err := os.ReadFile(pc.reportFilePath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read report file")
 	}
-	supportedReportTypes := []common.Report{
+	supportedReportKinds := []common.Report{
 		&common.ProjectReports{},
 		&common.FunctionReports{},
 	}
 
-	for _, possibleType := range supportedReportTypes {
-		if err = json.Unmarshal(reportData, possibleType); err == nil {
+	for _, kind := range supportedReportKinds {
+		if err = json.Unmarshal(reportData, kind); err == nil {
 			t := table.NewWriter()
-			possibleType.PrintAsTable(t, onlyFailed)
+			kind.PrintAsTable(t, pc.onlyFailed)
 			output := t.Render()
-			if outputPath != "" {
-				if err := os.WriteFile(outputPath, []byte(output), 0644); err != nil {
-					logger.WarnWithCtx(ctx, "Failed to write output to file",
-						"path", outputPath,
+			if pc.outputPath != "" {
+				if err := os.WriteFile(pc.outputPath, []byte(output), 0644); err != nil {
+					logger.WarnWithCtx(ctx, "Failed to write outputPath to file",
+						"path", pc.outputPath,
 						"error", err.Error())
 				}
 			}
