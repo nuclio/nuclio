@@ -87,7 +87,7 @@ func (pc *parseCommandeer) ParseReport(ctx context.Context, logger logger.Logger
 						"error", err.Error())
 				}
 			}
-			logger.Info(t.Render())
+			logger.Info(output)
 			return nil
 		}
 	}
