@@ -65,6 +65,8 @@ const (
 	DefaultTargetCPU                     = 75
 )
 
+var FunctionValidationFailedErr = "Failed to validate a function configuration"
+
 type Platform struct {
 	Logger                  logger.Logger
 	platform                platform.Platform
@@ -498,7 +500,7 @@ func (ap *Platform) ValidateFunctionConfigWithRetry(ctx context.Context, functio
 
 	if !autofix {
 		if err != nil {
-			return errors.Wrap(err, "Failed to validate a function configuration")
+			return errors.Wrap(err, FunctionValidationFailedErr)
 		}
 		return nil
 	}
@@ -513,11 +515,11 @@ func (ap *Platform) ValidateFunctionConfigWithRetry(ctx context.Context, functio
 		if isFixed := ap.AutoFixConfiguration(ctx, err, functionConfig); isFixed {
 			err = ap.platform.ValidateFunctionConfig(ctx, functionConfig)
 		} else {
-			return errors.Wrap(err, "Failed to validate a function configuration")
+			return errors.Wrap(err, FunctionValidationFailedErr)
 		}
 	}
 	if err != nil {
-		return errors.Wrap(err, "Failed to validate a function configuration")
+		return errors.Wrap(err, FunctionValidationFailedErr)
 	}
 	return nil
 }
