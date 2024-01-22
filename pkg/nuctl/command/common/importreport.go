@@ -108,6 +108,7 @@ func (pr *ProjectReport) PrintAsTable(t table.Writer, onlyFailed bool) {
 		}
 	}
 	pr.FunctionReports.PrintAsTable(t, onlyFailed)
+	t.AppendSeparator()
 }
 
 func (pr *ProjectReport) getStatus() string {
@@ -165,7 +166,6 @@ func (fr *FunctionReports) PrintAsTable(t table.Writer, onlyFailed bool) {
 			"function", name, "failed", failReason.FailReason, failReason.CanBeAutoFixed,
 		})
 	}
-	t.AppendSeparator()
 }
 
 func (fr *FunctionReports) AddFailure(name string, err error) {

@@ -75,6 +75,7 @@ func (pc *parseCommandeer) ParseReport(ctx context.Context, logger logger.Logger
 		&common.FunctionReports{},
 	}
 
+	// best-effort trying to parse each report kind
 	for _, kind := range supportedReportKinds {
 		if err = json.Unmarshal(reportData, kind); err == nil {
 			t := table.NewWriter()
