@@ -1,0 +1,10 @@
++----------+---------------+---------+--------------------------------------------------------------+--------------+
+| TYPE     | NAME          | STATUS  | FAIL DESCRIPTION                                             | AUTO-FIXABLE |
++----------+---------------+---------+--------------------------------------------------------------+--------------+
+| project  | default       | failed  | Import failed for some of the functions. Project: `default`. | false        |
+| function | fff           | failed  | Function with the name: fff already exists                   | false        |
++----------+---------------+---------+--------------------------------------------------------------+--------------+
+| project  | project-2     | failed  | Import failed for some of the functions                      | false        |
+| function | function-name | success |                                                              |              |
+| function | fff           | failed  | Function with the name: fff already exists                   | false        |
++----------+---------------+---------+--------------------------------------------------------------+--------------+

@@ -19,6 +19,7 @@ package common
 import (
 	"context"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nuclio/logger"
 )
 
@@ -28,4 +29,7 @@ type Report interface {
 
 	// SprintfError generates string with detailed error
 	SprintfError() string
+
+	// PrintAsTable adds rows to the provided table writer
+	PrintAsTable(t table.Writer, onlyFailed bool)
 }

@@ -157,6 +157,21 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 	suite.Require().NoError(err)
 }
 
+func (suite *projectExportImportTestSuite) TestParseReport() {
+	outputPath := path.Join(suite.tempDir, "nuctl-parsed-report.txt")
+	reportPath := path.Join(suite.GetImportsDir(), "import-project-report.json")
+	err := suite.ExecuteNuctl([]string{"parse", "--report-file-path", reportPath, "--output-path", outputPath}, nil)
+	suite.Require().NoError(err)
+
+	outputBytes, err := os.ReadFile(outputPath)
+	suite.Require().NoError(err)
+
+	expectedOutputBytes, err := os.ReadFile(path.Join(suite.GetImportsDir(), "expected-nuctl-parse-output.txt"))
+	suite.Require().NoError(err)
+
+	suite.Require().Equal(expectedOutputBytes, outputBytes)
+}
+
 func (suite *projectExportImportTestSuite) TestDeleteProject() {
 	for _, testCase := range []struct {
 		name            string
