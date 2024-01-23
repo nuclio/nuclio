@@ -174,6 +174,7 @@ class Wrapper(object):
                     self._call_drain_handler()
                 if self._is_termination_needed:
                     self._call_termination_handler()
+                    break
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None:
@@ -224,6 +225,11 @@ class Wrapper(object):
         signal.signal(signal.SIGCONT, self._on_continue_signal)
 
     def _on_drain_signal(self, signal_number, frame):
+        # do not perform draining if discarding events
+        if self._discard_events:
+            self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
+            return
+
         self._logger.debug_with('Received signal, calling draining callback',
                                 signal=signal.Signals(signal_number).name)
 
@@ -238,6 +244,8 @@ class Wrapper(object):
             # set the flag to true so the event loop will call the drain handler
             # after the current event is handled
             self._is_drain_needed = True
+        # set the flag to True to stop processing events which are received after draining
+        self._discard_events = True
 
     def _on_termination_signal(self, signal_number, frame):
         self._logger.debug_with('Received signal, calling termination callback',
