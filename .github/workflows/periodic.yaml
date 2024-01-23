@@ -61,6 +61,7 @@ jobs:
       if: always()
       uses: ravsamhq/notify-slack-action@v2
       with:
+        token: ${{ secrets.GITHUB_TOKEN }}
         status: ${{ job.status }}
         notify_when: "failure"
         notification_title: "{workflow} has failed"
