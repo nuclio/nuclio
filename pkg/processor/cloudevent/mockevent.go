@@ -193,3 +193,9 @@ func (me *mockEvent) GetOffset() int {
 	args := me.Called()
 	return args.Int(0)
 }
+
+// GetTopic returns the topic of the event
+func (me *mockEvent) GetTopic() string {
+	args := me.Called()
+	return args.String(0)
+}

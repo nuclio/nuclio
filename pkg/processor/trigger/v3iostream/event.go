@@ -25,7 +25,8 @@ import (
 
 type Event struct {
 	nuclio.AbstractEvent
-	record *v3io.StreamRecord
+	record     *v3io.StreamRecord
+	StreamPath string
 }
 
 func (e *Event) GetBody() []byte {
@@ -46,4 +47,12 @@ func (e *Event) GetOffset() int {
 
 func (e *Event) GetTimestamp() time.Time {
 	return time.Unix(int64(e.record.ArrivalTimeSec), int64(e.record.ArrivalTimeNSec))
+}
+
+func (e *Event) GetTopic() string {
+	return e.StreamPath
+}
+
+func (e *Event) GetPath() string {
+	return e.StreamPath
 }

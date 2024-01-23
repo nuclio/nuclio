@@ -465,6 +465,47 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 	return nil
 }
 
+func (ap *Platform) AutoFixConfiguration(ctx context.Context, err error, functionConfig *functionconfig.Config) bool {
+	if errors.RootCause(err).Error() == "V3IO Stream trigger does not support autoscaling" {
+		ap.Logger.WarnWithCtx(ctx, "V3IO Stream trigger does not support autoscaling - "+
+			"Auto fixing by setting maxReplicas to minReplicas for function",
+			"function", functionConfig.Meta.Name)
+		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
+		return true
+	}
+	return false
+}
+
+func (ap *Platform) ValidateFunctionConfigWithRetry(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
+	functionValidationFailedErr := "Failed to validate a function configuration"
+	err := ap.platform.ValidateFunctionConfig(ctx, functionConfig)
+
+	if !autofix {
+		if err != nil {
+			return errors.Wrap(err, functionValidationFailedErr)
+		}
+		return nil
+	}
+
+	// defines the maximum number of attempts to autofix the configuration
+	maxRetries := len(functionconfig.FixableValidationErrors)
+
+	for i := 0; i < maxRetries; i++ {
+		if err == nil {
+			return nil
+		}
+		if isFixed := ap.AutoFixConfiguration(ctx, err, functionConfig); isFixed {
+			err = ap.platform.ValidateFunctionConfig(ctx, functionConfig)
+		} else {
+			return errors.Wrap(err, functionValidationFailedErr)
+		}
+	}
+	if err != nil {
+		return errors.Wrap(err, functionValidationFailedErr)
+	}
+	return nil
+}
+
 // ValidateDeleteProjectOptions validates and enforces of required project deletion logic
 func (ap *Platform) ValidateDeleteProjectOptions(ctx context.Context,
 	deleteProjectOptions *platform.DeleteProjectOptions) error {

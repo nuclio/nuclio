@@ -153,6 +153,8 @@ class Wrapper(object):
                         await self._handle_event(event)
                     except BaseException as exc:
                         await self._on_handle_event_error(exc)
+                else:
+                    self._logger.debug_with('Event has been discarded', event=event)
 
             except WrapperFatalException as exc:
                 await self._on_serving_error(exc)
@@ -240,6 +242,7 @@ class Wrapper(object):
     def _on_drain_signal(self, signal_name):
         # do not perform draining if discarding events
         if self._discard_events:
+            self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
             return
 
         self._logger.debug_with('Received signal', signal=signal_name)
@@ -260,7 +263,7 @@ class Wrapper(object):
             self._event_message_length_task.cancel()
 
     def _on_continue_signal(self, signal_name):
-        self._logger.debug_with('Received continue signal', signal=signal_name)
+        self._logger.debug_with('Received signal', signal=signal_name)
 
         # set this flag to False, so continue normal event processing flow
         self._discard_events = False

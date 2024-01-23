@@ -312,6 +312,64 @@ func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
 		})
 }
 
+func (suite *TestSuite) TestDeployFunctionDisablePublishingPorts() {
+	createFunctionOptions := suite.getDeployOptions("no-publish-ports")
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
+	localPlatform := suite.Platform.(*local.Platform)
+
+	for _, testCase := range []struct {
+		name          string
+		useAttributes bool
+	}{
+		{
+			name:          "DisableWithTriggerAttributes",
+			useAttributes: true,
+		},
+		{
+			name: "DisableWithAnnotation",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+
+			if testCase.useAttributes {
+				// use trigger attributes to disable publishing ports
+				createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+					"http": {
+						Kind: "http",
+						Attributes: map[string]interface{}{
+							"disablePortPublishing": true,
+						},
+					},
+				}
+			} else {
+				// use trigger annotation to disable publishing ports
+				createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+					"http": {
+						Kind: "http",
+						Annotations: map[string]string{
+							"nuclio.io/disable-port-publishing": "true",
+						},
+					},
+				}
+			}
+
+			suite.DeployFunction(createFunctionOptions,
+				func(deployResult *platform.CreateFunctionResult) bool {
+					containers, err := suite.DockerClient.GetContainers(&dockerclient.GetContainerOptions{
+						Name: localPlatform.GetFunctionContainerName(&createFunctionOptions.FunctionConfig),
+					})
+					suite.Require().NoError(err, "Failed to get containers")
+					suite.Require().Len(containers, 1, "Expected to get one container")
+
+					// check that the container is not published
+					suite.Require().Empty(containers[0].NetworkSettings.Ports)
+
+					return true
+				})
+		})
+	}
+}
+
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
 	functionPath := []string{suite.GetTestFunctionsDir(), "common", "reverser", "python", "reverser.py"}
 	createFunctionOptions := suite.TestSuite.GetDeployOptions(functionName, filepath.Join(functionPath...))

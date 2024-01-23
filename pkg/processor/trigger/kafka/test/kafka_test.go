@@ -652,7 +652,7 @@ func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclie
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
 		Ports: map[int]int{
-			dockerclient.RunOptionsNoPort: 2181,
+			dockerclient.RunOptionsRandomPort: 2181,
 		},
 	}
 }
