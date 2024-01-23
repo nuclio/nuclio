@@ -56,9 +56,9 @@ func newParseCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *pa
 		},
 	}
 
-	cmd.Flags().StringVar(&commandeer.reportFilePath, "report-file-path", "nuctl-import-report.json", "Path to report")
+	cmd.Flags().StringVar(&commandeer.reportFilePath, "report-file-path", "nuctl-import-report.json", "Path to import report")
 	cmd.Flags().BoolVar(&commandeer.onlyFailed, "failed", false, "Show only failures")
-	cmd.Flags().StringVarP(&commandeer.outputPath, "output-path", "", "", "Path to save outputPath")
+	cmd.Flags().StringVarP(&commandeer.outputPath, "output-path", "", "", "File path to save the parsed report")
 
 	commandeer.cmd = cmd
 
