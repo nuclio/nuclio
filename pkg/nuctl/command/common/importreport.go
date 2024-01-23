@@ -26,6 +26,8 @@ import (
 	"github.com/nuclio/logger"
 )
 
+var tableHeader = table.Row{"type", "name", "status", "fail description", "auto-fixable"}
+
 type ProjectReports struct {
 	Reports map[string]*ProjectReport `json:"reports,omitempty"`
 }
@@ -58,7 +60,7 @@ func (pr *ProjectReports) SprintfError() string {
 }
 
 func (pr *ProjectReports) PrintAsTable(t table.Writer, onlyFailed bool) {
-	t.AppendHeader(table.Row{"type", "name", "status", "fail description", "auto-fixable"})
+	t.AppendHeader(tableHeader)
 	for _, report := range pr.Reports {
 		report.PrintAsTable(t, onlyFailed)
 	}
@@ -153,7 +155,7 @@ func (fr *FunctionReports) SprintfError() string {
 
 func (fr *FunctionReports) PrintAsTable(t table.Writer, onlyFailed bool) {
 	t.ResetHeaders()
-	t.AppendHeader(table.Row{"type", "name", "status", "fail description", "auto-fixable"})
+	t.AppendHeader(tableHeader)
 	if !onlyFailed {
 		for _, name := range fr.Success {
 			t.AppendRow(table.Row{
