@@ -67,6 +67,7 @@ type CreateFunctionOptions struct {
 	DependantImagesRegistryURL string
 	PermissionOptions          opa.PermissionOptions
 	AuthSession                auth.Session
+	AutofixConfiguration       bool
 }
 
 type UpdateFunctionOptions struct {

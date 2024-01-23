@@ -259,6 +259,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
 	errDeployingChan := make(chan error, 1)
+	autofix := fr.headerValueIsTrue(request, headers.AutofixFunctionConfiguration)
 
 	// deploy asynchronously, so that the user doesn't wait
 	go func() {
@@ -303,6 +304,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				},
 				CreationStateUpdated:       creationStateUpdatedChan,
 				AuthConfig:                 authConfig,
+				AutofixConfiguration:       autofix,
 				DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
 				AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 				PermissionOptions: opa.PermissionOptions{
