@@ -174,7 +174,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	var err error
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
-	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
+	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig, createFunctionOptions.AutofixConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
@@ -262,7 +262,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
-		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
+		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig, createFunctionOptions.AutofixConfiguration); err != nil {
 			return errors.Wrap(err, "Failed to enrich and validate the updated function configuration")
 		}
 
@@ -1379,7 +1379,7 @@ func (p *Platform) compileDeployFunctionLabels(createFunctionOptions *platform.C
 	return labels
 }
 
-func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
 	if len(functionConfig.Spec.Volumes) == 0 {
 		functionConfig.Spec.Volumes = p.Config.Local.DefaultFunctionVolumes
 	}
@@ -1388,11 +1388,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 
-	if err := p.ValidateFunctionConfig(ctx, functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate a function configuration")
-	}
-
-	return nil
+	return p.Platform.ValidateFunctionConfigWithRetry(ctx, functionConfig, autofix)
 }
 
 func (p *Platform) populateFunctionInvocationStatus(functionInvocation *functionconfig.Status,

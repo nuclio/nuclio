@@ -179,7 +179,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		return nil, errors.Wrap(err, "Failed to initialize container builder")
 	}
 
-	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
+	if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig, createFunctionOptions.AutofixConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich and validate a function configuration")
 	}
 
@@ -309,7 +309,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		var err error
 
 		// enrich and validate again because it may not be valid after config was updated by external code entry type
-		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig); err != nil {
+		if err := p.enrichAndValidateFunctionConfig(ctx, &createFunctionOptions.FunctionConfig, createFunctionOptions.AutofixConfiguration); err != nil {
 			return errors.Wrap(err, "Failed to enrich and validate an updated function configuration")
 		}
 
@@ -1722,16 +1722,11 @@ func (p *Platform) validateAPIGatewayConfig(ctx context.Context,
 	return nil
 }
 
-func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
+func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config, autofix bool) error {
 	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
-
-	if err := p.ValidateFunctionConfig(ctx, functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to validate a function configuration")
-	}
-
-	return nil
+	return p.Platform.ValidateFunctionConfigWithRetry(ctx, functionConfig, autofix)
 }
 
 // enrichFunctionNodeSelector enriches function node selector

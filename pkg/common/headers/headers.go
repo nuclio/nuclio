@@ -32,6 +32,7 @@ const (
 	ImportedFunctionOnly                = "X-Nuclio-Imported-Function-Only"
 	SkipSpecCleanup                     = "X-Nuclio-Skip-Spec-Cleanup"
 	VerifyExternalRegistry              = "X-Nuclio-Verify-External-Registry"
+	AutofixFunctionConfiguration        = "X-Nuclio-Autofix-Function-Configuration"
 
 	// Project headers
 	ProjectName           = "X-Nuclio-Project-Name"

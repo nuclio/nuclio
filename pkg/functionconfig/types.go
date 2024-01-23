@@ -893,3 +893,5 @@ type ConfigWithStatus struct {
 	Config `json:",inline" yaml:",inline"`
 	Status Status `json:"status,omitempty"`
 }
+
+var FixableValidationErrors = []string{"V3IO Stream trigger does not support autoscaling"}
