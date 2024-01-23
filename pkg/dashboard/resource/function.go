@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -36,6 +37,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type functionResource struct {
@@ -681,15 +683,23 @@ func (fr *functionResource) processFunctionInfo(functionInfoInstance *functionIn
 	// validate for missing / malformed fields
 	//
 
-	// name must exist
+	// name must exists
 	if functionInfoInstance.Meta.Name == "" {
 		return nil, nuclio.NewErrBadRequest("Function name must be provided in metadata")
 	}
 
-	// namespace must exist (sanity)
+	// namespace must exists (sanity)
 	// TODO: is this really possible considering the fact namespace was enriched beforehand?
 	if functionInfoInstance.Meta.Namespace == "" {
 		return nil, nuclio.NewErrBadRequest("Function namespace must be provided in metadata")
+	}
+
+	// validate function name is according to k8s convention
+	errorMessages := validation.IsQualifiedName(functionInfoInstance.Meta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return nil, nuclio.NewErrBadRequest("Function name doesn't conform to k8s naming convention. Errors: " +
+			joinedErrorMessage)
 	}
 
 	return functionInfoInstance, nil
