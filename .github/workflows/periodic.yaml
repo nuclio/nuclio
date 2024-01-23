@@ -56,3 +56,15 @@ jobs:
       run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
       env:
         NUCLIO_CI_SKIP_STRESS_TEST: true
+
+    - name: Report Status
+      if: always()
+      uses: ravsamhq/notify-slack-action@v2
+      with:
+        status: ${{ job.status }}
+        notify_when: "failure"
+        notification_title: "{workflow} has failed"
+        message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+        footer: "<{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
