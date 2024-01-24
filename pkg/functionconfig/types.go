@@ -351,7 +351,6 @@ type Spec struct {
 	DealerURI               string                  `json:"dealerURI,omitempty"`
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
-	Avatar                  string                  `json:"avatar,omitempty"`
 	ServiceType             v1.ServiceType          `json:"serviceType,omitempty"`
 	ImagePullPolicy         v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	SecurityContext         *v1.PodSecurityContext  `json:"securityContext,omitempty"`
@@ -416,6 +415,9 @@ type Spec struct {
 	// InitContainers are specialized containers that run before app containers in a Pod
 	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
+
+	// Deprecated - remove in 1.13.x
+	Avatar string `json:"avatar,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string
