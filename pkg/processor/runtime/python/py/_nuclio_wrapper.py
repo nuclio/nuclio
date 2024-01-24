@@ -87,8 +87,6 @@ class Wrapper(object):
         # holds the function that will be called
         self._entrypoint = self._load_entrypoint_from_handler(handler)
 
-        self._is_entrypoint_coroutine = asyncio.iscoroutinefunction(self._entrypoint)
-
         # connect to processor
         self._event_sock = self._connect_to_processor(self._event_socket_path)
         self._control_sock = self._connect_to_processor(self._control_socket_path)
@@ -97,10 +95,10 @@ class Wrapper(object):
         self._event_sock_wfile = self._event_sock.makefile('w')
         self._control_sock_wfile = self._control_sock.makefile('w')
 
-        # if we're in a coroutine - set socket to non-blocking
-        if self._is_entrypoint_coroutine:
-            self._event_sock.setblocking(False)
-            self._control_sock.setblocking(False)
+        # set socket to nonblocking to allow the asyncio event loop to run while we're waiting on a socket, and so
+        # that we are able to cancel the wait if needed
+        self._event_sock.setblocking(False)
+        self._control_sock.setblocking(False)
 
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
@@ -354,20 +352,13 @@ class Wrapper(object):
         raise RuntimeError('Failed to connect to {0} in given timeframe'.format(socket_path))
 
     async def _write_packet_to_processor(self, sock, body):
-
-        if self._is_entrypoint_coroutine:
-            await self._loop.sock_sendall(sock, (body + '\n').encode('utf-8'))
-        else:
-            sock.sendall((body + '\n').encode('utf-8'))
+        await self._loop.sock_sendall(sock, (body + '\n').encode('utf-8'))
 
     async def _resolve_event_message_length(self, sock):
         """
         Determines the message body size
         """
-        if self._is_entrypoint_coroutine:
-            int_buf = await self._loop.sock_recv(sock, Constants.msgpack_message_length_bytes)
-        else:
-            int_buf = sock.recv(Constants.msgpack_message_length_bytes)
+        int_buf = await self._loop.sock_recv(sock, Constants.msgpack_message_length_bytes)
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
@@ -391,10 +382,7 @@ class Wrapper(object):
         cumulative_bytes_read = 0
         while cumulative_bytes_read < expected_event_bytes_length:
             bytes_to_read_now = expected_event_bytes_length - cumulative_bytes_read
-            if self._is_entrypoint_coroutine:
-                bytes_read = await self._loop.sock_recv(sock, bytes_to_read_now)
-            else:
-                bytes_read = sock.recv(bytes_to_read_now)
+            bytes_read = await self._loop.sock_recv(sock, bytes_to_read_now)
 
             if not bytes_read:
                 raise WrapperFatalException('Client disconnected')
