@@ -95,7 +95,8 @@ class Wrapper(object):
         self._event_sock_wfile = self._event_sock.makefile('w')
         self._control_sock_wfile = self._control_sock.makefile('w')
 
-        # if we're in a coroutine - set socket to non-blocking
+        # set socket to nonblocking to allow the asyncio event loop to run while we're waiting on a socket, and so
+        # that we are able to cancel the wait if needed
         self._event_sock.setblocking(False)
         self._control_sock.setblocking(False)
 
