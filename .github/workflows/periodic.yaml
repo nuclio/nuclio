@@ -66,6 +66,6 @@ jobs:
         notify_when: "failure"
         notification_title: "{workflow} has failed"
         message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
-        footer: "<{repo_url}|{repo}> | <{workflow_url}|View Workflow>"
+        footer: "<{repo_url}|{repo}> | <{run_url}|View Run>"
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
