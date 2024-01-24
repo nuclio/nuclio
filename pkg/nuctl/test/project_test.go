@@ -159,11 +159,7 @@ func (suite *projectGetTestSuite) TestDeleteWithFunctions() {
 
 func (suite *projectExportImportTestSuite) TestParseReport() {
 	outputPath := path.Join(suite.tempDir, "nuctl-parsed-report.txt")
-	reportPath := path.Join(suite.GetImportsDir(),
-		fmt.Sprintf("import-project-report-%s.json",
-			common.GenerateRandomString(5, common.LettersAndNumbers),
-		),
-	)
+	reportPath := path.Join(suite.GetImportsDir(), "import-project-report.json")
 	err := suite.ExecuteNuctl([]string{"parse", "--report-file-path", reportPath, "--output-path", outputPath}, nil)
 	suite.Require().NoError(err)
 

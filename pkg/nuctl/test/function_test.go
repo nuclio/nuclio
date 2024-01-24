@@ -1591,7 +1591,7 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	}()
 
 	// generate report path
-	reportPath := path.Join(suite.GetImportsDir(),
+	reportPath := path.Join(suite.tempDir,
 		fmt.Sprintf("import-project-report-%s.json",
 			common.GenerateRandomString(5, common.LettersAndNumbers),
 		),
