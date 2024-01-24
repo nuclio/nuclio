@@ -462,6 +462,11 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Auto scale metrics validation failed")
 	}
 
+	// TODO: remove warning when avatar is support is removed
+	if functionConfig.Spec.Avatar == "" {
+		ap.Logger.WarnWithCtx(ctx, "Avatar is deprecated and will soon not be supported")
+	}
+
 	return nil
 }
 
