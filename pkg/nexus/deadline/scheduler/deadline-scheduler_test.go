@@ -1,15 +1,15 @@
 package deadline_test
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
-	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
-	models "github.com/nuclio/nuclio/pkg/nexus/deadline/models"
+	"github.com/nuclio/nuclio/pkg/nexus/deadline/models"
 	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/scheduler"
 	utils "github.com/nuclio/nuclio/pkg/nexus/utils"
 	"github.com/stretchr/testify/suite"

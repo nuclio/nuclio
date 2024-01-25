@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"log"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"

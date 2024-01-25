@@ -9,7 +9,7 @@ import (
 	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/queue"
-	scheduler "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	utils "github.com/nuclio/nuclio/pkg/nexus/utils"
 	"github.com/stretchr/testify/suite"
 )
