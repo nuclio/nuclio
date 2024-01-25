@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	elastic_deploy "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy"
 	"net/http"
 	"net/url"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/utils"
+	elastic_deploy "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy"
 )
 
 type BaseNexusScheduler struct {
@@ -26,12 +26,12 @@ type BaseNexusScheduler struct {
 	deployer   *elastic_deploy.ProElasticDeploy
 }
 
-func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig, deployer *elastic_deploy.ProElasticDeploy) *BaseNexusScheduler {
+func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig, client *http.Client, deployer *elastic_deploy.ProElasticDeploy) *BaseNexusScheduler {
 	return &BaseNexusScheduler{
 		BaseNexusSchedulerConfig: config,
 		Queue:                    queue,
 		requestUrl:               models.NUCLIO_NEXUS_REQUEST_URL,
-		client:                   &http.Client{},
+		client:                   client,
 		NexusConfig:              nexusConfig,
 		deployer:                 deployer,
 	}
@@ -39,7 +39,7 @@ func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSche
 
 func NewDefaultBaseNexusScheduler(queue *queue.NexusQueue, nexusConfig *config.NexusConfig, deployer *elastic_deploy.ProElasticDeploy) *BaseNexusScheduler {
 	baseSchedulerConfig := config.NewDefaultBaseNexusSchedulerConfig()
-	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig, deployer)
+	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig, &http.Client{}, deployer)
 }
 
 func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
@@ -47,8 +47,8 @@ func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
 }
 
 func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
-	bns.NexusConfig.MaxParallelRequests.Add(-1)
-	defer bns.NexusConfig.MaxParallelRequests.Add(1)
+	bns.MaxParallelRequests.Add(-1)
+	defer bns.MaxParallelRequests.Add(1)
 
 	nexusItem = bns.Queue.Pop()
 
