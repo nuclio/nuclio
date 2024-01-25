@@ -1591,7 +1591,11 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	}()
 
 	// generate report path
-	reportPath := suite.tempDir + "/nuctl-import-report.json"
+	reportPath := path.Join(suite.tempDir,
+		fmt.Sprintf("import-project-report-%s.json",
+			common.GenerateRandomString(5, common.LettersAndNumbers),
+		),
+	)
 	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose", "--save-report", "--report-file-path", reportPath, functionConfigPath}, nil)
 	suite.Require().NotNil(err)
 
