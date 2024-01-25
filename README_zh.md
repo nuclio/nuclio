@@ -7,7 +7,7 @@
 # Nuclio - 用于实时事件和数据处理的 "serverless" 框架
 
 <p align="center">
-访问 <a href="https://nuclio.io">nuclio.io</a> 获取更多产品信息和新闻，以及一个体验友好的 Web 版 Nuclio <a href="https://nuclio.io/docs/latest/">文档</a>.
+访问 <a href="https://nuclio.io">nuclio.io</a> 获取更多产品信息和新闻，以及一个体验友好的 Web 版 Nuclio <a href="https://docs.nuclio.io/en/stable/">文档</a>.
 </p>
 
 翻译：
