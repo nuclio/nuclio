@@ -39,7 +39,7 @@ minikube start --kubernetes-version v1.27.5 --driver docker --extra-config=apise
 > - Change the Kubernetes version. Currently, the recommended version is 1.27.5.
 > - Change the minikube driver according to your environment and needs
 > - Add `--addons ingress` to your `minikube start` command to support creating function ingresses to flexibly
-> [expose your function](/docs/tasks/deploying-functions.md#exposing-a-function).
+> [expose your function](/docs/tasks/deploying-functions.html#exposing-a-function).
 >     Ensure that your function ingress appears on your hosts file (**/etc/hosts**).
 >     You can do this by running this command:
 >     ```sh
@@ -105,7 +105,7 @@ nuctl deploy helloworld \
     --run-registry localhost:5000
 ```
 >**Note:** The command above exposes the function externally using a `nodePort`. This is done for demonstration
-> purposes only. Please read more about [exposing your function](../../tasks/deploying-functions.md#exposing-a-function)
+> purposes only. Please read more about [exposing your function](../../tasks/deploying-functions.html#exposing-a-function)
 > for more information.
 
 >**Note:** The difference between the two registries specified in this command, and the reason for their addresses being different is as follows:

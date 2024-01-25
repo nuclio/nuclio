@@ -27,7 +27,7 @@ For asynchronous support (e.g.: `asyncio`), you may want to decorate your functi
 
 Important to note:
   - Nuclio, at the moment, does not support concurrent requests handling for a single working. Each working may handle
-    one request at a time, for more information see [here](../../../concepts/architecture.md#runtime-engine).
+    one request at a time, for more information see [here](../../../concepts/architecture.html#runtime-engine).
   - However, using an async handler can still be beneficial in some scenarios; Since the event loop would keep running while listening on more incoming requests, it allows functions to asynchronously perform
     I/O bound background tasks.
 
@@ -224,6 +224,6 @@ context.platform.set_drain_termination(callback)  # where 'callback' is a user-d
 Termination callback is triggered by the processor when it is about to exit.
 The termination callback facilitates a graceful shutdown.
 
-Additionally, we offer a [drain callback](../../triggers/kafka.md#drain-callback) option for stream triggers.
+Additionally, we offer a [drain callback](../../triggers/kafka.html#drain-callback) option for stream triggers.
 
 

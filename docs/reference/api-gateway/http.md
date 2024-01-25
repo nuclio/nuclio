@@ -105,7 +105,7 @@ With the following request body:
 ```
 
 <a id="invoke-basic"></a>
-### Invoke API gateways
+### Invoke API gateways with basic authentication
 
 To invoke it, simply send a request to the created API Gateway ingress (e.g.: `<apigateway-name>-<project-name>.<nuclio-host-name>`,
 specified on the request body `spec.host`) with the following header:
