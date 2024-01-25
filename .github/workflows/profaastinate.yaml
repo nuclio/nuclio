@@ -15,7 +15,8 @@ jobs:
         go-version: [ 1.21.x ]  # Add other versions if needed
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
         with:
@@ -23,11 +24,12 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-  Lint:
+  lint:
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
         with:
@@ -37,11 +39,12 @@ jobs:
       - name: Run Profaastinate Lint
         run: golangci-lint run ./pkg/nexus/...
 
-  Test:
+  test:
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
         with:

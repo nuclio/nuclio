@@ -1,0 +1,33 @@
+name: Build and push dashboard image
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ mpga-development ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: quay.io/nuclio/dashboard
+  SET_IMAGE_NAME: nuclio-dashboard-profaastintate
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build dashboard image
+        run: make dashboard
+
+      - name: Tag and push dashboard image
+        run: |
+            docker tag ${{ env.IMAGE_NAME }}:latest-amd64 ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.SET_IMAGE_NAME }}:latest-amd64
+            docker push ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.SET_IMAGE_NAME }}:latest-amd64
