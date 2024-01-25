@@ -22,6 +22,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - 'README.md'
+      - 'README_zh.md'
 
   # Run CI also on push to master
   push:
