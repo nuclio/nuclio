@@ -24,11 +24,11 @@ There, you can create an API Gateway with the following parameters:
 
 ![api-gateway](../../../docs/assets/images/api-gateway-ui-none.png)
 
-To invoke the function using the api gateway, see [invoking API Gateways](./http.md#invoke-none).
+To invoke the function using the api gateway, see [invoking API Gateways](./http.html#invoke-api-gateways).
 
 <a id="basic-auth"></a>
 ### With Basic Authentication
 
 ![api-gateway-basic-auth](../../../docs/assets/images/api-gateway-ui-basic-auth.png)
 
-To invoke the function using the api gateway, see [invoking API Gateways with basic authentication](./http.md#invoke-basic).
+To invoke the function using the api gateway, see [invoking API Gateways with basic authentication](./http.html#invoke-api-gateways-with-basic-authentication).

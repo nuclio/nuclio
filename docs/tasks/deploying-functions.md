@@ -342,7 +342,7 @@ Kubernetes network, you can do so in one of 2 ways during deployment, both contr
 1. Configure the function with a reachable [HTTP ingress](../reference/triggers/http#attributes). For
    this to work you'll need to install an ingress controller on your cluster. See [function ingress document](../concepts/k8s/function-ingress.md)
    for more details.
-2. Configure the function to use [serviceType](../reference/triggers/http.md#attributes) of type `nodePort`.
+2. Configure the function to use [serviceType](../reference/triggers/http.html#attributes) of type `nodePort`.
 
 If you are deploying the function using [nuctl](../reference/nuctl/nuctl.md) CLI, you can also configure a `nodePort` easily by using the
 `--http-trigger-service-type=nodePort` CLI arg.
