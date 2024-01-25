@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+const (
+	Running = "Running"
+	Paused  = "Paused"
+)
+
 type ElasticDeployer interface {
 	Unpause(functionName string) error
 	Pause(functionName string) error

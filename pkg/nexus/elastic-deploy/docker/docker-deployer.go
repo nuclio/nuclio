@@ -8,11 +8,6 @@ import (
 	"time"
 )
 
-const (
-	running = "running"
-	paused  = "paused"
-)
-
 type DockerDeployer struct {
 	*deployer_models.ProElasticDeployerConfig
 	*docker.Client
@@ -73,7 +68,7 @@ func (ds *DockerDeployer) Unpause(functionName string) error {
 	}
 
 	fmt.Println("Container state: ", container.State)
-	if container.State == paused {
+	if container.State == deployer_models.Paused {
 		err := ds.UnpauseContainer(container.ID)
 		if err != nil {
 			return err
@@ -90,12 +85,12 @@ func (ds *DockerDeployer) Unpause(functionName string) error {
 
 func (ds *DockerDeployer) Pause(functionName string) error {
 	container := ds.getFunctionContainer(functionName)
-	if container.State == paused {
+	if container.State == deployer_models.Paused {
 		fmt.Printf("Container %s has been paused already\n", ds.getContainerName(functionName))
 		return nil
 	}
 
-	if container.State == running {
+	if container.State == deployer_models.Running {
 		err := ds.PauseContainer(container.ID)
 		if err != nil {
 			return err
@@ -110,7 +105,7 @@ func (ds *DockerDeployer) Pause(functionName string) error {
 
 func (ds *DockerDeployer) IsRunning(functionName string) bool {
 	container := ds.getFunctionContainer(functionName)
-	return container.State == running
+	return container.State == deployer_models.Running
 }
 
 func (ds *DockerDeployer) getFunctionContainer(functionName string) *docker.APIContainers {
