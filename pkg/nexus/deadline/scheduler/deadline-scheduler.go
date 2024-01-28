@@ -64,6 +64,8 @@ func (ds *DeadlineScheduler) executeSchedule() {
 
 			go func(taskInFunction *structs.NexusItem) {
 				defer ds.MaxParallelRequests.Add(1)
+				ds.Unpause(taskInFunction.Name)
+				ds.SendToExecutionChannel(taskInFunction.Name)
 				ds.CallSynchronized(taskInFunction)
 			}(task)
 		}
