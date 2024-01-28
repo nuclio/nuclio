@@ -47,8 +47,11 @@ func (ds *IdleScheduler) executeSchedule() {
 		for ds.Queue.Len() > 0 && ds.MaxParallelRequests.Load() > 0 {
 			ds.MaxParallelRequests.Add(-1)
 			task := ds.Queue.Pop()
+
 			go func(taskInFunction *structs.NexusItem) {
 				defer ds.MaxParallelRequests.Add(1)
+
+				ds.Unpause(taskInFunction.Name)
 				ds.CallSynchronized(taskInFunction)
 				ds.SendToExecutionChannel(taskInFunction.Name)
 			}(task)
