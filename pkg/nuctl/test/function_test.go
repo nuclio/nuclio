@@ -1584,19 +1584,25 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	functionConfigPath := path.Join(suite.GetImportsDir(), "project_with_wrong_conf.yaml")
 	projectName := "test-project"
 
+	tempDir, err := os.MkdirTemp("", "test-import-with-report")
+	suite.Require().NoError(err)
+
 	defer func() {
+		// delete temp dir
+		os.RemoveAll(tempDir) // nolint: errcheck
+
 		// delete project
 		suite.ExecuteNuctl([]string{"delete", "project", projectName, "--strategy", "cascading"}, nil) // nolint: errcheck
 
 	}()
 
 	// generate report path
-	reportPath := path.Join(suite.tempDir,
+	reportPath := path.Join(tempDir,
 		fmt.Sprintf("import-project-report-%s.json",
 			common.GenerateRandomString(5, common.LettersAndNumbers),
 		),
 	)
-	err := suite.ExecuteNuctl([]string{"import", "project", "--verbose", "--save-report", "--report-file-path", reportPath, functionConfigPath}, nil)
+	err = suite.ExecuteNuctl([]string{"import", "project", "--verbose", "--save-report", "--report-file-path", reportPath, functionConfigPath}, nil)
 	suite.Require().NotNil(err)
 
 	// read a generated report
