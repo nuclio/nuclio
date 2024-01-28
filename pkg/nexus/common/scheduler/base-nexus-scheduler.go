@@ -20,13 +20,14 @@ type BaseNexusScheduler struct {
 	*config.BaseNexusSchedulerConfig
 	*config.NexusConfig
 
-	Queue      *queue.NexusQueue
-	requestUrl string
-	client     *http.Client
-	deployer   *elastic_deploy.ProElasticDeploy
+	Queue            *queue.NexusQueue
+	requestUrl       string
+	client           *http.Client
+	deployer         *elastic_deploy.ProElasticDeploy
+	executionChannel chan string
 }
 
-func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig, client *http.Client, deployer *elastic_deploy.ProElasticDeploy) *BaseNexusScheduler {
+func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSchedulerConfig, nexusConfig *config.NexusConfig, client *http.Client, deployer *elastic_deploy.ProElasticDeploy, executionChannel chan string) *BaseNexusScheduler {
 	return &BaseNexusScheduler{
 		BaseNexusSchedulerConfig: config,
 		Queue:                    queue,
@@ -34,18 +35,20 @@ func NewBaseNexusScheduler(queue *queue.NexusQueue, config *config.BaseNexusSche
 		client:                   client,
 		NexusConfig:              nexusConfig,
 		deployer:                 deployer,
+		executionChannel:         executionChannel,
 	}
 }
 
-func NewDefaultBaseNexusScheduler(queue *queue.NexusQueue, nexusConfig *config.NexusConfig, deployer *elastic_deploy.ProElasticDeploy) *BaseNexusScheduler {
+func NewDefaultBaseNexusScheduler(queue *queue.NexusQueue, nexusConfig *config.NexusConfig, deployer *elastic_deploy.ProElasticDeploy, executionChannel chan string) *BaseNexusScheduler {
 	baseSchedulerConfig := config.NewDefaultBaseNexusSchedulerConfig()
-	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig, &http.Client{}, deployer)
+	return NewBaseNexusScheduler(queue, &baseSchedulerConfig, nexusConfig, &http.Client{}, deployer, executionChannel)
 }
 
 func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
 	bns.Queue.Push(elem)
 }
 
+// TODO - discuss if we want to use this or just handle pop logic inside the specific scheduler
 func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 	bns.MaxParallelRequests.Add(-1)
 	defer bns.MaxParallelRequests.Add(1)
@@ -56,6 +59,11 @@ func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 	bns.Unpause(nexusItem.Name)
 	bns.CallSynchronized(nexusItem)
 	return
+}
+
+func (bns *BaseNexusScheduler) SendToExecutionChannel(functionName string) {
+	fmt.Println("Sending to execution channel:", functionName)
+	bns.executionChannel <- functionName
 }
 
 func (bns *BaseNexusScheduler) Unpause(functionName string) {
