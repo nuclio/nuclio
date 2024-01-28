@@ -42,7 +42,7 @@ func (suite *BulkSchedulerTestSuite) SetupTest() {
 		Transport: &utils.MockRoundTripper{},
 	}
 
-	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client, nil)
+	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client, nil, nil)
 
 	suite.bs = bulk.NewScheduler(baseScheduler, bulkConfig)
 }
