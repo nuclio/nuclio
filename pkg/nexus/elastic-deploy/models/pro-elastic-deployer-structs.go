@@ -6,8 +6,8 @@ import (
 
 // The following constants are used in the deployer domain throughout utils, helper function, tests and more.
 const (
-	Running = "Running"
-	Paused  = "Paused"
+	Running = "running"
+	Paused  = "paused"
 )
 
 // ElasticDeployer is an interface for a deployer.
