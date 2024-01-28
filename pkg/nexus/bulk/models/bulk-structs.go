@@ -1,7 +1,8 @@
 package models
 
 type BulkSchedulerConfig struct {
-	MinAmountOfBulkItems                         int     // The minimum amount of items that must be in the bulk queue before the bulk scheduler will run.
+	MinAmountOfBulkItems int // The minimum amount of items that must be in the bulk queue before the bulk scheduler will run.
+	// TODO never used - should be removed?
 	MaxPercentageUsageCPU, MaxPercentageUsageRAM float64 // The maximum percentage of CPU and RAM that can be used before the bulk scheduler will run.
 }
 
