@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	Running = "Running"
-	Paused  = "Paused"
+	Running = "running"
+	Paused  = "paused"
 )
 
 type ElasticDeployer interface {
