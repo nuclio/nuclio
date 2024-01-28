@@ -21,20 +21,15 @@ type IdleSchedulerTestSuite struct {
 func (suite *IdleSchedulerTestSuite) SetupTest() {
 	sleepDuration := 10 * time.Millisecond
 
-	defaultQueue := common.
-		Initialize()
-	baseSchedulerConfig := config.BaseNexusSchedulerConfig{
-		SleepDuration: sleepDuration,
-	}
-	nexusConfig := config.
-		NewDefaultNexusConfig()
+	defaultQueue := common.Initialize()
+	baseSchedulerConfig := config.NewBaseNexusSchedulerConfig(true, sleepDuration)
+	nexusConfig := config.NewDefaultNexusConfig()
 
 	Client := &http.Client{
 		Transport: &utils.MockRoundTripper{},
 	}
 
-	baseScheduler := scheduler.
-		NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client, nil, nil)
+	baseScheduler := scheduler.NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client, nil, nil)
 
 	suite.is = *idle.NewScheduler(baseScheduler)
 }
