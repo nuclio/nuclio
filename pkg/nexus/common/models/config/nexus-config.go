@@ -3,17 +3,21 @@ package config
 import "sync/atomic"
 
 type NexusConfig struct {
-	MaxParallelRequests *atomic.Int32
+	MaxParallelRequests      *atomic.Int32
+	FunctionExecutionChannel chan string
 }
 
-func NewNexusConfig(maxParallelRequests *atomic.Int32) NexusConfig {
+func NewNexusConfig(maxParallelRequests *atomic.Int32, executionChannel chan string) NexusConfig {
 	return NexusConfig{
-		MaxParallelRequests: maxParallelRequests,
+		MaxParallelRequests:      maxParallelRequests,
+		FunctionExecutionChannel: executionChannel,
 	}
 }
 
 func NewDefaultNexusConfig() NexusConfig {
 	var maxParallelRequests atomic.Int32
 	maxParallelRequests.Store(200)
-	return NewNexusConfig(&maxParallelRequests)
+
+	channel := make(chan string, maxParallelRequests.Load()*10)
+	return NewNexusConfig(&maxParallelRequests, channel)
 }
