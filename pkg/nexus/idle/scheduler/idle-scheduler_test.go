@@ -34,7 +34,7 @@ func (suite *IdleSchedulerTestSuite) SetupTest() {
 	}
 
 	baseScheduler := scheduler.
-		NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client, nil)
+		NewBaseNexusScheduler(defaultQueue, &baseSchedulerConfig, &nexusConfig, Client, nil, nil)
 
 	suite.is = *idle.NewScheduler(baseScheduler)
 }
