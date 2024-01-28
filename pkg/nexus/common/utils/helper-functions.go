@@ -27,7 +27,7 @@ func TransformRequestToClientRequest(nexusItemRequest *http.Request) (newRequest
 	}
 
 	var requestUrl url.URL
-	requestUrl.Scheme = nexusItemRequest.URL.Scheme
+	requestUrl.Scheme = "http"
 	requestUrl.Path = nexusItemRequest.URL.Path
 	// Needs to be set to the port of the env the default port is 8080
 	requestUrl.Host = fmt.Sprintf("%s:%s", GetEnvironmentHost(), models.PORT)
