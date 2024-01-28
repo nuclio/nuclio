@@ -1,27 +1,31 @@
 package nexus
 
 import (
+	"log"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	bulk "github.com/nuclio/nuclio/pkg/nexus/bulk/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/common/env"
+	"github.com/nuclio/nuclio/pkg/nexus/common/load-balancer"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/config"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
 	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	queue "github.com/nuclio/nuclio/pkg/nexus/common/queue"
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	deadline "github.com/nuclio/nuclio/pkg/nexus/deadline/scheduler"
-	elastic_deploy "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy"
-	"log"
-	"sync"
-	"sync/atomic"
+	"github.com/nuclio/nuclio/pkg/nexus/elastic-deploy"
 )
 
 type Nexus struct {
-	queue       *queue.NexusQueue
-	wg          sync.WaitGroup
-	schedulers  map[string]interfaces.INexusScheduler
-	nexusConfig *config.NexusConfig
-	envRegistry *env.EnvRegistry
-	deployer    *elastic_deploy.ProElasticDeploy
+	queue        *queue.NexusQueue
+	wg           sync.WaitGroup
+	schedulers   map[string]interfaces.INexusScheduler
+	nexusConfig  *config.NexusConfig
+	envRegistry  *env.EnvRegistry
+	deployer     *elastic_deploy.ProElasticDeploy
+	loadBalancer *load_balancer.LoadBalancer
 }
 
 func Initialize() (nexus *Nexus) {
@@ -29,7 +33,10 @@ func Initialize() (nexus *Nexus) {
 
 	var maxParallelRequests atomic.Int32
 	maxParallelRequests.Store(1)
-	nexusConfig := config.NewNexusConfig(&maxParallelRequests)
+
+	channel := make(chan string, maxParallelRequests.Load()*10)
+
+	nexusConfig := config.NewNexusConfig(&maxParallelRequests, channel)
 
 	nexus = &Nexus{
 		queue:       &nexusQueue,
@@ -42,7 +49,10 @@ func Initialize() (nexus *Nexus) {
 	nexus.deployer = elastic_deploy.NewProElasticDeployDefault(nexus.envRegistry)
 	nexus.deployer.Initialize()
 
-	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue, &nexusConfig, nexus.deployer)
+	nexus.loadBalancer = load_balancer.NewLoadBalancer(&maxParallelRequests, channel, 1*time.Second, 40.0, 40.0)
+	nexus.loadBalancer.Initialize()
+
+	defaultBaseScheduler := scheduler.NewDefaultBaseNexusScheduler(&nexusQueue, &nexusConfig, nexus.deployer, channel)
 
 	deadlineScheduler := deadline.NewDefaultScheduler(defaultBaseScheduler)
 	bulkScheduler := bulk.NewDefaultScheduler(defaultBaseScheduler)
@@ -50,6 +60,7 @@ func Initialize() (nexus *Nexus) {
 	nexus.schedulers = map[string]interfaces.INexusScheduler{
 		"deadline": deadlineScheduler,
 		"bulk":     bulkScheduler,
+		// "idle": idleScheduler
 	}
 
 	return
@@ -65,22 +76,42 @@ func (nexus *Nexus) StopScheduler(name string) {
 	nexus.schedulers[name].Stop()
 }
 
+func (nexus *Nexus) StartLoadBalancer() {
+	log.Println("Starting LoadBalancer...")
+	go nexus.loadBalancer.Start()
+}
+
+func (nexus *Nexus) StartDeployer() {
+	log.Printf("Starting deployer...\n")
+	go nexus.deployer.PauseUnusedFunctionContainers()
+}
+
 func (nexus *Nexus) SetMaxParallelRequests(maxParallelRequests int32) {
 	nexus.nexusConfig.MaxParallelRequests.Store(maxParallelRequests)
+	close(nexus.nexusConfig.FunctionExecutionChannel)
+	nexus.nexusConfig.FunctionExecutionChannel = make(chan string, maxParallelRequests*10)
+}
+
+func (nexus *Nexus) SetTargetLoadCPU(targetLoadCPU float64) {
+	nexus.loadBalancer.SetTargetLoadCPU(targetLoadCPU)
+}
+
+func (nexus *Nexus) SetTargetLoadMemory(targetLoadMemory float64) {
+	nexus.loadBalancer.SetTargetLoadMemory(targetLoadMemory)
 }
 
 func (nexus *Nexus) Start() {
-	log.Printf("Starting deployer...\n")
-	go nexus.deployer.PauseUnusedFunctionContainers()
+	nexus.StartDeployer()
+	nexus.StartLoadBalancer()
 
 	log.Println("Starting Scheduler...")
 
 	nexus.wg.Add(len(nexus.schedulers))
-	for _, scheduler := range nexus.schedulers {
+	for _, nexusScheduler := range nexus.schedulers {
 		go func(scheduler interfaces.INexusScheduler) {
 			defer nexus.wg.Done()
 			go scheduler.Start()
-		}(scheduler)
+		}(nexusScheduler)
 	}
 	// TODO nexus.wg.Wait()
 }
