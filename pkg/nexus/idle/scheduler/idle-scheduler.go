@@ -50,6 +50,7 @@ func (ds *IdleScheduler) executeSchedule() {
 			go func(taskInFunction *structs.NexusItem) {
 				defer ds.MaxParallelRequests.Add(1)
 				ds.CallSynchronized(taskInFunction)
+				ds.SendToExecutionChannel(taskInFunction.Name)
 			}(task)
 		}
 
