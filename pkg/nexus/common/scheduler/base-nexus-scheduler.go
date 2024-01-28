@@ -69,6 +69,14 @@ func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
 	return
 }
 
+func (bns *BaseNexusScheduler) SendToExecutionChannel(functionName string) {
+	if bns.executionChannel == nil {
+		return
+	}
+	fmt.Println("Sending to execution channel:", functionName)
+	bns.executionChannel <- functionName
+}
+
 // Unpause ensures that the function container is running
 func (bns *BaseNexusScheduler) Unpause(functionName string) {
 	if bns.deployer == nil {
