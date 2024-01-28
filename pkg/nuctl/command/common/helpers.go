@@ -104,14 +104,14 @@ func ConvertMapToFunctionConfigWithStatus(functionMap map[string]interface{}) (*
 // saveReportToFile saves the report to the file
 // It does not return any errors if they occur; instead, it logs an error for the best effort
 func saveReportToFile(ctx context.Context, loggerInstance logger.Logger, report interface{}, path string) {
-	file, err := json.Marshal(report)
+	content, err := json.Marshal(report)
 	if err != nil {
 		loggerInstance.ErrorWithCtx(ctx,
 			"Failed to marshal report to json",
 			"err", err,
 			"path", path)
 	}
-	if err := os.WriteFile(path, file, 0644); err != nil {
+	if err := os.WriteFile(path, content, 0644); err != nil {
 		loggerInstance.ErrorWithCtx(ctx,
 			"Failed to write report to file",
 			"err", err,
