@@ -43,6 +43,7 @@ func (helperSuite *HelperSuite) TestInitialize() {
 		{"StopScheduler", http.MethodPost, "/scheduler/deadline/stop", http.StatusOK},
 		{"GetAllSchedulersWithStatus", http.MethodGet, "/scheduler", http.StatusOK},
 		{"ModifyNexusConfig", http.MethodPut, "/config", http.StatusOK},
+		{"modifyLoadBalancer", http.MethodPut, "/config", http.StatusOK},
 	}
 
 	for _, tc := range testCases {
@@ -75,6 +76,25 @@ func (helperSuite *HelperSuite) TestModifyNexusConfig() {
 	body, readErr := io.ReadAll(resp.Body)
 	assert.NoError(helperSuite.T(), readErr)
 	assert.Equal(helperSuite.T(), "Max parallel requests set to 10", string(body))
+}
+
+func (helperSuite *HelperSuite) TestModifyLoadBalancer() {
+	queryParams := url.Values{}
+	queryParams.Add("targetLoadCPU", "10")
+	queryParams.Add("targetLoadMemory", "10")
+
+	pathWithQuery := fmt.Sprintf("/load-balancer?%s", queryParams.Encode())
+	req, err := http.NewRequest(http.MethodPut, helperSuite.testServer.URL+pathWithQuery, nil)
+	assert.NoError(helperSuite.T(), err)
+
+	resp, respErr := helperSuite.Client.Do(req)
+	assert.NoError(helperSuite.T(), respErr)
+
+	assert.Equal(helperSuite.T(), http.StatusAccepted, resp.StatusCode)
+
+	body, readErr := io.ReadAll(resp.Body)
+	assert.NoError(helperSuite.T(), readErr)
+	assert.Equal(helperSuite.T(), "Target CPU load set to 10.0\nTarget memory load set to 10.0", string(body))
 }
 
 func TestSuite(t *testing.T) {
