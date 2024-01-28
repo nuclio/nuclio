@@ -4,13 +4,15 @@ import "sync/atomic"
 
 // NexusConfig defines the configuration for the nexus. This allows to fine tune the nexus.
 type NexusConfig struct {
-	MaxParallelRequests *atomic.Int32
+	MaxParallelRequests      *atomic.Int32
+	FunctionExecutionChannel chan string
 }
 
 // NewNexusConfig allows to create a nexus config.
-func NewNexusConfig(maxParallelRequests *atomic.Int32) NexusConfig {
+func NewNexusConfig(maxParallelRequests *atomic.Int32, executionChannel chan string) NexusConfig {
 	return NexusConfig{
-		MaxParallelRequests: maxParallelRequests,
+		MaxParallelRequests:      maxParallelRequests,
+		FunctionExecutionChannel: executionChannel,
 	}
 }
 
@@ -19,5 +21,7 @@ func NewNexusConfig(maxParallelRequests *atomic.Int32) NexusConfig {
 func NewDefaultNexusConfig() NexusConfig {
 	var maxParallelRequests atomic.Int32
 	maxParallelRequests.Store(200)
-	return NewNexusConfig(&maxParallelRequests)
+
+	channel := make(chan string, maxParallelRequests.Load()*10)
+	return NewNexusConfig(&maxParallelRequests, channel)
 }
