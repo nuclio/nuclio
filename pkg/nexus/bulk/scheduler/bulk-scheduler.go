@@ -85,6 +85,7 @@ func (ds *BulkScheduler) callAndRemoveItems(items []*structs.NexusItem) {
 			ds.MaxParallelRequests.Add(1)
 			defer ds.MaxParallelRequests.Add(-1)
 
+			ds.SendToExecutionChannel(item.Name)
 			ds.CallSynchronized(item)
 		}(item)
 
