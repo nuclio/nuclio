@@ -25,17 +25,21 @@ func NewNexusRouter(nexus *Nexus) *NexusRouter {
 }
 
 const (
+	LOAD_BALANCER_PATH  = "/load-balancer"
 	SCHEDULER_BASE_PATH = "/scheduler"
+	START               = "/start"
+	STOP                = "/stop"
 )
 
 // Initialize initializes the nexus router
 func (nexusRouter *NexusRouter) Initialize() {
-	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}/start", nexusRouter.StartScheduler)
-	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}/stop", nexusRouter.StopScheduler)
+	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}"+START, nexusRouter.StartScheduler)
+	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}"+STOP, nexusRouter.StopScheduler)
 	nexusRouter.Router.Get(SCHEDULER_BASE_PATH, nexusRouter.GetAllSchedulersWithStatus)
 	nexusRouter.Router.Put("/config", nexusRouter.ModifyNexusConfig)
+	nexusRouter.Router.Put(LOAD_BALANCER_PATH, nexusRouter.modifyLoadBalancer)
 
-	println("NexusRouter initialized")
+	fmt.Println("NexusRouter initialized")
 }
 
 // GetAllSchedulersWithStatus allows to get all schedulers with their status via GET request
@@ -129,6 +133,38 @@ func (nexusRouter *NexusRouter) ModifyNexusConfig(w http.ResponseWriter, r *http
 
 		w.WriteHeader(http.StatusAccepted)
 		unhandledWriteString(w, fmt.Sprintf("Max parallel requests set to %s", maxParallelRequests))
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (nexusRouter *NexusRouter) modifyLoadBalancer(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	if targetLoadCPU := query.Get("targetLoadCPU"); targetLoadCPU != "" {
+		targetLoadCPU, err := strconv.ParseFloat(targetLoadCPU, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			unhandledWriteString(w, fmt.Sprintf("Invalid value for targetLoadCPU: %f", targetLoadCPU))
+			return
+		}
+		nexusRouter.Nexus.SetTargetLoadCPU(targetLoadCPU)
+
+		w.WriteHeader(http.StatusAccepted)
+		unhandledWriteString(w, fmt.Sprintf("Target CPU load set to %.1f\n", targetLoadCPU))
+	}
+
+	if targetLoadMemory := query.Get("targetLoadMemory"); targetLoadMemory != "" {
+		targetLoadMemory, err := strconv.ParseFloat(targetLoadMemory, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			unhandledWriteString(w, fmt.Sprintf("Invalid value for targetLoadMemory: %f", targetLoadMemory))
+			return
+		}
+		nexusRouter.Nexus.SetTargetLoadMemory(targetLoadMemory)
+
+		w.WriteHeader(http.StatusAccepted)
+		unhandledWriteString(w, fmt.Sprintf("Target memory load set to %.1f", targetLoadMemory))
 	}
 
 	w.WriteHeader(http.StatusOK)
