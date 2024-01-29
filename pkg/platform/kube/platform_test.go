@@ -1441,7 +1441,65 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 	err := suite.platform.EnrichFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("some-user", createFunctionOptions.FunctionConfig.Meta.Labels[iguazio.IguzioUsernameLabel])
+	suite.Require().Equal("some-user", createFunctionOptions.FunctionConfig.Meta.Labels[iguazio.IguazioUsernameLabel])
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestUsernameLabelsEnrichment() {
+	for _, testCase := range []struct {
+		name                  string
+		fullUsername          string
+		expectedUsernameLabel string
+		expectedDomainLabel   string
+	}{
+		{
+			name:                  "with-name-and-domain",
+			fullUsername:          "foo@bar.com",
+			expectedUsernameLabel: "foo",
+			expectedDomainLabel:   "bar.com",
+		},
+		{
+			name:                  "with-only-name",
+			fullUsername:          "foo",
+			expectedUsernameLabel: "foo",
+		},
+		{
+			name: "empty",
+		},
+		// test cases to check that we don't panic on wrong usernames
+		{
+			name:                  "wrong-with-two-ats",
+			fullUsername:          "foo@bar@test",
+			expectedUsernameLabel: "foo",
+			expectedDomainLabel:   "bar",
+		},
+		{
+			name:                  "wrong-with-empty-domain",
+			fullUsername:          "foo@",
+			expectedUsernameLabel: "foo",
+		},
+		{
+			name:                "wrong-with-empty-name",
+			fullUsername:        "@bar",
+			expectedDomainLabel: "bar",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			testContext := context.WithValue(suite.ctx,
+				auth.AuthSessionContextKey,
+				&auth.IguazioSession{
+					Username: testCase.fullUsername,
+				},
+			)
+			labels := make(map[string]string)
+			suite.platform.EnrichLabels(testContext, labels)
+
+			usernameLabel, _ := labels[iguazio.IguazioUsernameLabel]
+			suite.Require().Equal(testCase.expectedUsernameLabel, usernameLabel)
+
+			domainLabel, _ := labels[iguazio.IguazioDomainLabel]
+			suite.Require().Equal(testCase.expectedDomainLabel, domainLabel)
+		})
+	}
 }
 
 type FunctionEventKubePlatformTestSuite struct {
@@ -1805,7 +1863,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			expectedEnrichedAPIGateway: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Meta.Labels = map[string]string{
-					iguazio.IguzioUsernameLabel: "some-username",
+					iguazio.IguazioUsernameLabel: "some-username",
 				}
 				return &apiGatewayConfig
 			}(),
