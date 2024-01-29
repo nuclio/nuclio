@@ -154,6 +154,9 @@ class Wrapper(object):
                 else:
                     self._logger.debug_with('Event has been discarded', event=event)
 
+                # allow event to be garbage collected by deleting the reference
+                del event
+
             except WrapperFatalException as exc:
                 await self._on_serving_error(exc)
 
