@@ -1493,10 +1493,10 @@ func (suite *FunctionKubePlatformTestSuite) TestUsernameLabelsEnrichment() {
 			labels := make(map[string]string)
 			suite.platform.EnrichLabels(testContext, labels)
 
-			usernameLabel, _ := labels[iguazio.IguazioUsernameLabel]
+			usernameLabel := labels[iguazio.IguazioUsernameLabel]
 			suite.Require().Equal(testCase.expectedUsernameLabel, usernameLabel)
 
-			domainLabel, _ := labels[iguazio.IguazioDomainLabel]
+			domainLabel := labels[iguazio.IguazioDomainLabel]
 			suite.Require().Equal(testCase.expectedDomainLabel, domainLabel)
 		})
 	}
