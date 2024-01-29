@@ -49,6 +49,7 @@ spec:
       url: ""
   description: |
     An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The function reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: main:SensorHandler
   maxReplicas: 1
@@ -199,6 +200,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 spec:
   build: {}
   description: Showcases unstructured logging and a structured response.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: main:Handler
   maxReplicas: 1
@@ -247,6 +249,7 @@ spec:
   build: {}
   description: |
     Demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. Defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: main:Handler
   maxReplicas: 1
@@ -355,6 +358,7 @@ spec:
   build: {}
   description: |
     A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP GET request, the function returns the messages that it read from RabbitMQ.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: main:Handler
   maxReplicas: 1
@@ -468,6 +472,7 @@ spec:
   build: {}
   description: |
     Uses regular expressions to find patterns of social-security numbers (SSN), credit-card numbers, etc., using text input.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: main:Handler
   maxReplicas: 1
@@ -552,6 +557,7 @@ spec:
     - npm install --global moment
   description: |
     Uses moment.js (which is installed as part of the build) to add a specified amount of time to "now", and returns this amount as a string.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: handler
   maxReplicas: 1
@@ -611,6 +617,7 @@ exports.handler = function(context, event) {
 spec:
   build: {}
   description: Showcases unstructured logging and a structured response.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: nuclio:main
   maxReplicas: 1
@@ -658,6 +665,7 @@ public class nuclio
 spec:
   build: {}
   description: Returns the reverse of the body received in the event.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: nuclio:reverser
   maxReplicas: 1
@@ -704,6 +712,7 @@ spec:
     - pip install simple-crypt
   description: |
     Uses a third-party Python package to encrypt the event body, and showcases build commands for installing both OS-level and Python packages.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: encrypt:encrypt
   maxReplicas: 1
@@ -764,6 +773,7 @@ spec:
     - pip install cognitive_face tabulate inflection
   description: |
     Uses Microsoft's face API, configured with function environment variables. The function uses third-party Python packages, which are installed by using an inline configuration.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: face:handler
   maxReplicas: 1
@@ -904,6 +914,7 @@ def _build_response(context, body, status_code):
 spec:
   build: {}
   description: Showcases unstructured logging and a structured response.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: helloworld:handler
   maxReplicas: 1
@@ -944,6 +955,7 @@ spec:
     commands:
     - pip install requests vaderSentiment
   description: Identifies sentiments in the body strings
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: sentiments:handler
   maxReplicas: 1
@@ -996,6 +1008,7 @@ spec:
     - pip install requests numpy tensorflow
   description: |
     Uses the inception model of the TensorFlow open-source machine-learning library to classify images. The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages, pre-loading data into function memory (the AI Model), structured logging, and exception handling.
+  disableDefaultHTTPTrigger: false
   eventTimeout: ""
   handler: tensor:classify
   maxReplicas: 1
