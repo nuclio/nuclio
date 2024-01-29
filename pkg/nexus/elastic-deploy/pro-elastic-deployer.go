@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// ProElasticDeploy is the general deployer, which allows the scheduler to unpause functions
+// It automatically pauses functions after a given duration to save resources
 type ProElasticDeploy struct {
 	deployer_models.ProElasticDeployerConfig
 
@@ -16,6 +18,7 @@ type ProElasticDeploy struct {
 	durationFunctionsContainer *map[string]time.Time
 }
 
+// NewProElasticDeploy creates a new pro elastic deployer
 func NewProElasticDeploy(envRegistry *env.EnvRegistry, config deployer_models.ProElasticDeployerConfig) *ProElasticDeploy {
 	return &ProElasticDeploy{
 		envRegistry:              envRegistry,
@@ -23,15 +26,18 @@ func NewProElasticDeploy(envRegistry *env.EnvRegistry, config deployer_models.Pr
 	}
 }
 
+// NewProElasticDeployDefault creates a new pro elastic deployer with default config
 func NewProElasticDeployDefault(envRegistry *env.EnvRegistry) *ProElasticDeploy {
 	deployConfig := deployer_models.NewProElasticDeployerConfig(5*time.Second, 5*time.Second)
 	return NewProElasticDeploy(envRegistry, deployConfig)
 }
 
+// getBaseContainerName returns all nuclio function container
 func (ped *ProElasticDeploy) getBaseContainerName() string {
 	return "nuclio-" + string(ped.envRegistry.NuclioNamespace) + "-"
 }
 
+// Initialize initializes the pro elastic deployer for the right environment
 func (ped *ProElasticDeploy) Initialize() {
 	if ped.envRegistry.NuclioEnvironment == "local" {
 		dfc := make(map[string]time.Time)
@@ -44,6 +50,7 @@ func (ped *ProElasticDeploy) Initialize() {
 	fmt.Printf("The durationFunctionContainer is: %s\n", ped.durationFunctionsContainer)
 }
 
+// Unpause unpauses a function to allow synchronous requests to be sent to the container
 func (ped *ProElasticDeploy) Unpause(functionName string) error {
 	err := ped.deployer.Unpause(functionName)
 	if err != nil {
@@ -60,6 +67,8 @@ func (ped *ProElasticDeploy) Unpause(functionName string) error {
 	return nil
 }
 
+// PauseUnusedFunctionContainers pauses unused function containers to save resources
+// It is called in a cron manner in the background every CheckRemainingTime
 func (ped *ProElasticDeploy) PauseUnusedFunctionContainers() {
 	for {
 		for functionName, remainingDuration := range *ped.durationFunctionsContainer {
@@ -75,8 +84,4 @@ func (ped *ProElasticDeploy) PauseUnusedFunctionContainers() {
 
 		time.Sleep(ped.CheckRemainingTime)
 	}
-}
-
-func (ped *ProElasticDeploy) IsRunning(functionName string) bool {
-	return ped.deployer.IsRunning(functionName)
 }

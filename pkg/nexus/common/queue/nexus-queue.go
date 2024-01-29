@@ -2,25 +2,29 @@ package common
 
 import (
 	"container/heap"
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 )
 
-func (p NexusQueue) Len() int {
+// Len returns the length of the queue
+func (p *NexusQueue) Len() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	return p.impl.Len()
 }
 
-func (p *NexusQueue) Push(el *common.NexusItem) {
+// Push pushes an item to the queue
+func (p *NexusQueue) Push(el *structs.NexusItem) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	heap.Push(p.impl, el)
 }
 
-func (p *NexusQueue) Update(el *common.NexusItem, deadline time.Time) {
+// Update updates an item in the queue
+func (p *NexusQueue) Update(el *structs.NexusItem, deadline time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -28,16 +32,17 @@ func (p *NexusQueue) Update(el *common.NexusItem, deadline time.Time) {
 	heap.Fix(p.impl, el.Index)
 }
 
-func (p *NexusQueue) Pop() *common.NexusItem {
+// Pop removes and returns the first item from the queue
+func (p *NexusQueue) Pop() *structs.NexusItem {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	el := heap.Pop(p.impl)
-	return el.(*common.NexusItem)
+	return el.(*structs.NexusItem)
 }
 
 // PopBulkUntilDeadline pops all items from the queue until the deadline
-func (p *NexusQueue) PopBulkUntilDeadline(deadline time.Time) []*common.NexusItem {
+func (p *NexusQueue) PopBulkUntilDeadline(deadline time.Time) []*structs.NexusItem {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -48,14 +53,16 @@ func (p *NexusQueue) PopBulkUntilDeadline(deadline time.Time) []*common.NexusIte
 	return items
 }
 
-func (p *NexusQueue) Peek() *common.NexusItem {
+// Peek returns the first item from the queue without removing it
+func (p *NexusQueue) Peek() *structs.NexusItem {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	return (*p.impl)[0]
 }
 
-func (p *NexusQueue) Remove(item *common.NexusItem) {
+// Remove removes an item from the queue without returning it
+func (p *NexusQueue) Remove(item *structs.NexusItem) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -63,25 +70,26 @@ func (p *NexusQueue) Remove(item *common.NexusItem) {
 }
 
 // RemoveAll removes all given items from the queue
-func (p *NexusQueue) RemoveAll(nexusItems []*common.NexusItem) {
+func (p *NexusQueue) RemoveAll(nexusItems []*structs.NexusItem) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.removeAllNotBlocking(nexusItems)
 }
 
-func (p *NexusQueue) GetMostCommonEntryItems() []*common.NexusItem {
+// GetMostCommonEntryItems checks which entry has the most items by name in the queue and returns them
+func (p *NexusQueue) GetMostCommonEntryItems() []*structs.NexusItem {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	counts := make(map[string][]*common.NexusItem)
+	counts := make(map[string][]*structs.NexusItem)
 
 	for _, item := range *p.impl {
 		counts[item.Name] = append(counts[item.Name], item)
 	}
 
 	maxCount := 0
-	var maxEntryItems []*common.NexusItem
+	var maxEntryItems []*structs.NexusItem
 
 	for _, items := range counts {
 		if numberOfEntries := len(items); numberOfEntries > maxCount {
@@ -90,11 +98,4 @@ func (p *NexusQueue) GetMostCommonEntryItems() []*common.NexusItem {
 		}
 	}
 	return maxEntryItems
-}
-
-func (p *NexusQueue) GetAllItemsUntilDeadline(deadline time.Time) []*common.NexusItem {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	return p.getAllItemsUntilDeadlineNotBlocking(deadline)
 }

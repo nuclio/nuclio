@@ -6,12 +6,17 @@ import (
 )
 
 type NexusItem struct {
-	Request  *http.Request // The value of the NexusEntry; arbitrary.
-	Index    int           // The index of the NexusEntry in the heap.
-	Deadline time.Time     // The priority of the NexusEntry in the queue.
-	Name     string        // The name of the NexusEntry
+	// The request to be processed. Later it will be used to create a new request.
+	Request *http.Request
+	// The index of the NexusEntry in the queue.
+	Index int
+	// The priority of the NexusEntry in the queue.
+	Deadline time.Time
+	// The name of the NexusEntry in the queue.
+	Name string
 }
 
+// NewNexusItem allows to create a new NexusItem.
 func NewNexusItem(request *http.Request, deadline time.Time, name string) *NexusItem {
 	return &NexusItem{
 		Request:  request,

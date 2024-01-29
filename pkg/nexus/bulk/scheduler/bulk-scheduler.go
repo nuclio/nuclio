@@ -6,20 +6,22 @@ import (
 	"github.com/nuclio/nuclio/pkg/nexus/bulk/models"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
-	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 )
 
 // BulkScheduler is the scheduler that waits for a minimum amount of items to be in the queue
 // and then calls them all together
 // A detailed model of the scheduler can be found here: profaastinate/docs/diagrams/uml/activity/bulk-schedule.puml
 type BulkScheduler struct {
-	common.BaseNexusScheduler
+	// BaseNexusScheduler is the base scheduler
+	scheduler.BaseNexusScheduler
 
+	// BulkSchedulerConfig is the config of the scheduler
 	models.BulkSchedulerConfig
 }
 
 // NewScheduler creates a new bulk scheduler
-func NewScheduler(baseNexusScheduler *common.BaseNexusScheduler, bulkConfig models.BulkSchedulerConfig) *BulkScheduler {
+func NewScheduler(baseNexusScheduler *scheduler.BaseNexusScheduler, bulkConfig models.BulkSchedulerConfig) *BulkScheduler {
 	return &BulkScheduler{
 		BaseNexusScheduler:  *baseNexusScheduler,
 		BulkSchedulerConfig: bulkConfig,
@@ -27,7 +29,7 @@ func NewScheduler(baseNexusScheduler *common.BaseNexusScheduler, bulkConfig mode
 }
 
 // NewDefaultScheduler creates a new bulk scheduler with default values
-func NewDefaultScheduler(baseNexusScheduler *common.BaseNexusScheduler) *BulkScheduler {
+func NewDefaultScheduler(baseNexusScheduler *scheduler.BaseNexusScheduler) *BulkScheduler {
 	return NewScheduler(baseNexusScheduler, *models.NewDefaultBulkSchedulerConfig())
 }
 

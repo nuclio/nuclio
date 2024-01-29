@@ -4,16 +4,23 @@ import (
 	"time"
 )
 
+// The following constants are used in the deployer domain throughout utils, helper function, tests and more.
 const (
 	Running = "Running"
 	Paused  = "Paused"
 )
 
+// ElasticDeployer is an interface for a deployer.
 type ElasticDeployer interface {
-	Unpause(functionName string) error
-	Pause(functionName string) error
-	IsRunning(functionName string) bool
+	// Initialize initializes the deployer.
 	Initialize()
+	// Unpause Resumes a function.
+	Unpause(functionName string) error
+	// Pause pauses a function to save resources.
+	Pause(functionName string) error
+	// IsRunning checks if a function is running.
+	IsRunning(functionName string) bool
+	// GetNuclioFunctionContainer returns the nuclio function container.
 	GetNuclioFunctionContainer() (*[]string, error)
 }
 

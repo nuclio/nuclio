@@ -15,15 +15,24 @@ import (
 	"sync/atomic"
 )
 
+// Nexus is the main core of the profaastinate system
 type Nexus struct {
-	queue       *queue.NexusQueue
-	wg          sync.WaitGroup
-	schedulers  map[string]interfaces.INexusScheduler
+	// The queue of the nexus
+	queue *queue.NexusQueue
+	// The config of the nexus
 	nexusConfig *config.NexusConfig
+	// The environment registry of the nexus
 	envRegistry *env.EnvRegistry
-	deployer    *elastic_deploy.ProElasticDeploy
+	// The deployer of the nexus
+	deployer *elastic_deploy.ProElasticDeploy
+
+	// The wait group of the nexus which is used to wait for all schedulers to stop
+	wg sync.WaitGroup
+	// The schedulers of the nexus
+	schedulers map[string]interfaces.INexusScheduler
 }
 
+// Initialize initializes the nexus with all its components and schedulers
 func Initialize() (nexus *Nexus) {
 	nexusQueue := *queue.Initialize()
 
@@ -55,20 +64,24 @@ func Initialize() (nexus *Nexus) {
 	return
 }
 
+// StartScheduler starts a scheduler from the scheduler map
 func (nexus *Nexus) StartScheduler(name string) {
 	log.Printf("Starting %s scheduler...", name)
 	go nexus.schedulers[name].Start()
 }
 
+// StopScheduler stops a scheduler from the scheduler map
 func (nexus *Nexus) StopScheduler(name string) {
 	log.Printf("Stopping %s scheduler...", name)
 	nexus.schedulers[name].Stop()
 }
 
+// SetMaxParallelRequests sets the max parallel requests of the nexus
 func (nexus *Nexus) SetMaxParallelRequests(maxParallelRequests int32) {
 	nexus.nexusConfig.MaxParallelRequests.Store(maxParallelRequests)
 }
 
+// Start starts the nexus and all its schedulers
 func (nexus *Nexus) Start() {
 	log.Printf("Starting deployer...\n")
 	go nexus.deployer.PauseUnusedFunctionContainers()
@@ -85,10 +98,12 @@ func (nexus *Nexus) Start() {
 	// TODO nexus.wg.Wait()
 }
 
+// Push adds an asynchronize request send to the dashboard to the queue to be processed
 func (n *Nexus) Push(elem *common.NexusItem) {
 	n.queue.Push(elem)
 }
 
+// GetAllSchedulers returns all schedulers of the nexus
 func (n *Nexus) GetAllSchedulers() map[string]interfaces.INexusScheduler {
 	return n.schedulers
 }

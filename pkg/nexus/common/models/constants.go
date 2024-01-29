@@ -1,12 +1,12 @@
 package models
 
+// The following constants are used in the nexus throughout utils, helper function, tests and more.
 const (
 	HTTP_SCHEME              = "http"
-	DARWIN_HOST              = "localhost"
-	DEFAULT_HOST             = "localhost"
-	PORT                     = "8070"
-	NUCLIO_PATH              = "/api/function_invocations"
-	EVALUATION_PATH          = "/evaluation/invocation"
-	EVALUATION_PORT          = "8888"
 	NUCLIO_NEXUS_REQUEST_URL = "http://localhost:8070/api/function_invocations"
+	NUCLIO_PATH              = "/api/function_invocations"
+	PORT                     = "8070"
+
+	EVALUATION_PATH = "/evaluation/invocation"
+	EVALUATION_PORT = "8888"
 )

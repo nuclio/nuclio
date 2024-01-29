@@ -11,6 +11,9 @@ import (
 	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 )
 
+// This file contains helper functions and variables for testing
+
+// MockRequest mocks a request to test functions where we need to pass a request to
 var MockRequest = &http.Request{
 	Method: "GET",
 	URL: &url.URL{
@@ -23,6 +26,7 @@ var MockRequest = &http.Request{
 
 type MockRoundTripper struct{}
 
+// RoundTrip mocks the response of a request
 func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: 200,
@@ -31,6 +35,7 @@ func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	}, nil
 }
 
+// PushMockedTasksToQueue allows a simplified way of pushing mocked requests to the queue
 func PushMockedTasksToQueue(queue *common.BaseNexusScheduler, names []string, offset int) {
 	for i, name := range names {
 		task := &structs.NexusItem{

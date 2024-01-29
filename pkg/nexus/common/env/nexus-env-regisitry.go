@@ -5,6 +5,7 @@ import (
 	"os"
 )
 
+// EnvRegistry is a registry for environment variables. In this component all environment variables are defined and read.
 type EnvRegistry struct {
 	NuclioEnvironment EnvVariable // local -- docker, kube
 	NuclioNamespace   EnvVariable
@@ -12,15 +13,18 @@ type EnvRegistry struct {
 
 type EnvVariable string
 
+// The environment variables that are used by the Nexus.
 const (
 	deployEnvironment EnvVariable = "DEPLOY_ENVIRONMENT"
 	nuclioNamespace   EnvVariable = "NUCTL_NAMESPACE"
 )
 
+// NewEnvRegistry creates a new EnvRegistry.
 func NewEnvRegistry() *EnvRegistry {
 	return &EnvRegistry{}
 }
 
+// Initialize reads the environment variables and sets the values in the EnvRegistry.
 func (er *EnvRegistry) Initialize() {
 	deployEnvValue := os.Getenv(string(deployEnvironment))
 	if deployEnvValue == "" {

@@ -29,9 +29,7 @@ func (suite *BulkSchedulerTestSuite) SetupTest() {
 	minAmountOfBulkItems, sleepDuration := 3, 1*time.Millisecond
 
 	bulkConfig := models.BulkSchedulerConfig{
-		MinAmountOfBulkItems:  minAmountOfBulkItems,
-		MaxPercentageUsageCPU: 90,
-		MaxPercentageUsageRAM: 90,
+		MinAmountOfBulkItems: minAmountOfBulkItems,
 	}
 
 	defaultQueue := common.Initialize()
