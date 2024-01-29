@@ -117,12 +117,16 @@ func (suite *Suite) SetupTest() {
 }
 
 func (suite *Suite) TearDownSuite() {
+	suite.logger.Debug("Tearing down suite")
 
 	// restore platform kind
 	err := os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformKind)
 	suite.Require().NoError(err)
 
-	_ = os.RemoveAll(suite.tempDir)
+	err = os.RemoveAll(suite.tempDir)
+	suite.Require().NoError(err, "Failed to remove temp dir - %s", suite.tempDir)
+
+	suite.logger.Debug("Suite tear down completed")
 }
 
 // ExecuteNuctl populates os.Args and executes nuctl as if it were executed from shell

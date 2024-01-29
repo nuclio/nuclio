@@ -474,7 +474,8 @@ func (ap *Platform) AutoFixConfiguration(ctx context.Context, err error, functio
 	if errors.RootCause(err).Error() == "V3IO Stream trigger does not support autoscaling" {
 		ap.Logger.WarnWithCtx(ctx, "V3IO Stream trigger does not support autoscaling - "+
 			"Auto fixing by setting maxReplicas to minReplicas for function",
-			"function", functionConfig.Meta.Name)
+			"function", functionConfig.Meta.Name,
+			"replicas", functionConfig.Spec.MinReplicas)
 		functionConfig.Spec.MaxReplicas = functionConfig.Spec.MinReplicas
 		return true
 	}
