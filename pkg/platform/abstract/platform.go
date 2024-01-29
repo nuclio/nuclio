@@ -317,8 +317,7 @@ func (ap *Platform) enrichUsernameAndDomainLabels(ctx context.Context, labels ma
 		if value, exist := labels[iguazio.IguazioUsernameLabel]; !exist || value == "" {
 			fullUsername := authSession.GetUsername()
 
-			// If the username contains '@' (email) then parse the username into two labels: "iguazio.com/username", "iguazio.com/domain"
-			// If it doesn't contain '@' then put the full username into the "iguazio.com/username" label
+			// split email usernames to name and domain because '@' is an invalid character in kubernetes labels
 			if strings.Contains(fullUsername, "@") {
 				split := strings.Split(fullUsername, "@")
 				labels[iguazio.IguazioUsernameLabel] = split[0]
