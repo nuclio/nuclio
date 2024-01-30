@@ -19,10 +19,10 @@ limitations under the License.
 package common
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
 )
 
 type ConfigTestSuite struct {
