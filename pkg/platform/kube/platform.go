@@ -1527,7 +1527,7 @@ func (p *Platform) enrichContainerSpec(container *v1.Container, functionConfig *
 	if container.Env == nil {
 		container.Env = make([]v1.EnvVar, 0)
 	}
-	container.Env = append(container.Env, functionConfig.Spec.Env...)
+	container.Env = common.MergeEnvSlices(container.Env, functionConfig.Spec.Env)
 
 	// image pull policy
 	if container.ImagePullPolicy == "" {
