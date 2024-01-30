@@ -9,5 +9,6 @@ User guide
    deploying-functions
    deploying-pre-built-functions
    deploy-functions-from-dockerfile
+   deploy-function-with-http-service
    exporting-and-importing
    benchmarking
