@@ -214,7 +214,7 @@ func enrichAuthConfig(authConfig *auth.Config,
 		authConfig.Iguazio.VerificationDataEnrichmentURL = authConfigIguazioVerificationDataEnrichmentURL
 	} else {
 		authConfig.Iguazio.VerificationDataEnrichmentURL =
-			authConfigIguazioVerificationURL + iguazio.IguzioVerificationAndDataEnrichmentURLSuffix
+			authConfigIguazioVerificationURL + iguazio.IguazioVerificationAndDataEnrichmentURLSuffix
 	}
 
 	if authConfigIguazioTimeout != "" {
