@@ -214,3 +214,18 @@ compared to function config values, which can be specified in the function confi
     - secretRef:
         name: test-secret
 ```
+
+<a id="sensitive-fields"></a>
+### Sensitive fields
+
+Sensitive fields are fields that contain sensitive information such as passwords, tokens, etc. 
+When masking is enabled, these fields are encrypted in a secret, and are decrypted when the function is deployed.
+There are some config fields that are [masked by default](https://github.com/nuclio/nuclio/blob/development/pkg/platformconfig/types.go#L303-L340), and you can add custom sensitive fields to mask by specifying the regex to the path in the function configuration.
+The masked fields are replaced with references (`$ref`) in the function configuration.
+Example:
+```yaml
+sensitiveFields:
+  maskSensitiveFields: true
+  customSensitiveFields:
+  - "^/spec/triggers/.+/url$"
+```
