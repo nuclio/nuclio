@@ -29,7 +29,7 @@ type ConfigTestSuite struct {
 	suite.Suite
 }
 
-func (cts *ConfigTestSuite) TestMergeEnvSlices() {
+func (suite *ConfigTestSuite) TestMergeEnvSlices() {
 	for _, testCase := range []struct {
 		name               string
 		primaryEnvs        []v1.EnvVar
@@ -54,16 +54,16 @@ func (cts *ConfigTestSuite) TestMergeEnvSlices() {
 			expectedMergedEnvs: map[string]string{"test1": "a"},
 		},
 	} {
-		cts.Run(testCase.name, func() {
+		suite.Run(testCase.name, func() {
 			mergedEnvs := MergeEnvSlices(testCase.primaryEnvs, testCase.secondaryEnvs)
 
 			// check that slices are of the same length
-			cts.Require().Equal(len(testCase.expectedMergedEnvs), len(mergedEnvs))
+			suite.Require().Len(mergedEnvs, len(testCase.expectedMergedEnvs))
 
 			// since order can be different, check that each element of the expected list is in the actual slice
 			for _, envVar := range mergedEnvs {
 				expectedEnvVarValue := testCase.expectedMergedEnvs[envVar.Name]
-				cts.Require().Equal(expectedEnvVarValue, envVar.Value)
+				suite.Require().Equal(expectedEnvVarValue, envVar.Value)
 			}
 		})
 	}
