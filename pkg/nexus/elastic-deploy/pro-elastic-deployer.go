@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/nuclio/nuclio/pkg/nexus/common/env"
 	"github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/docker"
-	deployer_models "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/models"
+	"github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/models"
 	"time"
 )
 

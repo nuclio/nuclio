@@ -11,6 +11,7 @@ import (
 )
 
 // DeadlineScheduler is the scheduler that pops tasks that are due until a given threshold
+// Purpose: ensure that tasks are executed before their deadline
 // More details can be found here: profaastinate/docs/diagrams/uml/activity/deadline-schedule.puml
 type DeadlineScheduler struct {
 	// BaseNexusScheduler is the base scheduler

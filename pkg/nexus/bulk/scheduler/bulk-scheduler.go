@@ -9,8 +9,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 )
 
-// BulkScheduler is the scheduler that waits for a minimum amount of items to be in the queue
-// and then calls them all together
+// BulkScheduler waits for a function call (request) to be queued several times and then calls the function several
+// times with the respective attributes
+// Purpose: to reduce the amount of colds-starts
 // A detailed model of the scheduler can be found here: profaastinate/docs/diagrams/uml/activity/bulk-schedule.puml
 type BulkScheduler struct {
 	// BaseNexusScheduler is the base scheduler

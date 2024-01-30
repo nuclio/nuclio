@@ -9,6 +9,7 @@ import (
 )
 
 // IdleScheduler is the scheduler that schedules as soon as plenty of MaxParallelRequests are available
+// Purpose: use the resources as much as possible
 // More details can be found here: profaastinate/docs/diagrams/uml/activity/idle-schedule.puml
 type IdleScheduler struct {
 	common.BaseNexusScheduler
