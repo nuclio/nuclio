@@ -62,7 +62,7 @@ func (cts *ConfigTestSuite) TestMergeEnvSlices() {
 
 			// since order can be different, check that each element of the expected list is in the actual slice
 			for _, envVar := range mergedEnvs {
-				expectedEnvVarValue, _ := testCase.expectedMergedEnvs[envVar.Name]
+				expectedEnvVarValue := testCase.expectedMergedEnvs[envVar.Name]
 				cts.Require().Equal(expectedEnvVarValue, envVar.Value)
 			}
 		})
