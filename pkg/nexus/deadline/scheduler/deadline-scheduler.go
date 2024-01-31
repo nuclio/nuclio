@@ -5,40 +5,49 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
-	structs "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
-	common "github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
+	"github.com/nuclio/nuclio/pkg/nexus/common/scheduler"
 	"github.com/nuclio/nuclio/pkg/nexus/deadline/models"
 )
 
+// DeadlineScheduler is the scheduler that pops tasks that are due until a given threshold
+// Purpose: ensure that tasks are executed before their deadline
+// More details can be found here: profaastinate/docs/diagrams/uml/activity/deadline-schedule.puml
 type DeadlineScheduler struct {
-	common.BaseNexusScheduler
+	// BaseNexusScheduler is the base scheduler
+	scheduler.BaseNexusScheduler
 
+	// DeadlineSchedulerConfig is the config of the scheduler
 	models.DeadlineSchedulerConfig
 }
 
-func NewScheduler(baseNexusScheduler *common.BaseNexusScheduler, deadlineConfig models.DeadlineSchedulerConfig) *DeadlineScheduler {
-
+// NewScheduler creates a new deadline scheduler
+func NewScheduler(baseNexusScheduler *scheduler.BaseNexusScheduler, deadlineConfig models.DeadlineSchedulerConfig) *DeadlineScheduler {
 	return &DeadlineScheduler{
 		BaseNexusScheduler:      *baseNexusScheduler,
 		DeadlineSchedulerConfig: deadlineConfig,
 	}
 }
 
-func NewDefaultScheduler(baseNexusScheduler *common.BaseNexusScheduler) *DeadlineScheduler {
-
+// NewDefaultScheduler creates a new deadline scheduler with default values
+// DeadlineRemovalThreshold is set to 10 seconds.
+func NewDefaultScheduler(baseNexusScheduler *scheduler.BaseNexusScheduler) *DeadlineScheduler {
 	return NewScheduler(baseNexusScheduler, *models.NewDefaultDeadlineSchedulerConfig())
 }
 
+// Start starts the scheduler
 func (ds *DeadlineScheduler) Start() {
 	ds.RunFlag = true
 
 	ds.executeSchedule()
 }
 
+// Stop stops the scheduler
 func (ds *DeadlineScheduler) Stop() {
 	ds.RunFlag = false
 }
 
+// GetStatus returns the running status of the scheduler
 func (ds *DeadlineScheduler) GetStatus() interfaces.SchedulerStatus {
 	if ds.RunFlag {
 		return interfaces.Running
@@ -49,7 +58,7 @@ func (ds *DeadlineScheduler) GetStatus() interfaces.SchedulerStatus {
 
 // This scheduler is a simple scheduler that sleeps for a given duration
 // when awake, it checks if there are any tasks that are due until the given threshold
-// if there are, it pops which results in the task being executed
+// if there are, it pops NexusItems which results in them being executed
 func (ds *DeadlineScheduler) executeSchedule() {
 	for ds.RunFlag {
 		nextWakeUpTime := time.Now().Add(ds.SleepDuration)

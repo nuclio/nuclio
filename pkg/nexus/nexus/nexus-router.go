@@ -10,11 +10,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/nexus/common/models/interfaces"
 )
 
+// NexusRouter is the router for the nexus
 type NexusRouter struct {
 	Router chi.Router
 	Nexus  *Nexus
 }
 
+// NewNexusRouter creates a new nexus router
 func NewNexusRouter(nexus *Nexus) *NexusRouter {
 	return &NexusRouter{
 		Router: chi.NewRouter(),
@@ -26,6 +28,7 @@ const (
 	SCHEDULER_BASE_PATH = "/scheduler"
 )
 
+// Initialize initializes the nexus router
 func (nexusRouter *NexusRouter) Initialize() {
 	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}/start", nexusRouter.StartScheduler)
 	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}/stop", nexusRouter.StopScheduler)
@@ -35,6 +38,7 @@ func (nexusRouter *NexusRouter) Initialize() {
 	println("NexusRouter initialized")
 }
 
+// GetAllSchedulersWithStatus allows to get all schedulers with their status via GET request
 func (nexusRouter *NexusRouter) GetAllSchedulersWithStatus(w http.ResponseWriter, r *http.Request) {
 	schedulers := nexusRouter.Nexus.GetAllSchedulers()
 
@@ -65,6 +69,7 @@ func (nexusRouter *NexusRouter) GetAllSchedulersWithStatus(w http.ResponseWriter
 	}
 }
 
+// StartScheduler allows to start a scheduler via POST request
 func (nexusRouter *NexusRouter) StartScheduler(w http.ResponseWriter, r *http.Request) {
 
 	schedulerName := chi.URLParam(r, "schedulerName")
@@ -87,6 +92,7 @@ func (nexusRouter *NexusRouter) StartScheduler(w http.ResponseWriter, r *http.Re
 	unhandledWriteString(w, fmt.Sprintf("Scheduler %s started", schedulerName))
 }
 
+// StopScheduler allows to stop a scheduler via POST request
 func (nexusRouter *NexusRouter) StopScheduler(w http.ResponseWriter, r *http.Request) {
 	schedulerName := chi.URLParam(r, "schedulerName")
 
@@ -108,6 +114,7 @@ func (nexusRouter *NexusRouter) StopScheduler(w http.ResponseWriter, r *http.Req
 	unhandledWriteString(w, fmt.Sprintf("Scheduler %s stopped", schedulerName))
 }
 
+// ModifyNexusConfig allows to modify the nexus config via PUT request
 func (nexusRouter *NexusRouter) ModifyNexusConfig(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
@@ -127,6 +134,7 @@ func (nexusRouter *NexusRouter) ModifyNexusConfig(w http.ResponseWriter, r *http
 	w.WriteHeader(http.StatusOK)
 }
 
+// unhandledWriteString writes a string to the response writer
 func unhandledWriteString(w http.ResponseWriter, responseString string) {
 	_, writeErr := w.Write([]byte(responseString))
 	if writeErr != nil {

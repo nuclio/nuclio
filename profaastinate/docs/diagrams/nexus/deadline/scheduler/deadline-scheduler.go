@@ -44,7 +44,6 @@ func (ds *DeadlineScheduler) ConcurrencySwitch(in <-chan int) {
 		if _, ok := <-in; !ok {
 			break
 		}
-		
 
 	}
 }

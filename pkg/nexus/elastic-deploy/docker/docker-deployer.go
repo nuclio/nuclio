@@ -2,12 +2,14 @@ package docker
 
 import (
 	"fmt"
-	docker "github.com/fsouza/go-dockerclient"
-	deployer_models "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/models"
 	"strings"
 	"time"
+
+	docker "github.com/fsouza/go-dockerclient"
+	deployer_models "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/models"
 )
 
+// DockerDeployer is the deployer for the domain of docker
 type DockerDeployer struct {
 	*deployer_models.ProElasticDeployerConfig
 	*docker.Client
@@ -16,6 +18,7 @@ type DockerDeployer struct {
 	durationFunctionsContainer *map[string]time.Time
 }
 
+// NewDockerDeployer creates a new docker deployer
 func NewDockerDeployer(baseContainerName string, config *deployer_models.ProElasticDeployerConfig, durationFunctionsContainer *map[string]time.Time) *DockerDeployer {
 	return &DockerDeployer{
 		baseContainerName:          baseContainerName,
@@ -24,6 +27,7 @@ func NewDockerDeployer(baseContainerName string, config *deployer_models.ProElas
 	}
 }
 
+// Initialize initializes the docker deployer
 func (ds *DockerDeployer) Initialize() {
 	ds.Client, _ = docker.NewClientFromEnv()
 
@@ -43,6 +47,7 @@ func (ds *DockerDeployer) Initialize() {
 	fmt.Println("The durationFunctionContainer is:", ds.durationFunctionsContainer)
 }
 
+// GetNuclioFunctionContainer returns all nuclio function container
 func (ds *DockerDeployer) GetNuclioFunctionContainer() (*[]string, error) {
 	options := &docker.ListContainersOptions{
 		Filters: map[string][]string{"name": {ds.baseContainerName}},
@@ -60,6 +65,7 @@ func (ds *DockerDeployer) GetNuclioFunctionContainer() (*[]string, error) {
 	return &nexusContainer, nil
 }
 
+// Unpause resumes the function container in case it is paused
 func (ds *DockerDeployer) Unpause(functionName string) error {
 	container := ds.getFunctionContainer(functionName)
 	if ds.IsRunning(functionName) {
@@ -83,6 +89,7 @@ func (ds *DockerDeployer) Unpause(functionName string) error {
 	return nil
 }
 
+// Pause pauses the function container in case it is running
 func (ds *DockerDeployer) Pause(functionName string) error {
 	container := ds.getFunctionContainer(functionName)
 	if container.State == deployer_models.Paused {
@@ -103,11 +110,13 @@ func (ds *DockerDeployer) Pause(functionName string) error {
 	return nil
 }
 
+// IsRunning returns true if the function container is running
 func (ds *DockerDeployer) IsRunning(functionName string) bool {
 	container := ds.getFunctionContainer(functionName)
 	return container.State == deployer_models.Running
 }
 
+// getFunctionContainer returns the function container
 func (ds *DockerDeployer) getFunctionContainer(functionName string) *docker.APIContainers {
 	options := &docker.ListContainersOptions{
 		Filters: map[string][]string{"name": {ds.getContainerName(functionName)}}, // Names
@@ -127,6 +136,7 @@ func (ds *DockerDeployer) getFunctionContainer(functionName string) *docker.APIC
 	return &container[0]
 }
 
+// getContainerName returns the container name of the function
 func (ds *DockerDeployer) getContainerName(functionName string) string {
 	return ds.baseContainerName + functionName
 }

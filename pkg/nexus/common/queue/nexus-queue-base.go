@@ -2,28 +2,34 @@ package common
 
 import (
 	"container/heap"
-	common "github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 	"sync"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/nexus/common/models/structs"
 )
 
-type nexusHeap []*common.NexusItem
+// nexusHeap is the heap that holds the NexusEntries
+type nexusHeap []*structs.NexusItem
 
+// Len returns the length of the queue
 func (nxs nexusHeap) Len() int { return len(nxs) }
 
+// Swap changes the position of two items in the queue with each other
 func (nxs nexusHeap) Swap(i, j int) {
 	nxs[i], nxs[j] = nxs[j], nxs[i]
 	nxs[i].Index = i
 	nxs[j].Index = j
 }
 
+// Push adds an item to the queue
 func (nxs *nexusHeap) Push(x any) {
 	n := len(*nxs)
-	NexusEntry := x.(*common.NexusItem)
+	NexusEntry := x.(*structs.NexusItem)
 	NexusEntry.Index = n
 	*nxs = append(*nxs, NexusEntry)
 }
 
+// Pop removes and returns the first item from the queue
 func (nxs *nexusHeap) Pop() any {
 	old := *nxs
 	n := len(old)
@@ -34,16 +40,21 @@ func (nxs *nexusHeap) Pop() any {
 	return NexusEntry
 }
 
+// Less returns true if the deadline of the first item in the queue is before the one of the second item
 func (nxs nexusHeap) Less(i, j int) bool {
 	return nxs[i].Deadline.Before(nxs[j].Deadline)
 }
 
+// NexusQueue is the queue that holds the NexusEntries and allows to control them in a thread-safe manner
 type NexusQueue struct {
+	// impl is the underlying implementation of the queue
 	impl *nexusHeap
 
+	// mu is the mutex that protects the queue from concurrent access
 	mu *sync.RWMutex
 }
 
+// Initialize initializes a new NexusQueue
 func Initialize() *NexusQueue {
 	mh := &nexusHeap{}
 	heap.Init(mh)
@@ -53,14 +64,16 @@ func Initialize() *NexusQueue {
 	return &NexusQueue{impl: mh, mu: mutex}
 }
 
-func (p *NexusQueue) removeAllNotBlocking(nexusItems []*common.NexusItem) {
+// RemoveAll removes all items from the queue without returning them and ignoring the lock
+func (p *NexusQueue) removeAllNotBlocking(nexusItems []*structs.NexusItem) {
 	for _, item := range nexusItems {
 		heap.Remove(p.impl, item.Index)
 	}
 }
 
-func (p *NexusQueue) getAllItemsUntilDeadlineNotBlocking(deadline time.Time) []*common.NexusItem {
-	var items []*common.NexusItem
+// getAllItemsUntilDeadlineNotBlocking returns all items from the queue until the deadline without returning them and ignoring the lock
+func (p *NexusQueue) getAllItemsUntilDeadlineNotBlocking(deadline time.Time) []*structs.NexusItem {
+	var items []*structs.NexusItem
 
 	for _, item := range *p.impl {
 		if item.Deadline.Before(deadline) {

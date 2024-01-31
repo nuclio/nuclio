@@ -1,18 +1,20 @@
 package models
 
+// BulkSchedulerConfig defines the configuration for the bulk scheduler. This allows to fine tune the scheduler.
 type BulkSchedulerConfig struct {
-	MinAmountOfBulkItems                         int     // The minimum amount of items that must be in the bulk queue before the bulk scheduler will run.
-	MaxPercentageUsageCPU, MaxPercentageUsageRAM float64 // The maximum percentage of CPU and RAM that can be used before the bulk scheduler will run.
+	// The minimum amount of items that must be in the bulk queue before the bulk scheduler will run.
+	MinAmountOfBulkItems int
 }
 
-func NewBulkSchedulerConfig(minAmountOfBulkItems int, maxPercentageUsageCPU, maxPercentageUsageRAM float64) *BulkSchedulerConfig {
+// NewBulkSchedulerConfig allows to create a bulk config.
+func NewBulkSchedulerConfig(minAmountOfBulkItems int) *BulkSchedulerConfig {
 	return &BulkSchedulerConfig{
-		MinAmountOfBulkItems:  minAmountOfBulkItems,
-		MaxPercentageUsageCPU: maxPercentageUsageCPU,
-		MaxPercentageUsageRAM: maxPercentageUsageRAM,
+		MinAmountOfBulkItems: minAmountOfBulkItems,
 	}
 }
 
+// NewDefaultBulkSchedulerConfig allows to create a bulk config with default values.
+// MinAmountOfBulkItems is set to 10.
 func NewDefaultBulkSchedulerConfig() *BulkSchedulerConfig {
-	return NewBulkSchedulerConfig(10, 80, 80)
+	return NewBulkSchedulerConfig(10)
 }
