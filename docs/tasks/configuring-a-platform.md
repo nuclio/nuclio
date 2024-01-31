@@ -221,7 +221,7 @@ compared to function config values, which can be specified in the function confi
 Nuclio resources (currently function configuration only) may contain sensitive information such as passwords, tokens, etc.
 When the 'masking sensitive fields' feature is enabled, these fields get obfuscated, and their raw values are stored separately (in a Kubernetes secret). They are then populated internally when needed, during function deployment.
 
-There are some config fields that are [masked by default](https://github.com/nuclio/nuclio/blob/development/pkg/platformconfig/types.go#L303-L340), and you can add custom sensitive fields to mask by specifying the regex to the path in the function configuration.
+There are some config fields that are [masked by default](https://github.com/nuclio/nuclio/blob/development/pkg/platformconfig/types.go#L303-L340). You can add custom sensitive fields to mask by specifying the regex to the path in the function configuration.
 The masked fields are replaced with references (`$ref`) in the function configuration.
 Example:
 ```yaml
