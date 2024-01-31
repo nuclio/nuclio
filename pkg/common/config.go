@@ -45,7 +45,7 @@ func MergeEnvSlices(primaryEnv []v1.EnvVar, secondaryEnv []v1.EnvVar) []v1.EnvVa
 		envMap[env.Name] = env
 	}
 
-	// add environment variables from the primary list to the map with priority
+	// add environment variables from the primary list to the map, overriding secondary list variables if the keys are the same
 	for _, env := range primaryEnv {
 		envMap[env.Name] = env
 	}
