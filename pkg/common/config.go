@@ -40,7 +40,7 @@ func RemoveEnvFromSlice(env v1.EnvVar, slice []v1.EnvVar) []v1.EnvVar {
 func MergeEnvSlices(primaryEnv []v1.EnvVar, secondaryEnv []v1.EnvVar) []v1.EnvVar {
 	envMap := make(map[string]v1.EnvVar)
 
-	// add environment variables from the secondary list to the map only if they don't already exist
+	// add environment variables from the secondary list to the map
 	for _, env := range secondaryEnv {
 		envMap[env.Name] = env
 	}
