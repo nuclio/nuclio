@@ -50,4 +50,8 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
       - name: Run Profaastinate Tests
-        run: go test -cover ./pkg/nexus/...
+        run: |
+          go test -cover ./pkg/nexus/...
+          go test -coverprofile=./profaastinate/tests/coverage.out ./pkg/nexus/...
+          go tool cover -func ./profaastinate/tests/coverage.out
+          go tool cover -func ./profaastinate/tests/coverage.out | grep total | awk '{print $3}'
