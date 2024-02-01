@@ -77,6 +77,9 @@ jobs:
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
+      - name: Collect Workflow Telemetry
+        uses: catchpoint/workflow-telemetry-action@v1
+
       - name: Test
         run: make test
 

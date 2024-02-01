@@ -52,6 +52,9 @@ jobs:
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
 
+    - name: Collect Workflow Telemetry
+      uses: catchpoint/workflow-telemetry-action@v1
+
     - name: Test
       run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
       env:
