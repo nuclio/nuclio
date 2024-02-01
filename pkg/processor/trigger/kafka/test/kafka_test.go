@@ -63,6 +63,7 @@ type testSuite struct {
 
 	// for cleanup
 	zooKeeperContainerID string
+	dockerClient         *dockerclient.ShellClient
 }
 
 func (suite *testSuite) SetupSuite() {
@@ -89,6 +90,9 @@ func (suite *testSuite) SetupSuite() {
 	suite.AbstractBrokerSuite.SkipStartBrokerContainer = true
 	suite.AbstractBrokerSuite.BrokerContainerNetworkName = "nuclio-kafka-test"
 	suite.AbstractBrokerSuite.SetupSuite()
+
+	suite.dockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
+	suite.Require().NoError(err, "Failed to create docker client")
 
 	// start zoo keeper container
 	suite.zooKeeperContainerID = suite.RunContainer(suite.getKafkaZooKeeperContainerRunInfo())
@@ -428,7 +432,10 @@ func (suite *testSuite) TestDrainHook() {
 
 			return true
 		})
-
+		logs, err := suite.dockerClient.GetContainerLogs(deployResult.ContainerID)
+		suite.Require().NoError(err)
+		suite.Require().NotContains(logs, "Timeout waiting for drain to be done, assuming process is drained")
+		suite.Require().Contains(logs, "Receive drain done control message")
 		return true
 	})
 
