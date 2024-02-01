@@ -28,6 +28,7 @@ type Nexus struct {
 	envRegistry *env.EnvRegistry
 	// The deployer of the nexus
 	deployer *elastic_deploy.ProElasticDeploy
+	// The load balancer of the nexus
 	loadBalancer *load_balancer.LoadBalancer
 
 	// The wait group of the nexus which is used to wait for all schedulers to stop
@@ -104,10 +105,12 @@ func (nexus *Nexus) SetMaxParallelRequests(maxParallelRequests int32) {
 	nexus.nexusConfig.FunctionExecutionChannel = make(chan string, maxParallelRequests*10)
 }
 
+// SetTargetLoadCPU sets the target load cpu of the nexus
 func (nexus *Nexus) SetTargetLoadCPU(targetLoadCPU float64) {
 	nexus.loadBalancer.SetTargetLoadCPU(targetLoadCPU)
 }
 
+// SetTargetLoadMemory sets the target load memory of the nexus
 func (nexus *Nexus) SetTargetLoadMemory(targetLoadMemory float64) {
 	nexus.loadBalancer.SetTargetLoadMemory(targetLoadMemory)
 }

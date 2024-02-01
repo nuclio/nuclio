@@ -45,7 +45,7 @@ func (ped *ProElasticDeploy) getBaseContainerName() string {
 func (ped *ProElasticDeploy) Initialize() {
 	dfc := make(map[string]time.Time)
 	if ped.envRegistry.NuclioEnvironment == "local" {
-		ped.deployer = docker.NewDockerDeployer(ped.getBaseContainerName(), &ped.ProElasticDeployerConfig, ped.lock)
+		ped.deployer = docker.NewDockerDeployer(ped.getBaseContainerName(), &ped.ProElasticDeployerConfig)
 	} else if ped.envRegistry.NuclioEnvironment == "kube" {
 		fmt.Printf("Kube deployer is not implemented yet")
 		ped.deployer = minikube.NewMinikubeDeployer(ped.getBaseContainerName(), &ped.ProElasticDeployerConfig, &dfc)

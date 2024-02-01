@@ -29,7 +29,7 @@ type BaseNexusScheduler struct {
 	// The client to send async requests with
 	client *http.Client
 	// The deployer to use for unpausing / resuming functions
-	deployer *elastic_deploy.ProElasticDeploy
+	deployer         *elastic_deploy.ProElasticDeploy
 	executionChannel chan string
 }
 
@@ -87,11 +87,6 @@ func (bns *BaseNexusScheduler) Unpause(functionName string) {
 	if err != nil {
 		fmt.Println("Error unpausing function:", err)
 	}
-}
-
-func (bns *BaseNexusScheduler) SendToExecutionChannel(functionName string) {
-	fmt.Println("Sending to execution channel:", functionName)
-	bns.executionChannel <- functionName
 }
 
 // CallSynchronized calls the function synchronously on the default nuclio endpoint

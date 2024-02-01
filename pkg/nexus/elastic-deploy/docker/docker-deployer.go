@@ -2,8 +2,6 @@ package docker
 
 import (
 	"fmt"
-	"time"
-
 	docker "github.com/fsouza/go-dockerclient"
 	deployer_models "github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/models"
 )
@@ -17,10 +15,10 @@ type DockerDeployer struct {
 }
 
 // NewDockerDeployer creates a new docker deployer
-func NewDockerDeployer(baseContainerName string, config *deployer_models.ProElasticDeployerConfig, durationFunctionsContainer *map[string]time.Time) *DockerDeployer {
+func NewDockerDeployer(baseContainerName string, config *deployer_models.ProElasticDeployerConfig) *DockerDeployer {
 	return &DockerDeployer{
-		baseContainerName:          baseContainerName,
-		ProElasticDeployerConfig:   config,
+		baseContainerName:        baseContainerName,
+		ProElasticDeployerConfig: config,
 	}
 }
 
