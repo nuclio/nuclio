@@ -59,8 +59,8 @@ func (bns *BaseNexusScheduler) Push(elem *structs.NexusItem) {
 
 // Pop removes and returns the first element from the queue
 func (bns *BaseNexusScheduler) Pop() (nexusItem *structs.NexusItem) {
-	bns.MaxParallelRequests.Add(-1)
-	defer bns.MaxParallelRequests.Add(1)
+	bns.CurrentParallelRequests.Add(-1)
+	defer bns.CurrentParallelRequests.Add(1)
 
 	nexusItem = bns.Queue.Pop()
 
