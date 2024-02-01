@@ -1,0 +1,24 @@
+@startuml
+start
+
+while (should scheduler continue to run?) is (yes)
+  : Collect the requests executed by the system;
+  note left
+    The requests are send by the schedulers via channels
+  end note
+  : Collect the current load of the system;
+
+  if (targetLoadCPU == 0 && targetLoadMemory == 0) then (yes)
+    : Skip iteration;
+  else
+    if (targetLoadCPU == 0) then (yes)
+      : Try to just align memory load to the target;
+    else if (targetLoadMemory == 0) then (yes)
+      : Try to just align CPU load to the target;
+    else (default case)
+      : Try to align both CPU and memory load to the target with the same weight;
+    end if;
+  end if;
+endwhile (no)
+stop
+@enduml

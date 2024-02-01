@@ -1,0 +1,21 @@
+@startuml
+'https://plantuml.com/activity-diagram-beta
+
+| Scheduler |
+start
+
+| Scheduler |
+: Function needs to be executed;
+: Increment number of current executions;
+| Deployer |
+: Ensure that the function container is not already running;
+| Scheduler |
+: Send invocation message to load balancer via channel;
+| Load Balancer |
+: Collection results;
+| Scheduler |
+: Send function invocation to nuclio dashboard;
+
+stop
+
+@enduml

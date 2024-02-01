@@ -1,0 +1,20 @@
+@startuml
+'https://plantuml.com/activity-diagram-beta
+
+start
+:StartElasticDeployer;
+while (should scheduler continue to run?) is (yes)
+
+while (are there deployed function container) is (yes)
+ if(has this function container been called in the last minute?) then (yes)
+  :continue;
+ else (no)
+  :pause function container;
+ endif
+endwhile (no)
+:sleep for 1 minute;
+
+endwhile (no)
+stop
+
+@enduml
