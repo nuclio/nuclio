@@ -58,7 +58,7 @@ func (suite *IdleSchedulerTestSuite) TestIdleScheduler() {
 
 	for i := 1; i <= len(taskNames); i++ {
 		suite.Equal(len(taskNames)-i, suite.is.Queue.Len())
-		time.Sleep(time.Duration(offset) * time.Millisecond)
+		time.Sleep(time.Duration(offset)*time.Millisecond + 10*time.Microsecond)
 	}
 }
 
