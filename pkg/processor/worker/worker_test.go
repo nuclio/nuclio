@@ -76,8 +76,8 @@ func (mr *MockRuntime) SupportsRestart() bool {
 	return true
 }
 
-func (mr *MockRuntime) Drain() error {
-	args := mr.Called()
+func (mr *MockRuntime) Drain(drainDoneControlMessageChan chan *controlcommunication.ControlMessage) error {
+	args := mr.Called(drainDoneControlMessageChan)
 	return args.Error(0)
 }
 

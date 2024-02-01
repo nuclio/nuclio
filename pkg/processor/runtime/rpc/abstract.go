@@ -31,6 +31,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
@@ -229,15 +230,14 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 }
 
 // Drain signals to the runtime to drain its accumulated events and waits for it to finish
-func (r *AbstractRuntime) Drain() error {
+func (r *AbstractRuntime) Drain(drainDoneControlMessageChan chan *controlcommunication.ControlMessage) error {
 	// we use SIGUSR2 to signal the wrapper process to drain events
 	if err := r.signal(syscall.SIGUSR2); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process to drain")
 	}
 
-	// wait for process to finish event handling or timeout
-	// TODO: replace the following function with one that waits for a control communication message or timeout
-	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
+	// wait for the process to be finished event handling or timeout
+	r.waitForDrainingFinish(drainDoneControlMessageChan, r.configuration.WorkerTerminationTimeout)
 
 	return nil
 }
@@ -674,6 +674,33 @@ func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 		select {
 		case <-r.stopChan:
 			r.Logger.DebugWith("Process terminated",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
+			return
+		case <-time.After(timeout):
+			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
+			return
+		}
+	}
+}
+
+func (r *AbstractRuntime) waitForDrainingFinish(drainDoneControlMessageChan chan *controlcommunication.ControlMessage, timeout time.Duration) {
+	r.Logger.DebugWith("Waiting for draining to be finished",
+		"wid", r.Context.WorkerID,
+		"process", r.wrapperProcess,
+		"timeout", timeout.String())
+
+	for {
+		select {
+		case <-r.stopChan:
+			r.Logger.DebugWith("Process terminated",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
+			return
+		case <-drainDoneControlMessageChan:
+			r.Logger.DebugWith("Receive drain done control message",
 				"wid", r.Context.WorkerID,
 				"process", r.wrapperProcess)
 			return

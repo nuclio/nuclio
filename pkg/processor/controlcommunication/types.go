@@ -27,6 +27,7 @@ type ControlMessageKind string
 
 const (
 	StreamMessageAckKind ControlMessageKind = "streamMessageAck"
+	DrainDoneMessageKind ControlMessageKind = "drainDone"
 )
 
 // TODO: move to nuclio-sdk-go
