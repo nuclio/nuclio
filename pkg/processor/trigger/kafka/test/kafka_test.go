@@ -43,7 +43,8 @@ import (
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
 
-	httpClient *http.Client
+	httpClient   *http.Client
+	dockerClient *dockerclient.ShellClient
 
 	// kafka clients
 	broker   *sarama.Broker
@@ -63,7 +64,6 @@ type testSuite struct {
 
 	// for cleanup
 	zooKeeperContainerID string
-	dockerClient         *dockerclient.ShellClient
 }
 
 func (suite *testSuite) SetupSuite() {
