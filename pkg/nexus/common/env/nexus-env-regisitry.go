@@ -28,8 +28,8 @@ func NewEnvRegistry() *EnvRegistry {
 func (er *EnvRegistry) Initialize() {
 	deployEnvValue := os.Getenv(string(deployEnvironment))
 	if deployEnvValue == "" {
-		fmt.Println("DEPLOY_ENVIRONMENT is not set, defaulting to docker")
-		deployEnvValue = "local"
+		fmt.Println("DEPLOY_ENVIRONMENT is not set, defaulting to kube")
+		deployEnvValue = "kube"
 	}
 	er.NuclioEnvironment = EnvVariable(deployEnvValue)
 
