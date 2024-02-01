@@ -9,6 +9,12 @@ import (
 	"github.com/shirou/gopsutil/mem"
 )
 
+// The LoadBalancer is responsible for balancing the load between the different function containers
+// It is responsible for setting the maxParallelRequests for the different schedulers
+// The schedulers tell the balancer how many functions they executed, and the balancer calculates a system load and
+// tries to align it with the target load
+//
+// For more information see profaastinate/docs/diagrams/uml/activity/load-balancer-schedule.puml
 type LoadBalancer struct {
 	maxParallelRequests      *atomic.Int32
 	runningFlag              bool
@@ -18,6 +24,7 @@ type LoadBalancer struct {
 	targetLoadMemory         float64
 }
 
+// NewLoadBalancer creates a new LoadBalancer
 func NewLoadBalancer(maxParallelRequests *atomic.Int32, executionChannel chan string, collectionTime time.Duration, targetLoadCPU, targetLoadMemory float64) *LoadBalancer {
 	return &LoadBalancer{
 		maxParallelRequests:      maxParallelRequests,
@@ -29,13 +36,20 @@ func NewLoadBalancer(maxParallelRequests *atomic.Int32, executionChannel chan st
 	}
 }
 
+// NewDefaultLoadBalancer creates a new LoadBalancer with default values
+// The default values are:
+// collectionTime: 1 minute
+// targetLoadCPU: 0
+// targetLoadMemory: 0
 func NewDefaultLoadBalancer(maxParallelRequests *atomic.Int32, executionChannel chan string) *LoadBalancer {
 	return NewLoadBalancer(maxParallelRequests, executionChannel, 1*time.Minute, 0, 0)
 }
 
+// Initialize initializes the LoadBalancer after creation
 func (lb *LoadBalancer) Initialize() {
 }
 
+// Start starts the LoadBalancer after initialization
 func (lb *LoadBalancer) Start() {
 	lb.runningFlag = true
 
@@ -46,20 +60,26 @@ func (lb *LoadBalancer) Start() {
 	}
 }
 
+// Stop stops the LoadBalancer
 func (lb *LoadBalancer) Stop() {
 	lb.runningFlag = false
 }
 
+// SetTargetLoadCPU sets the target load for the CPU
 func (lb *LoadBalancer) SetTargetLoadCPU(targetLoadCPU float64) {
 	lb.targetLoadCPU = targetLoadCPU
 }
 
+// SetTargetLoadMemory sets the target load for the Memory
 func (lb *LoadBalancer) SetTargetLoadMemory(targetLoadMemory float64) {
 	lb.targetLoadMemory = targetLoadMemory
 }
 
+// cpuMock and memMock are interfaces for mocking the CPU and Memory information in the tests
 var cpuMock = cpu.Percent
+var memMock = mem.VirtualMemory
 
+// CalculateDesiredNumberOfRequestsCPU calculates the desired number of requests based on the CPU load
 func (lb *LoadBalancer) CalculateDesiredNumberOfRequestsCPU(numberOfExecutedFunctionCalls int) int {
 	cpuLoadPercentageInfo, err := cpuMock(lb.collectionTime, true)
 	if err != nil {
@@ -78,8 +98,7 @@ func (lb *LoadBalancer) CalculateDesiredNumberOfRequestsCPU(numberOfExecutedFunc
 	return int(lb.targetLoadCPU / cpuLoadPercentagePerFunctionCall)
 }
 
-var memMock = mem.VirtualMemory
-
+// CalculateDesiredNumberOfRequestsMemory calculates the desired number of requests based on the Memory load
 func (lb *LoadBalancer) CalculateDesiredNumberOfRequestsMemory(numberOfExecutedFunctionCalls int) int {
 	virtualMemory, err := memMock()
 	if err != nil {
@@ -90,6 +109,9 @@ func (lb *LoadBalancer) CalculateDesiredNumberOfRequestsMemory(numberOfExecutedF
 	return int(lb.targetLoadMemory / memoryLoadPercentagePerFunctionCall)
 }
 
+// AutoBalance tries to balance the load between the different function containers
+// It tries to align the system load with the target load for the CPU and Memory
+// For more information see profaastinate/docs/diagrams/uml/activity/load-balancer-schedule.puml
 func (lb *LoadBalancer) AutoBalance() {
 	fmt.Printf("AutoBalancing")
 
