@@ -63,7 +63,7 @@ type Runtime interface {
 	SupportsRestart() bool
 
 	// Drain signals to the runtime process to drain its accumulated events and waits for it to finish
-	Drain(chan *controlcommunication.ControlMessage) error
+	Drain() error
 
 	// Continue signals the runtime process to continue event processing
 	Continue() error
@@ -259,7 +259,7 @@ func (ar *AbstractRuntime) Stop() error {
 	return nil
 }
 
-func (ar *AbstractRuntime) Drain(chan *controlcommunication.ControlMessage) error {
+func (ar *AbstractRuntime) Drain() error {
 	return nil
 }
 

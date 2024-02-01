@@ -230,7 +230,24 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 }
 
 // Drain signals to the runtime to drain its accumulated events and waits for it to finish
-func (r *AbstractRuntime) Drain(drainDoneControlMessageChan chan *controlcommunication.ControlMessage) error {
+func (r *AbstractRuntime) Drain() error {
+
+	drainDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
+	err := r.GetControlMessageBroker().Subscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan)
+	if err != nil {
+		r.Logger.ErrorWith("Failed to subscribe to drainDone control messages",
+			"error", err)
+	}
+
+	defer func() {
+		err := r.GetControlMessageBroker().Unsubscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan)
+		if err != nil {
+			r.Logger.ErrorWith("Failed to unsubscribe from drainDone control messages",
+				"error", err)
+		}
+		close(drainDoneControlMessageChan)
+	}()
+
 	// we use SIGUSR2 to signal the wrapper process to drain events
 	if err := r.signal(syscall.SIGUSR2); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process to drain")
@@ -705,7 +722,7 @@ func (r *AbstractRuntime) waitForDrainingFinish(drainDoneControlMessageChan chan
 				"process", r.wrapperProcess)
 			return
 		case <-time.After(timeout):
-			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
+			r.Logger.DebugWith("Timeout waiting for drain to be done, assuming process is drained",
 				"wid", r.Context.WorkerID,
 				"process", r.wrapperProcess)
 			return

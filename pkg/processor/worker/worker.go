@@ -156,23 +156,7 @@ func (w *Worker) Terminate() error {
 }
 
 func (w *Worker) Drain() error {
-	drainDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
-	err := w.Subscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan)
-	if err != nil {
-		w.logger.ErrorWith("Failed to subscribe to drainDone control messages",
-			"error", err)
-	}
-
-	defer func() {
-		err := w.Unsubscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan)
-		if err != nil {
-			w.logger.ErrorWith("Failed to unsubscribe from drainDone control messages",
-				"error", err)
-		}
-		close(drainDoneControlMessageChan)
-	}()
-
-	if err := w.runtime.Drain(drainDoneControlMessageChan); err != nil {
+	if err := w.runtime.Drain(); err != nil {
 		return err
 	}
 	w.logger.DebugWith("Successfully drained worker", "workerIndex", w.index)

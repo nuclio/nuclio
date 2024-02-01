@@ -39,7 +39,7 @@ class Constants:
     termination_signal = signal.SIGUSR1
     drain_signal = signal.SIGUSR2
     continue_signal = signal.SIGCONT
-    drain_done_msg = {
+    drain_done_message = {
         'kind': 'drainDone',
     }
 
@@ -243,10 +243,13 @@ class Wrapper(object):
         asyncio.get_running_loop().add_signal_handler(Constants.termination_signal, on_termination_signal)
         asyncio.get_running_loop().add_signal_handler(Constants.continue_signal, on_continue_signal)
 
-        # _on_drain_signal is async function, so we have to run it differently
-        asyncio.get_running_loop().add_signal_handler(Constants.drain_signal,
-                                                      lambda: asyncio.create_task(
-                                                          self._on_drain_signal(Constants.drain_signal.name)))
+        # _on_drain_signal is async function, so we have to register it differently
+        asyncio.get_running_loop().add_signal_handler(
+            Constants.drain_signal,
+            lambda: asyncio.create_task(
+                self._on_drain_signal(Constants.drain_signal.name)
+            ),
+        )
 
     async def _on_drain_signal(self, signal_name):
         # do not perform draining if discarding events
@@ -297,11 +300,12 @@ class Wrapper(object):
         return self._platform._on_signal(callback_type="termination")
 
     async def _inform_processor_drain_done(self):
-        self._logger.debug("Sending message to the processor that drain is done")
-        await self._send_data_on_control_socket(Constants.drain_done_msg)
+        await self._send_data_on_control_socket(Constants.drain_done_message)
 
     async def _send_data_on_control_socket(self, data):
-        self._logger.debug_with('Sending data on control socket', data_length=len(data))
+        self._logger.debug_with('Sending data on control socket',
+                                data_length=len(data),
+                                message_kind=data.get('kind'))
 
         # send message to processor
         encoded_offset_data = self._json_encoder.encode(data)
