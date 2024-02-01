@@ -20,8 +20,6 @@ type ElasticDeployer interface {
 	Pause(functionName string) error
 	// IsRunning checks if a function is running.
 	IsRunning(functionName string) bool
-	// GetNuclioFunctionContainer returns the nuclio function container.
-	GetNuclioFunctionContainer() (*[]string, error)
 }
 
 type ProElasticDeployerConfig struct {

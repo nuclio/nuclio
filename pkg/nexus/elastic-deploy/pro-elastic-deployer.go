@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/nuclio/nuclio/pkg/nexus/common/env"
 	"github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/docker"
+	"github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/minikube"
 	"github.com/nuclio/nuclio/pkg/nexus/elastic-deploy/models"
+	"sync"
 	"time"
 )
 
@@ -16,6 +18,7 @@ type ProElasticDeploy struct {
 	envRegistry                *env.EnvRegistry
 	deployer                   deployer_models.ElasticDeployer
 	durationFunctionsContainer *map[string]time.Time
+	lock                       *sync.RWMutex
 }
 
 // NewProElasticDeploy creates a new pro elastic deployer
@@ -23,6 +26,7 @@ func NewProElasticDeploy(envRegistry *env.EnvRegistry, config deployer_models.Pr
 	return &ProElasticDeploy{
 		envRegistry:              envRegistry,
 		ProElasticDeployerConfig: config,
+		lock:                     &sync.RWMutex{},
 	}
 }
 
@@ -39,15 +43,16 @@ func (ped *ProElasticDeploy) getBaseContainerName() string {
 
 // Initialize initializes the pro elastic deployer for the right environment
 func (ped *ProElasticDeploy) Initialize() {
+	dfc := make(map[string]time.Time)
 	if ped.envRegistry.NuclioEnvironment == "local" {
-		dfc := make(map[string]time.Time)
-
-		ped.deployer = docker.NewDockerDeployer(ped.getBaseContainerName(), &ped.ProElasticDeployerConfig, &dfc)
-		ped.durationFunctionsContainer = &dfc
+		ped.deployer = docker.NewDockerDeployer(ped.getBaseContainerName(), &ped.ProElasticDeployerConfig, ped.lock)
+	} else if ped.envRegistry.NuclioEnvironment == "kube" {
+		fmt.Printf("Kube deployer is not implemented yet")
+		ped.deployer = minikube.NewMinikubeDeployer(ped.getBaseContainerName(), &ped.ProElasticDeployerConfig, &dfc)
 	}
 
+	ped.durationFunctionsContainer = &dfc
 	ped.deployer.Initialize()
-	fmt.Printf("The durationFunctionContainer is: %s\n", ped.durationFunctionsContainer)
 }
 
 // Unpause unpauses a function to allow synchronous requests to be sent to the container
@@ -63,7 +68,9 @@ func (ped *ProElasticDeploy) Unpause(functionName string) error {
 	}
 
 	pauseTime := time.Now().Add(ped.MaxIdleTime)
+	ped.lock.Lock()
 	(*ped.durationFunctionsContainer)[functionName] = pauseTime
+	ped.lock.Unlock()
 	return nil
 }
 
@@ -78,10 +85,16 @@ func (ped *ProElasticDeploy) PauseUnusedFunctionContainers() {
 				if err != nil {
 					fmt.Printf("Error unpausing function: %s", err)
 				}
+				ped.lock.Lock()
 				delete(*ped.durationFunctionsContainer, functionName)
+				ped.lock.Unlock()
 			}
 		}
 
 		time.Sleep(ped.CheckRemainingTime)
 	}
+}
+
+func (ped *ProElasticDeploy) IsRunning(functionName string) bool {
+	return ped.deployer.IsRunning(functionName)
 }
