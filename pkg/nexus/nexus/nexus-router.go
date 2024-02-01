@@ -36,8 +36,9 @@ func (nexusRouter *NexusRouter) Initialize() {
 	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}"+START, nexusRouter.StartScheduler)
 	nexusRouter.Router.Post(SCHEDULER_BASE_PATH+"/{schedulerName}"+STOP, nexusRouter.StopScheduler)
 	nexusRouter.Router.Get(SCHEDULER_BASE_PATH, nexusRouter.GetAllSchedulersWithStatus)
-	nexusRouter.Router.Put("/config", nexusRouter.ModifyNexusConfig)
 	nexusRouter.Router.Put(LOAD_BALANCER_PATH, nexusRouter.modifyLoadBalancer)
+	nexusRouter.Router.Post(LOAD_BALANCER_PATH+START, nexusRouter.startLoadBalancer)
+	nexusRouter.Router.Post(LOAD_BALANCER_PATH+STOP, nexusRouter.stopLoadBalancer)
 
 	fmt.Println("NexusRouter initialized")
 }
@@ -118,26 +119,7 @@ func (nexusRouter *NexusRouter) StopScheduler(w http.ResponseWriter, r *http.Req
 	unhandledWriteString(w, fmt.Sprintf("Scheduler %s stopped", schedulerName))
 }
 
-// ModifyNexusConfig allows to modify the nexus config via PUT request
-func (nexusRouter *NexusRouter) ModifyNexusConfig(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-
-	if maxParallelRequests := query.Get("maxParallelRequests"); maxParallelRequests != "" {
-		maxParallelRequestsInt, err := strconv.ParseInt(maxParallelRequests, 10, 32)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			unhandledWriteString(w, fmt.Sprintf("Invalid value for maxParallelRequests: %s", maxParallelRequests))
-			return
-		}
-		nexusRouter.Nexus.SetMaxParallelRequests(int32(maxParallelRequestsInt))
-
-		w.WriteHeader(http.StatusAccepted)
-		unhandledWriteString(w, fmt.Sprintf("Max parallel requests set to %s", maxParallelRequests))
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
+// modifyLoadBalancer allows to modify the load balancer via PUT request
 func (nexusRouter *NexusRouter) modifyLoadBalancer(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
@@ -158,16 +140,54 @@ func (nexusRouter *NexusRouter) modifyLoadBalancer(w http.ResponseWriter, r *htt
 		targetLoadMemory, err := strconv.ParseFloat(targetLoadMemory, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			unhandledWriteString(w, fmt.Sprintf("Invalid value for targetLoadMemory: %f", targetLoadMemory))
+			unhandledWriteString(w, fmt.Sprintf("Invalid value for targetLoadMemory: %f\n", targetLoadMemory))
 			return
 		}
 		nexusRouter.Nexus.SetTargetLoadMemory(targetLoadMemory)
 
 		w.WriteHeader(http.StatusAccepted)
-		unhandledWriteString(w, fmt.Sprintf("Target memory load set to %.1f", targetLoadMemory))
+		unhandledWriteString(w, fmt.Sprintf("Target memory load set to %.1f\n", targetLoadMemory))
+	}
+
+	if maxParallelRequests := query.Get("maxParallelRequests"); maxParallelRequests != "" {
+		maxParallelRequestsInt, err := strconv.ParseInt(maxParallelRequests, 10, 32)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			unhandledWriteString(w, fmt.Sprintf("Invalid value for maxParallelRequests: %s\n", maxParallelRequests))
+			return
+		}
+		nexusRouter.Nexus.SetMaxParallelRequests(int32(maxParallelRequestsInt))
+
+		w.WriteHeader(http.StatusAccepted)
+		unhandledWriteString(w, fmt.Sprintf("Max parallel requests set to %s\n", maxParallelRequests))
+	}
+
+	if limitMaxParallelRequests := query.Get("limitMaxParallelRequests"); limitMaxParallelRequests != "" {
+		limitMaxParallelRequestsBool, err := strconv.ParseInt(limitMaxParallelRequests, 10, 32)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			unhandledWriteString(w, fmt.Sprintf("Invalid value for limitMaxParallelRequests: %s\n", limitMaxParallelRequests))
+			return
+		}
+		nexusRouter.Nexus.SetLimitMaxParallelRequests(int(limitMaxParallelRequestsBool))
+
+		w.WriteHeader(http.StatusAccepted)
+		unhandledWriteString(w, fmt.Sprintf("Limit max parallel requests set to %s\n", limitMaxParallelRequests))
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// StartLoadBalancer allows to start the load balancer via POST request
+func (nexusRouter *NexusRouter) startLoadBalancer(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	unhandledWriteString(w, "LoadBalancer started")
+}
+
+// StopLoadBalancer allows to stop the load balancer via POST request
+func (nexusRouter *NexusRouter) stopLoadBalancer(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	unhandledWriteString(w, "LoadBalancer stopped")
 }
 
 // unhandledWriteString writes a string to the response writer

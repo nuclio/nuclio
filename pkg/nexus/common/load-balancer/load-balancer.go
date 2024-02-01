@@ -16,12 +16,20 @@ import (
 //
 // For more information see profaastinate/docs/diagrams/uml/activity/load-balancer-schedule.puml
 type LoadBalancer struct {
-	maxParallelRequests      *atomic.Int32
-	runningFlag              bool
-	collectionTime           time.Duration
-	functionExecutionChannel chan string // channel contains the function name that is executed
-	targetLoadCPU            float64
-	targetLoadMemory         float64
+	// The maximum number of parallel requests that can be executed
+	maxParallelRequests *atomic.Int32
+	// The highest number maxParallelRequests can be set to
+	limitParallelRequests int
+	// The flag that indicates if the LoadBalancer is running
+	runningFlag bool
+	// The time between two load calculations
+	collectionTime time.Duration
+	// The channel that contains the function names that are executed
+	functionExecutionChannel chan string
+	// The target load for the CPU
+	targetLoadCPU float64
+	// The target load for the Memory
+	targetLoadMemory float64
 }
 
 // NewLoadBalancer creates a new LoadBalancer
@@ -73,6 +81,11 @@ func (lb *LoadBalancer) SetTargetLoadCPU(targetLoadCPU float64) {
 // SetTargetLoadMemory sets the target load for the Memory
 func (lb *LoadBalancer) SetTargetLoadMemory(targetLoadMemory float64) {
 	lb.targetLoadMemory = targetLoadMemory
+}
+
+// SetLimitParallelRequests sets the highest number maxParallelRequests can be set to
+func (lb *LoadBalancer) SetLimitParallelRequests(limitParallelRequests int) {
+	lb.limitParallelRequests = limitParallelRequests
 }
 
 // cpuMock and memMock are interfaces for mocking the CPU and Memory information in the tests
@@ -151,7 +164,13 @@ func (lb *LoadBalancer) AutoBalance() {
 				desiredNumberCPU := lb.CalculateDesiredNumberOfRequestsCPU(numberOfExecutedFunctionCalls)
 				avgDesiredNumber = (desiredNumberMemory + desiredNumberCPU) / 2
 			}
+
+			if lb.limitParallelRequests > 0 && lb.limitParallelRequests < avgDesiredNumber {
+				avgDesiredNumber = lb.limitParallelRequests
+			}
+
 			lb.maxParallelRequests.Store(int32(avgDesiredNumber))
+			lb.functionExecutionChannel = make(chan string, avgDesiredNumber*10)
 			fmt.Printf("The maxProcessingRequests was set to %d\n", avgDesiredNumber)
 			return
 		}

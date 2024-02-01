@@ -88,11 +88,13 @@ func (nexus *Nexus) StopScheduler(name string) {
 	nexus.schedulers[name].Stop()
 }
 
+// StartLoadBalancer starts the load balancer of the nexus
 func (nexus *Nexus) StartLoadBalancer() {
 	log.Println("Starting LoadBalancer...")
 	go nexus.loadBalancer.Start()
 }
 
+// StartDeployer starts the deployer of the nexus
 func (nexus *Nexus) StartDeployer() {
 	log.Printf("Starting deployer...\n")
 	go nexus.deployer.PauseUnusedFunctionContainers()
@@ -100,9 +102,23 @@ func (nexus *Nexus) StartDeployer() {
 
 // SetMaxParallelRequests sets the max parallel requests of the nexus
 func (nexus *Nexus) SetMaxParallelRequests(maxParallelRequests int32) {
+	nexus.loadBalancer.Stop()
 	nexus.nexusConfig.MaxParallelRequests.Store(maxParallelRequests)
-	close(nexus.nexusConfig.FunctionExecutionChannel)
-	nexus.nexusConfig.FunctionExecutionChannel = make(chan string, maxParallelRequests*10)
+}
+
+// SetLimitMaxParallelRequests sets the limit max parallel requests of the nexus
+func (nexus *Nexus) SetLimitMaxParallelRequests(maxParallelRequests int) {
+	nexus.loadBalancer.SetLimitParallelRequests(maxParallelRequests)
+}
+
+// StartLoadBalancerWithDefaultValues starts the load balancer
+func (nexus *Nexus) StartLoadBalancerWithDefaultValues() {
+	nexus.loadBalancer.Start()
+}
+
+// StopLoadBalancer stops the load balancer of the nexus
+func (nexus *Nexus) StopLoadBalancer() {
+	nexus.loadBalancer.Stop()
 }
 
 // SetTargetLoadCPU sets the target load cpu of the nexus
