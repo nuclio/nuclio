@@ -55,12 +55,12 @@ func (ds *IdleScheduler) executeSchedule() {
 	for ds.RunFlag {
 		nextWakeUpTime := time.Now().Add(ds.SleepDuration)
 
-		for ds.Queue.Len() > 0 && ds.MaxParallelRequests.Load() > 0 {
-			ds.MaxParallelRequests.Add(-1)
+		for ds.Queue.Len() > 0 && ds.MaxParallelRequests.Load() > ds.CurrentParallelRequests.Load() {
+			ds.CurrentParallelRequests.Add(1)
 			task := ds.Queue.Pop()
 
 			go func(taskInFunction *structs.NexusItem) {
-				defer ds.MaxParallelRequests.Add(1)
+				defer ds.CurrentParallelRequests.Add(-1)
 
 				ds.Unpause(taskInFunction.Name)
 				ds.CallSynchronized(taskInFunction)

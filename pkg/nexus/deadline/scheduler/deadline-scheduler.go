@@ -68,11 +68,11 @@ func (ds *DeadlineScheduler) executeSchedule() {
 		for ds.Queue.Len() > 0 &&
 			ds.Queue.Peek().Deadline.Before(removeUntil) {
 
-			ds.MaxParallelRequests.Add(-1)
+			ds.CurrentParallelRequests.Add(1)
 			task := ds.Queue.Pop()
 
 			go func(taskInFunction *structs.NexusItem) {
-				defer ds.MaxParallelRequests.Add(1)
+				defer ds.CurrentParallelRequests.Add(-1)
 				ds.Unpause(taskInFunction.Name)
 				ds.SendToExecutionChannel(taskInFunction.Name)
 				ds.CallSynchronized(taskInFunction)

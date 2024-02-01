@@ -64,7 +64,9 @@ func (ds *BulkScheduler) executeSchedule() {
 			continue
 		}
 
-		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems && ds.BaseNexusScheduler.MaxParallelRequests.Load() >= int32(len(itemsToPop)) {
+		// log.Println("Checking for bulking")
+		if itemsToPop := ds.Queue.GetMostCommonEntryItems(); len(itemsToPop) >= ds.MinAmountOfBulkItems &&
+			ds.BaseNexusScheduler.MaxParallelRequests.Load() > (ds.CurrentParallelRequests.Load()+int32(len(itemsToPop))) {
 			ds.callAndRemoveItems(itemsToPop)
 		} else if ds.BaseNexusScheduler.MaxParallelRequests.Load() >= int32(len(itemsToPop)) {
 			time.Sleep(ds.SleepDuration)
@@ -80,10 +82,10 @@ func (ds *BulkScheduler) callAndRemoveItems(items []*structs.NexusItem) {
 	ds.Unpause(copiedItems[0].Name)
 
 	for _, item := range copiedItems {
+		ds.CurrentParallelRequests.Add(1)
 
 		go func(item *structs.NexusItem) {
-			ds.MaxParallelRequests.Add(1)
-			defer ds.MaxParallelRequests.Add(-1)
+			defer ds.CurrentParallelRequests.Add(-1)
 
 			ds.SendToExecutionChannel(item.Name)
 			ds.CallSynchronized(item)
