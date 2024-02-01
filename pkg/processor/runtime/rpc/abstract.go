@@ -711,11 +711,6 @@ func (r *AbstractRuntime) waitForDrainingFinish(drainDoneControlMessageChan chan
 
 	for {
 		select {
-		case <-r.stopChan:
-			r.Logger.DebugWith("Process terminated",
-				"wid", r.Context.WorkerID,
-				"process", r.wrapperProcess)
-			return
 		case <-drainDoneControlMessageChan:
 			r.Logger.DebugWith("Receive drain done control message",
 				"wid", r.Context.WorkerID,
