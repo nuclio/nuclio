@@ -233,15 +233,13 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 func (r *AbstractRuntime) Drain() error {
 
 	drainDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
-	err := r.GetControlMessageBroker().Subscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan)
-	if err != nil {
+	if err := r.GetControlMessageBroker().Subscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan); err != nil {
 		r.Logger.ErrorWith("Failed to subscribe to drainDone control messages",
 			"error", err)
 	}
 
 	defer func() {
-		err := r.GetControlMessageBroker().Unsubscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan)
-		if err != nil {
+		if err := r.GetControlMessageBroker().Unsubscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan); err != nil {
 			r.Logger.ErrorWith("Failed to unsubscribe from drainDone control messages",
 				"error", err)
 		}
@@ -254,7 +252,7 @@ func (r *AbstractRuntime) Drain() error {
 	}
 
 	// wait for the process to be finished event handling or timeout
-	r.waitForDrainingFinish(drainDoneControlMessageChan, r.configuration.WorkerTerminationTimeout)
+	r.waitForDrainingDone(drainDoneControlMessageChan, r.configuration.WorkerTerminationTimeout)
 
 	return nil
 }
@@ -703,8 +701,8 @@ func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 	}
 }
 
-func (r *AbstractRuntime) waitForDrainingFinish(drainDoneControlMessageChan chan *controlcommunication.ControlMessage, timeout time.Duration) {
-	r.Logger.DebugWith("Waiting for draining to be finished",
+func (r *AbstractRuntime) waitForDrainingDone(drainDoneControlMessageChan chan *controlcommunication.ControlMessage, timeout time.Duration) {
+	r.Logger.DebugWith("Waiting for draining to be done",
 		"wid", r.Context.WorkerID,
 		"process", r.wrapperProcess,
 		"timeout", timeout.String())
@@ -712,7 +710,7 @@ func (r *AbstractRuntime) waitForDrainingFinish(drainDoneControlMessageChan chan
 	for {
 		select {
 		case <-drainDoneControlMessageChan:
-			r.Logger.DebugWith("Receive drain done control message",
+			r.Logger.DebugWith("Received drain done control message",
 				"wid", r.Context.WorkerID,
 				"process", r.wrapperProcess)
 			return

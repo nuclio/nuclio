@@ -432,10 +432,12 @@ func (suite *testSuite) TestDrainHook() {
 
 			return true
 		})
+
+		// get logs from 1st function container and check that draining was done within the timeout
 		logs, err := suite.dockerClient.GetContainerLogs(deployResult.ContainerID)
 		suite.Require().NoError(err)
 		suite.Require().NotContains(logs, "Timeout waiting for drain to be done, assuming process is drained")
-		suite.Require().Contains(logs, "Receive drain done control message")
+		suite.Require().Contains(logs, "Received drain done control message")
 		return true
 	})
 
