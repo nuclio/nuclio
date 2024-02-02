@@ -80,6 +80,11 @@ func (pc *parseCommandeer) ParseReport(ctx context.Context, logger logger.Logger
 		if err = json.Unmarshal(reportData, kind); err == nil {
 			t := table.NewWriter()
 			kind.PrintAsTable(t, pc.onlyFailed)
+
+			// do not print a report if it is empty
+			if t.Length() == 0 {
+				return nil
+			}
 			output := t.Render()
 			if pc.outputPath != "" {
 				if err := os.WriteFile(pc.outputPath, []byte(output), 0644); err != nil {
