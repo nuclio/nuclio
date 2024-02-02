@@ -108,12 +108,15 @@ func (rc *RootCommandeer) CreateMarkdown(path string) error {
 	return doc.GenMarkdownTree(rc.cmd, path)
 }
 
-func (rc *RootCommandeer) initialize() error {
+func (rc *RootCommandeer) initialize(initPlatform bool) error {
 	var err error
 
 	rc.loggerInstance, err = rc.createLogger()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
+	}
+	if !initPlatform {
+		return nil
 	}
 
 	// TODO: accept platform config path as arg

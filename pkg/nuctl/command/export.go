@@ -101,7 +101,7 @@ Arguments:
 			}
 
 			// initialize root
-			if err := exportCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := exportCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
@@ -229,7 +229,7 @@ Arguments:
 			}
 
 			// initialize root
-			if err := exportCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := exportCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 

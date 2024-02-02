@@ -82,7 +82,7 @@ func newUpdateFunctionCommandeer(ctx context.Context, updateCommandeer *updateCo
 			}
 
 			// initialize root
-			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := updateCommandeer.rootCommandeer.initialize(false); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 

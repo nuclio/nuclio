@@ -82,7 +82,7 @@ func newCreateProjectCommandeer(ctx context.Context, createCommandeer *createCom
 			}
 
 			// initialize root
-			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := createCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
@@ -146,7 +146,7 @@ func newCreateAPIGatewayCommandeer(ctx context.Context, createCommandeer *create
 			}
 
 			// initialize root
-			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := createCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
@@ -305,7 +305,7 @@ func newCreateFunctionEventCommandeer(ctx context.Context, createCommandeer *cre
 			}
 
 			// initialize root
-			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := createCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 

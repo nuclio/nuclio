@@ -75,7 +75,7 @@ Arguments:
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
-			if err := rootCommandeer.initialize(); err != nil {
+			if err := rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 			if err := commandeer.betaCommandeer.initialize(); err != nil {

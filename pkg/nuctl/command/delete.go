@@ -86,7 +86,7 @@ func newDeleteFunctionCommandeer(ctx context.Context, deleteCommandeer *deleteCo
 			}
 
 			// initialize root
-			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := deleteCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
@@ -134,7 +134,7 @@ func newDeleteProjectCommandeer(ctx context.Context, deleteCommandeer *deleteCom
 			}
 
 			// initialize root
-			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := deleteCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
@@ -187,7 +187,7 @@ func newDeleteAPIGatewayCommandeer(ctx context.Context, deleteCommandeer *delete
 			}
 
 			// initialize root
-			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := deleteCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
@@ -227,7 +227,7 @@ func newDeleteFunctionEventCommandeer(ctx context.Context, deleteCommandeer *del
 			}
 
 			// initialize root
-			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := deleteCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 

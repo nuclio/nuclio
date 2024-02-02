@@ -210,7 +210,7 @@ Arguments:
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
-			if err := importCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := importCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
@@ -318,7 +318,7 @@ Arguments:
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// initialize root
-			if err := importCommandeer.rootCommandeer.initialize(); err != nil {
+			if err := importCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
