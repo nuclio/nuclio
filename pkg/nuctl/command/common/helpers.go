@@ -112,10 +112,10 @@ func saveReportToFile(ctx context.Context, loggerInstance logger.Logger, report 
 			"err", err,
 			"path", path)
 	}
-	// Get the directory path from the file path
+	// get the directory path from the file path
 	dir := filepath.Dir(path)
 
-	// Check if the directory exists, create it if it doesn't
+	// check if the directory exists, create it if it doesn't
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		loggerInstance.DebugWithCtx(ctx,
 			"Creating directory for report as it does not exist",
