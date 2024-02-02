@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
@@ -111,6 +112,23 @@ func saveReportToFile(ctx context.Context, loggerInstance logger.Logger, report 
 			"err", err,
 			"path", path)
 	}
+	// Get the directory path from the file path
+	dir := filepath.Dir(path)
+
+	// Check if the directory exists, create it if it doesn't
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		loggerInstance.DebugWithCtx(ctx,
+			"Creating directory for report as it does not exist",
+			"directory", dir)
+
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			loggerInstance.ErrorWithCtx(ctx,
+				"Failed to create directory for report",
+				"directory", dir,
+				"error", err)
+		}
+	}
+
 	if err := os.WriteFile(path, content, 0644); err != nil {
 		loggerInstance.ErrorWithCtx(ctx,
 			"Failed to write report to file",
