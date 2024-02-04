@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"net/http"
 	"os"
 	"path"
@@ -39,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/gobuffalo/flect"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
