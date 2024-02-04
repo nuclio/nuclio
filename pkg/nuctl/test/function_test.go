@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"net/http"
 	"os"
 	"path"
@@ -1618,6 +1619,15 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	suite.Require().Contains(projectReport.FunctionReports.Failed, "incorrect-not-fixable-test-function")
 	suite.Require().Equal("There's more than one http trigger (unsupported)", projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].FailReason)
 	suite.Require().Equal(false, projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].CanBeAutoFixed)
+}
+
+// This test verifies that when the project report is empty, the length of the table is zero (so we don't print the report)
+func (suite *functionExportImportTestSuite) TestReportLength() {
+	projectReports := &nuctlcommon.ProjectReports{}
+	t := table.NewWriter()
+	projectReports.PrintAsTable(t, false)
+
+	suite.Require().Equal(t.Length(), 0)
 }
 
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
