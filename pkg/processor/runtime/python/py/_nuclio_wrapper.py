@@ -39,6 +39,9 @@ class Constants:
     termination_signal = signal.SIGUSR1
     drain_signal = signal.SIGUSR2
     continue_signal = signal.SIGCONT
+    drain_done_message = {
+        'kind': 'drainDone',
+    }
 
 
 class WrapperFatalException(Exception):
@@ -181,6 +184,7 @@ class Wrapper(object):
                     result = self._call_drain_handler()
                     if asyncio.iscoroutine(result):
                         await result
+                    await self._inform_processor_drain_done()
 
                 if self._is_termination_needed:
                     result = self._call_termination_handler()
@@ -232,18 +236,26 @@ class Wrapper(object):
                 raise
 
     def _register_to_signal(self):
+
         on_termination_signal = functools.partial(self._on_termination_signal, Constants.termination_signal.name)
-        on_drain_signal = functools.partial(self._on_drain_signal, Constants.drain_signal.name)
         on_continue_signal = functools.partial(self._on_continue_signal, Constants.continue_signal.name)
 
         asyncio.get_running_loop().add_signal_handler(Constants.termination_signal, on_termination_signal)
-        asyncio.get_running_loop().add_signal_handler(Constants.drain_signal, on_drain_signal)
         asyncio.get_running_loop().add_signal_handler(Constants.continue_signal, on_continue_signal)
 
-    def _on_drain_signal(self, signal_name):
+        # _on_drain_signal is async function, so we have to register it differently
+        asyncio.get_running_loop().add_signal_handler(
+            Constants.drain_signal,
+            lambda: asyncio.create_task(
+                self._on_drain_signal(Constants.drain_signal.name)
+            ),
+        )
+
+    async def _on_drain_signal(self, signal_name):
         # do not perform draining if discarding events
         if self._discard_events:
             self._logger.debug('Draining signal is received, but it will be ignored as the worker is already drained')
+            await self._inform_processor_drain_done()
             return
 
         self._logger.debug_with('Received signal', signal=signal_name)
@@ -287,8 +299,13 @@ class Wrapper(object):
         # to indicate that the termination handler has finished, and the processor can exit early
         return self._platform._on_signal(callback_type="termination")
 
+    async def _inform_processor_drain_done(self):
+        await self._send_data_on_control_socket(Constants.drain_done_message)
+
     async def _send_data_on_control_socket(self, data):
-        self._logger.debug_with('Sending data on control socket', data_length=len(data))
+        self._logger.debug_with('Sending data on control socket',
+                                data_length=len(data),
+                                message_kind=data.get('kind'))
 
         # send message to processor
         encoded_offset_data = self._json_encoder.encode(data)

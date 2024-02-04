@@ -43,7 +43,8 @@ import (
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
 
-	httpClient *http.Client
+	httpClient   *http.Client
+	dockerClient *dockerclient.ShellClient
 
 	// kafka clients
 	broker   *sarama.Broker
@@ -89,6 +90,9 @@ func (suite *testSuite) SetupSuite() {
 	suite.AbstractBrokerSuite.SkipStartBrokerContainer = true
 	suite.AbstractBrokerSuite.BrokerContainerNetworkName = "nuclio-kafka-test"
 	suite.AbstractBrokerSuite.SetupSuite()
+
+	suite.dockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
+	suite.Require().NoError(err, "Failed to create docker client")
 
 	// start zoo keeper container
 	suite.zooKeeperContainerID = suite.RunContainer(suite.getKafkaZooKeeperContainerRunInfo())
@@ -429,6 +433,11 @@ func (suite *testSuite) TestDrainHook() {
 			return true
 		})
 
+		// get logs from 1st function container and check that draining was done within the timeout
+		logs, err := suite.dockerClient.GetContainerLogs(deployResult.ContainerID)
+		suite.Require().NoError(err)
+		suite.Require().NotContains(logs, "Timeout waiting for drain to be done, assuming process is drained")
+		suite.Require().Contains(logs, "Received drain done control message")
 		return true
 	})
 
