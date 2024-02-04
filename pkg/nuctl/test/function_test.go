@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/gobuffalo/flect"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
@@ -1618,6 +1619,15 @@ func (suite *functionExportImportTestSuite) TestImportWithReport() {
 	suite.Require().Contains(projectReport.FunctionReports.Failed, "incorrect-not-fixable-test-function")
 	suite.Require().Equal("There's more than one http trigger (unsupported)", projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].FailReason)
 	suite.Require().Equal(false, projectReport.FunctionReports.Failed["incorrect-not-fixable-test-function"].CanBeAutoFixed)
+}
+
+// This test verifies that when the project report is empty, the length of the table is zero (so we don't print the report)
+func (suite *functionExportImportTestSuite) TestReportLength() {
+	projectReports := &nuctlcommon.ProjectReports{}
+	t := table.NewWriter()
+	projectReports.PrintAsTable(t, false)
+
+	suite.Require().Equal(t.Length(), 0)
 }
 
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin() {
