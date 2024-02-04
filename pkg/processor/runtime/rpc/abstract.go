@@ -251,7 +251,7 @@ func (r *AbstractRuntime) Drain() error {
 		return errors.Wrap(err, "Failed to signal wrapper process to drain")
 	}
 
-	// wait for the process to be finished event handling or timeout
+	// wait for the process to finish draining or timeout
 	r.waitForDrainingDone(drainDoneControlMessageChan, r.configuration.WorkerTerminationTimeout)
 
 	return nil
