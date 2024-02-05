@@ -249,6 +249,11 @@ consumptionLoop:
 				int(claim.Partition()),
 				nil)
 			if err != nil {
+				// If all workers are terminated, we don't want to stop consumption to avoid Kafka reconnection
+				// and give some time to the explicitAckHandler to process the last control messages.
+				if errors.Is(err, worker.ErrAllWorkersAreTerminated) {
+					continue
+				}
 				return errors.Wrap(err, "Failed to allocate worker")
 			}
 
