@@ -22,8 +22,8 @@ type LoadBalancer struct {
 	limitParallelRequests int
 	// The flag that indicates if the LoadBalancer is running
 	runningFlag bool
-	// The time between two load calculations
-	collectionTime time.Duration
+	// The time between two load calculations, used to avoid thrashing
+	slidingWindowsDuration time.Duration
 	// The channel that contains the function names that are executed
 	functionExecutionChannel chan string
 	// The target load for the CPU
@@ -40,13 +40,13 @@ func NewLoadBalancer(maxParallelRequests *atomic.Int32, executionChannel chan st
 		runningFlag:              false,
 		targetLoadCPU:            targetLoadCPU,
 		targetLoadMemory:         targetLoadMemory,
-		collectionTime:           collectionTime,
+		slidingWindowsDuration:   collectionTime,
 	}
 }
 
 // NewDefaultLoadBalancer creates a new LoadBalancer with default values
 // The default values are:
-// collectionTime: 1 minute
+// slidingWindowsDuration: 1 minute
 // targetLoadCPU: 0
 // targetLoadMemory: 0
 func NewDefaultLoadBalancer(maxParallelRequests *atomic.Int32, executionChannel chan string) *LoadBalancer {
@@ -64,7 +64,7 @@ func (lb *LoadBalancer) Start() {
 	for lb.runningFlag {
 		lb.AutoBalance()
 
-		time.Sleep(lb.collectionTime)
+		time.Sleep(lb.slidingWindowsDuration)
 	}
 }
 
@@ -94,7 +94,7 @@ var memMock = mem.VirtualMemory
 
 // CalculateDesiredNumberOfRequestsCPU calculates the desired number of requests based on the CPU load
 func (lb *LoadBalancer) CalculateDesiredNumberOfRequestsCPU(numberOfExecutedFunctionCalls int) int {
-	cpuLoadPercentageInfo, err := cpuMock(lb.collectionTime, true)
+	cpuLoadPercentageInfo, err := cpuMock(lb.slidingWindowsDuration, true)
 	if err != nil {
 		fmt.Print("Error retrieving CPU information:", err)
 	} else if len(cpuLoadPercentageInfo) == 0 {
@@ -107,8 +107,7 @@ func (lb *LoadBalancer) CalculateDesiredNumberOfRequestsCPU(numberOfExecutedFunc
 	}
 	avgPercentage /= float64(len(cpuLoadPercentageInfo))
 
-	cpuLoadPercentagePerFunctionCall := avgPercentage / float64(numberOfExecutedFunctionCalls)
-	return int(lb.targetLoadCPU / cpuLoadPercentagePerFunctionCall)
+	return int(float64(numberOfExecutedFunctionCalls) * (lb.targetLoadCPU / avgPercentage))
 }
 
 // CalculateDesiredNumberOfRequestsMemory calculates the desired number of requests based on the Memory load
@@ -118,8 +117,7 @@ func (lb *LoadBalancer) CalculateDesiredNumberOfRequestsMemory(numberOfExecutedF
 		fmt.Print("Error retrieving Memory information:", err)
 	}
 
-	memoryLoadPercentagePerFunctionCall := virtualMemory.UsedPercent / float64(numberOfExecutedFunctionCalls)
-	return int(lb.targetLoadMemory / memoryLoadPercentagePerFunctionCall)
+	return int(float64(numberOfExecutedFunctionCalls) * (lb.targetLoadMemory / virtualMemory.UsedPercent))
 }
 
 // AutoBalance tries to balance the load between the different function containers
