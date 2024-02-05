@@ -69,7 +69,7 @@ func (b *betaCommandeer) initialize() error {
 	var err error
 
 	// initialize root
-	if err := b.rootCommandeer.initialize(); err != nil {
+	if err := b.rootCommandeer.initialize(true); err != nil {
 		return errors.Wrap(err, "Failed to initialize root")
 	}
 

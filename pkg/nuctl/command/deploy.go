@@ -95,7 +95,7 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 			var err error
 
 			// initialize root
-			if err := rootCommandeer.initialize(); err != nil {
+			if err := rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
