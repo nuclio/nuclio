@@ -73,6 +73,20 @@ func FileExists(path string) bool {
 	return err == nil
 }
 
+// EnsureDirExists checks if the directory exists, creates it if it doesn't
+func EnsureDirExists(ctx context.Context, loggerInstance logger.Logger, dir string) error {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		loggerInstance.DebugWithCtx(ctx,
+			"Creating directory as it does not exist",
+			"directory", dir)
+
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // StringSliceToIntSlice converts slices of strings to slices of int. e.g. ["1", "3"] -> [1, 3]
 func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
 	var result []int
