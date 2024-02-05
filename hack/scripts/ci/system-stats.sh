@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 echo "Displaying System Stats"
 echo "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
 echo "## Memory ##"
