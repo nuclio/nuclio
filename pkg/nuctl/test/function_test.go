@@ -1857,14 +1857,62 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
 }
 
-func TestFunctionTestSuite(t *testing.T) {
+func TestFunctionTestSuite1(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 
 	suite.Run(t, new(functionBuildTestSuite))
+	//suite.Run(t, new(functionDeployTestSuite))
+	//suite.Run(t, new(functionGetTestSuite))
+	//suite.Run(t, new(functionDeleteTestSuite))
+	//suite.Run(t, new(functionExportImportTestSuite))
+}
+
+func TestFunctionTestSuite2(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	//suite.Run(t, new(functionBuildTestSuite))
 	suite.Run(t, new(functionDeployTestSuite))
+	//suite.Run(t, new(functionGetTestSuite))
+	//suite.Run(t, new(functionDeleteTestSuite))
+	//suite.Run(t, new(functionExportImportTestSuite))
+}
+
+func TestFunctionTestSuite3(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	//suite.Run(t, new(functionBuildTestSuite))
+	//suite.Run(t, new(functionDeployTestSuite))
 	suite.Run(t, new(functionGetTestSuite))
+	//suite.Run(t, new(functionDeleteTestSuite))
+	//suite.Run(t, new(functionExportImportTestSuite))
+}
+
+func TestFunctionTestSuite4(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	//suite.Run(t, new(functionBuildTestSuite))
+	//suite.Run(t, new(functionDeployTestSuite))
+	//suite.Run(t, new(functionGetTestSuite))
 	suite.Run(t, new(functionDeleteTestSuite))
+	//suite.Run(t, new(functionExportImportTestSuite))
+}
+
+func TestFunctionTestSuite5(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	//suite.Run(t, new(functionBuildTestSuite))
+	//suite.Run(t, new(functionDeployTestSuite))
+	//suite.Run(t, new(functionGetTestSuite))
+	//suite.Run(t, new(functionDeleteTestSuite))
 	suite.Run(t, new(functionExportImportTestSuite))
 }

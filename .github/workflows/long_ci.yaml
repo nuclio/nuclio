@@ -83,28 +83,9 @@ jobs:
       - name: Test
         run: make test
 
-      - name: System Stats on Failure
+      - name: System stats on failure
         if: ${{ failure() }}
-        run: |
-          echo "System Stats"
-          echo "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
-          echo "## Memory ##"
-          free -h
-          echo "--------------------------"
-          ps aux --sort=-%mem | head -n 20
-          echo "--------------------------"
-          top -b -n 1 | head -n 20
-          echo "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
-          echo "## CPU ##"
-          lscpu
-          echo "--------------------------"
-          ps aux | sort -k 3 -r | head -n 20
-          echo "--------------------------"
-          mpstat -P ALL
-          echo "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
-          echo "## Disk ##"
-          df --human-readable
-          echo "-----------"
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/system-stats.sh"
 
       - if: ${{ success() }}
         run: echo "LONG_CI_FINISH_LABEL=${{ env.SUCCESS_LABEL }}" >> $GITHUB_ENV
