@@ -52,13 +52,14 @@ jobs:
       env:
         NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-    - name: Collect Workflow Telemetry
-      uses: catchpoint/workflow-telemetry-action@v1
-
     - name: Test
       run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
       env:
         NUCLIO_CI_SKIP_STRESS_TEST: true
+
+    - name: System stats on failure
+      if: ${{ failure() }}
+      run: "${GITHUB_WORKSPACE}/hack/scripts/ci/system-stats.sh"
 
     - name: Report Status
       if: always()

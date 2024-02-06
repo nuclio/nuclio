@@ -1507,7 +1507,7 @@ func (suite *functionDeleteTestSuite) TestForceDelete() {
 	}()
 
 	// wait for function deployment to start, then force delete the function
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 	// function removed
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName, "--force"}, nil)
 	suite.Require().NoError(err)
@@ -1525,6 +1525,7 @@ func (suite *functionDeleteTestSuite) TestForceDelete() {
 		true)
 	suite.Require().NoError(err, "Function was suppose to be deleted!")
 
+	// wait for deployment command to exit
 	deploymentErr := <-deploymentErrChan
 	close(deploymentErrChan)
 
