@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-echo "Displaying System Stats"
+echo "Printing System Stats"
 echo "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
 echo "## Memory ##"
 echo "$ free -h"

@@ -1477,6 +1477,9 @@ func (suite *functionDeleteTestSuite) TestDelete() {
 }
 
 func (suite *functionDeleteTestSuite) TestForceDelete() {
+	// Force delete is currently not supported on local platform
+	suite.ensureRunningOnPlatform(common.KubePlatformName)
+
 	var err error
 
 	uniqueSuffix := "-" + xid.New().String()
@@ -1524,8 +1527,8 @@ func (suite *functionDeleteTestSuite) TestForceDelete() {
 
 	deploymentErr := <-deploymentErrChan
 	close(deploymentErrChan)
+
 	// deployment should fail because we force deleted the function
-	suite.logger.WarnWith("Deployment Error", "errorStack", errors.GetErrorStackString(deploymentErr, 10))
 	suite.Require().Error(deploymentErr, "Function deployment was suppose to be stopped!")
 }
 
@@ -1866,62 +1869,14 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
 }
 
-func TestFunctionTestSuite1(t *testing.T) {
+func TestFunctionTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
 	}
 
 	suite.Run(t, new(functionBuildTestSuite))
-	//suite.Run(t, new(functionDeployTestSuite))
-	//suite.Run(t, new(functionGetTestSuite))
-	//suite.Run(t, new(functionDeleteTestSuite))
-	//suite.Run(t, new(functionExportImportTestSuite))
-}
-
-func TestFunctionTestSuite2(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
-	//suite.Run(t, new(functionBuildTestSuite))
 	suite.Run(t, new(functionDeployTestSuite))
-	//suite.Run(t, new(functionGetTestSuite))
-	//suite.Run(t, new(functionDeleteTestSuite))
-	//suite.Run(t, new(functionExportImportTestSuite))
-}
-
-func TestFunctionTestSuite3(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
-	//suite.Run(t, new(functionBuildTestSuite))
-	//suite.Run(t, new(functionDeployTestSuite))
 	suite.Run(t, new(functionGetTestSuite))
-	//suite.Run(t, new(functionDeleteTestSuite))
-	//suite.Run(t, new(functionExportImportTestSuite))
-}
-
-func TestFunctionTestSuite4(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
-	//suite.Run(t, new(functionBuildTestSuite))
-	//suite.Run(t, new(functionDeployTestSuite))
-	//suite.Run(t, new(functionGetTestSuite))
 	suite.Run(t, new(functionDeleteTestSuite))
-	//suite.Run(t, new(functionExportImportTestSuite))
-}
-
-func TestFunctionTestSuite5(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
-	//suite.Run(t, new(functionBuildTestSuite))
-	//suite.Run(t, new(functionDeployTestSuite))
-	//suite.Run(t, new(functionGetTestSuite))
-	//suite.Run(t, new(functionDeleteTestSuite))
 	suite.Run(t, new(functionExportImportTestSuite))
 }
