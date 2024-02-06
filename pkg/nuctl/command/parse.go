@@ -19,6 +19,7 @@ package command
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/nuctl/command/common"
@@ -93,7 +94,7 @@ func (pc *parseCommandeer) ParseReport(ctx context.Context, logger logger.Logger
 						"error", err.Error())
 				}
 			}
-			logger.Info(output)
+			fmt.Println(output)
 			return nil
 		}
 	}
