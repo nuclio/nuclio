@@ -224,6 +224,10 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 		d.outputManifest.SaveToFile(ctx, d.rootCommandeer.loggerInstance, d.reportFilePath)
 	}
 
+	if errorString := d.outputManifest.SprintfError(); errorString != "" {
+		return errors.New(errorString)
+	}
+
 	return nil
 }
 

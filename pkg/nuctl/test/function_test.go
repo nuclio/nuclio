@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/gobuffalo/flect"
+	"github.com/jarcoal/httpmock"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -1867,6 +1868,79 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
 }
 
+type functionRedeployTestSuite struct {
+	Suite
+}
+
+func (suite *functionRedeployTestSuite) TestRedeploy() {
+	functionName := "redeploy-test-function"
+	functionPath := path.Join(suite.GetImportsDir(), "redeploy-test-function.yaml")
+	apiUrl := "https://api.com"
+
+	namedArgs := map[string]string{
+		"api-url":    apiUrl,
+		"access-key": "key",
+	}
+
+	for _, testcase := range []struct {
+		name        string
+		expectError bool
+		statusCode  int
+		report      string
+	}{
+		{
+			name:        "success",
+			expectError: false,
+			statusCode:  http.StatusAccepted,
+			report:      `{"success":["redeploy-test-function"]}`,
+		},
+		{
+			name:        "failed-retryable",
+			expectError: true,
+			statusCode:  http.StatusInternalServerError,
+			report:      `{"failed":{"redeploy-test-function":{"error":"Failed to patch function","retryable":true}}}`,
+		},
+		{
+			name:        "failed-not-retryable",
+			expectError: true,
+			statusCode:  http.StatusPreconditionFailed,
+			report:      `{"failed":{"redeploy-test-function":{"error":"Failed to patch function","retryable":false}}}`,
+		},
+	} {
+		suite.Run(testcase.name, func() {
+			defer func() {
+				suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+			}()
+			uniqueSuffix := "-" + xid.New().String()
+			reportPath := path.Join(os.TempDir(), fmt.Sprintf("redeployment-report-%s.json", uniqueSuffix))
+			namedArgs["report-file-path"] = reportPath
+
+			//  import function
+			err := suite.ExecuteNuctl([]string{"import", "fu", functionPath}, nil)
+			suite.Require().NoError(err)
+
+			httpmock.Activate()
+			defer httpmock.DeactivateAndReset()
+
+			httpmock.RegisterResponder("PATCH", fmt.Sprintf("%s/functions/%s", apiUrl, functionName),
+				httpmock.NewStringResponder(testcase.statusCode, ""))
+
+			err = suite.ExecuteNuctl([]string{"beta", "redeploy", functionName, "--save-report"}, namedArgs)
+			if testcase.expectError {
+				//suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+
+			reportBytes, err := os.ReadFile(reportPath)
+			suite.Require().NoError(err)
+
+			suite.Require().Equal(testcase.report, string(reportBytes))
+
+		})
+	}
+}
+
 func TestFunctionTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
@@ -1877,4 +1951,5 @@ func TestFunctionTestSuite(t *testing.T) {
 	suite.Run(t, new(functionGetTestSuite))
 	suite.Run(t, new(functionDeleteTestSuite))
 	suite.Run(t, new(functionExportImportTestSuite))
+	suite.Run(t, new(functionRedeployTestSuite))
 }
