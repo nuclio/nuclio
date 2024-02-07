@@ -1775,11 +1775,13 @@ def init_context(context):
 		go func() {
 			ticker := time.NewTicker(500 * time.Millisecond)
 			defer ticker.Stop()
-			select {
-			case <-ticker.C:
-				suite.InvokeFunction("GET", deployResult.Port, "", nil)
-			case <-ctx.Done():
-				break
+			for {
+				select {
+				case <-ticker.C:
+					suite.InvokeFunction("GET", deployResult.Port, "", nil)
+				case <-ctx.Done():
+					return
+				}
 			}
 		}()
 

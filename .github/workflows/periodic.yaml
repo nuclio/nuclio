@@ -57,6 +57,10 @@ jobs:
       env:
         NUCLIO_CI_SKIP_STRESS_TEST: true
 
+    - name: System stats on failure
+      if: ${{ failure() }}
+      run: "${GITHUB_WORKSPACE}/hack/scripts/ci/system-stats.sh"
+
     - name: Report Status
       if: always()
       uses: ravsamhq/notify-slack-action@v2

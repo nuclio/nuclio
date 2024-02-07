@@ -1478,6 +1478,9 @@ func (suite *functionDeleteTestSuite) TestDelete() {
 }
 
 func (suite *functionDeleteTestSuite) TestForceDelete() {
+	// Force delete is currently not supported on local platform
+	suite.ensureRunningOnPlatform(common.KubePlatformName)
+
 	var err error
 
 	uniqueSuffix := "-" + xid.New().String()
@@ -1491,14 +1494,17 @@ func (suite *functionDeleteTestSuite) TestForceDelete() {
 	}
 
 	// deploy function in goroutine
+	deploymentErrChan := make(chan error)
 	go func() {
-		err = suite.ExecuteNuctl([]string{
+		err := suite.ExecuteNuctl([]string{
 			"deploy",
 			functionName,
 			"--verbose",
 			"--no-pull",
 		}, namedArgs)
-		suite.Require().Error(err)
+		// send deployment error to channel so the goroutine will exit.
+		// the error assertion will happen in the main thread
+		deploymentErrChan <- err
 	}()
 
 	// wait for function deployment to start, then force delete the function
@@ -1519,6 +1525,13 @@ func (suite *functionDeleteTestSuite) TestForceDelete() {
 		},
 		true)
 	suite.Require().NoError(err, "Function was suppose to be deleted!")
+
+	// wait for deployment command to exit
+	deploymentErr := <-deploymentErrChan
+	close(deploymentErrChan)
+
+	// deployment should fail because we force deleted the function
+	suite.Require().Error(deploymentErr, "Function deployment was suppose to be stopped!")
 }
 
 type functionExportImportTestSuite struct {

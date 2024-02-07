@@ -80,6 +80,10 @@ jobs:
       - name: Test
         run: make test
 
+      - name: System stats on failure
+        if: ${{ failure() }}
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/system-stats.sh"
+
       - if: ${{ success() }}
         run: echo "LONG_CI_FINISH_LABEL=${{ env.SUCCESS_LABEL }}" >> $GITHUB_ENV
 
