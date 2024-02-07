@@ -1922,7 +1922,8 @@ func (suite *functionRedeployTestSuite) TestRedeploy() {
 			httpmock.Activate()
 			defer httpmock.DeactivateAndReset()
 
-			httpmock.RegisterResponder("PATCH", fmt.Sprintf("%s/functions/%s", apiUrl, functionName),
+			httpmock.RegisterResponder("PATCH",
+				fmt.Sprintf("%s/functions/%s", apiUrl, functionName),
 				httpmock.NewStringResponder(testcase.statusCode, ""))
 
 			err = suite.ExecuteNuctl([]string{"beta", "redeploy", functionName, "--save-report"}, namedArgs)
@@ -1934,7 +1935,6 @@ func (suite *functionRedeployTestSuite) TestRedeploy() {
 
 			reportBytes, err := os.ReadFile(reportPath)
 			suite.Require().NoError(err)
-
 			suite.Require().Equal(testcase.report, string(reportBytes))
 
 		})
