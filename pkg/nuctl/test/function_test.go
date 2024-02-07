@@ -1927,7 +1927,7 @@ func (suite *functionRedeployTestSuite) TestRedeploy() {
 
 			err = suite.ExecuteNuctl([]string{"beta", "redeploy", functionName, "--save-report"}, namedArgs)
 			if testcase.expectError {
-				//suite.Require().Error(err)
+				suite.Require().Error(err)
 			} else {
 				suite.Require().NoError(err)
 			}
