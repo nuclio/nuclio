@@ -216,8 +216,23 @@ The `status` section contains the requirements and attributes and has the follow
 | internalInvocationUrls | []string | A list of internal urls to invoke the function                                                    |
 | externalInvocationUrls | []string | A list of external urls to invoke the function, including ingresses and external-ip:function-port |
 
-<a id="status-example"></a>
+### Function state
 
+Here is a list of all possible function states:
+
+| **State**                       | **Description**                                                                                                                                    |
+|:--------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
+| ready                           | Function is deployed successfully and ready to process events.                                                                                     |
+| imported                        | Function is imported from file and hasn't been deployed yet.                                                                                       |
+| error                           | Error occurred during function deployment and cannot be rectified without redeployment.                                                            |
+| unhealthy                       | Error occurred during function deployment, which can be resolved over time. For example, issues such as insufficient resources or a missing image. |
+| scaledToZero                    | Function is scaled to zero, so the number of function replicas is zero.                                                                            |
+| building                        | Function image is being built.                                                                                                                     |
+| waitingForResourceConfiguration | Function waits for resources to be ready. For instance, in case of k8s function waits for deployment/pods and etc.                                 |
+| waitingForScaleResourceFromZero | Function is scaling up from zero replicas.                                                                                                         |
+| waitingForScaleResourceToZero   | Function is scaling down to zero replicas.                                                                                                         |
+
+<a id="status-example"></a>
 ### Example
 
 ```yaml
