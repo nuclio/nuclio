@@ -190,7 +190,6 @@ class Wrapper(object):
                     result = self._call_termination_handler()
                     if asyncio.iscoroutine(result):
                         await result
-                    break
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None:
@@ -271,6 +270,10 @@ class Wrapper(object):
     def _on_termination_signal(self, signal_name):
         self._logger.debug_with('Received signal', signal=signal_name)
         self._is_termination_needed = True
+
+        # set the flag to True to stop processing events which are received after termination signal
+        self._discard_events = True
+
         # if serving loop is waiting for an event, unblock this operation to allow the termination callback to be called
         if self._event_message_length_task:
             self._event_message_length_task.cancel()
