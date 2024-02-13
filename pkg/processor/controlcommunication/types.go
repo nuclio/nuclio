@@ -80,6 +80,11 @@ func (c *ControlConsumer) BroadcastAndCloseSubscriptions(message *ControlMessage
 	// write message to the all channels
 	for _, channel := range c.channels {
 		go func(channel chan *ControlMessage, message *ControlMessage) {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println("Recovered in BroadcastAndCloseSubscriptions", r)
+				}
+			}()
 			channel <- message
 		}(channel, message)
 	}
@@ -100,8 +105,13 @@ func (c *ControlConsumer) Broadcast(message *ControlMessage) error {
 	for _, channel := range c.channels {
 
 		go func(channel chan *ControlMessage, message *ControlMessage) {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println("Recovered in BroadcastAndCloseSubscriptions", r)
+				}
+			}()
+			defer wg.Done()
 			channel <- message
-			wg.Done()
 		}(channel, message)
 	}
 
