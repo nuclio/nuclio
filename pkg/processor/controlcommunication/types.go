@@ -18,6 +18,7 @@ package controlcommunication
 
 import (
 	"bufio"
+	"fmt"
 	"sync"
 
 	"github.com/nuclio/errors"
@@ -29,6 +30,10 @@ const (
 	StreamMessageAckKind ControlMessageKind = "streamMessageAck"
 	DrainDoneMessageKind ControlMessageKind = "drainDone"
 )
+
+func getAllControlMessageKinds() []ControlMessageKind {
+	return []ControlMessageKind{StreamMessageAckKind, DrainDoneMessageKind}
+}
 
 // TODO: move to nuclio-sdk-go
 type ControlMessage struct {
@@ -45,6 +50,7 @@ type ControlMessageAttributesExplicitAck struct {
 type ControlConsumer struct {
 	channels []chan *ControlMessage
 	kind     ControlMessageKind
+	lock     sync.Mutex
 }
 
 // NewControlConsumer creates a new control consumer
@@ -53,6 +59,7 @@ func NewControlConsumer(kind ControlMessageKind) *ControlConsumer {
 	return &ControlConsumer{
 		channels: make([]chan *ControlMessage, 0),
 		kind:     kind,
+		lock:     sync.Mutex{},
 	}
 }
 
@@ -61,8 +68,32 @@ func (c *ControlConsumer) GetKind() ControlMessageKind {
 	return c.kind
 }
 
-// Send broadcasts a message to all subscribed channels
-func (c *ControlConsumer) Send(message *ControlMessage) error {
+// BroadcastAndCloseSubscriptions sends a message to all subscribed channels and deletes all subscriptions after
+func (c *ControlConsumer) BroadcastAndCloseSubscriptions(message *ControlMessage) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	// do nothing if channels is an empty slice
+	if len(c.channels) == 0 {
+		return nil
+	}
+	// write message to the all channels
+	for _, channel := range c.channels {
+		go func(channel chan *ControlMessage, message *ControlMessage) {
+			channel <- message
+		}(channel, message)
+	}
+
+	// delete the channel from subscription
+	c.channels = make([]chan *ControlMessage, 0)
+
+	return nil
+}
+
+// Broadcast broadcasts a message to all subscribed channels
+func (c *ControlConsumer) Broadcast(message *ControlMessage) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(c.channels))
@@ -79,10 +110,16 @@ func (c *ControlConsumer) Send(message *ControlMessage) error {
 }
 
 func (c *ControlConsumer) addChannel(channel chan *ControlMessage) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	c.channels = append(c.channels, channel)
 }
 
 func (c *ControlConsumer) deleteChannel(channelToDelete chan *ControlMessage) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	// remove the channel from the consumer
 	for i, channel := range c.channels {
 		if channel == channelToDelete {
@@ -111,15 +148,20 @@ type ControlMessageBroker interface {
 }
 
 type AbstractControlMessageBroker struct {
-	Consumers   []*ControlConsumer
-	channelLock sync.Mutex
+	Consumers []*ControlConsumer
 }
 
 // NewAbstractControlMessageBroker creates a new abstract control message broker
 func NewAbstractControlMessageBroker() *AbstractControlMessageBroker {
+	// creating consumer for each control message
+
+	controlMessageKinds := getAllControlMessageKinds()
+	consumers := make([]*ControlConsumer, len(controlMessageKinds))
+	for index, kind := range controlMessageKinds {
+		consumers[index] = NewControlConsumer(kind)
+	}
 	return &AbstractControlMessageBroker{
-		Consumers:   make([]*ControlConsumer, 0),
-		channelLock: sync.Mutex{},
+		Consumers: consumers,
 	}
 }
 
@@ -132,13 +174,21 @@ func (acmb *AbstractControlMessageBroker) ReadControlMessage(reader *bufio.Reade
 }
 
 func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessage) error {
-	acmb.channelLock.Lock()
-	defer acmb.channelLock.Unlock()
 
 	for _, consumer := range acmb.Consumers {
 		if consumer.GetKind() == message.Kind {
-			if err := consumer.Send(message); err != nil {
-				return errors.Wrap(err, "Failed to send message to consumer")
+			switch message.Kind {
+			case DrainDoneMessageKind:
+				if err := consumer.BroadcastAndCloseSubscriptions(message); err != nil {
+					return errors.Wrap(err, "Failed to send message to consumer")
+				}
+			case StreamMessageAckKind:
+				if err := consumer.Broadcast(message); err != nil {
+					return errors.Wrap(err, "Failed to broadcast message to consumer")
+				}
+			default:
+				// if message kind is not known, then just exit from the loop
+				return nil
 			}
 		}
 	}
@@ -147,44 +197,28 @@ func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessag
 }
 
 func (acmb *AbstractControlMessageBroker) Subscribe(kind ControlMessageKind, channel chan *ControlMessage) error {
-
-	// acquire lock to prevent concurrent access to the consumers and channels
-	acmb.channelLock.Lock()
-	defer acmb.channelLock.Unlock()
-
-	// create consumers if they don't exist
-	if acmb.Consumers == nil {
-		acmb.Consumers = make([]*ControlConsumer, 0)
+	if consumer, err := acmb.getConsumer(kind); err != nil {
+		return err
+	} else {
+		consumer.addChannel(channel)
 	}
-
-	// Add the consumer to the list of the relevant kind
-	for _, consumer := range acmb.Consumers {
-		if consumer.GetKind() == kind {
-			consumer.addChannel(channel)
-			return nil
-		}
-	}
-
-	// consumer for the kind doesn't exist, create one
-	consumer := NewControlConsumer(kind)
-	consumer.addChannel(channel)
-	acmb.Consumers = append(acmb.Consumers, consumer)
-
 	return nil
 }
 
 func (acmb *AbstractControlMessageBroker) Unsubscribe(kind ControlMessageKind, channel chan *ControlMessage) error {
-
-	// acquire lock to prevent concurrent access to the consumers and channels
-	acmb.channelLock.Lock()
-	defer acmb.channelLock.Unlock()
-
-	// Find the consumer with relevant kind
-	for _, consumer := range acmb.Consumers {
-		if consumer.GetKind() == kind {
-			consumer.deleteChannel(channel)
-			return nil
-		}
+	if consumer, err := acmb.getConsumer(kind); err != nil {
+		return err
+	} else {
+		consumer.deleteChannel(channel)
 	}
 	return nil
+}
+
+func (acmb *AbstractControlMessageBroker) getConsumer(kind ControlMessageKind) (*ControlConsumer, error) {
+	for _, consumer := range acmb.Consumers {
+		if consumer.GetKind() == kind {
+			return consumer, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("Consumer for message kind `%s` does not exist", kind))
 }

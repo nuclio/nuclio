@@ -349,17 +349,19 @@ func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunicati
 func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommunication.ControlMessageKind,
 	controlMessageChan chan *controlcommunication.ControlMessage) error {
 
-	at.Logger.DebugWith("Unsubscribing channel from control message kind",
-		"kind", kind,
-		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
-
 	for _, workerInstance := range at.WorkerAllocator.GetWorkers() {
+		at.Logger.DebugWith("Unsubscribing channel from control message kind",
+			"kind", kind,
+			"worker_id", workerInstance.GetIndex())
 		if err := workerInstance.Unsubscribe(kind, controlMessageChan); err != nil {
 			return errors.Wrapf(err,
 				"Failed to unsubscribe channel from control message kind %s in worker %d",
 				kind,
 				workerInstance.GetIndex())
 		}
+		at.Logger.DebugWith("Successfully unsubscribed channel from control message kind",
+			"kind", kind,
+			"worker_id", workerInstance.GetIndex())
 	}
 
 	return nil

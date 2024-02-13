@@ -239,11 +239,14 @@ func (r *AbstractRuntime) Drain() error {
 	}
 
 	defer func() {
-		if err := r.GetControlMessageBroker().Unsubscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan); err != nil {
-			r.Logger.ErrorWith("Failed to unsubscribe from drainDone control messages",
-				"error", err)
-		}
-		close(drainDoneControlMessageChan)
+		// running in parallel to be more efficient
+		go func() {
+			if err := r.GetControlMessageBroker().Unsubscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan); err != nil {
+				r.Logger.ErrorWith("Failed to unsubscribe from drainDone control messages",
+					"error", err)
+			}
+			close(drainDoneControlMessageChan)
+		}()
 	}()
 
 	// we use SIGUSR2 to signal the wrapper process to drain events

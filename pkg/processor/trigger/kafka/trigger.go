@@ -308,17 +308,19 @@ consumptionLoop:
 		}
 	}
 
-	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
-
 	// unsubscribe channel from the streamAck control message kind before closing it
-	if err := k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
-		k.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
+	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
+		if err := k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
+			k.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
+		}
 	}
 
 	// shut down goroutines and channels
 	close(submittedEventChan)
 	close(explicitAckControlMessageChan)
 	close(workerDrainingCompleteChan)
+
+	k.Logger.DebugWith("Claim consumption stopped", "partition", claim.Partition())
 
 	return submitError
 }

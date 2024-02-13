@@ -21,6 +21,7 @@ package controlcommunication
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -53,7 +54,7 @@ func (suite *ControlCommunicationTestSuite) TestSubscribeUnsubscribe() {
 	}
 
 	// make sure the channel is subscribed
-	suite.Require().Len(suite.broker.Consumers, 1)
+	suite.Require().Len(suite.broker.Consumers, len(getAllControlMessageKinds()))
 	suite.Require().Len(suite.broker.Consumers[0].channels, 2)
 	suite.Require().Equal(suite.broker.Consumers[0].channels[0], controlMessageChannel1)
 	suite.Require().Equal(suite.broker.Consumers[0].channels[1], controlMessageChannel2)
@@ -64,9 +65,91 @@ func (suite *ControlCommunicationTestSuite) TestSubscribeUnsubscribe() {
 	suite.Require().NoError(err)
 
 	// make sure the channel is unsubscribed
-	suite.Require().Len(suite.broker.Consumers, 1)
+	suite.Require().Len(suite.broker.Consumers, len(getAllControlMessageKinds()))
 	suite.Require().Len(suite.broker.Consumers[0].channels, 1)
 	suite.Require().Equal(suite.broker.Consumers[0].channels[0], controlMessageChannel2)
+}
+
+func (suite *ControlCommunicationTestSuite) TestSendMessage() {
+	controlMessageDrain1 := make(chan *ControlMessage)
+	controlMessageDrain2 := make(chan *ControlMessage)
+	defer close(controlMessageDrain1)
+	defer close(controlMessageDrain2)
+
+	drainDoneConsumer, err := suite.broker.getConsumer(DrainDoneMessageKind)
+	suite.Require().NoError(err)
+
+	for _, controlMessageChan := range []chan *ControlMessage{controlMessageDrain1, controlMessageDrain2} {
+		err = suite.broker.Subscribe(DrainDoneMessageKind, controlMessageChan)
+		suite.Require().NoError(err)
+	}
+
+	defer func() {
+		err := suite.broker.Unsubscribe(StreamMessageAckKind, controlMessageDrain1)
+		suite.Require().NoError(err)
+		err = suite.broker.Unsubscribe(StreamMessageAckKind, controlMessageDrain2)
+		suite.Require().NoError(err)
+	}()
+
+	// send DrainDone message
+	suite.Require().Len(drainDoneConsumer.channels, 2)
+	err = suite.broker.SendToConsumers(&ControlMessage{Kind: DrainDoneMessageKind})
+	suite.Require().NoError(err)
+	suite.Require().Len(drainDoneConsumer.channels, 1)
+
+	message := <-controlMessageDrain1
+	suite.Require().Equal(message.Kind, DrainDoneMessageKind)
+
+	err = suite.broker.SendToConsumers(&ControlMessage{Kind: DrainDoneMessageKind})
+	suite.Require().NoError(err)
+	message = <-controlMessageDrain2
+	suite.Require().Equal(message.Kind, DrainDoneMessageKind)
+	suite.Require().Len(drainDoneConsumer.channels, 0)
+
+}
+
+func (suite *ControlCommunicationTestSuite) TestBroadcastMessage() {
+	controlMessageExplicitAck1 := make(chan *ControlMessage)
+	controlMessageExplicitAck2 := make(chan *ControlMessage)
+	defer close(controlMessageExplicitAck1)
+	defer close(controlMessageExplicitAck2)
+
+	explicitAckConsumer, err := suite.broker.getConsumer(StreamMessageAckKind)
+	suite.Require().NoError(err)
+
+	for _, controlMessageChan := range []chan *ControlMessage{controlMessageExplicitAck1, controlMessageExplicitAck2} {
+		err = suite.broker.Subscribe(StreamMessageAckKind, controlMessageChan)
+		suite.Require().NoError(err)
+	}
+	defer func() {
+		err := suite.broker.Unsubscribe(StreamMessageAckKind, controlMessageExplicitAck1)
+		suite.Require().NoError(err)
+		err = suite.broker.Unsubscribe(StreamMessageAckKind, controlMessageExplicitAck2)
+		suite.Require().NoError(err)
+	}()
+
+	suite.Require().Len(explicitAckConsumer.channels, 2)
+
+	broadcastingCtx, broadcastingDone := context.WithCancel(suite.ctx)
+	// broadcasting message (will be blocked until the message is read from all chans)
+	go func() {
+		_ = suite.broker.SendToConsumers(&ControlMessage{Kind: StreamMessageAckKind, // nolint: errcheck
+			Attributes: map[string]interface{}{"test": "broadcast"}})
+		broadcastingDone()
+	}()
+
+	for _, controlMessageChan := range []chan *ControlMessage{controlMessageExplicitAck1, controlMessageExplicitAck2} {
+		message := <-controlMessageChan
+		suite.Require().Equal(message.Kind, StreamMessageAckKind)
+		suite.Require().Equal(message.Attributes["test"], "broadcast")
+	}
+
+	select {
+	case <-broadcastingCtx.Done():
+		suite.logger.DebugWith("ExplicitAck control message was successfully broadcast")
+	case <-time.After(1 * time.Second):
+		suite.Fail("ExplicitAck control message didn't unblock consumer after message was read")
+	}
 }
 
 func TestControlCommunicationTestSuite(t *testing.T) {
