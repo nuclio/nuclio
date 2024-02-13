@@ -95,16 +95,12 @@ func (suite *ControlCommunicationTestSuite) TestSendMessage() {
 	suite.Require().Len(drainDoneConsumer.channels, 2)
 	err = suite.broker.SendToConsumers(&ControlMessage{Kind: DrainDoneMessageKind})
 	suite.Require().NoError(err)
-	suite.Require().Len(drainDoneConsumer.channels, 1)
+	suite.Require().Len(drainDoneConsumer.channels, 0)
 
 	message := <-controlMessageDrain1
 	suite.Require().Equal(message.Kind, DrainDoneMessageKind)
-
-	err = suite.broker.SendToConsumers(&ControlMessage{Kind: DrainDoneMessageKind})
-	suite.Require().NoError(err)
 	message = <-controlMessageDrain2
 	suite.Require().Equal(message.Kind, DrainDoneMessageKind)
-	suite.Require().Len(drainDoneConsumer.channels, 0)
 
 }
 
