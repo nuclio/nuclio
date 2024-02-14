@@ -148,11 +148,16 @@ func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessag
 	for _, consumer := range acmb.Consumers {
 		if consumer.GetKind() == message.Kind {
 			switch message.Kind {
+			// for drainDone messages, we only wait for the first message to be received (see waitForDrainingDone method),
+			// so we send a message to channels and unsubscribe to avoid any attempts of writing to the closed channel
 			case DrainDoneMessageKind:
 				if err := consumer.BroadcastAndCloseSubscriptions(message); err != nil {
 					return errors.Wrap(err, fmt.Sprintf("Failed to send message of kind `%s` to consumer",
 						message.Kind))
 				}
+			// for explicitAck message, we want to send a message to all subscribed channels and
+			// ensure that those messages are read from the processing goroutines,
+			// because we need to keep the right order of the messages
 			case StreamMessageAckKind:
 				if err := consumer.Broadcast(message); err != nil {
 					return errors.Wrap(err, fmt.Sprintf("Failed to broadcast message of kind `%s` to consumer",
