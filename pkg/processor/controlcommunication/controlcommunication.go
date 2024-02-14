@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 )
 
 type ControlConsumer struct {
@@ -46,7 +47,7 @@ func (c *ControlConsumer) GetKind() ControlMessageKind {
 }
 
 // BroadcastAndCloseSubscriptions sends a message to all subscribed channels and deletes all subscriptions after
-func (c *ControlConsumer) BroadcastAndCloseSubscriptions(message *ControlMessage) error {
+func (c *ControlConsumer) BroadcastAndCloseSubscriptions(message *ControlMessage, logger logger.Logger) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -60,7 +61,8 @@ func (c *ControlConsumer) BroadcastAndCloseSubscriptions(message *ControlMessage
 			defer func() {
 				// if the channel is closed before the message is read, it will result in a panic
 				if err := recover(); err != nil {
-					fmt.Println("Recovered in BroadcastAndCloseSubscriptions", err)
+					logger.WarnWith("Recovered in BroadcastAndCloseSubscriptions",
+						"error", err)
 				}
 			}()
 			channel <- message
@@ -74,7 +76,7 @@ func (c *ControlConsumer) BroadcastAndCloseSubscriptions(message *ControlMessage
 }
 
 // Broadcast broadcasts a message to all subscribed channels
-func (c *ControlConsumer) Broadcast(message *ControlMessage) error {
+func (c *ControlConsumer) Broadcast(message *ControlMessage, logger logger.Logger) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -86,7 +88,8 @@ func (c *ControlConsumer) Broadcast(message *ControlMessage) error {
 			defer func() {
 				// if the channel is closed before the message is read, it will result in a panic
 				if err := recover(); err != nil {
-					fmt.Println("Recovered in BroadcastAndCloseSubscriptions", err)
+					logger.WarnWith("Recovered in BroadcastAndCloseSubscriptions",
+						"error", err)
 				}
 			}()
 			defer wg.Done()
@@ -120,18 +123,20 @@ func (c *ControlConsumer) deleteChannel(channelToDelete chan *ControlMessage) {
 
 type AbstractControlMessageBroker struct {
 	Consumers []*ControlConsumer
+	logger    logger.Logger
 }
 
 // NewAbstractControlMessageBroker creates a new abstract control message broker
-func NewAbstractControlMessageBroker() *AbstractControlMessageBroker {
+func NewAbstractControlMessageBroker(logger logger.Logger) *AbstractControlMessageBroker {
 	// create a consumer for each control message kind
-	controlMessageKinds := getAllControlMessageKinds()
+	controlMessageKinds := GetAllControlMessageKinds()
 	consumers := make([]*ControlConsumer, len(controlMessageKinds))
 	for index, kind := range controlMessageKinds {
 		consumers[index] = NewControlConsumer(kind)
 	}
 	return &AbstractControlMessageBroker{
 		Consumers: consumers,
+		logger:    logger,
 	}
 }
 
@@ -151,15 +156,15 @@ func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessag
 			// for drainDone messages, we only wait for the first message to be received (see waitForDrainingDone method),
 			// so we send a message to channels and unsubscribe to avoid any attempts of writing to the closed channel
 			case DrainDoneMessageKind:
-				if err := consumer.BroadcastAndCloseSubscriptions(message); err != nil {
+				if err := consumer.BroadcastAndCloseSubscriptions(message, acmb.logger); err != nil {
 					return errors.Wrap(err, fmt.Sprintf("Failed to send message of kind `%s` to consumer",
 						message.Kind))
 				}
-			// for explicitAck message, we want to send a message to all subscribed channels and
+			// for stream ack message, we want to send a message to all subscribed channels and
 			// ensure that those messages are read from the processing goroutines,
 			// because we need to keep the right order of the messages
 			case StreamMessageAckKind:
-				if err := consumer.Broadcast(message); err != nil {
+				if err := consumer.Broadcast(message, acmb.logger); err != nil {
 					return errors.Wrap(err, fmt.Sprintf("Failed to broadcast message of kind `%s` to consumer",
 						message.Kind))
 				}

@@ -37,7 +37,7 @@ type rpcControlMessageBroker struct {
 func NewRpcControlMessageBroker(encoder EventEncoder, logger logger.Logger, abstractControlMessageBroker *controlcommunication.AbstractControlMessageBroker) *rpcControlMessageBroker {
 
 	if abstractControlMessageBroker == nil {
-		abstractControlMessageBroker = controlcommunication.NewAbstractControlMessageBroker()
+		abstractControlMessageBroker = controlcommunication.NewAbstractControlMessageBroker(logger)
 	}
 
 	return &rpcControlMessageBroker{

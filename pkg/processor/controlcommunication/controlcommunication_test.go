@@ -38,7 +38,7 @@ type ControlCommunicationTestSuite struct {
 func (suite *ControlCommunicationTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
-	suite.broker = NewAbstractControlMessageBroker()
+	suite.broker = NewAbstractControlMessageBroker(suite.logger)
 }
 
 func (suite *ControlCommunicationTestSuite) TestSubscribeUnsubscribe() {
@@ -54,7 +54,7 @@ func (suite *ControlCommunicationTestSuite) TestSubscribeUnsubscribe() {
 	}
 
 	// make sure the channel is subscribed
-	suite.Require().Len(suite.broker.Consumers, len(getAllControlMessageKinds()))
+	suite.Require().Len(suite.broker.Consumers, len(GetAllControlMessageKinds()))
 	suite.Require().Len(suite.broker.Consumers[0].channels, 2)
 	suite.Require().Equal(suite.broker.Consumers[0].channels[0], controlMessageChannel1)
 	suite.Require().Equal(suite.broker.Consumers[0].channels[1], controlMessageChannel2)
@@ -65,7 +65,7 @@ func (suite *ControlCommunicationTestSuite) TestSubscribeUnsubscribe() {
 	suite.Require().NoError(err)
 
 	// make sure the channel is unsubscribed
-	suite.Require().Len(suite.broker.Consumers, len(getAllControlMessageKinds()))
+	suite.Require().Len(suite.broker.Consumers, len(GetAllControlMessageKinds()))
 	suite.Require().Len(suite.broker.Consumers[0].channels, 1)
 	suite.Require().Equal(suite.broker.Consumers[0].channels[0], controlMessageChannel2)
 }

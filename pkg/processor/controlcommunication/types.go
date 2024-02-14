@@ -27,7 +27,7 @@ const (
 	DrainDoneMessageKind ControlMessageKind = "drainDone"
 )
 
-func getAllControlMessageKinds() []ControlMessageKind {
+func GetAllControlMessageKinds() []ControlMessageKind {
 	return []ControlMessageKind{StreamMessageAckKind, DrainDoneMessageKind}
 }
 
