@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
@@ -185,4 +186,20 @@ func ValidateNodeSelector(nodeSelector map[string]string) error {
 		}
 	}
 	return nil
+}
+
+func FilterInvalidLabels(labels map[string]string) map[string]string {
+
+	// From k8s docs:
+	//   a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.',
+	//   and must start and end with an alphanumeric character (e.g. 'MyValue',  or 'my_value',  or '12345',
+	//   regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
+	regex := regexp.MustCompile(`^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$`)
+	filteredLabels := map[string]string{}
+	for key, value := range labels {
+		if regex.MatchString(key) {
+			filteredLabels[key] = value
+		}
+	}
+	return filteredLabels
 }

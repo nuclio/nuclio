@@ -191,33 +191,6 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsThatExistInternally() {
 		&testBeginningTime)
 }
 
-func (suite *SynchronizerTestSuite) TestFilterInvalidLabels() {
-	invalidLabels := map[string]string{
-		"my@weird/label": "value",
-		"my.wierd/label": "value@",
-		"%weird+/label":  "v8$alue",
-	}
-
-	labels := map[string]string{
-		"valid":          "label",
-		"another-valid":  "label-value",
-		"also_123_valid": "label_456_value",
-	}
-
-	// add invalid labels to labels
-	for key, value := range invalidLabels {
-		labels[key] = value
-	}
-
-	filteredLabels := suite.synchronizer.filterInvalidLabels(labels)
-
-	suite.Require().Equal(len(filteredLabels), len(labels)-len(invalidLabels))
-	for key := range invalidLabels {
-		_, ok := filteredLabels[key]
-		suite.Require().False(ok, "invalid label %s should not be in filtered labels", key)
-	}
-}
-
 func (suite *SynchronizerTestSuite) testSynchronizeProjectsFromLeader(namespace string,
 	leaderProjects []platform.Project,
 	internalProjects []platform.Project,

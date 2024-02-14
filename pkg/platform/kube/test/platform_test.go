@@ -1597,6 +1597,7 @@ func (suite *DeployFunctionTestSuite) TestDeployFromGitSanity() {
 		return true
 	})
 }
+
 func (suite *DeployFunctionTestSuite) createPlatformConfigmapWithJSONLogger() *v1.ConfigMap {
 
 	// create a platform config configmap with a json logger sink (this is how it is on production)
@@ -2085,6 +2086,52 @@ func (suite *ProjectTestSuite) TestCreate() {
 	// requested and created project are equal
 	createdProject := projects[0]
 	suite.Require().Equal(projectConfig, *createdProject.GetConfig())
+}
+
+func (suite *ProjectTestSuite) TestCreateFromLeaderIgnoreInvalidLabels() {
+	invalidLabelKey := "invalid.label@-key"
+	projectConfig := platform.ProjectConfig{
+		Meta: platform.ProjectMeta{
+			Name:      "test-project",
+			Namespace: suite.Namespace,
+			Labels: map[string]string{
+				invalidLabelKey: "label-value",
+			},
+		},
+		Spec: platform.ProjectSpec{
+			Description: "some description",
+		},
+	}
+
+	// set the platform's leader kind
+	suite.Platform.GetConfig().ProjectsLeader = &platformconfig.ProjectsLeader{
+		Kind: platformconfig.ProjectsLeaderKindMock,
+	}
+
+	// create project
+	err := suite.Platform.CreateProject(suite.Ctx, &platform.CreateProjectOptions{
+		ProjectConfig: &projectConfig,
+		RequestOrigin: platformconfig.ProjectsLeaderKindMock,
+	})
+	suite.Require().NoError(err, "Failed to create project")
+	defer func() {
+		err = suite.Platform.DeleteProject(suite.Ctx, &platform.DeleteProjectOptions{
+			Meta:     projectConfig.Meta,
+			Strategy: platform.DeleteProjectStrategyRestricted,
+		})
+		suite.Require().NoError(err, "Failed to delete project")
+	}()
+
+	// get created project
+	projects, err := suite.Platform.GetProjects(suite.Ctx, &platform.GetProjectsOptions{
+		Meta: projectConfig.Meta,
+	})
+	suite.Require().NoError(err, "Failed to get projects")
+	suite.Require().Equal(len(projects), 1)
+
+	// verify created project does not contain the invalid label
+	createdProject := projects[0]
+	suite.Require().NotContains(createdProject.GetConfig().Meta.Labels, invalidLabelKey)
 }
 
 func (suite *ProjectTestSuite) TestUpdate() {

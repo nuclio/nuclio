@@ -798,6 +798,12 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 		createProjectOptions.ProjectConfig.Spec.Owner = createProjectOptions.AuthSession.GetUsername()
 	}
 
+	if ap.Config.ProjectsLeader != nil && createProjectOptions.RequestOrigin == ap.Config.ProjectsLeader.Kind {
+
+		// ignore project's invalid labels instead of failing validation
+		createProjectOptions.ProjectConfig.Meta.Labels = common.FilterInvalidLabels(createProjectOptions.ProjectConfig.Meta.Labels)
+	}
+
 	return nil
 }
 

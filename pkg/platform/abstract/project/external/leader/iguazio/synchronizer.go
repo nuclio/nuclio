@@ -19,9 +19,9 @@ package iguazio
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -206,7 +206,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(ctx context.Context,
 		createProjectErrGroup.Go("create projects", func() error {
 
 			// filter out labels that are not allowed by kubernetes
-			projectInstance.Meta.Labels = c.filterInvalidLabels(projectInstance.Meta.Labels)
+			projectInstance.Meta.Labels = common.FilterInvalidLabels(projectInstance.Meta.Labels)
 
 			c.logger.DebugWithCtx(ctx, "Creating project from leader sync", "projectInstance", *projectInstance)
 			createProjectConfig := &platform.CreateProjectOptions{
@@ -241,7 +241,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(ctx context.Context,
 		updateProjectErrGroup.Go("update projects", func() error {
 
 			// filter out labels that are not allowed by kubernetes
-			projectInstance.Meta.Labels = c.filterInvalidLabels(projectInstance.Meta.Labels)
+			projectInstance.Meta.Labels = common.FilterInvalidLabels(projectInstance.Meta.Labels)
 
 			c.logger.DebugWith("Updating project from leader sync", "projectInstance", *projectInstance)
 			updateProjectOptions := &platform.UpdateProjectOptions{
@@ -275,20 +275,4 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(ctx context.Context,
 // a helper function - generates unique key to be used by projects maps
 func (c *Synchronizer) generateUniqueProjectKey(configInstance *platform.ProjectConfig) string {
 	return fmt.Sprintf("%s:%s", configInstance.Meta.Namespace, configInstance.Meta.Name)
-}
-
-func (c *Synchronizer) filterInvalidLabels(labels map[string]string) map[string]string {
-
-	// From k8s docs:
-	//   a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.',
-	//   and must start and end with an alphanumeric character (e.g. 'MyValue',  or 'my_value',  or '12345',
-	//   regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
-	regex := regexp.MustCompile(`^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$`)
-	filteredLabels := map[string]string{}
-	for key, value := range labels {
-		if regex.MatchString(key) {
-			filteredLabels[key] = value
-		}
-	}
-	return filteredLabels
 }
