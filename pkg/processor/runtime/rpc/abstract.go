@@ -239,7 +239,7 @@ func (r *AbstractRuntime) Drain() error {
 	}
 
 	defer func() {
-		// running in parallel to be more efficient
+		// running in the background to be more efficient, and not block the rest of the flow
 		go func() {
 			if err := r.GetControlMessageBroker().Unsubscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan); err != nil {
 				r.Logger.ErrorWith("Failed to unsubscribe from drainDone control messages",

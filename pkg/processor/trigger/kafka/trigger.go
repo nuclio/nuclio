@@ -310,9 +310,7 @@ consumptionLoop:
 
 	// unsubscribe channel from the streamAck control message kind before closing it
 	if functionconfig.ExplicitAckEnabled(k.configuration.ExplicitAckMode) {
-		if err := k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan); err != nil {
-			k.Logger.WarnWith("Failed to unsubscribe channel from control message kind", "err", err)
-		}
+		k.UnsubscribeFromControlMessageKind(controlcommunication.StreamMessageAckKind, explicitAckControlMessageChan)
 	}
 
 	// shut down goroutines and channels

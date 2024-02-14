@@ -347,24 +347,22 @@ func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunicati
 
 // UnsubscribeFromControlMessageKind unsubscribes all workers from control message kind
 func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommunication.ControlMessageKind,
-	controlMessageChan chan *controlcommunication.ControlMessage) error {
+	controlMessageChan chan *controlcommunication.ControlMessage) {
+	at.Logger.DebugWith("Unsubscribing channel from control message kind",
+		"kind", kind,
+		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
 
 	for _, workerInstance := range at.WorkerAllocator.GetWorkers() {
-		at.Logger.DebugWith("Unsubscribing channel from control message kind",
-			"kind", kind,
-			"worker_id", workerInstance.GetIndex())
 		if err := workerInstance.Unsubscribe(kind, controlMessageChan); err != nil {
-			return errors.Wrapf(err,
-				"Failed to unsubscribe channel from control message kind %s in worker %d",
-				kind,
-				workerInstance.GetIndex())
+			at.Logger.WarnWith("Failed to unsubscribe channel from control message",
+				"kind", kind,
+				"worker_id", workerInstance.GetIndex(),
+				"error", err)
 		}
-		at.Logger.DebugWith("Successfully unsubscribed channel from control message kind",
-			"kind", kind,
-			"worker_id", workerInstance.GetIndex())
 	}
-
-	return nil
+	at.Logger.DebugWith("Successfully unsubscribed channel from control message kind",
+		"kind", kind,
+		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
 }
 
 // SignalWorkersToDrain sends a signal to all workers, telling them to drop or ack events

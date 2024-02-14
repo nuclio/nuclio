@@ -81,8 +81,9 @@ func (c *ControlConsumer) BroadcastAndCloseSubscriptions(message *ControlMessage
 	for _, channel := range c.channels {
 		go func(channel chan *ControlMessage, message *ControlMessage) {
 			defer func() {
-				if r := recover(); r != nil {
-					fmt.Println("Recovered in BroadcastAndCloseSubscriptions", r)
+				// if the channel is closed before the message is read, it will result in a panic
+				if err := recover(); err != nil {
+					fmt.Println("Recovered in BroadcastAndCloseSubscriptions", err)
 				}
 			}()
 			channel <- message
@@ -106,8 +107,9 @@ func (c *ControlConsumer) Broadcast(message *ControlMessage) error {
 
 		go func(channel chan *ControlMessage, message *ControlMessage) {
 			defer func() {
-				if r := recover(); r != nil {
-					fmt.Println("Recovered in BroadcastAndCloseSubscriptions", r)
+				// if the channel is closed before the message is read, it will result in a panic
+				if err := recover(); err != nil {
+					fmt.Println("Recovered in BroadcastAndCloseSubscriptions", err)
 				}
 			}()
 			defer wg.Done()
@@ -197,8 +199,7 @@ func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessag
 					return errors.Wrap(err, "Failed to broadcast message to consumer")
 				}
 			default:
-				// if message kind is not known, then just exit from the loop
-				return nil
+				return errors.New(fmt.Sprintf("Received unknown control message of `%s` kind", message.Kind))
 			}
 		}
 	}
