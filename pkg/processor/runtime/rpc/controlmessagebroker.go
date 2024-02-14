@@ -30,7 +30,6 @@ import (
 type rpcControlMessageBroker struct {
 	*controlcommunication.AbstractControlMessageBroker
 	ControlMessageEventEncoder EventEncoder
-	logger                     logger.Logger
 }
 
 // NewRpcControlMessageBroker creates a new RPC control message broker
@@ -43,7 +42,6 @@ func NewRpcControlMessageBroker(encoder EventEncoder, logger logger.Logger, abst
 	return &rpcControlMessageBroker{
 		AbstractControlMessageBroker: abstractControlMessageBroker,
 		ControlMessageEventEncoder:   encoder,
-		logger:                       logger.GetChild("controlMessageBroker"),
 	}
 }
 
