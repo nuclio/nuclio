@@ -45,6 +45,7 @@ limitations under the License.
                             allowedAuthenticationModes: lodash.get(response, 'allowedAuthenticationModes', []),
                             defaultFunctionConfig: lodash.get(response, 'defaultFunctionConfig', {}),
                             defaultFunctionPodResources: lodash.get(response, 'defaultFunctionPodResources', {}),
+                            disableDefaultHttpTrigger: lodash.get(response, 'disableDefaultHttpTrigger', false),
                             externalIPAddress: lodash.get(response, 'externalIPAddresses[0]', ''),
                             imageNamePrefixTemplate: lodash.get(response, 'imageNamePrefixTemplate', ''),
                             ingressHostTemplate: lodash.get(response, 'defaultHTTPIngressHostTemplate', ''),
