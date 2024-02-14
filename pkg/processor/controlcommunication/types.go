@@ -165,8 +165,7 @@ type AbstractControlMessageBroker struct {
 
 // NewAbstractControlMessageBroker creates a new abstract control message broker
 func NewAbstractControlMessageBroker() *AbstractControlMessageBroker {
-	// creating consumer for each control message
-
+	// create a consumer for each control message kind
 	controlMessageKinds := getAllControlMessageKinds()
 	consumers := make([]*ControlConsumer, len(controlMessageKinds))
 	for index, kind := range controlMessageKinds {
