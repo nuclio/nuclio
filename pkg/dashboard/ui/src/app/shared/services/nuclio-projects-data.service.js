@@ -142,7 +142,7 @@ limitations under the License.
 
             return NuclioClientService.makeRequest({
                 method: 'PUT',
-                url: NuclioClientService.buildUrlWithPath('projects', ''),
+                url: NuclioClientService.buildUrlWithPath('projects/', data.metadata.name),
                 headers: headers,
                 data: data,
                 withCredentials: false
