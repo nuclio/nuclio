@@ -70,11 +70,14 @@ func (suite *ControlCommunicationTestSuite) TestSubscribeUnsubscribe() {
 	suite.Require().Equal(suite.broker.Consumers[0].channels[0], controlMessageChannel2)
 }
 
-func (suite *ControlCommunicationTestSuite) TestSendMessage() {
+func (suite *ControlCommunicationTestSuite) TestBroadcastMessageAndCloseSubscriptions() {
 	controlMessageDrain1 := make(chan *ControlMessage)
 	controlMessageDrain2 := make(chan *ControlMessage)
-	defer close(controlMessageDrain1)
-	defer close(controlMessageDrain2)
+
+	defer func() {
+		close(controlMessageDrain1)
+		close(controlMessageDrain2)
+	}()
 
 	drainDoneConsumer, err := suite.broker.getConsumer(DrainDoneMessageKind)
 	suite.Require().NoError(err)
@@ -107,8 +110,11 @@ func (suite *ControlCommunicationTestSuite) TestSendMessage() {
 func (suite *ControlCommunicationTestSuite) TestBroadcastMessage() {
 	controlMessageExplicitAck1 := make(chan *ControlMessage)
 	controlMessageExplicitAck2 := make(chan *ControlMessage)
-	defer close(controlMessageExplicitAck1)
-	defer close(controlMessageExplicitAck2)
+
+	defer func() {
+		close(controlMessageExplicitAck1)
+		close(controlMessageExplicitAck2)
+	}()
 
 	explicitAckConsumer, err := suite.broker.getConsumer(StreamMessageAckKind)
 	suite.Require().NoError(err)

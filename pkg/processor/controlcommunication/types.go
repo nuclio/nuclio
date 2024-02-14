@@ -192,11 +192,13 @@ func (acmb *AbstractControlMessageBroker) SendToConsumers(message *ControlMessag
 			switch message.Kind {
 			case DrainDoneMessageKind:
 				if err := consumer.BroadcastAndCloseSubscriptions(message); err != nil {
-					return errors.Wrap(err, "Failed to send message to consumer")
+					return errors.Wrap(err, fmt.Sprintf("Failed to send message of kind `%s` to consumer",
+						message.Kind))
 				}
 			case StreamMessageAckKind:
 				if err := consumer.Broadcast(message); err != nil {
-					return errors.Wrap(err, "Failed to broadcast message to consumer")
+					return errors.Wrap(err, fmt.Sprintf("Failed to broadcast message of kind `%s` to consumer",
+						message.Kind))
 				}
 			default:
 				return errors.New(fmt.Sprintf("Received unknown control message of `%s` kind", message.Kind))
