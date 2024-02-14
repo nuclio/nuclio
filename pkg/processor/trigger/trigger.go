@@ -348,7 +348,7 @@ func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunicati
 // UnsubscribeFromControlMessageKind unsubscribes all workers from control message kind
 func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommunication.ControlMessageKind,
 	controlMessageChan chan *controlcommunication.ControlMessage) {
-	at.Logger.DebugWith("Unsubscribing channel from control message kind",
+	at.Logger.DebugWith("Unsubscribing from control message kind",
 		"kind", kind,
 		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
 
@@ -360,7 +360,7 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 				"error", err)
 		}
 	}
-	at.Logger.DebugWith("Successfully unsubscribed channel from control message kind",
+	at.Logger.DebugWith("Successfully unsubscribed from control message kind",
 		"kind", kind,
 		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
 }
