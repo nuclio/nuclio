@@ -31,7 +31,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
-	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
@@ -231,28 +230,14 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 
 // Drain signals to the runtime to drain its accumulated events and waits for it to finish
 func (r *AbstractRuntime) Drain() error {
-
-	drainDoneControlMessageChan := make(chan *controlcommunication.ControlMessage)
-	if err := r.GetControlMessageBroker().Subscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan); err != nil {
-		r.Logger.ErrorWith("Failed to subscribe to drainDone control messages",
-			"error", err)
-	}
-
-	defer func() {
-		if err := r.GetControlMessageBroker().Unsubscribe(controlcommunication.DrainDoneMessageKind, drainDoneControlMessageChan); err != nil {
-			r.Logger.ErrorWith("Failed to unsubscribe from drainDone control messages",
-				"error", err)
-		}
-		close(drainDoneControlMessageChan)
-	}()
-
 	// we use SIGUSR2 to signal the wrapper process to drain events
 	if err := r.signal(syscall.SIGUSR2); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process to drain")
 	}
 
-	// wait for the process to finish draining or timeout
-	r.waitForDrainingDone(drainDoneControlMessageChan, r.configuration.WorkerTerminationTimeout)
+	// wait for process to finish event handling or timeout
+	// TODO: replace the following function with one that waits for a control communication message or timeout
+	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
 
 	return nil
 }
@@ -694,28 +679,6 @@ func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 			return
 		case <-time.After(timeout):
 			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
-				"wid", r.Context.WorkerID,
-				"process", r.wrapperProcess)
-			return
-		}
-	}
-}
-
-func (r *AbstractRuntime) waitForDrainingDone(drainDoneControlMessageChan chan *controlcommunication.ControlMessage, timeout time.Duration) {
-	r.Logger.DebugWith("Waiting for draining to be done",
-		"wid", r.Context.WorkerID,
-		"process", r.wrapperProcess,
-		"timeout", timeout.String())
-
-	for {
-		select {
-		case <-drainDoneControlMessageChan:
-			r.Logger.DebugWith("Received drain done control message",
-				"wid", r.Context.WorkerID,
-				"process", r.wrapperProcess)
-			return
-		case <-time.After(timeout):
-			r.Logger.DebugWith("Timeout waiting for drain to be done, assuming process is drained",
 				"wid", r.Context.WorkerID,
 				"process", r.wrapperProcess)
 			return
