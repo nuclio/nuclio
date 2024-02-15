@@ -2089,13 +2089,15 @@ func (suite *ProjectTestSuite) TestCreate() {
 }
 
 func (suite *ProjectTestSuite) TestCreateFromLeaderIgnoreInvalidLabels() {
-	invalidLabelKey := "invalid.label@-key"
+	invalidLabelKey1 := "invalid.label@-key"
+	invalidLabelKey2 := "the-key-is-invalid"
 	projectConfig := platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
 			Name:      "test-project",
 			Namespace: suite.Namespace,
 			Labels: map[string]string{
-				invalidLabelKey: "label-value",
+				invalidLabelKey1: "label-value",
+				invalidLabelKey2: "inva!id_v8$alue",
 			},
 		},
 		Spec: platform.ProjectSpec{
@@ -2131,7 +2133,8 @@ func (suite *ProjectTestSuite) TestCreateFromLeaderIgnoreInvalidLabels() {
 
 	// verify created project does not contain the invalid label
 	createdProject := projects[0]
-	suite.Require().NotContains(createdProject.GetConfig().Meta.Labels, invalidLabelKey)
+	suite.Require().NotContains(createdProject.GetConfig().Meta.Labels, invalidLabelKey1)
+	suite.Require().NotContains(createdProject.GetConfig().Meta.Labels, invalidLabelKey2)
 }
 
 func (suite *ProjectTestSuite) TestUpdate() {
