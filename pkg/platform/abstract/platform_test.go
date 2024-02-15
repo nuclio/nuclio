@@ -180,6 +180,21 @@ func (suite *AbstractPlatformTestSuite) TestProjectCreateOptions() {
 			},
 			ExpectValidationFailure: true,
 		},
+		{
+			Name: "InvalidLabels",
+			CreateProjectOptions: &platform.CreateProjectOptions{
+				ProjectConfig: &platform.ProjectConfig{
+					Meta: platform.ProjectMeta{
+						Name: "a-name",
+						Labels: map[string]string{
+							"invalid label ## .. %%": "value",
+							"valid-key":              "invalid value ## .. %%",
+						},
+					},
+				},
+			},
+			ExpectValidationFailure: true,
+		},
 	} {
 		suite.Run(testCase.Name, func() {
 			defer func() {

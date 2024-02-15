@@ -166,11 +166,12 @@ func getKubeconfigFromHomeDir() string {
 	return ""
 }
 
-func ValidateNodeSelector(nodeSelector map[string]string) error {
-	if nodeSelector == nil {
+// ValidateLabels validates the given labels according to k8s label constraints
+func ValidateLabels(labels map[string]string) error {
+	if labels == nil {
 		return nil
 	}
-	for labelKey, labelValue := range nodeSelector {
+	for labelKey, labelValue := range labels {
 		if errs := validation.IsValidLabelValue(labelValue); len(errs) > 0 {
 			errs = append([]string{fmt.Sprintf("Invalid value: %s", labelValue)}, errs...)
 			return nuclio.NewErrBadRequest(strings.Join(errs, ", "))
@@ -185,4 +186,21 @@ func ValidateNodeSelector(nodeSelector map[string]string) error {
 		}
 	}
 	return nil
+}
+
+// FilterInvalidLabels filters out invalid kubernetes labels from a map of labels
+func FilterInvalidLabels(labels map[string]string) map[string]string {
+
+	// From k8s docs:
+	//   a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.',
+	//   and must start and end with an alphanumeric character (e.g. 'MyValue',  or 'my_value',  or '12345',
+	//   regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
+	filteredLabels := map[string]string{}
+	for key, value := range labels {
+		if len(validation.IsQualifiedName(key)) != 0 || len(validation.IsValidLabelValue(value)) != 0 {
+			continue
+		}
+		filteredLabels[key] = value
+	}
+	return filteredLabels
 }

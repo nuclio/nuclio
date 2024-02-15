@@ -139,7 +139,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 
 	// send the request
 	c.logger.DebugWithCtx(ctx,
-		"Creating project",
+		"Creating project request to leader",
 		"body", string(body))
 	responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
 		c.httpClient,

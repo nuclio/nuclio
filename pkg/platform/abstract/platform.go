@@ -450,7 +450,8 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Min max replicas validation failed")
 	}
 
-	if err := common.ValidateNodeSelector(functionConfig.Spec.NodeSelector); err != nil {
+	// validate function node selector
+	if err := common.ValidateLabels(functionConfig.Spec.NodeSelector); err != nil {
 		return errors.Wrap(err, "Node selector validation failed")
 	}
 
@@ -798,6 +799,13 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 		createProjectOptions.ProjectConfig.Spec.Owner = createProjectOptions.AuthSession.GetUsername()
 	}
 
+	if ap.Config.ProjectsLeader != nil && createProjectOptions.RequestOrigin == ap.Config.ProjectsLeader.Kind {
+
+		// to align with the leaders (that allow invalid k8s labels), we just ignore the project's invalid labels
+		// instead of failing validation later on
+		createProjectOptions.ProjectConfig.Meta.Labels = common.FilterInvalidLabels(createProjectOptions.ProjectConfig.Meta.Labels)
+	}
+
 	return nil
 }
 
@@ -808,8 +816,14 @@ func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig)
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
-	if err := common.ValidateNodeSelector(projectConfig.Spec.DefaultFunctionNodeSelector); err != nil {
-		return nuclio.WrapErrBadRequest(err)
+	// validate project labels
+	if err := common.ValidateLabels(projectConfig.Meta.Labels); err != nil {
+		return errors.Wrap(err, "Project labels validation failed")
+	}
+
+	// validate default node selector
+	if err := common.ValidateLabels(projectConfig.Spec.DefaultFunctionNodeSelector); err != nil {
+		return errors.Wrap(err, "Default function node selector validation failed")
 	}
 
 	// project name should adhere Kubernetes label restrictions
