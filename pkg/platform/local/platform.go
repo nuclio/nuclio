@@ -233,10 +233,14 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	// replace logger
 	createFunctionOptions.Logger = logStream.GetLogger()
 
-	reportCreationError := func(creationError error) error {
-		createFunctionOptions.Logger.WarnWithCtx(ctx,
-			"Failed to create a function; setting the function status",
-			"err", creationError)
+	reportCreationError := func(creationError error, functionState functionconfig.FunctionState) error {
+		if functionState == functionconfig.FunctionStateUnhealthy {
+			createFunctionOptions.Logger.WarnWithCtx(ctx, "Function deployment failed, setting state to unhealthy. The issue might be transient or require manual redeployment",
+				"err", creationError)
+		} else {
+			createFunctionOptions.Logger.WarnWithCtx(ctx, "Function creation failed, setting state to error",
+				"err", creationError)
+		}
 
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
@@ -286,7 +290,8 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 		if buildErr != nil {
-			reportCreationError(buildErr) // nolint: errcheck
+			// if an error occurs during building of the function image, the function state should be set to `error`
+			reportCreationError(buildErr, functionconfig.FunctionStateError) // nolint: errcheck
 			return nil, buildErr
 		}
 
@@ -310,7 +315,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		if !skipFunctionDeploy {
 			createFunctionResult, deployErr = p.deployFunction(createFunctionOptions, previousHTTPPort)
 			if deployErr != nil {
-				reportCreationError(deployErr) // nolint: errcheck
+				reportCreationError(deployErr, createFunctionResult.FunctionStatus.State) // nolint: errcheck
 				return nil, deployErr
 			}
 
