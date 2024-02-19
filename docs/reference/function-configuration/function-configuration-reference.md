@@ -10,6 +10,7 @@ This document provides a reference of the Nuclio function configuration.
   - [Function Specification (`spec`)](#specification)
     - [Example](#spec-example)
   - [Function Status (`status`)](#status)
+    - [Function State (`state`)](#function-state-state)
     - [Example](#status-example)
   - [See also](#see-also)
 
