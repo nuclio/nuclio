@@ -290,6 +290,14 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			}
 		}
 
+		if functionStatus.State == functionconfig.FunctionStateUnhealthy {
+			createFunctionOptions.Logger.WarnWithCtx(ctx, "Function deployment failed, setting state to unhealthy. The issue might be transient or require manual redeployment",
+				"err", creationError)
+		} else {
+			createFunctionOptions.Logger.WarnWithCtx(ctx, "Function creation failed, setting state to error",
+				"err", creationError)
+		}
+
 		// create or update the function. The possible creation needs to happen here, since on cases of
 		// early build failures we might get here before the function CR was created. After this point
 		// it is guaranteed to be created and updated with the reported error state
