@@ -19,9 +19,10 @@ package mqtt
 import (
 	mqttclient "github.com/eclipse/paho.mqtt.golang"
 	"github.com/nuclio/nuclio-sdk-go"
+	"strconv"
 )
 
-// allows accessing an amqp.Delivery
+// Event allows access to the MQTT message
 type Event struct {
 	nuclio.AbstractEvent
 	message mqttclient.Message
@@ -34,4 +35,14 @@ func (e *Event) GetBody() []byte {
 // GetURL returns the topic of the event
 func (e *Event) GetURL() string {
 	return e.message.Topic()
+}
+
+// GetTopic returns the topic of the event
+func (e *Event) GetTopic() string {
+	return e.message.Topic()
+}
+
+// GetID returns the message ID
+func (e *Event) GetID() nuclio.ID {
+	return nuclio.ID(strconv.Itoa(int(e.message.MessageID())))
 }
