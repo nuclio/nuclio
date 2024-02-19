@@ -223,7 +223,7 @@ Here is a list of all possible function states:
 | **State**                       | **Description**                                                                                                                                    |
 |:--------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
 | ready                           | Function is deployed successfully and ready to process events.                                                                                     |
-| imported                        | Function has been imported but hasn't been deployed yet.                                                                                           |
+| imported                        | Function is imported but not yet deployed.                                                                                                         |
 | scaledToZero                    | Function is scaled to zero, so the number of function replicas is zero.                                                                            |
 | building                        | Function image is being built.                                                                                                                     |
 | waitingForResourceConfiguration | Function waits for resources to be ready. For instance, in case of k8s function waits for deployment/pods and etc.                                 |
