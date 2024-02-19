@@ -223,14 +223,14 @@ Here is a list of all possible function states:
 | **State**                       | **Description**                                                                                                                                    |
 |:--------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------|
 | ready                           | Function is deployed successfully and ready to process events.                                                                                     |
-| imported                        | Function is imported from file and hasn't been deployed yet.                                                                                       |
-| error                           | Error occurred during function deployment and cannot be rectified without redeployment.                                                            |
-| unhealthy                       | Error occurred during function deployment, which can be resolved over time. For example, issues such as insufficient resources or a missing image. |
+| imported                        | Function has been imported but hasn't been deployed yet.                                                                                           |
 | scaledToZero                    | Function is scaled to zero, so the number of function replicas is zero.                                                                            |
 | building                        | Function image is being built.                                                                                                                     |
 | waitingForResourceConfiguration | Function waits for resources to be ready. For instance, in case of k8s function waits for deployment/pods and etc.                                 |
 | waitingForScaleResourceFromZero | Function is scaling up from zero replicas.                                                                                                         |
 | waitingForScaleResourceToZero   | Function is scaling down to zero replicas.                                                                                                         |
+| error                           | An error occurred during function deployment that cannot be rectified without redeployment.                                                        |
+| unhealthy                       | An error occurred during function deployment, which can be resolved over time. For example, issues with insufficient resources or a missing image. |
 
 <a id="status-example"></a>
 ### Example
