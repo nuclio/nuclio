@@ -261,13 +261,6 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			briefErrorsMessage = p.clearCallStack(briefErrorsMessage)
 		}
 
-		// low severity to not over log in the warning
-		createFunctionOptions.Logger.DebugWithCtx(ctx, "Function creation failed, brief error message extracted",
-			"briefErrorsMessage", briefErrorsMessage)
-
-		createFunctionOptions.Logger.WarnWithCtx(ctx, "Function creation failed, updating function status",
-			"errorStack", errorStack.String())
-
 		functionStatus := &functionconfig.Status{
 			State:   functionconfig.FunctionStateError,
 			Message: briefErrorsMessage,
@@ -292,10 +285,10 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 
 		if functionStatus.State == functionconfig.FunctionStateUnhealthy {
 			createFunctionOptions.Logger.WarnWithCtx(ctx, "Function deployment failed, setting state to unhealthy. The issue might be transient or require manual redeployment",
-				"err", creationError)
+				"briefErrorsMessage", briefErrorsMessage)
 		} else {
 			createFunctionOptions.Logger.WarnWithCtx(ctx, "Function creation failed, setting state to error",
-				"err", creationError)
+				"err", errorStack.String())
 		}
 
 		// create or update the function. The possible creation needs to happen here, since on cases of
