@@ -601,10 +601,10 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 		}
 
 		// fail-fast mechanism
-		if err := lc.resolveFailFast(ctx,
+		if failedStatus, err := lc.resolveFailFast(ctx,
 			podsList,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
-			return errors.Wrapf(err, "NuclioFunction deployment failed"), functionconfig.FunctionStateError
+			return errors.Wrapf(err, "NuclioFunction deployment failed"), failedStatus
 		}
 	}
 
@@ -2855,7 +2855,7 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 
 func (lc *lazyClient) resolveFailFast(ctx context.Context,
 	podsList *v1.PodList,
-	functionResourcesCreateOrUpdateTimestamp time.Time) error {
+	functionResourcesCreateOrUpdateTimestamp time.Time) (functionconfig.FunctionState, error) {
 
 	var pods []v1.Pod
 	for _, pod := range podsList.Items {
@@ -2879,7 +2879,7 @@ func (lc *lazyClient) resolveFailFast(ctx context.Context,
 				// check if the pod is on a crashLoopBackoff
 				if containerStatus.State.Waiting.Reason == "CrashLoopBackOff" {
 
-					return errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
+					return functionconfig.FunctionStateUnhealthy, errors.Errorf("NuclioFunction pod (%s) is in a crash loop", pod.Name)
 				}
 			}
 		}
@@ -2928,12 +2928,12 @@ func (lc *lazyClient) resolveFailFast(ctx context.Context,
 		}
 	}
 	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "Failed to verify at least one pod schedulability")
+		return functionconfig.FunctionStateUnhealthy, errors.Wrap(err, "Failed to verify at least one pod schedulability")
 	}
 	if scaleUpOccurred {
 		lc.logger.DebugWithCtx(ctx, "Pod triggered a scale up. Still waiting for deployment to be available")
 	}
-	return nil
+	return "", nil
 }
 
 func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, error) {

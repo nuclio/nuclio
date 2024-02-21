@@ -265,9 +265,6 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		createFunctionOptions.Logger.DebugWithCtx(ctx, "Function creation failed, brief error message extracted",
 			"briefErrorsMessage", briefErrorsMessage)
 
-		createFunctionOptions.Logger.WarnWithCtx(ctx, "Function creation failed, updating function status",
-			"errorStack", errorStack.String())
-
 		functionStatus := &functionconfig.Status{
 			State:   functionconfig.FunctionStateError,
 			Message: briefErrorsMessage,
@@ -288,6 +285,14 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 			if existingFunctionInstance.Status.State == functionconfig.FunctionStateUnhealthy {
 				functionStatus.State = functionconfig.FunctionStateUnhealthy
 			}
+		}
+
+		if functionStatus.State == functionconfig.FunctionStateUnhealthy {
+			createFunctionOptions.Logger.WarnWithCtx(ctx, "Function deployment failed, setting state to unhealthy. The issue might be transient or require manual redeployment",
+				"err", errorStack.String())
+		} else {
+			createFunctionOptions.Logger.WarnWithCtx(ctx, "Function creation failed, setting state to error",
+				"err", errorStack.String())
 		}
 
 		// create or update the function. The possible creation needs to happen here, since on cases of

@@ -205,14 +205,14 @@ func (suite *FunctionMonitoringTestSuite) TestNoRecoveryAfterDeployError() {
 			// wait for monitoring
 			time.Sleep(postDeploymentSleepInterval)
 
-			// ensure function is still in error state (due to deploy error of missing configmap)
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
+			// ensure function is still in unhealthy state (due to deploy error of wrong handler name)
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateUnhealthy)
 
 			// let function monitoring run for a while
 			time.Sleep(postDeploymentSleepInterval)
 
-			// function should be remained in error state
-			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateError)
+			// function should remain in unhealthy state
+			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateUnhealthy)
 			return true
 		})
 	suite.Require().Error(err)

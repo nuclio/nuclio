@@ -286,6 +286,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 		if buildErr != nil {
+			// if an error occurs during building of the function image, the function state should be set to `error`
 			reportCreationError(buildErr) // nolint: errcheck
 			return nil, buildErr
 		}
