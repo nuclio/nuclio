@@ -22,3 +22,12 @@ triggers:
         - topic: weather/humidity
           qos: 0
 ```
+
+### Event
+
+The mqtt trigger emits an event object with the following attributes:
+-  `URL`: The URL of the MQTT broker
+- `topic`: The topic of the message
+- `path`: The topic of the message (alias for `topic`)
+- `body`: The message payload
+- `id`: The message id
