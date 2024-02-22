@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-// Event allows accessing an amqp.Delivery
+// Event allows access to the NATS message
 type Event struct {
 	nuclio.AbstractEvent
 	natsMessage *natsio.Msg

@@ -20,7 +20,7 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-// allows accessing an amqp.Delivery
+// Event allows access to the EventHub message
 type Event struct {
 	nuclio.AbstractEvent
 	body []byte
