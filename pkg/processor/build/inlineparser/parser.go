@@ -71,7 +71,7 @@ func NewParser(parentLogger logger.Logger, commentChar string) *InlineParser {
 //	    runtime: "golang"
 //	    triggers:
 //	      http:
-//	        maxWorkers: 8
+//	        numWorkers: 8
 //	        kind: http
 func (p *InlineParser) Parse(path string) (map[string]Block, error) {
 	reader, err := os.OpenFile(path, os.O_RDONLY, os.FileMode(0644))

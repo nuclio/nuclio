@@ -66,11 +66,14 @@ type Volume struct {
 
 // Trigger holds configuration for a trigger
 type Trigger struct {
-	Class                                 string            `json:"class"`
-	Kind                                  string            `json:"kind"`
-	Name                                  string            `json:"name"`
-	Disabled                              bool              `json:"disabled,omitempty"`
+	Class    string `json:"class"`
+	Kind     string `json:"kind"`
+	Name     string `json:"name"`
+	Disabled bool   `json:"disabled,omitempty"`
+	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
+	// TODO: remove in 1.15.x
 	MaxWorkers                            int               `json:"maxWorkers,omitempty"`
+	NumWorkers                            int               `json:"numWorkers,omitempty"`
 	URL                                   string            `json:"url,omitempty"`
 	Paths                                 []string          `json:"paths,omitempty"`
 	Username                              string            `json:"username,omitempty"`
@@ -229,7 +232,7 @@ func GetDefaultHTTPTrigger() Trigger {
 	return Trigger{
 		Kind:       "http",
 		Name:       "default-http",
-		MaxWorkers: 1,
+		NumWorkers: 1,
 	}
 }
 

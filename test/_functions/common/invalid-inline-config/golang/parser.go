@@ -23,7 +23,7 @@ limitations under the License.
 //
 //     triggers:
 //       incrementor_http:
-//         maxWorkers: 4
+//         numWorkers: 4
 //         kind: "http"
 //
 

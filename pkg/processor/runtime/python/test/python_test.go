@@ -467,7 +467,7 @@ func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
 
 	// add http trigger
 	httpTrigger := functionconfig.GetDefaultHTTPTrigger()
-	httpTrigger.MaxWorkers = numWorkers
+	httpTrigger.NumWorkers = numWorkers
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		httpTrigger.Name: httpTrigger,
 	}

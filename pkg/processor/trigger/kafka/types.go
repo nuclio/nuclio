@@ -220,8 +220,8 @@ func NewConfiguration(id string,
 	}
 
 	// set default
-	if triggerConfiguration.MaxWorkers == 0 {
-		triggerConfiguration.MaxWorkers = 32
+	if triggerConfiguration.NumWorkers == 0 {
+		triggerConfiguration.NumWorkers = 32
 	}
 
 	// parse attributes

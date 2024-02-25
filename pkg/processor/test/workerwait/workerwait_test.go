@@ -52,7 +52,7 @@ func (suite *workerWaitTestSuite) deploySleeperWithTimeout(workerAvailabilityTim
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"http": {
 			Kind:                                  "http",
-			MaxWorkers:                            1,
+			NumWorkers:                            1,
 			WorkerAvailabilityTimeoutMilliseconds: &workerAvailabilityTimeoutMilliseconds,
 		},
 	}

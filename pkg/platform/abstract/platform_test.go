@@ -938,7 +938,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		shouldFailValidation     bool
 	}{
 
-		// enrich maxWorkers to 1
+		// enrich NumWorkers to 1
 		// enrich name from key
 		{
 			triggers: map[string]functionconfig.Trigger{
@@ -949,7 +949,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			expectedEnrichedTriggers: map[string]functionconfig.Trigger{
 				"some-trigger": {
 					Kind:       "http",
-					MaxWorkers: 1,
+					NumWorkers: 1,
 					Name:       "some-trigger",
 				},
 			},
@@ -1032,7 +1032,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			expectedEnrichedTriggers: map[string]functionconfig.Trigger{
 				"http-trigger": {
 					Kind:       "http",
-					MaxWorkers: 1,
+					NumWorkers: 1,
 					Name:       "http-trigger",
 				},
 				"kafka-trigger": {
@@ -1170,6 +1170,37 @@ func (suite *AbstractPlatformTestSuite) TestEnrichEnvVars() {
 			suite.Platform.enrichEnvVars(functionConfig)
 			suite.Require().Equal(testCase.ExpectedEnvFrom, functionConfig.Spec.EnvFrom)
 		})
+	}
+}
+
+// TODO: remove this test in 1.15.x
+func (suite *AbstractPlatformTestSuite) TestEnrichNumWorkersFromMaxWorkers() {
+	functionConfig := functionconfig.NewConfig()
+
+	functionConfig.Meta.Name = "some-function"
+	functionConfig.Meta.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+	}
+
+	numWorkers := 5
+
+	functionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http-trigger": {
+			Kind:       "http",
+			MaxWorkers: numWorkers,
+		},
+		"v3ioStream": {
+			Kind:       "v3ioStream",
+			MaxWorkers: numWorkers,
+		},
+	}
+
+	err := suite.Platform.enrichTriggers(suite.ctx, functionConfig)
+	suite.Require().NoError(err, "Failed to enrich function")
+
+	// check that the number of workers was enriched from max workers
+	for _, trigger := range functionConfig.Spec.Triggers {
+		suite.Require().Equal(numWorkers, trigger.NumWorkers)
 	}
 }
 

@@ -3651,7 +3651,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                         "class": "",
                         "kind": "http",
                         "name": "default-http",
-                        "maxWorkers": 1,
+                        "numWorkers": 1,
                         "workerAvailabilityTimeoutMilliseconds": 10000,
                         "attributes": {
                             "serviceType": "NodePort"

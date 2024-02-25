@@ -45,7 +45,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(v3ioItemPollerLogger,
-		configuration.MaxWorkers,
+		configuration.NumWorkers,
 		runtimeConfiguration)
 
 	if err != nil {
