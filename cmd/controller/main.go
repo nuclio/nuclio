@@ -44,14 +44,6 @@ func main() {
 
 	resyncIntervalStr := flag.String("resync-interval", defaultResyncIntervalStr, "Set resync interval for the function operator (optional)")
 
-	// Deprecated: resync interval is commonly used by functions and api gateways
-	deprecatedResyncIntervalStr := flag.String("function-operator-resync-interval", "", "Deprecated. Use --resync-interval instread")
-	if deprecatedResyncIntervalStr != nil && *deprecatedResyncIntervalStr != "" {
-
-		// ignore value, write deprecation note to stderr
-		os.Stderr.WriteString("--function-operator-resync-interval has been deprecated in favor of --resync-interval.") // nolint: errcheck
-	}
-
 	functionMonitorIntervalStr := flag.String("function-monitor-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_FUNCTION_MONITOR_INTERVAL", "3m"), "Set function monitor interval (optional)")
 	scalingGracePeriodStr := flag.String("scaling-grace-period", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_SCALING_GRACE_PERIOD", "3m"), "Set function scaling grace period (optional)")
 	cronJobStaleResourcesCleanupIntervalStr := flag.String("cron-job-stale-resources-cleanup-interval", common.GetEnvOrDefaultString("NUCLIO_CONTROLLER_CRON_JOB_STALE_RESOURCES_CLEANUP_INTERVAL", "1m"), "Set interval for the cleanup of stale cron job resources (optional)")

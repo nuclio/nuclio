@@ -571,7 +571,6 @@ func (suite *DeployFunctionTestSuite) TestAssigningFunctionPodToNodes() {
 func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 	runAsUserID := int64(1000)
 	runAsGroupID := int64(2000)
-	functionAvatar := "demo-avatar"
 	functionLabels := map[string]string{
 		"my-function": "is-labeled",
 	}
@@ -580,11 +579,7 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 			LabelSelector: metav1.LabelSelector{
 				MatchLabels: functionLabels,
 			},
-			FunctionConfig: functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Avatar: functionAvatar,
-				},
-			},
+			FunctionConfig: functionconfig.Config{},
 			Kubernetes: platformconfig.Kubernetes{
 				Deployment: &appsv1.Deployment{
 					Spec: appsv1.DeploymentSpec{
@@ -613,9 +608,6 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 		suite.GetResourceAndUnmarshal("deployment",
 			kube.DeploymentNameFromFunctionName(functionName),
 			deploymentInstance)
-
-		// ensure function spec was enriched
-		suite.Require().Equal(functionAvatar, functionInstance.Spec.Avatar)
 
 		// ensure function deployment was enriched
 		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)

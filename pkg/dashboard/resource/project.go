@@ -210,6 +210,7 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
 	// we need to register custom routes
 	return []restful.CustomRoute{
+		// TODO: Deprecated. remove this custom update route in 1.15.x
 		{
 			Pattern:   "/",
 			Method:    http.MethodPut,
@@ -698,7 +699,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 	}, nil
 }
 
-// TODO: deprecate this custom route
+// TODO: Deprecated. remove this custom route in 1.15.x
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	ctx := request.Context()

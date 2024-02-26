@@ -415,9 +415,6 @@ type Spec struct {
 	// InitContainers are specialized containers that run before app containers in a Pod
 	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
-
-	// Deprecated - remove in 1.13.x
-	Avatar string `json:"avatar,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string
