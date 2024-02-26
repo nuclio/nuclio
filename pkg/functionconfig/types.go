@@ -66,13 +66,10 @@ type Volume struct {
 
 // Trigger holds configuration for a trigger
 type Trigger struct {
-	Class    string `json:"class"`
-	Kind     string `json:"kind"`
-	Name     string `json:"name"`
-	Disabled bool   `json:"disabled,omitempty"`
-	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
-	// TODO: remove in 1.15.x
-	MaxWorkers                            int               `json:"maxWorkers,omitempty"`
+	Class                                 string            `json:"class"`
+	Kind                                  string            `json:"kind"`
+	Name                                  string            `json:"name"`
+	Disabled                              bool              `json:"disabled,omitempty"`
 	NumWorkers                            int               `json:"numWorkers,omitempty"`
 	URL                                   string            `json:"url,omitempty"`
 	Paths                                 []string          `json:"paths,omitempty"`
@@ -93,6 +90,10 @@ type Trigger struct {
 
 	// General attributes
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
+
+	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
+	// TODO: remove in 1.15.x
+	MaxWorkers int `json:"maxWorkers,omitempty"`
 }
 
 type ExplicitAckMode string
@@ -419,7 +420,7 @@ type Spec struct {
 	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
 
-	// Deprecated - remove in 1.13.x
+	// Deprecated: remove in 1.13.x
 	Avatar string `json:"avatar,omitempty"`
 }
 
