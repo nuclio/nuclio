@@ -22,7 +22,6 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
     "python_docs_theme",
-    "sphinx_markdown_tables",
     "sphinx_copybutton",
 ]
 
