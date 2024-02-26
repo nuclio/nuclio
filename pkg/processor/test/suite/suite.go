@@ -507,7 +507,7 @@ func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfigur
 	createFunctionOptions := suite.GetDeployOptions(request.FunctionName,
 		suite.GetFunctionPath(request.FunctionPath))
 
-	// Configure deployOptions properties, number of MaxWorkers like in the default stress request
+	// Configure deployOptions properties, number of NumWorkers like in the default stress request
 	createFunctionOptions.FunctionConfig.Meta.Name =
 		fmt.Sprintf("%s-%s",
 			createFunctionOptions.FunctionConfig.Meta.Name,
@@ -516,7 +516,7 @@ func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfigur
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"httpTrigger": {
 			Kind:       "http",
-			MaxWorkers: request.Workers,
+			NumWorkers: request.Workers,
 		},
 	}
 	createFunctionOptions.FunctionConfig.Spec.Handler = request.Handler

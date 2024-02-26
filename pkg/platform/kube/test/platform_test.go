@@ -615,7 +615,7 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 			deploymentInstance)
 
 		// ensure function spec was enriched
-		suite.Require().Equal(functionAvatar, functionInstance.Spec.Avatar)
+		suite.Require().Equal(functionAvatar, functionInstance.Spec.Avatar) // nolint: staticcheck
 
 		// ensure function deployment was enriched
 		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
@@ -658,7 +658,7 @@ func (suite *DeployFunctionTestSuite) TestDefaultHTTPTrigger() {
 	customTrigger := functionconfig.Trigger{
 		Kind:       "http",
 		Name:       "custom-trigger",
-		MaxWorkers: 3,
+		NumWorkers: 3,
 	}
 	createCustomTriggerFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		customTrigger.Name: customTrigger,
@@ -718,7 +718,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	customTrigger := functionconfig.Trigger{
 		Kind:       "http",
 		Name:       "custom-trigger",
-		MaxWorkers: 1,
+		NumWorkers: 1,
 		Attributes: map[string]interface{}{
 			"serviceType": v1.ServiceTypeNodePort,
 		},
@@ -743,7 +743,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	nilServiceTypeTrigger := functionconfig.Trigger{
 		Kind:       "http",
 		Name:       "nil-service-type-trigger",
-		MaxWorkers: 1,
+		NumWorkers: 1,
 		Attributes: triggerAttributes,
 	}
 	nilServiceTypeFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -767,7 +767,7 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 		"customTrigger": {
 			Kind:       "http",
 			Name:       "customTrigger",
-			MaxWorkers: 3,
+			NumWorkers: 3,
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"someKey": map[string]interface{}{
@@ -811,7 +811,7 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
 		"customTrigger": {
 			Kind:       "http",
 			Name:       "customTrigger",
-			MaxWorkers: 3,
+			NumWorkers: 3,
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"someKey": map[string]interface{}{

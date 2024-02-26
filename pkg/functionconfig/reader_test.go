@@ -49,7 +49,7 @@ spec:
   handler: reverser:handler
   triggers:
     http:
-      maxWorkers: 4
+      numWorkers: 4
       kind: http
     franz:
       kind: "kafka"
@@ -326,7 +326,7 @@ spec:
   handler: reverser:handler
   triggers:
     http:
-      maxWorkers: 4
+      numWorkers: 4
       kind: http
 `
 	config := Config{}

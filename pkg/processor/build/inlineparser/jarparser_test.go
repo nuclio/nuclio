@@ -34,7 +34,7 @@ spec:
   handler: nuclio-test-handler-1.0-SNAPSHOT.jar:ReverseEventHandler
   triggers:
     incrementor_http:
-      maxWorkers: 1
+      numWorkers: 1
       kind: http
 `
 

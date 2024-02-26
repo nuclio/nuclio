@@ -476,6 +476,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 	}
 
 	// TODO: remove warning when avatar is support is removed in 1.13
+	// nolint: staticcheck
 	if functionConfig.Spec.Avatar != "" {
 		ap.Logger.WarnWithCtx(ctx, "Avatar is deprecated and will not be supported in version 1.13")
 	}
@@ -1662,11 +1663,11 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		}
 
 		// no more workers than limitation allows
-		if triggerInstance.MaxWorkers > trigger.MaxWorkersLimit {
-			return nuclio.NewErrBadRequest(fmt.Sprintf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
+		if triggerInstance.NumWorkers > trigger.NumWorkersLimit {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("NumWorkers value for %s trigger (%d) exceeds the limit of %d",
 				triggerKey,
-				triggerInstance.MaxWorkers,
-				trigger.MaxWorkersLimit))
+				triggerInstance.NumWorkers,
+				trigger.NumWorkersLimit))
 		}
 
 		// no more than one http trigger is allowed
@@ -1777,15 +1778,24 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 			triggerInstance.Name = triggerName
 		}
 
+		// replace deprecated MaxWorkers with NumWorkers
+		// TODO: remove in 1.15.x
+		// nolint: staticcheck
+		if triggerInstance.NumWorkers == 0 && triggerInstance.MaxWorkers != 0 {
+			ap.Logger.WarnWithCtx(ctx, "MaxWorkers is deprecated and will be removed in v1.15.x, use NumWorkers instead")
+			triggerInstance.NumWorkers = triggerInstance.MaxWorkers
+		}
+
 		// ensure having max workers
 		if common.StringInSlice(triggerInstance.Kind, []string{"http", "v3ioStream"}) {
-			if triggerInstance.MaxWorkers == 0 {
-				triggerInstance.MaxWorkers = 1
+			if triggerInstance.NumWorkers == 0 {
+				triggerInstance.NumWorkers = 1
 			}
 		}
 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
+
 	return nil
 }
 
