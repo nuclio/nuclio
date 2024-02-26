@@ -476,6 +476,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 	}
 
 	// TODO: remove warning when avatar is support is removed in 1.13
+	// nolint: staticcheck
 	if functionConfig.Spec.Avatar != "" {
 		ap.Logger.WarnWithCtx(ctx, "Avatar is deprecated and will not be supported in version 1.13")
 	}

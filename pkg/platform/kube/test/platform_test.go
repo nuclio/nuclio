@@ -615,7 +615,7 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 			deploymentInstance)
 
 		// ensure function spec was enriched
-		suite.Require().Equal(functionAvatar, functionInstance.Spec.Avatar)
+		suite.Require().Equal(functionAvatar, functionInstance.Spec.Avatar) // nolint: staticcheck
 
 		// ensure function deployment was enriched
 		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
