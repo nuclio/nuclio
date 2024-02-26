@@ -23,7 +23,7 @@ limitations under the License.
 //     runtime: "golang"
 //     triggers:
 //       http:
-//         maxWorkers: 8
+//         NumWorkers: 8
 //         kind: http
 //         attributes:
 //           ingresses:

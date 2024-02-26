@@ -23,7 +23,7 @@ body:
       options:
         - label: >
             I have checked that the issue still exists on the latest versions of the docs
-            [here](https://github.com/nuclio/nuclio/tree/development/docs)
+            [here](https://docs.nuclio.io/en/stable/index.html)
           required: true
   - type: textarea
     id: location

@@ -73,7 +73,7 @@ By default, functions initialize the HTTP trigger and register `<function name>/
   ...
   triggers:
     http:
-      maxWorkers: 4
+      numWorkers: 4
       kind: "http"
       attributes:
         ingresses:
@@ -111,7 +111,7 @@ spec:
   runtime: "golang"
   triggers:
     http:
-      maxWorkers: 8
+      numWorkers: 8
       kind: http
       attributes:
         ingresses:
