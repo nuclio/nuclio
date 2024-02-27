@@ -67,7 +67,7 @@ curl $(minikube ip):30019/helloworld/latest
 
 ## Customizing function ingress
 
-By default, functions initialize the HTTP trigger and register `<function name>/latest`. However, you might want to add paths for functions to organize them in namespaces/groups, or even choose through which domain your functions can be triggered. To do this, you can configure your HTTP trigger in the [function's configuration](../../reference/function-configuration/function-configuration-reference.md). For example:
+By default, functions initialize the HTTP trigger and register `<function name>/latest`. However, you might want to add paths for functions to organize them in namespaces/groups, or even choose through which domain your functions can be triggered. To do this, you can configure your HTTP trigger in the [function's configuration](../../reference/function-configuration/function-configuration-reference). For example:
 
 ```yaml
   ...

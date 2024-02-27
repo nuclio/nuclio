@@ -190,7 +190,7 @@ For example, the following configuration implements Cron triggers as Kubernetes 
 cronTriggerCreationMode: "kube"
 ```
 
-For more information, see the [Cron-trigger reference](../reference/triggers/cron.md).
+For more information, see the [Cron-trigger reference](../reference/triggers/cron.rst).
 
 <a id="runtime"></a>
 ### Runtime (`runtime`)

@@ -164,7 +164,7 @@ def handler(context, event):
     - [基于 Kubernetes Ingress 通过名称调用函数](/docs/concepts/k8s/function-ingress.md)
 - 其他引文
   - [命令行工具 `nuctl`](/docs/reference/nuctl/nuctl.md)
-  - [函数配置参考文档](/docs/reference/function-configuration/function-configuration-reference.md)
+  - [函数配置参考文档](/docs/reference/function-configuration/function-configuration-reference.rst)
   - [触发器](/docs/reference/triggers)
   - [运行时 - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
   - [运行时 - Shell](/docs/reference/runtimes/shell/shell-reference.md)

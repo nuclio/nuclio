@@ -3,7 +3,7 @@
 To help you make the most of Nuclio, the following function examples are provided:
 
 Note: all function examples have the explicit field `disableDefaultHttpTrigger: false`, so they are deployable even if default http trigger creation is disabled on platform configuration level.
-[Function configuration docs](../reference/function-configuration/function-configuration-reference.md)
+[Function configuration docs](../reference/function-configuration/function-configuration-reference.rst)
 ## Go examples
 
 - [Hello World](https://github.com/nuclio/nuclio/tree/development/hack/examples/golang/helloworld) (`helloworld`): A simple function that showcases unstructured logging and a structured response.

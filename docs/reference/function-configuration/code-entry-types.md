@@ -321,4 +321,4 @@ spec:
 
 ## See also
 
-- [Function-Configuration Reference](../../reference/function-configuration/function-configuration-reference.md)
+- [Function-Configuration Reference](../../reference/function-configuration/function-configuration-reference)

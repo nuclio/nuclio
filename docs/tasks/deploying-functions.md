@@ -351,5 +351,5 @@ If you are deploying the function using [nuctl](../reference/nuctl/nuctl.md) CLI
 ## What's next?
 
 - Check out how to [build functions once and deploy them many times](../tasks/deploying-pre-built-functions.md).
-- Read more about [function configuration](../reference/function-configuration/function-configuration-reference.md).
+- Read more about [function configuration](../reference/function-configuration/function-configuration-reference.rst).
 

@@ -70,7 +70,7 @@ For example, if your replica has 10 workers and is configured to handle 10 topic
 
 Use the following trigger attributes for basic configurations of your Kafka trigger.
 You can configure each attribute either in the `triggers.<trigger>.attributes.<attribute>` function `spec` element (for example, `triggers.myKafkaTrigger.attributes.sessionTimeout`) or by setting the matching `nuclio.io` annotation key (for example, `nuclio.io/kafka-session-timeout`); (note that not all attributes have matching annotation keys).
-For more information on Nuclio function configuration, see the [function-configuration reference](../../reference/function-configuration/function-configuration-reference.md).
+For more information on Nuclio function configuration, see the [function-configuration reference](../../reference/function-configuration/function-configuration-reference).
 
 > **Note:** For more advanced configuration parameters, see the configuration sections under [How a message travels through Nuclio to the handler](#message-course-config-params) and [Rebalancing](#rebalancing-config-params). For an example, see [Configuration example](#config-example).
 

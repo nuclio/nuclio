@@ -159,7 +159,7 @@ More examples can be found in the **[Examples page](docs/examples/README.md)**.
     - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - References
   - [nuctl](/docs/reference/nuctl/nuctl.md)
-  - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
+  - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.rst)
   - [Triggers](/docs/reference/triggers)
   - [Runtime - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
   - [Runtime - Shell](/docs/reference/runtimes/shell/shell-reference.md)

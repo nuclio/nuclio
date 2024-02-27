@@ -177,7 +177,7 @@ Create these two configuration files in your preferred location, and pass `--con
 For more information about the platform configuration,
 see [Configuring a Platform](../tasks/configuring-a-platform.md#configuration-elements). For information about the
 function configuration, see
-the [Function-Configuration Reference](../reference/function-configuration/function-configuration-reference.md).
+the [Function-Configuration Reference](../reference/function-configuration/function-configuration-reference.rst).
 
 <a id="goland-run-cli"></a>
 ### Running the Nuclio CLI (nuctl)

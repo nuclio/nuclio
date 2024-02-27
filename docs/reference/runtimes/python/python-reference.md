@@ -163,7 +163,7 @@ However, it is advisable to transition to Python 3.9, as mentioned earlier.
 <a id="function-configuration"></a>
 ## Function configuration
 
-Your function-configuration file (for example, **my-function.yaml** for the [example Dockerfile](#dockerfile)) must include the name of your handler function and Python runtime. For more information, see the [function-configuration reference](../../../reference/function-configuration/function-configuration-reference.md). For example:
+Your function-configuration file (for example, **my-function.yaml** for the [example Dockerfile](#dockerfile)) must include the name of your handler function and Python runtime. For more information, see the [function-configuration reference](../../../reference/function-configuration/function-configuration-reference.rst). For example:
 
 ```yaml
 meta:
