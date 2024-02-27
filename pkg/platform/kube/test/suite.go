@@ -696,7 +696,7 @@ func (suite *KubeTestSuite) verifyCreatedTrigger(functionName string, trigger fu
 	// TODO: verify other parts of the trigger spec
 	suite.Require().Equal(trigger.Name, functionInstance.Spec.Triggers[trigger.Name].Name)
 	suite.Require().Equal(trigger.Kind, functionInstance.Spec.Triggers[trigger.Name].Kind)
-	suite.Require().Equal(trigger.MaxWorkers, functionInstance.Spec.Triggers[trigger.Name].MaxWorkers)
+	suite.Require().Equal(trigger.NumWorkers, functionInstance.Spec.Triggers[trigger.Name].NumWorkers)
 	return true
 }
 

@@ -173,7 +173,7 @@ spec:
   runtime: python:3.8
   triggers:
     myHttpTrigger:
-      maxWorkers: 1
+      numWorkers: 1
       kind: "http"
 
 ```

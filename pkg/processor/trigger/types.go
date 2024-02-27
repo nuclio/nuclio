@@ -67,8 +67,8 @@ func NewConfiguration(id string,
 	}
 
 	// set defaults
-	if configuration.MaxWorkers == 0 {
-		configuration.MaxWorkers = 1
+	if configuration.NumWorkers == 0 {
+		configuration.NumWorkers = 1
 	}
 
 	if triggerConfiguration.WorkerTerminationTimeout == "" {

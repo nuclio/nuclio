@@ -50,7 +50,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 		namedWorkerAllocators,
 		func() (worker.Allocator, error) {
 			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
-				configuration.MaxWorkers,
+				configuration.NumWorkers,
 				runtimeConfiguration)
 		})
 
