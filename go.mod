@@ -7,9 +7,9 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/Azure/go-amqp v0.17.0
 	github.com/Shopify/sarama v1.37.2
+	github.com/anthonynsimon/bild v0.13.0
 	github.com/aws/aws-sdk-go v1.45.2
 	github.com/coreos/go-semver v0.3.1
-	github.com/disintegration/imaging v1.6.2
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/fatih/color v1.15.0
@@ -26,6 +26,7 @@ require (
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/jedib0t/go-pretty/v6 v6.4.7
 	github.com/mholt/archiver/v3 v3.5.1
+	github.com/microcosm-cc/bluemonday v1.0.26
 	github.com/microsoft/ApplicationInsights-Go v0.4.4
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.5.0
@@ -132,7 +133,6 @@ require (
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
-	github.com/microcosm-cc/bluemonday v1.0.26 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -167,7 +167,6 @@ require (
 	go.uber.org/zap v1.25.0 // indirect
 	golang.org/x/crypto v0.19.0 // indirect
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
-	golang.org/x/image v0.11.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
