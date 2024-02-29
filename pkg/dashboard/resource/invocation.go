@@ -131,8 +131,10 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		}
 	}
 
+	sanitizedBody := common.SanitizeResponseData(invocationResult.Body, invocationResult.Headers)
+
 	responseWriter.WriteHeader(invocationResult.StatusCode)
-	responseWriter.Write(invocationResult.Body) // nolint: errcheck
+	responseWriter.Write(sanitizedBody) // nolint: errcheck
 }
 
 func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWriter, statusCode int) {

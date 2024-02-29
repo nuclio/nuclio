@@ -54,6 +54,7 @@ type IguazioConfig struct {
 	VerificationDataEnrichmentURL string
 	CacheSize                     int
 	CacheExpirationTimeout        time.Duration
+	SkipTLSVerification           bool
 }
 
 type Config struct {
@@ -70,6 +71,7 @@ func NewConfig(kind Kind) *Config {
 			CacheSize:              100,
 			Timeout:                30 * time.Second,
 			CacheExpirationTimeout: 30 * time.Second,
+			SkipTLSVerification:    true,
 		}
 	}
 	return config
