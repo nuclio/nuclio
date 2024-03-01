@@ -72,12 +72,12 @@ html_sidebars = {
     "**": ["navbar-logo.html", "search-field.html", "sbt-sidebar-nav.html"]
 }
 
+
 def setup(app):
     app.connect('source-read', process_tables)
 
 
 def process_tables(app, docname, source):
-    import re
     """
     Convert markdown tables to html, since recommonmark can't. This requires 3 steps:
         Snip out table sections from the markdown
@@ -88,6 +88,7 @@ def process_tables(app, docname, source):
     element 0 in `source`.
     """
     import markdown
+    import re
     md = markdown.Markdown(extensions=['markdown.extensions.tables'])
     table_processor = markdown.extensions.tables.TableProcessor(md.parser, {})
 
