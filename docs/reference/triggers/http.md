@@ -42,7 +42,7 @@ With 4 workers and a maximum body size of 1 KB -
 ```yaml
 triggers:
   myHttpTrigger:
-    maxWorkers: 4
+    numWorkers: 4
     kind: "http"
     attributes:
       maxRequestBodySize: 1024

@@ -135,7 +135,7 @@ def handler(context, event):
 As of Nuclio v1.1.33 / v1.3.20, you can configure the following configuration parameters from the Nuclio dashboard:
 
 - **URL**: A consumer-group URL of the form `http://v3io-webapi:8081/<container name>/<stream path>@<consumer group name>`; for example, ` http://v3io-webapi:8081/bigdata/my-stream@cg0`.
-- **Max Workers**: The maximum number of workers to allocate for handling the messages of incoming stream shards. Whenever a worker is available and a message reads a shard, the processing is handled by the available worker.
+- **Num Workers**: The number of workers to allocate for handling the messages of incoming stream shards. Whenever a worker is available and a message reads a shard, the processing is handled by the available worker.
 - **Worker Availability Timeout**: DEPRECATED (ignored)
 - **Partitions**: DEPRECATED (ignored). As explained in the previous sections, in the current release, the assignment of shards ("partitions") to replicas is handled automatically.
 - **Seek To**: The location (offset) within the message from which to consume records when there's no committed offset in the shard's offset attribute. After an offset is committed for a shard in the consumer group, this offset is always used and the **Seek To** parameter is ignored for this shard.
@@ -205,7 +205,7 @@ After the command completes successfully, the stream is ready for consumption by
     Use the following trigger configuration:
 
     - **URL** - `http://v3io-webapi:8081/users/test-stream-0@cg0` (where `/users/test-stream-0` is the stream path and `cg0` is the name of the consumer group to use).
-    - **Max Workers** - `8`.
+    - **Num Workers** - `8`.
       This value signifies the number of workers assigned to handle all the shards.
       You can also set it to a different number.
     - **Seek To** - `Earliest`.

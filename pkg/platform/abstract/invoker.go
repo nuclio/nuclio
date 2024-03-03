@@ -84,7 +84,7 @@ func (i *invoker) invoke(ctx context.Context,
 	// if tls verification is disabled, skip verification
 	if createFunctionInvocationOptions.SkipTLSVerification {
 		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: createFunctionInvocationOptions.SkipTLSVerification},
 		}
 	}
 

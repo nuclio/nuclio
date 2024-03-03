@@ -351,7 +351,7 @@ func (suite *testSuite) TestDrainHook() {
 				"workerAllocationMode": string(partitionworker.AllocationModeStatic),
 			},
 			WorkerTerminationTimeout: "40s",
-			MaxWorkers:               4,
+			NumWorkers:               4,
 		},
 	}
 	createFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec

@@ -57,7 +57,7 @@ func NewAuth(logger logger.Logger, config *authpkg.Config) authpkg.Auth {
 		httpClient: &http.Client{
 			Timeout: config.Iguazio.Timeout,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: config.Iguazio.SkipTLSVerification},
 			},
 		},
 		cache: cache.NewLRUExpireCache(config.Iguazio.CacheSize),

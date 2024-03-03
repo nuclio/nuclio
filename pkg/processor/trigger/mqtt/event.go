@@ -17,14 +17,17 @@ limitations under the License.
 package mqtt
 
 import (
+	"strconv"
+
 	mqttclient "github.com/eclipse/paho.mqtt.golang"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-// allows accessing an amqp.Delivery
+// Event allows access to the MQTT message
 type Event struct {
 	nuclio.AbstractEvent
 	message mqttclient.Message
+	url     string
 }
 
 func (e *Event) GetBody() []byte {
@@ -33,5 +36,20 @@ func (e *Event) GetBody() []byte {
 
 // GetURL returns the topic of the event
 func (e *Event) GetURL() string {
+	return e.url
+}
+
+// GetPath returns the topic of the event
+func (e *Event) GetPath() string {
 	return e.message.Topic()
+}
+
+// GetTopic returns the topic of the event
+func (e *Event) GetTopic() string {
+	return e.message.Topic()
+}
+
+// GetID returns the message ID
+func (e *Event) GetID() nuclio.ID {
+	return nuclio.ID(strconv.Itoa(int(e.message.MessageID())))
 }

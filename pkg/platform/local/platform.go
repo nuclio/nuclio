@@ -286,6 +286,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 		if buildErr != nil {
+			// if an error occurs during building of the function image, the function state should be set to `error`
 			reportCreationError(buildErr) // nolint: errcheck
 			return nil, buildErr
 		}
@@ -353,7 +354,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		}
 	}
 
-	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
+	// wrap the deployer's `deploy` with the base HandleDeployFunction to provide lots of
 	// common functionality
 	return p.HandleDeployFunction(ctx, existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
@@ -1014,7 +1015,7 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 
 	// delete the function from the local store
 	if err := p.localStore.DeleteFunction(ctx, &deleteFunctionOptions.FunctionConfig.Meta); err != nil &&
-		err != nuclio.ErrNotFound {
+		!errors.Is(err, nuclio.ErrNotFound) {
 		p.Logger.WarnWithCtx(ctx, "Failed to delete a function from the local store", "err", err.Error())
 	}
 

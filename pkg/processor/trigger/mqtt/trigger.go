@@ -167,7 +167,13 @@ func (t *AbstractTrigger) handleMessage(client mqttclient.Client, message mqttcl
 		return
 	}
 
-	t.SubmitEventToWorker(nil, workerInstance, &Event{message: message}) // nolint: errcheck
+	//nolint: errcheck
+	t.SubmitEventToWorker(nil,
+		workerInstance,
+		&Event{
+			message: message,
+			url:     t.configuration.URL,
+		})
 
 	workerAllocator.Release(workerInstance)
 }
