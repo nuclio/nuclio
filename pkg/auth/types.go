@@ -66,12 +66,14 @@ func NewConfig(kind Kind) *Config {
 	config := &Config{
 		Kind: kind,
 	}
+	skipTLSVerification := false
 	if kind == KindIguazio {
+		skipTLSVerification = true
 		config.Iguazio = &IguazioConfig{
 			CacheSize:              100,
 			Timeout:                30 * time.Second,
 			CacheExpirationTimeout: 30 * time.Second,
-			SkipTLSVerification:    true,
+			SkipTLSVerification:    skipTLSVerification,
 		}
 	}
 	return config
