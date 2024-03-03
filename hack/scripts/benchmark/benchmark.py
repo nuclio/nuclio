@@ -155,7 +155,10 @@ class Vegeta(object):
                            input=f"POST {function_url}".encode(),
                            timeout=30)
         finally:
-            os.remove(path=os.path.join(self._workdir, body_size_filename))
+            # sanitize path against path traversal
+            path = os.path.abspath(os.path.join(self._workdir, body_size_filename))
+            sanitized_path = os.path.relpath(os.path.join("/", path), "/")
+            os.remove(path=sanitized_path)
 
     def plot(self, function_names, body_size):
         encoded_bin_names = " ".join(f"{self._resolve_bin_name(function_name, body_size)}"

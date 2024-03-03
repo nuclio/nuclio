@@ -47,7 +47,6 @@ type NuclioAPIClient struct {
 	requestTimeout string
 	username       string
 	accessKey      string
-	skipTLSVerify  bool
 	authHeaders    map[string]string
 }
 
@@ -77,7 +76,6 @@ func NewNuclioAPIClient(parentLogger logger.Logger,
 		requestTimeout: requestTimeout,
 		username:       username,
 		accessKey:      accessKey,
-		skipTLSVerify:  skipTLSVerify,
 	}
 
 	// parse the request timeout
@@ -95,7 +93,7 @@ func NewNuclioAPIClient(parentLogger logger.Logger,
 	}
 	if skipTLSVerify {
 		newAPIClient.httpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: skipTLSVerify},
 		}
 	}
 

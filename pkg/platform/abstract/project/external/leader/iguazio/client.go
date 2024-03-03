@@ -49,13 +49,16 @@ type Client struct {
 }
 
 func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (*Client, error) {
+	// skip TLS verification for iguazio
+	skipTLSVerification := platformConfiguration.ProjectsLeader.Kind == platformconfig.ProjectsLeaderKindIguazio
+
 	newClient := Client{
 		logger:                parentLogger.GetChild("leader-client-iguazio"),
 		platformConfiguration: platformConfiguration,
 		httpClient: &http.Client{
 			Timeout: DefaultRequestTimeout,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipTLSVerification},
 			},
 		},
 	}

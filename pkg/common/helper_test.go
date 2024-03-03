@@ -19,6 +19,7 @@ limitations under the License.
 package common
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -569,6 +570,83 @@ func (suite *MiscTestSuite) TestPopulateFieldsFromValues() {
 
 			// cleanup object
 			object = testObject{}
+		})
+	}
+}
+
+func (suite *MiscTestSuite) TestSanitizeResponseData() {
+	for _, testCase := range []struct {
+		name           string
+		data           string
+		header         http.Header
+		expectedResult string
+	}{
+		{
+			name:           "EmptyString",
+			data:           "",
+			header:         http.Header{},
+			expectedResult: "",
+		},
+		{
+			name: "ValidString",
+			data: "some data",
+			header: http.Header{
+				"Content-Type": []string{"text/plain"},
+			},
+			expectedResult: "some data",
+		},
+		{
+			name: "Integers",
+			data: "123",
+			header: http.Header{
+				"Content-Type": []string{"text/plain"},
+			},
+			expectedResult: "123",
+		},
+		{
+			name: "json",
+			data: `{"key": "value"}`,
+			header: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			expectedResult: `{"key": "value"}`,
+		},
+		{
+			name: "JavaScript",
+			data: "<script>alert('XSS')</script>",
+			header: http.Header{
+				"Content-Type": []string{"text/javascript"},
+			},
+			expectedResult: "",
+		},
+		{
+			name: "HTMLWithEvilElements",
+			data: "<a href='javascript:alert(1)'>Click me</a>",
+			header: http.Header{
+				"Content-Type": []string{"text/html"},
+			},
+			expectedResult: "Click me",
+		},
+		{
+			name: "HTMLWithRegularElements1",
+			data: "<p>Hello, <b>world</b>!</p>",
+			header: http.Header{
+				"Content-Type": []string{"text/html"},
+			},
+			expectedResult: "<p>Hello, <b>world</b>!</p>",
+		},
+		{
+			name: "HTMLWithRegularElements2",
+			data: "Hello, <b>world</b>!",
+			header: http.Header{
+				"Content-Type": []string{"text/plain"},
+			},
+			expectedResult: "Hello, <b>world</b>!",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			sanitizedData := SanitizeResponseData([]byte(testCase.data), testCase.header)
+			suite.Require().Equal(testCase.expectedResult, string(sanitizedData))
 		})
 	}
 }

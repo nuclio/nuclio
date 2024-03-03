@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -36,8 +37,10 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"golang.org/x/net/html"
 	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -620,4 +623,27 @@ func PopulateFieldsFromValues[T string | bool | int](fieldsToValues map[*T]T) {
 			*field = value
 		}
 	}
+}
+
+// SanitizeResponseData tries to parse byte data as html. if it succeeds, it is returned sanitized,
+// otherwise the original data is returned.
+// func SanitizeResponseData(data []byte) []byte {
+func SanitizeResponseData(data []byte, headers http.Header) []byte {
+	// check if the content type contains html or javascript
+	contentType := headers.Get("Content-Type")
+	if contentType == "" || (!strings.Contains(contentType, "html") && !strings.Contains(contentType, "javascript")) {
+		return data
+	}
+
+	// attempt to parse the input data as HTML
+	_, err := html.Parse(bytes.NewReader(data))
+	if err != nil {
+		// if there is an error in parsing, it's not HTML, return data as is
+		return data
+	}
+
+	// the data is HTML, sanitize it
+	policy := bluemonday.UGCPolicy()
+	sanitizedData := policy.Sanitize(string(data))
+	return []byte(sanitizedData)
 }
