@@ -51,15 +51,11 @@ func (d *Decompressor) Decompress(ctx context.Context, source string, target str
 }
 
 func (d *Decompressor) ExtractArchive(ctx context.Context, sourcePath string, targetPath string) error {
-	d.logger.DebugWith("Extracting archive", "sourcePath", sourcePath, "targetPath", targetPath)
-
 	// open the source archive
 	file, err := os.Open(sourcePath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to open file")
 	}
-
-	d.logger.DebugWith("Opened file, identifying it", "sourcePath", sourcePath, "file", file)
 
 	// identify the type of the archive
 	format, input, err := archiver.Identify(sourcePath, file)
@@ -67,11 +63,7 @@ func (d *Decompressor) ExtractArchive(ctx context.Context, sourcePath string, ta
 		return errors.Wrap(err, "Failed to identify archive")
 	}
 
-	d.logger.DebugWith("Identified archive", "format", format, "input", input)
-
 	handler := func(ctx context.Context, file archiver.File) error {
-		d.logger.DebugWith("Extracting file", "sourcePath", file.Name, "targetPath", targetPath)
-
 		if filterFile, err := d.filterArchivedFile(file, targetPath); err != nil {
 			return errors.Wrap(err, "Failed to filter archived file")
 		} else if filterFile {
@@ -84,7 +76,6 @@ func (d *Decompressor) ExtractArchive(ctx context.Context, sourcePath string, ta
 
 	// want to extract something?
 	if extractor, ok := format.(archiver.Extractor); ok {
-		d.logger.DebugWith("Extracting archive", "sourcePath", sourcePath, "targetPath", targetPath, "extractor", extractor)
 		if err := extractor.Extract(ctx, input, nil, handler); err != nil {
 			return errors.Wrap(err, "Failed to extract archive")
 		}
