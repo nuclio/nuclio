@@ -30,19 +30,19 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type Decompressor struct {
+type Unarchiver struct {
 	logger logger.Logger
 }
 
-func NewDecompressor(parentLogger logger.Logger) (*Decompressor, error) {
-	newDecompressor := &Decompressor{
+func NewUnarchiver(parentLogger logger.Logger) (*Unarchiver, error) {
+	newUnarchiver := &Unarchiver{
 		logger: parentLogger,
 	}
 
-	return newDecompressor, nil
+	return newUnarchiver, nil
 }
 
-func (d *Decompressor) Decompress(ctx context.Context, source string, target string) error {
+func (d *Unarchiver) Extract(ctx context.Context, source string, target string) error {
 	if err := d.ExtractArchive(ctx, source, target); err != nil {
 		return errors.Wrapf(err, "Failed to extract archive %s", source)
 	}
@@ -50,7 +50,7 @@ func (d *Decompressor) Decompress(ctx context.Context, source string, target str
 	return nil
 }
 
-func (d *Decompressor) ExtractArchive(ctx context.Context, sourcePath string, targetPath string) error {
+func (d *Unarchiver) ExtractArchive(ctx context.Context, sourcePath string, targetPath string) error {
 	// open the source archive
 	file, err := os.Open(sourcePath)
 	if err != nil {
@@ -64,14 +64,14 @@ func (d *Decompressor) ExtractArchive(ctx context.Context, sourcePath string, ta
 	}
 
 	handler := func(ctx context.Context, file archiver.File) error {
-		if filterFile, err := d.filterArchivedFile(file, targetPath); err != nil {
+		if filterFile, err := d.filterFile(file, targetPath); err != nil {
 			return errors.Wrap(err, "Failed to filter archived file")
 		} else if filterFile {
 			return nil
 		}
 
 		// copy the file to a new file with the same name in the target path
-		return d.extractArchivedFile(file, targetPath)
+		return d.extractFile(file, targetPath)
 	}
 
 	// want to extract something?
@@ -84,7 +84,7 @@ func (d *Decompressor) ExtractArchive(ctx context.Context, sourcePath string, ta
 	return nil
 }
 
-func (d *Decompressor) extractArchivedFile(file archiver.File, targetPath string) error {
+func (d *Unarchiver) extractFile(file archiver.File, targetPath string) error {
 	filePath := filepath.Join(targetPath, file.NameInArchive)
 
 	// create the directory if it doesn't exist
@@ -119,36 +119,29 @@ func (d *Decompressor) extractArchivedFile(file archiver.File, targetPath string
 	return nil
 }
 
-func (d *Decompressor) filterArchivedFile(file archiver.File, targetPath string) (bool, error) {
-	// filter symlinks that point outside the archive or to an absolute path
-	if file.LinkTarget != "" && (strings.HasPrefix(file.LinkTarget, "..") || filepath.IsAbs(file.LinkTarget)) {
-		return true, nil
-	}
-
-	// check that the destination file path is not outside the target directory
-	fullTargetPath, err := filepath.Abs(path.Join(targetPath, file.NameInArchive))
-	if err != nil {
-		return true, errors.Wrap(err, fmt.Sprintf("Failed to get absolute path for %s", fullTargetPath))
-	}
-	if !strings.HasPrefix(fullTargetPath, targetPath) {
-		return true, nil
-	}
-
-	// filter files that their name is an absolute path
-	if filepath.IsAbs(file.NameInArchive) {
-		return true, nil
-	}
-
-	// filter files that their name contains ".."
-	if strings.HasPrefix(file.NameInArchive, "..") || strings.Contains(file.NameInArchive, "/..") {
-		return true, nil
+func (d *Unarchiver) filterFile(file archiver.File, targetPath string) (bool, error) {
+	// check that the destination file path or resolved linked path is not outside the target directory
+	for _, pathToCheck := range []string{
+		file.NameInArchive,
+		file.LinkTarget,
+	} {
+		if pathToCheck == "" {
+			continue
+		}
+		fullPath, err := filepath.Abs(path.Join(targetPath, pathToCheck))
+		if err != nil {
+			return true, errors.Wrap(err, fmt.Sprintf("Failed to get absolute path for %s", fullPath))
+		}
+		if !strings.HasPrefix(fullPath, targetPath) {
+			return true, nil
+		}
 	}
 
 	// all good
 	return false, nil
 }
 
-func IsCompressed(source string) bool {
+func IsArchive(source string) bool {
 
 	// Jars are special case
 	if IsJar(source) {
