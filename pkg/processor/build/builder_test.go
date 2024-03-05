@@ -19,6 +19,7 @@ limitations under the License.
 package build
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -53,6 +54,7 @@ type testSuite struct {
 	testID       string
 	mockS3Client *common.MockS3Client
 	mockPlatform *mockplatform.Platform
+	ctx          context.Context
 }
 
 // SetupSuite is called for suite setup
@@ -66,6 +68,8 @@ func (suite *testSuite) SetupSuite() {
 		FilePath: FunctionsArchiveFilePath,
 	}
 	suite.mockPlatform = &mockplatform.Platform{}
+
+	suite.ctx = context.Background()
 }
 
 // SetupTest is called before each test in the suite
@@ -712,7 +716,7 @@ func (suite *testSuite) TestResolveFunctionPathGitCodeEntry() {
 
 			suite.builder.options.FunctionConfig.Spec.Build = testCase.BuildConfiguration
 
-			path, _, err := suite.builder.resolveFunctionPath(testCase.BuildConfiguration.Path)
+			path, _, err := suite.builder.resolveFunctionPath(suite.ctx, testCase.BuildConfiguration.Path)
 			suite.Require().NoError(err)
 
 			// make sure the path is set to the work dir inside the downloaded folder
@@ -862,7 +866,7 @@ func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension stri
 
 	defer suite.builder.cleanupTempDir() // nolint: errcheck
 
-	path, _, err := suite.builder.resolveFunctionPath(codeFileURL)
+	path, _, err := suite.builder.resolveFunctionPath(suite.ctx, codeFileURL)
 	suite.Require().NoError(err)
 
 	expectedFilePath := filepath.Join(suite.builder.tempDir, "/download/my-func."+fileExtension)
@@ -903,7 +907,7 @@ func (suite *testSuite) testResolveFunctionPathArchive(buildConfiguration functi
 
 	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
 
-	path, _, err := suite.builder.resolveFunctionPath(buildConfiguration.Path)
+	path, _, err := suite.builder.resolveFunctionPath(suite.ctx, buildConfiguration.Path)
 	suite.Require().NoError(err)
 
 	// make sure the path is set to the work dir inside the decompressed folder
@@ -936,7 +940,7 @@ func (suite *testSuite) testResolveFunctionPathArchiveBadWorkDir(buildConfigurat
 
 	suite.builder.options.FunctionConfig.Spec.Build = buildConfiguration
 
-	_, _, err = suite.builder.resolveFunctionPath(buildConfiguration.Path)
+	_, _, err = suite.builder.resolveFunctionPath(suite.ctx, buildConfiguration.Path)
 	suite.EqualError(errors.RootCause(err), expectedError)
 
 	suite.builder.cleanupTempDir() // nolint: errcheck

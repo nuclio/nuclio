@@ -40,7 +40,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
-	"github.com/mholt/archiver/v3"
+	"github.com/mholt/archiver/v4"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -190,7 +190,7 @@ func (b *Builder) Build(ctx context.Context, options *platform.CreateFunctionBui
 	// resolve the function path - download in case its a URL
 	b.options.FunctionConfig.Spec.Build.Path,
 		inferredCodeEntryType,
-		err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+		err = b.resolveFunctionPath(ctx, b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -642,7 +642,7 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	return sourceFilePath, nil
 }
 
-func (b *Builder) resolveFunctionPath(functionPath string) (string, string, error) {
+func (b *Builder) resolveFunctionPath(ctx context.Context, functionPath string) (string, string, error) {
 	var err error
 	var inferredCodeEntryType string
 
@@ -708,7 +708,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, string, erro
 	}
 
 	if util.IsCompressed(resolvedPath) {
-		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
+		resolvedPath, err = b.decompressFunctionArchive(ctx, resolvedPath)
 		if err != nil {
 			return "", "", errors.Wrap(err, "Failed to decompress function archive")
 		}
@@ -752,7 +752,7 @@ func (b *Builder) getFunctionPathFromGithubURL(functionPath string) (string, err
 	return functionPath, nil
 }
 
-func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
+func (b *Builder) decompressFunctionArchive(ctx context.Context, functionPath string) (string, error) {
 
 	// create a staging directory
 	decompressDir, err := b.mkDirUnderTemp("decompress")
@@ -765,7 +765,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 		return "", errors.Wrap(err, "Failed to instantiate decompressor")
 	}
 
-	err = decompressor.Decompress(functionPath, decompressDir)
+	err = decompressor.Decompress(ctx, functionPath, decompressDir)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
 	}
@@ -1757,7 +1757,7 @@ func (b *Builder) getFunctionTempFile(tempDir string,
 		var fileExtension string
 
 		// get file archiver by its extension
-		fileArchiver, err := archiver.ByExtension(functionPath)
+		archiverFormat, _, err := archiver.Identify(functionPath, nil)
 		if err != nil {
 
 			// fallback to .zip
@@ -1766,7 +1766,7 @@ func (b *Builder) getFunctionTempFile(tempDir string,
 				functionPath)
 			fileExtension = "zip"
 		} else {
-			fileExtension = fmt.Sprint(fileArchiver)
+			fileExtension = strings.TrimPrefix(archiverFormat.Name(), ".")
 		}
 		return os.CreateTemp(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
 	}
