@@ -42,28 +42,20 @@ func NewUnarchiver(parentLogger logger.Logger) (*Unarchiver, error) {
 	return newUnarchiver, nil
 }
 
-func (d *Unarchiver) Extract(ctx context.Context, source string, target string) error {
-	if err := d.ExtractArchive(ctx, source, target); err != nil {
-		return errors.Wrapf(err, "Failed to extract archive %s", source)
-	}
-
-	return nil
-}
-
-func (d *Unarchiver) ExtractArchive(ctx context.Context, sourcePath string, targetPath string) error {
-	// open the source archive
+// Extract extracts the source archive to the target path
+func (d *Unarchiver) Extract(ctx context.Context, sourcePath string, targetPath string) error {
 	file, err := os.Open(sourcePath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to open file")
+		return errors.Wrap(err, fmt.Sprintf("Failed to open archive file: %s", sourcePath))
 	}
 
-	// identify the type of the archive
+	// identify the format of the archive
 	format, input, err := archiver.Identify(sourcePath, file)
 	if err != nil {
 		return errors.Wrap(err, "Failed to identify archive")
 	}
 
-	handler := func(ctx context.Context, file archiver.File) error {
+	extractionHandler := func(ctx context.Context, file archiver.File) error {
 		if filterFile, err := d.filterFile(file, targetPath); err != nil {
 			return errors.Wrap(err, "Failed to filter archived file")
 		} else if filterFile {
@@ -74,9 +66,8 @@ func (d *Unarchiver) ExtractArchive(ctx context.Context, sourcePath string, targ
 		return d.extractFile(file, targetPath)
 	}
 
-	// want to extract something?
 	if extractor, ok := format.(archiver.Extractor); ok {
-		if err := extractor.Extract(ctx, input, nil, handler); err != nil {
+		if err := extractor.Extract(ctx, input, nil, extractionHandler); err != nil {
 			return errors.Wrap(err, "Failed to extract archive")
 		}
 	}
@@ -84,6 +75,7 @@ func (d *Unarchiver) ExtractArchive(ctx context.Context, sourcePath string, targ
 	return nil
 }
 
+// extractFile extracts a file from the archive to the target path with the same base name
 func (d *Unarchiver) extractFile(file archiver.File, targetPath string) error {
 	filePath := filepath.Join(targetPath, file.NameInArchive)
 
@@ -95,32 +87,33 @@ func (d *Unarchiver) extractFile(file archiver.File, targetPath string) error {
 	// create the new file
 	outFile, err := os.Create(filePath)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed creating file :%s", filePath))
+		return errors.Wrap(err, fmt.Sprintf("Failed to create file :%s", filePath))
 	}
 	defer outFile.Close() // nolint: errcheck
 
 	// set the file mode
 	err = outFile.Chmod(file.Mode())
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed changing file mode for %s", filePath))
+		return errors.Wrap(err, fmt.Sprintf("Failed to change file mode for %s", filePath))
 	}
 
 	// open the file
 	input, err := file.Open()
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed opening file: %s", filePath))
+		return errors.Wrap(err, fmt.Sprintf("Failed to open file: %s", filePath))
 	}
 
 	// copy the file contents
 	_, err = io.Copy(outFile, input)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed writing file: %s", filePath))
+		return errors.Wrap(err, fmt.Sprintf("Failed to write file: %s", filePath))
 	}
 	return nil
 }
 
+// filterFile checks if the file should be extracted or not by checking if the destination file path or resolved
+// linked path is outside the target directory
 func (d *Unarchiver) filterFile(file archiver.File, targetPath string) (bool, error) {
-	// check that the destination file path or resolved linked path is not outside the target directory
 	for _, pathToCheck := range []string{
 		file.NameInArchive,
 		file.LinkTarget,
@@ -137,10 +130,10 @@ func (d *Unarchiver) filterFile(file archiver.File, targetPath string) (bool, er
 		}
 	}
 
-	// all good
 	return false, nil
 }
 
+// IsArchive checks if the file is an archive
 func IsArchive(source string) bool {
 
 	// Jars are special case
@@ -170,6 +163,7 @@ func IsArchive(source string) bool {
 	return ok
 }
 
+// IsJar checks if the file is a jar
 func IsJar(source string) bool {
 	return strings.ToLower(path.Ext(source)) == ".jar"
 }

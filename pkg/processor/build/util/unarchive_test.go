@@ -69,7 +69,7 @@ func (suite *unarchiverTestSuite) TestExtractArchive() {
 
 	// extract the zip file to a target dir
 	targetDirPath := path.Join(suite.tempDir, "test-target-path")
-	err := suite.unarchiver.ExtractArchive(suite.ctx, zipFilePath, targetDirPath)
+	err := suite.unarchiver.Extract(suite.ctx, zipFilePath, targetDirPath)
 	suite.Require().NoError(err, "Failed to extract archive")
 
 	// list files in target dir
