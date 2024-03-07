@@ -69,7 +69,10 @@ func (suite *TestSuite) SetupSuite() {
 
 	suite.archiveInfos = []archiveInfo{
 		{".zip", archiver.Zip{}.Archive},
-		{".tar.gz", archiver.Tar{}.Archive},
+		{".tar.gz", archiver.CompressedArchive{
+			Compression: archiver.Gz{},
+			Archival:    archiver.Tar{},
+		}.Archive},
 	}
 }
 
