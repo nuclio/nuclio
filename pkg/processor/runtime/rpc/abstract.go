@@ -152,6 +152,38 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 	}, result.err
 }
 
+// ProcessBatch processes a batch of events
+func (r *AbstractRuntime) ProcessBatch(event []nuclio.Event) (interface{}, error) {
+	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
+		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
+	}
+
+	r.functionLogger = functionLogger
+
+	// We don't use defer to reset r.functionLogger since it decreases performance
+	if err := r.eventEncoder.Encode(event); err != nil {
+		r.functionLogger = nil
+		return nil, errors.Wrapf(err, "Can't encode event: %+v", event)
+	}
+
+	result, ok := <-r.resultChan
+	r.functionLogger = nil
+	if !ok {
+		msg := "Client disconnected"
+		r.Logger.Error(msg)
+		r.SetStatus(status.Error)
+		r.functionLogger = nil
+		return nil, errors.New(msg)
+	}
+
+	return nuclio.Response{
+		Body:        result.DecodedBody,
+		ContentType: result.ContentType,
+		Headers:     result.Headers,
+		StatusCode:  result.StatusCode,
+	}, result.err
+}
+
 // Stop stops the runtime
 func (r *AbstractRuntime) Stop() error {
 	r.Logger.WarnWith("Stopping",

@@ -66,23 +66,24 @@ type Volume struct {
 
 // Trigger holds configuration for a trigger
 type Trigger struct {
-	Class                                 string            `json:"class"`
-	Kind                                  string            `json:"kind"`
-	Name                                  string            `json:"name"`
-	Disabled                              bool              `json:"disabled,omitempty"`
-	MaxWorkers                            int               `json:"maxWorkers,omitempty"`
-	URL                                   string            `json:"url,omitempty"`
-	Paths                                 []string          `json:"paths,omitempty"`
-	Username                              string            `json:"username,omitempty"`
-	Password                              string            `json:"password,omitempty"`
-	Secret                                string            `json:"secret,omitempty"`
-	Partitions                            []Partition       `json:"partitions,omitempty"`
-	Annotations                           map[string]string `json:"annotations,omitempty"`
-	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
-	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
-	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
-	WaitExplicitAckDuringRebalanceTimeout string            `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
-	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
+	Class                                 string             `json:"class"`
+	Kind                                  string             `json:"kind"`
+	Name                                  string             `json:"name"`
+	Disabled                              bool               `json:"disabled,omitempty"`
+	MaxWorkers                            int                `json:"maxWorkers,omitempty"`
+	URL                                   string             `json:"url,omitempty"`
+	Paths                                 []string           `json:"paths,omitempty"`
+	Username                              string             `json:"username,omitempty"`
+	Password                              string             `json:"password,omitempty"`
+	Secret                                string             `json:"secret,omitempty"`
+	Partitions                            []Partition        `json:"partitions,omitempty"`
+	Annotations                           map[string]string  `json:"annotations,omitempty"`
+	WorkerAvailabilityTimeoutMilliseconds *int               `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
+	WorkerAllocatorName                   string             `json:"workerAllocatorName,omitempty"`
+	ExplicitAckMode                       ExplicitAckMode    `json:"explicitAckMode,omitempty"`
+	WaitExplicitAckDuringRebalanceTimeout string             `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
+	WorkerTerminationTimeout              string             `json:"workerTerminationTimeout,omitempty"`
+	Batch                                 BatchConfiguration `json:"batch,omitempty"`
 
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
@@ -90,6 +91,23 @@ type Trigger struct {
 
 	// General attributes
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type BatchConfiguration struct {
+	Mode      BatchMode
+	BatchSize int
+	Timeout   string
+}
+
+type BatchMode string
+
+const (
+	BatchModeEnable  BatchMode = "enable"
+	BatchModeDisable BatchMode = "disable"
+)
+
+func BatchModeEnabled(mode BatchMode) bool {
+	return mode == BatchModeEnable
 }
 
 type ExplicitAckMode string

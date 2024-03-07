@@ -111,6 +111,7 @@ type AbstractTrigger struct {
 	FunctionName    string
 	ProjectName     string
 	restartChan     chan Trigger
+	batcher         *Batcher
 }
 
 func NewAbstractTrigger(logger logger.Logger,
@@ -131,7 +132,7 @@ func NewAbstractTrigger(logger logger.Logger,
 		configuration.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
 	}
 
-	return AbstractTrigger{
+	trigger := AbstractTrigger{
 		Logger:          logger,
 		ID:              configuration.ID,
 		WorkerAllocator: allocator,
@@ -142,7 +143,17 @@ func NewAbstractTrigger(logger logger.Logger,
 		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
 		ProjectName:     configuration.RuntimeConfiguration.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		restartChan:     restartTriggerChan,
-	}, nil
+	}
+	if functionconfig.BatchModeEnabled(configuration.Batch.Mode) {
+		trigger.batcher = NewBatcher(logger, configuration.Batch.BatchSize)
+		if batchTimeout, err := time.ParseDuration(configuration.Batch.Timeout); err != nil {
+			return AbstractTrigger{}, errors.New("Could not parse batch timeout")
+		} else {
+			// TODO: add timeout param
+			trigger.StartBatcher(batchTimeout, 1*time.Hour)
+		}
+	}
+	return trigger, nil
 }
 
 // Initialize performs post creation initializations
@@ -427,4 +438,54 @@ func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *work
 	event.SetID(nuclio.ID(uuid.New().String()))
 	event.SetTriggerInfoProvider(at)
 	return event, nil
+}
+
+func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeout time.Duration) {
+	for {
+		batch, responseChans := at.batcher.waitForBatchIsFullOrTimeoutIsPassed(batchTimeout)
+		at.SubmitBatchAndSendResponses(batch, responseChans, workerAvailabilityTimeout)
+	}
+}
+
+func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event, responseChan chan interface{}) {
+	at.batcher.Add(event, responseChan)
+}
+
+func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChan map[string]chan interface{}, workerAvailabilityTimeout time.Duration) {
+
+	var workerInstance *worker.Worker
+
+	// TODO: implement smth similar
+	//defer at.HandleSubmitPanic(workerInstance, &submitError)
+
+	// allocate a worker
+	workerInstance, err := at.WorkerAllocator.Allocate(workerAvailabilityTimeout)
+	if err != nil {
+		at.UpdateStatistics(false)
+		workerError := errors.Wrap(err, "Failed to allocate worker")
+		for _, channel := range responseChan {
+
+			// TODO: cover the case when waiting timeout is passed
+			channel <- workerError
+		}
+		return
+	}
+
+	// prepare events
+	for index, event := range batch {
+		preparedEvent, submitError := at.prepareEvent(event, workerInstance)
+		if submitError != nil {
+			batch = append(batch[:index], batch[index+1:]...)
+		} else {
+			batch[index] = preparedEvent
+		}
+	}
+
+	response, processError := workerInstance.ProcessEvent(&EventBatch{batch: batch}, at.Logger)
+
+	// increment statistics based on results. if process error is nil, we successfully handled
+	at.UpdateStatistics(processError == nil)
+
+	// release worker when we're done
+	at.WorkerAllocator.Release(workerInstance)
 }
