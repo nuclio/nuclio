@@ -43,18 +43,31 @@ func NewEventMsgPackEncoder(logger logger.Logger, writer io.Writer) *EventMsgPac
 }
 
 // Encode writes the JSON encoding of event to the stream, followed by a newline character
-func (e *EventMsgPackEncoder) Encode(event nuclio.Event) error {
-	eventToEncode := eventAsMap(event)
+func (e *EventMsgPackEncoder) Encode(object interface{}) error {
+	prepareOneEvent := func(event nuclio.Event) map[string]interface{} {
+		eventToEncode := eventAsMap(event)
 
-	// if the body is map[string]interface{} we probably got a cloud event with a structured data member
-	if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
-		eventToEncode["body"] = bodyObject
-	} else {
-		eventToEncode["body"] = event.GetBody()
+		// if the body is map[string]interface{} we probably got a cloud event with a structured data member
+		if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
+			eventToEncode["body"] = bodyObject
+		} else {
+			eventToEncode["body"] = event.GetBody()
+		}
+		return eventToEncode
+	}
+	var preparedEvent interface{}
+	switch object.(type) {
+	case nuclio.Event:
+		preparedEvent = prepareOneEvent(object.(nuclio.Event))
+	case []nuclio.Event:
+		preparedEvent := make([]map[string]interface{}, 0)
+		for _, event := range object.([]nuclio.Event) {
+			preparedEvent = append(preparedEvent, prepareOneEvent(event))
+		}
 	}
 
 	e.buf.Reset()
-	if err := e.encoder.Encode(eventToEncode); err != nil {
+	if err := e.encoder.Encode(preparedEvent); err != nil {
 		return errors.Wrap(err, "Failed to encode message")
 	}
 

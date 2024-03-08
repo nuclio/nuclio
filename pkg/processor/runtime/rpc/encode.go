@@ -21,7 +21,7 @@ import (
 )
 
 type EventEncoder interface {
-	Encode(event nuclio.Event) error
+	Encode(event interface{}) error
 }
 
 func eventAsMap(event nuclio.Event) map[string]interface{} {

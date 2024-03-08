@@ -481,7 +481,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		}
 	}
 
-	response, processError := workerInstance.ProcessEvent(&EventBatch{batch: batch}, at.Logger)
+	responses, processError := workerInstance.ProcessEventBatch(batch)
 
 	// increment statistics based on results. if process error is nil, we successfully handled
 	at.UpdateStatistics(processError == nil)

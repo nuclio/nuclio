@@ -153,7 +153,7 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 }
 
 // ProcessBatch processes a batch of events
-func (r *AbstractRuntime) ProcessBatch(event []nuclio.Event) (interface{}, error) {
+func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
@@ -161,9 +161,9 @@ func (r *AbstractRuntime) ProcessBatch(event []nuclio.Event) (interface{}, error
 	r.functionLogger = functionLogger
 
 	// We don't use defer to reset r.functionLogger since it decreases performance
-	if err := r.eventEncoder.Encode(event); err != nil {
+	if err := r.eventEncoder.Encode(batch); err != nil {
 		r.functionLogger = nil
-		return nil, errors.Wrapf(err, "Can't encode event: %+v", event)
+		return nil, errors.Wrapf(err, "Can't encode batch: %+v", batch)
 	}
 
 	result, ok := <-r.resultChan

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -37,16 +38,34 @@ func NewEventJSONEncoder(logger logger.Logger, writer io.Writer) *EventJSONEncod
 }
 
 // Encode writes the JSON encoding of event to the stream, followed by a newline character
-func (e *EventJSONEncoder) Encode(event nuclio.Event) error {
-	eventToEncode := eventAsMap(event)
+func (e *EventJSONEncoder) Encode(object interface{}) error {
 
-	// if the body is map[string]interface{} we probably got a cloud event with a structured data member
-	if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
-		eventToEncode["body"] = bodyObject
-	} else {
-		// otherwise, just encode body to base64
-		eventToEncode["body"] = base64.StdEncoding.EncodeToString(event.GetBody())
+	encodeOneEvent := func(event nuclio.Event) map[string]interface{} {
+		eventToEncode := eventAsMap(event)
+
+		// if the body is map[string]interface{} we probably got a cloud object with a structured data member
+		if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
+			eventToEncode["body"] = bodyObject
+		} else {
+			// otherwise, just encode body to base64
+			eventToEncode["body"] = base64.StdEncoding.EncodeToString(event.GetBody())
+		}
+
+		return eventToEncode
 	}
+	switch object.(type) {
+	case nuclio.Event:
+		eventToEncode := encodeOneEvent(object.(nuclio.Event))
+		return json.NewEncoder(e.writer).Encode(eventToEncode)
+	case []nuclio.Event:
+		events := object.([]nuclio.Event)
+		eventsToEncode := make([]map[string]interface{}, 0, len(events))
+		for _, event := range events {
+			eventsToEncode = append(eventsToEncode, encodeOneEvent(event))
 
-	return json.NewEncoder(e.writer).Encode(eventToEncode)
+		}
+		return json.NewEncoder(e.writer).Encode(eventsToEncode)
+
+	}
+	return errors.New("Wrong input type")
 }

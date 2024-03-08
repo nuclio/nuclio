@@ -91,8 +91,8 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	return response, err
 }
 
-func (w *Worker) ProcessEventBatch(batch []nuclio.Event) {
-	responses, err := w.runtime.ProcessEvent()
+func (w *Worker) ProcessEventBatch(batch []nuclio.Event) (interface{}, error) {
+	return w.runtime.ProcessBatch(batch, w.logger)
 }
 
 // GetStatistics returns a pointer to the statistics object. This must not be modified by the reader

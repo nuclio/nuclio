@@ -45,7 +45,7 @@ func NewBatcher(logger logger.Logger, batchSize int) *Batcher {
 func (b *Batcher) Add(event nuclio.Event, responseChan chan interface{}) {
 	b.currentBatch <- &BatchedEventWithResponse{event: event, responseChan: responseChan}
 
-	// if batchIsFull, then write to `batchIsFull` chan, so that we send batch to worker right when batch len reached the maximum
+	// if batchIsFull, write to `batchIsFull` chan, so that we send batch to worker right when batch len reached the maximum
 	if cap(b.currentBatch) == len(b.currentBatch) {
 		b.batchIsFull <- true
 	}
