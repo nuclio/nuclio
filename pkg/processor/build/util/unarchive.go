@@ -79,7 +79,15 @@ func (d *Unarchiver) Extract(ctx context.Context, sourcePath string, targetPath 
 func (d *Unarchiver) extractFile(file archiver.File, targetPath string) error {
 	filePath := filepath.Join(targetPath, file.NameInArchive)
 
-	// create the directory if it doesn't exist
+	if file.IsDir() {
+		// create the directory if it doesn't exist and continue to the next file
+		if err := os.MkdirAll(filePath, 0755); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Failed to create directory %s", filePath))
+		}
+		return nil
+	}
+
+	// create the file's parent directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to create directory %s", filepath.Dir(filePath)))
 	}
