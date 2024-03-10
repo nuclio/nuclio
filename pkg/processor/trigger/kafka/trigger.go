@@ -510,10 +510,6 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
 		getTLSMinimumVersion := func(version string) uint16 {
 			switch version {
-			case "1.0":
-				return tls.VersionTLS10
-			case "1.1":
-				return tls.VersionTLS11
 			case "1.2":
 				return tls.VersionTLS12
 			case "1.3":
