@@ -76,14 +76,28 @@ func (suite *unarchiverTestSuite) TestExtractArchive() {
 	files, err := os.ReadDir(targetDirPath)
 	suite.Require().NoError(err, "Failed to read dir")
 
-	// the zip file contains 3 random files
+	// test.zip should contain a folder with 3 files, and a base-file on root level
+	subdirName := "random-dir"
+	baseFileName := "base-file"
+	suite.Require().Len(files, 2, "Unexpected number of files in target dir")
+
+	// assert that the files in the target subdir are the same as the files in the temp subdir
+	for _, file := range files {
+		suite.Require().Contains([]string{subdirName, baseFileName}, file.Name(), "File not found in target dir")
+	}
+
+	// list files in the subdir
+	files, err = os.ReadDir(path.Join(targetDirPath, subdirName))
+	suite.Require().NoError(err, "Failed to read dir")
+
+	// the subdir contains 3 random files
 	var fileNames []string
 	for i := 0; i < 3; i++ {
 		fileName := fmt.Sprintf("random-file-%d", i)
 		fileNames = append(fileNames, fileName)
 	}
 
-	// assert that the files in the target dir are the same as the files in the temp dir
+	// assert that the files in the target subdir are the same as the files in the temp subdir
 	for _, file := range files {
 		suite.Require().Contains(fileNames, file.Name(), "File not found in target dir")
 	}
