@@ -315,6 +315,7 @@ controller: build-builder
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_CACHE_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file cmd/controller/Dockerfile \
+		--platform linux/$(NUCLIO_ARCH) \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME_CACHE) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -351,6 +352,7 @@ dashboard: build-builder
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE) \
+		--platform linux/$(NUCLIO_ARCH) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE) \
