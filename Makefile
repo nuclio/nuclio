@@ -882,6 +882,7 @@ PATCH_HOST_IP ?= $(shell cat hack/scripts/patch-remote/patch_env.yml | awk '/HOS
 PATCH_USERNAME ?= $(shell cat hack/scripts/patch-remote/patch_env.yml | awk '/SSH_USER/ {print $$2}')
 
 hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME):
+	mkdir -p hack/scripts/patch-remote/.ssh
 	ssh-keygen -N '' -f hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME)
 	ssh-copy-id -i hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME).pub $(PATCH_USERNAME)@$(PATCH_HOST_IP)
 
