@@ -911,4 +911,3 @@ patch-remote-controller: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(P
 		--private-key-file hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME) \
 		--config hack/scripts/patch-remote/patch_env.yml \
 		--targets controller
-		
