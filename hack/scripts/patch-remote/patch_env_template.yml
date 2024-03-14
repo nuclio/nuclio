@@ -15,15 +15,23 @@
 # The patch script expects the yaml file to be in the same directory
 # this is a template file for the patch env file
 
+# A list of targets to patch, can be overridden by the command line using the --targets flag (default: dashboard)
+# Uncomment one or many targets to patch
+PATCH_TARGETS:
+#  - "dashboard"
+#  - "controller"
 
-# Data node IPs/hostnames (required) (e.g. [1.1.1.1, 1.1.1.2, 1.1.1.3])
+# Nuclio version to patch to
+NUCLIO_TAG: "0.0.0-unstable"
+
+# Nuclio architecture to build the target images (amd64, arm64)
+NUCLIO_ARCH: "amd64"
+
+# Remote host IPs/hostnames (required) (e.g. [1.1.1.1, 1.1.1.2, 1.1.1.3])
 DATA_NODES:
 
 # Username for ssh (required)
 SSH_USER:
-
-# Password for above user (required)
-SSH_PASSWORD:
 
 # Docker registry you can push to. Make sure you are logged into it before running the script (required)
 # e.g. docker.io/my_user
@@ -35,8 +43,11 @@ DOCKER_REGISTRY:
 # datanode-registry.iguazio-platform.app.<system-name>.<lab.iguazeng/cloud-cd>.com:80/nuclio
 OVERWRITE_IMAGE_REGISTRY:
 
-# Optional - will attempt docker login if defined, need to login manually otherwise
+# Optional - will attempt docker login if defined, need to log in manually otherwise
 REGISTRY_USERNAME:
 
 # Optional - will attempt docker login if defined
 REGISTRY_PASSWORD:
+
+# Optional - set to true to enable verbose logging
+VERBOSE:

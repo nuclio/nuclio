@@ -24,31 +24,29 @@ import typing
 
 import click
 import coloredlogs
-import paramiko
 import yaml
 
-log_level = logging.INFO
-fmt = "%(asctime)s %(levelname)s %(message)s"
-logging.basicConfig(level=log_level)
-logger = logging.getLogger("nuclio-patch")
-coloredlogs.install(level=log_level, logger=logger, fmt=fmt)
-supported_targets = ["dashboard", "controller"]
 
+class Helper:
+    supported_targets = ["dashboard", "controller"]
 
-def target_wrapper(func):
-    """
-    Decorator to run the function for each target in supported_targets
-    """
-    def wrapper(*args, **kwargs):
-        for target in supported_targets:
-            func(*args, **kwargs, target=target)
+    @staticmethod
+    def run_on_all_targets(func):
+        """
+        Decorator to run the function for each target in supported_targets
+        """
+        def wrapper(*args, **kwargs):
+            for target in Helper.supported_targets:
+                func(*args, **kwargs, target=target)
 
-    return wrapper
+        return wrapper
 
 
 class NuclioPatcher:
     class Consts:
-        mandatory_fields = {"DATA_NODES", "SSH_USER", "SSH_PASSWORD", "DOCKER_REGISTRY"}
+        log_level = logging.INFO
+        fmt = "%(asctime)s %(levelname)s %(message)s"
+        mandatory_fields = {"DOCKER_REGISTRY"}
         patch_dict = {
             "spec": {
                 "template": {
@@ -64,27 +62,32 @@ class NuclioPatcher:
             },
         }
 
-    def __init__(self, conf_file, tag, arch, targets):
+    def __init__(self, conf_file, private_key, targets, verbose):
         self._config = yaml.safe_load(conf_file)
-        self._tag = tag
-        self._arch = arch
-        self._targets = targets
         self._validate_config()
-        self._validate_targets()
+        self._logger = self._init_logger(verbose or self._config.get("VERBOSE", False))
+        self._node = self._config.get("HOST_IP", "")
+        self._user = self._config.get("SSH_USER", "")
+        self._targets = self._resolve_targets(targets)
+        self._tag = self._config.get("NUCLIO_TAG", "0.0.0+unstable")
+        self._arch = self._config.get("NUCLIO_ARCH", "amd64")
+        self._namespace = self._config.get("NAMESPACE", "nuclio")
+        self._private_key = private_key
 
     def patch_nuclio(self):
-        nodes = self._config["DATA_NODES"]
-        if not isinstance(nodes, list):
-            nodes = [nodes]
+        self._logger.info(
+            f"Patching Nuclio targets to remote system: {', '.join(self._targets)}"
+        )
 
+        # prepare
         version = self._get_current_version()
         image_tag = self._get_image_tag(version)
         self._docker_login_if_configured()
 
+        # build and push images
         self._build_and_push_target_images(image_tag)
 
-        node = nodes[0]
-        self._connect_to_node(node)
+        # patch the deployment with the new image
         try:
             self._replace_deploy_policy()
             self._replace_deployment_images()
@@ -92,11 +95,46 @@ class NuclioPatcher:
             self._wait_deployment_ready()
         finally:
             self._log_pod_names()
-            self._disconnect_from_node()
 
-        logger.info(
+        self._logger.info(
             "Successfully patched branch successfully to remote (Note this may not survive system restarts)"
         )
+
+    def _validate_config(self):
+        missing_fields = self.Consts.mandatory_fields - set(self._config.keys())
+        if len(missing_fields) > 0:
+            raise RuntimeError(f"Mandatory options not defined: {missing_fields}")
+
+        registry_username = self._config.get("REGISTRY_USERNAME")
+        registry_password = self._config.get("REGISTRY_PASSWORD")
+        if registry_username is not None and registry_password is None:
+            raise RuntimeError(
+                "REGISTRY_USERNAME defined, yet REGISTRY_PASSWORD is not defined"
+            )
+
+    def _init_logger(self, verbose):
+        logging.basicConfig(level=self.Consts.log_level)
+        logger = logging.getLogger("nuclio-patch")
+        coloredlogs.install(level=self.Consts.log_level, logger=logger, fmt=self.Consts.fmt)
+        if verbose:
+            coloredlogs.set_level(logging.DEBUG)
+        return logger
+
+    def _resolve_targets(self, _targets):
+        targets = _targets.split(",") if _targets else self._config.get("PATCH_TARGETS", ["dashboard"])
+        for target in targets:
+            if target not in Helper.supported_targets:
+                raise RuntimeError(f"Invalid target: {target}")
+        return targets
+
+    def _get_current_version(self) -> str:
+        if "unstable" in self._tag:
+            return "unstable"
+        return self._tag
+
+    @staticmethod
+    def _get_image_tag(tag) -> str:
+        return f"{tag}"
 
     def _docker_login_if_configured(self):
         registry_username = self._config.get("REGISTRY_USERNAME")
@@ -114,34 +152,8 @@ class NuclioPatcher:
                 live=True,
             )
 
-    def _validate_config(self):
-        missing_fields = self.Consts.mandatory_fields - set(self._config.keys())
-        if len(missing_fields) > 0:
-            raise RuntimeError(f"Mandatory options not defined: {missing_fields}")
-
-        registry_username = self._config.get("REGISTRY_USERNAME")
-        registry_password = self._config.get("REGISTRY_PASSWORD")
-        if registry_username is not None and registry_password is None:
-            raise RuntimeError(
-                "REGISTRY_USERNAME defined, yet REGISTRY_PASSWORD is not defined"
-            )
-
-    def _validate_targets(self):
-        # target is a tuple, that can contain dashboard, controller or both
-        if not isinstance(self._targets, tuple):
-            self._targets = (self._targets,)
-
-        for target in self._targets:
-            if target not in supported_targets:
-                raise RuntimeError(f"Invalid target: {target}")
-
-    def _get_current_version(self) -> str:
-        if "unstable" in self._tag:
-            return "unstable"
-        return self._tag
-
     def _build_and_push_target_images(self, image_tag):
-        logger.info(f"Building nuclio docker images for: {self._targets}")
+        self._logger.info(f"Building nuclio docker images for: {self._targets}")
         image_rules = " ".join(self._targets)
         env = {
             "DOCKER_BUILDKIT": "1",
@@ -153,38 +165,7 @@ class NuclioPatcher:
         cmd = ["make", "docker-images", "push-docker-images"]
         self._exec_local(cmd, live=True, env=env)
 
-    def _get_target_image_name(self, target, tag):
-        return f"{self._config['DOCKER_REGISTRY']}/{target}:{tag}-{self._arch}"
-
-    def _connect_to_node(self, node):
-        logger.debug(f"Connecting to {node}")
-
-        self._ssh_client = paramiko.SSHClient()
-        self._ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy)
-        self._ssh_client.connect(
-            node,
-            username=self._config["SSH_USER"],
-            password=self._config["SSH_PASSWORD"],
-        )
-
-    def _disconnect_from_node(self):
-        self._ssh_client.close()
-
-    # TODO: Check if this is needed at all
-    def _push_docker_images(self, built_images):
-        logger.info(f"Pushing docker images: {built_images}")
-
-        for image in built_images:
-            self._exec_local(
-                [
-                    "docker",
-                    "push",
-                    image,
-                ],
-                live=True,
-            )
-
-    @target_wrapper
+    @Helper.run_on_all_targets
     def _replace_deploy_policy(self, target="dashboard"):
         if target not in self._targets:
             return
@@ -192,12 +173,12 @@ class NuclioPatcher:
         deployment_name = f"nuclio-{target}"
         patch_string = self._generate_patch_string(deployment_name)
 
-        logger.info(f"Patching {deployment_name} deployment")
+        self._logger.info(f"Patching {deployment_name} deployment")
         self._exec_remote(
             [
                 "kubectl",
                 "-n",
-                "default-tenant",
+                self._namespace,
                 "patch",
                 "deployment",
                 deployment_name,
@@ -206,7 +187,12 @@ class NuclioPatcher:
             ]
         )
 
-    @target_wrapper
+    def _generate_patch_string(self, container_name):
+        patch_dict = self.Consts.patch_dict.copy()
+        patch_dict["spec"]["template"]["spec"]["containers"][0]["name"] = container_name
+        return shlex.quote(json.dumps(patch_dict))
+
+    @Helper.run_on_all_targets
     def _replace_deployment_images(self, target="dashboard"):
         if target not in self._targets:
             return
@@ -218,12 +204,12 @@ class NuclioPatcher:
                 self._config["DOCKER_REGISTRY"],
                 self._config["OVERWRITE_IMAGE_REGISTRY"],
             )
-        logger.info(f"Replacing {container} in {target} deployment")
+        self._logger.info(f"Replacing {container} in {target} deployment")
         self._exec_remote(
             [
                 "kubectl",
                 "-n",
-                "default-tenant",
+                self._namespace,
                 "set",
                 "image",
                 f"deployment/nuclio-{target}",
@@ -231,17 +217,20 @@ class NuclioPatcher:
             ]
         )
 
-    @target_wrapper
+    def _get_target_image_name(self, target, tag):
+        return f"{self._config['DOCKER_REGISTRY']}/{target}:{tag}-{self._arch}"
+
+    @Helper.run_on_all_targets
     def _restart_deployment(self, target="dashboard"):
         if target not in self._targets:
             return
 
-        logger.info(f"Restarting {target} deployment")
+        self._logger.info(f"Restarting {target} deployment")
         self._exec_remote(
             [
                 "kubectl",
                 "-n",
-                "default-tenant",
+                self._namespace,
                 "rollout",
                 "restart",
                 "deployment",
@@ -249,17 +238,17 @@ class NuclioPatcher:
             ]
         )
 
-    @target_wrapper
+    @Helper.run_on_all_targets
     def _wait_deployment_ready(self, target="dashboard"):
         if target not in self._targets:
             return
 
-        logger.info(f"Waiting for {target} deployment to become ready")
+        self._logger.info(f"Waiting for {target} deployment to become ready")
         self._exec_remote(
             [
                 "kubectl",
                 "-n",
-                "default-tenant",
+                self._namespace,
                 "rollout",
                 "status",
                 "deployment",
@@ -269,12 +258,12 @@ class NuclioPatcher:
             live=True,
         )
 
-        logger.info(f"Waiting for {target} pod to become ready")
+        self._logger.info(f"Waiting for {target} pod to become ready")
         self._exec_remote(
             [
                 "kubectl",
                 "-n",
-                "default-tenant",
+                self._namespace,
                 "wait",
                 "pods",
                 "-l",
@@ -286,9 +275,21 @@ class NuclioPatcher:
             live=True,
         )
 
-    @staticmethod
-    def _get_image_tag(tag) -> str:
-        return f"{tag}"
+    def _log_pod_names(self):
+        out = self._exec_remote(
+            [
+                "kubectl",
+                "--namespace",
+                self._namespace,
+                "get",
+                "pods",
+            ],
+        )
+        for line in out.splitlines():
+            for target in self._targets:
+                if f"nuclio-{target}" in line:
+                    self._logger.info(line)
+                    break
 
     @staticmethod
     def _execute_local_proc_interactive(cmd, env=None):
@@ -305,7 +306,7 @@ class NuclioPatcher:
     def _exec_local(
             self, cmd: list[str], live: bool = False, env: typing.Optional[dict] = None
     ) -> str:
-        logger.debug("Exec local: %s", " ".join(cmd))
+        self._logger.debug("Exec local: %s", " ".join(cmd))
         buf = io.StringIO()
         for line in self._execute_local_proc_interactive(cmd, env):
             buf.write(line)
@@ -315,89 +316,65 @@ class NuclioPatcher:
         return output
 
     def _exec_remote(self, cmd: list[str], live=False) -> str:
-        cmd_str = shlex.join(cmd)
-        logger.debug("Executing remote command: %s", cmd_str)
-        stdin_stream, stdout_stream, stderr_stream = self._ssh_client.exec_command(
-            cmd_str
+        # run the command on the remote machine using ssh in a subprocess
+        cmd_str = " ".join(cmd)
+        self._logger.debug("Executing remote command: %s", cmd_str)
+        ssh_cmd = [
+            "/usr/bin/ssh",
+            "-i",
+            self._private_key,
+            f"{self._user}@{self._node}",
+        ]
+        ssh_cmd.extend(cmd)
+        proc = subprocess.Popen(
+            ssh_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
-
         stdout = ""
         if live:
-            while True:
-                line = stdout_stream.readline()
+            for line in proc.stdout:
                 stdout += line
-                if not line:
-                    break
                 print(line, end="")
         else:
-            stdout = stdout_stream.read().decode("utf8")
-
-        stderr = stderr_stream.read().decode("utf8")
-
-        exit_status = stdout_stream.channel.recv_exit_status()
-
-        if exit_status:
+            stdout = proc.stdout.read()
+        stderr = proc.stderr.read()
+        proc.wait()
+        if proc.returncode:
             raise RuntimeError(
-                f"Command '{cmd_str}' finished with failure ({exit_status})\n{stderr}"
+                f"Command '{cmd_str}' finished with failure ({proc.returncode})\n{stderr}"
             )
-
         return stdout
-
-    def _generate_patch_string(self, container_name):
-        patch_dict = self.Consts.patch_dict.copy()
-        patch_dict["spec"]["template"]["spec"]["containers"][0]["name"] = container_name
-        return json.dumps(patch_dict)
-
-    def _log_pod_names(self):
-        out = self._exec_remote(
-            [
-                "kubectl",
-                "-n",
-                "default-tenant",
-                "get",
-                "pods",
-            ],
-        )
-        for line in out.splitlines():
-            for target in self._targets:
-                if f"nuclio-{target}" in line:
-                    logger.info(line)
-                    break
 
 
 @click.command(help="nuclio image deployer to remote system")
-@click.option("-v", "--verbose", is_flag=True, help="Print what we are doing")
 @click.option(
     "-c",
     "--config",
     help="Config file",
-    default="hack/scripts/patch-igz/patch_env.yml",
+    default="hack/scripts/patch-remote/patch_env.yml",
     type=click.File(mode="r"),
     show_default=True,
 )
 @click.option(
-    "-t",
-    "--tag",
-    default="0.0.0+unstable",
-    help="Tag to use for the API. Defaults to unstable (latest and greatest)",
-)
-@click.option(
-    "-a",
-    "--arch",
-    default="amd64",
-    help="Architecture to build for",
-)
-@click.argument(
-    "targets",
-    nargs=-1,
+    "-p",
+    "--private-key-file",
+    help="Private ssh key file",
     type=str,
     required=True,
 )
-def main(verbose, config, tag, arch, targets):
-    if verbose:
-        coloredlogs.set_level(logging.DEBUG)
-
-    NuclioPatcher(config, tag, arch, targets).patch_nuclio()
+@click.option(
+    "-t",
+    "--targets",
+    type=str,
+    help="A comma delimited list of targets to patch, to override the targets in the config",
+    required=False,
+)
+@click.option("-v", "--verbose", is_flag=True, help="Print what we are doing")
+def main(config, private_key_file, targets, verbose):
+    NuclioPatcher(config, private_key_file, targets, verbose).patch_nuclio()
 
 
 if __name__ == "__main__":
