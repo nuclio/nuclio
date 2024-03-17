@@ -35,6 +35,7 @@ class Helper:
         """
         Decorator to run the function for each target in supported_targets
         """
+
         def wrapper(*args, **kwargs):
             for target in Helper.supported_targets:
                 func(*args, **kwargs, target=target)
@@ -115,13 +116,19 @@ class NuclioPatcher:
     def _init_logger(self, verbose):
         logging.basicConfig(level=self.Consts.log_level)
         logger = logging.getLogger("nuclio-patch")
-        coloredlogs.install(level=self.Consts.log_level, logger=logger, fmt=self.Consts.fmt)
+        coloredlogs.install(
+            level=self.Consts.log_level, logger=logger, fmt=self.Consts.fmt
+        )
         if verbose:
             coloredlogs.set_level(logging.DEBUG)
         return logger
 
     def _resolve_targets(self, _targets):
-        targets = _targets.split(",") if _targets else self._config.get("PATCH_TARGETS", ["dashboard"])
+        targets = (
+            _targets.split(",")
+            if _targets
+            else self._config.get("PATCH_TARGETS", ["dashboard"])
+        )
         for target in targets:
             if target not in Helper.supported_targets:
                 raise RuntimeError(f"Invalid target: {target}")
@@ -304,7 +311,7 @@ class NuclioPatcher:
             raise subprocess.CalledProcessError(ret_code, cmd)
 
     def _exec_local(
-            self, cmd: list[str], live: bool = False, env: typing.Optional[dict] = None
+        self, cmd: list[str], live: bool = False, env: typing.Optional[dict] = None
     ) -> str:
         self._logger.debug("Exec local: %s", " ".join(cmd))
         buf = io.StringIO()
