@@ -28,8 +28,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/anthonynsimon/bild/transform"
 	"github.com/nuclio/nuclio-sdk-go"
+	"golang.org/x/image/draw"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
@@ -77,7 +77,9 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	}
 
 	// Create a thumbnail with the specified size and format
-	thumb := transform.Resize(img, x, y, transform.CatmullRom)
+	targetRect := image.Rect(0, 0, x, y)
+	thumb := image.NewRGBA(targetRect)
+	draw.CatmullRom.Scale(thumb, targetRect, img, img.Bounds(), draw.Over, nil)
 	buf := new(bytes.Buffer)
 	if respType == "image/png" {
 		err = png.Encode(buf, thumb)
