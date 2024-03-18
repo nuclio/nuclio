@@ -7,7 +7,6 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/Azure/go-amqp v0.17.0
 	github.com/Shopify/sarama v1.37.2
-	github.com/anthonynsimon/bild v0.13.0
 	github.com/aws/aws-sdk-go v1.45.2
 	github.com/coreos/go-semver v0.3.1
 	github.com/docker/distribution v2.8.2+incompatible
@@ -54,6 +53,7 @@ require (
 	github.com/valyala/fasthttp v1.51.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.1.2
+	golang.org/x/image v0.15.0
 	golang.org/x/net v0.21.0
 	golang.org/x/oauth2 v0.11.0
 	golang.org/x/sync v0.3.0
