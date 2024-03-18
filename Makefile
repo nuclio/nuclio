@@ -315,6 +315,7 @@ controller: build-builder
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_CACHE_REPO)/controller:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG) \
 		--file cmd/controller/Dockerfile \
+		--platform linux/$(NUCLIO_ARCH) \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
 		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME_CACHE) \
 		$(NUCLIO_DOCKER_LABELS) .
@@ -351,6 +352,7 @@ dashboard: build-builder
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--cache-from $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE) \
+		--platform linux/$(NUCLIO_ARCH) \
 		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE) \
@@ -871,3 +873,42 @@ modules: ensure-gopath
 .PHONY: targets
 targets:
 	@awk -F: '/^[^ \t="]+:/ && !/PHONY/ {print $$1}' Makefile | sort -u
+
+#
+# PATCH REMOTE SYSTEM
+#
+
+PATCH_HOST_IP ?= $(shell cat hack/scripts/patch-remote/patch_env.yml | awk '/HOST_IP/ {print $$2}')
+PATCH_USERNAME ?= $(shell cat hack/scripts/patch-remote/patch_env.yml | awk '/SSH_USER/ {print $$2}')
+
+hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME):
+	mkdir -p hack/scripts/patch-remote/.ssh
+	ssh-keygen -N '' -f hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME)
+	ssh-copy-id -i hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME).pub $(PATCH_USERNAME)@$(PATCH_HOST_IP)
+
+.PHONY: create-patch-ssh-key
+create-patch-ssh-key: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME)
+
+.PHONY: cleanup-patch-ssh-key
+cleanup-patch-ssh-key:
+	rm -f hack/scripts/patch-remote/.ssh/*
+
+.PHONY: patch-remote-nuclio
+patch-remote-nuclio: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME)
+	./hack/scripts/patch-remote/patch_remote.py \
+		--private-key-file hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME) \
+		--config hack/scripts/patch-remote/patch_env.yml
+
+.PHONY: patch-remote-dashboard
+patch-remote-dashboard: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME)
+	./hack/scripts/patch-remote/patch_remote.py \
+		--private-key-file hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME) \
+		--config hack/scripts/patch-remote/patch_env.yml \
+		--targets dashboard
+
+.PHONY: patch-remote-controller
+patch-remote-controller: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME)
+	./hack/scripts/patch-remote/patch_remote.py \
+		--private-key-file hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME) \
+		--config hack/scripts/patch-remote/patch_env.yml \
+		--targets controller
