@@ -91,7 +91,7 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	return response, err
 }
 
-func (w *Worker) ProcessEventBatch(batch []nuclio.Event) (interface{}, error) {
+func (w *Worker) ProcessEventBatch(batch []nuclio.Event) ([]*runtime.ResponseWithErrors, error) {
 	return w.runtime.ProcessBatch(batch, w.logger)
 }
 

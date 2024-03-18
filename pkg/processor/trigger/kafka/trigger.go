@@ -400,7 +400,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			"partition", claim.Partition())
 
 		// mark this as a failure, metric-wise
-		k.UpdateStatistics(false)
+		k.UpdateStatistics(false, 1)
 
 		if waitForHandler {
 			// the rebalance timeout occurred while we waited for the handler, cancel it and restart the worker

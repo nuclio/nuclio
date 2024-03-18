@@ -56,14 +56,15 @@ func (e *EventMsgPackEncoder) Encode(object interface{}) error {
 		return eventToEncode
 	}
 	var preparedEvent interface{}
-	switch object.(type) {
+	switch typedEvent := object.(type) {
 	case nuclio.Event:
-		preparedEvent = prepareOneEvent(object.(nuclio.Event))
+		preparedEvent = prepareOneEvent(typedEvent)
 	case []nuclio.Event:
-		preparedEvent := make([]map[string]interface{}, 0)
-		for _, event := range object.([]nuclio.Event) {
-			preparedEvent = append(preparedEvent, prepareOneEvent(event))
+		eventSlice := make([]map[string]interface{}, 0)
+		for _, event := range typedEvent {
+			eventSlice = append(eventSlice, prepareOneEvent(event))
 		}
+		preparedEvent = eventSlice
 	}
 
 	e.buf.Reset()

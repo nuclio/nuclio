@@ -36,7 +36,7 @@ type Runtime interface {
 	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error)
 
 	// ProcessBatch receives the event and processes it at the specific runtime
-	ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) (interface{}, error)
+	ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*ResponseWithErrors, error)
 
 	// GetFunctionLogger returns the function logger
 	GetFunctionLogger() logger.Logger

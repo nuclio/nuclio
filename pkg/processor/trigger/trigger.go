@@ -188,7 +188,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	// allocate a worker
 	workerInstance, err := at.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		at.UpdateStatistics(false)
+		at.UpdateStatistics(false, 1)
 
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
@@ -216,7 +216,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	// allocate a worker
 	workerInstance, err := at.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		at.UpdateStatistics(false)
+		at.UpdateStatistics(false, 1)
 
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
@@ -291,7 +291,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 			at.WorkerAllocator.Release(workerInstance)
 		}
 
-		at.UpdateStatistics(false)
+		at.UpdateStatistics(false, 1)
 	}
 }
 
@@ -308,7 +308,7 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)
 
 	// increment statistics based on results. if process error is nil, we successfully handled
-	at.UpdateStatistics(processError == nil)
+	at.UpdateStatistics(processError == nil, 1)
 	return
 }
 
@@ -318,11 +318,11 @@ func (at *AbstractTrigger) TimeoutWorker(worker *worker.Worker) error {
 }
 
 // UpdateStatistics updates the trigger statistics
-func (at *AbstractTrigger) UpdateStatistics(success bool) {
+func (at *AbstractTrigger) UpdateStatistics(success bool, times uint64) {
 	if success {
-		atomic.AddUint64(&at.Statistics.EventsHandledSuccessTotal, 1)
+		atomic.AddUint64(&at.Statistics.EventsHandledSuccessTotal, times)
 	} else {
-		atomic.AddUint64(&at.Statistics.EventsHandledFailureTotal, 1)
+		atomic.AddUint64(&at.Statistics.EventsHandledFailureTotal, times)
 	}
 }
 
@@ -451,19 +451,21 @@ func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event, responseChan c
 	at.batcher.Add(event, responseChan)
 }
 
-func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChan map[string]chan interface{}, workerAvailabilityTimeout time.Duration) {
+func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChans map[string]chan interface{}, workerAvailabilityTimeout time.Duration) {
 
 	var workerInstance *worker.Worker
 
 	// TODO: implement smth similar
 	//defer at.HandleSubmitPanic(workerInstance, &submitError)
 
+	at.Logger.Debug("Sending batch to processing")
+
 	// allocate a worker
 	workerInstance, err := at.WorkerAllocator.Allocate(workerAvailabilityTimeout)
 	if err != nil {
-		at.UpdateStatistics(false)
+		at.UpdateStatistics(false, uint64(len(batch)))
 		workerError := errors.Wrap(err, "Failed to allocate worker")
-		for _, channel := range responseChan {
+		for _, channel := range responseChans {
 
 			// TODO: cover the case when waiting timeout is passed
 			channel <- workerError
@@ -471,21 +473,49 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		return
 	}
 
-	// prepare events
-	for index, event := range batch {
+	// prepare batch
+	preparedBatch := make([]nuclio.Event, 0)
+	for _, event := range batch {
 		preparedEvent, submitError := at.prepareEvent(event, workerInstance)
+
+		// if error, then send error to the corresponding channel and delete the channel from the map
 		if submitError != nil {
-			batch = append(batch[:index], batch[index+1:]...)
+			channel, ok := responseChans[string(event.GetID())]
+			if ok {
+				channel <- submitError
+				delete(responseChans, string(event.GetID()))
+			}
+			at.UpdateStatistics(false, 1)
 		} else {
-			batch[index] = preparedEvent
+			preparedBatch = append(preparedBatch, preparedEvent)
 		}
 	}
 
-	responses, processError := workerInstance.ProcessEventBatch(batch)
+	batch = preparedBatch
 
-	// increment statistics based on results. if process error is nil, we successfully handled
-	at.UpdateStatistics(processError == nil)
+	responses, err := workerInstance.ProcessEventBatch(batch)
+	if err != nil {
+		for _, channel := range responseChans {
+			channel <- err
+		}
+	} else {
+		for _, response := range responses {
+			channel, ok := responseChans[response.EventId]
+			if !ok {
+				at.Logger.DebugWith("Received in-batch response without event_id, response won't be returned")
+			} else {
+				channel <- response
+				delete(responseChans, response.EventId)
+				if response.ProcessError != nil {
+					at.UpdateStatistics(false, 1)
+				} else {
+					at.UpdateStatistics(true, 1)
+				}
+			}
+		}
+	}
 
 	// release worker when we're done
 	at.WorkerAllocator.Release(workerInstance)
+	at.Logger.Debug("Batch processing is done")
 }

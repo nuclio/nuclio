@@ -58,6 +58,7 @@ type result struct {
 	Body         string                 `json:"body"`
 	BodyEncoding string                 `json:"body_encoding"`
 	Headers      map[string]interface{} `json:"headers"`
+	EventId      string                 `json:"event_id"`
 
 	DecodedBody []byte
 	err         error
@@ -70,7 +71,7 @@ type AbstractRuntime struct {
 	eventEncoder      EventEncoder
 	controlEncoder    EventEncoder
 	wrapperProcess    *os.Process
-	resultChan        chan *result
+	resultChan        chan []*result
 	functionLogger    logger.Logger
 	runtime           Runtime
 	startChan         chan struct{}
@@ -134,7 +135,7 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 		return nil, errors.Wrapf(err, "Can't encode event: %+v", event)
 	}
 
-	result, ok := <-r.resultChan
+	processingResult, ok := <-r.resultChan
 	r.functionLogger = nil
 	if !ok {
 		msg := "Client disconnected"
@@ -143,17 +144,16 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 		r.functionLogger = nil
 		return nil, errors.New(msg)
 	}
-
 	return nuclio.Response{
-		Body:        result.DecodedBody,
-		ContentType: result.ContentType,
-		Headers:     result.Headers,
-		StatusCode:  result.StatusCode,
-	}, result.err
+		Body:        processingResult[0].DecodedBody,
+		ContentType: processingResult[0].ContentType,
+		Headers:     processingResult[0].Headers,
+		StatusCode:  processingResult[0].StatusCode,
+	}, processingResult[0].err
 }
 
 // ProcessBatch processes a batch of events
-func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
@@ -166,7 +166,7 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 		return nil, errors.Wrapf(err, "Can't encode batch: %+v", batch)
 	}
 
-	result, ok := <-r.resultChan
+	processingResults, ok := <-r.resultChan
 	r.functionLogger = nil
 	if !ok {
 		msg := "Client disconnected"
@@ -175,13 +175,25 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 		r.functionLogger = nil
 		return nil, errors.New(msg)
 	}
+	responsesWithErrors := make([]*runtime.ResponseWithErrors, 0, len(processingResults))
 
-	return nuclio.Response{
-		Body:        result.DecodedBody,
-		ContentType: result.ContentType,
-		Headers:     result.Headers,
-		StatusCode:  result.StatusCode,
-	}, result.err
+	for index, processingResult := range processingResults {
+		if processingResult.EventId == "" {
+			r.functionLogger.WarnWith("Received response with empty event_id, response won't be returned")
+		}
+		responsesWithErrors[index] = &runtime.ResponseWithErrors{
+			Response: nuclio.Response{
+				Body:        processingResult.DecodedBody,
+				ContentType: processingResult.ContentType,
+				Headers:     processingResult.Headers,
+				StatusCode:  processingResult.StatusCode,
+			},
+			EventId:      processingResult.EventId,
+			ProcessError: processingResult.err,
+		}
+	}
+
+	return responsesWithErrors, nil
 }
 
 // Stop stops the runtime
@@ -221,9 +233,11 @@ func (r *AbstractRuntime) Restart() error {
 
 	// Send error for current event (non-blocking)
 	select {
-	case r.resultChan <- &result{
-		StatusCode: http.StatusRequestTimeout,
-		err:        errors.New("Runtime restarted"),
+	case r.resultChan <- []*result{
+		{
+			StatusCode: http.StatusRequestTimeout,
+			err:        errors.New("Runtime restarted"),
+		},
 	}:
 
 	default:
@@ -360,7 +374,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		"pid", r.wrapperProcess.Pid)
 
 	r.eventEncoder = r.runtime.GetEventEncoder(eventConnection.conn)
-	r.resultChan = make(chan *result)
+	r.resultChan = make(chan []*result)
 	r.cancelHandlerChan = make(chan struct{})
 	go r.eventWrapperOutputHandler(eventConnection.conn, r.resultChan)
 
@@ -462,7 +476,7 @@ func (r *AbstractRuntime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan chan *result) {
+func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan chan []*result) {
 
 	// Reset might close outChan, which will cause panic when sending
 	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
@@ -489,46 +503,45 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 
 		default:
 
-			unmarshalledResult := &result{}
-			var data []byte
+			unmarshalledResults := make([]*result, 0)
 
-			data, unmarshalledResult.err = outReader.ReadBytes('\n')
+			for _, unmarshalledResult := range unmarshalledResults {
+				var data []byte
+				data, unmarshalledResult.err = outReader.ReadBytes('\n')
 
-			if unmarshalledResult.err != nil {
-				r.Logger.WarnWith(string(common.FailedReadFromEventConnection),
-					"err", unmarshalledResult.err.Error())
-				resultChan <- unmarshalledResult
-				continue
-			}
-
-			switch data[0] {
-			case 'r':
-
-				// try to unmarshall the result
-				if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
-					r.Logger.WarnWith("Failed to unmarshal result", "err", unmarshalledResult.err.Error())
-					r.resultChan <- unmarshalledResult
+				if unmarshalledResult.err != nil {
+					r.Logger.WarnWith(string(common.FailedReadFromEventConnection),
+						"err", unmarshalledResult.err.Error())
 					continue
 				}
 
-				switch unmarshalledResult.BodyEncoding {
-				case "text":
-					unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
-				case "base64":
-					unmarshalledResult.DecodedBody, unmarshalledResult.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
-				default:
-					unmarshalledResult.err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
-				}
+				switch data[0] {
+				case 'r':
 
-				// write back to result channel
-				resultChan <- unmarshalledResult
-			case 'm':
-				r.handleResponseMetric(data[1:])
-			case 'l':
-				r.handleResponseLog(data[1:])
-			case 's':
-				r.handleStart()
+					// try to unmarshall the result
+					if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
+						r.Logger.WarnWith("Failed to unmarshal result", "err", unmarshalledResult.err.Error())
+						continue
+					}
+
+					switch unmarshalledResult.BodyEncoding {
+					case "text":
+						unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
+					case "base64":
+						unmarshalledResult.DecodedBody, unmarshalledResult.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
+					default:
+						unmarshalledResult.err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
+					}
+				case 'm':
+					r.handleResponseMetric(data[1:])
+				case 'l':
+					r.handleResponseLog(data[1:])
+				case 's':
+					r.handleStart()
+				}
 			}
+			// write back to result channel
+			resultChan <- unmarshalledResults
 		}
 	}
 }

@@ -17,9 +17,10 @@ limitations under the License.
 package trigger
 
 import (
+	"time"
+
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"time"
 )
 
 type Batcher struct {
@@ -81,9 +82,4 @@ func (b *Batcher) waitForBatchIsFullOrTimeoutIsPassed(batchTimeout time.Duration
 			return b.getBatch()
 		}
 	}
-}
-
-type EventBatch struct {
-	nuclio.AbstractEvent
-	batch []nuclio.Event
 }

@@ -191,7 +191,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	// allocate a worker
 	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		h.UpdateStatistics(false)
+		h.UpdateStatistics(false, 1)
 		return nil, false, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
@@ -309,7 +309,7 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 
 	// ensure preflight request headers are valid
 	if !h.preflightRequestValidation(ctx) {
-		h.UpdateStatistics(false)
+		h.UpdateStatistics(false, 1)
 		return
 	}
 
@@ -333,7 +333,7 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 
 	// specifications met, set preflight request as OK
 	ctx.SetStatusCode(nethttp.StatusOK)
-	h.UpdateStatistics(true)
+	h.UpdateStatistics(true, 1)
 }
 
 func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
@@ -400,7 +400,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	if !h.preHandleRequestValidation(ctx) {
 
 		// in case validation failed, stop here
-		h.UpdateStatistics(false)
+		h.UpdateStatistics(false, 1)
 		return
 	}
 

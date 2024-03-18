@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Statistics struct {
@@ -54,4 +55,11 @@ type Configuration struct {
 	TriggerKind              string
 	WorkerTerminationTimeout time.Duration
 	ControlMessageBroker     *controlcommunication.AbstractControlMessageBroker
+}
+
+type ResponseWithErrors struct {
+	nuclio.Response
+	EventId      string
+	SubmitError  error
+	ProcessError error
 }

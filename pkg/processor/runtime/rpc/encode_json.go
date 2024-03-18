@@ -53,14 +53,13 @@ func (e *EventJSONEncoder) Encode(object interface{}) error {
 
 		return eventToEncode
 	}
-	switch object.(type) {
+	switch typedEvent := object.(type) {
 	case nuclio.Event:
-		eventToEncode := encodeOneEvent(object.(nuclio.Event))
+		eventToEncode := encodeOneEvent(typedEvent)
 		return json.NewEncoder(e.writer).Encode(eventToEncode)
 	case []nuclio.Event:
-		events := object.([]nuclio.Event)
-		eventsToEncode := make([]map[string]interface{}, 0, len(events))
-		for _, event := range events {
+		eventsToEncode := make([]map[string]interface{}, 0, len(typedEvent))
+		for _, event := range typedEvent {
 			eventsToEncode = append(eventsToEncode, encodeOneEvent(event))
 
 		}
