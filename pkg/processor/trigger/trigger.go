@@ -17,6 +17,7 @@ limitations under the License.
 package trigger
 
 import (
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"runtime/debug"
 	"strings"
 	"sync/atomic"
@@ -468,7 +469,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		for _, channel := range responseChans {
 
 			// TODO: cover the case when waiting timeout is passed
-			channel <- workerError
+			channel <- &runtime.ResponseWithErrors{SubmitError: workerError}
 		}
 		return
 	}
@@ -482,7 +483,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		if submitError != nil {
 			channel, ok := responseChans[string(event.GetID())]
 			if ok {
-				channel <- submitError
+				channel <- &runtime.ResponseWithErrors{SubmitError: submitError}
 				delete(responseChans, string(event.GetID()))
 			}
 			at.UpdateStatistics(false, 1)
@@ -491,12 +492,11 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		}
 	}
 
-	batch = preparedBatch
-
-	responses, err := workerInstance.ProcessEventBatch(batch)
+	// sending batch to the runtime
+	responses, err := workerInstance.ProcessEventBatch(preparedBatch)
 	if err != nil {
 		for _, channel := range responseChans {
-			channel <- err
+			channel <- &runtime.ResponseWithErrors{ProcessError: err}
 		}
 	} else {
 		for _, response := range responses {
@@ -512,6 +512,14 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 					at.UpdateStatistics(true, 1)
 				}
 			}
+		}
+	}
+
+	// check if there are any chans left in responseChans
+	if len(responseChans) > 0 {
+		at.Logger.DebugWith("After processing batch %d chans haven't received response, sending error to the chan")
+		for _, channel := range responseChans {
+			channel <- &runtime.ResponseWithErrors{NoResponseError: runtime.ErrNoResponseFromBatchResponse}
 		}
 	}
 
