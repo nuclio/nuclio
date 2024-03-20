@@ -125,7 +125,6 @@ class TestSubmitEvents(unittest.TestCase):
             for i in range(num_of_events)
         )
         self._send_events(events)
-        self._wrapper._is_entrypoint_coroutine = True
         self._wrapper._entrypoint = event_recorder
         self._wrapper._event_sock.setblocking(False)
         self._loop.run_until_complete(self._wrapper.serve_requests(num_of_events))
