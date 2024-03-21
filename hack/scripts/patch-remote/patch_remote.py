@@ -47,8 +47,9 @@ class NuclioPatcher:
     class Consts:
         log_level = logging.INFO
         fmt = "%(asctime)s %(levelname)s %(message)s"
-        mandatory_fields = {"DOCKER_REGISTRY"}
-        patch_dict = {
+        mandatory_fields = {"HOST_IP", "SSH_USER", "DOCKER_REGISTRY"}
+        nuclio_version_annotation = "nuclio.io/version"
+        deployment_policy_patch_dict = {
             "spec": {
                 "template": {
                     "spec": {
@@ -70,7 +71,7 @@ class NuclioPatcher:
         self._node = self._config.get("HOST_IP", "")
         self._user = self._config.get("SSH_USER", "")
         self._targets = self._resolve_targets(targets)
-        self._tag = self._config.get("NUCLIO_TAG", "0.0.0+unstable")
+        self._tag = self._config.get("NUCLIO_TAG", "")
         self._arch = self._config.get("NUCLIO_ARCH", "amd64")
         self._namespace = self._config.get("NAMESPACE", "nuclio")
         self._private_key = private_key
@@ -81,12 +82,11 @@ class NuclioPatcher:
         )
 
         # prepare
-        version = self._get_current_version()
-        image_tag = self._get_image_tag(version)
+        self._resolve_tag()
         self._docker_login_if_configured()
 
         # build and push images
-        self._build_and_push_target_images(image_tag)
+        self._build_and_push_target_images()
 
         # patch the deployment with the new image
         try:
@@ -129,15 +129,48 @@ class NuclioPatcher:
             if _targets
             else self._config.get("PATCH_TARGETS", ["dashboard"])
         )
+        if len(targets) == 0:
+            raise RuntimeError("No targets to patch")
         for target in targets:
             if target not in Helper.supported_targets:
                 raise RuntimeError(f"Invalid target: {target}")
         return targets
 
-    def _get_current_version(self) -> str:
-        if "unstable" in self._tag:
-            return "unstable"
-        return self._tag
+    def _resolve_tag(self):
+        if self._tag:
+            self._tag = str(self._tag).strip()
+            return
+
+        # resolve the current version running in the remote system by examining the deployment of one of the targets
+        self._logger.debug("Resolving current version from remote system")
+        deployment_name = f"nuclio-{self._targets[0]}"
+        version = self._exec_remote(
+            [
+                "kubectl",
+                "--namespace",
+                self._namespace,
+                "get",
+                "deployment",
+                deployment_name,
+                "-o",
+                "yaml",
+                "|",
+                # will output something like: nuclio.io/version: 1.12.0-amd64
+                "grep",
+                self.Consts.nuclio_version_annotation,
+                "|",
+                # will output something like: 1.12.0-amd64
+                "awk",
+                "'{print $2}'",
+                "|",
+                # will output something like: 1.12.0
+                "awk",
+                "-F",
+                "'-'",
+                "'{print $1}'",
+            ],
+        )
+        self._tag = version.strip()
 
     @staticmethod
     def _get_image_tag(tag) -> str:
@@ -159,13 +192,15 @@ class NuclioPatcher:
                 live=True,
             )
 
-    def _build_and_push_target_images(self, image_tag):
-        self._logger.info(f"Building nuclio docker images for: {self._targets}")
+    def _build_and_push_target_images(self):
+        self._logger.info(
+            f"Building nuclio docker images for targets: {self._targets}, tag: {self._tag}"
+        )
         image_rules = " ".join(self._targets)
         env = {
             "DOCKER_BUILDKIT": "1",
             "NUCLIO_DOCKER_REPO": self._config["DOCKER_REGISTRY"],
-            "NUCLIO_LABEL": image_tag,
+            "NUCLIO_LABEL": self._tag,
             "NUCLIO_ARCH": self._arch,
             "DOCKER_IMAGES_RULES": image_rules,
         }
@@ -195,7 +230,7 @@ class NuclioPatcher:
         )
 
     def _generate_patch_string(self, container_name):
-        patch_dict = self.Consts.patch_dict.copy()
+        patch_dict = self.Consts.deployment_policy_patch_dict.copy()
         patch_dict["spec"]["template"]["spec"]["containers"][0]["name"] = container_name
         return shlex.quote(json.dumps(patch_dict))
 
@@ -277,7 +312,7 @@ class NuclioPatcher:
                 f"nuclio.io/app={target}",
                 "--for",
                 "condition=Ready",
-                "--timeout=240s",
+                "--timeout=120s",
             ],
             live=True,
         )
