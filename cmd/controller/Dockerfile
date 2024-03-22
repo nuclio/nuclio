@@ -34,10 +34,6 @@ RUN go build \
 
 FROM $ALPINE_IMAGE
 
-# install apache2-utils for htpasswd
-RUN apk upgrade --no-cache \
-    && apk add --no-cache ca-certificates apache2-utils
-
 # copy controller binary from build stage
 COPY --from=build-controller /nuclio/controller /usr/local/bin
 

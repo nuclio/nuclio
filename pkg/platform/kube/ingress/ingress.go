@@ -27,18 +27,16 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// keeps resources needed for ingress creation
-// (BasicAuthSecret is used when it is an ingress with basic-auth authentication)
+// Resources keep resources needed for ingress creation
+// (BasicAuthSecretName is used when it is an ingress with basic-auth authentication)
 type Resources struct {
-	Ingress         *networkingv1.Ingress
-	BasicAuthSecret *v1.Secret
+	Ingress *networkingv1.Ingress
 }
 
 type Manager struct {
@@ -65,7 +63,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 
 	var err error
 
-	ingressAnnotations, basicAuthSecret, err := m.compileAnnotations(ctx, spec)
+	ingressAnnotations, err := m.compileAnnotations(ctx, spec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to compile ingress annotations")
 	}
@@ -125,8 +123,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 	}
 
 	return &Resources{
-		Ingress:         ingress,
-		BasicAuthSecret: basicAuthSecret,
+		Ingress: ingress,
 	}, nil
 }
 
@@ -143,9 +140,8 @@ func (m *Manager) GenerateHtpasswdContents(ctx context.Context,
 	return []byte(runResult.Output), nil
 }
 
-func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resources) (*networkingv1.Ingress, *v1.Secret, error) {
+func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resources) (*networkingv1.Ingress, error) {
 	var appliedIngress *networkingv1.Ingress
-	var appliedBasicAuthSecret *v1.Secret
 	var err error
 
 	m.logger.InfoWithCtx(ctx, "Creating/Updating ingress resources", "ingressName", resources.Ingress.Name)
@@ -156,7 +152,7 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 		Create(ctx, resources.Ingress, metav1.CreateOptions{}); err != nil {
 
 		if !apierrors.IsAlreadyExists(err) {
-			return nil, nil, errors.Wrap(err, "Failed to create ingress")
+			return nil, errors.Wrap(err, "Failed to create ingress")
 		}
 
 		// if the ingress already exists - update it
@@ -167,7 +163,7 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 			Ingresses(resources.Ingress.Namespace).
 			Update(ctx, resources.Ingress, metav1.UpdateOptions{}); err != nil {
 
-			return nil, nil, errors.Wrap(err, "Failed to update ingress")
+			return nil, errors.Wrap(err, "Failed to update ingress")
 		}
 		m.logger.InfoWithCtx(ctx, "Successfully updated ingress", "ingressName", resources.Ingress.Name)
 
@@ -175,41 +171,7 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 		m.logger.InfoWithCtx(ctx, "Successfully created ingress", "ingressName", resources.Ingress.Name)
 	}
 
-	// if there's a secret among the ingress resources - create/update it
-	if resources.BasicAuthSecret != nil {
-
-		m.logger.InfoWithCtx(ctx, "Creating/Updating ingress's basic-auth secret",
-			"ingressName", resources.Ingress.Name,
-			"secretName", resources.BasicAuthSecret.Name)
-
-		if appliedBasicAuthSecret, err = m.kubeClientSet.
-			CoreV1().
-			Secrets(resources.BasicAuthSecret.Namespace).
-			Create(ctx, resources.BasicAuthSecret, metav1.CreateOptions{}); err != nil {
-
-			if !apierrors.IsAlreadyExists(err) {
-				return nil, nil, errors.Wrap(err, "Failed to create secret")
-			}
-
-			// if the secret already exists - update it
-			m.logger.InfoWithCtx(ctx, "Secret already exists. Updating it",
-				"secretName", resources.BasicAuthSecret.Name)
-			if appliedBasicAuthSecret, err = m.kubeClientSet.
-				CoreV1().
-				Secrets(resources.BasicAuthSecret.Namespace).
-				Update(ctx, resources.BasicAuthSecret, metav1.UpdateOptions{}); err != nil {
-
-				return nil, nil, errors.Wrap(err, "Failed to update secret")
-			}
-			m.logger.InfoWithCtx(ctx, "Successfully updated secret", "secretName", resources.BasicAuthSecret.Name)
-
-		} else {
-			m.logger.InfoWithCtx(ctx, "Successfully created basic-auth secret",
-				"secretName", resources.BasicAuthSecret.Name)
-		}
-	}
-
-	return appliedIngress, appliedBasicAuthSecret, nil
+	return appliedIngress, nil
 }
 
 // DeleteByName deletes an ingress resource by name
@@ -290,10 +252,8 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 	return nil
 }
 
-func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string]string, *v1.Secret, error) {
-
+func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string]string, error) {
 	var err error
-	var basicAuthSecret *v1.Secret
 
 	ingressAnnotations := map[string]string{
 		"kubernetes.io/ingress.class": "nginx",
@@ -315,9 +275,9 @@ func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string
 	} else {
 		var authIngressAnnotations map[string]string
 
-		authIngressAnnotations, basicAuthSecret, err = m.compileAuthAnnotations(ctx, spec)
+		authIngressAnnotations, err = m.compileAuthAnnotations(ctx, spec)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to compile auth annotations")
+			return nil, errors.Wrap(err, "Failed to compile auth annotations")
 		}
 
 		// merge with existing annotation map
@@ -354,39 +314,38 @@ func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string
 		}
 	}
 
-	return ingressAnnotations, basicAuthSecret, nil
+	return ingressAnnotations, nil
 }
 
-func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[string]string, *v1.Secret, error) {
+func (m *Manager) compileAuthAnnotations(ctx context.Context, spec Spec) (map[string]string, error) {
 	var authIngressAnnotations map[string]string
-	var basicAuthSecret *v1.Secret
 	var err error
 
 	switch spec.AuthenticationMode {
 	case AuthenticationModeNone:
 		// do nothing
 	case AuthenticationModeBasicAuth:
-		authIngressAnnotations, basicAuthSecret, err = m.compileBasicAuthAnnotationsAndSecret(ctx, spec)
+		authIngressAnnotations, err = m.compileBasicAuthAnnotationsAndSecretName(ctx, spec)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to get basic auth annotations")
+			return nil, errors.Wrap(err, "Failed to get basic auth annotations")
 		}
 	case AuthenticationModeAccessKey:
 
 		// relevant when running on iguazio platform
 		authIngressAnnotations, err = m.compileIguazioSessionVerificationAnnotations()
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
+			return nil, errors.Wrap(err, "Failed to get access key auth mode annotations")
 		}
 	case AuthenticationModeOauth2:
 		authIngressAnnotations, err = m.compileDexAuthAnnotations(spec)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to get dex auth annotations")
+			return nil, errors.Wrap(err, "Failed to get dex auth annotations")
 		}
 	default:
-		return nil, nil, errors.Errorf("Unknown ingress authentication mode: %s", spec.AuthenticationMode)
+		return nil, errors.Errorf("Unknown ingress authentication mode: %s", spec.AuthenticationMode)
 	}
 
-	return authIngressAnnotations, basicAuthSecret, nil
+	return authIngressAnnotations, nil
 }
 
 func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error) {
@@ -443,52 +402,20 @@ func (m *Manager) compileIguazioSessionVerificationAnnotations() (map[string]str
 	}, nil
 }
 
-func (m *Manager) compileBasicAuthAnnotationsAndSecret(ctx context.Context, spec Spec) (map[string]string, *v1.Secret, error) {
+func (m *Manager) compileBasicAuthAnnotationsAndSecretName(ctx context.Context, spec Spec) (map[string]string, error) {
 
 	if spec.Authentication == nil || spec.Authentication.BasicAuth == nil {
-		return nil, nil, errors.New("Basic auth spec is missing")
-	}
-
-	// validate mandatory fields existence
-	for fieldName, field := range map[string]string{
-		"name":     spec.Authentication.BasicAuth.Name,
-		"username": spec.Authentication.BasicAuth.Username,
-		"password": spec.Authentication.BasicAuth.Password,
-	} {
-		if field == "" {
-			return nil, nil, errors.Errorf("Missing mandatory field in spec: %s", fieldName)
-		}
+		return nil, errors.New("Basic auth spec is missing")
 	}
 
 	authSecretName := fmt.Sprintf("%s-basic-auth", spec.Authentication.BasicAuth.Name)
-
-	htpasswdContents, err := m.GenerateHtpasswdContents(ctx,
-		spec.Authentication.BasicAuth.Username,
-		spec.Authentication.BasicAuth.Password)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to generate htpasswd contents")
-	}
 
 	ingressAnnotations := map[string]string{
 		"nginx.ingress.kubernetes.io/auth-type":   "basic",
 		"nginx.ingress.kubernetes.io/auth-secret": authSecretName,
 		"nginx.ingress.kubernetes.io/auth-realm":  "Authentication Required",
 	}
-
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      authSecretName,
-			Namespace: spec.Namespace,
-			Labels:    map[string]string{},
-		},
-		Type: v1.SecretType("Opaque"),
-		Data: map[string][]byte{
-			"auth": htpasswdContents,
-		},
-	}
-	m.enrichLabels(spec, secret.Labels)
-
-	return ingressAnnotations, secret, nil
+	return ingressAnnotations, nil
 }
 
 func (m *Manager) enrichLabels(spec Spec, labels map[string]string) {

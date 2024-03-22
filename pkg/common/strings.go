@@ -20,7 +20,10 @@ package common
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
+
+	"github.com/nuclio/errors"
 )
 
 // CompareTwoStrings uses Sørensen–Dice coefficient to check similarity
@@ -106,4 +109,16 @@ func returnEarlyIfPossible(stringOne, stringTwo string) float32 {
 	}
 
 	return -1
+}
+
+func GenerateHtpasswdContents(
+	username string,
+	password string) ([]byte, error) {
+
+	cmd := exec.Command("sh", "-c", fmt.Sprintf(`echo %s | htpasswd -n -i %s`, Quote(password), Quote(username)))
+	if runResult, err := cmd.Output(); err != nil {
+		return nil, errors.Wrap(err, "Failed to run htpasswd command")
+	} else {
+		return runResult, nil
+	}
 }

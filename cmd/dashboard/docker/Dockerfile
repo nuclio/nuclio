@@ -64,7 +64,6 @@ RUN apk --update --no-cache add curl \
     && mkdir -p /tmp/download \
     && curl -L $DOCKER_CLI_DOWNLOAD_URL | tar -xz -C /tmp/download
 
-
 FROM $NGINX_IMAGE
 
 # fetch nuclio functions templates during build time to ease installation on offline environments
@@ -94,6 +93,7 @@ RUN apk --update --no-cache add \
         parallel \
         ca-certificates \
         git \
+        apache2-utils \
     && apk upgrade --no-cache \
     && wget -O /tmp/templates.zip $NUCLIO_TEMPLATES_ZIP_GITHUB_URL
 

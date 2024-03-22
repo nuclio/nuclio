@@ -784,6 +784,18 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
 	}
 
+	// if basicAuth configured, create a secret for nginx and
+	// clean up BasicAuth, so we don't keep sensitive data in CRD
+	if createAPIGatewayOptions.APIGatewayConfig.Spec.AuthenticationMode == ingress.AuthenticationModeBasicAuth &&
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication != nil &&
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication.BasicAuth != nil &&
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication.BasicAuth.Username != "" &&
+		createAPIGatewayOptions.APIGatewayConfig.Spec.Authentication.BasicAuth.Password != "" {
+		if err := p.createAPIGatewaySecretAndCleanUpSensitiveData(ctx, createAPIGatewayOptions); err != nil {
+			return nuclio.WrapErrInternalServerError(err)
+		}
+	}
+
 	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
 
 	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
@@ -797,6 +809,40 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	}
 
 	return nil
+}
+
+// createAPIGatewayAuthSecret creates a secret with API Gateway auth data
+func (p *Platform) createAPIGatewayAuthSecret(ctx context.Context, authSecret *v1.Secret) (*v1.Secret, error) {
+	var appliedBasicAuthSecret *v1.Secret
+	var err error
+
+	if appliedBasicAuthSecret, err = p.consumer.KubeClientSet.
+		CoreV1().
+		Secrets(authSecret.Namespace).
+		Create(ctx, authSecret, metav1.CreateOptions{}); err != nil {
+
+		if !apierrors.IsAlreadyExists(err) {
+			return nil, errors.Wrap(err, "Failed to create secret")
+		}
+
+		// if the secret already exists - update it
+		p.Logger.InfoWithCtx(ctx, "Secret already exists. Updating it",
+			"secretName", authSecret.Name)
+		if appliedBasicAuthSecret, err = p.consumer.KubeClientSet.
+			CoreV1().
+			Secrets(authSecret.Namespace).
+			Update(ctx, authSecret, metav1.UpdateOptions{}); err != nil {
+
+			return nil, errors.Wrap(err, "Failed to update secret")
+		}
+		p.Logger.InfoWithCtx(ctx, "Successfully updated secret", "secretName", authSecret.Name)
+
+	} else {
+		p.Logger.InfoWithCtx(ctx, "Successfully created basic-auth secret",
+			"secretName", authSecret.Name)
+		return appliedBasicAuthSecret, nil
+	}
+	return appliedBasicAuthSecret, nil
 }
 
 // UpdateAPIGateway will update a previously existing api gateway
@@ -2110,4 +2156,44 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 
 func (p *Platform) getProjectCacheKey(projectMeta platform.ProjectMeta, owner string) string {
 	return fmt.Sprintf("%s/%s", projectMeta.Name, owner)
+}
+
+func (p *Platform) createAPIGatewaySecretAndCleanUpSensitiveData(ctx context.Context, apiGatewayConfigCreateOptions *platform.CreateAPIGatewayOptions) error {
+	canaryDeployment := len(apiGatewayConfigCreateOptions.APIGatewayConfig.Spec.Upstreams) == 2
+	ingressName := IngressNameFromAPIGatewayName(apiGatewayConfigCreateOptions.APIGatewayConfig.Meta.Name, canaryDeployment)
+	authSecretName := fmt.Sprintf("%s-basic-auth", ingressName)
+	htpasswdContents, err := common.GenerateHtpasswdContents(
+		apiGatewayConfigCreateOptions.APIGatewayConfig.Spec.Authentication.BasicAuth.Username,
+		apiGatewayConfigCreateOptions.APIGatewayConfig.Spec.Authentication.BasicAuth.Password,
+	)
+	if err != nil {
+		return err
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      authSecretName,
+			Namespace: apiGatewayConfigCreateOptions.APIGatewayConfig.Meta.Namespace,
+			Labels:    map[string]string{},
+		},
+		Type: v1.SecretType("Opaque"),
+		Data: map[string][]byte{
+			"auth": htpasswdContents,
+		},
+	}
+
+	// enrich labels
+	secret.Labels[common.NuclioLabelKeyClass] = "apigateway"
+	secret.Labels[common.NuclioLabelKeyApp] = "ingress-manager"
+	secret.Labels[common.NuclioResourceLabelKeyApiGatewayName] = apiGatewayConfigCreateOptions.APIGatewayConfig.Meta.Name
+	secret.Labels[common.NuclioResourceLabelKeyProjectName] = apiGatewayConfigCreateOptions.APIGatewayConfig.GetProjectName()
+
+	p.Logger.InfoWith("Creating/Updating ingress's basic-auth secret",
+		"ingressName", ingressName,
+		"secretName", authSecretName)
+
+	if _, err := p.createAPIGatewayAuthSecret(ctx, secret); err != nil {
+		return err
+	}
+	apiGatewayConfigCreateOptions.APIGatewayConfig.Spec.Authentication.BasicAuth = nil
+	return nil
 }

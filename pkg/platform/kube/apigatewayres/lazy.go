@@ -124,7 +124,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 	// must be done synchronously, first primary and then canary
 	// otherwise, when there is only canary ingress, the endpoint will not work (nginx behavior)
 	for _, ingressResources := range ingressesToCreate {
-		if _, _, err := lc.ingressManager.CreateOrUpdateResources(ctx, ingressResources); err != nil {
+		if _, err = lc.ingressManager.CreateOrUpdateResources(ctx, ingressResources); err != nil {
 			lc.logger.WarnWithCtx(ctx, "Failed to create/update api gateway ingress resources",
 				"err", errors.Cause(err),
 				"ingressName", ingressResources.Ingress.Name)
@@ -261,15 +261,10 @@ func (lc *lazyClient) generateNginxIngress(ctx context.Context,
 	case ingress.AuthenticationModeNone:
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeNone
 	case ingress.AuthenticationModeBasicAuth:
-		if apiGateway.Spec.Authentication == nil || apiGateway.Spec.Authentication.BasicAuth == nil {
-			return nil, errors.New("Basic auth specified but missing basic auth spec")
-		}
 		commonIngressSpec.AuthenticationMode = ingress.AuthenticationModeBasicAuth
 		commonIngressSpec.Authentication = &ingress.Authentication{
 			BasicAuth: &ingress.BasicAuth{
-				Name:     kube.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
-				Username: apiGateway.Spec.Authentication.BasicAuth.Username,
-				Password: apiGateway.Spec.Authentication.BasicAuth.Password,
+				Name: kube.BasicAuthNameFromAPIGatewayName(apiGateway.Name),
 			},
 		}
 	case ingress.AuthenticationModeOauth2:

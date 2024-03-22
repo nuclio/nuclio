@@ -50,9 +50,7 @@ type Authentication struct {
 }
 
 type BasicAuth struct {
-	Name     string `json:"name"`
-	Username string `json:"username"`
-	Password string `json:"password,omitempty"`
+	Name string `json:"name"`
 }
 
 type DexAuth struct {

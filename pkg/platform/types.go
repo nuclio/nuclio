@@ -424,6 +424,10 @@ func (agc *APIGatewayConfig) PrepareAPIGatewayForExport(noScrub bool) {
 	}
 }
 
+func (agc *APIGatewayConfig) GetProjectName() string {
+	return agc.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+}
+
 func (agc *APIGatewayConfig) scrubAPIGatewayData() {
 
 	// scrub namespace from api-gateway meta
