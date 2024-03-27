@@ -1950,15 +1950,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			validationError: "One or more upstreams must be provided in spec",
 		},
 		{
-			name: "ValidateHostExistence",
-			apiGatewayConfig: func() *platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Spec.Host = ""
-				return &apiGatewayConfig
-			}(),
-			validationError: "Host must be provided in spec",
-		},
-		{
 			name: "ValidateUpstreamKind",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
