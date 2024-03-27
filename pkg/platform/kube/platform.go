@@ -1658,6 +1658,18 @@ func (p *Platform) enrichAPIGatewayConfig(ctx context.Context,
 		apiGatewayConfig.Meta.Labels = map[string]string{}
 	}
 
+	if apiGatewayConfig.Spec.Host == "" {
+		templateData := map[string]interface{}{
+			"Name":         apiGatewayConfig.Meta.Name,
+			"ResourceName": apiGatewayConfig.Meta.Name,
+			"Namespace":    apiGatewayConfig.Meta.Namespace,
+			"ProjectName":  apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+		}
+		if apiGatewayHost, err := p.renderIngressHost(ctx, common.DefaultIngressHostTemplate, templateData, 8); err == nil {
+			apiGatewayConfig.Spec.Host = apiGatewayHost
+		}
+	}
+
 	// enrich project name if not exists or value is empty
 	if existingApiGatewayConfig != nil {
 		if value, exist := apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]; value == "" || !exist {
@@ -2000,27 +2012,15 @@ func (p *Platform) enrichHTTPTriggerIngresses(ctx context.Context,
 
 		if ingressHostTemplate, hostTemplateFound := encodedIngressMap["hostTemplate"].(string); hostTemplateFound {
 
-			// one way to say "just render me the default"
-			if ingressHostTemplate == "@nuclio.fromDefault" {
-				ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
-			} else {
-				p.Logger.DebugWithCtx(ctx, "Received custom ingress host template to enrich host with",
-					"ingressHostTemplate", ingressHostTemplate,
-					"functionName", functionConfig.Meta.Name)
-			}
-
-			// render host with pre-defined data
-			renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateData)
-			if err != nil {
-				return errors.Wrap(err, "Failed to render ingress host template")
-			}
-
 			// try infer from attributes, if not use default 8
 			hostTemplateRandomCharsLength := 8
 			if hostTemplateRandomCharsLengthValue, ok := encodedIngressMap["hostTemplateRandomCharsLength"].(int); ok {
 				hostTemplateRandomCharsLength = hostTemplateRandomCharsLengthValue
 			}
-			renderedIngressHost = p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength)
+			renderedIngressHost, err := p.renderIngressHost(ctx, ingressHostTemplate, templateData, hostTemplateRandomCharsLength)
+			if err != nil {
+				return errors.Wrap(err, "Failed to render ingress host template")
+			}
 			if ingressHost, ingressHostFound := encodedIngressMap["host"].(string); !ingressHostFound || ingressHost == "" {
 				p.Logger.DebugWithCtx(ctx, "Enriching function ingress host from template",
 					"renderedIngressHost", renderedIngressHost,
@@ -2034,6 +2034,24 @@ func (p *Platform) enrichHTTPTriggerIngresses(ctx context.Context,
 		}
 	}
 	return nil
+}
+
+func (p *Platform) renderIngressHost(ctx context.Context, ingressHostTemplate string, templateData map[string]interface{}, hostTemplateRandomCharsLength int) (string, error) {
+	// one way to say "just render me the default"
+	if ingressHostTemplate == common.DefaultIngressHostTemplate {
+		ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
+	} else {
+		p.Logger.DebugWithCtx(ctx, "Received custom ingress host template to enrich host with",
+			"ingressHostTemplate", ingressHostTemplate)
+	}
+
+	// render host with pre-defined data
+	renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateData)
+	if err != nil {
+		return "", err
+	}
+
+	return p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength), nil
 }
 
 // will take a host, split to "."
