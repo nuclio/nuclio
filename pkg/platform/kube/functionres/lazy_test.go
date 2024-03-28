@@ -342,7 +342,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	defaultHTTPTrigger.Attributes = map[string]interface{}{
 		"ingresses": map[string]interface{}{
 			"0": map[string]interface{}{
-				"hostTemplate": "@nuclio.fromDefault",
+				"hostTemplate": common.DefaultIngressHostTemplate,
 				"paths":        []string{"/"},
 			},
 		},
