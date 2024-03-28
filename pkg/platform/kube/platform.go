@@ -2041,7 +2041,8 @@ func (p *Platform) renderIngressHost(ctx context.Context, ingressHostTemplate st
 	if ingressHostTemplate == common.DefaultIngressHostTemplate {
 		ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
 	} else {
-		p.Logger.DebugWithCtx(ctx, "Received custom ingress host template to enrich host with",
+		p.Logger.DebugWithCtx(ctx,
+			"Received custom ingress host template to enrich host with",
 			"ingressHostTemplate", ingressHostTemplate)
 	}
 
