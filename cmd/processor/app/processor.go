@@ -210,8 +210,6 @@ func (p *Processor) Start() error {
 	// handles system signals (for now only SIGTERM)
 	go p.handleSignals()
 
-	p.logger.DebugWith("Starting triggers", "triggers", p.triggers)
-
 	// iterate over all triggers and start them
 	for _, triggerInstance := range p.triggers {
 		if err := triggerInstance.Start(nil); err != nil {
@@ -219,6 +217,10 @@ func (p *Processor) Start() error {
 				"kind", triggerInstance.GetKind(),
 				"err", err.Error())
 			return errors.Wrap(err, "Failed to start trigger")
+		} else {
+			p.logger.DebugWith("Trigger successfully started",
+				"kind", triggerInstance.GetKind(),
+				"name", triggerInstance.GetName())
 		}
 	}
 
