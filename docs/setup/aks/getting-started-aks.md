@@ -136,7 +136,7 @@ Each container registry includes an admin user account, which is disabled by def
 
 At this stage you should have a functioning Kubernetes cluster, a Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio).
 
-Follow the instructions of [How to run nuclio in Production](/docs/setup/k8s/running-in-production-k8s.md#the-preferred-deployment-method).
+Follow the instructions of [How to run nuclio in Production](../k8s/running-in-production-k8s.md).
 
 > NOTE:
 > Replace the `--docker-server <URL>` with `--docker-server <registry-name>.azurecr.io`
