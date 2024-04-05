@@ -103,7 +103,8 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 	}
 
 	// scrub the function config
-	scrubbedFunctionConfig, secretMap, err := suite.scrubber.Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
+	scrubbedInterface, secretMap, err := suite.scrubber.Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
+	scrubbedFunctionConfig := GetFunctionConfigFromInterface(scrubbedInterface)
 	suite.Require().NoError(err)
 
 	suite.logger.DebugWith("Scrubbed function config", "functionConfig", scrubbedFunctionConfig, "secretMap", secretMap)
@@ -163,9 +164,10 @@ func (suite *ScrubberTestSuite) TestScrubWithExistingSecrets() {
 	}
 
 	// scrub the function config
-	scrubbedFunctionConfig, secretMap, err := suite.scrubber.Scrub(functionConfig,
+	scrubbedInterface, secretMap, err := suite.scrubber.Scrub(functionConfig,
 		existingSecrets,
 		suite.getSensitiveFieldsPathsRegex())
+	scrubbedFunctionConfig := scrubbedInterface.(*Config)
 	suite.Require().NoError(err)
 	suite.logger.DebugWith("Scrubbed function config", "scrubbedFunctionConfig", scrubbedFunctionConfig, "secretMap", secretMap)
 
@@ -192,10 +194,10 @@ func (suite *ScrubberTestSuite) TestScrubWithExistingSecrets() {
 
 func (suite *ScrubberTestSuite) TestEncodeAndDecodeSecretKeys() {
 	fieldPath := "Spec/Build/CodeEntryAttributes/password"
-	encodedFieldPath := suite.scrubber.encodeSecretKey(fieldPath)
+	encodedFieldPath := suite.scrubber.EncodeSecretKey(fieldPath)
 	suite.logger.DebugWith("Encoded field path", "fieldPath", fieldPath, "encodedFieldPath", encodedFieldPath)
 
-	decodedFieldPath, err := suite.scrubber.decodeSecretKey(encodedFieldPath)
+	decodedFieldPath, err := suite.scrubber.DecodeSecretKey(encodedFieldPath)
 	suite.Require().NoError(err)
 	suite.Require().Equal(fieldPath, decodedFieldPath)
 }
@@ -218,7 +220,7 @@ func (suite *ScrubberTestSuite) TestEncodeSecretsMap() {
 		if encodedKey == SecretContentKey {
 			continue
 		}
-		decodedKey, err := suite.scrubber.decodeSecretKey(encodedKey)
+		decodedKey, err := suite.scrubber.DecodeSecretKey(encodedKey)
 		suite.Require().NoError(err)
 		suite.Require().Equal(secretMap[decodedKey], value)
 	}
@@ -432,7 +434,8 @@ func (suite *ScrubberTestSuite) TestRestoreConfigWithResources() {
 	secretMap := map[string]string{}
 
 	// restore the config
-	restoredFunctionConfig, err := suite.scrubber.Restore(config, secretMap)
+	scrubbedInterface, err := suite.scrubber.Restore(config, secretMap)
+	restoredFunctionConfig := GetFunctionConfigFromInterface(scrubbedInterface)
 	suite.Require().NoError(err)
 
 	// check that the restored config has the same resources

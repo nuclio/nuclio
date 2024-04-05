@@ -218,7 +218,7 @@ func (d *Deployer) ScrubFunctionConfig(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create or update function secret")
 	}
 
-	return scrubbedFunctionConfig, nil
+	return functionconfig.GetFunctionConfigFromInterface(scrubbedFunctionConfig), nil
 }
 
 func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
