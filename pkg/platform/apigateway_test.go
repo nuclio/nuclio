@@ -20,12 +20,14 @@ package platform
 
 import (
 	"context"
-	"github.com/nuclio/logger"
+	"testing"
+
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
+
+	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 type ScrubberTestSuite struct {
