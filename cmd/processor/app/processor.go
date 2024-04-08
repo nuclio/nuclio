@@ -210,6 +210,8 @@ func (p *Processor) Start() error {
 	// handles system signals (for now only SIGTERM)
 	go p.handleSignals()
 
+	p.logger.Debug("Starting triggers")
+
 	// iterate over all triggers and start them
 	for _, triggerInstance := range p.triggers {
 		if err := triggerInstance.Start(nil); err != nil {
