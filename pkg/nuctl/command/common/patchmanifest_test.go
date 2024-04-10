@@ -100,7 +100,7 @@ func (suite *PatchManifestTestSuite) TestPatchManifestSaveToFile() {
 	manifest.AddSuccess("success1")
 	manifest.AddSuccess("success2")
 
-	manifest.AddFailure("failed1", errors.New("error1"), false)
+	manifest.AddFailure("failed1", errors.Wrap(errors.New("error1"), "Failed to patch function"), false)
 	manifest.AddFailure("failed2", errors.New("error2"), true)
 
 	tempFile, err := os.CreateTemp(suite.tempDir, "test_save_file")
