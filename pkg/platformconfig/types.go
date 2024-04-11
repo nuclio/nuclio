@@ -170,17 +170,18 @@ type PlatformKubeConfig struct {
 	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
 
 	// TODO: Move IngressConfig here
-	DefaultServiceType               corev1.ServiceType      `json:"defaultServiceType,omitempty"`
-	DefaultFunctionNodeSelector      map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
-	DefaultHTTPIngressHostTemplate   string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
-	DefaultHTTPIngressAnnotations    map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
-	DefaultFunctionPriorityClassName string                  `json:"defaultFunctionPriorityClassName,omitempty"`
-	DefaultFunctionServiceAccount    string                  `json:"defaultFunctionServiceAccount,omitempty"`
-	ValidFunctionPriorityClassNames  []string                `json:"validFunctionPriorityClassNames,omitempty"`
-	DefaultFunctionPodResources      PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
-	DefaultSidecarResources          PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
-	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
-	PreemptibleNodes                 *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
+	DefaultServiceType                   corev1.ServiceType      `json:"defaultServiceType,omitempty"`
+	DefaultFunctionNodeSelector          map[string]string       `json:"defaultFunctionNodeSelector,omitempty"`
+	DefaultHTTPIngressHostTemplate       string                  `json:"defaultHTTPIngressHostTemplate,omitempty"`
+	DefaultHTTPIngressAnnotations        map[string]string       `json:"defaultHTTPIngressAnnotations,omitempty"`
+	DefaultFunctionPriorityClassName     string                  `json:"defaultFunctionPriorityClassName,omitempty"`
+	DefaultFunctionServiceAccount        string                  `json:"defaultFunctionServiceAccount,omitempty"`
+	ValidFunctionPriorityClassNames      []string                `json:"validFunctionPriorityClassNames,omitempty"`
+	DefaultFunctionPodResources          PodResourceRequirements `json:"defaultFunctionPodResources,omitempty"`
+	DefaultSidecarResources              PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
+	DefaultFunctionTolerations           []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
+	PreemptibleNodes                     *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
+	MergePlatformAndProjectNodeSelectors bool                    `json:"mergePlatformAndProjectNodeSelectors"`
 }
 
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)

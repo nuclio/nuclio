@@ -1768,11 +1768,13 @@ func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfi
 		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
 	functionConfig.Spec.NodeSelector = labels.Merge(functionProject.GetConfig().Spec.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
 
-	p.Logger.DebugWithCtx(ctx,
-		"Enriching function node selector from platform config",
-		"functionName", functionConfig.Meta.Name,
-		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-	functionConfig.Spec.NodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
+	if p.Config.Kube.MergePlatformAndProjectNodeSelectors {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function node selector from platform config",
+			"functionName", functionConfig.Meta.Name,
+			"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+		functionConfig.Spec.NodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
+	}
 	return nil
 }
 

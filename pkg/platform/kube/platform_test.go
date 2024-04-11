@@ -340,6 +340,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 		platformNodeSelector         map[string]string
 		projectNodeSelector          map[string]string
 		expectedFunctionNodeSelector map[string]string
+		mergeProjectAndPlatform      bool
 	}{
 		{
 			name:                         "all-selectors-empty",
@@ -349,6 +350,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 			name:                         "get-selector-from-platform",
 			platformNodeSelector:         map[string]string{"test": "test"},
 			expectedFunctionNodeSelector: map[string]string{"test": "test"},
+			mergeProjectAndPlatform:      true,
 		},
 		{
 			name: "get-selector-from-project",
@@ -365,6 +367,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 				"test1": "from-project1",
 				"test2": "from-platform2",
 			},
+			mergeProjectAndPlatform: true,
 		},
 		{
 			name: "get-selector-from-project",
@@ -382,6 +385,23 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 				"test1": "from-project1",
 				"test2": "from-platform2",
 			},
+			mergeProjectAndPlatform: true,
+		},
+		{
+			name: "get-selector-from-project",
+			platformNodeSelector: map[string]string{
+				"test":  "from-platform",
+				"test2": "from-platform2",
+			},
+			projectNodeSelector: map[string]string{
+				"test":  "from-project",
+				"test1": "from-project1",
+			},
+			functionNodeSelector: map[string]string{"test": "from-function"},
+			expectedFunctionNodeSelector: map[string]string{
+				"test":  "from-function",
+				"test1": "from-project1",
+			},
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -396,6 +416,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 					&platform.AbstractProject{ProjectConfig: platform.ProjectConfig{Spec: platform.ProjectSpec{DefaultFunctionNodeSelector: testCase.projectNodeSelector}}},
 				}, nil).
 				Once()
+			suite.platform.Config.Kube.MergePlatformAndProjectNodeSelectors = testCase.mergeProjectAndPlatform
 			functionConfig := *functionconfig.NewConfig()
 			functionConfig.Spec.NodeSelector = testCase.functionNodeSelector
 
