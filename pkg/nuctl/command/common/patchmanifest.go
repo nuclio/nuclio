@@ -84,7 +84,7 @@ func (m *PatchManifest) AddFailure(name string, err error, retryable bool) {
 	defer m.lock.Unlock()
 
 	m.Failed[name] = failDescription{
-		Err:       err.Error(),
+		Err:       errors.Cause(err).Error(),
 		Retryable: retryable,
 	}
 }
