@@ -66,7 +66,7 @@ func NewAbstractScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kuberne
 	}
 }
 
-// Scrub scrubs sensitive data from a function config
+// Scrub scrubs sensitive data from an object
 func (s *AbstractScrubber) Scrub(objectToScrub interface{},
 	existingSecretMap map[string]string,
 	sensitiveFields []*regexp.Regexp) (interface{}, map[string]string, error) {
@@ -74,13 +74,13 @@ func (s *AbstractScrubber) Scrub(objectToScrub interface{},
 	var scrubErr error
 
 	// hack to support avoid losing unexported fields while scrubbing.
-	// scrub the function config to map[string]interface{} and revert it back to a function config later
+	// scrub the object to map[string]interface{} and revert it back to an object later
 	functionConfigAsMap := StructureToMap(objectToScrub)
 	if len(functionConfigAsMap) == 0 {
-		return nil, nil, errors.New("Failed to convert function config to map")
+		return nil, nil, errors.New("Failed to convert object to map")
 	}
 
-	// scrub the function config
+	// scrub the object
 	scrubbedFunctionConfigAsMap, secretsMap := gosecretive.Scrub(functionConfigAsMap, func(fieldPath string, valueToScrub interface{}) *string {
 
 		for _, fieldPathRegexToScrub := range sensitiveFields {
@@ -123,44 +123,44 @@ func (s *AbstractScrubber) Scrub(objectToScrub interface{},
 
 	scrubbedFunctionConfig, err := s.ConvertMapToConfig(scrubbedFunctionConfigAsMap)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to convert scrubbed function config map to function config")
+		return nil, nil, errors.Wrap(err, "Failed to convert scrubbed object map to object entity")
 	}
 
 	return scrubbedFunctionConfig, secretsMap, scrubErr
 }
 
-// Restore restores sensitive data in a function config from a secrets map
+// Restore restores sensitive data in an object from a secrets map
 func (s *AbstractScrubber) Restore(scrubbedFunctionConfig interface{}, secretsMap map[string]string) (interface{}, error) {
 
-	// hack to avoid changing complex objects in the function config.
-	// convert the function config to map[string]interface{} and revert it back to a function config later
+	// hack to avoid changing complex objects in the object.
+	// convert the object to map[string]interface{} and revert it back to an object entity later
 	scrubbedFunctionConfigAsMap := StructureToMap(scrubbedFunctionConfig)
 	if len(scrubbedFunctionConfigAsMap) == 0 {
-		return nil, errors.New("Failed to convert function config to map")
+		return nil, errors.New("Failed to convert object to map")
 	}
 
 	restoredFunctionConfigMap := gosecretive.Restore(scrubbedFunctionConfigAsMap, secretsMap)
 
 	restoredFunctionConfig, err := s.ConvertMapToConfig(restoredFunctionConfigMap)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to convert restored function config map to function config")
+		return nil, errors.Wrap(err, "Failed to convert restored object map to an object entity")
 	}
 
 	return restoredFunctionConfig, nil
 }
 
-// HasScrubbedConfig checks if a function config has scrubbed data, using the Scrub function
+// HasScrubbedConfig checks if a object has scrubbed data, using the Scrub function
 func (s *AbstractScrubber) HasScrubbedConfig(object interface{}, sensitiveFields []*regexp.Regexp) (bool, error) {
 	var hasScrubbed bool
 
 	// hack to support avoid losing unexported fields while scrubbing.
-	// scrub the function config to map[string]interface{} and revert it back to a function config later
+	// scrub the object to map[string]interface{} and revert it back to an object entity later
 	functionConfigAsMap := StructureToMap(object)
 	if len(functionConfigAsMap) == 0 {
-		return false, errors.New("Failed to convert function config to map")
+		return false, errors.New("Failed to convert object to map")
 	}
 
-	// scrub the function config
+	// scrub the object
 	_, _ = gosecretive.Scrub(functionConfigAsMap, func(fieldPath string, valueToScrub interface{}) *string {
 
 		for _, fieldPathRegexToScrub := range sensitiveFields {
@@ -324,10 +324,6 @@ func (s *AbstractScrubber) DecodeSecretKey(secretKey string) (string, error) {
 	return string(decodedFieldPath), nil
 }
 
-func (s *AbstractScrubber) generateSecretKey(fieldPath string) string {
-	return fmt.Sprintf("%s%s", ReferencePrefix, strings.ToLower(fieldPath))
-}
-
 func (s *AbstractScrubber) ConvertMapToConfig(mapConfig interface{}) (interface{}, error) {
 	return s.Scrubber.ConvertMapToConfig(mapConfig)
 }
@@ -338,4 +334,8 @@ func (s *AbstractScrubber) ValidateReference(objectToScrub interface{},
 	secretKey,
 	stringValue string) error {
 	return s.Scrubber.ValidateReference(objectToScrub, existingSecretMap, fieldPath, secretKey, stringValue)
+}
+
+func (s *AbstractScrubber) generateSecretKey(fieldPath string) string {
+	return fmt.Sprintf("%s%s", ReferencePrefix, strings.ToLower(fieldPath))
 }
