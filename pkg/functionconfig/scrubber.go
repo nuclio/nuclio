@@ -152,7 +152,7 @@ func (s *Scrubber) ConvertMapToConfig(mapConfig interface{}) (interface{}, error
 func (s *Scrubber) GenerateFlexVolumeSecretName(functionName, volumeName string) string {
 	secretName := fmt.Sprintf("%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, functionName, volumeName)
 
-	// if the secret name is too long, drop the function and project name
+	// if the secret name is too long, drop the function name
 	if len(secretName) > common.KubernetesDomainLevelMaxLength {
 		secretName = fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, volumeName)
 

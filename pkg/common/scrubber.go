@@ -31,13 +31,9 @@ import (
 )
 
 const (
-	ReferencePrefix                  = "$ref:"
-	ReferenceToEnvVarPrefix          = "NUCLIO_B64_"
-	NuclioFlexVolumeSecretNamePrefix = "nuclio-flexvolume"
-	SecretTypeFunctionConfig         = "nuclio.io/functionconfig"
-	SecretTypeV3ioFuse               = "v3io/fuse"
-	SecretContentKey                 = "content"
-	FunctionSecretMountPath          = "/etc/nuclio/secrets"
+	ReferencePrefix         = "$ref:"
+	ReferenceToEnvVarPrefix = "NUCLIO_B64_"
+	SecretContentKey        = "content"
 )
 
 type Scrubber interface {
@@ -45,7 +41,7 @@ type Scrubber interface {
 	Scrub(objectToScrub interface{}, existingSecretMap map[string]string, sensitiveFields []*regexp.Regexp) (interface{}, map[string]string, error)
 
 	// Restore restores sensitive data in an object from a secrets map
-	Restore(scrubbedFunctionConfig interface{}, secretsMap map[string]string) (interface{}, error)
+	Restore(scrubbedObject interface{}, secretsMap map[string]string) (interface{}, error)
 
 	// ValidateReference validates references in a scrubbed object
 	ValidateReference(objectToScrub interface{},
@@ -84,13 +80,13 @@ func (s *AbstractScrubber) Scrub(objectToScrub interface{},
 
 	// hack to support avoid losing unexported fields while scrubbing.
 	// scrub the object to map[string]interface{} and revert it back to an object later
-	functionConfigAsMap := StructureToMap(objectToScrub)
-	if len(functionConfigAsMap) == 0 {
+	objectAsMap := StructureToMap(objectToScrub)
+	if len(objectAsMap) == 0 {
 		return nil, nil, errors.New("Failed to convert object to map")
 	}
 
 	// scrub the object
-	scrubbedFunctionConfigAsMap, secretsMap := gosecretive.Scrub(functionConfigAsMap, func(fieldPath string, valueToScrub interface{}) *string {
+	scrubbedObjectAsMap, secretsMap := gosecretive.Scrub(objectAsMap, func(fieldPath string, valueToScrub interface{}) *string {
 
 		for _, fieldPathRegexToScrub := range sensitiveFields {
 
@@ -130,32 +126,32 @@ func (s *AbstractScrubber) Scrub(objectToScrub interface{},
 		secretsMap = labels.Merge(existingSecretMap, secretsMap)
 	}
 
-	scrubbedFunctionConfig, err := s.ConvertMapToConfig(scrubbedFunctionConfigAsMap)
+	scrubbedObjectConfig, err := s.ConvertMapToConfig(scrubbedObjectAsMap)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to convert scrubbed object map to object entity")
 	}
 
-	return scrubbedFunctionConfig, secretsMap, scrubErr
+	return scrubbedObjectConfig, secretsMap, scrubErr
 }
 
 // Restore restores sensitive data in an object from a secrets map
-func (s *AbstractScrubber) Restore(scrubbedFunctionConfig interface{}, secretsMap map[string]string) (interface{}, error) {
+func (s *AbstractScrubber) Restore(scrubbedObject interface{}, secretsMap map[string]string) (interface{}, error) {
 
 	// hack to avoid changing complex objects in the object.
 	// convert the object to map[string]interface{} and revert it back to an object entity later
-	scrubbedFunctionConfigAsMap := StructureToMap(scrubbedFunctionConfig)
-	if len(scrubbedFunctionConfigAsMap) == 0 {
+	scrubbedObjectAsMap := StructureToMap(scrubbedObject)
+	if len(scrubbedObjectAsMap) == 0 {
 		return nil, errors.New("Failed to convert object to map")
 	}
 
-	restoredFunctionConfigMap := gosecretive.Restore(scrubbedFunctionConfigAsMap, secretsMap)
+	restoredObjectMap := gosecretive.Restore(scrubbedObjectAsMap, secretsMap)
 
-	restoredFunctionConfig, err := s.ConvertMapToConfig(restoredFunctionConfigMap)
+	restoredObject, err := s.ConvertMapToConfig(restoredObjectMap)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to convert restored object map to an object entity")
 	}
 
-	return restoredFunctionConfig, nil
+	return restoredObject, nil
 }
 
 // HasScrubbedConfig checks if a object has scrubbed data, using the Scrub function
@@ -164,13 +160,13 @@ func (s *AbstractScrubber) HasScrubbedConfig(object interface{}, sensitiveFields
 
 	// hack to support avoid losing unexported fields while scrubbing.
 	// scrub the object to map[string]interface{} and revert it back to an object entity later
-	functionConfigAsMap := StructureToMap(object)
-	if len(functionConfigAsMap) == 0 {
+	objectAsMap := StructureToMap(object)
+	if len(objectAsMap) == 0 {
 		return false, errors.New("Failed to convert object to map")
 	}
 
 	// scrub the object
-	_, _ = gosecretive.Scrub(functionConfigAsMap, func(fieldPath string, valueToScrub interface{}) *string {
+	_, _ = gosecretive.Scrub(objectAsMap, func(fieldPath string, valueToScrub interface{}) *string {
 
 		for _, fieldPathRegexToScrub := range sensitiveFields {
 
