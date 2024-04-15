@@ -181,7 +181,7 @@ type PlatformKubeConfig struct {
 	DefaultSidecarResources              PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
 	DefaultFunctionTolerations           []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
 	PreemptibleNodes                     *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
-	MergePlatformAndProjectNodeSelectors bool                    `json:"mergePlatformAndProjectNodeSelectors"`
+	IgnorePlatformIfProjectNodeSelectors bool                    `json:"ignorePlatformIfProjectNodeSelectors,omitempty"`
 }
 
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)
