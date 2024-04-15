@@ -1245,6 +1245,10 @@ func (lc *lazyClient) populateSupplementaryContainers(ctx context.Context,
 		}
 	}
 
+	// remove the sidecar containers from the container list if any, and keep the first container
+	// we will add the sidecars later
+	deploymentSpec.Template.Spec.Containers = deploymentSpec.Template.Spec.Containers[:1]
+
 	// create sidecars if provided
 	for _, sidecarSpec := range function.Spec.Sidecars {
 		lc.logger.DebugWithCtx(ctx,
@@ -1255,14 +1259,6 @@ func (lc *lazyClient) populateSupplementaryContainers(ctx context.Context,
 			lc.logger,
 			&sidecarSpec.Resources)
 		sidecarSpec.VolumeMounts = volumeMounts
-
-		// remove the sidecar if it already exists, so we can add it to the end of the list with the updated spec
-		for i, container := range deploymentSpec.Template.Spec.Containers {
-			if container.Name == sidecarSpec.Name {
-				deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers[:i], deploymentSpec.Template.Spec.Containers[i+1:]...)
-				break
-			}
-		}
 
 		deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, *sidecarSpec)
 	}
