@@ -1121,34 +1121,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			}
 		}
 
-		// create init containers if provided
-		if len(function.Spec.InitContainers) > 0 {
-			deploymentSpec.Template.Spec.InitContainers = make([]v1.Container, 0, len(function.Spec.InitContainers))
-			for _, initContainer := range function.Spec.InitContainers {
-				lc.logger.DebugWithCtx(ctx,
-					"Creating init container",
-					"functionName", function.Name,
-					"initContainer", initContainer.Name)
-				lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
-					lc.logger,
-					&initContainer.Resources)
-				initContainer.VolumeMounts = volumeMounts
-				deploymentSpec.Template.Spec.InitContainers = append(deploymentSpec.Template.Spec.InitContainers, *initContainer)
-			}
-		}
-
-		// create sidecars if provided
-		for _, sidecarSpec := range function.Spec.Sidecars {
-			lc.logger.DebugWithCtx(ctx,
-				"Creating sidecar container",
-				"functionName", function.Name,
-				"sidecarName", sidecarSpec.Name)
-			lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
-				lc.logger,
-				&sidecarSpec.Resources)
-			sidecarSpec.VolumeMounts = volumeMounts
-			deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, *sidecarSpec)
-		}
+		lc.populateSupplementaryContainers(ctx, function, &deploymentSpec, volumeMounts)
 
 		deployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1225,6 +1198,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 			}
 		}
 
+		lc.populateSupplementaryContainers(ctx, function, &deployment.Spec, volumeMounts)
+
 		// enrich deployment spec with default fields that were passed inside the platform configuration
 		// performed on update too, in case the platform config has been modified after the creation of this deployment
 		if err := lc.enrichDeploymentFromPlatformConfiguration(function, deployment, method); err != nil {
@@ -1246,6 +1221,51 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	}
 
 	return resource.(*appsv1.Deployment), err
+}
+
+func (lc *lazyClient) populateSupplementaryContainers(ctx context.Context,
+	function *nuclioio.NuclioFunction,
+	deploymentSpec *appsv1.DeploymentSpec,
+	volumeMounts []v1.VolumeMount) {
+
+	// create init containers if provided
+	if len(function.Spec.InitContainers) > 0 {
+		deploymentSpec.Template.Spec.InitContainers = make([]v1.Container, 0, len(function.Spec.InitContainers))
+		for _, initContainer := range function.Spec.InitContainers {
+			lc.logger.DebugWithCtx(ctx,
+				"Creating init container",
+				"functionName", function.Name,
+				"initContainer", initContainer.Name)
+			lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
+				lc.logger,
+				&initContainer.Resources)
+			initContainer.VolumeMounts = volumeMounts
+
+			deploymentSpec.Template.Spec.InitContainers = append(deploymentSpec.Template.Spec.InitContainers, *initContainer)
+		}
+	}
+
+	// create sidecars if provided
+	for _, sidecarSpec := range function.Spec.Sidecars {
+		lc.logger.DebugWithCtx(ctx,
+			"Creating sidecar container",
+			"functionName", function.Name,
+			"sidecarName", sidecarSpec.Name)
+		lc.platformConfigurationProvider.GetPlatformConfiguration().EnrichSupplementaryContainerResources(ctx,
+			lc.logger,
+			&sidecarSpec.Resources)
+		sidecarSpec.VolumeMounts = volumeMounts
+
+		// remove the sidecar if it already exists, so we can add it to the end of the list with the updated spec
+		for i, container := range deploymentSpec.Template.Spec.Containers {
+			if container.Name == sidecarSpec.Name {
+				deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers[:i], deploymentSpec.Template.Spec.Containers[i+1:]...)
+				break
+			}
+		}
+
+		deploymentSpec.Template.Spec.Containers = append(deploymentSpec.Template.Spec.Containers, *sidecarSpec)
+	}
 }
 
 func (lc *lazyClient) resolveDeploymentStrategy(function *nuclioio.NuclioFunction) appsv1.DeploymentStrategyType {

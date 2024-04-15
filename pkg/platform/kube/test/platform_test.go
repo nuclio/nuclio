@@ -1566,6 +1566,86 @@ def handler(context, event):
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestRedeployWithUpdatedSidecarSpec() {
+	functionName := "func-with-sidecar"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	sidecarContainerName := "sidecar-test"
+	commands := []string{
+		"sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 10; done; echo 'Done'",
+	}
+	newCommands := []string{
+		"/bin/sh",
+		"-c",
+		"for i in {1..5}; do echo $i; sleep 5; done; echo 'Done'",
+	}
+
+	busyboxImage := "busybox"
+	alpineImage := "alpine"
+
+	// create a busybox sidecar
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{
+			Name:    sidecarContainerName,
+			Image:   busyboxImage,
+			Command: commands,
+		},
+	}
+
+	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal(busyboxImage, pod.Spec.Containers[1].Image)
+		suite.Require().Equal(commands, pod.Spec.Containers[1].Command)
+
+		// get the logs from the sidecar container to validate it ran
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Done"})
+		})
+		suite.Require().NoError(err)
+
+		// change the sidecar image and command
+		createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+			{
+				Name:    sidecarContainerName,
+				Image:   alpineImage,
+				Command: newCommands,
+			},
+		}
+
+		return true
+	}
+
+	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+
+		// validate the sidecar container has the new image and command
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal(alpineImage, pod.Spec.Containers[1].Image)
+		suite.Require().Equal(newCommands, pod.Spec.Containers[1].Command)
+
+		return true
+	}
+
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
+}
+
 func (suite *DeployFunctionTestSuite) TestDeployFromGitSanity() {
 	functionName := "func-from-git"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
