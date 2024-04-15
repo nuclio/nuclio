@@ -41,13 +41,20 @@ const (
 )
 
 type Scrubber interface {
+	// Scrub scrubs sensitive data from an object
 	Scrub(objectToScrub interface{}, existingSecretMap map[string]string, sensitiveFields []*regexp.Regexp) (interface{}, map[string]string, error)
+
+	// Restore restores sensitive data in an object from a secrets map
 	Restore(scrubbedFunctionConfig interface{}, secretsMap map[string]string) (interface{}, error)
+
+	// ValidateReference validates references in a scrubbed object
 	ValidateReference(objectToScrub interface{},
 		existingSecretMap map[string]string,
 		fieldPath,
 		secretKey,
 		stringValue string) error
+
+	// ConvertMapToConfig converts map back to an object entity
 	ConvertMapToConfig(mapConfig interface{}) (interface{}, error)
 }
 
