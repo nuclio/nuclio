@@ -229,7 +229,7 @@ func (d *Deployer) createOrUpdateFunctionSecret(ctx context.Context,
 	projectName string) error {
 
 	if secretName == "" {
-		secretName = d.scrubber.GenerateFunctionSecretName(name)
+		secretName = d.scrubber.GenerateObjectSecretName(name)
 	}
 
 	secretConfig := &v1.Secret{

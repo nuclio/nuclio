@@ -146,3 +146,28 @@ func (s *Scrubber) ConvertMapToConfig(mapConfig interface{}) (interface{}, error
 
 	return functionConfig, nil
 }
+
+// GenerateFlexVolumeSecretName generates a secret name for a flex volume, in the form of:
+// `nuclio-flex-volume-<volume-name>-<unique-id>`
+func (s *Scrubber) GenerateFlexVolumeSecretName(functionName, volumeName string) string {
+	secretName := fmt.Sprintf("%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, functionName, volumeName)
+
+	// if the secret name is too long, drop the function and project name
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, volumeName)
+
+	}
+
+	// if the secret name is still too long, trim it and keep space for the unique id
+	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength-8]
+	}
+
+	// remove trailing non-alphanumeric characters
+	secretName = strings.TrimRight(secretName, "-_")
+
+	// add a unique id to the end of the name
+	secretName = fmt.Sprintf("%s-%s", secretName, common.GenerateRandomString(8, common.SmallLettersAndNumbers))
+
+	return secretName
+}

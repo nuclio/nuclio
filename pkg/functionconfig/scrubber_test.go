@@ -404,7 +404,7 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 		suite.Run(testCase.name, func() {
 			var secretName string
 			if testCase.volumeName == "" {
-				secretName = suite.scrubber.GenerateFunctionSecretName(testCase.functionName)
+				secretName = suite.scrubber.GenerateObjectSecretName(testCase.functionName)
 			} else {
 				secretName = suite.scrubber.GenerateFlexVolumeSecretName(testCase.functionName, testCase.volumeName)
 			}
