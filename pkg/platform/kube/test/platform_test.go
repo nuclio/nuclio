@@ -27,6 +27,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1572,6 +1573,102 @@ def handler(context, event):
 
 		return true
 	})
+}
+
+func (suite *DeployFunctionTestSuite) TestRedeployWithUpdatedSidecarSpec() {
+	functionName := "func-with-sidecar"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	sidecarContainerName := "sidecar-test"
+	firstDeployCommands := []string{
+		"sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 10; done; echo 'First deploy done'",
+	}
+	secondDeployCommands := []string{
+		"/bin/sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 10; done; echo 'Second deploy done'",
+	}
+
+	busyboxImage := "busybox"
+	alpineImage := "alpine"
+
+	// create a busybox sidecar
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{
+			Name:    sidecarContainerName,
+			Image:   busyboxImage,
+			Command: firstDeployCommands,
+		},
+	}
+
+	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal(busyboxImage, pod.Spec.Containers[1].Image)
+		suite.Require().Equal(firstDeployCommands, pod.Spec.Containers[1].Command)
+
+		// get the logs from the sidecar container to validate it ran
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"First deploy done"})
+		})
+		suite.Require().NoError(err)
+
+		// change the sidecar image and command
+		createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+			{
+				Name:    sidecarContainerName,
+				Image:   alpineImage,
+				Command: secondDeployCommands,
+			},
+		}
+
+		return true
+	}
+
+	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+		if len(pods) != 1 {
+			// because the first pod might still be terminating, we search for the new pod according to the start time
+			sort.Slice(pods, func(i, j int) bool {
+				return pods[i].CreationTimestamp.Before(&pods[j].CreationTimestamp)
+			})
+			pod = pods[len(pods)-1]
+		}
+
+		// validate the sidecar container has the new image and command
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal(alpineImage, pod.Spec.Containers[1].Image)
+		suite.Require().Equal(secondDeployCommands, pod.Spec.Containers[1].Command)
+
+		// get the logs from the sidecar container to validate it ran the new command
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Second deploy done"})
+		})
+		suite.Require().NoError(err)
+
+		return true
+	}
+
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
 }
 
 func (suite *DeployFunctionTestSuite) TestDeployFromGitSanity() {
