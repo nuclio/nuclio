@@ -41,6 +41,8 @@ const (
 )
 
 type Scrubber interface {
+	Scrub(objectToScrub interface{}, existingSecretMap map[string]string, sensitiveFields []*regexp.Regexp) (interface{}, map[string]string, error)
+	Restore(scrubbedFunctionConfig interface{}, secretsMap map[string]string) (interface{}, error)
 	ValidateReference(objectToScrub interface{},
 		existingSecretMap map[string]string,
 		fieldPath,
