@@ -529,7 +529,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 
 	if importedOnly && function.GetStatus().State != functionconfig.FunctionStateImported {
 		fr.Logger.DebugWithCtx(ctx, "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
-		return nil
+		return nuclio.ErrAccepted
 	}
 
 	fr.Logger.DebugWith("Redeploying function",
