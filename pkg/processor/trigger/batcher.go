@@ -70,7 +70,7 @@ func (b *Batcher) getBatch() ([]nuclio.Event, map[string]chan interface{}) {
 	return batch, responseChans
 }
 
-func (b *Batcher) waitForBatchIsFullOrTimeoutIsPassed(batchTimeout time.Duration) ([]nuclio.Event, map[string]chan interface{}) {
+func (b *Batcher) WaitForBatchIsFullOrTimeoutIsPassed(batchTimeout time.Duration) ([]nuclio.Event, map[string]chan interface{}) {
 	for {
 		if b.batchIsEmpty() {
 			continue

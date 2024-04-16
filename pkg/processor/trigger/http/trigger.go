@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -102,6 +103,15 @@ func newTrigger(logger logger.Logger,
 
 	newTrigger.AbstractTrigger.Trigger = &newTrigger
 	newTrigger.allocateEvents(numWorkers)
+
+	if functionconfig.BatchModeEnabled(configuration.Batch.Mode) {
+		if batchTimeout, err := time.ParseDuration(configuration.Batch.Timeout); err != nil {
+			return nil, errors.New("Could not parse batch timeout")
+		} else {
+			// TODO: add timeout param
+			newTrigger.StartBatcher(batchTimeout, 1*time.Hour)
+		}
+	}
 	return &newTrigger, nil
 }
 
@@ -145,6 +155,35 @@ func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 
+func (h *http) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeout time.Duration) {
+	for {
+		batch, responseChans := h.Batcher.WaitForBatchIsFullOrTimeoutIsPassed(batchTimeout)
+		// allocate a worker
+		workerInstance, workerIndex, err := h.allocateWorker(workerAvailabilityTimeout)
+		if err != nil {
+			h.UpdateStatistics(false, uint64(len(batch)))
+			workerError := errors.Wrap(err, "Failed to allocate worker")
+			for _, channel := range responseChans {
+
+				// TODO: cover the case when waiting timeout is passed
+				channel <- &runtime.ResponseWithErrors{SubmitError: workerError}
+			}
+			return
+		}
+		h.timeouts[workerIndex] = 0
+		h.answering[workerIndex] = 0
+
+		// submit batch to the worker
+		h.SubmitBatchAndSendResponses(batch, responseChans, workerInstance)
+
+		// release worker when we're done
+		h.WorkerAllocator.Release(workerInstance)
+		h.Logger.Debug("Batch processing is done")
+
+		h.answering[workerIndex] = 1
+	}
+}
+
 func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
 }
@@ -180,9 +219,10 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 	return nil
 }
 
-func (h *http) SubmitEvent(ctx *fasthttp.RequestCtx, functionLogger logger.Logger) {
-
-	h.SubmitEventToBatch()
+func (h *http) PrepareEventAndSubmitToBatch(ctx *fasthttp.RequestCtx, responseChan chan interface{}) {
+	event := &Event{}
+	event.ctx = ctx
+	h.SubmitEventToBatch(event, responseChan)
 }
 
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
@@ -194,18 +234,9 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	defer h.HandleSubmitPanic(workerInstance, &submitError)
 
 	// allocate a worker
-	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
+	workerInstance, workerIndex, err := h.allocateWorker(timeout)
 	if err != nil {
-		h.UpdateStatistics(false, 1)
-		return nil, false, errors.Wrap(err, "Failed to allocate worker"), nil
-	}
-
-	// use the event @ the worker index
-	// TODO: event already used?
-	workerIndex := workerInstance.GetIndex()
-	if workerIndex < 0 || workerIndex >= len(h.events) {
-		h.WorkerAllocator.Release(workerInstance)
-		return nil, false, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
+		return nil, false, err, nil
 	}
 
 	h.activeContexts[workerIndex] = ctx
@@ -228,6 +259,24 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	h.activeContexts[workerIndex] = nil
 
 	return response, false, nil, processError
+}
+
+func (h *http) allocateWorker(timeout time.Duration) (*worker.Worker, int, error) {
+	// allocate a worker
+	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
+	if err != nil {
+		h.UpdateStatistics(false, 1)
+		return nil, -1, errors.Wrap(err, "Failed to allocate worker")
+	}
+
+	// use the event @ the worker index
+	// TODO: event already used?
+	workerIndex := workerInstance.GetIndex()
+	if workerIndex < 0 || workerIndex >= len(h.events) {
+		h.WorkerAllocator.Release(workerInstance)
+		return nil, -1, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events))
+	}
+	return workerInstance, workerIndex, nil
 }
 
 func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
@@ -428,10 +477,36 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		// set the function logger to that of the chosen buffer logger
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
+	var timedOut bool
+	var response interface{}
+	var submitError error
+	var processError error
 
-	response, timedOut, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx,
-		functionLogger,
-		time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
+	if functionconfig.BatchModeEnabled(h.configuration.Batch.Mode) {
+		var responseChan chan interface{}
+		h.PrepareEventAndSubmitToBatch(ctx, responseChan)
+		select {
+		case <-time.After(time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond):
+			timedOut = true
+			response = nil
+			submitError = nil
+			processError = nil
+		case responseFromBatch := <-responseChan:
+			switch typedResponse := responseFromBatch.(type) {
+			case runtime.ResponseWithErrors:
+				response = typedResponse.Response
+				submitError = typedResponse.SubmitError
+				processError = typedResponse.ProcessError
+			case nuclio.Response:
+				response = typedResponse
+			}
+		}
+	} else {
+
+		response, timedOut, submitError, processError = h.AllocateWorkerAndSubmitEvent(ctx,
+			functionLogger,
+			time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
+	}
 
 	if timedOut {
 		return
