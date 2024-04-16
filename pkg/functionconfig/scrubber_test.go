@@ -434,8 +434,8 @@ func (suite *ScrubberTestSuite) TestRestoreConfigWithResources() {
 	secretMap := map[string]string{}
 
 	// restore the config
-	scrubbedInterface, err := suite.scrubber.Restore(config, secretMap)
-	restoredFunctionConfig := GetFunctionConfigFromInterface(scrubbedInterface)
+	restoredConfigInterface, err := suite.scrubber.Restore(config, secretMap)
+	restoredFunctionConfig := GetFunctionConfigFromInterface(restoredConfigInterface)
 	suite.Require().NoError(err)
 
 	// check that the restored config has the same resources
