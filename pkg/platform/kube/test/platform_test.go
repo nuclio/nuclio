@@ -2063,10 +2063,12 @@ func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName1, functionName)
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "http://host1.com"
 
 		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
 			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
 			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+			createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "http://host2.com"
 
 			err := suite.DeployAPIGateway(createAPIGatewayOptions2, func(ingress *networkingv1.Ingress) {
 				_, err := http.Get(createAPIGatewayOptions2.APIGatewayConfig.Spec.Host)
