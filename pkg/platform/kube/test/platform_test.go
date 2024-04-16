@@ -2070,7 +2070,7 @@ func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
 			// create second api gateway on top of the same function
 			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
 			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
-			createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host2.com"
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.Host = "host2.com"
 
 			err := suite.DeployAPIGateway(createAPIGatewayOptions2, func(ingress *networkingv1.Ingress) {
 				// check that both gateways are invokable
