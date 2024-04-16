@@ -34,7 +34,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -182,29 +181,6 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 			"previousCanaryIngressName", previousCanaryIngressName,
 			"err", errors.Cause(err))
 	}
-}
-
-func (lc *lazyClient) getAllExistingUpstreamFunctionNames(ctx context.Context, namespace, apiGatewayNameToExclude string) ([]string, error) {
-	var existingUpstreamNames []string
-
-	existingAPIGateways, err := lc.nuclioClientSet.NuclioV1beta1().
-		NuclioAPIGateways(namespace).
-		List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to list existing api gateways")
-	}
-
-	for _, apiGateway := range existingAPIGateways.Items {
-		if apiGateway.Name == apiGatewayNameToExclude {
-			continue
-		}
-
-		for _, upstream := range apiGateway.Spec.Upstreams {
-			existingUpstreamNames = append(existingUpstreamNames, upstream.NuclioFunction.Name)
-		}
-	}
-
-	return existingUpstreamNames, nil
 }
 
 func (lc *lazyClient) generateNginxIngress(ctx context.Context,
