@@ -180,6 +180,11 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 	return nil
 }
 
+func (h *http) SubmitEvent(ctx *fasthttp.RequestCtx, functionLogger logger.Logger) {
+
+	h.SubmitEventToBatch()
+}
+
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	functionLogger logger.Logger,
 	timeout time.Duration) (response interface{}, timedOut bool, submitError error, processError error) {

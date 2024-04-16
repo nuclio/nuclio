@@ -17,7 +17,6 @@ limitations under the License.
 package trigger
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"runtime/debug"
 	"strings"
 	"sync/atomic"
@@ -26,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/google/uuid"
