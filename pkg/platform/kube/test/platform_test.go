@@ -2061,20 +2061,23 @@ func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		// create first api gateway on top of given function
 		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName1, functionName)
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host1.com"
 
 		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
+			// create second api gateway on top of the same function
 			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
 			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
 			createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host2.com"
 
 			err := suite.DeployAPIGateway(createAPIGatewayOptions2, func(ingress *networkingv1.Ingress) {
-				_, err := http.Get("http://host1.com")
+				// check that both gateways are invokable
+				_, err := http.Get(fmt.Sprintf("http://%s", createAPIGatewayOptions1.APIGatewayConfig.Spec.Host))
 				suite.Require().NoError(err)
 
-				_, err = http.Get("http://host2.com")
+				_, err = http.Get(fmt.Sprintf("http://%s", createAPIGatewayOptions2.APIGatewayConfig.Spec.Host))
 				suite.Require().NoError(err)
 			})
 			suite.Require().NoError(err)
