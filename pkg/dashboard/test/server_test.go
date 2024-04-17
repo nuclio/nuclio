@@ -1153,7 +1153,7 @@ func (suite *functionTestSuite) TestPatchFunction() {
 			name:               "readyFunction",
 			functionName:       "ready-func",
 			functionState:      functionconfig.FunctionStateReady,
-			expectedStatusCode: http.StatusNoContent,
+			expectedStatusCode: http.StatusAccepted,
 			importedOnly:       "true",
 			desiredState:       "ready",
 			minReplicas:        1,
