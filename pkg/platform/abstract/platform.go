@@ -273,6 +273,14 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 		functionConfig.Spec.Runtime = "python:3.9"
 	}
 
+	if functionConfig.Spec.DisableDefaultHTTPTrigger == nil {
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching disable default http trigger flag",
+			"functionName", functionConfig.Meta.Name,
+			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHTTPTrigger)
+		functionConfig.Spec.DisableDefaultHTTPTrigger = &ap.Config.DisableDefaultHTTPTrigger
+	}
+
 	// enrich triggers
 	if err := ap.enrichTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching triggers")
@@ -285,14 +293,6 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	if err := ap.enrichVolumes(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching volumes")
-	}
-
-	if functionConfig.Spec.DisableDefaultHTTPTrigger == nil {
-		ap.Logger.DebugWithCtx(ctx,
-			"Enriching disable default http trigger flag",
-			"functionName", functionConfig.Meta.Name,
-			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHTTPTrigger)
-		functionConfig.Spec.DisableDefaultHTTPTrigger = &ap.Config.DisableDefaultHTTPTrigger
 	}
 
 	ap.enrichEnvVars(functionConfig)
@@ -333,7 +333,7 @@ func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Conf
 	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) > 0 {
 		return
 	}
-	if ap.Config.DisableDefaultHTTPTrigger {
+	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger {
 		ap.Logger.Debug("Skipping default http trigger creation")
 		return
 	}
