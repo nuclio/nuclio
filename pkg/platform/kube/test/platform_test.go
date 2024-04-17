@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"sort"
@@ -2046,6 +2047,40 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
+		})
+		suite.Require().NoError(err)
+
+		return true
+	})
+}
+
+func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
+	functionName := "some-function-name"
+	apiGatewayName1 := "api-gateway-1"
+	apiGatewayName2 := "api-gateway-2"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		// create first api gateway on top of given function
+		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName1, functionName)
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host1.com"
+
+		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
+			// create second api gateway on top of the same function
+			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.Host = "host2.com"
+
+			err := suite.DeployAPIGateway(createAPIGatewayOptions2, func(ingress *networkingv1.Ingress) {
+				// check that both gateways are invokable
+				_, err := http.Get(fmt.Sprintf("http://%s", createAPIGatewayOptions1.APIGatewayConfig.Spec.Host))
+				suite.Require().NoError(err)
+
+				_, err = http.Get(fmt.Sprintf("http://%s", createAPIGatewayOptions2.APIGatewayConfig.Spec.Host))
+				suite.Require().NoError(err)
+			})
+			suite.Require().NoError(err)
 		})
 		suite.Require().NoError(err)
 
