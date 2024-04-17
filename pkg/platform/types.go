@@ -481,6 +481,13 @@ type APIGatewayConfig struct {
 	Status APIGatewayStatus `json:"status,omitempty"`
 }
 
+func GetAPIGatewayConfigFromInterface(functionConfigInterface interface{}) *APIGatewayConfig {
+	if apiGatewayConfig, ok := functionConfigInterface.(*APIGatewayConfig); ok {
+		return apiGatewayConfig
+	}
+	return nil
+}
+
 // APIGatewayState is state of api gateway
 type APIGatewayState string
 

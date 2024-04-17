@@ -17,7 +17,16 @@ limitations under the License.
 package platform
 
 import (
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"strings"
+
+	"github.com/nuclio/nuclio/pkg/common"
+
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"k8s.io/client-go/kubernetes"
 )
 
 type APIGateway interface {
@@ -46,4 +55,58 @@ func NewAbstractAPIGateway(parentLogger logger.Logger,
 // GetConfig returns the api gateway config
 func (ap *AbstractAPIGateway) GetConfig() *APIGatewayConfig {
 	return &ap.APIGatewayConfig
+}
+
+type APIGatewayScrubber struct {
+	*common.AbstractScrubber
+}
+
+func NewAPIGatewayScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *APIGatewayScrubber {
+	abstractScrubber := common.NewAbstractScrubber(sensitiveFields, kubeClientSet)
+	scrubber := &APIGatewayScrubber{abstractScrubber}
+	abstractScrubber.Scrubber = scrubber
+	return scrubber
+}
+
+func (s *APIGatewayScrubber) ValidateReference(objectToScrub interface{},
+	existingSecretMap map[string]string,
+	fieldPath,
+	secretKey,
+	stringValue string) error {
+	// we need to check if the secret exists in the secret map
+	if existingSecretMap != nil {
+		trimmedSecretKey := strings.ToLower(strings.TrimSpace(secretKey))
+		if _, exists := existingSecretMap[trimmedSecretKey]; !exists {
+			return errors.New(fmt.Sprintf("Config data in path %s is already scrubbed, but original value does not exist in secret", fieldPath))
+		}
+		return nil
+	}
+
+	return errors.New(fmt.Sprintf("Config data in path %s is already masked, but secret does not exist.", fieldPath))
+}
+
+func (s *APIGatewayScrubber) ConvertMapToConfig(mapConfig interface{}) (interface{}, error) {
+	// marshal and unmarshal the map object back to function config
+	apiGatewayConfig := &APIGatewayConfig{}
+
+	masrhalledFunctionConfig, err := json.Marshal(mapConfig.(map[string]interface{}))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to marshal scrubbed API Gateway config")
+	}
+	if err := json.Unmarshal(masrhalledFunctionConfig, apiGatewayConfig); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal scrubbed API Gateway config")
+	}
+
+	return apiGatewayConfig, nil
+}
+
+func GetAPIGatewaySensitiveField() []*regexp.Regexp {
+	var regexpList []*regexp.Regexp
+	for _, sensitiveFieldPath := range []string{
+		// Path nested in a map
+		"^/spec/authentication/basicAuth/password$",
+	} {
+		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
+	}
+	return regexpList
 }

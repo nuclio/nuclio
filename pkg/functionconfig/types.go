@@ -578,6 +578,13 @@ type Config struct {
 	Spec Spec `json:"spec,omitempty"`
 }
 
+func GetFunctionConfigFromInterface(functionConfigInterface interface{}) *Config {
+	if functionConfig, ok := functionConfigInterface.(*Config); ok {
+		return functionConfig
+	}
+	return nil
+}
+
 // NewConfig creates a new configuration structure
 func NewConfig() *Config {
 	return &Config{

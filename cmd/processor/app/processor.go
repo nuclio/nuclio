@@ -337,7 +337,7 @@ func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*funct
 		return nil, errors.Wrap(err, "Failed to restore function config")
 	}
 
-	return restoredFunctionConfig, nil
+	return functionconfig.GetFunctionConfigFromInterface(restoredFunctionConfig), nil
 }
 
 func (p *Processor) getSecretsMap(scrubber *functionconfig.Scrubber) (map[string]string, error) {
