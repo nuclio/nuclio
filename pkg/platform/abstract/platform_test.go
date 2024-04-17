@@ -361,7 +361,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 
 		suite.Require().Equal(testCase.ExpectedValue, *functionConfig.Spec.DisableDefaultHTTPTrigger)
 
-		// check that value
+		// check that http trigger exists/doesn't exist after enrichment
 		if testCase.ExpectedValue {
 			suite.Require().NotContains(functionConfig.Spec.Triggers, functionconfig.GetDefaultHTTPTrigger().Name)
 		} else {
