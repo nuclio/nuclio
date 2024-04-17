@@ -360,6 +360,12 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 		suite.Require().NoError(err)
 
 		suite.Require().Equal(testCase.ExpectedValue, *functionConfig.Spec.DisableDefaultHTTPTrigger)
+
+		if testCase.ExpectedValue {
+			suite.Require().Contains(functionConfig.Spec.Triggers, functionconfig.GetDefaultHTTPTrigger().Name)
+		} else {
+			suite.Require().Contains(functionConfig.Spec.Triggers, functionconfig.GetDefaultHTTPTrigger().Name)
+		}
 	}
 }
 

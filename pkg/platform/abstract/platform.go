@@ -333,7 +333,7 @@ func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Conf
 	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) > 0 {
 		return
 	}
-	if ap.Config.DisableDefaultHTTPTrigger {
+	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger == true {
 		ap.Logger.Debug("Skipping default http trigger creation")
 		return
 	}
