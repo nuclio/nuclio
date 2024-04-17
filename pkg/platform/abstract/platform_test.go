@@ -306,12 +306,6 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 }
 
 func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
-	functionConfig := functionconfig.NewConfig()
-	functionConfig.Meta.Name = "f1"
-	functionConfig.Meta.Namespace = "default"
-	functionConfig.Meta.Labels = map[string]string{
-		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
-	}
 	trueValue := true
 	falseValue := false
 
@@ -352,6 +346,12 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 			&platform.AbstractProject{},
 		}, nil).Once()
 
+		functionConfig := functionconfig.NewConfig()
+		functionConfig.Meta.Name = "f1"
+		functionConfig.Meta.Namespace = "default"
+		functionConfig.Meta.Labels = map[string]string{
+			common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+		}
 		suite.Platform.Config.DisableDefaultHTTPTrigger = testCase.PlatformDisableDefaultHttpTrigger
 		functionConfig.Spec.DisableDefaultHTTPTrigger = testCase.FunctionDisableDefaultHttpTrigger
 
@@ -361,8 +361,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 
 		suite.Require().Equal(testCase.ExpectedValue, *functionConfig.Spec.DisableDefaultHTTPTrigger)
 
+		// check that value
 		if testCase.ExpectedValue {
-			suite.Require().Contains(functionConfig.Spec.Triggers, functionconfig.GetDefaultHTTPTrigger().Name)
+			suite.Require().NotContains(functionConfig.Spec.Triggers, functionconfig.GetDefaultHTTPTrigger().Name)
 		} else {
 			suite.Require().Contains(functionConfig.Spec.Triggers, functionconfig.GetDefaultHTTPTrigger().Name)
 		}
