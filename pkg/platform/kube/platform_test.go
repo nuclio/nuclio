@@ -335,11 +335,12 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 
 func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 	for _, testCase := range []struct {
-		name                         string
-		functionNodeSelector         map[string]string
-		platformNodeSelector         map[string]string
-		projectNodeSelector          map[string]string
-		expectedFunctionNodeSelector map[string]string
+		name                                       string
+		functionNodeSelector                       map[string]string
+		platformNodeSelector                       map[string]string
+		projectNodeSelector                        map[string]string
+		expectedFunctionNodeSelector               map[string]string
+		ignorePlatformNodeSelectorsIfProjectAreSet bool
 	}{
 		{
 			name:                         "all-selectors-empty",
@@ -383,6 +384,36 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 				"test2": "from-platform2",
 			},
 		},
+		{
+			name: "get-selector-from-project-ignore-platform",
+			platformNodeSelector: map[string]string{
+				"test":  "from-platform",
+				"test2": "from-platform2",
+			},
+			projectNodeSelector: map[string]string{
+				"test":  "from-project",
+				"test1": "from-project1",
+			},
+			functionNodeSelector: map[string]string{"test": "from-function"},
+			expectedFunctionNodeSelector: map[string]string{
+				"test":  "from-function",
+				"test1": "from-project1",
+			},
+			ignorePlatformNodeSelectorsIfProjectAreSet: true,
+		},
+		{
+			name: "get-selector-from-platform-ignore-platform",
+			platformNodeSelector: map[string]string{
+				"test":  "from-platform",
+				"test1": "from-platform1",
+			},
+			functionNodeSelector: map[string]string{"test": "from-function"},
+			expectedFunctionNodeSelector: map[string]string{
+				"test":  "from-function",
+				"test1": "from-platform1",
+			},
+			ignorePlatformNodeSelectorsIfProjectAreSet: true,
+		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.
@@ -396,6 +427,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 					&platform.AbstractProject{ProjectConfig: platform.ProjectConfig{Spec: platform.ProjectSpec{DefaultFunctionNodeSelector: testCase.projectNodeSelector}}},
 				}, nil).
 				Once()
+			suite.platform.Config.Kube.IgnorePlatformIfProjectNodeSelectors = testCase.ignorePlatformNodeSelectorsIfProjectAreSet
 			functionConfig := *functionconfig.NewConfig()
 			functionConfig.Spec.NodeSelector = testCase.functionNodeSelector
 

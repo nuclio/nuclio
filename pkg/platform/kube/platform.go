@@ -1762,17 +1762,33 @@ func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfi
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function project")
 	}
-	p.Logger.DebugWithCtx(ctx,
-		"Enriching function node selector from project",
-		"functionName", functionConfig.Meta.Name,
-		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-	functionConfig.Spec.NodeSelector = labels.Merge(functionProject.GetConfig().Spec.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
 
-	p.Logger.DebugWithCtx(ctx,
-		"Enriching function node selector from platform config",
-		"functionName", functionConfig.Meta.Name,
-		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-	functionConfig.Spec.NodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
+	var defaultNodeSelector map[string]string
+
+	if p.Config.Kube.IgnorePlatformIfProjectNodeSelectors {
+		if functionProject.GetConfig().Spec.DefaultFunctionNodeSelector != nil {
+			p.Logger.DebugWithCtx(ctx,
+				"Enriching function node selector from project",
+				"functionName", functionConfig.Meta.Name,
+				"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+			defaultNodeSelector = functionProject.GetConfig().Spec.DefaultFunctionNodeSelector
+		} else {
+			p.Logger.DebugWithCtx(ctx,
+				"Enriching function node selector from platform config",
+				"functionName", functionConfig.Meta.Name,
+				"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+			defaultNodeSelector = p.Config.Kube.DefaultFunctionNodeSelector
+		}
+	} else {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function node selector from platform config and project",
+			"functionName", functionConfig.Meta.Name,
+			"platformNodeSelector", p.Config.Kube.DefaultFunctionNodeSelector,
+			"projectNodeSelector", functionProject.GetConfig().Spec.DefaultFunctionNodeSelector)
+		defaultNodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionProject.GetConfig().Spec.DefaultFunctionNodeSelector)
+	}
+
+	functionConfig.Spec.NodeSelector = labels.Merge(defaultNodeSelector, functionConfig.Spec.NodeSelector)
 	return nil
 }
 
