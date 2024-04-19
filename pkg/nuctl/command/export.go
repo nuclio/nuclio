@@ -318,7 +318,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 		if err := function.Initialize(ctx, nil); err != nil {
 			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize a function", "err", err.Error())
 		}
-		var functionConfig *functionconfig.Config
+		functionConfig := function.GetConfig()
 
 		// restore the function config, if needed
 		if e.rootCommandeer.platform.GetFunctionScrubber() != nil {
