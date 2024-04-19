@@ -90,10 +90,6 @@ func NewPlatform(parentLogger logger.Logger,
 		platform:         platformInstance,
 		Config:           platformConfiguration,
 		DeployLogStreams: &sync.Map{},
-		FunctionScrubber: functionconfig.NewScrubber(parentLogger,
-			platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
-			nil, /* kubeClientSet */
-		),
 		DefaultNamespace: defaultNamespace,
 	}
 
@@ -168,13 +164,16 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 
 		// if the function is updated, it might have scrubbed data in the spec that the builder requires,
 		// so we need to restore it before building
-		restoredFunctionConfig, err := ap.FunctionScrubber.RestoreFunctionConfig(ctx,
-			&createFunctionOptions.FunctionConfig,
-			ap.platform.GetName())
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to restore function config")
+		if ap.FunctionScrubber != nil {
+			restoredFunctionConfig, err := ap.FunctionScrubber.RestoreFunctionConfig(ctx,
+				&createFunctionOptions.FunctionConfig,
+				ap.platform.GetName())
+
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to restore function config")
+			}
+			createFunctionOptions.FunctionConfig = *restoredFunctionConfig
 		}
-		createFunctionOptions.FunctionConfig = *restoredFunctionConfig
 
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(ctx,
 			&platform.CreateFunctionBuildOptions{
