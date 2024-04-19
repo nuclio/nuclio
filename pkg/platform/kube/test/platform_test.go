@@ -872,7 +872,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionImageNameInStatus() {
 }
 
 func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
-	scrubber := functionconfig.NewScrubber(suite.Logger, nil, nil)
+	scrubber := suite.Platform.GetFunctionScrubber()
 
 	functionName := "func-with-secret"
 	password := "1234"
@@ -975,7 +975,7 @@ func (suite *DeployFunctionTestSuite) TestSecretEnvVarNotPresent() {
 }
 
 func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
-	scrubber := functionconfig.NewScrubber(suite.Logger, nil, nil)
+	scrubber := suite.Platform.GetFunctionScrubber()
 
 	functionName := "func-with-multiple-volumes"
 	accessKey := "1234"
@@ -1092,7 +1092,7 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 }
 
 func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithScrubbedField() {
-	scrubber := functionconfig.NewScrubber(suite.Logger, nil, nil)
+	scrubber := suite.Platform.GetFunctionScrubber()
 
 	functionName := "func-with-v3io-stream-trigger"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)

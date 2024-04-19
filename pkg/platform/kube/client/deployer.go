@@ -50,6 +50,7 @@ func NewDeployer(parentLogger logger.Logger, consumer *Consumer, platform platfo
 		logger:   parentLogger.GetChild("deployer"),
 		platform: platform,
 		consumer: consumer,
+		scrubber: platform.GetFunctionScrubber(),
 	}
 
 	return newDeployer, nil
@@ -81,10 +82,7 @@ func (d *Deployer) CreateOrUpdateFunction(ctx context.Context,
 	}
 
 	// scrub the function config if enabled
-	if d.platform.GetConfig().SensitiveFields.MaskSensitiveFields && !functionInstance.Spec.DisableSensitiveFieldsMasking {
-
-		d.scrubber = functionconfig.NewScrubber(d.logger, d.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex(),
-			d.consumer.KubeClientSet)
+	if d.platform.GetConfig().SensitiveFields.MaskSensitiveFields && !functionInstance.Spec.DisableSensitiveFieldsMasking && d.scrubber != nil {
 
 		scrubbedFunctionConfig, err := d.scrubber.ScrubFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
 		if err != nil {
