@@ -58,9 +58,6 @@ to the standard output, in JSON or YAML format`,
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
 
-	// initialize scrubber, used for restoring only
-	commandeer.scrubber = functionconfig.NewScrubber(commandeer.rootCommandeer.loggerInstance, nil, nil)
-
 	cmd.AddCommand(
 		exportFunctionCommand,
 		exportProjectCommand,
@@ -104,6 +101,8 @@ Arguments:
 			if err := exportCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+			// initialize scrubber, used for restoring only
+			commandeer.scrubber = functionconfig.NewScrubber(commandeer.rootCommandeer.loggerInstance, nil, nil)
 
 			commandeer.getFunctionsOptions.Namespace = exportCommandeer.rootCommandeer.namespace
 
