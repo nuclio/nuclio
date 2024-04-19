@@ -132,19 +132,6 @@ func (s *APIGatewayScrubber) ConvertMapToConfig(mapConfig interface{}) (interfac
 	return apiGatewayConfig, nil
 }
 
-func (s *APIGatewayScrubber) GetAPIGatewaySecretName(ctx context.Context, name, namespace string) (string, error) {
-	secrets, err := s.GetObjectSecrets(ctx, name, namespace)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get api gateway secrets")
-	}
-	// For now, we only support one secret for API gateway with all the sensitive data
-	// so take the 1st secret name if one exists
-	if len(secrets) == 0 {
-		return "", nil
-	}
-	return secrets[0].Kubernetes.Name, nil
-}
-
 func GetAPIGatewaySensitiveField() []*regexp.Regexp {
 	var regexpList []*regexp.Regexp
 	for _, sensitiveFieldPath := range []string{
@@ -160,8 +147,13 @@ func (s *APIGatewayScrubber) ScrubAPIGatewayConfig(ctx context.Context,
 	apiGatewayConfig *APIGatewayConfig) (*APIGatewayConfig, error) {
 	var err error
 
+	existingSecretName, err := s.GetObjectSecretName(ctx, apiGatewayConfig.Meta.Name, apiGatewayConfig.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get api gateway config secret name")
+	}
+
 	scrubbedAPIGatewayConfig, existingSecretName, secretsMap, err := s.GetExistingSecretAndScrub(ctx, apiGatewayConfig,
-		apiGatewayConfig.Meta.Name, apiGatewayConfig.Meta.Namespace)
+		apiGatewayConfig.Meta.Name, apiGatewayConfig.Meta.Namespace, existingSecretName)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get existing secret and scrub api gateway config")
 	}

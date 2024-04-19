@@ -222,8 +222,12 @@ func (s *Scrubber) ScrubFunctionConfig(ctx context.Context,
 	functionConfig *Config) (*Config, error) {
 	var err error
 
+	existingSecretName, err := s.GetObjectSecretName(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function config secret name")
+	}
 	scrubbedFunctionConfig, existingSecretName, secretsMap, err := s.GetExistingSecretAndScrub(ctx, functionConfig,
-		functionConfig.Meta.Name, functionConfig.Meta.Namespace)
+		functionConfig.Meta.Name, functionConfig.Meta.Namespace, existingSecretName)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get existing secret and scrub function config")
 	}

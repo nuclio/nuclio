@@ -82,14 +82,11 @@ func NewAbstractScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kuberne
 	}
 }
 
-func (s *AbstractScrubber) GetExistingSecretAndScrub(ctx context.Context, objectConfig interface{}, name, namespace string) (interface{}, string, map[string]string, error) {
+func (s *AbstractScrubber) GetExistingSecretAndScrub(ctx context.Context, objectConfig interface{}, name, namespace, existingSecretName string) (interface{}, string, map[string]string, error) {
 
 	// get existing object secret
 	var existingSecretMap map[string]string
-	existingSecretName, err := s.GetObjectSecretName(ctx, name, namespace)
-	if err != nil {
-		return nil, "", nil, errors.Wrap(err, "Failed to get object secret name")
-	}
+	var err error
 
 	// secret exists, get its data map
 	if existingSecretName != "" {
