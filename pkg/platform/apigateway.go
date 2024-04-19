@@ -146,8 +146,10 @@ func GetAPIGatewaySensitiveField() []*regexp.Regexp {
 func (s *APIGatewayScrubber) ScrubAPIGatewayConfig(ctx context.Context,
 	apiGatewayConfig *APIGatewayConfig) (*APIGatewayConfig, error) {
 	var err error
+	name := apiGatewayConfig.Meta.Name
+	ns := apiGatewayConfig.Meta.Namespace
 
-	existingSecretName, err := s.GetObjectSecretName(ctx, apiGatewayConfig.Meta.Name, apiGatewayConfig.Meta.Namespace)
+	existingSecretName, err := s.GetObjectSecretName(ctx, name, ns)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get api gateway config secret name")
 	}

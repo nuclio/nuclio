@@ -77,7 +77,6 @@ type Platform struct {
 	DefaultNamespace        string
 	OpaClient               opa.Client
 	FunctionScrubber        *functionconfig.Scrubber
-	APIGatewayScrubber      *platform.APIGatewayScrubber
 }
 
 func NewPlatform(parentLogger logger.Logger,
@@ -95,8 +94,6 @@ func NewPlatform(parentLogger logger.Logger,
 			platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
 			nil, /* kubeClientSet */
 		),
-		APIGatewayScrubber: platform.NewAPIGatewayScrubber(parentLogger, platform.GetAPIGatewaySensitiveField(),
-			nil /* kubeClientSet */),
 		DefaultNamespace: defaultNamespace,
 	}
 

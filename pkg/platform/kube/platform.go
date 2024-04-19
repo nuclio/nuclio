@@ -56,14 +56,15 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	deployer       *client.Deployer
-	getter         *client.Getter
-	updater        *client.Updater
-	deleter        *client.Deleter
-	kubeconfigPath string
-	consumer       *client.Consumer
-	projectsClient project.Client
-	projectsCache  *cache.Expiring
+	deployer           *client.Deployer
+	getter             *client.Getter
+	updater            *client.Updater
+	deleter            *client.Deleter
+	kubeconfigPath     string
+	consumer           *client.Consumer
+	projectsClient     project.Client
+	projectsCache      *cache.Expiring
+	apiGatewayScrubber *platform.APIGatewayScrubber
 }
 
 const Mib = 1048576
@@ -140,9 +141,12 @@ func NewPlatform(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create an updater")
 	}
 
-	// set kubeClientSet for Scrubbers
+	// set kubeClientSet for Function Scrubber
 	newPlatform.FunctionScrubber.KubeClientSet = newPlatform.consumer.KubeClientSet
-	newPlatform.APIGatewayScrubber.KubeClientSet = newPlatform.consumer.KubeClientSet
+
+	// create api gateway scrubber
+	newPlatform.apiGatewayScrubber = platform.NewAPIGatewayScrubber(parentLogger, platform.GetAPIGatewaySensitiveField(),
+		newPlatform.consumer.KubeClientSet)
 
 	// create projects client
 	newPlatform.projectsClient, err = NewProjectsClient(newPlatform, platformConfiguration)
@@ -789,7 +793,7 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	}
 
 	// scrub api gateway config
-	scrubbedConfig, err := p.APIGatewayScrubber.ScrubAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig)
+	scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig)
 	if err != nil {
 		return errors.Wrap(err, "Failed to scrub api gateway config")
 	}
@@ -831,7 +835,7 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 	}
 
 	// scrub api gateway config
-	scrubbedConfig, err := p.APIGatewayScrubber.ScrubAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig)
+	scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig)
 	if err != nil {
 		return errors.Wrap(err, "Failed to scrub api gateway config")
 	}
