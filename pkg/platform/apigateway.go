@@ -73,27 +73,22 @@ func NewAPIGatewayScrubber(parentLogger logger.Logger, sensitiveFields []*regexp
 
 // RestoreAPIGatewayConfig restores an API Gateway config from a secret, in case we're running in a kube platform
 func (s *APIGatewayScrubber) RestoreAPIGatewayConfig(ctx context.Context,
-	config *APIGatewayConfig,
-	platformName string) (*APIGatewayConfig, error) {
+	config *APIGatewayConfig) (*APIGatewayConfig, error) {
 
-	// if we're in kube platform, we need to restore the API gateway config's
-	// sensitive data from the api gateway's secret
-	if platformName == common.KubePlatformName {
-		secretMap, err := s.GetObjectSecretMap(ctx,
-			config.Meta.Name,
-			config.Meta.Namespace)
+	secretMap, err := s.GetObjectSecretMap(ctx,
+		config.Meta.Name,
+		config.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get api gateway secret")
+	}
+	if len(secretMap) > 0 {
+
+		// restore the api gateway config
+		restoredConfig, err := s.Restore(config, secretMap)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get api gateway secret")
+			return nil, errors.Wrap(err, "Failed to restore api gateway config")
 		}
-		if len(secretMap) > 0 {
-
-			// restore the api gateway config
-			restoredConfig, err := s.Restore(config, secretMap)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to restore api gateway config")
-			}
-			return restoredConfig.(*APIGatewayConfig), nil
-		}
+		return restoredConfig.(*APIGatewayConfig), nil
 	}
 
 	// if we're not in kube platform, or the api gateway doesn't have a secret, just return the api gateway config

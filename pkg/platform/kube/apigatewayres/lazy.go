@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -46,6 +47,7 @@ type lazyClient struct {
 	kubeClientSet   kubernetes.Interface
 	nuclioClientSet nuclioio_client.Interface
 	ingressManager  *ingress.Manager
+	scrubber        *platform.APIGatewayScrubber
 }
 
 func NewLazyClient(loggerInstance logger.Logger,
@@ -58,6 +60,7 @@ func NewLazyClient(loggerInstance logger.Logger,
 		kubeClientSet:   kubeClientSet,
 		nuclioClientSet: nuclioClientSet,
 		ingressManager:  ingressManager,
+		scrubber:        platform.NewAPIGatewayScrubber(loggerInstance, platform.GetAPIGatewaySensitiveField(), kubeClientSet),
 	}
 
 	return &newClient, nil
@@ -76,6 +79,13 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 
 	if err := kube.ValidateAPIGatewaySpec(&apiGateway.Spec); err != nil {
 		return nil, errors.Wrap(err, "Api gateway spec validation failed")
+	}
+
+	// restore scrubbed data
+	if restoredAPIGatewayConfig, err := lc.scrubber.RestoreAPIGatewayConfig(ctx, &platform.APIGatewayConfig{Spec: apiGateway.Spec}); err != nil {
+		return nil, errors.Wrap(err, "Failed to restore scrubber api gateway config")
+	} else {
+		apiGateway.Spec = restoredAPIGatewayConfig.Spec
 	}
 
 	// always try to remove previous canary ingress first, because
@@ -161,6 +171,19 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		true); err != nil {
 		lc.logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
 			"err", errors.Cause(err).Error())
+	}
+	if apiGatewaySecretName, err := lc.scrubber.GetObjectSecretName(ctx, name, namespace); err != nil {
+		lc.logger.WarnWithCtx(ctx, "Failed to get api gateway secret name",
+			"err", errors.Cause(err).Error())
+	} else if apiGatewaySecretName != "" {
+		lc.logger.DebugWithCtx(ctx, "Deleting api gateway secret",
+			"apiGatewayName", name)
+		if err := lc.kubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, apiGatewaySecretName, metav1.DeleteOptions{}); err != nil {
+			lc.logger.WarnWithCtx(ctx, "Failed to delete api gateway secret name",
+				"apiGatewayName", name,
+				"err", errors.Cause(err).Error())
+		}
+
 	}
 }
 
