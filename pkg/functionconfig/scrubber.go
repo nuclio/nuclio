@@ -50,7 +50,13 @@ type Scrubber struct {
 // NewScrubber returns a new scrubber
 // If the scrubber is only used for restoring, the arguments can be nil
 func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *Scrubber {
-	abstractScrubber := common.NewAbstractScrubber(sensitiveFields, kubeClientSet, ReferencePrefix, common.NuclioResourceLabelKeyFunctionName, SecretTypeFunctionConfig, parentLogger)
+	abstractScrubber := common.NewAbstractScrubber(
+		sensitiveFields,
+		kubeClientSet,
+		ReferencePrefix,
+		common.NuclioResourceLabelKeyFunctionName,
+		SecretTypeFunctionConfig,
+		parentLogger)
 	scrubber := &Scrubber{
 		AbstractScrubber: abstractScrubber,
 	}

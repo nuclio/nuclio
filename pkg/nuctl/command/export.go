@@ -45,9 +45,6 @@ func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *e
 		rootCommandeer: rootCommandeer,
 	}
 
-	// initialize scrubber, used for restoring only
-	commandeer.scrubber = functionconfig.NewScrubber(commandeer.rootCommandeer.loggerInstance, nil, nil)
-
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export functions or projects",
@@ -60,6 +57,9 @@ to the standard output, in JSON or YAML format`,
 
 	exportFunctionCommand := newExportFunctionCommandeer(ctx, commandeer).cmd
 	exportProjectCommand := newExportProjectCommandeer(ctx, commandeer).cmd
+
+	// initialize scrubber, used for restoring only
+	commandeer.scrubber = functionconfig.NewScrubber(commandeer.rootCommandeer.loggerInstance, nil, nil)
 
 	cmd.AddCommand(
 		exportFunctionCommand,
