@@ -210,15 +210,6 @@ type Platform interface {
 	// GetRegistryKind returns platform registry kind
 	GetRegistryKind() string
 
-	// GetFunctionSecrets returns all the function's secrets
-	GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]FunctionSecret, error)
-
-	// GetFunctionSecretMap returns a map of function's sensitive data
-	GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error)
-
-	// GetFunctionSecretData returns the function's secret data
-	GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error)
-
 	// SaveFunctionDeployLogs Save build logs from platform logger to function store or k8s
 	SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error
 

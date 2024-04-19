@@ -33,7 +33,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -553,9 +552,4 @@ type GetFunctionReplicaLogsStreamOptions struct {
 
 	// Number of lines to show from the end of the logs
 	TailLines *int64
-}
-
-type FunctionSecret struct {
-	Kubernetes *v1.Secret
-	Local      *string
 }

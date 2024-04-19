@@ -17,6 +17,7 @@ limitations under the License.
 package common
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -26,6 +27,10 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/gosecretive"
+	"github.com/nuclio/logger"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
@@ -55,20 +60,55 @@ type Scrubber interface {
 }
 
 type AbstractScrubber struct {
-	SensitiveFields []*regexp.Regexp
-	KubeClientSet   kubernetes.Interface
-	ReferencePrefix string
-	Scrubber        Scrubber
+	SensitiveFields            []*regexp.Regexp
+	KubeClientSet              kubernetes.Interface
+	ReferencePrefix            string
+	Scrubber                   Scrubber
+	ResourceLabelKeyObjectName string
+	SecretType                 v1.SecretType
+	Logger                     logger.Logger
 }
 
 // NewAbstractScrubber returns a new AbstractScrubber
 // If the scrubber is only used for restoring, the arguments can be nil
-func NewAbstractScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *AbstractScrubber {
+func NewAbstractScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, parentLogger logger.Logger) *AbstractScrubber {
 	return &AbstractScrubber{
-		SensitiveFields: sensitiveFields,
-		KubeClientSet:   kubeClientSet,
-		ReferencePrefix: ReferencePrefix,
+		SensitiveFields:            sensitiveFields,
+		KubeClientSet:              kubeClientSet,
+		ReferencePrefix:            referencePrefix,
+		ResourceLabelKeyObjectName: resourceLabelKeyObjectName,
+		SecretType:                 secretType,
+		Logger:                     parentLogger.GetChild("scrubber"),
 	}
+}
+
+func (s *AbstractScrubber) GetExistingSecretAndScrub(ctx context.Context, objectConfig interface{}, name, namespace string) (interface{}, string, map[string]string, error) {
+
+	// get existing object secret
+	var existingSecretMap map[string]string
+	existingSecretName, err := s.GetObjectSecretName(ctx, name, namespace)
+	if err != nil {
+		return nil, "", nil, errors.Wrap(err, "Failed to get object secret name")
+	}
+
+	// secret exists, get its data map
+	if existingSecretName != "" {
+		existingSecretMap, err = s.GetObjectSecretMap(ctx, name, namespace)
+		if err != nil {
+			return nil, "", nil, errors.Wrap(err, "Failed to get object secret")
+		}
+	}
+
+	// scrub the function config
+	s.Logger.DebugWithCtx(ctx, "Scrubbing object's config", "objectName", name)
+
+	scrubbedObjectConfig, secretsMap, err := s.Scrub(objectConfig,
+		existingSecretMap,
+		s.SensitiveFields)
+	if err != nil {
+		return nil, "", nil, errors.Wrap(err, "Failed to scrub function config")
+	}
+	return scrubbedObjectConfig, existingSecretName, secretsMap, nil
 }
 
 // Scrub scrubs sensitive data from an object
@@ -316,6 +356,156 @@ func (s *AbstractScrubber) ValidateReference(objectToScrub interface{},
 	return s.Scrubber.ValidateReference(objectToScrub, existingSecretMap, fieldPath, secretKey, stringValue)
 }
 
+func (s *AbstractScrubber) GetObjectSecrets(ctx context.Context, name, namespace string) ([]ObjectSecret, error) {
+	// if KubeClientSet is empty, it means that platform is not Kube, so we skip scrubbing
+	if s.KubeClientSet == nil {
+		return nil, nil
+	}
+	var functionSecrets []ObjectSecret
+
+	secrets, err := s.KubeClientSet.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", s.ResourceLabelKeyObjectName, name),
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to list secrets for function - %s", name)
+	}
+
+	for _, secret := range secrets.Items {
+		secret := secret
+		functionSecrets = append(functionSecrets, ObjectSecret{
+			Kubernetes: &secret,
+		})
+	}
+
+	return functionSecrets, nil
+}
+
+func (s *AbstractScrubber) GetObjectSecretName(ctx context.Context, name, namespace string) (string, error) {
+
+	secrets, err := s.GetObjectSecrets(ctx, name, namespace)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get function secrets")
+	}
+
+	// take the 1st secret if any secrets found
+	if len(secrets) == 0 {
+		return "", nil
+	}
+	return secrets[0].Kubernetes.Name, nil
+}
+
+func (s *AbstractScrubber) GetObjectSecretMap(ctx context.Context, name, namespace string) (map[string]string, error) {
+
+	functionSecretData, err := s.GeObjectSecretData(ctx, name, namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get object secret")
+	}
+
+	// if secret exists, get the data
+	if functionSecretData != nil {
+		functionSecretMap, err := s.DecodeSecretData(functionSecretData)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode object secret data")
+		}
+		return functionSecretMap, nil
+	}
+	return nil, nil
+}
+
+// GeObjectSecretData returns the object's secret data
+func (s *AbstractScrubber) GeObjectSecretData(ctx context.Context, name, namespace string) (map[string][]byte, error) {
+
+	// get existing object's secret
+	secrets, err := s.GetObjectSecrets(ctx, name, namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get object secret")
+	}
+
+	// if secret exists, get the data
+	// take the 1st secret if any secrets found
+	if len(secrets) == 0 {
+		return nil, nil
+	}
+	return secrets[0].Kubernetes.Data, nil
+}
+
 func (s *AbstractScrubber) generateSecretKey(fieldPath string) string {
 	return fmt.Sprintf("%s%s", ReferencePrefix, strings.ToLower(fieldPath))
+}
+
+func (s *AbstractScrubber) CreateOrUpdateSecret(ctx context.Context, namespace string, secretConfig *v1.Secret) error {
+
+	// check if secret exists
+	if _, err := s.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx,
+		secretConfig.Name,
+		metav1.GetOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrapf(err, "Failed to get secret %s", secretConfig.Name)
+		}
+		s.Logger.DebugWithCtx(ctx,
+			"Creating secret",
+			"secretName", secretConfig.Name,
+			"namespace", namespace)
+
+		// create secret
+		if _, err := s.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx,
+			secretConfig,
+			metav1.CreateOptions{}); err != nil {
+			return errors.Wrapf(err, "Failed to create secret %s", secretConfig.Name)
+		}
+		return nil
+	}
+
+	// update secret
+	s.Logger.DebugWithCtx(ctx,
+		"Updating secret",
+		"secretName", secretConfig.Name,
+		"namespace", namespace)
+	if _, err := s.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx,
+		secretConfig,
+		metav1.UpdateOptions{}); err != nil {
+		return errors.Wrapf(err, "Failed to update secret %s", secretConfig.Name)
+	}
+
+	return nil
+}
+
+func (s *AbstractScrubber) CreateOrUpdateObjectSecret(ctx context.Context,
+	encodedSecretsMap map[string]string,
+	secretName string,
+	name,
+	namespace,
+	projectName string) error {
+
+	if secretName == "" {
+		secretName = s.GenerateObjectSecretName(name)
+	}
+
+	secretConfig := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+			Labels: map[string]string{
+				s.ResourceLabelKeyObjectName:      name,
+				NuclioResourceLabelKeyProjectName: projectName,
+			},
+		},
+		Type:       s.SecretType,
+		StringData: encodedSecretsMap,
+	}
+
+	// create or update the secret, even if the encoded secrets map is empty
+	// this is to ensure that if the function will be updated with new secrets, they will be mounted properly
+	s.Logger.DebugWithCtx(ctx,
+		"Creating/updating object secret",
+		"objectName", name,
+		"objectNamespace", namespace)
+	if err := s.CreateOrUpdateSecret(ctx, namespace, secretConfig); err != nil {
+		return errors.Wrap(err, "Failed to create object secret")
+	}
+	return nil
+}
+
+type ObjectSecret struct {
+	Kubernetes *v1.Secret
+	Local      *string
 }

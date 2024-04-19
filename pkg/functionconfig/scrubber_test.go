@@ -46,7 +46,7 @@ func (suite *ScrubberTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
 	suite.k8sClientSet = k8sfake.NewSimpleClientset()
-	suite.scrubber = NewScrubber(suite.getSensitiveFieldsPathsRegex(), suite.k8sClientSet)
+	suite.scrubber = NewScrubber(suite.logger, suite.getSensitiveFieldsPathsRegex(), suite.k8sClientSet)
 }
 
 func (suite *ScrubberTestSuite) TestScrubBasics() {

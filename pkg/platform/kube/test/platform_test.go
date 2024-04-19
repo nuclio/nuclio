@@ -872,7 +872,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionImageNameInStatus() {
 }
 
 func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
-	scrubber := functionconfig.NewScrubber(nil, nil)
+	scrubber := functionconfig.NewScrubber(suite.Logger, nil, nil)
 
 	functionName := "func-with-secret"
 	password := "1234"
@@ -895,7 +895,7 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get function secrets
-		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
+		secrets, err := scrubber.GetObjectSecrets(suite.Ctx, functionName, suite.Namespace)
 		suite.Require().NoError(err)
 		suite.Require().Len(secrets, 1)
 
@@ -975,7 +975,7 @@ func (suite *DeployFunctionTestSuite) TestSecretEnvVarNotPresent() {
 }
 
 func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
-	scrubber := functionconfig.NewScrubber(nil, nil)
+	scrubber := functionconfig.NewScrubber(suite.Logger, nil, nil)
 
 	functionName := "func-with-multiple-volumes"
 	accessKey := "1234"
@@ -1036,7 +1036,7 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
 
 		// get function secrets
-		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
+		secrets, err := scrubber.GetObjectSecrets(suite.Ctx, functionName, suite.Namespace)
 		suite.Require().NoError(err)
 		suite.Require().Len(secrets, 3)
 
@@ -1092,7 +1092,7 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 }
 
 func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithScrubbedField() {
-	scrubber := functionconfig.NewScrubber(nil, nil)
+	scrubber := functionconfig.NewScrubber(suite.Logger, nil, nil)
 
 	functionName := "func-with-v3io-stream-trigger"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
@@ -1112,7 +1112,7 @@ func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithScrubbedField() {
 	validateSecretPasswordFunc := func(password string) {
 
 		// get function secret
-		secrets, err := suite.Platform.GetFunctionSecrets(suite.Ctx, functionName, suite.Namespace)
+		secrets, err := scrubber.GetObjectSecrets(suite.Ctx, functionName, suite.Namespace)
 		suite.Require().NoError(err)
 		suite.Require().Len(secrets, 1)
 
@@ -1988,9 +1988,10 @@ func (suite *UpdateFunctionTestSuite) TestUpdateFunctionWithSecret() {
 		})
 		suite.Require().NoError(err, "Failed to delete function")
 	}()
-
+	scrubber := functionconfig.NewScrubber(suite.Logger, suite.Platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex(),
+		suite.KubeClientSet)
 	// get function secret data
-	secretData, err := suite.Platform.GetFunctionSecretMap(ctx, functionName, suite.Namespace)
+	secretData, err := scrubber.GetObjectSecretMap(ctx, functionName, suite.Namespace)
 	suite.Require().NoError(err, "Failed to get function secret data")
 
 	// ensure secret contains the password
@@ -2004,7 +2005,7 @@ func (suite *UpdateFunctionTestSuite) TestUpdateFunctionWithSecret() {
 	suite.Require().NoError(err, "Failed to create function")
 
 	// get function secret data
-	secretData, err = suite.Platform.GetFunctionSecretMap(ctx, functionName, suite.Namespace)
+	secretData, err = scrubber.GetObjectSecretMap(ctx, functionName, suite.Namespace)
 	suite.Require().NoError(err, "Failed to get function secret data")
 
 	// ensure secret still contains the same password

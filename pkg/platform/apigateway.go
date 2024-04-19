@@ -17,6 +17,7 @@ limitations under the License.
 package platform
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -28,6 +29,8 @@ import (
 	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
 )
+
+const SecretTypeAPIGatewayConfig = "nuclio.io/apigatewayconfig"
 
 type APIGateway interface {
 
@@ -61,11 +64,40 @@ type APIGatewayScrubber struct {
 	*common.AbstractScrubber
 }
 
-func NewAPIGatewayScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *APIGatewayScrubber {
-	abstractScrubber := common.NewAbstractScrubber(sensitiveFields, kubeClientSet)
+func NewAPIGatewayScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *APIGatewayScrubber {
+	abstractScrubber := common.NewAbstractScrubber(sensitiveFields, kubeClientSet, common.ReferencePrefix, common.NuclioResourceLabelKeyApiGatewayName, SecretTypeAPIGatewayConfig, parentLogger)
 	scrubber := &APIGatewayScrubber{abstractScrubber}
 	abstractScrubber.Scrubber = scrubber
 	return scrubber
+}
+
+// RestoreAPIGatewayConfig restores an API Gateway config from a secret, in case we're running in a kube platform
+func (s *APIGatewayScrubber) RestoreAPIGatewayConfig(ctx context.Context,
+	config *APIGatewayConfig,
+	platformName string) (*APIGatewayConfig, error) {
+
+	// if we're in kube platform, we need to restore the API gateway config's
+	// sensitive data from the api gateway's secret
+	if platformName == common.KubePlatformName {
+		secretMap, err := s.GetObjectSecretMap(ctx,
+			config.Meta.Name,
+			config.Meta.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get api gateway secret")
+		}
+		if len(secretMap) > 0 {
+
+			// restore the api gateway config
+			restoredConfig, err := s.Restore(config, secretMap)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to restore api gateway config")
+			}
+			return restoredConfig.(*APIGatewayConfig), nil
+		}
+	}
+
+	// if we're not in kube platform, or the api gateway doesn't have a secret, just return the api gateway config
+	return config, nil
 }
 
 func (s *APIGatewayScrubber) ValidateReference(objectToScrub interface{},
@@ -86,18 +118,31 @@ func (s *APIGatewayScrubber) ValidateReference(objectToScrub interface{},
 }
 
 func (s *APIGatewayScrubber) ConvertMapToConfig(mapConfig interface{}) (interface{}, error) {
-	// marshal and unmarshal the map object back to function config
+	// marshal and unmarshal the map object back to api gateway config
 	apiGatewayConfig := &APIGatewayConfig{}
 
-	masrhalledFunctionConfig, err := json.Marshal(mapConfig.(map[string]interface{}))
+	masrhalledAPIGatewayConfig, err := json.Marshal(mapConfig.(map[string]interface{}))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to marshal scrubbed API Gateway config")
 	}
-	if err := json.Unmarshal(masrhalledFunctionConfig, apiGatewayConfig); err != nil {
+	if err := json.Unmarshal(masrhalledAPIGatewayConfig, apiGatewayConfig); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal scrubbed API Gateway config")
 	}
 
 	return apiGatewayConfig, nil
+}
+
+func (s *APIGatewayScrubber) GetAPIGatewaySecretName(ctx context.Context, name, namespace string) (string, error) {
+	secrets, err := s.GetObjectSecrets(ctx, name, namespace)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get api gateway secrets")
+	}
+	// For now, we only support one secret for API gateway with all the sensitive data
+	// so take the 1st secret name if one exists
+	if len(secrets) == 0 {
+		return "", nil
+	}
+	return secrets[0].Kubernetes.Name, nil
 }
 
 func GetAPIGatewaySensitiveField() []*regexp.Regexp {
@@ -109,4 +154,33 @@ func GetAPIGatewaySensitiveField() []*regexp.Regexp {
 		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
 	}
 	return regexpList
+}
+
+func (s *APIGatewayScrubber) ScrubAPIGatewayConfig(ctx context.Context,
+	apiGatewayConfig *APIGatewayConfig) (*APIGatewayConfig, error) {
+	var err error
+
+	scrubbedAPIGatewayConfig, existingSecretName, secretsMap, err := s.GetExistingSecretAndScrub(ctx, apiGatewayConfig,
+		apiGatewayConfig.Meta.Name, apiGatewayConfig.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get existing secret and scrub api gateway config")
+	}
+
+	// encode secrets map
+	encodedSecretsMap, err := s.EncodeSecretsMap(secretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to encode secrets map")
+	}
+
+	// create or update a secret for the api gateway
+	if err := s.CreateOrUpdateObjectSecret(ctx,
+		encodedSecretsMap,
+		existingSecretName,
+		apiGatewayConfig.Meta.Name,
+		apiGatewayConfig.Meta.Namespace,
+		apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]); err != nil {
+		return nil, errors.Wrap(err, "Failed to create or update api gateway secret")
+	}
+
+	return GetAPIGatewayConfigFromInterface(scrubbedAPIGatewayConfig), nil
 }

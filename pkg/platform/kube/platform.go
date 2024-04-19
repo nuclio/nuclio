@@ -140,6 +140,10 @@ func NewPlatform(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create an updater")
 	}
 
+	// set kubeClientSet for Scrubbers
+	newPlatform.FunctionScrubber.KubeClientSet = newPlatform.consumer.KubeClientSet
+	newPlatform.APIGatewayScrubber.KubeClientSet = newPlatform.consumer.KubeClientSet
+
 	// create projects client
 	newPlatform.projectsClient, err = NewProjectsClient(newPlatform, platformConfiguration)
 	if err != nil {
@@ -771,7 +775,7 @@ func (p *Platform) GetProjects(ctx context.Context,
 // CreateAPIGateway creates and deploys a new api gateway
 func (p *Platform) CreateAPIGateway(ctx context.Context,
 	createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
-	newAPIGateway := nuclioio.NuclioAPIGateway{}
+	newAPIGateway := &nuclioio.NuclioAPIGateway{}
 
 	// enrich
 	p.enrichAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig, nil)
@@ -784,7 +788,14 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
 	}
 
-	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
+	// scrub api gateway config
+	scrubbedConfig, err := p.APIGatewayScrubber.ScrubAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to scrub api gateway config")
+	}
+	createAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
+
+	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, newAPIGateway)
 
 	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
 	newAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
@@ -792,7 +803,7 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	// create
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(newAPIGateway.Namespace).
-		Create(ctx, &newAPIGateway, metav1.CreateOptions{}); err != nil {
+		Create(ctx, newAPIGateway, metav1.CreateOptions{}); err != nil {
 		return errors.Wrap(err, "Failed to create an API gateway")
 	}
 
@@ -818,6 +829,13 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 		apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate api gateway")
 	}
+
+	// scrub api gateway config
+	scrubbedConfig, err := p.APIGatewayScrubber.ScrubAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to scrub api gateway config")
+	}
+	updateAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
 	apiGateway.Labels = updateAPIGatewayOptions.APIGatewayConfig.Meta.Labels
@@ -1207,51 +1225,6 @@ func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, nam
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})
-}
-
-// GetFunctionSecrets returns all the function's secrets
-func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
-	var functionSecrets []platform.FunctionSecret
-
-	secrets, err := p.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list secrets for function - %s", functionName)
-	}
-
-	for _, secret := range secrets.Items {
-		secret := secret
-		functionSecrets = append(functionSecrets, platform.FunctionSecret{
-			Kubernetes: &secret,
-		})
-	}
-
-	return functionSecrets, nil
-}
-
-// GetFunctionSecretData returns the function's secret data
-func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
-
-	// get existing function secret
-	functionSecrets, err := p.GetFunctionSecrets(ctx, functionName, functionNamespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function secret")
-	}
-
-	// if secret exists, get the data
-	for _, functionSecret := range functionSecrets {
-		functionSecret := functionSecret.Kubernetes
-
-		// if it is a flex volume secret, skip it
-		if strings.HasPrefix(functionSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
-			continue
-		}
-
-		return functionSecret.Data, nil
-	}
-
-	return nil, nil
 }
 
 func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {

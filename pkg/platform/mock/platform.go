@@ -384,19 +384,3 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 	args := mp.Called(projectName, functionName, functionEventName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }
-
-// GetFunctionSecrets returns all the function's secrets
-func (mp *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
-	args := mp.Called(ctx, functionName, functionNamespace)
-	return args.Get(0).([]platform.FunctionSecret), args.Error(1)
-}
-
-func (mp *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
-	args := mp.Called(ctx, functionName, functionNamespace)
-	return args.Get(0).(map[string]string), args.Error(1)
-}
-
-func (mp *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
-	args := mp.Called(ctx, functionName, functionNamespace)
-	return args.Get(0).(map[string][]byte), args.Error(1)
-}

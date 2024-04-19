@@ -46,7 +46,7 @@ func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *e
 	}
 
 	// initialize scrubber, used for restoring only
-	commandeer.scrubber = functionconfig.NewScrubber(nil, nil)
+	commandeer.scrubber = functionconfig.NewScrubber(commandeer.rootCommandeer.loggerInstance, nil, nil)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -161,8 +161,7 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 				var restoreErr error
 				functionConfig, restoreErr = e.scrubber.RestoreFunctionConfig(errGroupCtx,
 					functionConfig,
-					e.rootCommandeer.platform.GetName(),
-					e.rootCommandeer.platform.GetFunctionSecretMap)
+					e.rootCommandeer.platform.GetName())
 				if restoreErr != nil {
 					return errors.Wrap(err, "Failed to restore function config")
 				}
@@ -326,8 +325,7 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 		// restore the function config, if needed
 		functionConfig, err := e.scrubber.RestoreFunctionConfig(context.Background(),
 			function.GetConfig(),
-			e.rootCommandeer.platform.GetName(),
-			e.rootCommandeer.platform.GetFunctionSecretMap)
+			e.rootCommandeer.platform.GetName())
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to restore function config")
 		}
