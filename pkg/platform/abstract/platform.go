@@ -164,7 +164,7 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 
 		// if the function is updated, it might have scrubbed data in the spec that the builder requires,
 		// so we need to restore it before building
-		if ap.FunctionScrubber != nil {
+		if ap.platform.GetFunctionScrubber() != nil {
 			restoredFunctionConfig, err := ap.FunctionScrubber.RestoreFunctionConfig(ctx,
 				&createFunctionOptions.FunctionConfig,
 				ap.platform.GetName())

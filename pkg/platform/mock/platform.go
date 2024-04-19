@@ -55,6 +55,11 @@ func (mp *Platform) GetConfig() *platformconfig.Config {
 	return args.Get(0).(*platformconfig.Config)
 }
 
+func (mp *Platform) GetFunctionScrubber() *functionconfig.Scrubber {
+	args := mp.Called()
+	return args.Get(0).(*functionconfig.Scrubber)
+}
+
 func (mp *Platform) GetContainerBuilderKind() string {
 	args := mp.Called()
 	return args.Get(0).(string)

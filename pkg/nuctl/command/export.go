@@ -102,8 +102,7 @@ Arguments:
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 			// initialize scrubber, used for restoring only
-			commandeer.scrubber = functionconfig.NewScrubber(commandeer.rootCommandeer.loggerInstance, nil, nil)
-
+			commandeer.scrubber = exportCommandeer.rootCommandeer.platform.GetFunctionScrubber()
 			commandeer.getFunctionsOptions.Namespace = exportCommandeer.rootCommandeer.namespace
 
 			functions, err := exportCommandeer.rootCommandeer.platform.GetFunctions(ctx,

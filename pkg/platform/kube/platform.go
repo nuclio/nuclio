@@ -1198,6 +1198,20 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	return namespaceNames, nil
 }
 
+func (p *Platform) GetFunctionScrubber() *functionconfig.Scrubber {
+	if p.FunctionScrubber == nil {
+		p.FunctionScrubber = functionconfig.NewScrubber(p.Logger,
+			p.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex(),
+			p.consumer.KubeClientSet,
+		)
+		return p.FunctionScrubber
+	}
+	if p.FunctionScrubber.KubeClientSet == nil {
+		p.FunctionScrubber.KubeClientSet = p.consumer.KubeClientSet
+	}
+	return p.FunctionScrubber
+}
+
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
