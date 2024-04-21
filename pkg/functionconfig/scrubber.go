@@ -54,14 +54,7 @@ func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, k
 		// if it is a flex volume secret, skip it
 		return strings.HasPrefix(name, NuclioFlexVolumeSecretNamePrefix)
 	}
-	abstractScrubber := common.NewAbstractScrubber(
-		sensitiveFields,
-		kubeClientSet,
-		ReferencePrefix,
-		common.NuclioResourceLabelKeyFunctionName,
-		SecretTypeFunctionConfig,
-		parentLogger,
-		filterSecretNameFunction)
+	abstractScrubber := common.NewAbstractScrubber(parentLogger, sensitiveFields, kubeClientSet, ReferencePrefix, common.NuclioResourceLabelKeyFunctionName, SecretTypeFunctionConfig, filterSecretNameFunction)
 	scrubber := &Scrubber{
 		AbstractScrubber: abstractScrubber,
 	}
@@ -77,7 +70,7 @@ func (s *Scrubber) RestoreFunctionConfig(ctx context.Context,
 	// if we're in kube platform, we need to restore the function config's
 	// sensitive data from the function's secret
 	if platformName == common.KubePlatformName {
-		secretMap, err := s.GetObjectSecretMap(ctx,
+		secretMap, _, err := s.GetObjectSecretMap(ctx,
 			functionConfig.Meta.Name,
 			functionConfig.Meta.Namespace)
 		if err != nil {
@@ -189,32 +182,12 @@ func (s *Scrubber) GenerateFlexVolumeSecretName(functionName, volumeName string)
 	return secretName
 }
 
-func (s *Scrubber) GetObjectSecretName(ctx context.Context, name, namespace string) (string, error) {
-
-	secrets, err := s.GetObjectSecrets(ctx, name, namespace)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get function secrets")
-	}
-
-	for _, secret := range secrets {
-		if !strings.HasPrefix(secret.Kubernetes.Name, NuclioFlexVolumeSecretNamePrefix) {
-			return secret.Kubernetes.Name, nil
-		}
-	}
-
-	return "", nil
-}
-
 func (s *Scrubber) ScrubFunctionConfig(ctx context.Context,
 	functionConfig *Config) (*Config, error) {
 	var err error
 
-	existingSecretName, err := s.GetObjectSecretName(ctx, functionConfig.Meta.Name, functionConfig.Meta.Namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function config secret name")
-	}
-	scrubbedFunctionConfig, existingSecretName, secretsMap, err := s.GetExistingSecretAndScrub(ctx, functionConfig,
-		functionConfig.Meta.Name, functionConfig.Meta.Namespace, existingSecretName)
+	scrubbedFunctionConfig, existingSecretName, secretsMap, err := s.Scrub(ctx, functionConfig,
+		functionConfig.Meta.Name, functionConfig.Meta.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get existing secret and scrub function config")
 	}

@@ -19,6 +19,7 @@ package apigatewayres
 import (
 	"context"
 
+	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 )
@@ -46,4 +47,17 @@ type Resources interface {
 
 	// IngressResourcesMap returns a mapping of [ string(ingress's name) -> *ingress.Resources ]
 	IngressResourcesMap() map[string]*ingress.Resources
+}
+
+func getAPIGatewayConfigFromCRD(apiGateway *nuclioio.NuclioAPIGateway) *platform.APIGatewayConfig {
+	return &platform.APIGatewayConfig{
+		Meta: platform.APIGatewayMeta{
+			Namespace:   apiGateway.Namespace,
+			Name:        apiGateway.Name,
+			Labels:      apiGateway.Labels,
+			Annotations: apiGateway.Annotations,
+		},
+		Spec:   apiGateway.Spec,
+		Status: apiGateway.Status,
+	}
 }

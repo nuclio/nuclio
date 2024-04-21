@@ -67,7 +67,7 @@ type APIGatewayScrubber struct {
 func NewAPIGatewayScrubber(parentLogger logger.Logger,
 	sensitiveFields []*regexp.Regexp,
 	kubeClientSet kubernetes.Interface) *APIGatewayScrubber {
-	abstractScrubber := common.NewAbstractScrubber(sensitiveFields, kubeClientSet, common.ReferencePrefix, common.NuclioResourceLabelKeyApiGatewayName, SecretTypeAPIGatewayConfig, parentLogger, func(name string) bool {
+	abstractScrubber := common.NewAbstractScrubber(parentLogger, sensitiveFields, kubeClientSet, common.ReferencePrefix, common.NuclioResourceLabelKeyApiGatewayName, SecretTypeAPIGatewayConfig, func(name string) bool {
 		return false
 	})
 	scrubber := &APIGatewayScrubber{abstractScrubber}
@@ -79,7 +79,7 @@ func NewAPIGatewayScrubber(parentLogger logger.Logger,
 func (s *APIGatewayScrubber) RestoreAPIGatewayConfig(ctx context.Context,
 	config *APIGatewayConfig) (*APIGatewayConfig, error) {
 
-	secretMap, err := s.GetObjectSecretMap(ctx,
+	secretMap, _, err := s.GetObjectSecretMap(ctx,
 		config.Meta.Name,
 		config.Meta.Namespace)
 	if err != nil {
@@ -146,15 +146,7 @@ func (s *APIGatewayScrubber) ScrubAPIGatewayConfig(ctx context.Context,
 	apiGatewayConfig *APIGatewayConfig) (*APIGatewayConfig, error) {
 	var err error
 
-	existingSecretName, err := s.GetObjectSecretName(
-		ctx, apiGatewayConfig.Meta.Name,
-		apiGatewayConfig.Meta.Namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get api gateway config secret name")
-	}
-
-	scrubbedAPIGatewayConfig, existingSecretName, secretsMap, err := s.GetExistingSecretAndScrub(ctx, apiGatewayConfig,
-		apiGatewayConfig.Meta.Name, apiGatewayConfig.Meta.Namespace, existingSecretName)
+	scrubbedAPIGatewayConfig, existingSecretName, secretsMap, err := s.Scrub(ctx, apiGatewayConfig, apiGatewayConfig.Meta.Name, apiGatewayConfig.Meta.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get existing secret and scrub api gateway config")
 	}

@@ -900,7 +900,6 @@ func (suite *DeployFunctionTestSuite) TestFunctionSecretCreation() {
 		suite.Require().Len(secrets, 1)
 
 		for _, secret := range secrets {
-			secret := secret.Kubernetes
 			if !strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
 
 				// decode data from secret
@@ -1041,17 +1040,16 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 		suite.Require().Len(secrets, 3)
 
 		for _, secret := range secrets {
-			kubeSecret := secret.Kubernetes
 			switch {
-			case !strings.HasPrefix(kubeSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix):
+			case !strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix):
 				functionSecretCounter++
 
 				// decode data from secret
-				decodedSecretData, err := scrubber.DecodeSecretData(kubeSecret.Data)
+				decodedSecretData, err := scrubber.DecodeSecretData(secret.Data)
 				suite.Require().NoError(err)
 				suite.Logger.DebugWithCtx(suite.Ctx,
 					"Got function secret",
-					"secretData", kubeSecret.Data,
+					"secretData", secret.Data,
 					"decodedSecretData", decodedSecretData)
 
 				// verify accessKey is in secret data
@@ -1061,16 +1059,16 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 					}
 				}
 
-			case strings.HasPrefix(kubeSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix):
+			case strings.HasPrefix(secret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix):
 				volumeSecretCounter++
 
 				// validate that the secret contains the volume label
-				volumeNameLabel, exists := kubeSecret.Labels[common.NuclioResourceLabelKeyVolumeName]
+				volumeNameLabel, exists := secret.Labels[common.NuclioResourceLabelKeyVolumeName]
 				suite.Require().True(exists)
 				suite.Require().Contains([]string{"volume1", "volume2"}, volumeNameLabel)
 
 				// validate that the secret contains the access key
-				accessKeyData, exists := kubeSecret.Data["accessKey"]
+				accessKeyData, exists := secret.Data["accessKey"]
 				suite.Require().True(exists)
 
 				suite.Require().Equal(accessKey, string(accessKeyData))
@@ -1078,9 +1076,9 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 			default:
 				suite.Logger.DebugWithCtx(suite.Ctx,
 					"Got unknown secret",
-					"secretName", kubeSecret.Name,
-					"secretData", kubeSecret.Data)
-				suite.Failf("Got unknown secret.", "Secret name: %s", kubeSecret.Name)
+					"secretName", secret.Name,
+					"secretData", secret.Data)
+				suite.Failf("Got unknown secret.", "Secret name: %s", secret.Name)
 			}
 
 		}
@@ -1117,7 +1115,7 @@ func (suite *DeployFunctionTestSuite) TestRedeployFunctionWithScrubbedField() {
 		suite.Require().Len(secrets, 1)
 
 		// decode secret data
-		decodedContents, err := scrubber.DecodeSecretData(secrets[0].Kubernetes.Data)
+		decodedContents, err := scrubber.DecodeSecretData(secrets[0].Data)
 		suite.Require().NoError(err)
 
 		// make sure first password is in secret
@@ -1991,7 +1989,7 @@ func (suite *UpdateFunctionTestSuite) TestUpdateFunctionWithSecret() {
 	scrubber := functionconfig.NewScrubber(suite.Logger, suite.Platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex(),
 		suite.KubeClientSet)
 	// get function secret data
-	secretData, err := scrubber.GetObjectSecretMap(ctx, functionName, suite.Namespace)
+	secretData, _, err := scrubber.GetObjectSecretMap(ctx, functionName, suite.Namespace)
 	suite.Require().NoError(err, "Failed to get function secret data")
 
 	// ensure secret contains the password
@@ -2005,7 +2003,7 @@ func (suite *UpdateFunctionTestSuite) TestUpdateFunctionWithSecret() {
 	suite.Require().NoError(err, "Failed to create function")
 
 	// get function secret data
-	secretData, err = scrubber.GetObjectSecretMap(ctx, functionName, suite.Namespace)
+	secretData, _, err = scrubber.GetObjectSecretMap(ctx, functionName, suite.Namespace)
 	suite.Require().NoError(err, "Failed to get function secret data")
 
 	// ensure secret still contains the same password

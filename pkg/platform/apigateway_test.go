@@ -57,7 +57,7 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 	}}
 
 	// scrub the function config
-	scrubbedInterface, secretMap, err := suite.scrubber.Scrub(apiGatewayConfig, nil, GetAPIGatewaySensitiveField())
+	scrubbedInterface, _, secretMap, err := suite.scrubber.Scrub(suite.ctx, apiGatewayConfig, "name", "namespace")
 	scrubbedApiGatewayConfig := GetAPIGatewayConfigFromInterface(scrubbedInterface)
 	suite.Require().NotEqual(apiGatewayConfig.Spec.Authentication.BasicAuth.Password, scrubbedApiGatewayConfig.Spec.Authentication.BasicAuth.Password)
 	suite.Require().NoError(err)

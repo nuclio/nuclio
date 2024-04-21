@@ -82,12 +82,8 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 	}
 
 	// restore scrubbed data
-	if restoredAPIGatewayConfig, err := lc.scrubber.RestoreAPIGatewayConfig(ctx, &platform.APIGatewayConfig{
-		Spec: apiGateway.Spec,
-		Meta: platform.APIGatewayMeta{
-			Name:      apiGateway.Name,
-			Namespace: apiGateway.Namespace},
-	}); err != nil {
+	if restoredAPIGatewayConfig, err := lc.scrubber.RestoreAPIGatewayConfig(ctx,
+		getAPIGatewayConfigFromCRD(apiGateway)); err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("Failed to restore scrubbed api gateway config - %s", errors.GetErrorStackString(err, 10)))
 	} else {
 		apiGateway.Spec = restoredAPIGatewayConfig.Spec
