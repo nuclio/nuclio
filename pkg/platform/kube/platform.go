@@ -144,8 +144,7 @@ func NewPlatform(ctx context.Context,
 	// set kubeClientSet for Function Scrubber
 	newPlatform.FunctionScrubber = functionconfig.NewScrubber(parentLogger,
 		platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
-		newPlatform.consumer.KubeClientSet,
-	)
+		newPlatform.consumer.KubeClientSet)
 
 	// create api gateway scrubber
 	newPlatform.apiGatewayScrubber = platform.NewAPIGatewayScrubber(parentLogger, platform.GetAPIGatewaySensitiveField(),

@@ -75,7 +75,12 @@ type AbstractScrubber struct {
 
 // NewAbstractScrubber returns a new AbstractScrubber
 // If the scrubber is only used for restoring, the arguments can be nil
-func NewAbstractScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, parentLogger logger.Logger, filterSecretNameFunction func(name string) bool) *AbstractScrubber {
+func NewAbstractScrubber(sensitiveFields []*regexp.Regexp,
+	kubeClientSet kubernetes.Interface,
+	referencePrefix, resourceLabelKeyObjectName string,
+	secretType v1.SecretType,
+	parentLogger logger.Logger,
+	filterSecretNameFunction func(name string) bool) *AbstractScrubber {
 	return &AbstractScrubber{
 		SensitiveFields:            sensitiveFields,
 		KubeClientSet:              kubeClientSet,
@@ -108,7 +113,7 @@ func (s *AbstractScrubber) GetExistingSecretAndScrub(ctx context.Context, object
 		existingSecretMap,
 		s.SensitiveFields)
 	if err != nil {
-		return nil, "", nil, errors.Wrap(err, "Failed to scrub function config")
+		return nil, "", nil, errors.Wrap(err, "Failed to scrub object config")
 	}
 	return scrubbedObjectConfig, existingSecretName, secretsMap, nil
 }
@@ -196,7 +201,7 @@ func (s *AbstractScrubber) Restore(scrubbedObject interface{}, secretsMap map[st
 	return restoredObject, nil
 }
 
-// HasScrubbedConfig checks if a object has scrubbed data, using the Scrub function
+// HasScrubbedConfig checks if a object has scrubbed data, using the Scrub object
 func (s *AbstractScrubber) HasScrubbedConfig(object interface{}, sensitiveFields []*regexp.Regexp) (bool, error) {
 	var hasScrubbed bool
 
@@ -268,7 +273,7 @@ func (s *AbstractScrubber) DecodeSecretsMapContent(secretsMapContent string) (ma
 	// decode secret
 	secretContentStr, err := base64.StdEncoding.DecodeString(secretsMapContent)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decode function secret")
+		return nil, errors.Wrap(err, "Failed to decode object secret")
 	}
 	if len(secretContentStr) == 0 {
 
@@ -279,14 +284,14 @@ func (s *AbstractScrubber) DecodeSecretsMapContent(secretsMapContent string) (ma
 	// unmarshal secret into map
 	encodedSecretMap := map[string]string{}
 	if err := json.Unmarshal(secretContentStr, &encodedSecretMap); err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal function secret")
+		return nil, errors.Wrap(err, "Failed to unmarshal object secret")
 	}
 
 	// decode secret keys and values
 	// convert values to byte array for decoding purposes
 	secretMap, err := s.DecodeSecretData(MapStringStringToMapStringBytesArray(encodedSecretMap))
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decode function secret data")
+		return nil, errors.Wrap(err, "Failed to decode object secret data")
 	}
 
 	return secretMap, nil
@@ -311,7 +316,7 @@ func (s *AbstractScrubber) DecodeSecretData(secretData map[string][]byte) (map[s
 	return decodedSecretsMap, nil
 }
 
-// GenerateObjectSecretName e generates a secret name for a function, in the form of:
+// GenerateObjectSecretName e generates a secret name for an object, in the form of:
 // `nuclio-secret-<project-name>-<object-name>-<unique-id>`
 func (s *AbstractScrubber) GenerateObjectSecretName(objectName string) string {
 	secretName := fmt.Sprintf("%s-%s", "nuclio", objectName)
@@ -359,34 +364,34 @@ func (s *AbstractScrubber) ValidateReference(objectToScrub interface{},
 }
 
 func (s *AbstractScrubber) GetObjectSecrets(ctx context.Context, name, namespace string) ([]ObjectSecret, error) {
-	// if KubeClientSet is empty, it means that platform is not Kube, so we skip scrubbing
+	// if KubeClientSet is empty, it means that platform is not Kube, so there are no secrets
 	if s.KubeClientSet == nil {
 		return nil, nil
 	}
-	var functionSecrets []ObjectSecret
+	var objectSecrets []ObjectSecret
 
 	secrets, err := s.KubeClientSet.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", s.ResourceLabelKeyObjectName, name),
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list secrets for function - %s", name)
+		return nil, errors.Wrapf(err, "Failed to list secrets for object - %s", name)
 	}
 
 	for _, secret := range secrets.Items {
 		secret := secret
-		functionSecrets = append(functionSecrets, ObjectSecret{
+		objectSecrets = append(objectSecrets, ObjectSecret{
 			Kubernetes: &secret,
 		})
 	}
 
-	return functionSecrets, nil
+	return objectSecrets, nil
 }
 
 func (s *AbstractScrubber) GetObjectSecretName(ctx context.Context, name, namespace string) (string, error) {
 
 	secrets, err := s.GetObjectSecrets(ctx, name, namespace)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get function secrets")
+		return "", errors.Wrap(err, "Failed to get object secrets")
 	}
 
 	// take the 1st secret if any secrets found
@@ -398,18 +403,18 @@ func (s *AbstractScrubber) GetObjectSecretName(ctx context.Context, name, namesp
 
 func (s *AbstractScrubber) GetObjectSecretMap(ctx context.Context, name, namespace string) (map[string]string, error) {
 
-	functionSecretData, err := s.GetObjectSecretData(ctx, name, namespace)
+	objectSecretData, err := s.GetObjectSecretData(ctx, name, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get object secret")
 	}
 
 	// if secret exists, get the data
-	if functionSecretData != nil {
-		functionSecretMap, err := s.DecodeSecretData(functionSecretData)
+	if objectSecretData != nil {
+		objectSecretMap, err := s.DecodeSecretData(objectSecretData)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to decode object secret data")
 		}
-		return functionSecretMap, nil
+		return objectSecretMap, nil
 	}
 	return nil, nil
 }
@@ -424,16 +429,16 @@ func (s *AbstractScrubber) GetObjectSecretData(ctx context.Context, name, namesp
 	}
 
 	// if secret exists, get the data
-	// take the 1st secret if any secrets found for all scrubbers except function config
+	// take the 1st secret if any secrets found for all scrubbers except object config
 	// for function config, filter secrets by name
 	for _, secret := range secrets {
-		functionSecret := secret.Kubernetes
+		objectSecret := secret.Kubernetes
 
 		// this check is specific for functionConfig scrubber, because for function we create 2 secrets
-		if s.filterSecretNameFunction(functionSecret.Name) {
+		if s.filterSecretNameFunction(objectSecret.Name) {
 			continue
 		}
-		return functionSecret.Data, nil
+		return objectSecret.Data, nil
 	}
 	return nil, nil
 }
@@ -503,7 +508,7 @@ func (s *AbstractScrubber) CreateOrUpdateObjectSecret(ctx context.Context,
 	}
 
 	// create or update the secret, even if the encoded secrets map is empty
-	// this is to ensure that if the function will be updated with new secrets, they will be mounted properly
+	// this is to ensure that if the object will be updated with new secrets, they will be mounted properly
 	s.Logger.DebugWithCtx(ctx,
 		"Creating/updating object secret",
 		"objectName", name,

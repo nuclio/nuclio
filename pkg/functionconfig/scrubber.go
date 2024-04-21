@@ -61,7 +61,8 @@ func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, k
 		ReferencePrefix,
 		common.NuclioResourceLabelKeyFunctionName,
 		SecretTypeFunctionConfig,
-		parentLogger, filterSecretNameFunction)
+		parentLogger,
+		filterSecretNameFunction)
 	scrubber := &Scrubber{
 		AbstractScrubber: abstractScrubber,
 	}
@@ -104,7 +105,7 @@ func (s *Scrubber) ValidateReference(objectToScrub interface{},
 	secretKey,
 	stringValue string) error {
 
-	// if KubeClientSet is empty, it means that platform is not Kube, so we skip scrubbing
+	// if KubeClientSet is empty, it means that platform is not Kube, so there are no secrets
 	if s.KubeClientSet == nil {
 		return nil
 	}

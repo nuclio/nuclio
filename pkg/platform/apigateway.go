@@ -64,7 +64,9 @@ type APIGatewayScrubber struct {
 	*common.AbstractScrubber
 }
 
-func NewAPIGatewayScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *APIGatewayScrubber {
+func NewAPIGatewayScrubber(parentLogger logger.Logger,
+	sensitiveFields []*regexp.Regexp,
+	kubeClientSet kubernetes.Interface) *APIGatewayScrubber {
 	abstractScrubber := common.NewAbstractScrubber(sensitiveFields, kubeClientSet, common.ReferencePrefix, common.NuclioResourceLabelKeyApiGatewayName, SecretTypeAPIGatewayConfig, parentLogger, func(name string) bool {
 		return false
 	})
@@ -143,10 +145,10 @@ func GetAPIGatewaySensitiveField() []*regexp.Regexp {
 func (s *APIGatewayScrubber) ScrubAPIGatewayConfig(ctx context.Context,
 	apiGatewayConfig *APIGatewayConfig) (*APIGatewayConfig, error) {
 	var err error
-	name := apiGatewayConfig.Meta.Name
-	ns := apiGatewayConfig.Meta.Namespace
 
-	existingSecretName, err := s.GetObjectSecretName(ctx, name, ns)
+	existingSecretName, err := s.GetObjectSecretName(
+		ctx, apiGatewayConfig.Meta.Name,
+		apiGatewayConfig.Meta.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get api gateway config secret name")
 	}
