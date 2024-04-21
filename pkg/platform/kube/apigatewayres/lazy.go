@@ -172,6 +172,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		lc.logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
 			"err", errors.Cause(err).Error())
 	}
+
 	if apiGatewaySecretName, err := lc.scrubber.GetObjectSecretName(ctx, name, namespace); err != nil {
 		lc.logger.WarnWithCtx(ctx, "Failed to get api gateway secret name",
 			"err", errors.Cause(err).Error())

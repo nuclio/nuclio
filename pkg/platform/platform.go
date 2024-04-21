@@ -225,7 +225,7 @@ type Platform interface {
 	// GetConfig returns platform config
 	GetConfig() *platformconfig.Config
 
-	//
+	// GetFunctionScrubber returns function config scrubber
 	GetFunctionScrubber() *functionconfig.Scrubber
 	//
 	// OPA
