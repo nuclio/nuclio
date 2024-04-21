@@ -67,11 +67,15 @@ type AbstractScrubber struct {
 	ResourceLabelKeyObjectName string
 	SecretType                 v1.SecretType
 	Logger                     logger.Logger
+
+	// if many secrets can be found with ResourceLabelKeyObjectName, we allow passing filter
+	// filterSecretNameFunction is a function which takes secret name and return if secrets should be filtered(skipped),
+	filterSecretNameFunction func(name string) bool
 }
 
 // NewAbstractScrubber returns a new AbstractScrubber
 // If the scrubber is only used for restoring, the arguments can be nil
-func NewAbstractScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, parentLogger logger.Logger) *AbstractScrubber {
+func NewAbstractScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, parentLogger logger.Logger, filterSecretNameFunction func(name string) bool) *AbstractScrubber {
 	return &AbstractScrubber{
 		SensitiveFields:            sensitiveFields,
 		KubeClientSet:              kubeClientSet,
@@ -79,6 +83,7 @@ func NewAbstractScrubber(sensitiveFields []*regexp.Regexp, kubeClientSet kuberne
 		ResourceLabelKeyObjectName: resourceLabelKeyObjectName,
 		SecretType:                 secretType,
 		Logger:                     parentLogger.GetChild("scrubber"),
+		filterSecretNameFunction:   filterSecretNameFunction,
 	}
 }
 
@@ -393,7 +398,7 @@ func (s *AbstractScrubber) GetObjectSecretName(ctx context.Context, name, namesp
 
 func (s *AbstractScrubber) GetObjectSecretMap(ctx context.Context, name, namespace string) (map[string]string, error) {
 
-	functionSecretData, err := s.GeObjectSecretData(ctx, name, namespace)
+	functionSecretData, err := s.GetObjectSecretData(ctx, name, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get object secret")
 	}
@@ -409,8 +414,8 @@ func (s *AbstractScrubber) GetObjectSecretMap(ctx context.Context, name, namespa
 	return nil, nil
 }
 
-// GeObjectSecretData returns the object's secret data
-func (s *AbstractScrubber) GeObjectSecretData(ctx context.Context, name, namespace string) (map[string][]byte, error) {
+// GetObjectSecretData returns the object's secret data
+func (s *AbstractScrubber) GetObjectSecretData(ctx context.Context, name, namespace string) (map[string][]byte, error) {
 
 	// get existing object's secret
 	secrets, err := s.GetObjectSecrets(ctx, name, namespace)
@@ -419,11 +424,18 @@ func (s *AbstractScrubber) GeObjectSecretData(ctx context.Context, name, namespa
 	}
 
 	// if secret exists, get the data
-	// take the 1st secret if any secrets found
-	if len(secrets) == 0 {
-		return nil, nil
+	// take the 1st secret if any secrets found for all scrubbers except function config
+	// for function config, filter secrets by name
+	for _, secret := range secrets {
+		functionSecret := secret.Kubernetes
+
+		// this check is specific for functionConfig scrubber, because for function we create 2 secrets
+		if s.filterSecretNameFunction(functionSecret.Name) {
+			continue
+		}
+		return functionSecret.Data, nil
 	}
-	return secrets[0].Kubernetes.Data, nil
+	return nil, nil
 }
 
 func (s *AbstractScrubber) generateSecretKey(fieldPath string) string {

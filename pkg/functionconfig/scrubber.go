@@ -50,13 +50,18 @@ type Scrubber struct {
 // NewScrubber returns a new scrubber
 // If the scrubber is only used for restoring, the arguments can be nil
 func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *Scrubber {
+
+	filterSecretNameFunction := func(name string) bool {
+		// if it is a flex volume secret, skip it
+		return strings.HasPrefix(name, NuclioFlexVolumeSecretNamePrefix)
+	}
 	abstractScrubber := common.NewAbstractScrubber(
 		sensitiveFields,
 		kubeClientSet,
 		ReferencePrefix,
 		common.NuclioResourceLabelKeyFunctionName,
 		SecretTypeFunctionConfig,
-		parentLogger)
+		parentLogger, filterSecretNameFunction)
 	scrubber := &Scrubber{
 		AbstractScrubber: abstractScrubber,
 	}
@@ -198,30 +203,6 @@ func (s *Scrubber) GetObjectSecretName(ctx context.Context, name, namespace stri
 	}
 
 	return "", nil
-}
-
-// GetObjectSecretData returns the function's secret data
-func (s *Scrubber) GetObjectSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
-
-	// get existing function secret
-	functionSecrets, err := s.GetObjectSecrets(ctx, functionName, functionNamespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function secret")
-	}
-
-	// if secret exists, get the data
-	for _, functionSecret := range functionSecrets {
-		functionSecret := functionSecret.Kubernetes
-
-		// if it is a flex volume secret, skip it
-		if strings.HasPrefix(functionSecret.Name, NuclioFlexVolumeSecretNamePrefix) {
-			continue
-		}
-
-		return functionSecret.Data, nil
-	}
-
-	return nil, nil
 }
 
 func (s *Scrubber) ScrubFunctionConfig(ctx context.Context,
