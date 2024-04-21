@@ -165,6 +165,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 	// fill basic auth args depending on authentication mode
 	if authenticationMode == ingress.AuthenticationModeBasicAuth {
 		namedArgs["basic-auth-username"] = basicAuthUsername
+		namedArgs["basic-auth-password"] = basicAuthPassword
 	}
 
 	err := suite.ExecuteNuctl([]string{
