@@ -77,12 +77,14 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 			nil)
 		suite.Require().NoError(err)
 
-		// get all named args values - make sure they're all in the output
+		// get all named args values - make sure they're all in the output except password, because we put password into secret
 		var namedArgsValues []string
-		for _, namedArgValue := range namedArgs {
-			namedArgsValues = append(namedArgsValues, namedArgValue)
+		for key, namedArgValue := range namedArgs {
+			if key != "basic-auth-password" {
+				namedArgsValues = append(namedArgsValues, namedArgValue)
+			}
 		}
-		suite.findPatternsInOutput(namedArgsValues, nil)
+		suite.findPatternsInOutput(namedArgsValues, []string{"basic-password"})
 
 		// delete api gateway
 		err = suite.ExecuteNuctl([]string{"delete", "apigateway", apiGatewayName}, nil) // nolint: errcheck
@@ -163,7 +165,6 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 	// fill basic auth args depending on authentication mode
 	if authenticationMode == ingress.AuthenticationModeBasicAuth {
 		namedArgs["basic-auth-username"] = basicAuthUsername
-		namedArgs["basic-auth-password"] = basicAuthPassword
 	}
 
 	err := suite.ExecuteNuctl([]string{
