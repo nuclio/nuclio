@@ -74,7 +74,6 @@ type AbstractScrubber struct {
 }
 
 // NewAbstractScrubber returns a new AbstractScrubber
-// If the scrubber is only used for restoring, the arguments can be nil
 func NewAbstractScrubber(sensitiveFields []*regexp.Regexp,
 	kubeClientSet kubernetes.Interface,
 	referencePrefix, resourceLabelKeyObjectName string,

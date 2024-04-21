@@ -48,7 +48,6 @@ type Scrubber struct {
 }
 
 // NewScrubber returns a new scrubber
-// If the scrubber is only used for restoring, the arguments can be nil
 func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *Scrubber {
 
 	filterSecretNameFunction := func(name string) bool {
