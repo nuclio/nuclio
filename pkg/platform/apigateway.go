@@ -95,7 +95,6 @@ func (s *APIGatewayScrubber) RestoreAPIGatewayConfig(ctx context.Context,
 		return restoredConfig.(*APIGatewayConfig), nil
 	}
 
-	// if we're not in kube platform, or the api gateway doesn't have a secret, just return the api gateway config
 	return config, nil
 }
 
@@ -142,6 +141,7 @@ func GetAPIGatewaySensitiveField() []*regexp.Regexp {
 	return regexpList
 }
 
+// ScrubAPIGatewayConfig scrubs the API gateway configuration and creates a secret with all scrubbed data
 func (s *APIGatewayScrubber) ScrubAPIGatewayConfig(ctx context.Context,
 	apiGatewayConfig *APIGatewayConfig) (*APIGatewayConfig, error) {
 	var err error

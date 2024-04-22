@@ -59,6 +59,10 @@ type Scrubber interface {
 	ConvertMapToConfig(mapConfig interface{}) (interface{}, error)
 }
 
+// AbstractScrubber is an object that implements abstract scrubbing functionality.
+// When inheriting objects from it, please ensure that ValidateReference and ConvertMapToConfig are implemented.
+// This is because AbstractScrubber holds an actual Scrubber entity in the .Scrubber field.
+// So, when calling ValidateReference or ConvertMapToConfig, it invokes methods from the actual scrubber.
 type AbstractScrubber struct {
 	SensitiveFields            []*regexp.Regexp
 	KubeClientSet              kubernetes.Interface

@@ -796,11 +796,13 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	}
 
 	// scrub api gateway config
-	scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to scrub api gateway config")
+	if p.GetConfig().SensitiveFields.MaskSensitiveFields {
+		scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to scrub api gateway config")
+		}
+		createAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
 	}
-	createAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
 
 	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, newAPIGateway)
 
@@ -819,12 +821,28 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 
 // UpdateAPIGateway will update a previously existing api gateway
 func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+	// get existing api gateway
 	apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Get(ctx, updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateway to update")
 	}
+	// scrub existing api gateway config
+	scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, &platform.APIGatewayConfig{
+		Meta: platform.APIGatewayMeta{
+			Namespace:   apiGateway.Namespace,
+			Name:        apiGateway.Name,
+			Labels:      apiGateway.Labels,
+			Annotations: apiGateway.Annotations,
+		},
+		Spec:   apiGateway.Spec,
+		Status: apiGateway.Status,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to scrub api gateway config")
+	}
+	updateAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
 
 	// enrich
 	p.enrichAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
@@ -836,13 +854,6 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 		apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate api gateway")
 	}
-
-	// scrub api gateway config
-	scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to scrub api gateway config")
-	}
-	updateAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
 	apiGateway.Labels = updateAPIGatewayOptions.APIGatewayConfig.Meta.Labels
