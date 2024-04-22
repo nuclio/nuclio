@@ -830,20 +830,21 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 	}
 
 	// restore existing config
-	restoredAPIGatewayConfig, err := p.apiGatewayScrubber.RestoreAPIGatewayConfig(ctx, &platform.APIGatewayConfig{
+	var restoredAPIGatewayConfig *platform.APIGatewayConfig
+	if restoredAPIGatewayConfig, err = p.apiGatewayScrubber.RestoreAPIGatewayConfig(ctx, &platform.APIGatewayConfig{
 		Meta: platform.APIGatewayMeta{
 			Namespace:   apiGateway.Namespace,
 			Name:        apiGateway.Name,
 			Labels:      apiGateway.Labels,
 			Annotations: apiGateway.Annotations,
 		},
-		Spec:   apiGateway.Spec,
-		Status: apiGateway.Status,
-	})
-	if err != nil {
+		Spec: apiGateway.Spec,
+	}); err != nil {
 		return errors.Wrap(err, "Failed to scrub api gateway config")
 	}
-	updateAPIGatewayOptions.APIGatewayConfig = restoredAPIGatewayConfig
+	apiGateway.Spec = restoredAPIGatewayConfig.Spec
+	apiGateway.Labels = restoredAPIGatewayConfig.Meta.Labels
+	apiGateway.Annotations = restoredAPIGatewayConfig.Meta.Annotations
 
 	// enrich
 	p.enrichAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
