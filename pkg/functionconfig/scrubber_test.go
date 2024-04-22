@@ -356,8 +356,7 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretNameWithFlexVolume() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			var secretName string
-			secretName = suite.scrubber.generateFlexVolumeSecretName(testCase.functionName, testCase.volumeName)
+			secretName := suite.scrubber.generateFlexVolumeSecretName(testCase.functionName, testCase.volumeName)
 			suite.logger.DebugWith("Generated secret name", "secretName", secretName)
 			suite.Require().True(strings.HasPrefix(secretName, testCase.expectedResultPrefix))
 		})
