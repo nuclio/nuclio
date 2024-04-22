@@ -687,6 +687,10 @@ func (p *Platform) GetFunctionScrubber() *functionconfig.Scrubber {
 	return nil
 }
 
+func (p *Platform) GetAPIGatewayScrubber() *platform.APIGatewayScrubber {
+	return nil
+}
+
 // GetFunctionEvents will list existing function events
 func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	functionEvents, err := p.localStore.GetFunctionEvents(getFunctionEventsOptions)

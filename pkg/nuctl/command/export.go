@@ -282,6 +282,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 		Labels: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName,
 			projectConfig.Meta.Name),
 	}
+	var err error
 
 	// get all api gateways in the project
 	apiGateways, err := e.rootCommandeer.platform.GetAPIGateways(ctx, getAPIGatewaysOptions)
@@ -294,6 +295,13 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	// create a mapping of an api gateway name to its config [ string -> *platform.APIGatewayConfig ]
 	for _, apiGateway := range apiGateways {
 		apiGatewayConfig := apiGateway.GetConfig()
+		if e.rootCommandeer.platform.GetAPIGatewayScrubber() != nil {
+			if apiGatewayConfig, err = e.rootCommandeer.platform.GetAPIGatewayScrubber().RestoreAPIGatewayConfig(context.Background(),
+				apiGatewayConfig); err != nil {
+				return nil, errors.Wrap(err, "Failed to restore api gateway config")
+			}
+		}
+
 		apiGatewayConfig.PrepareAPIGatewayForExport(false)
 		apiGatewaysMap[apiGatewayConfig.Meta.Name] = apiGatewayConfig
 	}

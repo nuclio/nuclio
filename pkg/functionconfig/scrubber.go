@@ -62,6 +62,46 @@ func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, k
 	return scrubber
 }
 
+// ScrubFunctionConfig scrubs function config and creates a secret with scrubbed data
+func (s *Scrubber) ScrubFunctionConfig(ctx context.Context,
+	functionConfig *Config) (*Config, error) {
+	var err error
+
+	scrubbedFunctionConfig, existingSecretName, secretsMap, err := s.Scrub(ctx, functionConfig,
+		functionConfig.Meta.Name, functionConfig.Meta.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get existing secret and scrub function config")
+	}
+
+	// create flex volume secrets if needed
+	if err := s.createFlexVolumeSecrets(ctx,
+		functionConfig.Spec.Volumes,
+		functionConfig.Meta.Name,
+		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+		secretsMap); err != nil {
+		return nil, errors.Wrap(err, "Failed to create flex volume secrets")
+	}
+
+	// encode secrets map
+	encodedSecretsMap, err := s.EncodeSecretsMap(secretsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to encode secrets map")
+	}
+
+	// create or update a secret for the function
+	if err := s.CreateOrUpdateObjectSecret(ctx,
+		encodedSecretsMap,
+		existingSecretName,
+		functionConfig.Meta.Name,
+		functionConfig.Meta.Namespace,
+		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]); err != nil {
+		return nil, errors.Wrap(err, "Failed to create or update function secret")
+	}
+
+	return GetFunctionConfigFromInterface(scrubbedFunctionConfig), nil
+}
+
 // RestoreFunctionConfig restores a function config from a secret, in case we're running in a kube platform
 func (s *Scrubber) RestoreFunctionConfig(ctx context.Context,
 	functionConfig *Config,
@@ -157,70 +197,6 @@ func (s *Scrubber) ConvertMapToConfig(mapConfig interface{}) (interface{}, error
 	return functionConfig, nil
 }
 
-// GenerateFlexVolumeSecretName generates a secret name for a flex volume, in the form of:
-// `nuclio-flex-volume-<volume-name>-<unique-id>`
-func (s *Scrubber) GenerateFlexVolumeSecretName(functionName, volumeName string) string {
-	secretName := fmt.Sprintf("%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, functionName, volumeName)
-
-	// if the secret name is too long, drop the function name
-	if len(secretName) > common.KubernetesDomainLevelMaxLength {
-		secretName = fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, volumeName)
-
-	}
-
-	// if the secret name is still too long, trim it and keep space for the unique id
-	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
-		secretName = secretName[:common.KubernetesDomainLevelMaxLength-8]
-	}
-
-	// remove trailing non-alphanumeric characters
-	secretName = strings.TrimRight(secretName, "-_")
-
-	// add a unique id to the end of the name
-	secretName = fmt.Sprintf("%s-%s", secretName, common.GenerateRandomString(8, common.SmallLettersAndNumbers))
-
-	return secretName
-}
-
-func (s *Scrubber) ScrubFunctionConfig(ctx context.Context,
-	functionConfig *Config) (*Config, error) {
-	var err error
-
-	scrubbedFunctionConfig, existingSecretName, secretsMap, err := s.Scrub(ctx, functionConfig,
-		functionConfig.Meta.Name, functionConfig.Meta.Namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get existing secret and scrub function config")
-	}
-
-	// create flex volume secrets if needed
-	if err := s.createFlexVolumeSecrets(ctx,
-		functionConfig.Spec.Volumes,
-		functionConfig.Meta.Name,
-		functionConfig.Meta.Namespace,
-		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
-		secretsMap); err != nil {
-		return nil, errors.Wrap(err, "Failed to create flex volume secrets")
-	}
-
-	// encode secrets map
-	encodedSecretsMap, err := s.EncodeSecretsMap(secretsMap)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to encode secrets map")
-	}
-
-	// create or update a secret for the function
-	if err := s.CreateOrUpdateObjectSecret(ctx,
-		encodedSecretsMap,
-		existingSecretName,
-		functionConfig.Meta.Name,
-		functionConfig.Meta.Namespace,
-		functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]); err != nil {
-		return nil, errors.Wrap(err, "Failed to create or update function secret")
-	}
-
-	return GetFunctionConfigFromInterface(scrubbedFunctionConfig), nil
-}
-
 func (s *Scrubber) createFlexVolumeSecrets(ctx context.Context,
 	volumes []Volume,
 	functionName,
@@ -274,7 +250,7 @@ func (s *Scrubber) createOrUpdateFlexVolumeSecret(ctx context.Context,
 	}
 
 	// create secret name with unique suffix
-	flexVolumeSecretName := s.GenerateFlexVolumeSecretName(functionName, volumeName)
+	flexVolumeSecretName := s.generateFlexVolumeSecretName(functionName, volumeName)
 
 	// check if a secret with the same access key reference already exists
 	existingFlexVolumeSecrets, err := s.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
@@ -315,4 +291,29 @@ func (s *Scrubber) createOrUpdateFlexVolumeSecret(ctx context.Context,
 	}
 
 	return nil
+}
+
+// generateFlexVolumeSecretName generates a secret name for a flex volume, in the form of:
+// `nuclio-flex-volume-<volume-name>-<unique-id>`
+func (s *Scrubber) generateFlexVolumeSecretName(functionName, volumeName string) string {
+	secretName := fmt.Sprintf("%s-%s-%s", NuclioFlexVolumeSecretNamePrefix, functionName, volumeName)
+
+	// if the secret name is too long, drop the function name
+	if len(secretName) > common.KubernetesDomainLevelMaxLength {
+		secretName = fmt.Sprintf("%s-%s", NuclioFlexVolumeSecretNamePrefix, volumeName)
+
+	}
+
+	// if the secret name is still too long, trim it and keep space for the unique id
+	if len(secretName) > common.KubernetesDomainLevelMaxLength-8 {
+		secretName = secretName[:common.KubernetesDomainLevelMaxLength-8]
+	}
+
+	// remove trailing non-alphanumeric characters
+	secretName = strings.TrimRight(secretName, "-_")
+
+	// add a unique id to the end of the name
+	secretName = fmt.Sprintf("%s-%s", secretName, common.GenerateRandomString(8, common.SmallLettersAndNumbers))
+
+	return secretName
 }

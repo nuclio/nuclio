@@ -60,6 +60,11 @@ func (mp *Platform) GetFunctionScrubber() *functionconfig.Scrubber {
 	return args.Get(0).(*functionconfig.Scrubber)
 }
 
+func (mp *Platform) GetAPIGatewayScrubber() *platform.APIGatewayScrubber {
+	args := mp.Called()
+	return args.Get(0).(*platform.APIGatewayScrubber)
+}
+
 func (mp *Platform) GetContainerBuilderKind() string {
 	args := mp.Called()
 	return args.Get(0).(string)

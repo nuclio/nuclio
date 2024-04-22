@@ -1223,6 +1223,18 @@ func (p *Platform) GetFunctionScrubber() *functionconfig.Scrubber {
 	return p.FunctionScrubber
 }
 
+func (p *Platform) GetAPIGatewayScrubber() *platform.APIGatewayScrubber {
+	if p.apiGatewayScrubber == nil {
+		p.apiGatewayScrubber = platform.NewAPIGatewayScrubber(p.Logger, platform.GetAPIGatewaySensitiveField(),
+			p.consumer.KubeClientSet)
+		return p.apiGatewayScrubber
+	}
+	if p.apiGatewayScrubber.KubeClientSet == nil {
+		p.apiGatewayScrubber.KubeClientSet = p.consumer.KubeClientSet
+	}
+	return p.apiGatewayScrubber
+}
+
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
