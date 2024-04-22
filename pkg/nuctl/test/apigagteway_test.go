@@ -69,6 +69,7 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 			"create",
 			"apigateway",
 			apiGatewayName,
+			"--mask-sensitive-fields",
 		}, namedArgs)
 
 		suite.Require().NoError(err)
