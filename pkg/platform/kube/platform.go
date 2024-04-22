@@ -828,8 +828,9 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateway to update")
 	}
-	// scrub existing api gateway config
-	scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, &platform.APIGatewayConfig{
+
+	// restore existing config
+	restoredAPIGatewayConfig, err := p.apiGatewayScrubber.RestoreAPIGatewayConfig(ctx, &platform.APIGatewayConfig{
 		Meta: platform.APIGatewayMeta{
 			Namespace:   apiGateway.Namespace,
 			Name:        apiGateway.Name,
@@ -842,7 +843,7 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 	if err != nil {
 		return errors.Wrap(err, "Failed to scrub api gateway config")
 	}
-	updateAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
+	updateAPIGatewayOptions.APIGatewayConfig = restoredAPIGatewayConfig
 
 	// enrich
 	p.enrichAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
@@ -853,6 +854,14 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 		updateAPIGatewayOptions.ValidateFunctionsExistence,
 		apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate api gateway")
+	}
+	// scrub api gateway config
+	if p.GetConfig().SensitiveFields.MaskSensitiveFields {
+		scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to scrub api gateway config")
+		}
+		updateAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
 	}
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations

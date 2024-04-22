@@ -21,6 +21,7 @@ package functionconfig
 import (
 	"context"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/headers"
@@ -318,6 +319,49 @@ func (suite *ScrubberTestSuite) TestRestoreConfigWithResources() {
 
 	// check that the restored config has the same resources
 	suite.Require().Equal(config.Spec.Resources, restoredFunctionConfig.Spec.Resources)
+}
+
+func (suite *ScrubberTestSuite) TestGenerateFunctionSecretNameWithFlexVolume() {
+
+	for _, testCase := range []struct {
+		name                 string
+		functionName         string
+		volumeName           string
+		expectedResultPrefix string
+	}{
+		// Flex volume secret names
+		{
+			name:                 "VolumeSecret-Sanity",
+			functionName:         "my-function",
+			volumeName:           "my-volume",
+			expectedResultPrefix: "nuclio-flexvolume-my-function-my-volume",
+		},
+		{
+			name:                 "VolumeSecret-VolumeNameWithTrailingDashes",
+			functionName:         "my-function",
+			volumeName:           "my-volume----",
+			expectedResultPrefix: "nuclio-flexvolume-my-function-my-volume",
+		},
+		{
+			name:                 "VolumeSecret-LongFunctionName",
+			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
+			volumeName:           "my-volume",
+			expectedResultPrefix: "nuclio-flexvolume-my-volume",
+		},
+		{
+			name:                 "VolumeSecret-LongVolumeName",
+			functionName:         "my-function",
+			volumeName:           "my-volume-name-which-is-more-than-63-characters-long",
+			expectedResultPrefix: "nuclio-flexvolume-my-volume-name-which-is-more-than-63",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			var secretName string
+			secretName = suite.scrubber.generateFlexVolumeSecretName(testCase.functionName, testCase.volumeName)
+			suite.logger.DebugWith("Generated secret name", "secretName", secretName)
+			suite.Require().True(strings.HasPrefix(secretName, testCase.expectedResultPrefix))
+		})
+	}
 }
 
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths

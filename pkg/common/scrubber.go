@@ -356,7 +356,7 @@ func (s *AbstractScrubber) CreateOrUpdateObjectSecret(ctx context.Context,
 	projectName string) error {
 
 	if secretName == "" {
-		secretName = s.GenerateObjectSecretName(name)
+		secretName = s.generateObjectSecretName(name)
 	}
 
 	secretConfig := &v1.Secret{
@@ -420,9 +420,9 @@ func (s *AbstractScrubber) CreateOrUpdateSecret(ctx context.Context, namespace s
 	return nil
 }
 
-// GenerateObjectSecretName e generates a secret name for an object, in the form of:
+// generateObjectSecretName e generates a secret name for an object, in the form of:
 // `nuclio-secret-<project-name>-<object-name>-<unique-id>`
-func (s *AbstractScrubber) GenerateObjectSecretName(objectName string) string {
+func (s *AbstractScrubber) generateObjectSecretName(objectName string) string {
 	secretName := fmt.Sprintf("%s-%s", "nuclio", objectName)
 	if len(secretName) > KubernetesDomainLevelMaxLength-8 {
 		secretName = secretName[:KubernetesDomainLevelMaxLength-8]
