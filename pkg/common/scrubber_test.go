@@ -20,7 +20,6 @@ package common
 
 import (
 	"context"
-	v1 "k8s.io/api/core/v1"
 	"regexp"
 	"strings"
 	"testing"
@@ -28,6 +27,7 @@ import (
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
