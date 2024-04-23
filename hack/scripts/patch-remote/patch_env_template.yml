@@ -36,6 +36,10 @@ PATCH_TARGETS:
 # remote system and patch to the same version
 NUCLIO_TAG:
 
+# Optional: Nuclio namespace. If not set, the default value is `nuclio`
+# For the iguazio system it needs to be set to `default-tenant`
+NAMESPACE:
+
 # Optional: Nuclio architecture to build the target images (amd64, arm64)
 NUCLIO_ARCH:
 
