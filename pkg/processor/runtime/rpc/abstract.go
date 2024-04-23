@@ -503,45 +503,46 @@ func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan c
 
 		default:
 
-			unmarshalledResults := make([]*result, 0)
+			unmarshalledResult := &result{}
+			var data []byte
 
-			for _, unmarshalledResult := range unmarshalledResults {
-				var data []byte
-				data, unmarshalledResult.err = outReader.ReadBytes('\n')
+			data, unmarshalledResult.err = outReader.ReadBytes('\n')
 
-				if unmarshalledResult.err != nil {
-					r.Logger.WarnWith(string(common.FailedReadFromEventConnection),
-						"err", unmarshalledResult.err.Error())
+			if unmarshalledResult.err != nil {
+				r.Logger.WarnWith(string(common.FailedReadFromEventConnection),
+					"err", unmarshalledResult.err.Error())
+				resultChan <- []*result{unmarshalledResult}
+				continue
+			}
+
+			switch data[0] {
+			case 'r':
+
+				// try to unmarshall the result
+				if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
+					r.Logger.WarnWith("Failed to unmarshal result", "err", unmarshalledResult.err.Error())
+					resultChan <- []*result{unmarshalledResult}
 					continue
 				}
 
-				switch data[0] {
-				case 'r':
-
-					// try to unmarshall the result
-					if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
-						r.Logger.WarnWith("Failed to unmarshal result", "err", unmarshalledResult.err.Error())
-						continue
-					}
-
-					switch unmarshalledResult.BodyEncoding {
-					case "text":
-						unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
-					case "base64":
-						unmarshalledResult.DecodedBody, unmarshalledResult.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
-					default:
-						unmarshalledResult.err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
-					}
-				case 'm':
-					r.handleResponseMetric(data[1:])
-				case 'l':
-					r.handleResponseLog(data[1:])
-				case 's':
-					r.handleStart()
+				switch unmarshalledResult.BodyEncoding {
+				case "text":
+					unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
+				case "base64":
+					unmarshalledResult.DecodedBody, unmarshalledResult.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
+				default:
+					unmarshalledResult.err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
 				}
+
+				// write back to result channel
+				resultChan <- []*result{unmarshalledResult}
+			case 'm':
+				r.handleResponseMetric(data[1:])
+			case 'l':
+				r.handleResponseLog(data[1:])
+			case 's':
+				r.handleStart()
 			}
-			// write back to result channel
-			resultChan <- unmarshalledResults
 		}
 	}
 }
