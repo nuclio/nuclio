@@ -20,6 +20,7 @@ package common
 
 import (
 	"context"
+	v1 "k8s.io/api/core/v1"
 	"regexp"
 	"strings"
 	"testing"
@@ -42,7 +43,7 @@ func (suite *ScrubberTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
 	suite.k8sClientSet = k8sfake.NewSimpleClientset()
-	suite.scrubber = NewAbstractScrubber(suite.logger, []*regexp.Regexp{}, suite.k8sClientSet, ReferencePrefix, "test", "test", func(name string) bool {
+	suite.scrubber = NewAbstractScrubber(suite.logger, []*regexp.Regexp{}, suite.k8sClientSet, ReferencePrefix, "test", "test", func(secret v1.Secret) bool {
 		return false
 	})
 }
@@ -54,21 +55,20 @@ func (suite *ScrubberTestSuite) TestGenerateObjectSecretName() {
 		objectName           string
 		expectedResultPrefix string
 	}{
-		// Function secret names
 		{
-			name:                 "FunctionSecret-Sanity",
-			objectName:           "my-function",
-			expectedResultPrefix: "nuclio-my-function",
+			name:                 "ObjectSecret-Sanity",
+			objectName:           "my-object",
+			expectedResultPrefix: "nuclio-my-object",
 		},
 		{
-			name:                 "FunctionSecret-FunctionNameWithTrailingDashes",
-			objectName:           "my-function-_",
-			expectedResultPrefix: "nuclio-my-function",
+			name:                 "ObjectSecret-ObjectNameWithTrailingDashes",
+			objectName:           "my-object-_",
+			expectedResultPrefix: "nuclio-my-object",
 		},
 		{
-			name:                 "FunctionSecret-LongFunctionName",
-			objectName:           "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
-			expectedResultPrefix: "nuclio-my-function-with-a-very-long-name-which-is-more", // nolint: misspell
+			name:                 "ObjectSecret-LongObjectName",
+			objectName:           "my-object-with-a-very-long-name-which-is-more-than-63-characters-long",
+			expectedResultPrefix: "nuclio-my-object-with-a-very-long-name-which-is-more", // nolint: misspell
 		},
 	} {
 		suite.Run(testCase.name, func() {

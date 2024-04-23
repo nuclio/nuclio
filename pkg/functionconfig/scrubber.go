@@ -50,11 +50,11 @@ type Scrubber struct {
 // NewScrubber returns a new scrubber
 func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *Scrubber {
 
-	filterSecretNameFunction := func(name string) bool {
+	filterSecretFunction := func(secret v1.Secret) bool {
 		// if it is a flex volume secret, skip it
-		return strings.HasPrefix(name, NuclioFlexVolumeSecretNamePrefix)
+		return strings.HasPrefix(secret.Name, NuclioFlexVolumeSecretNamePrefix)
 	}
-	abstractScrubber := common.NewAbstractScrubber(parentLogger, sensitiveFields, kubeClientSet, ReferencePrefix, common.NuclioResourceLabelKeyFunctionName, SecretTypeFunctionConfig, filterSecretNameFunction)
+	abstractScrubber := common.NewAbstractScrubber(parentLogger, sensitiveFields, kubeClientSet, ReferencePrefix, common.NuclioResourceLabelKeyFunctionName, SecretTypeFunctionConfig, filterSecretFunction)
 	scrubber := &Scrubber{
 		AbstractScrubber: abstractScrubber,
 	}

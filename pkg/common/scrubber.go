@@ -73,12 +73,12 @@ type AbstractScrubber struct {
 	Logger                     logger.Logger
 
 	// if many secrets can be found with ResourceLabelKeyObjectName, we allow passing filter
-	// filterSecretNameFunction is a function which takes secret name and return if secrets should be filtered(skipped),
-	filterSecretNameFunction func(name string) bool
+	// filterSecretFunction is a function which takes secret name and return if secrets should be filtered(skipped),
+	filterSecretFunction func(secret v1.Secret) bool
 }
 
 // NewAbstractScrubber returns a new AbstractScrubber
-func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, filterSecretNameFunction func(name string) bool) *AbstractScrubber {
+func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, filterSecretNameFunction func(secret v1.Secret) bool) *AbstractScrubber {
 	return &AbstractScrubber{
 		SensitiveFields:            sensitiveFields,
 		KubeClientSet:              kubeClientSet,
@@ -86,7 +86,7 @@ func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.R
 		ResourceLabelKeyObjectName: resourceLabelKeyObjectName,
 		SecretType:                 secretType,
 		Logger:                     parentLogger.GetChild("scrubber"),
-		filterSecretNameFunction:   filterSecretNameFunction,
+		filterSecretFunction:       filterSecretNameFunction,
 	}
 }
 
@@ -324,7 +324,7 @@ func (s *AbstractScrubber) GetObjectSecret(ctx context.Context, name, namespace 
 	for _, secret := range secrets {
 
 		// this check is specific for functionConfig scrubber, because for function we create 2 secrets
-		if s.filterSecretNameFunction(secret.Name) {
+		if s.filterSecretFunction(secret) {
 			continue
 		}
 		return &secret, nil
@@ -411,6 +411,7 @@ func (s *AbstractScrubber) CreateOrUpdateSecret(ctx context.Context, namespace s
 		"Updating secret",
 		"secretName", secretConfig.Name,
 		"namespace", namespace)
+
 	if _, err := s.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx,
 		secretConfig,
 		metav1.UpdateOptions{}); err != nil {
