@@ -74,7 +74,7 @@ func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (R
 	return nil, errors.New("Method not implemented")
 }
 
-func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) (Resources, error) {
+func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway nuclioio.NuclioAPIGateway) (Resources, error) {
 	apiGateway.Status.Name = apiGateway.Spec.Name
 
 	if err := kube.ValidateAPIGatewaySpec(&apiGateway.Spec); err != nil {
@@ -83,7 +83,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.N
 
 	// restore scrubbed data
 	if restoredAPIGatewayConfig, err := lc.scrubber.RestoreAPIGatewayConfig(ctx,
-		getAPIGatewayConfigFromCRD(apiGateway)); err != nil {
+		getAPIGatewayConfigFromCRD(&apiGateway)); err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("Failed to restore scrubbed api gateway config - %s", errors.GetErrorStackString(err, 10)))
 	} else {
 		apiGateway.Spec = restoredAPIGatewayConfig.Spec
@@ -189,7 +189,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 }
 
-func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) {
+func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGateway nuclioio.NuclioAPIGateway) {
 	lc.logger.DebugWithCtx(ctx,
 		"Trying to remove previous canary ingress",
 		"apiGatewayName", apiGateway.Name)
@@ -209,7 +209,7 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 }
 
 func (lc *lazyClient) generateNginxIngress(ctx context.Context,
-	apiGateway *nuclioio.NuclioAPIGateway,
+	apiGateway nuclioio.NuclioAPIGateway,
 	upstream *platform.APIGatewayUpstreamSpec) (*ingress.Resources, error) {
 
 	serviceName, servicePort, err := lc.getServiceNameAndPort(upstream)

@@ -173,6 +173,7 @@ func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.Au
 		"create",
 		"apigateway",
 		apiGatewayName,
+		"--mask-sensitive-fields",
 	}, namedArgs)
 	suite.Require().NoError(err)
 

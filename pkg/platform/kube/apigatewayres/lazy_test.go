@@ -75,7 +75,7 @@ func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
 		On("Run", mock.Anything, mock.IsType(""), mock.Anything).
 		Return("echo ehsom | htpasswd -n -i moshe", nil)
 
-	resources, err := suite.client.CreateOrUpdate(context.Background(), &nuclioio.NuclioAPIGateway{
+	resources, err := suite.client.CreateOrUpdate(context.Background(), nuclioio.NuclioAPIGateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
 			Namespace: "test-namespace",
