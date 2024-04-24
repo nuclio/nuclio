@@ -52,7 +52,3 @@ func (e *Event) GetTimestamp() time.Time {
 func (e *Event) GetTopic() string {
 	return e.StreamPath
 }
-
-func (e *Event) GetPath() string {
-	return e.StreamPath
-}

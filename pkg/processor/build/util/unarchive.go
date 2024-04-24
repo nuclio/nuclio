@@ -110,6 +110,7 @@ func (d *Unarchiver) extractFile(file archiver.File, targetPath string) error {
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to open file: %s", filePath))
 	}
+	defer input.Close()
 
 	// copy the file contents
 	_, err = io.Copy(outFile, input)
