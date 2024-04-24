@@ -303,6 +303,8 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 	functionName := "test-function" + uniqueSuffix
 	functionEventName := "test-function-event" + uniqueSuffix
 	apiGatewayName := "test-api-gateway" + uniqueSuffix
+	apiGatewayPassword := "my-password"
+	apiGatewayUsername := "my-username"
 
 	suite.createProject(projectName)
 	defer suite.ExecuteNuctl([]string{"delete", "proj", projectName}, nil) // nolint: errcheck
@@ -313,7 +315,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 	defer suite.ExecuteNuctl([]string{"delete", "fe", functionEventName}, nil) // nolint: errcheck
 
 	if apiGatewaysEnabled {
-		suite.createAPIGateway(apiGatewayName, functionName, projectName)
+		suite.createAPIGateway(apiGatewayName, functionName, projectName, "basicAuth", apiGatewayUsername, apiGatewayPassword)
 		defer suite.ExecuteNuctl([]string{"delete", "agw", apiGatewayName}, nil) // nolint: errcheck
 	}
 
@@ -328,6 +330,7 @@ func (suite *projectExportImportTestSuite) TestExportProject() {
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Host, fmt.Sprintf("host-%s", apiGatewayName))
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].Kind, platform.APIGatewayUpstreamKindNuclioFunction)
 		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Upstreams[0].NuclioFunction.Name, functionName)
+		suite.Assert().Equal(exportedProjectConfig.APIGateways[apiGatewayName].Spec.Authentication.BasicAuth.Password, apiGatewayPassword)
 	}
 }
 
@@ -755,17 +758,27 @@ func (suite *projectExportImportTestSuite) createFunctionEvent(functionEventName
 	suite.Require().NoError(err)
 }
 
-func (suite *projectExportImportTestSuite) createAPIGateway(apiGatewayName, functionName, projectName string) {
+func (suite *projectExportImportTestSuite) createAPIGateway(apiGatewayName, functionName, projectName string, authenticationMode, password, username string) {
 	namedArgs := map[string]string{
-		"function": functionName,
-		"project":  projectName,
-		"host":     fmt.Sprintf("host-%s", apiGatewayName),
+		"function":            functionName,
+		"project":             projectName,
+		"host":                fmt.Sprintf("host-%s", apiGatewayName),
+		"authentication-mode": "basicAuth",
+		"basic-auth-username": "basic-username",
+		"basic-auth-password": "basic-password",
+	}
+
+	if authenticationMode != "" {
+		namedArgs["authentication-mode"] = authenticationMode
+		namedArgs["basic-auth-username"] = username
+		namedArgs["basic-auth-password"] = password
 	}
 
 	err := suite.ExecuteNuctl([]string{
 		"create",
 		"apigateway",
 		apiGatewayName,
+		"--mask-sensitive-fields",
 	}, namedArgs)
 
 	suite.Require().NoError(err)
