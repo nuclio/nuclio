@@ -553,6 +553,10 @@ type GetFunctionReplicaLogsStreamOptions struct {
 
 	// Number of lines to show from the end of the logs
 	TailLines *int64
+
+	// A specific container name to stream logs from (if not specified, the "nuclio" container in the pod is used)
+	// Relevant only for pods with multiple containers
+	ContainerName string
 }
 
 type FunctionSecret struct {
