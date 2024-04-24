@@ -758,7 +758,7 @@ func (suite *projectExportImportTestSuite) createFunctionEvent(functionEventName
 	suite.Require().NoError(err)
 }
 
-func (suite *projectExportImportTestSuite) createAPIGateway(apiGatewayName, functionName, projectName string, authenticationMode, password, username string) {
+func (suite *projectExportImportTestSuite) createAPIGateway(apiGatewayName, functionName, projectName string, authenticationMode, username, password string) {
 	namedArgs := map[string]string{
 		"function":            functionName,
 		"project":             projectName,
