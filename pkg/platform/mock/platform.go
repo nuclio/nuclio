@@ -145,6 +145,11 @@ func (mp *Platform) GetFunctionReplicaNames(ctx context.Context, functionConfig 
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (mp *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {
+	args := mp.Called(ctx, functionConfig, replicaName)
+	return args.Get(0).([]string), args.Error(1)
+}
+
 //
 // Project
 //

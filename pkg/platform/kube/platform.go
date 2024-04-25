@@ -591,7 +591,7 @@ func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
 		CoreV1().
 		Pods(options.Namespace).
 		GetLogs(options.Name, &v1.PodLogOptions{
-			Container:    client.FunctionContainerName,
+			Container:    options.ContainerName,
 			SinceSeconds: options.SinceSeconds,
 			TailLines:    options.TailLines,
 			Follow:       options.Follow,
@@ -616,6 +616,21 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 		names = append(names, pod.GetName())
 	}
 	return names, nil
+}
+
+func (p *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {
+	pod, err := p.consumer.KubeClientSet.
+		CoreV1().
+		Pods(functionConfig.Meta.Namespace).
+		Get(ctx, replicaName, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function pod")
+	}
+	var containerNames []string
+	for _, container := range pod.Spec.Containers {
+		containerNames = append(containerNames, container.Name)
+	}
+	return containerNames, nil
 }
 
 // GetName returns the platform name

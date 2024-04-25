@@ -522,6 +522,12 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 	}, nil
 }
 
+func (p *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {
+	return []string{
+		p.GetFunctionContainerName(functionConfig),
+	}, nil
+}
+
 // GetHealthCheckMode returns the healthcheck mode the platform requires
 func (p *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 
