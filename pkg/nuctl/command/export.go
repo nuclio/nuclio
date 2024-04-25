@@ -151,11 +151,11 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			functionConfig := function.GetConfig()
 
 			// restore the function config, if it was scrubbed
-			if e.rootCommandeer.platform.GetFunctionScrubber() != nil {
-				if scrubbed, err := e.rootCommandeer.platform.GetFunctionScrubber().HasScrubbedConfig(functionConfig,
+			if scrubber := e.rootCommandeer.platform.GetFunctionScrubber(); scrubber != nil {
+				if scrubbed, err := scrubber.HasScrubbedConfig(functionConfig,
 					e.rootCommandeer.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex()); err == nil && scrubbed {
 					var restoreErr error
-					functionConfig, restoreErr = e.rootCommandeer.platform.GetFunctionScrubber().RestoreFunctionConfig(errGroupCtx,
+					functionConfig, restoreErr = scrubber.RestoreFunctionConfig(errGroupCtx,
 						functionConfig,
 						e.rootCommandeer.platform.GetName())
 					if restoreErr != nil {
@@ -295,10 +295,14 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	// create a mapping of an api gateway name to its config [ string -> *platform.APIGatewayConfig ]
 	for _, apiGateway := range apiGateways {
 		apiGatewayConfig := apiGateway.GetConfig()
-		if e.rootCommandeer.platform.GetAPIGatewayScrubber() != nil {
-			if apiGatewayConfig, err = e.rootCommandeer.platform.GetAPIGatewayScrubber().RestoreAPIGatewayConfig(context.Background(),
-				apiGatewayConfig); err != nil {
-				return nil, errors.Wrap(err, "Failed to restore api gateway config")
+		if scrubber := e.rootCommandeer.platform.GetAPIGatewayScrubber(); scrubber != nil {
+			if scrubbed, err := scrubber.HasScrubbedConfig(apiGatewayConfig, platform.GetAPIGatewaySensitiveField()); err == nil && scrubbed {
+				if apiGatewayConfig, err = scrubber.RestoreAPIGatewayConfig(context.Background(),
+					apiGatewayConfig); err != nil {
+					return nil, errors.Wrap(err, "Failed to restore api gateway config")
+				}
+			} else if err != nil {
+				return nil, errors.Wrap(err, "Failed to check if api gateway config is scrubbed")
 			}
 		}
 
@@ -329,8 +333,8 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 		functionConfig := function.GetConfig()
 
 		// restore the function config, if needed
-		if e.rootCommandeer.platform.GetFunctionScrubber() != nil {
-			functionConfig, err = e.rootCommandeer.platform.GetFunctionScrubber().RestoreFunctionConfig(context.Background(),
+		if scrubber := e.rootCommandeer.platform.GetFunctionScrubber(); scrubber != nil {
+			functionConfig, err = scrubber.RestoreFunctionConfig(context.Background(),
 				function.GetConfig(),
 				e.rootCommandeer.platform.GetName())
 			if err != nil {

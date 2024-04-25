@@ -59,10 +59,7 @@ type Scrubber interface {
 	ConvertMapToConfig(mapConfig interface{}) (interface{}, error)
 }
 
-// AbstractScrubber is an object that implements abstract scrubbing functionality.
-// When inheriting objects from it, please ensure that ValidateReference and ConvertMapToConfig are implemented.
-// This is because AbstractScrubber holds an actual Scrubber entity in the .Scrubber field.
-// So, when calling ValidateReference or ConvertMapToConfig, it invokes methods from the actual scrubber.
+// AbstractScrubber is an object that implements abstract scrubbing functionality
 type AbstractScrubber struct {
 	SensitiveFields            []*regexp.Regexp
 	KubeClientSet              kubernetes.Interface
@@ -72,13 +69,13 @@ type AbstractScrubber struct {
 	SecretType                 v1.SecretType
 	Logger                     logger.Logger
 
-	// if many secrets can be found with ResourceLabelKeyObjectName, we allow passing filter
-	// filterSecretFunction is a function which takes secret name and return if secrets should be filtered(skipped),
-	filterSecretFunction func(secret v1.Secret) bool
+	// if multiple secrets can be found with ResourceLabelKeyObjectName, we allow passing filter
+	// filterSecret is a function which takes secret name and return if secrets should be filtered(skipped),
+	filterSecret func(secret v1.Secret) bool
 }
 
 // NewAbstractScrubber returns a new AbstractScrubber
-func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, filterSecretNameFunction func(secret v1.Secret) bool) *AbstractScrubber {
+func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, filterSecretName func(secret v1.Secret) bool) *AbstractScrubber {
 	return &AbstractScrubber{
 		SensitiveFields:            sensitiveFields,
 		KubeClientSet:              kubeClientSet,
@@ -86,7 +83,7 @@ func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.R
 		ResourceLabelKeyObjectName: resourceLabelKeyObjectName,
 		SecretType:                 secretType,
 		Logger:                     parentLogger.GetChild("scrubber"),
-		filterSecretFunction:       filterSecretNameFunction,
+		filterSecret:               filterSecretName,
 	}
 }
 
@@ -124,7 +121,7 @@ func (s *AbstractScrubber) Restore(scrubbedObject interface{}, secretsMap map[st
 
 	restoredObjectMap := gosecretive.Restore(scrubbedObjectAsMap, secretsMap)
 
-	restoredObject, err := s.ConvertMapToConfig(restoredObjectMap)
+	restoredObject, err := s.Scrubber.ConvertMapToConfig(restoredObjectMap)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to convert restored object map to an object entity")
 	}
@@ -265,18 +262,6 @@ func (s *AbstractScrubber) DecodeSecretKey(secretKey string) (string, error) {
 	return string(decodedFieldPath), nil
 }
 
-func (s *AbstractScrubber) ConvertMapToConfig(mapConfig interface{}) (interface{}, error) {
-	return s.Scrubber.ConvertMapToConfig(mapConfig)
-}
-
-func (s *AbstractScrubber) ValidateReference(objectToScrub interface{},
-	existingSecretMap map[string]string,
-	fieldPath,
-	secretKey,
-	stringValue string) error {
-	return s.Scrubber.ValidateReference(objectToScrub, existingSecretMap, fieldPath, secretKey, stringValue)
-}
-
 func (s *AbstractScrubber) GetObjectSecretName(ctx context.Context, name, namespace string) (string, error) {
 
 	secrets, err := s.GetObjectSecrets(ctx, name, namespace)
@@ -324,7 +309,7 @@ func (s *AbstractScrubber) GetObjectSecret(ctx context.Context, name, namespace 
 	for _, secret := range secrets {
 
 		// this check is specific for functionConfig scrubber, because for function we create 2 secrets
-		if s.filterSecretFunction(secret) {
+		if s.filterSecret(secret) {
 			continue
 		}
 		return &secret, nil
@@ -473,7 +458,7 @@ func (s *AbstractScrubber) scrub(objectToScrub interface{},
 
 					// if it's already a reference, validate that the value exists
 					if strings.HasPrefix(stringValue, ReferencePrefix) {
-						scrubErr = s.ValidateReference(objectToScrub, existingSecretMap, fieldPath, secretKey, stringValue)
+						scrubErr = s.Scrubber.ValidateReference(objectToScrub, existingSecretMap, fieldPath, secretKey, stringValue)
 						return nil
 					}
 				}
@@ -493,7 +478,7 @@ func (s *AbstractScrubber) scrub(objectToScrub interface{},
 		secretsMap = labels.Merge(existingSecretMap, secretsMap)
 	}
 
-	scrubbedObjectConfig, err := s.ConvertMapToConfig(scrubbedObjectAsMap)
+	scrubbedObjectConfig, err := s.Scrubber.ConvertMapToConfig(scrubbedObjectAsMap)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to convert scrubbed object map to object entity")
 	}

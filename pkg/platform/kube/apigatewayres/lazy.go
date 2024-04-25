@@ -81,12 +81,17 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway nuclioio.Nu
 		return nil, errors.Wrap(err, "Api gateway spec validation failed")
 	}
 
-	// restore scrubbed data
-	if restoredAPIGatewayConfig, err := lc.scrubber.RestoreAPIGatewayConfig(ctx,
-		getAPIGatewayConfigFromCRD(&apiGateway)); err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("Failed to restore scrubbed api gateway config - %s", errors.GetErrorStackString(err, 10)))
-	} else {
-		apiGateway.Spec = restoredAPIGatewayConfig.Spec
+	apiGatewayConfig := getAPIGatewayConfigFromCRD(&apiGateway)
+	if scrubbed, err := lc.scrubber.HasScrubbedConfig(apiGatewayConfig, platform.GetAPIGatewaySensitiveField()); err == nil && scrubbed {
+		// restore scrubbed data
+		if restoredAPIGatewayConfig, err := lc.scrubber.RestoreAPIGatewayConfig(ctx,
+			getAPIGatewayConfigFromCRD(&apiGateway)); err != nil {
+			return nil, errors.Wrap(err, "Failed to restore scrubbed api gateway config")
+		} else {
+			apiGateway.Spec = restoredAPIGatewayConfig.Spec
+		}
+	} else if err != nil {
+		return nil, errors.Wrap(err, "Failed to check if api gateway config is scrubbed")
 	}
 
 	// always try to remove previous canary ingress first, because

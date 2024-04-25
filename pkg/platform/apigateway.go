@@ -68,12 +68,17 @@ type APIGatewayScrubber struct {
 func NewAPIGatewayScrubber(parentLogger logger.Logger,
 	sensitiveFields []*regexp.Regexp,
 	kubeClientSet kubernetes.Interface) *APIGatewayScrubber {
-	abstractScrubber := common.NewAbstractScrubber(parentLogger, sensitiveFields, kubeClientSet, common.ReferencePrefix, common.NuclioResourceLabelKeyApiGatewayName, SecretTypeAPIGatewayConfig, func(secret v1.Secret) bool {
-
-		// since we can create 2 secrets for API Gateway with the same selector,
-		// we need to filter by secretType to get a secret with sensitive fields
-		return secret.Type != SecretTypeAPIGatewayConfig
-	})
+	abstractScrubber := common.NewAbstractScrubber(parentLogger,
+		sensitiveFields,
+		kubeClientSet,
+		common.ReferencePrefix,
+		common.NuclioResourceLabelKeyApiGatewayName,
+		SecretTypeAPIGatewayConfig,
+		func(secret v1.Secret) bool {
+			// since we can create 2 secrets for API Gateway with the same selector,
+			// we need to filter by secretType to get a secret with sensitive fields
+			return secret.Type != SecretTypeAPIGatewayConfig
+		})
 	scrubber := &APIGatewayScrubber{abstractScrubber}
 	abstractScrubber.Scrubber = scrubber
 	return scrubber

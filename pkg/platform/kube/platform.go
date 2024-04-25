@@ -830,8 +830,7 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 	}
 
 	// restore existing config
-	var restoredAPIGatewayConfig *platform.APIGatewayConfig
-	if restoredAPIGatewayConfig, err = p.apiGatewayScrubber.RestoreAPIGatewayConfig(ctx, &platform.APIGatewayConfig{
+	apiGatewayConfig := &platform.APIGatewayConfig{
 		Meta: platform.APIGatewayMeta{
 			Namespace:   apiGateway.Namespace,
 			Name:        apiGateway.Name,
@@ -839,8 +838,14 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 			Annotations: apiGateway.Annotations,
 		},
 		Spec: apiGateway.Spec,
-	}); err != nil {
-		return errors.Wrap(err, "Failed to scrub api gateway config")
+	}
+	var restoredAPIGatewayConfig *platform.APIGatewayConfig
+	if scrubbed, err := p.apiGatewayScrubber.HasScrubbedConfig(apiGatewayConfig, platform.GetAPIGatewaySensitiveField()); err == nil && scrubbed {
+		if restoredAPIGatewayConfig, err = p.apiGatewayScrubber.RestoreAPIGatewayConfig(ctx, apiGatewayConfig); err != nil {
+			return errors.Wrap(err, "Failed to scrub api gateway config")
+		} else if err != nil {
+			return errors.Wrap(err, "Failed to check if api gateway config is scrubbed")
+		}
 	}
 	apiGateway.Spec = restoredAPIGatewayConfig.Spec
 	apiGateway.Labels = restoredAPIGatewayConfig.Meta.Labels
