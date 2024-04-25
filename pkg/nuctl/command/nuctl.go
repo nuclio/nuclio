@@ -69,7 +69,7 @@ func NewRootCommandeer() *RootCommandeer {
 	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\"")
 	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", defaultNamespace, "Namespace")
 	cmd.PersistentFlags().IntVar(&commandeer.concurrency, "concurrency", runtime.NumCPU(), "Max number of parallel patches. The default value is equal to the number of CPUs.")
-	cmd.PersistentFlags().BoolVarP(&commandeer.enableMaskSensitiveFields, "mask-sensitive-fields", "", false, "Enable sensitive fields masking")
+	cmd.PersistentFlags().BoolVar(&commandeer.enableMaskSensitiveFields, "mask-sensitive-fields", false, "Enable sensitive fields masking")
 
 	// platform specific
 	cmd.PersistentFlags().StringVarP(&commandeer.KubeconfigPath, "kubeconfig", "k", "", "Path to a Kubernetes configuration file (admin.conf)")
