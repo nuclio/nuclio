@@ -191,12 +191,6 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      # Resolves "actions-setup-minikube" issue with apt-get update
-      # See: https://github.com/orgs/community/discussions/120966#discussioncomment-9211925
-      - name: Remove apt artifacts
-        run: |
-          sudo rm /etc/apt/sources.list.d/microsoft-prod.list
-
       - uses: manusa/actions-setup-minikube@v2.9.0
         with:
           minikube version: "v1.31.2"
