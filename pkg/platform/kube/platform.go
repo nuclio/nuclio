@@ -846,10 +846,10 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 		} else if err != nil {
 			return errors.Wrap(err, "Failed to check if api gateway config is scrubbed")
 		}
+		apiGateway.Spec = restoredAPIGatewayConfig.Spec
+		apiGateway.Labels = restoredAPIGatewayConfig.Meta.Labels
+		apiGateway.Annotations = restoredAPIGatewayConfig.Meta.Annotations
 	}
-	apiGateway.Spec = restoredAPIGatewayConfig.Spec
-	apiGateway.Labels = restoredAPIGatewayConfig.Meta.Labels
-	apiGateway.Annotations = restoredAPIGatewayConfig.Meta.Annotations
 
 	// enrich
 	p.enrichAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig, apiGateway)
