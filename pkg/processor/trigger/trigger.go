@@ -430,7 +430,10 @@ func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *work
 	}
 
 	// Not a cloud event
-	event.SetID(nuclio.ID(uuid.New().String()))
+	// id won't be empty only in batching mode
+	if event.GetID() == "" {
+		event.SetID(nuclio.ID(uuid.New().String()))
+	}
 	event.SetTriggerInfoProvider(at)
 	return event, nil
 }

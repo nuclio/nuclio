@@ -109,9 +109,10 @@ func newTrigger(logger logger.Logger,
 			return nil, errors.New("Could not parse batch timeout")
 		} else {
 			// TODO: add timeout param
-			newTrigger.StartBatcher(batchTimeout, 1*time.Hour)
+			go newTrigger.StartBatcher(batchTimeout, batchTimeout)
 		}
 	}
+	newTrigger.Logger.Debug("Batcher started")
 	return &newTrigger, nil
 }
 
@@ -156,8 +157,11 @@ func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 }
 
 func (h *http) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeout time.Duration) {
+	h.Logger.DebugWith("Start batcher", "batcherConfiguration", h.configuration.Batch)
 	for {
 		batch, responseChans := h.Batcher.WaitForBatchIsFullOrTimeoutIsPassed(batchTimeout)
+
+		h.Logger.Debug("Starting to process batch")
 		// allocate a worker
 		workerInstance, workerIndex, err := h.allocateWorker(workerAvailabilityTimeout)
 		if err != nil {
@@ -443,6 +447,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
 
+	h.Logger.DebugWith("Got new request", "requestBody", ctx.Request.Body())
 	// internal endpoint to allow clients the information whether the http server is taking requests in
 	// this is an internal endpoint, we do not want to update statistics here
 	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthPath) {
@@ -484,6 +489,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 	if functionconfig.BatchModeEnabled(h.configuration.Batch.Mode) {
 		var responseChan chan interface{}
+		h.Logger.Debug("Send event to batch")
 		h.PrepareEventAndSubmitToBatch(ctx, responseChan)
 		select {
 		case <-time.After(time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond):

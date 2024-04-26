@@ -19,6 +19,7 @@ package trigger
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
@@ -60,12 +61,17 @@ func (b *Batcher) getBatch() ([]nuclio.Event, map[string]chan interface{}) {
 
 	batchLength := len(b.currentBatch)
 	responseChans := make(map[string]chan interface{})
-	batch := make([]nuclio.Event, 0, batchLength)
+	batch := make([]nuclio.Event, batchLength)
 
 	for i := 0; i < batchLength; i++ {
 		batchedEventWithResponse := <-b.currentBatch
 		batch[i] = batchedEventWithResponse.event
-		responseChans[string(batchedEventWithResponse.event.GetID())] = batchedEventWithResponse.responseChan
+		eventId := batchedEventWithResponse.event.GetID()
+		if eventId == "" {
+			eventId = nuclio.ID(uuid.New().String())
+			batchedEventWithResponse.event.SetID(eventId)
+		}
+		responseChans[string(eventId)] = batchedEventWithResponse.responseChan
 	}
 	return batch, responseChans
 }

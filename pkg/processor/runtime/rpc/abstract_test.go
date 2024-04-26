@@ -204,6 +204,45 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 	suite.Require().Equal(controlMessage, reslovedControlMessage, "Read control message doesn't match")
 }
 
+func (suite *RuntimeSuite) TestUnmarshalResponseData() {
+	for _, testCase := range []struct {
+		name               string
+		data               []byte
+		unmarshalledResult []*result
+	}{
+		{
+			name: "single-result",
+			data: []byte("{\"body\": \"123\", \"content_type\": \"123\", \"headers\": {}, \"status_code\": 200, \"body_encoding\": \"text\"}"),
+			unmarshalledResult: []*result{{
+				StatusCode:   200,
+				ContentType:  "123",
+				Body:         "123",
+				BodyEncoding: "text",
+				DecodedBody:  []uint8{49, 50, 51},
+				Headers:      map[string]interface{}{},
+			}},
+		},
+		{
+			name: "batch-result",
+			data: []byte("[{\"body\": \"123\", \"content_type\": \"123\", \"headers\": {}, \"status_code\": 200, \"body_encoding\": \"text\"}]"),
+			unmarshalledResult: []*result{{
+				StatusCode:   200,
+				ContentType:  "123",
+				Body:         "123",
+				BodyEncoding: "text",
+				DecodedBody:  []uint8{49, 50, 51},
+				Headers:      map[string]interface{}{},
+			}},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			unmarshalledResults := newBatchedResults()
+			unmarshalResponseData(suite.createLogger(), testCase.data, unmarshalledResults)
+			suite.Require().Equal(unmarshalledResults.results, testCase.unmarshalledResult)
+		})
+	}
+}
+
 func (suite *RuntimeSuite) TearDownTest() {
 	if suite.testRuntimeInstance != nil && suite.testRuntimeInstance.wrapperProcess != nil {
 		suite.testRuntimeInstance.Stop() // nolint: errcheck
