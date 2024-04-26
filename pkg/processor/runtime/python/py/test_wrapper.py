@@ -26,6 +26,7 @@ import tempfile
 import threading
 import time
 import unittest.mock
+import pytest
 
 import msgpack
 import nuclio_sdk
@@ -290,6 +291,19 @@ class TestSubmitEvents(unittest.TestCase):
         for recorded_event_index, recorded_event in enumerate(sorted(recorded_events, key=operator.attrgetter('id'))):
             self.assertEqual(recorded_event_index, recorded_event.id)
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
+
+    def test_encode_batched_entrypoint_output(self):
+        single_response = nuclio_sdk.Response(
+            body=str(123),
+            headers={},
+            content_type=123,
+            status_code=200,
+        )
+        encoded_single = json.loads(self._wrapper._encode_entrypoint_output(single_response))
+        encoded_batch = json.loads(self._wrapper._encode_entrypoint_output([single_response, single_response]))
+        assert encoded_batch[0] == encoded_single
+        assert encoded_batch[1] == encoded_single
+
 
     # to run memory profiling test, uncomment the tests below
     # and from terminal run with
