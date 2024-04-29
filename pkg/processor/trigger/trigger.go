@@ -17,6 +17,7 @@ limitations under the License.
 package trigger
 
 import (
+	"context"
 	"runtime/debug"
 	"strings"
 	"sync/atomic"
@@ -447,9 +448,7 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 			at.UpdateStatistics(false, uint64(len(batch)))
 			workerError := errors.Wrap(err, "Failed to allocate worker")
 			for _, channel := range responseChans {
-
-				// TODO: cover the case when waiting timeout is passed
-				channel <- &runtime.ResponseWithErrors{SubmitError: workerError}
+				channel.Write(&runtime.ResponseWithErrors{SubmitError: workerError})
 			}
 			return
 		}
@@ -459,21 +458,20 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 
 		// release worker when we're done
 		at.WorkerAllocator.Release(workerInstance)
-		at.Logger.Debug("Batch processing is done")
 	}
 }
 
-func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event, responseChan chan interface{}) {
-	at.Batcher.Add(event, responseChan)
+func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event) (chan interface{}, context.CancelFunc) {
+	responseChan := make(chan interface{})
+	cancelContext, cancelProcessing := context.WithCancel(context.Background())
+	at.Batcher.Add(event, &ChannelWithClosureCheck{
+		Context: cancelContext,
+		channel: responseChan,
+	})
+	return responseChan, cancelProcessing
 }
 
-func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChans map[string]chan interface{}, workerInstance *worker.Worker) {
-
-	// TODO: implement smth similar
-	//defer at.HandleSubmitPanic(workerInstance, &submitError)
-
-	at.Logger.Debug("Sending batch to worker")
-
+func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChans map[string]*ChannelWithClosureCheck, workerInstance *worker.Worker) {
 	// prepare batch
 	preparedBatch := make([]nuclio.Event, 0)
 	for _, event := range batch {
@@ -483,7 +481,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		if submitError != nil {
 			channel, ok := responseChans[string(event.GetID())]
 			if ok {
-				channel <- &runtime.ResponseWithErrors{SubmitError: submitError}
+				channel.Write(runtime.ResponseWithErrors{SubmitError: submitError})
 				delete(responseChans, string(event.GetID()))
 			}
 			at.UpdateStatistics(false, 1)
@@ -496,15 +494,18 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 	responses, err := workerInstance.ProcessEventBatch(preparedBatch)
 	if err != nil {
 		for _, channel := range responseChans {
-			channel <- &runtime.ResponseWithErrors{ProcessError: err}
+			channel.Write(&runtime.ResponseWithErrors{ProcessError: err})
 		}
 	} else {
 		for _, response := range responses {
+			if response.EventId == "" {
+				at.Logger.WarnWith("Received in-batch response without event_id, response won't be returned")
+			}
 			channel, ok := responseChans[response.EventId]
 			if !ok {
-				at.Logger.DebugWith("Received in-batch response without event_id, response won't be returned")
+				at.Logger.WarnWith("channel for given event_id not in list", "event_id", response.EventId)
 			} else {
-				channel <- response
+				channel.Write(response)
 				delete(responseChans, response.EventId)
 				if response.ProcessError != nil {
 					at.UpdateStatistics(false, 1)
@@ -519,7 +520,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 	if len(responseChans) > 0 {
 		at.Logger.DebugWith("After processing batch %d chans haven't received response, sending error to the chan")
 		for _, channel := range responseChans {
-			channel <- &runtime.ResponseWithErrors{NoResponseError: runtime.ErrNoResponseFromBatchResponse}
+			channel.Write(&runtime.ResponseWithErrors{NoResponseError: runtime.ErrNoResponseFromBatchResponse})
 		}
 	}
 }

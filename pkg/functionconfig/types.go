@@ -94,9 +94,9 @@ type Trigger struct {
 }
 
 type BatchConfiguration struct {
-	Mode      BatchMode
-	BatchSize int
-	Timeout   string
+	Mode      BatchMode `json:"mode,omitempty"`
+	BatchSize int       `json:"batchSize,omitempty"`
+	Timeout   string    `json:"timeout,omitempty"`
 }
 
 type BatchMode string

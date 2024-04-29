@@ -191,7 +191,7 @@ func (suite *HTTPTestSuite) TestBatchedProcessing() {
 			Batch: functionconfig.BatchConfiguration{
 				Mode:      functionconfig.BatchModeEnable,
 				BatchSize: 2,
-				Timeout:   "2s",
+				Timeout:   "1ms",
 			},
 		},
 	}

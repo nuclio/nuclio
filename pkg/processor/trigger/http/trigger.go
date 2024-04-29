@@ -19,6 +19,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	nethttp "net/http"
 	"os"
@@ -168,9 +169,7 @@ func (h *http) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeou
 			h.UpdateStatistics(false, uint64(len(batch)))
 			workerError := errors.Wrap(err, "Failed to allocate worker")
 			for _, channel := range responseChans {
-
-				// TODO: cover the case when waiting timeout is passed
-				channel <- &runtime.ResponseWithErrors{SubmitError: workerError}
+				channel.Write(&runtime.ResponseWithErrors{SubmitError: workerError})
 			}
 			return
 		}
@@ -223,10 +222,10 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 	return nil
 }
 
-func (h *http) PrepareEventAndSubmitToBatch(ctx *fasthttp.RequestCtx, responseChan chan interface{}) {
+func (h *http) PrepareEventAndSubmitToBatch(ctx *fasthttp.RequestCtx) (chan interface{}, context.CancelFunc) {
 	event := &Event{}
 	event.ctx = ctx
-	h.SubmitEventToBatch(event, responseChan)
+	return h.SubmitEventToBatch(event)
 }
 
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
@@ -488,16 +487,25 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var processError error
 
 	if functionconfig.BatchModeEnabled(h.configuration.Batch.Mode) {
-		var responseChan chan interface{}
-		h.Logger.Debug("Send event to batch")
-		h.PrepareEventAndSubmitToBatch(ctx, responseChan)
+		// cancelProcessing is a function that cancels the context to gracefully handle
+		// channel closure and avoid potential deadlocks
+		responseChan, cancelProcessing := h.PrepareEventAndSubmitToBatch(ctx)
+
+		// this flag indicates whether processing has been canceled
+		var processingCancelled bool
+
+		// wait for either event processing to finish or for the waiting timeout to pass
 		select {
 		case <-time.After(time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond):
+			// timeout occurred, cancel event processing and set flags accordingly
+			cancelProcessing()
+			processingCancelled = true
 			timedOut = true
 			response = nil
 			submitError = nil
 			processError = nil
 		case responseFromBatch := <-responseChan:
+			// handle the response received from batch processing
 			switch typedResponse := responseFromBatch.(type) {
 			case runtime.ResponseWithErrors:
 				response = typedResponse.Response
@@ -506,6 +514,10 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 			case nuclio.Response:
 				response = typedResponse
 			}
+		}
+		// if event processing is not yet canceled, cancel it
+		if !processingCancelled {
+			cancelProcessing()
 		}
 	} else {
 

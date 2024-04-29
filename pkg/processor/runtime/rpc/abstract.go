@@ -189,6 +189,11 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 	}
 	responsesWithErrors := make([]*runtime.ResponseWithErrors, len(processingResults.results))
 
+	// if processingResults.err is not nil, it means that whole batch processing was failed
+	if processingResults.err != nil {
+		return nil, processingResults.err
+	}
+
 	for index, processingResult := range processingResults.results {
 		functionLogger.DebugWith("Processing result",
 			"eventId", processingResult.EventId,
