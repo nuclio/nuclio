@@ -153,6 +153,9 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 		r.functionLogger = nil
 		return nil, errors.New(msg)
 	}
+	if processingResult.err != nil {
+		return nil, processingResult.err
+	}
 	return nuclio.Response{
 		Body:        processingResult.results[0].DecodedBody,
 		ContentType: processingResult.results[0].ContentType,
