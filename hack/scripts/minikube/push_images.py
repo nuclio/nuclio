@@ -70,7 +70,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
 
     # create name matcher. if it's empty, it'll match all
-    name_matcher = re.compile(args.name)
+    name_matcher = re.compile(re.escape(args.name))
 
     minikube_ip_addr = '{0}:5000'.format(_run_command('minikube ip').strip().decode())
 

@@ -1,2 +1,2 @@
 -r common.txt
-msgpack==1.0.2 --no-binary=msgpack
+msgpack==1.0.8

@@ -25,8 +25,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -571,7 +573,6 @@ func (suite *DeployFunctionTestSuite) TestAssigningFunctionPodToNodes() {
 func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 	runAsUserID := int64(1000)
 	runAsGroupID := int64(2000)
-	functionAvatar := "demo-avatar"
 	functionLabels := map[string]string{
 		"my-function": "is-labeled",
 	}
@@ -580,11 +581,7 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 			LabelSelector: metav1.LabelSelector{
 				MatchLabels: functionLabels,
 			},
-			FunctionConfig: functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Avatar: functionAvatar,
-				},
-			},
+			FunctionConfig: functionconfig.Config{},
 			Kubernetes: platformconfig.Kubernetes{
 				Deployment: &appsv1.Deployment{
 					Spec: appsv1.DeploymentSpec{
@@ -613,9 +610,6 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 		suite.GetResourceAndUnmarshal("deployment",
 			kube.DeploymentNameFromFunctionName(functionName),
 			deploymentInstance)
-
-		// ensure function spec was enriched
-		suite.Require().Equal(functionAvatar, functionInstance.Spec.Avatar)
 
 		// ensure function deployment was enriched
 		suite.Require().NotNil(deploymentInstance.Spec.Template.Spec.SecurityContext.RunAsUser)
@@ -658,7 +652,7 @@ func (suite *DeployFunctionTestSuite) TestDefaultHTTPTrigger() {
 	customTrigger := functionconfig.Trigger{
 		Kind:       "http",
 		Name:       "custom-trigger",
-		MaxWorkers: 3,
+		NumWorkers: 3,
 	}
 	createCustomTriggerFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		customTrigger.Name: customTrigger,
@@ -718,7 +712,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	customTrigger := functionconfig.Trigger{
 		Kind:       "http",
 		Name:       "custom-trigger",
-		MaxWorkers: 1,
+		NumWorkers: 1,
 		Attributes: map[string]interface{}{
 			"serviceType": v1.ServiceTypeNodePort,
 		},
@@ -743,7 +737,7 @@ func (suite *DeployFunctionTestSuite) TestHTTPTriggerServiceTypes() {
 	nilServiceTypeTrigger := functionconfig.Trigger{
 		Kind:       "http",
 		Name:       "nil-service-type-trigger",
-		MaxWorkers: 1,
+		NumWorkers: 1,
 		Attributes: triggerAttributes,
 	}
 	nilServiceTypeFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
@@ -767,7 +761,7 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithIngress() {
 		"customTrigger": {
 			Kind:       "http",
 			Name:       "customTrigger",
-			MaxWorkers: 3,
+			NumWorkers: 3,
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"someKey": map[string]interface{}{
@@ -811,7 +805,7 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithTemplatedIngress() {
 		"customTrigger": {
 			Kind:       "http",
 			Name:       "customTrigger",
-			MaxWorkers: 3,
+			NumWorkers: 3,
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"someKey": map[string]interface{}{
@@ -1574,6 +1568,102 @@ def handler(context, event):
 	})
 }
 
+func (suite *DeployFunctionTestSuite) TestRedeployWithUpdatedSidecarSpec() {
+	functionName := "func-with-sidecar"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	sidecarContainerName := "sidecar-test"
+	firstDeployCommands := []string{
+		"sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 10; done; echo 'First deploy done'",
+	}
+	secondDeployCommands := []string{
+		"/bin/sh",
+		"-c",
+		"for i in {1..10}; do echo $i; sleep 10; done; echo 'Second deploy done'",
+	}
+
+	busyboxImage := "busybox"
+	alpineImage := "alpine"
+
+	// create a busybox sidecar
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{
+			Name:    sidecarContainerName,
+			Image:   busyboxImage,
+			Command: firstDeployCommands,
+		},
+	}
+
+	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal(busyboxImage, pod.Spec.Containers[1].Image)
+		suite.Require().Equal(firstDeployCommands, pod.Spec.Containers[1].Command)
+
+		// get the logs from the sidecar container to validate it ran
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"First deploy done"})
+		})
+		suite.Require().NoError(err)
+
+		// change the sidecar image and command
+		createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+			{
+				Name:    sidecarContainerName,
+				Image:   alpineImage,
+				Command: secondDeployCommands,
+			},
+		}
+
+		return true
+	}
+
+	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+
+		// get the function pod and validate it has the sidecar
+		pods := suite.GetFunctionPods(functionName)
+		pod := pods[0]
+		if len(pods) != 1 {
+			// because the first pod might still be terminating, we search for the new pod according to the start time
+			sort.Slice(pods, func(i, j int) bool {
+				return pods[i].CreationTimestamp.Before(&pods[j].CreationTimestamp)
+			})
+			pod = pods[len(pods)-1]
+		}
+
+		// validate the sidecar container has the new image and command
+		suite.Require().Len(pod.Spec.Containers, 2)
+		suite.Require().Equal(sidecarContainerName, pod.Spec.Containers[1].Name)
+		suite.Require().Equal(alpineImage, pod.Spec.Containers[1].Image)
+		suite.Require().Equal(secondDeployCommands, pod.Spec.Containers[1].Command)
+
+		// get the logs from the sidecar container to validate it ran the new command
+		podLogOpts := v1.PodLogOptions{
+			Container: sidecarContainerName,
+		}
+		err := common.RetryUntilSuccessful(20*time.Second, 1*time.Second, func() bool {
+			return suite.validatePodLogsContainData(pod.Name, &podLogOpts, []string{"Second deploy done"})
+		})
+		suite.Require().NoError(err)
+
+		return true
+	}
+
+	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
+}
+
 func (suite *DeployFunctionTestSuite) TestDeployFromGitSanity() {
 	functionName := "func-from-git"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
@@ -1957,6 +2047,40 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 			suite.Assert().Contains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-signin"], overrideOauth2ProxyURL)
 			suite.Assert().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], overrideOauth2ProxyURL)
+		})
+		suite.Require().NoError(err)
+
+		return true
+	})
+}
+
+func (suite *DeployAPIGatewayTestSuite) TestFunctionWithTwoGateways() {
+	functionName := "some-function-name"
+	apiGatewayName1 := "api-gateway-1"
+	apiGatewayName2 := "api-gateway-2"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		// create first api gateway on top of given function
+		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName1, functionName)
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host1.com"
+
+		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
+			// create second api gateway on top of the same function
+			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.Host = "host2.com"
+
+			err := suite.DeployAPIGateway(createAPIGatewayOptions2, func(ingress *networkingv1.Ingress) {
+				// check that both gateways are invokable
+				_, err := http.Get(fmt.Sprintf("http://%s", createAPIGatewayOptions1.APIGatewayConfig.Spec.Host))
+				suite.Require().NoError(err)
+
+				_, err = http.Get(fmt.Sprintf("http://%s", createAPIGatewayOptions2.APIGatewayConfig.Spec.Host))
+				suite.Require().NoError(err)
+			})
+			suite.Require().NoError(err)
 		})
 		suite.Require().NoError(err)
 

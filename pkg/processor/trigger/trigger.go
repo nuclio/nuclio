@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	MaxWorkersLimit                              = 100000
+	NumWorkersLimit                              = 100000
 	DefaultWorkerAvailabilityTimeoutMilliseconds = 10000 // 10 seconds
 )
 

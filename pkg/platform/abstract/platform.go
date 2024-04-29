@@ -273,6 +273,14 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 		functionConfig.Spec.Runtime = "python:3.9"
 	}
 
+	if functionConfig.Spec.DisableDefaultHTTPTrigger == nil {
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching disable default http trigger flag",
+			"functionName", functionConfig.Meta.Name,
+			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHTTPTrigger)
+		functionConfig.Spec.DisableDefaultHTTPTrigger = &ap.Config.DisableDefaultHTTPTrigger
+	}
+
 	// enrich triggers
 	if err := ap.enrichTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching triggers")
@@ -285,14 +293,6 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	if err := ap.enrichVolumes(functionConfig); err != nil {
 		return errors.Wrap(err, "Failed enriching volumes")
-	}
-
-	if functionConfig.Spec.DisableDefaultHTTPTrigger == nil {
-		ap.Logger.DebugWithCtx(ctx,
-			"Enriching disable default http trigger flag",
-			"functionName", functionConfig.Meta.Name,
-			"disableDefaultHttpTrigger", ap.Config.DisableDefaultHTTPTrigger)
-		functionConfig.Spec.DisableDefaultHTTPTrigger = &ap.Config.DisableDefaultHTTPTrigger
 	}
 
 	ap.enrichEnvVars(functionConfig)
@@ -333,7 +333,7 @@ func (ap *Platform) enrichDefaultHTTPTrigger(functionConfig *functionconfig.Conf
 	if len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "http")) > 0 {
 		return
 	}
-	if ap.Config.DisableDefaultHTTPTrigger {
+	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger {
 		ap.Logger.Debug("Skipping default http trigger creation")
 		return
 	}
@@ -473,11 +473,6 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 
 	if err := ap.validateAutoScaleMetrics(functionConfig); err != nil {
 		return errors.Wrap(err, "Auto scale metrics validation failed")
-	}
-
-	// TODO: remove warning when avatar is support is removed in 1.13
-	if functionConfig.Spec.Avatar != "" {
-		ap.Logger.WarnWithCtx(ctx, "Avatar is deprecated and will not be supported in version 1.13")
 	}
 
 	return nil
@@ -1662,11 +1657,11 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		}
 
 		// no more workers than limitation allows
-		if triggerInstance.MaxWorkers > trigger.MaxWorkersLimit {
-			return nuclio.NewErrBadRequest(fmt.Sprintf("MaxWorkers value for %s trigger (%d) exceeds the limit of %d",
+		if triggerInstance.NumWorkers > trigger.NumWorkersLimit {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("NumWorkers value for %s trigger (%d) exceeds the limit of %d",
 				triggerKey,
-				triggerInstance.MaxWorkers,
-				trigger.MaxWorkersLimit))
+				triggerInstance.NumWorkers,
+				trigger.NumWorkersLimit))
 		}
 
 		// no more than one http trigger is allowed
@@ -1777,15 +1772,24 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 			triggerInstance.Name = triggerName
 		}
 
+		// replace deprecated MaxWorkers with NumWorkers
+		// TODO: remove in 1.15.x
+		// nolint: staticcheck
+		if triggerInstance.NumWorkers == 0 && triggerInstance.MaxWorkers != 0 {
+			ap.Logger.WarnWithCtx(ctx, "MaxWorkers is deprecated and will be removed in v1.15.x, use NumWorkers instead")
+			triggerInstance.NumWorkers = triggerInstance.MaxWorkers
+		}
+
 		// ensure having max workers
 		if common.StringInSlice(triggerInstance.Kind, []string{"http", "v3ioStream"}) {
-			if triggerInstance.MaxWorkers == 0 {
-				triggerInstance.MaxWorkers = 1
+			if triggerInstance.NumWorkers == 0 {
+				triggerInstance.NumWorkers = 1
 			}
 		}
 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
+
 	return nil
 }
 

@@ -591,7 +591,7 @@ func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
 		CoreV1().
 		Pods(options.Namespace).
 		GetLogs(options.Name, &v1.PodLogOptions{
-			Container:    client.FunctionContainerName,
+			Container:    options.ContainerName,
 			SinceSeconds: options.SinceSeconds,
 			TailLines:    options.TailLines,
 			Follow:       options.Follow,
@@ -616,6 +616,21 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 		names = append(names, pod.GetName())
 	}
 	return names, nil
+}
+
+func (p *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {
+	pod, err := p.consumer.KubeClientSet.
+		CoreV1().
+		Pods(functionConfig.Meta.Namespace).
+		Get(ctx, replicaName, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function pod")
+	}
+	var containerNames []string
+	for _, container := range pod.Spec.Containers {
+		containerNames = append(containerNames, container.Name)
+	}
+	return containerNames, nil
 }
 
 // GetName returns the platform name
@@ -1658,6 +1673,18 @@ func (p *Platform) enrichAPIGatewayConfig(ctx context.Context,
 		apiGatewayConfig.Meta.Labels = map[string]string{}
 	}
 
+	if apiGatewayConfig.Spec.Host == "" {
+		templateData := map[string]interface{}{
+			"Name":         apiGatewayConfig.Meta.Name,
+			"ResourceName": apiGatewayConfig.Meta.Name,
+			"Namespace":    apiGatewayConfig.Meta.Namespace,
+			"ProjectName":  apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+		}
+		if apiGatewayHost, err := p.renderIngressHost(ctx, common.DefaultIngressHostTemplate, templateData, 8); err == nil {
+			apiGatewayConfig.Spec.Host = apiGatewayHost
+		}
+	}
+
 	// enrich project name if not exists or value is empty
 	if existingApiGatewayConfig != nil {
 		if value, exist := apiGatewayConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]; value == "" || !exist {
@@ -1750,17 +1777,33 @@ func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfi
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function project")
 	}
-	p.Logger.DebugWithCtx(ctx,
-		"Enriching function node selector from project",
-		"functionName", functionConfig.Meta.Name,
-		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-	functionConfig.Spec.NodeSelector = labels.Merge(functionProject.GetConfig().Spec.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
 
-	p.Logger.DebugWithCtx(ctx,
-		"Enriching function node selector from platform config",
-		"functionName", functionConfig.Meta.Name,
-		"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-	functionConfig.Spec.NodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionConfig.Spec.NodeSelector)
+	var defaultNodeSelector map[string]string
+
+	if p.Config.Kube.IgnorePlatformIfProjectNodeSelectors {
+		if functionProject.GetConfig().Spec.DefaultFunctionNodeSelector != nil {
+			p.Logger.DebugWithCtx(ctx,
+				"Enriching function node selector from project",
+				"functionName", functionConfig.Meta.Name,
+				"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+			defaultNodeSelector = functionProject.GetConfig().Spec.DefaultFunctionNodeSelector
+		} else {
+			p.Logger.DebugWithCtx(ctx,
+				"Enriching function node selector from platform config",
+				"functionName", functionConfig.Meta.Name,
+				"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
+			defaultNodeSelector = p.Config.Kube.DefaultFunctionNodeSelector
+		}
+	} else {
+		p.Logger.DebugWithCtx(ctx,
+			"Enriching function node selector from platform config and project",
+			"functionName", functionConfig.Meta.Name,
+			"platformNodeSelector", p.Config.Kube.DefaultFunctionNodeSelector,
+			"projectNodeSelector", functionProject.GetConfig().Spec.DefaultFunctionNodeSelector)
+		defaultNodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionProject.GetConfig().Spec.DefaultFunctionNodeSelector)
+	}
+
+	functionConfig.Spec.NodeSelector = labels.Merge(defaultNodeSelector, functionConfig.Spec.NodeSelector)
 	return nil
 }
 
@@ -2000,27 +2043,15 @@ func (p *Platform) enrichHTTPTriggerIngresses(ctx context.Context,
 
 		if ingressHostTemplate, hostTemplateFound := encodedIngressMap["hostTemplate"].(string); hostTemplateFound {
 
-			// one way to say "just render me the default"
-			if ingressHostTemplate == "@nuclio.fromDefault" {
-				ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
-			} else {
-				p.Logger.DebugWithCtx(ctx, "Received custom ingress host template to enrich host with",
-					"ingressHostTemplate", ingressHostTemplate,
-					"functionName", functionConfig.Meta.Name)
-			}
-
-			// render host with pre-defined data
-			renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateData)
-			if err != nil {
-				return errors.Wrap(err, "Failed to render ingress host template")
-			}
-
 			// try infer from attributes, if not use default 8
 			hostTemplateRandomCharsLength := 8
 			if hostTemplateRandomCharsLengthValue, ok := encodedIngressMap["hostTemplateRandomCharsLength"].(int); ok {
 				hostTemplateRandomCharsLength = hostTemplateRandomCharsLengthValue
 			}
-			renderedIngressHost = p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength)
+			renderedIngressHost, err := p.renderIngressHost(ctx, ingressHostTemplate, templateData, hostTemplateRandomCharsLength)
+			if err != nil {
+				return errors.Wrap(err, "Failed to render ingress host template")
+			}
 			if ingressHost, ingressHostFound := encodedIngressMap["host"].(string); !ingressHostFound || ingressHost == "" {
 				p.Logger.DebugWithCtx(ctx, "Enriching function ingress host from template",
 					"renderedIngressHost", renderedIngressHost,
@@ -2034,6 +2065,25 @@ func (p *Platform) enrichHTTPTriggerIngresses(ctx context.Context,
 		}
 	}
 	return nil
+}
+
+func (p *Platform) renderIngressHost(ctx context.Context, ingressHostTemplate string, templateData map[string]interface{}, hostTemplateRandomCharsLength int) (string, error) {
+	// one way to say "just render me the default"
+	if ingressHostTemplate == common.DefaultIngressHostTemplate {
+		ingressHostTemplate = p.Config.Kube.DefaultHTTPIngressHostTemplate
+	} else {
+		p.Logger.DebugWithCtx(ctx,
+			"Received custom ingress host template to enrich host with",
+			"ingressHostTemplate", ingressHostTemplate)
+	}
+
+	// render host with pre-defined data
+	renderedIngressHost, err := common.RenderTemplate(ingressHostTemplate, templateData)
+	if err != nil {
+		return "", err
+	}
+
+	return p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength), nil
 }
 
 // will take a host, split to "."

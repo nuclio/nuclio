@@ -66,31 +66,34 @@ type Volume struct {
 
 // Trigger holds configuration for a trigger
 type Trigger struct {
-	Class                                 string             `json:"class"`
-	Kind                                  string             `json:"kind"`
-	Name                                  string             `json:"name"`
-	Disabled                              bool               `json:"disabled,omitempty"`
-	MaxWorkers                            int                `json:"maxWorkers,omitempty"`
-	URL                                   string             `json:"url,omitempty"`
-	Paths                                 []string           `json:"paths,omitempty"`
-	Username                              string             `json:"username,omitempty"`
-	Password                              string             `json:"password,omitempty"`
-	Secret                                string             `json:"secret,omitempty"`
-	Partitions                            []Partition        `json:"partitions,omitempty"`
-	Annotations                           map[string]string  `json:"annotations,omitempty"`
-	WorkerAvailabilityTimeoutMilliseconds *int               `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
-	WorkerAllocatorName                   string             `json:"workerAllocatorName,omitempty"`
-	ExplicitAckMode                       ExplicitAckMode    `json:"explicitAckMode,omitempty"`
-	WaitExplicitAckDuringRebalanceTimeout string             `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
-	WorkerTerminationTimeout              string             `json:"workerTerminationTimeout,omitempty"`
+	Class                                 string            `json:"class"`
+	Kind                                  string            `json:"kind"`
+	Name                                  string            `json:"name"`
+	Disabled                              bool              `json:"disabled,omitempty"`
+	NumWorkers                            int               `json:"numWorkers,omitempty"`
+	URL                                   string            `json:"url,omitempty"`
+	Paths                                 []string          `json:"paths,omitempty"`
+	Username                              string            `json:"username,omitempty"`
+	Password                              string            `json:"password,omitempty"`
+	Secret                                string            `json:"secret,omitempty"`
+	Partitions                            []Partition       `json:"partitions,omitempty"`
+	Annotations                           map[string]string `json:"annotations,omitempty"`
+	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
+	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
+	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
+	WaitExplicitAckDuringRebalanceTimeout string            `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
+	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
 	Batch                                 BatchConfiguration `json:"batch,omitempty"`
-
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
 	MaxTaskAllocation int `json:"max_task_allocation,omitempty"`
 
 	// General attributes
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
+
+	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
+	// TODO: remove in 1.15.x
+	MaxWorkers int `json:"maxWorkers,omitempty"`
 }
 
 type BatchConfiguration struct {
@@ -247,7 +250,7 @@ func GetDefaultHTTPTrigger() Trigger {
 	return Trigger{
 		Kind:       "http",
 		Name:       "default-http",
-		MaxWorkers: 1,
+		NumWorkers: 1,
 	}
 }
 
@@ -433,9 +436,6 @@ type Spec struct {
 	// InitContainers are specialized containers that run before app containers in a Pod
 	// Init containers can contain utilities or setup scripts not present in an app image
 	InitContainers []*v1.Container `json:"initContainers,omitempty"`
-
-	// Deprecated - remove in 1.13.x
-	Avatar string `json:"avatar,omitempty"`
 }
 
 type RunOnPreemptibleNodeMode string
@@ -593,6 +593,13 @@ func ShouldSkipBuild(annotations map[string]string) bool {
 type Config struct {
 	Meta Meta `json:"metadata,omitempty"`
 	Spec Spec `json:"spec,omitempty"`
+}
+
+func GetFunctionConfigFromInterface(functionConfigInterface interface{}) *Config {
+	if functionConfig, ok := functionConfigInterface.(*Config); ok {
+		return functionConfig
+	}
+	return nil
 }
 
 // NewConfig creates a new configuration structure

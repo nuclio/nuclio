@@ -354,7 +354,7 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 		}
 	}
 
-	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
+	// wrap the deployer's `deploy` with the base HandleDeployFunction to provide lots of
 	// common functionality
 	return p.HandleDeployFunction(ctx, existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
@@ -517,6 +517,12 @@ func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
 
 func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 	functionConfig *functionconfig.Config) ([]string, error) {
+	return []string{
+		p.GetFunctionContainerName(functionConfig),
+	}, nil
+}
+
+func (p *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {
 	return []string{
 		p.GetFunctionContainerName(functionConfig),
 	}, nil
@@ -1015,7 +1021,7 @@ func (p *Platform) delete(ctx context.Context, deleteFunctionOptions *platform.D
 
 	// delete the function from the local store
 	if err := p.localStore.DeleteFunction(ctx, &deleteFunctionOptions.FunctionConfig.Meta); err != nil &&
-		err != nuclio.ErrNotFound {
+		!errors.Is(err, nuclio.ErrNotFound) {
 		p.Logger.WarnWithCtx(ctx, "Failed to delete a function from the local store", "err", err.Error())
 	}
 

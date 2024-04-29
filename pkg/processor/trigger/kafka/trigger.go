@@ -96,7 +96,6 @@ func newTrigger(parentLogger logger.Logger,
 		"sessionTimeout", configuration.sessionTimeout,
 		"heartbeatInterval", configuration.heartbeatInterval,
 		"rebalanceTimeout", configuration.rebalanceTimeout,
-		"rebalanceTimeout", configuration.rebalanceTimeout,
 		"retryBackoff", configuration.retryBackoff,
 		"maxWaitTime", configuration.maxWaitTime,
 		"rebalanceRetryMax", configuration.RebalanceRetryMax,
@@ -510,10 +509,6 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 
 		getTLSMinimumVersion := func(version string) uint16 {
 			switch version {
-			case "1.0":
-				return tls.VersionTLS10
-			case "1.1":
-				return tls.VersionTLS11
 			case "1.2":
 				return tls.VersionTLS12
 			case "1.3":

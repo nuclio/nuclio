@@ -335,11 +335,12 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 
 func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 	for _, testCase := range []struct {
-		name                         string
-		functionNodeSelector         map[string]string
-		platformNodeSelector         map[string]string
-		projectNodeSelector          map[string]string
-		expectedFunctionNodeSelector map[string]string
+		name                                       string
+		functionNodeSelector                       map[string]string
+		platformNodeSelector                       map[string]string
+		projectNodeSelector                        map[string]string
+		expectedFunctionNodeSelector               map[string]string
+		ignorePlatformNodeSelectorsIfProjectAreSet bool
 	}{
 		{
 			name:                         "all-selectors-empty",
@@ -383,6 +384,36 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 				"test2": "from-platform2",
 			},
 		},
+		{
+			name: "get-selector-from-project-ignore-platform",
+			platformNodeSelector: map[string]string{
+				"test":  "from-platform",
+				"test2": "from-platform2",
+			},
+			projectNodeSelector: map[string]string{
+				"test":  "from-project",
+				"test1": "from-project1",
+			},
+			functionNodeSelector: map[string]string{"test": "from-function"},
+			expectedFunctionNodeSelector: map[string]string{
+				"test":  "from-function",
+				"test1": "from-project1",
+			},
+			ignorePlatformNodeSelectorsIfProjectAreSet: true,
+		},
+		{
+			name: "get-selector-from-platform-ignore-platform",
+			platformNodeSelector: map[string]string{
+				"test":  "from-platform",
+				"test1": "from-platform1",
+			},
+			functionNodeSelector: map[string]string{"test": "from-function"},
+			expectedFunctionNodeSelector: map[string]string{
+				"test":  "from-function",
+				"test1": "from-platform1",
+			},
+			ignorePlatformNodeSelectorsIfProjectAreSet: true,
+		},
 	} {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.
@@ -396,6 +427,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 					&platform.AbstractProject{ProjectConfig: platform.ProjectConfig{Spec: platform.ProjectSpec{DefaultFunctionNodeSelector: testCase.projectNodeSelector}}},
 				}, nil).
 				Once()
+			suite.platform.Config.Kube.IgnorePlatformIfProjectNodeSelectors = testCase.ignorePlatformNodeSelectorsIfProjectAreSet
 			functionConfig := *functionconfig.NewConfig()
 			functionConfig.Spec.NodeSelector = testCase.functionNodeSelector
 
@@ -1047,14 +1079,14 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				Attributes: map[string]interface{}{
 					"ingresses": map[string]interface{}{
 						"0": map[string]interface{}{
-							"hostTemplate": "@nuclio.fromDefault",
+							"hostTemplate": common.DefaultIngressHostTemplate,
 						},
 					},
 				},
 			},
 			want: map[string]interface{}{
 				"0": map[string]interface{}{
-					"hostTemplate": "@nuclio.fromDefault",
+					"hostTemplate": common.DefaultIngressHostTemplate,
 					"host":         "some-name.some-namespace.test.com",
 					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
@@ -1068,7 +1100,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				Attributes: map[string]interface{}{
 					"ingresses": map[string]interface{}{
 						"0": map[string]interface{}{
-							"hostTemplate": "@nuclio.fromDefault",
+							"hostTemplate": common.DefaultIngressHostTemplate,
 						},
 						"1": map[string]interface{}{
 							"host": "leave-it-as.is.com",
@@ -1078,7 +1110,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 			},
 			want: map[string]interface{}{
 				"0": map[string]interface{}{
-					"hostTemplate": "@nuclio.fromDefault",
+					"hostTemplate": common.DefaultIngressHostTemplate,
 					"host":         "some-name.some-namespace.test.com",
 					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
@@ -1096,7 +1128,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				Attributes: map[string]interface{}{
 					"ingresses": map[string]interface{}{
 						"0": map[string]interface{}{
-							"hostTemplate": "@nuclio.fromDefault",
+							"hostTemplate": common.DefaultIngressHostTemplate,
 							"host":         "",
 						},
 					},
@@ -1104,7 +1136,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 			},
 			want: map[string]interface{}{
 				"0": map[string]interface{}{
-					"hostTemplate": "@nuclio.fromDefault",
+					"hostTemplate": common.DefaultIngressHostTemplate,
 					"host":         "some-name.some-namespace.test.com",
 					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
@@ -1118,7 +1150,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 				Attributes: map[string]interface{}{
 					"ingresses": map[string]interface{}{
 						"0": map[string]interface{}{
-							"hostTemplate": "@nuclio.fromDefault",
+							"hostTemplate": common.DefaultIngressHostTemplate,
 							"host":         "dont-override-me.com",
 						},
 					},
@@ -1126,7 +1158,7 @@ func (suite *FunctionKubePlatformTestSuite) TestRenderFunctionIngress() {
 			},
 			want: map[string]interface{}{
 				"0": map[string]interface{}{
-					"hostTemplate": "@nuclio.fromDefault",
+					"hostTemplate": common.DefaultIngressHostTemplate,
 					"host":         "dont-override-me.com",
 					"pathType":     networkingv1.PathTypeImplementationSpecific,
 				},
@@ -1803,6 +1835,13 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		On("List", suite.ctx, metav1.ListOptions{}).
 		Return(&v1beta1.NuclioAPIGatewayList{}, nil)
 
+	// set the template for api gateway host generation
+	suite.platform.GetConfig().Kube.DefaultHTTPIngressHostTemplate = "{{ .ResourceName }}.{{ .Namespace }}.app.dev.com"
+	defer func() {
+		// unset the template for api gateway host generation
+		suite.platform.GetConfig().Kube.DefaultHTTPIngressHostTemplate = ""
+	}()
+
 	for _, testCase := range []struct {
 		name             string
 		setUpFunction    func() error
@@ -1836,6 +1875,19 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Name = "meta-name"
 				apiGatewayConfig.Meta.Name = "meta-name"
+				return &apiGatewayConfig
+			}(),
+		},
+		{
+			name: "HostEnriched",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Spec.Host = ""
+				return &apiGatewayConfig
+			}(),
+			expectedEnrichedAPIGateway: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Spec.Host = "default-name.default-namespace.app.dev.com"
 				return &apiGatewayConfig
 			}(),
 		},
@@ -1928,15 +1980,6 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				return &apiGatewayConfig
 			}(),
 			validationError: "One or more upstreams must be provided in spec",
-		},
-		{
-			name: "ValidateHostExistence",
-			apiGatewayConfig: func() *platform.APIGatewayConfig {
-				apiGatewayConfig := suite.compileAPIGatewayConfig()
-				apiGatewayConfig.Spec.Host = ""
-				return &apiGatewayConfig
-			}(),
-			validationError: "Host must be provided in spec",
 		},
 		{
 			name: "ValidateUpstreamKind",

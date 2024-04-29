@@ -1153,7 +1153,7 @@ func (suite *functionTestSuite) TestPatchFunction() {
 			name:               "readyFunction",
 			functionName:       "ready-func",
 			functionState:      functionconfig.FunctionStateReady,
-			expectedStatusCode: http.StatusNoContent,
+			expectedStatusCode: http.StatusAccepted,
 			importedOnly:       "true",
 			desiredState:       "ready",
 			minReplicas:        1,
@@ -3651,7 +3651,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                         "class": "",
                         "kind": "http",
                         "name": "default-http",
-                        "maxWorkers": 1,
+                        "numWorkers": 1,
                         "workerAvailabilityTimeoutMilliseconds": 10000,
                         "attributes": {
                             "serviceType": "NodePort"

@@ -23,11 +23,13 @@ package main
 import (
 	"bytes"
 	"image"
+	"image/jpeg"
+	"image/png"
 	"net/http"
 	"strings"
 
-	"github.com/disintegration/imaging"
 	"github.com/nuclio/nuclio-sdk-go"
+	"golang.org/x/image/draw"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
@@ -35,7 +37,6 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	// Set default values
 	x := 100
 	y := 100
-	imageType := imaging.JPEG
 	respType := "image/jpeg"
 
 	// Extract X, Y, Format from query args
@@ -48,7 +49,6 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	}
 
 	if format := event.GetFieldString("format"); format == "png" {
-		imageType = imaging.PNG
 		respType = "image/png"
 	}
 
@@ -63,11 +63,11 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 			return nil, err
 		}
 		// Try to decode the returned body (from the HTTP request to the provided URL)
-		img, err = imaging.Decode(response.Body)
+		img, _, err = image.Decode(response.Body)
 	} else {
 		// if the content is not text assume the Body contains the image and decode it
 		r := bytes.NewReader(event.GetBody())
-		img, err = imaging.Decode(r)
+		img, _, err = image.Decode(r)
 	}
 
 	// If image Decode failed return an error
@@ -77,9 +77,15 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	}
 
 	// Create a thumbnail with the specified size and format
-	thumb := imaging.Thumbnail(img, x, y, imaging.CatmullRom)
+	targetRect := image.Rect(0, 0, x, y)
+	thumb := image.NewRGBA(targetRect)
+	draw.CatmullRom.Scale(thumb, targetRect, img, img.Bounds(), draw.Over, nil)
 	buf := new(bytes.Buffer)
-	err = imaging.Encode(buf, thumb, imageType)
+	if respType == "image/png" {
+		err = png.Encode(buf, thumb)
+	} else {
+		err = jpeg.Encode(buf, thumb, &jpeg.Options{Quality: 95})
+	}
 
 	// Return a response with an image and the proper Content Type
 	return nuclio.Response{

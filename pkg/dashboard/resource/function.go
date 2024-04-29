@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
@@ -374,16 +375,8 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
-	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(request.Context(), function.GetConfig())
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function replica names")
-	}
-
-	// ensure replica belongs to function
-	if !common.StringSliceContainsStringCaseInsensitive(replicaNames, functionReplicaName) {
-		return nil, nuclio.NewErrBadRequest(fmt.Sprintf("%s replica does not belong to function %s",
-			functionReplicaName,
-			function.GetConfig().Meta.Name))
+	if err := fr.validateLogStreamOptions(request.Context(), function, getFunctionReplicaLogsStreamOptions); err != nil {
+		return nil, errors.Wrap(err, "Failed to validate log stream options")
 	}
 
 	// get function instance logs stream
@@ -402,6 +395,38 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 		ForceFlush:    true,
 		FlushInternal: time.Second,
 	}, nil
+}
+
+func (fr *functionResource) validateLogStreamOptions(ctx context.Context,
+	function platform.Function,
+	getFunctionReplicaLogsStreamOptions *platform.GetFunctionReplicaLogsStreamOptions) error {
+	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(ctx, function.GetConfig())
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function replica names")
+	}
+
+	// ensure replica belongs to function
+	if !common.StringSliceContainsStringCaseInsensitive(replicaNames, getFunctionReplicaLogsStreamOptions.Name) {
+		return nuclio.NewErrBadRequest(fmt.Sprintf("%s replica does not belong to function %s",
+			getFunctionReplicaLogsStreamOptions.Name,
+			function.GetConfig().Meta.Name))
+	}
+
+	// ensure container name is valid for the replica (if provided)
+	if getFunctionReplicaLogsStreamOptions.ContainerName != client.FunctionContainerName {
+		// get the replica's containers
+		replicaContainers, err := fr.getPlatform().GetFunctionReplicaContainers(ctx, function.GetConfig(), getFunctionReplicaLogsStreamOptions.Name)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get function replica containers")
+		}
+
+		if !common.StringSliceContainsStringCaseInsensitive(replicaContainers, getFunctionReplicaLogsStreamOptions.ContainerName) {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("%s container does not belong to function replica %s",
+				getFunctionReplicaLogsStreamOptions.ContainerName,
+				getFunctionReplicaLogsStreamOptions.Name))
+		}
+	}
+	return nil
 }
 
 func (fr *functionResource) getFunctionReplicas(request *http.Request) (
@@ -529,7 +554,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 
 	if importedOnly && function.GetStatus().State != functionconfig.FunctionStateImported {
 		fr.Logger.DebugWithCtx(ctx, "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
-		return nil
+		return nuclio.ErrAccepted
 	}
 
 	fr.Logger.DebugWith("Redeploying function",
@@ -710,9 +735,10 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 	namespace string) (*platform.GetFunctionReplicaLogsStreamOptions, error) {
 
 	getFunctionReplicaLogsStreamOptions := &platform.GetFunctionReplicaLogsStreamOptions{
-		Name:      replicaName,
-		Namespace: namespace,
-		Follow:    fr.GetURLParamBoolOrDefault(request, "follow", true),
+		Name:          replicaName,
+		Namespace:     namespace,
+		Follow:        fr.GetURLParamBoolOrDefault(request, "follow", true),
+		ContainerName: fr.GetURLParamStringOrDefault(request, "containerName", client.FunctionContainerName),
 	}
 
 	// populate since seconds

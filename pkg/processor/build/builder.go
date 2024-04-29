@@ -40,7 +40,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
-	"github.com/mholt/archiver/v3"
+	"github.com/mholt/archiver/v4"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -190,7 +190,7 @@ func (b *Builder) Build(ctx context.Context, options *platform.CreateFunctionBui
 	// resolve the function path - download in case its a URL
 	b.options.FunctionConfig.Spec.Build.Path,
 		inferredCodeEntryType,
-		err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+		err = b.resolveFunctionPath(ctx, b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -642,7 +642,7 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	return sourceFilePath, nil
 }
 
-func (b *Builder) resolveFunctionPath(functionPath string) (string, string, error) {
+func (b *Builder) resolveFunctionPath(ctx context.Context, functionPath string) (string, string, error) {
 	var err error
 	var inferredCodeEntryType string
 
@@ -697,7 +697,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, string, erro
 	}
 
 	// when no code entry type was passed and it's an archive or jar
-	if codeEntryType == "" && (util.IsCompressed(resolvedPath) || util.IsJar(resolvedPath) || common.IsDir(resolvedPath)) {
+	if codeEntryType == "" && (util.IsArchive(resolvedPath) || util.IsJar(resolvedPath) || common.IsDir(resolvedPath)) {
 
 		// if it's a URL, set it as an archive code entry type, otherwise save the built image so it'll be possible to redeploy
 		if isURL {
@@ -707,10 +707,10 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, string, erro
 		}
 	}
 
-	if util.IsCompressed(resolvedPath) {
-		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
+	if util.IsArchive(resolvedPath) {
+		resolvedPath, err = b.extractFunctionArchive(ctx, resolvedPath)
 		if err != nil {
-			return "", "", errors.Wrap(err, "Failed to decompress function archive")
+			return "", "", errors.Wrap(err, "Failed to extract function archive")
 		}
 	}
 
@@ -752,22 +752,22 @@ func (b *Builder) getFunctionPathFromGithubURL(functionPath string) (string, err
 	return functionPath, nil
 }
 
-func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
+func (b *Builder) extractFunctionArchive(ctx context.Context, functionPath string) (string, error) {
 
 	// create a staging directory
 	decompressDir, err := b.mkDirUnderTemp("decompress")
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create temporary directory for decompressing archive %v", functionPath)
+		return "", errors.Wrapf(err, "Failed to create temporary directory for extracting archive %v", functionPath)
 	}
 
-	decompressor, err := util.NewDecompressor(b.logger)
+	unarchiver, err := util.NewUnarchiver(b.logger)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to instantiate decompressor")
+		return "", errors.Wrap(err, "Failed to instantiate unarchiver")
 	}
 
-	err = decompressor.Decompress(functionPath, decompressDir)
+	err = unarchiver.Extract(ctx, functionPath, decompressDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
+		return "", errors.Wrapf(err, "Failed to extract file %s", functionPath)
 	}
 
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
@@ -1620,7 +1620,7 @@ func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType 
 			return "", errors.Wrap(err, "Failed to download file")
 		}
 
-		if isArchive && !util.IsCompressed(tempFile.Name()) {
+		if isArchive && !util.IsArchive(tempFile.Name()) {
 			return "", errors.New("Downloaded file type is not supported. (expected an archive)")
 		}
 
@@ -1753,11 +1753,11 @@ func (b *Builder) getFunctionTempFile(tempDir string,
 	}
 
 	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
-	if isArchive || util.IsCompressed(functionPathBase) {
+	if isArchive || util.IsArchive(functionPathBase) {
 		var fileExtension string
 
 		// get file archiver by its extension
-		fileArchiver, err := archiver.ByExtension(functionPath)
+		archiverFormat, _, err := archiver.Identify(functionPath, nil)
 		if err != nil {
 
 			// fallback to .zip
@@ -1766,7 +1766,7 @@ func (b *Builder) getFunctionTempFile(tempDir string,
 				functionPath)
 			fileExtension = "zip"
 		} else {
-			fileExtension = fmt.Sprint(fileArchiver)
+			fileExtension = strings.TrimPrefix(archiverFormat.Name(), ".")
 		}
 		return os.CreateTemp(tempDir, fmt.Sprintf("nuclio-function-*.%s", fileExtension))
 	}

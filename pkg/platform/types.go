@@ -481,6 +481,13 @@ type APIGatewayConfig struct {
 	Status APIGatewayStatus `json:"status,omitempty"`
 }
 
+func GetAPIGatewayConfigFromInterface(functionConfigInterface interface{}) *APIGatewayConfig {
+	if apiGatewayConfig, ok := functionConfigInterface.(*APIGatewayConfig); ok {
+		return apiGatewayConfig
+	}
+	return nil
+}
+
 // APIGatewayState is state of api gateway
 type APIGatewayState string
 
@@ -546,6 +553,10 @@ type GetFunctionReplicaLogsStreamOptions struct {
 
 	// Number of lines to show from the end of the logs
 	TailLines *int64
+
+	// A specific container name to stream logs from (if not specified, the "nuclio" container in the pod is used)
+	// Relevant only for pods with multiple containers
+	ContainerName string
 }
 
 type FunctionSecret struct {

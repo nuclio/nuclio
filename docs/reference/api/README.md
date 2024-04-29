@@ -319,6 +319,7 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
     * `follow`: Follow the replica log stream (default: true)
     * `since`: A relative time before the current time from which to show logs (optional, e.g.: `1h`)
     * `tailLines`: Number of lines to show from the end of the logs (optional, e.g.: `100`)
+    * `containerName`: Container name to show logs from. If not supplied the function container logs will be retrieved [only relevant in `kube` platform] (optional, e.g.: `sidecar-container`)
 
 #### Response
 
