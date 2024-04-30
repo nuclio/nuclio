@@ -70,12 +70,12 @@ type AbstractScrubber struct {
 	Logger                     logger.Logger
 
 	// if multiple secrets can be found with ResourceLabelKeyObjectName, we allow passing filter
-	// filterSecret is a function which takes secret name and return if secrets should be filtered(skipped),
-	filterSecret func(secret v1.Secret) bool
+	// secretFilter is a function which takes secret name and return if secrets should be filtered(skipped),
+	secretFilter func(secret v1.Secret) bool
 }
 
 // NewAbstractScrubber returns a new AbstractScrubber
-func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, filterSecretName func(secret v1.Secret) bool) *AbstractScrubber {
+func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, secretFilterName func(secret v1.Secret) bool) *AbstractScrubber {
 	return &AbstractScrubber{
 		SensitiveFields:            sensitiveFields,
 		KubeClientSet:              kubeClientSet,
@@ -83,7 +83,7 @@ func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.R
 		ResourceLabelKeyObjectName: resourceLabelKeyObjectName,
 		SecretType:                 secretType,
 		Logger:                     parentLogger.GetChild("scrubber"),
-		filterSecret:               filterSecretName,
+		secretFilter:               secretFilterName,
 	}
 }
 
@@ -309,7 +309,7 @@ func (s *AbstractScrubber) GetObjectSecret(ctx context.Context, name, namespace 
 	for _, secret := range secrets {
 
 		// this check is specific for functionConfig scrubber, because for function we create 2 secrets
-		if s.filterSecret(secret) {
+		if s.secretFilter(secret) {
 			continue
 		}
 		return &secret, nil
