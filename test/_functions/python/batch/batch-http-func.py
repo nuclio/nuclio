@@ -23,7 +23,7 @@ def handler(context, event: list[nuclio_sdk.Event]):
         for item in event:
             event_id = item.id
             batched_response.append(nuclio_sdk.Response(
-                body=str(x),
+                body="Response to in-batch event",
                 headers={},
                 content_type="text",
                 status_code=200,

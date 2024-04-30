@@ -446,7 +446,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
 
-	h.Logger.DebugWith("Got new request", "requestBody", ctx.Request.Body())
 	// internal endpoint to allow clients the information whether the http server is taking requests in
 	// this is an internal endpoint, we do not want to update statistics here
 	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthPath) {
@@ -507,7 +506,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		case responseFromBatch := <-responseChan:
 			// handle the response received from batch processing
 			switch typedResponse := responseFromBatch.(type) {
-			case runtime.ResponseWithErrors:
+			case *runtime.ResponseWithErrors:
 				response = typedResponse.Response
 				submitError = typedResponse.SubmitError
 				processError = typedResponse.ProcessError

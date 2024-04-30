@@ -203,11 +203,13 @@ func (suite *HTTPTestSuite) TestBatchedProcessing() {
 				RequestMethod:              "POST",
 				RequestBody:                "hello-0",
 				ExpectedResponseStatusCode: &statusOK,
+				ExpectedResponseBody:       "Response to in-batch event",
 			},
 			{
 				RequestMethod:              "POST",
 				RequestBody:                "hello-1",
 				ExpectedResponseStatusCode: &statusOK,
+				ExpectedResponseBody:       "Response to in-batch event",
 			},
 		})
 
