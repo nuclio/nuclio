@@ -181,7 +181,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 	// TODO: remove when versioning is back in
 	function.Spec.Version = -1
 	function.Spec.Alias = "latest"
-	functionLabels[common.NuclioLabelKeyFunctionVersion] = "latest"
+	functionLabels[common.NuclioLabelKeyFunctionVersion] = common.FunctionTagLatest
 
 	resources := lazyResources{}
 
@@ -256,7 +256,7 @@ func (lc *lazyClient) UpdateFunctionSelectorWhenScaleFromZero(ctx context.Contex
 	functionLabels := lc.getFunctionLabels(function)
 
 	functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
-	functionLabels[common.NuclioLabelKeyFunctionVersion] = "latest"
+	functionLabels[common.NuclioLabelKeyFunctionVersion] = common.FunctionTagLatest
 
 	// marshal labels to json
 	patchBytes, err := json.Marshal(map[string]interface{}{

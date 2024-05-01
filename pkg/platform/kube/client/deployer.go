@@ -407,7 +407,7 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 	}
 
 	// set alias as "latest" for now
-	functionInstance.Spec.Alias = "latest"
+	functionInstance.Spec.Alias = common.FunctionTagLatest
 
 	// there are two cases here:
 	// 1. user specified --run-image: in this case, we will get here with a full URL in the image field (e.g.
