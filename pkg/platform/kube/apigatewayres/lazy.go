@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -46,6 +47,7 @@ type lazyClient struct {
 	kubeClientSet   kubernetes.Interface
 	nuclioClientSet nuclioio_client.Interface
 	ingressManager  *ingress.Manager
+	scrubber        *platform.APIGatewayScrubber
 }
 
 func NewLazyClient(loggerInstance logger.Logger,
@@ -58,6 +60,7 @@ func NewLazyClient(loggerInstance logger.Logger,
 		kubeClientSet:   kubeClientSet,
 		nuclioClientSet: nuclioClientSet,
 		ingressManager:  ingressManager,
+		scrubber:        platform.NewAPIGatewayScrubber(loggerInstance, platform.GetAPIGatewaySensitiveField(), kubeClientSet),
 	}
 
 	return &newClient, nil
@@ -71,11 +74,24 @@ func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (R
 	return nil, errors.New("Method not implemented")
 }
 
-func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) (Resources, error) {
+func (lc *lazyClient) CreateOrUpdate(ctx context.Context, apiGateway nuclioio.NuclioAPIGateway) (Resources, error) {
 	apiGateway.Status.Name = apiGateway.Spec.Name
 
 	if err := kube.ValidateAPIGatewaySpec(&apiGateway.Spec); err != nil {
 		return nil, errors.Wrap(err, "Api gateway spec validation failed")
+	}
+
+	apiGatewayConfig := getAPIGatewayConfigFromCRD(&apiGateway)
+	if scrubbed, err := lc.scrubber.HasScrubbedConfig(apiGatewayConfig, platform.GetAPIGatewaySensitiveField()); err == nil && scrubbed {
+		// restore scrubbed data
+		if restoredAPIGatewayConfig, err := lc.scrubber.RestoreAPIGatewayConfig(ctx,
+			getAPIGatewayConfigFromCRD(&apiGateway)); err != nil {
+			return nil, errors.Wrap(err, "Failed to restore scrubbed api gateway config")
+		} else {
+			apiGateway.Spec = restoredAPIGatewayConfig.Spec
+		}
+	} else if err != nil {
+		return nil, errors.Wrap(err, "Failed to check if api gateway config is scrubbed")
 	}
 
 	// always try to remove previous canary ingress first, because
@@ -162,9 +178,23 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		lc.logger.WarnWithCtx(ctx, "Failed to delete canary ingress. Continuing with deletion",
 			"err", errors.Cause(err).Error())
 	}
+
+	if apiGatewaySecretName, err := lc.scrubber.GetObjectSecretName(ctx, name, namespace); err != nil {
+		lc.logger.WarnWithCtx(ctx, "Failed to get api gateway secret name",
+			"err", errors.Cause(err).Error())
+	} else if apiGatewaySecretName != "" {
+		lc.logger.DebugWithCtx(ctx, "Deleting api gateway secret",
+			"apiGatewayName", name)
+		if err := lc.kubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, apiGatewaySecretName, metav1.DeleteOptions{}); err != nil {
+			lc.logger.WarnWithCtx(ctx, "Failed to delete api gateway secret name",
+				"apiGatewayName", name,
+				"err", errors.Cause(err).Error())
+		}
+
+	}
 }
 
-func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGateway *nuclioio.NuclioAPIGateway) {
+func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGateway nuclioio.NuclioAPIGateway) {
 	lc.logger.DebugWithCtx(ctx,
 		"Trying to remove previous canary ingress",
 		"apiGatewayName", apiGateway.Name)
@@ -184,7 +214,7 @@ func (lc *lazyClient) tryRemovePreviousCanaryIngress(ctx context.Context, apiGat
 }
 
 func (lc *lazyClient) generateNginxIngress(ctx context.Context,
-	apiGateway *nuclioio.NuclioAPIGateway,
+	apiGateway nuclioio.NuclioAPIGateway,
 	upstream *platform.APIGatewayUpstreamSpec) (*ingress.Resources, error) {
 
 	serviceName, servicePort, err := lc.getServiceNameAndPort(upstream)

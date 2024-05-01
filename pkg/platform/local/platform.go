@@ -689,6 +689,14 @@ func (p *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventO
 	return p.localStore.DeleteFunctionEvent(&deleteFunctionEventOptions.Meta)
 }
 
+func (p *Platform) GetFunctionScrubber() *functionconfig.Scrubber {
+	return nil
+}
+
+func (p *Platform) GetAPIGatewayScrubber() *platform.APIGatewayScrubber {
+	return nil
+}
+
 // GetFunctionEvents will list existing function events
 func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	functionEvents, err := p.localStore.GetFunctionEvents(getFunctionEventsOptions)
@@ -911,17 +919,6 @@ func (p *Platform) GetFunctionVolumeMountName(functionConfig *functionconfig.Con
 	return fmt.Sprintf("nuclio-%s-%s",
 		functionConfig.Meta.Namespace,
 		functionConfig.Meta.Name)
-}
-
-// GetFunctionSecrets returns all the function's secrets
-func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
-
-	// TODO: implement function secrets on local platform
-	return nil, nil
-}
-
-func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
-	return nil, nil
 }
 
 func (p *Platform) InitializeContainerBuilder() error {

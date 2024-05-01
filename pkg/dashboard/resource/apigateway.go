@@ -249,7 +249,7 @@ func (agr *apiGatewayResource) createAPIGateway(request *http.Request,
 	}
 
 	// just deploy. the status is async through polling
-	agr.Logger.DebugWithCtx(ctx, "Creating api gateway", "newAPIGateway", newAPIGateway)
+	agr.Logger.DebugWithCtx(ctx, "Creating api gateway", "newAPIGateway", newAPIGateway.APIGatewayConfig)
 	if err = agr.getPlatform().CreateAPIGateway(ctx, &platform.CreateAPIGatewayOptions{
 		AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 		APIGatewayConfig:           newAPIGateway.GetConfig(),

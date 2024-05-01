@@ -76,29 +76,25 @@ type Platform struct {
 	ImageNamePrefixTemplate string
 	DefaultNamespace        string
 	OpaClient               opa.Client
-	Scrubber                *functionconfig.Scrubber
+	FunctionScrubber        *functionconfig.Scrubber
 }
 
 func NewPlatform(parentLogger logger.Logger,
-	platform platform.Platform,
+	platformInstance platform.Platform,
 	platformConfiguration *platformconfig.Config,
 	defaultNamespace string) (*Platform, error) {
 	var err error
 
 	newPlatform := &Platform{
 		Logger:           parentLogger.GetChild("platform"),
-		platform:         platform,
+		platform:         platformInstance,
 		Config:           platformConfiguration,
 		DeployLogStreams: &sync.Map{},
-		Scrubber: functionconfig.NewScrubber(
-			platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
-			nil, /* kubeClientSet */
-		),
 		DefaultNamespace: defaultNamespace,
 	}
 
 	// create invoker
-	newPlatform.invoker, err = newInvoker(newPlatform.Logger, platform)
+	newPlatform.invoker, err = newInvoker(newPlatform.Logger, platformInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
@@ -168,14 +164,16 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 
 		// if the function is updated, it might have scrubbed data in the spec that the builder requires,
 		// so we need to restore it before building
-		restoredFunctionConfig, err := ap.Scrubber.RestoreFunctionConfig(ctx,
-			&createFunctionOptions.FunctionConfig,
-			ap.platform.GetName(),
-			ap.GetFunctionSecretMap)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to restore function config")
+		if functionScrubber := ap.platform.GetFunctionScrubber(); functionScrubber != nil {
+			restoredFunctionConfig, err := functionScrubber.RestoreFunctionConfig(ctx,
+				&createFunctionOptions.FunctionConfig,
+				ap.platform.GetName())
+
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to restore function config")
+			}
+			createFunctionOptions.FunctionConfig = *restoredFunctionConfig
 		}
-		createFunctionOptions.FunctionConfig = *restoredFunctionConfig
 
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(ctx,
 			&platform.CreateFunctionBuildOptions{
@@ -1345,40 +1343,6 @@ func (ap *Platform) QueryOPAMultipleResources(ctx context.Context,
 	action opa.Action,
 	permissionOptions *opa.PermissionOptions) ([]bool, error) {
 	return ap.queryOPAPermissionsMultiResources(ctx, resources, action, permissionOptions)
-}
-
-// GetFunctionSecrets returns all the function's secrets
-func (ap *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
-	return nil, nil
-}
-
-// GetFunctionSecretMap returns a map of function sensitive data
-func (ap *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
-
-	// get existing function secret
-	ap.Logger.DebugWithCtx(ctx,
-		"Getting function secret", "functionName",
-		functionName, "functionNamespace", functionNamespace)
-	functionSecretData, err := ap.platform.GetFunctionSecretData(ctx, functionName, functionNamespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function secret")
-	}
-
-	// if secret exists, get the data
-	if functionSecretData != nil {
-		functionSecretMap, err := ap.Scrubber.DecodeSecretData(functionSecretData)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to decode function secret data")
-		}
-		return functionSecretMap, nil
-	}
-
-	// secret doesn't exist
-	ap.Logger.DebugWithCtx(ctx,
-		"Function secret doesn't exist",
-		"functionName", functionName,
-		"functionNamespace", functionNamespace)
-	return nil, nil
 }
 
 func (ap *Platform) functionBuildRequired(functionConfig *functionconfig.Config) (bool, error) {

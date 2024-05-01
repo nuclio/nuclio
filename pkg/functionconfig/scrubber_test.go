@@ -46,7 +46,7 @@ func (suite *ScrubberTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
 	suite.k8sClientSet = k8sfake.NewSimpleClientset()
-	suite.scrubber = NewScrubber(suite.getSensitiveFieldsPathsRegex(), suite.k8sClientSet)
+	suite.scrubber = NewScrubber(suite.logger, suite.getSensitiveFieldsPathsRegex(), suite.k8sClientSet)
 }
 
 func (suite *ScrubberTestSuite) TestScrubBasics() {
@@ -103,7 +103,7 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 	}
 
 	// scrub the function config
-	scrubbedInterface, secretMap, err := suite.scrubber.Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
+	scrubbedInterface, _, secretMap, err := suite.scrubber.Scrub(suite.ctx, functionConfig, "name", "namespace")
 	scrubbedFunctionConfig := GetFunctionConfigFromInterface(scrubbedInterface)
 	suite.Require().NoError(err)
 
@@ -133,63 +133,6 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 
 	suite.logger.DebugWith("Restored function config", "functionConfig", restoredFunctionConfig)
 	suite.Require().Equal(functionConfig, restoredFunctionConfig)
-}
-
-func (suite *ScrubberTestSuite) TestScrubWithExistingSecrets() {
-	existingSecrets := map[string]string{
-		"$ref:/spec/build/codeentryattributes/password": "abcd",
-	}
-
-	functionConfig := &Config{
-		Spec: Spec{
-			Build: Build{
-				CodeEntryAttributes: map[string]interface{}{
-
-					// should be scrubbed
-					"password": "$ref:/Spec/Build/CodeEntryAttributes/password",
-				},
-
-				// should not be scrubbed
-				Image: "some-image:latest",
-			},
-			Triggers: map[string]Trigger{
-				"secret-trigger": {
-					Attributes: map[string]interface{}{
-						"password": "1234",
-					},
-					Password: "4567",
-				},
-			},
-		},
-	}
-
-	// scrub the function config
-	scrubbedInterface, secretMap, err := suite.scrubber.Scrub(functionConfig,
-		existingSecrets,
-		suite.getSensitiveFieldsPathsRegex())
-	scrubbedFunctionConfig := scrubbedInterface.(*Config)
-	suite.Require().NoError(err)
-	suite.logger.DebugWith("Scrubbed function config", "scrubbedFunctionConfig", scrubbedFunctionConfig, "secretMap", secretMap)
-
-	suite.Require().Less(len(existingSecrets), len(secretMap))
-	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Password,
-		scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Password)
-	suite.Require().NotEqual(functionConfig.Spec.Triggers["secret-trigger"].Attributes["password"],
-		scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
-	suite.Require().Contains(secretMap, scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
-	suite.Require().Equal(functionConfig.Spec.Build.CodeEntryAttributes["password"],
-		scrubbedFunctionConfig.Spec.Build.CodeEntryAttributes["password"])
-
-	// test error cases:
-	// existing secret map is nil
-	_, _, err = suite.scrubber.Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
-	suite.Require().Error(err)
-
-	// existing secret map doesn't contain the secret
-	_, _, err = suite.scrubber.Scrub(functionConfig, map[string]string{
-		"$ref:/Spec/Something/Else/password": "abcd",
-	}, suite.getSensitiveFieldsPathsRegex())
-	suite.Require().Error(err)
 }
 
 func (suite *ScrubberTestSuite) TestEncodeAndDecodeSecretKeys() {
@@ -247,7 +190,7 @@ func (suite *ScrubberTestSuite) TestDecodeSecretsMapContent() {
 	}
 
 	// scrub the function config
-	scrubbedFunctionConfig, secretMap, err := suite.scrubber.Scrub(functionConfig, nil, suite.getSensitiveFieldsPathsRegex())
+	scrubbedFunctionConfig, _, secretMap, err := suite.scrubber.Scrub(suite.ctx, functionConfig, "name", "namespace")
 	suite.Require().NoError(err)
 
 	// encode the secret map
@@ -350,7 +293,35 @@ func (suite *ScrubberTestSuite) TestHasScrubbedConfig() {
 	}
 }
 
-func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
+func (suite *ScrubberTestSuite) TestRestoreConfigWithResources() {
+
+	config := &Config{
+		Spec: Spec{
+			Resources: v1.ResourceRequirements{
+				Limits: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("200m"),
+					v1.ResourceMemory: resource.MustParse("200Mi"),
+				},
+				Requests: v1.ResourceList{
+					v1.ResourceCPU:    resource.MustParse("100m"),
+					v1.ResourceMemory: resource.MustParse("100Mi"),
+				},
+			},
+		},
+	}
+
+	secretMap := map[string]string{}
+
+	// restore the config
+	restoredConfigInterface, err := suite.scrubber.Restore(config, secretMap)
+	restoredFunctionConfig := GetFunctionConfigFromInterface(restoredConfigInterface)
+	suite.Require().NoError(err)
+
+	// check that the restored config has the same resources
+	suite.Require().Equal(config.Spec.Resources, restoredFunctionConfig.Spec.Resources)
+}
+
+func (suite *ScrubberTestSuite) TestGenerateFunctionSecretNameWithFlexVolume() {
 
 	for _, testCase := range []struct {
 		name                 string
@@ -358,23 +329,6 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 		volumeName           string
 		expectedResultPrefix string
 	}{
-		// Function secret names
-		{
-			name:                 "FunctionSecret-Sanity",
-			functionName:         "my-function",
-			expectedResultPrefix: "nuclio-my-function",
-		},
-		{
-			name:                 "FunctionSecret-FunctionNameWithTrailingDashes",
-			functionName:         "my-function-_",
-			expectedResultPrefix: "nuclio-my-function",
-		},
-		{
-			name:                 "FunctionSecret-LongFunctionName",
-			functionName:         "my-function-with-a-very-long-name-which-is-more-than-63-characters-long",
-			expectedResultPrefix: "nuclio-my-function-with-a-very-long-name-which-is-more", // nolint: misspell
-		},
-
 		// Flex volume secret names
 		{
 			name:                 "VolumeSecret-Sanity",
@@ -402,44 +356,11 @@ func (suite *ScrubberTestSuite) TestGenerateFunctionSecretName() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			var secretName string
-			if testCase.volumeName == "" {
-				secretName = suite.scrubber.GenerateObjectSecretName(testCase.functionName)
-			} else {
-				secretName = suite.scrubber.GenerateFlexVolumeSecretName(testCase.functionName, testCase.volumeName)
-			}
+			secretName := suite.scrubber.generateFlexVolumeSecretName(testCase.functionName, testCase.volumeName)
 			suite.logger.DebugWith("Generated secret name", "secretName", secretName)
 			suite.Require().True(strings.HasPrefix(secretName, testCase.expectedResultPrefix))
 		})
 	}
-}
-
-func (suite *ScrubberTestSuite) TestRestoreConfigWithResources() {
-
-	config := &Config{
-		Spec: Spec{
-			Resources: v1.ResourceRequirements{
-				Limits: v1.ResourceList{
-					v1.ResourceCPU:    resource.MustParse("200m"),
-					v1.ResourceMemory: resource.MustParse("200Mi"),
-				},
-				Requests: v1.ResourceList{
-					v1.ResourceCPU:    resource.MustParse("100m"),
-					v1.ResourceMemory: resource.MustParse("100Mi"),
-				},
-			},
-		},
-	}
-
-	secretMap := map[string]string{}
-
-	// restore the config
-	restoredConfigInterface, err := suite.scrubber.Restore(config, secretMap)
-	restoredFunctionConfig := GetFunctionConfigFromInterface(restoredConfigInterface)
-	suite.Require().NoError(err)
-
-	// check that the restored config has the same resources
-	suite.Require().Equal(config.Spec.Resources, restoredFunctionConfig.Spec.Resources)
 }
 
 // getSensitiveFieldsRegex returns a list of regexes for sensitive fields paths

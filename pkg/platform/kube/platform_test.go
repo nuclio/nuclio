@@ -151,6 +151,7 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 	suite.platform.deleter, _ = client.NewDeleter(suite.Logger, suite.platform)
 	suite.platform.deployer, _ = client.NewDeployer(suite.Logger, suite.platform.consumer, suite.platform)
 	suite.platform.projectsClient, _ = NewProjectsClient(suite.platform, suite.abstractPlatform.Config)
+	suite.platform.apiGatewayScrubber = platform.NewAPIGatewayScrubber(suite.Logger, platform.GetAPIGatewaySensitiveField(), suite.platform.consumer.KubeClientSet)
 }
 
 type ProjectKubePlatformTestSuite struct {
