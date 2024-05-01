@@ -480,8 +480,8 @@ type APIGatewayConfig struct {
 	Status APIGatewayStatus `json:"status,omitempty"`
 }
 
-func GetAPIGatewayConfigFromInterface(functionConfigInterface interface{}) *APIGatewayConfig {
-	if apiGatewayConfig, ok := functionConfigInterface.(*APIGatewayConfig); ok {
+func GetAPIGatewayConfigFromInterface(apiGatewayConfigInterface interface{}) *APIGatewayConfig {
+	if apiGatewayConfig, ok := apiGatewayConfigInterface.(*APIGatewayConfig); ok {
 		return apiGatewayConfig
 	}
 	return nil
