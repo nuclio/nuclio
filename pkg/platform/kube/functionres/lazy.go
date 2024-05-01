@@ -59,6 +59,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
@@ -247,6 +248,29 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 		"functionName", function.Name,
 		"functionNamespace", function.Namespace)
 	return &resources, nil
+}
+
+func (lc *lazyClient) UpdateFunctionSelectorWhenScaleFromZero(ctx context.Context,
+	function *nuclioio.NuclioFunction) error {
+	// get labels from the function and add class labels
+	functionLabels := lc.getFunctionLabels(function)
+
+	functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
+	functionLabels[common.NuclioLabelKeyFunctionVersion] = "latest"
+
+	// marshal labels to json
+	patchBytes, err := json.Marshal(map[string]interface{}{
+		"spec": map[string]interface{}{
+			"selector": functionLabels,
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to marshal selector when patching service")
+	}
+	if err := lc.patchService(ctx, function, patchBytes); err != nil {
+		return errors.Wrap(err, "Failed to patch service selector")
+	}
+	return nil
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context,
@@ -1033,6 +1057,18 @@ func (lc *lazyClient) createOrUpdateService(ctx context.Context,
 	}
 
 	return resource.(*v1.Service), err
+}
+
+func (lc *lazyClient) patchService(ctx context.Context, function *nuclioio.NuclioFunction, patchBytes []byte) error {
+	if _, err := lc.kubeClientSet.CoreV1().Services(function.Namespace).Patch(
+		ctx,
+		kube.ServiceNameFromFunctionName(function.Name),
+		types.StrategicMergePatchType,
+		patchBytes,
+		metav1.PatchOptions{}); err != nil {
+		return errors.Wrap(err, "Failed to patch service")
+	}
+	return nil
 }
 
 func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
@@ -1838,7 +1874,10 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 	spec *v1.ServiceSpec) {
 
 	if function.Status.State == functionconfig.FunctionStateScaledToZero ||
-		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
+		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero ||
+		// if a function has this status, it means that it is not ready yet
+		// so we need to wait until it become ready and then update a selector
+		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
 
 		// pass all further requests to DLX service
 		spec.Selector = map[string]string{common.NuclioLabelKeyApp: "dlx"}
