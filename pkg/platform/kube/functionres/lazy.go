@@ -1880,6 +1880,23 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 			"ports", spec.Ports)
 	}
 
+	if function.Spec.Sidecars != nil {
+		// Questions:
+		//  1. Do we always want to expose the sidecar ports? what are the disadvantages?
+		//  2. Do we want to expose only the first port of each sidecar?
+
+		if len(spec.Ports) == 0 {
+			spec.Ports = []v1.ServicePort{}
+		}
+		for _, sidecar := range function.Spec.Sidecars {
+			spec.Ports = append(spec.Ports, v1.ServicePort{
+				Name:       sidecar.Name,
+				Port:       sidecar.Ports[0].ContainerPort,
+				TargetPort: intstr.FromInt(int(sidecar.Ports[0].ContainerPort)),
+			})
+		}
+	}
+
 	// check if platform requires additional ports
 	platformServicePorts := lc.getServicePortsFromPlatform(lc.platformConfigurationProvider.GetPlatformConfiguration())
 
