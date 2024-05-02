@@ -250,7 +250,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 	return &resources, nil
 }
 
-func (lc *lazyClient) UpdateFunctionSelectorWhenScaleFromZero(ctx context.Context,
+func (lc *lazyClient) UpdatedServiceSelectorWhenScaledFromZero(ctx context.Context,
 	function *nuclioio.NuclioFunction) error {
 	// get labels from the function and add class labels
 	functionLabels := lc.getFunctionLabels(function)
@@ -1875,8 +1875,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 
 	if function.Status.State == functionconfig.FunctionStateScaledToZero ||
 		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero ||
-		// if a function has this status, it means that it is not ready yet
-		// so we need to wait until it become ready and then update a selector
+		// when scaling from zero we patch the service selector only after all other resources are ready
 		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
 
 		// pass all further requests to DLX service

@@ -60,8 +60,8 @@ type Client interface {
 	// SetPlatformConfigurationProvider sets the provider of the platform configuration for any future access
 	SetPlatformConfigurationProvider(PlatformConfigurationProvider)
 
-	// UpdateFunctionSelectorWhenScaleFromZero updates node selector when scaling from zero when function is ready
-	UpdateFunctionSelectorWhenScaleFromZero(ctx context.Context, function *nuclioio.NuclioFunction) error
+	// UpdatedServiceSelectorWhenScaledFromZero updates node selector when scaling from zero when function is ready
+	UpdatedServiceSelectorWhenScaledFromZero(ctx context.Context, function *nuclioio.NuclioFunction) error
 }
 
 // Resources holds the resources a functionres holds
