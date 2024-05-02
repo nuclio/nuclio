@@ -169,7 +169,7 @@ func (h *http) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeou
 			h.UpdateStatistics(false, uint64(len(batch)))
 			workerError := errors.Wrap(err, "Failed to allocate worker")
 			for _, channel := range responseChans {
-				channel.Write(&runtime.ResponseWithErrors{SubmitError: workerError})
+				go channel.Write(h.Logger, &runtime.ResponseWithErrors{SubmitError: workerError})
 			}
 			return
 		}
@@ -489,6 +489,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		// cancelProcessing is a function that cancels the context to gracefully handle
 		// channel closure and avoid potential deadlocks
 		responseChan, cancelProcessing := h.PrepareEventAndSubmitToBatch(ctx)
+		defer close(responseChan)
 
 		// this flag indicates whether processing has been canceled
 		var processingCancelled bool

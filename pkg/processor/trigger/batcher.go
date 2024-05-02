@@ -96,7 +96,14 @@ type ChannelWithClosureCheck struct {
 	channel chan interface{}
 }
 
-func (c *ChannelWithClosureCheck) Write(objectToWrite interface{}) {
+func (c *ChannelWithClosureCheck) Write(logger logger.Logger, objectToWrite interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Handle the panic: log the error and return without crashing
+			logger.WarnWith("Panic occurred during write operation to the channel", "error", r)
+		}
+	}()
+
 	select {
 	case <-c.Done():
 		return

@@ -448,7 +448,7 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 			at.UpdateStatistics(false, uint64(len(batch)))
 			workerError := errors.Wrap(err, "Failed to allocate worker")
 			for _, channel := range responseChans {
-				channel.Write(&runtime.ResponseWithErrors{SubmitError: workerError})
+				go channel.Write(at.Logger, &runtime.ResponseWithErrors{SubmitError: workerError})
 			}
 			return
 		}
@@ -481,7 +481,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		if submitError != nil {
 			channel, ok := responseChans[string(event.GetID())]
 			if ok {
-				channel.Write(runtime.ResponseWithErrors{SubmitError: submitError})
+				go channel.Write(at.Logger, &runtime.ResponseWithErrors{SubmitError: submitError})
 				delete(responseChans, string(event.GetID()))
 			}
 			at.UpdateStatistics(false, 1)
@@ -494,7 +494,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 	responses, err := workerInstance.ProcessEventBatch(preparedBatch)
 	if err != nil {
 		for _, channel := range responseChans {
-			channel.Write(&runtime.ResponseWithErrors{ProcessError: err})
+			go channel.Write(at.Logger, &runtime.ResponseWithErrors{ProcessError: err})
 		}
 	} else {
 		for _, response := range responses {
@@ -505,7 +505,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 			if !ok {
 				at.Logger.WarnWith("channel for given event_id not in list", "event_id", response.EventId)
 			} else {
-				channel.Write(response)
+				go channel.Write(at.Logger, response)
 				delete(responseChans, response.EventId)
 				if response.ProcessError != nil {
 					at.UpdateStatistics(false, 1)
@@ -520,7 +520,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 	if len(responseChans) > 0 {
 		at.Logger.DebugWith("After processing batch %d chans haven't received response, sending error to the chan")
 		for _, channel := range responseChans {
-			channel.Write(&runtime.ResponseWithErrors{NoResponseError: runtime.ErrNoResponseFromBatchResponse})
+			go channel.Write(at.Logger, &runtime.ResponseWithErrors{NoResponseError: runtime.ErrNoResponseFromBatchResponse})
 		}
 	}
 }
