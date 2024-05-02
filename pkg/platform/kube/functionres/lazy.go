@@ -180,7 +180,7 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 
 	// TODO: remove when versioning is back in
 	function.Spec.Version = -1
-	function.Spec.Alias = "latest"
+	function.Spec.Alias = common.FunctionTagLatest
 	functionLabels[common.NuclioLabelKeyFunctionVersion] = common.FunctionTagLatest
 
 	resources := lazyResources{}
