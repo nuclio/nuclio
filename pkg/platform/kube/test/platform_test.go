@@ -1530,7 +1530,8 @@ def handler(context, event):
 
 	// create a busybox sidecar
 	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
-		{Name: sidecarContainerName,
+		{
+			Name:    sidecarContainerName,
 			Image:   "busybox",
 			Command: commands,
 		},

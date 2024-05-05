@@ -62,6 +62,9 @@ const (
 	FunctionContainerHTTPPort            = 8080
 	FunctionContainerWebAdminHTTPPort    = 8081
 	FunctionContainerHealthCheckHTTPPort = 8082
+	FunctionContainerMetricPort          = 8090
+	FunctionContainerHTTPPortName        = "http"
+	FunctionContainerMetricPortName      = "metrics"
 	DefaultTargetCPU                     = 75
 )
 
