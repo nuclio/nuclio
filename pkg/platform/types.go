@@ -458,6 +458,7 @@ type NuclioFunctionAPIGatewaySpec struct {
 type APIGatewayUpstreamSpec struct {
 	Kind             APIGatewayUpstreamKind        `json:"kind,omitempty"`
 	NuclioFunction   *NuclioFunctionAPIGatewaySpec `json:"nucliofunction,omitempty"`
+	Port             int                           `json:"port,omitempty"`
 	Percentage       int                           `json:"percentage,omitempty"`
 	RewriteTarget    string                        `json:"rewriteTarget,omitempty"`
 	ExtraAnnotations map[string]string             `json:"extraAnnotations,omitempty"`

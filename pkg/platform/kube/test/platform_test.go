@@ -2165,6 +2165,42 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 	})
 }
 
+func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
+	functionName := "some-function-name"
+	apiGatewayName1 := "api-gateway-1"
+	sidecarPort := 8050
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{
+			Name:    "sidecar",
+			Image:   "busybox",
+			Command: []string{"sh", "-c", "while true; do echo 'sidecar'; sleep 1; done"},
+			Ports: []v1.ContainerPort{
+				{
+					Name:          "sidecar-port",
+					ContainerPort: int32(sidecarPort),
+				},
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		// create first api gateway on top of given function with a specific port
+		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName1, functionName)
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host1.com"
+
+		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
+			// create second api gateway on top of the same function
+			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+			createAPIGatewayOptions2.APIGatewayConfig.Spec.Host = "host2.com"
+
+		})
+	})
+
+}
+
 type ProjectTestSuite struct {
 	KubeTestSuite
 }
