@@ -334,6 +334,299 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 	}
 }
 
+func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
+	sidcarContainerName := "sidecar1"
+	sidcarPortName := "sidcarPort"
+
+	for idx, testCase := range []struct {
+		name                 string
+		sidecars             []*v1.Container
+		shouldFailValidation bool
+	}{
+		{
+			name: "valid",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "validMultiple",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+				{
+					Name:  "sidecar2",
+					Image: "alpine",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          fmt.Sprintf("%s-2", sidcarPortName),
+							ContainerPort: 90,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "invalidNoName",
+			sidecars: []*v1.Container{
+				{
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidNoImage",
+			sidecars: []*v1.Container{
+				{
+					Name: sidcarContainerName,
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidNoPorts",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidNoContainerPort",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name: sidcarPortName,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidNoContainerPortName",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidDuplicateContainerPortName",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 90,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidDuplicateContainerPortNumber",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: 80,
+						},
+						{
+							Name:          "sidcarPort2",
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidReservedHTTPPort",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: abstract.FunctionContainerHTTPPort,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidReservedWebAdminPort",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: abstract.FunctionContainerWebAdminHTTPPort,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidReservedHealthCheckHTTPPort",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: abstract.FunctionContainerHealthCheckHTTPPort,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidReservedMetricPort",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          sidcarPortName,
+							ContainerPort: abstract.FunctionContainerMetricPort,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidReservedHTTPPortName",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          abstract.FunctionContainerHTTPPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+		{
+			name: "invalidReservedMetricPortName",
+			sidecars: []*v1.Container{
+				{
+					Name:  sidcarContainerName,
+					Image: "nginx",
+					Ports: []v1.ContainerPort{
+						{
+							Name:          abstract.FunctionContainerMetricPortName,
+							ContainerPort: 80,
+						},
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.mockedPlatform.
+				On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      platform.DefaultProjectName,
+						Namespace: "default",
+					},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{},
+				}, nil).
+				Once()
+
+			// name it with index and shift with 65 to get A as first letter
+			functionName := string(rune(idx + 65))
+			functionConfig := *functionconfig.NewConfig()
+			functionConfig.Spec.Sidecars = testCase.sidecars
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+			}
+
+			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
 func (suite *FunctionKubePlatformTestSuite) TestEnrichNodeSelector() {
 	for _, testCase := range []struct {
 		name                                       string

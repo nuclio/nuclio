@@ -64,12 +64,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const (
-	ContainerHTTPPortName   = "http"
-	containerMetricPort     = 8090
-	containerMetricPortName = "metrics"
-)
-
 type deploymentResourceMethod string
 
 const (
@@ -1743,7 +1737,7 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[
 	// add annotations for prometheus pull
 	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
 		annotations["nuclio.io/prometheus_pull"] = "true"
-		annotations["nuclio.io/prometheus_pull_port"] = strconv.Itoa(containerMetricPort)
+		annotations["nuclio.io/prometheus_pull_port"] = strconv.Itoa(abstract.FunctionContainerMetricPort)
 	}
 
 	// add function annotations
@@ -1865,7 +1859,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 
 		spec.Ports = []v1.ServicePort{
 			{
-				Name: ContainerHTTPPortName,
+				Name: abstract.FunctionContainerHTTPPortName,
 				Port: int32(abstract.FunctionContainerHTTPPort),
 			},
 		}
@@ -1880,20 +1874,19 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 			"ports", spec.Ports)
 	}
 
+	// add additional ports for sidecars
 	if function.Spec.Sidecars != nil {
-		// Questions:
-		//  1. Do we always want to expose the sidecar ports? what are the disadvantages?
-		//  2. Do we want to expose only the first port of each sidecar?
-
-		if len(spec.Ports) == 0 {
+		if spec.Ports == nil || len(spec.Ports) == 0 {
 			spec.Ports = []v1.ServicePort{}
 		}
 		for _, sidecar := range function.Spec.Sidecars {
-			spec.Ports = append(spec.Ports, v1.ServicePort{
-				Name:       sidecar.Name,
-				Port:       sidecar.Ports[0].ContainerPort,
-				TargetPort: intstr.FromInt(int(sidecar.Ports[0].ContainerPort)),
-			})
+			for _, port := range sidecar.Ports {
+				spec.Ports = append(spec.Ports, v1.ServicePort{
+					Name:       sidecar.Name,
+					Port:       port.ContainerPort,
+					TargetPort: intstr.FromInt(int(port.ContainerPort)),
+				})
+			}
 		}
 	}
 
@@ -1909,8 +1902,8 @@ func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platfor
 
 	if lc.functionsHaveMetricSink(platformConfiguration, "prometheusPull") {
 		servicePorts = append(servicePorts, v1.ServicePort{
-			Name: containerMetricPortName,
-			Port: int32(containerMetricPort),
+			Name: abstract.FunctionContainerMetricPortName,
+			Port: int32(abstract.FunctionContainerMetricPort),
 		})
 	}
 
@@ -2262,7 +2255,7 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 				Service: &networkingv1.IngressServiceBackend{
 					Name: kube.ServiceNameFromFunctionName(function.Name),
 					Port: networkingv1.ServiceBackendPort{
-						Name: ContainerHTTPPortName,
+						Name: abstract.FunctionContainerHTTPPortName,
 					},
 				},
 			},
@@ -2303,7 +2296,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	}
 	container.Ports = []v1.ContainerPort{
 		{
-			Name:          ContainerHTTPPortName,
+			Name:          abstract.FunctionContainerHTTPPortName,
 			ContainerPort: abstract.FunctionContainerHTTPPort,
 			Protocol:      v1.ProtocolTCP,
 		},
@@ -2312,8 +2305,8 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
 	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
 		container.Ports = append(container.Ports, v1.ContainerPort{
-			Name:          containerMetricPortName,
-			ContainerPort: containerMetricPort,
+			Name:          abstract.FunctionContainerMetricPortName,
+			ContainerPort: abstract.FunctionContainerMetricPort,
 			Protocol:      v1.ProtocolTCP,
 		})
 	}
