@@ -35,7 +35,6 @@ import (
 type exportCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	scrubber       *functionconfig.Scrubber
 	noScrub        bool
 	cleanupSpec    bool
 }
@@ -44,9 +43,6 @@ func newExportCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *e
 	commandeer := &exportCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
-
-	// initialize scrubber, used for restoring only
-	commandeer.scrubber = functionconfig.NewScrubber(nil, nil)
 
 	cmd := &cobra.Command{
 		Use:   "export",
@@ -104,7 +100,6 @@ Arguments:
 			if err := exportCommandeer.rootCommandeer.initialize(true); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
-
 			commandeer.getFunctionsOptions.Namespace = exportCommandeer.rootCommandeer.namespace
 
 			functions, err := exportCommandeer.rootCommandeer.platform.GetFunctions(ctx,
@@ -156,18 +151,19 @@ func (e *exportFunctionCommandeer) renderFunctionConfig(functions []platform.Fun
 			functionConfig := function.GetConfig()
 
 			// restore the function config, if it was scrubbed
-			if scrubbed, err := e.scrubber.HasScrubbedConfig(functionConfig,
-				e.rootCommandeer.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex()); err == nil && scrubbed {
-				var restoreErr error
-				functionConfig, restoreErr = e.scrubber.RestoreFunctionConfig(errGroupCtx,
-					functionConfig,
-					e.rootCommandeer.platform.GetName(),
-					e.rootCommandeer.platform.GetFunctionSecretMap)
-				if restoreErr != nil {
-					return errors.Wrap(err, "Failed to restore function config")
+			if scrubber := e.rootCommandeer.platform.GetFunctionScrubber(); scrubber != nil {
+				if scrubbed, err := scrubber.HasScrubbedConfig(functionConfig,
+					e.rootCommandeer.platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex()); err == nil && scrubbed {
+					var restoreErr error
+					functionConfig, restoreErr = scrubber.RestoreFunctionConfig(errGroupCtx,
+						functionConfig,
+						e.rootCommandeer.platform.GetName())
+					if restoreErr != nil {
+						return errors.Wrap(err, "Failed to restore function config")
+					}
+				} else if err != nil {
+					return errors.Wrap(err, "Failed to check if function config is scrubbed")
 				}
-			} else if err != nil {
-				return errors.Wrap(err, "Failed to check if function config is scrubbed")
 			}
 
 			exportOptions.PrevState = string(function.GetStatus().State)
@@ -286,6 +282,7 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 		Labels: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyProjectName,
 			projectConfig.Meta.Name),
 	}
+	var err error
 
 	// get all api gateways in the project
 	apiGateways, err := e.rootCommandeer.platform.GetAPIGateways(ctx, getAPIGatewaysOptions)
@@ -298,6 +295,17 @@ func (e *exportProjectCommandeer) exportAPIGateways(ctx context.Context, project
 	// create a mapping of an api gateway name to its config [ string -> *platform.APIGatewayConfig ]
 	for _, apiGateway := range apiGateways {
 		apiGatewayConfig := apiGateway.GetConfig()
+		if scrubber := e.rootCommandeer.platform.GetAPIGatewayScrubber(); scrubber != nil {
+			if scrubbed, err := scrubber.HasScrubbedConfig(apiGatewayConfig, platform.GetAPIGatewaySensitiveField()); err == nil && scrubbed {
+				if apiGatewayConfig, err = scrubber.RestoreAPIGatewayConfig(context.Background(),
+					apiGatewayConfig); err != nil {
+					return nil, errors.Wrap(err, "Failed to restore api gateway config")
+				}
+			} else if err != nil {
+				return nil, errors.Wrap(err, "Failed to check if api gateway config is scrubbed")
+			}
+		}
+
 		apiGatewayConfig.PrepareAPIGatewayForExport(false)
 		apiGatewaysMap[apiGatewayConfig.Meta.Name] = apiGatewayConfig
 	}
@@ -322,14 +330,16 @@ func (e *exportProjectCommandeer) exportProjectFunctionsAndFunctionEvents(ctx co
 		if err := function.Initialize(ctx, nil); err != nil {
 			e.rootCommandeer.loggerInstance.DebugWith("Failed to initialize a function", "err", err.Error())
 		}
+		functionConfig := function.GetConfig()
 
 		// restore the function config, if needed
-		functionConfig, err := e.scrubber.RestoreFunctionConfig(context.Background(),
-			function.GetConfig(),
-			e.rootCommandeer.platform.GetName(),
-			e.rootCommandeer.platform.GetFunctionSecretMap)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to restore function config")
+		if scrubber := e.rootCommandeer.platform.GetFunctionScrubber(); scrubber != nil {
+			functionConfig, err = scrubber.RestoreFunctionConfig(context.Background(),
+				function.GetConfig(),
+				e.rootCommandeer.platform.GetName())
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "Failed to restore function config")
+			}
 		}
 
 		functionEvents, err := e.getFunctionEvents(ctx, functionConfig)

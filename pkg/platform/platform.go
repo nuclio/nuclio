@@ -89,6 +89,9 @@ type Platform interface {
 	// GetFunctionReplicaNames returns function replica names (Pod / Container names)
 	GetFunctionReplicaNames(context.Context, *functionconfig.Config) ([]string, error)
 
+	// GetFunctionReplicaContainers returns function replica containers (Pod / Container names)
+	GetFunctionReplicaContainers(context.Context, *functionconfig.Config, string) ([]string, error)
+
 	//
 	// Project
 	//
@@ -210,15 +213,6 @@ type Platform interface {
 	// GetRegistryKind returns platform registry kind
 	GetRegistryKind() string
 
-	// GetFunctionSecrets returns all the function's secrets
-	GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]FunctionSecret, error)
-
-	// GetFunctionSecretMap returns a map of function's sensitive data
-	GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error)
-
-	// GetFunctionSecretData returns the function's secret data
-	GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error)
-
 	// SaveFunctionDeployLogs Save build logs from platform logger to function store or k8s
 	SaveFunctionDeployLogs(ctx context.Context, functionName, namespace string) error
 
@@ -234,6 +228,11 @@ type Platform interface {
 	// GetConfig returns platform config
 	GetConfig() *platformconfig.Config
 
+	// GetFunctionScrubber returns function config scrubber
+	GetFunctionScrubber() *functionconfig.Scrubber
+
+	// GetAPIGatewayScrubber returns function config scrubber
+	GetAPIGatewayScrubber() *APIGatewayScrubber
 	//
 	// OPA
 	//

@@ -55,6 +55,16 @@ func (mp *Platform) GetConfig() *platformconfig.Config {
 	return args.Get(0).(*platformconfig.Config)
 }
 
+func (mp *Platform) GetFunctionScrubber() *functionconfig.Scrubber {
+	args := mp.Called()
+	return args.Get(0).(*functionconfig.Scrubber)
+}
+
+func (mp *Platform) GetAPIGatewayScrubber() *platform.APIGatewayScrubber {
+	args := mp.Called()
+	return args.Get(0).(*platform.APIGatewayScrubber)
+}
+
 func (mp *Platform) GetContainerBuilderKind() string {
 	args := mp.Called()
 	return args.Get(0).(string)
@@ -142,6 +152,11 @@ func (mp *Platform) GetFunctionReplicaLogsStream(ctx context.Context, options *p
 // GetFunctionReplicaNames returns function replica names (Pod / Container names)
 func (mp *Platform) GetFunctionReplicaNames(ctx context.Context, functionConfig *functionconfig.Config) ([]string, error) {
 	args := mp.Called(ctx, functionConfig)
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (mp *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {
+	args := mp.Called(ctx, functionConfig, replicaName)
 	return args.Get(0).([]string), args.Error(1)
 }
 
@@ -383,20 +398,4 @@ func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 	permissionOptions *opa.PermissionOptions) (bool, error) {
 	args := mp.Called(projectName, functionName, functionEventName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
-}
-
-// GetFunctionSecrets returns all the function's secrets
-func (mp *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
-	args := mp.Called(ctx, functionName, functionNamespace)
-	return args.Get(0).([]platform.FunctionSecret), args.Error(1)
-}
-
-func (mp *Platform) GetFunctionSecretMap(ctx context.Context, functionName, functionNamespace string) (map[string]string, error) {
-	args := mp.Called(ctx, functionName, functionNamespace)
-	return args.Get(0).(map[string]string), args.Error(1)
-}
-
-func (mp *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
-	args := mp.Called(ctx, functionName, functionNamespace)
-	return args.Get(0).(map[string][]byte), args.Error(1)
 }

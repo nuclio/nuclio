@@ -319,7 +319,7 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 func (p *Processor) restoreFunctionConfig(config *functionconfig.Config) (*functionconfig.Config, error) {
 
 	// initialize scrubber, we don't care about sensitive fields and kubeClientSet
-	scrubber := functionconfig.NewScrubber(nil, nil)
+	scrubber := functionconfig.NewScrubber(p.logger, nil, nil)
 
 	secretsMap, err := p.getSecretsMap(scrubber)
 	if err != nil {
