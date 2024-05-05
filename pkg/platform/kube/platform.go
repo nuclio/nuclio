@@ -1983,9 +1983,7 @@ func (p *Platform) validateContainerSpec(container *v1.Container) error {
 }
 
 func (p *Platform) validateContainerPorts(container *v1.Container) error {
-	if container.Ports == nil || len(container.Ports) == 0 {
-		return nuclio.NewErrBadRequest(fmt.Sprintf("Ports must be provided for container %s", container.Name))
-	} else {
+	if container.Ports != nil {
 		portNames := make(map[string]bool)
 		portNumbers := make(map[int32]bool)
 

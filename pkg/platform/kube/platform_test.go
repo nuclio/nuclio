@@ -414,16 +414,6 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			shouldFailValidation: true,
 		},
 		{
-			name: "invalidNoPorts",
-			sidecars: []*v1.Container{
-				{
-					Name:  sidcarContainerName,
-					Image: "nginx",
-				},
-			},
-			shouldFailValidation: true,
-		},
-		{
 			name: "invalidNoContainerPort",
 			sidecars: []*v1.Container{
 				{
