@@ -2167,7 +2167,7 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 
 func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
 	functionName := "some-function-name"
-	apiGatewayName1 := "api-gateway-1"
+	apiGatewayName := "api-gateway-1"
 	sidecarPort := 8050
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
@@ -2185,20 +2185,24 @@ func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
 	}
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		// create first api gateway on top of given function with a specific port
-		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName1, functionName)
+		// create an api gateway on top of the function with a specific port to the sidecar
+		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
 		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host1.com"
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Upstreams[0].Port = sidecarPort
 
 		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
-			// create second api gateway on top of the same function
-			createAPIGatewayOptions2 := suite.CompileCreateAPIGatewayOptions(apiGatewayName2, functionName)
-			createAPIGatewayOptions2.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
-			createAPIGatewayOptions2.APIGatewayConfig.Spec.Host = "host2.com"
+			// check that the ingress has the correct port
+			suite.Require().Equal(sidecarPort, ingressObj.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
 
+			// check that the gateway is invokable
+			_, err := http.Get(fmt.Sprintf("http://%s:%d", createAPIGatewayOptions1.APIGatewayConfig.Spec.Host, sidecarPort))
+			suite.Require().NoError(err)
 		})
-	})
+		suite.Require().NoError(err)
 
+		return true
+	})
 }
 
 type ProjectTestSuite struct {
