@@ -304,8 +304,12 @@ func (lc *lazyClient) getServiceNameAndPort(upstream *platform.APIGatewayUpstrea
 		// that has this function as an upstream)
 		serviceName := kube.ServiceNameFromFunctionName(upstream.NuclioFunction.Name)
 
-		// use default port
-		return serviceName, abstract.FunctionContainerHTTPPort, nil
+		servicePort := abstract.FunctionContainerHTTPPort
+		if upstream.Port != 0 {
+			servicePort = upstream.Port
+		}
+
+		return serviceName, servicePort, nil
 	default:
 		return "", 0, errors.Errorf("Unsupported API gateway upstream kind: %s", upstream.Kind)
 	}

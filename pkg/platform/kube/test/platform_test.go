@@ -2166,6 +2166,42 @@ func (suite *DeployAPIGatewayTestSuite) TestUpdate() {
 	})
 }
 
+func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
+	functionName := "some-function-name"
+	apiGatewayName := "api-gateway-1"
+	sidecarPort := 8050
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.Sidecars = []*v1.Container{
+		{
+			Name:    "sidecar",
+			Image:   "busybox",
+			Command: []string{"sh", "-c", "while true; do echo 'sidecar'; sleep 1; done"},
+			Ports: []v1.ContainerPort{
+				{
+					Name:          "sidecar-port",
+					ContainerPort: int32(sidecarPort),
+				},
+			},
+		},
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		// create an api gateway on top of the function with a specific port to the sidecar
+		createAPIGatewayOptions1 := suite.CompileCreateAPIGatewayOptions(apiGatewayName, functionName)
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.AuthenticationMode = ingress.AuthenticationModeNone
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Host = "host1.com"
+		createAPIGatewayOptions1.APIGatewayConfig.Spec.Upstreams[0].Port = sidecarPort
+
+		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
+			// check that the ingress has the correct port
+			suite.Require().Equal(int32(sidecarPort), ingressObj.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
+		})
+		suite.Require().NoError(err)
+
+		return true
+	})
+}
+
 type ProjectTestSuite struct {
 	KubeTestSuite
 }
