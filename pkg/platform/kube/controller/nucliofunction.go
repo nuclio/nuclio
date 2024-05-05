@@ -257,11 +257,23 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		if err, functionState := fo.functionresClient.WaitAvailable(waitContext,
 			function,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
+
+			// Update the function selector if function was scaling from zero and waiting for availability failed,
+			// to prevent the function from continually leading to a dlx
+			_ = fo.updateFunctionSelectorIfRequired(ctx, function)
+
 			return fo.setFunctionError(ctx,
 				function,
 				functionState,
 				errors.Wrap(err, "Failed to wait for function resources to be available"))
 		}
+	}
+
+	if err = fo.updateFunctionSelectorIfRequired(ctx, function); err != nil {
+		return fo.setFunctionError(ctx,
+			function,
+			functionconfig.FunctionStateError,
+			errors.Wrap(err, "Failed to patch function service selector when scale from zero"))
 	}
 
 	waitingStates := []functionconfig.FunctionState{
@@ -336,6 +348,18 @@ func (fo *functionOperator) setFunctionScaleToZeroStatus(ctx context.Context,
 func (fo *functionOperator) start(ctx context.Context) error {
 	go fo.operator.Start(ctx) // nolint: errcheck
 
+	return nil
+}
+
+func (fo *functionOperator) updateFunctionSelectorIfRequired(ctx context.Context, function *nuclioio.NuclioFunction) error {
+	if function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
+		fo.logger.DebugWithCtx(ctx, "Patching function service selector when scaling from zero")
+		if err := fo.functionresClient.UpdatedServiceSelectorWhenScaledFromZero(ctx, function); err != nil {
+			fo.logger.WarnWith("Failed to patch function service selector when scaling from zero",
+				"error", err)
+			return err
+		}
+	}
 	return nil
 }
 
