@@ -2194,7 +2194,7 @@ func (suite *DeployAPIGatewayTestSuite) TestSetSpecificPort() {
 
 		err := suite.DeployAPIGateway(createAPIGatewayOptions1, func(ingressObj *networkingv1.Ingress) {
 			// check that the ingress has the correct port
-			suite.Require().Equal(sidecarPort, ingressObj.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
+			suite.Require().Equal(int32(sidecarPort), ingressObj.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
 
 			// check that the gateway is invokable
 			_, err := http.Get(fmt.Sprintf("http://%s:%d", createAPIGatewayOptions1.APIGatewayConfig.Spec.Host, sidecarPort))
