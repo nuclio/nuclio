@@ -1881,7 +1881,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 		}
 		for _, sidecar := range function.Spec.Sidecars {
 			for _, port := range sidecar.Ports {
-				spec.Ports = append(spec.Ports, v1.ServicePort{
+				spec.Ports = lc.addOrUpdatePort(spec.Ports, v1.ServicePort{
 					Name:       sidecar.Name,
 					Port:       port.ContainerPort,
 					TargetPort: intstr.FromInt(int(port.ContainerPort)),
@@ -1895,6 +1895,22 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 
 	// make sure the ports exist (add if not)
 	spec.Ports = lc.ensureServicePortsExist(spec.Ports, platformServicePorts)
+}
+
+func (lc *lazyClient) addOrUpdatePort(ports []v1.ServicePort, port v1.ServicePort) []v1.ServicePort {
+	for i, existingPort := range ports {
+		if existingPort.Name == port.Name {
+			ports[i] = port
+			return ports
+		}
+
+		if existingPort.Port == port.Port {
+			ports[i] = port
+			return ports
+		}
+	}
+
+	return append(ports, port)
 }
 
 func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platformconfig.Config) []v1.ServicePort {
