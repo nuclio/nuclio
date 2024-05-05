@@ -46,6 +46,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	"github.com/samber/lo"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -1950,6 +1951,10 @@ func (p *Platform) validateSidecarSpec(functionConfig *functionconfig.Config) er
 		if err := p.validateContainerSpec(sidecar); err != nil {
 			return nuclio.WrapErrBadRequest(err)
 		}
+
+		if err := p.validateContainerPorts(sidecar); err != nil {
+			return nuclio.WrapErrBadRequest(err)
+		}
 	}
 
 	return nil
@@ -1973,6 +1978,59 @@ func (p *Platform) validateContainerSpec(container *v1.Container) error {
 	if container.Image == "" {
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Container image must be provided for container %s", container.Name))
 	}
+
+	return nil
+}
+
+func (p *Platform) validateContainerPorts(container *v1.Container) error {
+	if container.Ports != nil {
+		portNames := make(map[string]bool)
+		portNumbers := make(map[int32]bool)
+
+		for _, port := range container.Ports {
+			// validate container port exists
+			if port.ContainerPort == 0 {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port must be provided for container %s", container.Name))
+			}
+
+			// validate container port is not reserved
+			if lo.Contains[int]([]int{
+				abstract.FunctionContainerHTTPPort,
+				abstract.FunctionContainerWebAdminHTTPPort,
+				abstract.FunctionContainerHealthCheckHTTPPort,
+				abstract.FunctionContainerMetricPort,
+			}, int(port.ContainerPort)) {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
+			}
+
+			// validate port name exists
+			if port.Name == "" {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name must be provided for container %s", container.Name))
+			}
+
+			// validate port name is not reserved
+			if lo.Contains[string]([]string{
+				abstract.FunctionContainerHTTPPortName,
+				abstract.FunctionContainerMetricPortName,
+			}, port.Name) {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name %s is reserved for Nuclio internal use", port.Name))
+			}
+
+			// validate port name is unique
+			if _, exists := portNames[port.Name]; exists {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name %s is duplicated in container %s", port.Name, container.Name))
+			}
+
+			// validate port number is unique
+			if _, exists := portNumbers[port.ContainerPort]; exists {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port number %d is duplicated in container %s", port.ContainerPort, container.Name))
+			}
+
+			portNames[port.Name] = true
+			portNumbers[port.ContainerPort] = true
+		}
+	}
+
 	return nil
 }
 

@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
@@ -432,7 +433,7 @@ func (fo *functionOperator) getFunctionHTTPPort(functionResources functionres.Re
 
 	if service != nil && len(service.Spec.Ports) != 0 {
 		for _, port := range service.Spec.Ports {
-			if port.Name == functionres.ContainerHTTPPortName {
+			if port.Name == abstract.FunctionContainerHTTPPortName {
 				httpPort = int(port.NodePort)
 				break
 			}
