@@ -1765,6 +1765,10 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 		return errors.Wrap(err, "Failed to enrich explicit ack params")
 	}
 
+	if err := ap.enrichBatchParams(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich batch params")
+	}
+
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
 
 		// if name was not given, inherit its key
@@ -1812,6 +1816,43 @@ func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
 
+	return nil
+}
+
+func (ap *Platform) enrichBatchParams(ctx context.Context, functionConfig *functionconfig.Config) error {
+	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
+		ap.Logger.DebugWithCtx(ctx, "Enriching batch params for function trigger",
+			"functionName", functionConfig.Meta.Name,
+			"trigger", triggerName)
+
+		// enrich batch configuration if it is empty
+		if triggerInstance.Batch == nil {
+			triggerInstance.Batch = &functionconfig.BatchConfiguration{
+				Mode: functionconfig.BatchModeDisable,
+			}
+			continue
+		}
+		// if batch mode is enabled, check batching parameters
+		if functionconfig.BatchModeEnabled(triggerInstance.Batch.Mode) {
+			// if batch size isn't set, set it to default
+			if triggerInstance.Batch.BatchSize == 0 {
+				ap.Logger.DebugWithCtx(ctx, "Enriching batch size for function trigger",
+					"functionName", functionConfig.Meta.Name,
+					"trigger", triggerName,
+					"batchSize", functionconfig.DefaultBatchSize)
+				triggerInstance.Batch.BatchSize = functionconfig.DefaultBatchSize
+			}
+
+			// if timeout isn't set, set it to default
+			if triggerInstance.Batch.Timeout == "" {
+				ap.Logger.DebugWithCtx(ctx, "Enriching batching timeout for function trigger",
+					"functionName", functionConfig.Meta.Name,
+					"trigger", triggerName,
+					"batchTimeout", functionconfig.DefaultBatchTimeout)
+				triggerInstance.Batch.Timeout = functionconfig.DefaultBatchTimeout
+			}
+		}
+	}
 	return nil
 }
 
