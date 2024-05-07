@@ -621,7 +621,7 @@ func (suite *testSuite) TestDrainHook() {
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "wurstmeister/kafka", &dockerclient.RunOptions{
+	return "gcr.io/iguazio/kafka", &dockerclient.RunOptions{
 		ContainerName: suite.brokerContainerName,
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
@@ -647,7 +647,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 }
 
 func (suite *testSuite) getKafkaZooKeeperContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "wurstmeister/zookeeper", &dockerclient.RunOptions{
+	return "gcr.io/iguazio/zookeeper", &dockerclient.RunOptions{
 		ContainerName: suite.zooKeeperContainerName,
 		Network:       suite.BrokerContainerNetworkName,
 		Remove:        true,
