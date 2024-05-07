@@ -146,7 +146,7 @@ func NewAbstractTrigger(logger logger.Logger,
 		ProjectName:     configuration.RuntimeConfiguration.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		restartChan:     restartTriggerChan,
 	}
-	if configuration.Batch != nil && functionconfig.BatchModeEnabled(configuration.Batch.Mode) {
+	if functionconfig.BatchModeEnabled(configuration.Batch) {
 		trigger.Batcher = NewBatcher(logger, configuration.Batch.BatchSize)
 	}
 	return trigger, nil

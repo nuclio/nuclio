@@ -1833,7 +1833,7 @@ func (ap *Platform) enrichBatchParams(ctx context.Context, functionConfig *funct
 			continue
 		}
 		// if batch mode is enabled, check batching parameters
-		if functionconfig.BatchModeEnabled(triggerInstance.Batch.Mode) {
+		if functionconfig.BatchModeEnabled(triggerInstance.Batch) {
 			// if batch size isn't set, set it to default
 			if triggerInstance.Batch.BatchSize == 0 {
 				ap.Logger.DebugWithCtx(ctx, "Enriching batch size for function trigger",

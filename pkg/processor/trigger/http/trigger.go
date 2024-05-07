@@ -105,7 +105,7 @@ func newTrigger(logger logger.Logger,
 	newTrigger.AbstractTrigger.Trigger = &newTrigger
 	newTrigger.allocateEvents(numWorkers)
 
-	if functionconfig.BatchModeEnabled(configuration.Batch.Mode) {
+	if functionconfig.BatchModeEnabled(configuration.Batch) {
 		if batchTimeout, err := time.ParseDuration(configuration.Batch.Timeout); err != nil {
 			return nil, errors.New("Could not parse batch timeout")
 		} else {
@@ -485,7 +485,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var submitError error
 	var processError error
 
-	if functionconfig.BatchModeEnabled(h.configuration.Batch.Mode) {
+	if functionconfig.BatchModeEnabled(h.configuration.Batch) {
 		// cancelProcessing is a function that cancels the context to gracefully handle
 		// channel closure and avoid potential deadlocks
 		responseChan, cancelProcessing := h.PrepareEventAndSubmitToBatch(ctx)

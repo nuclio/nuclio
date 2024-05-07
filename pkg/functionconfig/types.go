@@ -112,8 +112,11 @@ const (
 	DefaultBatchTimeout = "1s"
 )
 
-func BatchModeEnabled(mode BatchMode) bool {
-	return mode == BatchModeEnable
+func BatchModeEnabled(batchConfiguration *BatchConfiguration) bool {
+	if batchConfiguration == nil {
+		return false
+	}
+	return batchConfiguration.Mode == BatchModeEnable
 }
 
 type ExplicitAckMode string
