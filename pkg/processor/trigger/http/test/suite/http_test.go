@@ -188,7 +188,7 @@ func (suite *HTTPTestSuite) TestBatchedProcessing() {
 		suite.triggerName: {
 			Kind:       "http",
 			Attributes: map[string]interface{}{},
-			Batch: functionconfig.BatchConfiguration{
+			Batch: &functionconfig.BatchConfiguration{
 				Mode:      functionconfig.BatchModeEnable,
 				BatchSize: 2,
 				Timeout:   "1ms",
