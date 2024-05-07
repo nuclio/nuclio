@@ -89,7 +89,7 @@ limitations under the License.
                 backendOptions: [
                     {
                         expirationTime: ConfigService.i18nextExpirationTime,
-                        defaultVersion: 'v0.7'
+                        defaultVersion: 'v0.6'
                     },
                     {
                         loadPath: 'assets/i18n/{{lng}}/{{ns}}.json',
