@@ -291,6 +291,19 @@ class TestSubmitEvents(unittest.TestCase):
             self.assertEqual(recorded_event_index, recorded_event.id)
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
+    def test_encode_batched_entrypoint_output(self):
+        single_response = nuclio_sdk.Response(
+            body=str(123),
+            headers={},
+            content_type=123,
+            status_code=200,
+        )
+        encoded_single = json.loads(self._wrapper._encode_entrypoint_output(single_response))
+        encoded_batch = json.loads(self._wrapper._encode_entrypoint_output([single_response, single_response]))
+        assert encoded_batch[0] == encoded_single
+        assert encoded_batch[1] == encoded_single
+
+
     # to run memory profiling test, uncomment the tests below
     # and from terminal run with
     # > mprof run python -m py.test test_wrapper.py::TestSubmitEvents::test_memory_profiling_<num> --full-trace

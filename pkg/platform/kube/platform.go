@@ -46,6 +46,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	"github.com/samber/lo"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -56,14 +57,15 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	deployer       *client.Deployer
-	getter         *client.Getter
-	updater        *client.Updater
-	deleter        *client.Deleter
-	kubeconfigPath string
-	consumer       *client.Consumer
-	projectsClient project.Client
-	projectsCache  *cache.Expiring
+	deployer           *client.Deployer
+	getter             *client.Getter
+	updater            *client.Updater
+	deleter            *client.Deleter
+	kubeconfigPath     string
+	consumer           *client.Consumer
+	projectsClient     project.Client
+	projectsCache      *cache.Expiring
+	apiGatewayScrubber *platform.APIGatewayScrubber
 }
 
 const Mib = 1048576
@@ -139,6 +141,16 @@ func NewPlatform(ctx context.Context,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create an updater")
 	}
+
+	// set kubeClientSet for Function Scrubber
+	newPlatform.FunctionScrubber = functionconfig.NewScrubber(parentLogger,
+		platformConfiguration.SensitiveFields.CompileSensitiveFieldsRegex(),
+		newPlatform.consumer.KubeClientSet,
+	)
+
+	// create api gateway scrubber
+	newPlatform.apiGatewayScrubber = platform.NewAPIGatewayScrubber(parentLogger, platform.GetAPIGatewaySensitiveField(),
+		newPlatform.consumer.KubeClientSet)
 
 	// create projects client
 	newPlatform.projectsClient, err = NewProjectsClient(newPlatform, platformConfiguration)
@@ -786,7 +798,7 @@ func (p *Platform) GetProjects(ctx context.Context,
 // CreateAPIGateway creates and deploys a new api gateway
 func (p *Platform) CreateAPIGateway(ctx context.Context,
 	createAPIGatewayOptions *platform.CreateAPIGatewayOptions) error {
-	newAPIGateway := nuclioio.NuclioAPIGateway{}
+	newAPIGateway := &nuclioio.NuclioAPIGateway{}
 
 	// enrich
 	p.enrichAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig, nil)
@@ -799,7 +811,16 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
 	}
 
-	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, &newAPIGateway)
+	// scrub api gateway config
+	if p.GetConfig().SensitiveFields.MaskSensitiveFields {
+		scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, createAPIGatewayOptions.APIGatewayConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to scrub api gateway config")
+		}
+		createAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
+	}
+
+	p.platformAPIGatewayToAPIGateway(createAPIGatewayOptions.APIGatewayConfig, newAPIGateway)
 
 	// set api gateway state to "waitingForProvisioning", so the controller will know to create/update this resource
 	newAPIGateway.Status.State = platform.APIGatewayStateWaitingForProvisioning
@@ -807,7 +828,7 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 	// create
 	if _, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(newAPIGateway.Namespace).
-		Create(ctx, &newAPIGateway, metav1.CreateOptions{}); err != nil {
+		Create(ctx, newAPIGateway, metav1.CreateOptions{}); err != nil {
 		return errors.Wrap(err, "Failed to create an API gateway")
 	}
 
@@ -816,11 +837,34 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 
 // UpdateAPIGateway will update a previously existing api gateway
 func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions *platform.UpdateAPIGatewayOptions) error {
+	// get existing api gateway
 	apiGateway, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(updateAPIGatewayOptions.APIGatewayConfig.Meta.Namespace).
 		Get(ctx, updateAPIGatewayOptions.APIGatewayConfig.Meta.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get api gateway to update")
+	}
+
+	// restore existing config
+	apiGatewayConfig := &platform.APIGatewayConfig{
+		Meta: platform.APIGatewayMeta{
+			Namespace:   apiGateway.Namespace,
+			Name:        apiGateway.Name,
+			Labels:      apiGateway.Labels,
+			Annotations: apiGateway.Annotations,
+		},
+		Spec: apiGateway.Spec,
+	}
+	var restoredAPIGatewayConfig *platform.APIGatewayConfig
+	if scrubbed, err := p.apiGatewayScrubber.HasScrubbedConfig(apiGatewayConfig, platform.GetAPIGatewaySensitiveField()); err == nil && scrubbed {
+		if restoredAPIGatewayConfig, err = p.apiGatewayScrubber.RestoreAPIGatewayConfig(ctx, apiGatewayConfig); err != nil {
+			return errors.Wrap(err, "Failed to scrub api gateway config")
+		} else if err != nil {
+			return errors.Wrap(err, "Failed to check if api gateway config is scrubbed")
+		}
+		apiGateway.Spec = restoredAPIGatewayConfig.Spec
+		apiGateway.Labels = restoredAPIGatewayConfig.Meta.Labels
+		apiGateway.Annotations = restoredAPIGatewayConfig.Meta.Annotations
 	}
 
 	// enrich
@@ -832,6 +876,14 @@ func (p *Platform) UpdateAPIGateway(ctx context.Context, updateAPIGatewayOptions
 		updateAPIGatewayOptions.ValidateFunctionsExistence,
 		apiGateway); err != nil {
 		return errors.Wrap(err, "Failed to validate api gateway")
+	}
+	// scrub api gateway config
+	if p.GetConfig().SensitiveFields.MaskSensitiveFields {
+		scrubbedConfig, err := p.apiGatewayScrubber.ScrubAPIGatewayConfig(ctx, updateAPIGatewayOptions.APIGatewayConfig)
+		if err != nil {
+			return errors.Wrap(err, "Failed to scrub api gateway config")
+		}
+		updateAPIGatewayOptions.APIGatewayConfig = scrubbedConfig
 	}
 
 	apiGateway.Annotations = updateAPIGatewayOptions.APIGatewayConfig.Meta.Annotations
@@ -1188,6 +1240,32 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 	return namespaceNames, nil
 }
 
+func (p *Platform) GetFunctionScrubber() *functionconfig.Scrubber {
+	if p.FunctionScrubber == nil {
+		p.FunctionScrubber = functionconfig.NewScrubber(p.Logger,
+			p.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex(),
+			p.consumer.KubeClientSet,
+		)
+		return p.FunctionScrubber
+	}
+	if p.FunctionScrubber.KubeClientSet == nil {
+		p.FunctionScrubber.KubeClientSet = p.consumer.KubeClientSet
+	}
+	return p.FunctionScrubber
+}
+
+func (p *Platform) GetAPIGatewayScrubber() *platform.APIGatewayScrubber {
+	if p.apiGatewayScrubber == nil {
+		p.apiGatewayScrubber = platform.NewAPIGatewayScrubber(p.Logger, platform.GetAPIGatewaySensitiveField(),
+			p.consumer.KubeClientSet)
+		return p.apiGatewayScrubber
+	}
+	if p.apiGatewayScrubber.KubeClientSet == nil {
+		p.apiGatewayScrubber.KubeClientSet = p.consumer.KubeClientSet
+	}
+	return p.apiGatewayScrubber
+}
+
 func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
@@ -1222,51 +1300,6 @@ func (p *Platform) SaveFunctionDeployLogs(ctx context.Context, functionName, nam
 		FunctionMeta:   &function.GetConfig().Meta,
 		FunctionStatus: function.GetStatus(),
 	})
-}
-
-// GetFunctionSecrets returns all the function's secrets
-func (p *Platform) GetFunctionSecrets(ctx context.Context, functionName, functionNamespace string) ([]platform.FunctionSecret, error) {
-	var functionSecrets []platform.FunctionSecret
-
-	secrets, err := p.consumer.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, functionName),
-	})
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list secrets for function - %s", functionName)
-	}
-
-	for _, secret := range secrets.Items {
-		secret := secret
-		functionSecrets = append(functionSecrets, platform.FunctionSecret{
-			Kubernetes: &secret,
-		})
-	}
-
-	return functionSecrets, nil
-}
-
-// GetFunctionSecretData returns the function's secret data
-func (p *Platform) GetFunctionSecretData(ctx context.Context, functionName, functionNamespace string) (map[string][]byte, error) {
-
-	// get existing function secret
-	functionSecrets, err := p.GetFunctionSecrets(ctx, functionName, functionNamespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function secret")
-	}
-
-	// if secret exists, get the data
-	for _, functionSecret := range functionSecrets {
-		functionSecret := functionSecret.Kubernetes
-
-		// if it is a flex volume secret, skip it
-		if strings.HasPrefix(functionSecret.Name, functionconfig.NuclioFlexVolumeSecretNamePrefix) {
-			continue
-		}
-
-		return functionSecret.Data, nil
-	}
-
-	return nil, nil
 }
 
 func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
@@ -1918,6 +1951,10 @@ func (p *Platform) validateSidecarSpec(functionConfig *functionconfig.Config) er
 		if err := p.validateContainerSpec(sidecar); err != nil {
 			return nuclio.WrapErrBadRequest(err)
 		}
+
+		if err := p.validateContainerPorts(sidecar); err != nil {
+			return nuclio.WrapErrBadRequest(err)
+		}
 	}
 
 	return nil
@@ -1941,6 +1978,59 @@ func (p *Platform) validateContainerSpec(container *v1.Container) error {
 	if container.Image == "" {
 		return nuclio.NewErrBadRequest(fmt.Sprintf("Container image must be provided for container %s", container.Name))
 	}
+
+	return nil
+}
+
+func (p *Platform) validateContainerPorts(container *v1.Container) error {
+	if container.Ports != nil {
+		portNames := make(map[string]bool)
+		portNumbers := make(map[int32]bool)
+
+		for _, port := range container.Ports {
+			// validate container port exists
+			if port.ContainerPort == 0 {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port must be provided for container %s", container.Name))
+			}
+
+			// validate container port is not reserved
+			if lo.Contains[int]([]int{
+				abstract.FunctionContainerHTTPPort,
+				abstract.FunctionContainerWebAdminHTTPPort,
+				abstract.FunctionContainerHealthCheckHTTPPort,
+				abstract.FunctionContainerMetricPort,
+			}, int(port.ContainerPort)) {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Container port %d is reserved for Nuclio internal use", port.ContainerPort))
+			}
+
+			// validate port name exists
+			if port.Name == "" {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name must be provided for container %s", container.Name))
+			}
+
+			// validate port name is not reserved
+			if lo.Contains[string]([]string{
+				abstract.FunctionContainerHTTPPortName,
+				abstract.FunctionContainerMetricPortName,
+			}, port.Name) {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name %s is reserved for Nuclio internal use", port.Name))
+			}
+
+			// validate port name is unique
+			if _, exists := portNames[port.Name]; exists {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port name %s is duplicated in container %s", port.Name, container.Name))
+			}
+
+			// validate port number is unique
+			if _, exists := portNumbers[port.ContainerPort]; exists {
+				return nuclio.NewErrBadRequest(fmt.Sprintf("Port number %d is duplicated in container %s", port.ContainerPort, container.Name))
+			}
+
+			portNames[port.Name] = true
+			portNumbers[port.ContainerPort] = true
+		}
+	}
+
 	return nil
 }
 

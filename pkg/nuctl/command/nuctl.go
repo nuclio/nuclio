@@ -38,14 +38,15 @@ import (
 )
 
 type RootCommandeer struct {
-	loggerInstance logger.Logger
-	cmd            *cobra.Command
-	platformName   string
-	platform       platform.Platform
-	namespace      string
-	verbose        bool
-	KubeconfigPath string
-	concurrency    int
+	loggerInstance            logger.Logger
+	cmd                       *cobra.Command
+	platformName              string
+	platform                  platform.Platform
+	namespace                 string
+	verbose                   bool
+	KubeconfigPath            string
+	concurrency               int
+	enableMaskSensitiveFields bool
 
 	platformConfiguration *platformconfig.Config
 }
@@ -68,6 +69,7 @@ func NewRootCommandeer() *RootCommandeer {
 	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\"")
 	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", defaultNamespace, "Namespace")
 	cmd.PersistentFlags().IntVar(&commandeer.concurrency, "concurrency", runtime.NumCPU(), "Max number of parallel patches. The default value is equal to the number of CPUs.")
+	cmd.PersistentFlags().BoolVar(&commandeer.enableMaskSensitiveFields, "mask-sensitive-fields", false, "Enable sensitive fields masking")
 
 	// platform specific
 	cmd.PersistentFlags().StringVarP(&commandeer.KubeconfigPath, "kubeconfig", "k", "", "Path to a Kubernetes configuration file (admin.conf)")
@@ -126,6 +128,9 @@ func (rc *RootCommandeer) initialize(initPlatform bool) error {
 	}
 
 	rc.platformConfiguration.Kube.KubeConfigPath = rc.KubeconfigPath
+	if rc.enableMaskSensitiveFields {
+		rc.platformConfiguration.EnableSensitiveFieldMasking()
+	}
 
 	// do not let nuctl monitor function containers
 	// nuctl is a CLI tool, to enable function container healthiness, use Nuclio dashboard

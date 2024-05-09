@@ -59,15 +59,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
-)
-
-const (
-	ContainerHTTPPortName   = "http"
-	containerMetricPort     = 8090
-	containerMetricPortName = "metrics"
 )
 
 type deploymentResourceMethod string
@@ -179,8 +174,8 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 
 	// TODO: remove when versioning is back in
 	function.Spec.Version = -1
-	function.Spec.Alias = "latest"
-	functionLabels[common.NuclioLabelKeyFunctionVersion] = "latest"
+	function.Spec.Alias = common.FunctionTagLatest
+	functionLabels[common.NuclioLabelKeyFunctionVersion] = common.FunctionTagLatest
 
 	resources := lazyResources{}
 
@@ -247,6 +242,29 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context,
 		"functionName", function.Name,
 		"functionNamespace", function.Namespace)
 	return &resources, nil
+}
+
+func (lc *lazyClient) UpdatedServiceSelectorWhenScaledFromZero(ctx context.Context,
+	function *nuclioio.NuclioFunction) error {
+	// get labels from the function and add class labels
+	functionLabels := lc.getFunctionLabels(function)
+
+	functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
+	functionLabels[common.NuclioLabelKeyFunctionVersion] = common.FunctionTagLatest
+
+	// marshal labels to json
+	patchBytes, err := json.Marshal(map[string]interface{}{
+		"spec": map[string]interface{}{
+			"selector": functionLabels,
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to marshal selector when patching service")
+	}
+	if err := lc.patchService(ctx, function, patchBytes); err != nil {
+		return errors.Wrap(err, "Failed to patch service selector")
+	}
+	return nil
 }
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context,
@@ -1035,6 +1053,18 @@ func (lc *lazyClient) createOrUpdateService(ctx context.Context,
 	return resource.(*v1.Service), err
 }
 
+func (lc *lazyClient) patchService(ctx context.Context, function *nuclioio.NuclioFunction, patchBytes []byte) error {
+	if _, err := lc.kubeClientSet.CoreV1().Services(function.Namespace).Patch(
+		ctx,
+		kube.ServiceNameFromFunctionName(function.Name),
+		types.StrategicMergePatchType,
+		patchBytes,
+		metav1.PatchOptions{}); err != nil {
+		return errors.Wrap(err, "Failed to patch service")
+	}
+	return nil
+}
+
 func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	functionLabels labels.Set,
 	imagePullSecrets string,
@@ -1743,7 +1773,7 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[
 	// add annotations for prometheus pull
 	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
 		annotations["nuclio.io/prometheus_pull"] = "true"
-		annotations["nuclio.io/prometheus_pull_port"] = strconv.Itoa(containerMetricPort)
+		annotations["nuclio.io/prometheus_pull_port"] = strconv.Itoa(abstract.FunctionContainerMetricPort)
 	}
 
 	// add function annotations
@@ -1838,7 +1868,9 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 	spec *v1.ServiceSpec) {
 
 	if function.Status.State == functionconfig.FunctionStateScaledToZero ||
-		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero {
+		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesToZero ||
+		// when scaling from zero we patch the service selector only after all other resources are ready
+		function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
 
 		// pass all further requests to DLX service
 		spec.Selector = map[string]string{common.NuclioLabelKeyApp: "dlx"}
@@ -1865,7 +1897,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 
 		spec.Ports = []v1.ServicePort{
 			{
-				Name: ContainerHTTPPortName,
+				Name: abstract.FunctionContainerHTTPPortName,
 				Port: int32(abstract.FunctionContainerHTTPPort),
 			},
 		}
@@ -1880,6 +1912,22 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 			"ports", spec.Ports)
 	}
 
+	// add additional ports for sidecars
+	if function.Spec.Sidecars != nil {
+		if spec.Ports == nil || len(spec.Ports) == 0 {
+			spec.Ports = []v1.ServicePort{}
+		}
+		for _, sidecar := range function.Spec.Sidecars {
+			for _, port := range sidecar.Ports {
+				spec.Ports = lc.addOrUpdatePort(spec.Ports, v1.ServicePort{
+					Name:       sidecar.Name,
+					Port:       port.ContainerPort,
+					TargetPort: intstr.FromInt(int(port.ContainerPort)),
+				})
+			}
+		}
+	}
+
 	// check if platform requires additional ports
 	platformServicePorts := lc.getServicePortsFromPlatform(lc.platformConfigurationProvider.GetPlatformConfiguration())
 
@@ -1887,13 +1935,29 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 	spec.Ports = lc.ensureServicePortsExist(spec.Ports, platformServicePorts)
 }
 
+func (lc *lazyClient) addOrUpdatePort(ports []v1.ServicePort, port v1.ServicePort) []v1.ServicePort {
+	for i, existingPort := range ports {
+		if existingPort.Name == port.Name {
+			ports[i] = port
+			return ports
+		}
+
+		if existingPort.Port == port.Port {
+			ports[i] = port
+			return ports
+		}
+	}
+
+	return append(ports, port)
+}
+
 func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platformconfig.Config) []v1.ServicePort {
 	var servicePorts []v1.ServicePort
 
 	if lc.functionsHaveMetricSink(platformConfiguration, "prometheusPull") {
 		servicePorts = append(servicePorts, v1.ServicePort{
-			Name: containerMetricPortName,
-			Port: int32(containerMetricPort),
+			Name: abstract.FunctionContainerMetricPortName,
+			Port: int32(abstract.FunctionContainerMetricPort),
 		})
 	}
 
@@ -2245,7 +2309,7 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 				Service: &networkingv1.IngressServiceBackend{
 					Name: kube.ServiceNameFromFunctionName(function.Name),
 					Port: networkingv1.ServiceBackendPort{
-						Name: ContainerHTTPPortName,
+						Name: abstract.FunctionContainerHTTPPortName,
 					},
 				},
 			},
@@ -2286,7 +2350,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	}
 	container.Ports = []v1.ContainerPort{
 		{
-			Name:          ContainerHTTPPortName,
+			Name:          abstract.FunctionContainerHTTPPortName,
 			ContainerPort: abstract.FunctionContainerHTTPPort,
 			Protocol:      v1.ProtocolTCP,
 		},
@@ -2295,8 +2359,8 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
 	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
 		container.Ports = append(container.Ports, v1.ContainerPort{
-			Name:          containerMetricPortName,
-			ContainerPort: containerMetricPort,
+			Name:          abstract.FunctionContainerMetricPortName,
+			ContainerPort: abstract.FunctionContainerMetricPort,
 			Protocol:      v1.ProtocolTCP,
 		})
 	}

@@ -33,7 +33,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -459,6 +458,7 @@ type NuclioFunctionAPIGatewaySpec struct {
 type APIGatewayUpstreamSpec struct {
 	Kind             APIGatewayUpstreamKind        `json:"kind,omitempty"`
 	NuclioFunction   *NuclioFunctionAPIGatewaySpec `json:"nucliofunction,omitempty"`
+	Port             int                           `json:"port,omitempty"`
 	Percentage       int                           `json:"percentage,omitempty"`
 	RewriteTarget    string                        `json:"rewriteTarget,omitempty"`
 	ExtraAnnotations map[string]string             `json:"extraAnnotations,omitempty"`
@@ -481,8 +481,8 @@ type APIGatewayConfig struct {
 	Status APIGatewayStatus `json:"status,omitempty"`
 }
 
-func GetAPIGatewayConfigFromInterface(functionConfigInterface interface{}) *APIGatewayConfig {
-	if apiGatewayConfig, ok := functionConfigInterface.(*APIGatewayConfig); ok {
+func GetAPIGatewayConfigFromInterface(apiGatewayConfigInterface interface{}) *APIGatewayConfig {
+	if apiGatewayConfig, ok := apiGatewayConfigInterface.(*APIGatewayConfig); ok {
 		return apiGatewayConfig
 	}
 	return nil
@@ -557,9 +557,4 @@ type GetFunctionReplicaLogsStreamOptions struct {
 	// A specific container name to stream logs from (if not specified, the "nuclio" container in the pod is used)
 	// Relevant only for pods with multiple containers
 	ContainerName string
-}
-
-type FunctionSecret struct {
-	Kubernetes *v1.Secret
-	Local      *string
 }

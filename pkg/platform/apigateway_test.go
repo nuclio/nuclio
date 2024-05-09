@@ -42,7 +42,7 @@ func (suite *ScrubberTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
 	suite.k8sClientSet = k8sfake.NewSimpleClientset()
-	suite.scrubber = NewAPIGatewayScrubber(GetAPIGatewaySensitiveField(), suite.k8sClientSet)
+	suite.scrubber = NewAPIGatewayScrubber(suite.logger, GetAPIGatewaySensitiveField(), suite.k8sClientSet)
 }
 
 func (suite *ScrubberTestSuite) TestScrubBasics() {
@@ -57,7 +57,7 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 	}}
 
 	// scrub the function config
-	scrubbedInterface, secretMap, err := suite.scrubber.Scrub(apiGatewayConfig, nil, GetAPIGatewaySensitiveField())
+	scrubbedInterface, _, secretMap, err := suite.scrubber.Scrub(suite.ctx, apiGatewayConfig, "name", "namespace")
 	scrubbedApiGatewayConfig := GetAPIGatewayConfigFromInterface(scrubbedInterface)
 	suite.Require().NotEqual(apiGatewayConfig.Spec.Authentication.BasicAuth.Password, scrubbedApiGatewayConfig.Spec.Authentication.BasicAuth.Password)
 	suite.Require().NoError(err)
