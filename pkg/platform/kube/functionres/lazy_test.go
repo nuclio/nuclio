@@ -653,20 +653,20 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 		},
 	})
 	suite.Require().Len(servicePorts, 1)
-	suite.Require().Equal(servicePorts[0].Name, containerMetricPortName)
-	suite.Require().Equal(servicePorts[0].Port, int32(containerMetricPort))
+	suite.Require().Equal(servicePorts[0].Name, abstract.FunctionContainerMetricPortName)
+	suite.Require().Equal(servicePorts[0].Port, int32(abstract.FunctionContainerMetricPort))
 
 	// ensure metric port
 	toServicePorts := suite.client.ensureServicePortsExist([]v1.ServicePort{
 		{
-			Name:     ContainerHTTPPortName,
+			Name:     abstract.FunctionContainerHTTPPortName,
 			Port:     int32(abstract.FunctionContainerHTTPPort),
 			NodePort: 12345,
 		},
 	}, []v1.ServicePort{
 		{
-			Name: containerMetricPortName,
-			Port: int32(containerMetricPort),
+			Name: abstract.FunctionContainerMetricPortName,
+			Port: int32(abstract.FunctionContainerMetricPort),
 		},
 	})
 
@@ -675,14 +675,14 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 
 	toServicePorts = suite.client.ensureServicePortsExist([]v1.ServicePort{
 		{
-			Name:     ContainerHTTPPortName,
+			Name:     abstract.FunctionContainerHTTPPortName,
 			Port:     int32(abstract.FunctionContainerHTTPPort),
 			NodePort: 12345,
 		},
 	}, []v1.ServicePort{
 		{
-			Name: containerMetricPortName,
-			Port: int32(containerMetricPort),
+			Name: abstract.FunctionContainerMetricPortName,
+			Port: int32(abstract.FunctionContainerMetricPort),
 		},
 	})
 

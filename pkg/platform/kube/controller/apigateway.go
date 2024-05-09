@@ -111,7 +111,7 @@ func (ago *apiGatewayOperator) CreateOrUpdate(ctx context.Context, object runtim
 	}
 
 	// create/update the api gateway
-	if _, err = ago.controller.apigatewayresClient.CreateOrUpdate(ctx, apiGateway); err != nil {
+	if _, err = ago.controller.apigatewayresClient.CreateOrUpdate(ctx, *apiGateway); err != nil {
 		ago.logger.WarnWithCtx(ctx, "Failed to create/update api gateway. Updating state accordingly")
 		if err := ago.setAPIGatewayState(ctx, apiGateway, platform.APIGatewayStateError, err); err != nil {
 			ago.logger.WarnWithCtx(ctx, "Failed to set api gateway state as error", "err", err)

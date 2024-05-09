@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
@@ -257,11 +258,23 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		if err, functionState := fo.functionresClient.WaitAvailable(waitContext,
 			function,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
+
+			// Update the function selector if function was scaling from zero and waiting for availability failed,
+			// to prevent the function from continually leading to a dlx
+			_ = fo.updateFunctionSelectorIfRequired(ctx, function)
+
 			return fo.setFunctionError(ctx,
 				function,
 				functionState,
 				errors.Wrap(err, "Failed to wait for function resources to be available"))
 		}
+	}
+
+	if err = fo.updateFunctionSelectorIfRequired(ctx, function); err != nil {
+		return fo.setFunctionError(ctx,
+			function,
+			functionconfig.FunctionStateError,
+			errors.Wrap(err, "Failed to patch function service selector when scale from zero"))
 	}
 
 	waitingStates := []functionconfig.FunctionState{
@@ -339,6 +352,18 @@ func (fo *functionOperator) start(ctx context.Context) error {
 	return nil
 }
 
+func (fo *functionOperator) updateFunctionSelectorIfRequired(ctx context.Context, function *nuclioio.NuclioFunction) error {
+	if function.Status.State == functionconfig.FunctionStateWaitingForScaleResourcesFromZero {
+		fo.logger.DebugWithCtx(ctx, "Patching function service selector when scaling from zero")
+		if err := fo.functionresClient.UpdatedServiceSelectorWhenScaledFromZero(ctx, function); err != nil {
+			fo.logger.WarnWith("Failed to patch function service selector when scaling from zero",
+				"error", err)
+			return err
+		}
+	}
+	return nil
+}
+
 func (fo *functionOperator) setFunctionError(ctx context.Context,
 	function *nuclioio.NuclioFunction,
 	functionErrorState functionconfig.FunctionState,
@@ -408,7 +433,7 @@ func (fo *functionOperator) getFunctionHTTPPort(functionResources functionres.Re
 
 	if service != nil && len(service.Spec.Ports) != 0 {
 		for _, port := range service.Spec.Ports {
-			if port.Name == functionres.ContainerHTTPPortName {
+			if port.Name == abstract.FunctionContainerHTTPPortName {
 				httpPort = int(port.NodePort)
 				break
 			}
