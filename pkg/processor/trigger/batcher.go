@@ -17,8 +17,9 @@ limitations under the License.
 package trigger
 
 import (
-	"context"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/google/uuid"
 	"github.com/nuclio/logger"
@@ -34,7 +35,7 @@ type Batcher struct {
 
 type BatchedEventWithResponse struct {
 	event        nuclio.Event
-	responseChan *ChannelWithClosureCheck
+	responseChan *common.ChannelWithRecover
 }
 
 func NewBatcher(logger logger.Logger, batchSize int) *Batcher {
@@ -45,7 +46,7 @@ func NewBatcher(logger logger.Logger, batchSize int) *Batcher {
 	}
 }
 
-func (b *Batcher) Add(event nuclio.Event, responseChan *ChannelWithClosureCheck) {
+func (b *Batcher) Add(event nuclio.Event, responseChan *common.ChannelWithRecover) {
 	b.currentBatch <- &BatchedEventWithResponse{event: event, responseChan: responseChan}
 
 	// if batchIsFull, Write to `batchIsFull` chan, so that we send batch to worker right when batch len reached the maximum
@@ -54,30 +55,7 @@ func (b *Batcher) Add(event nuclio.Event, responseChan *ChannelWithClosureCheck)
 	}
 }
 
-func (b *Batcher) batchIsEmpty() bool {
-	return len(b.currentBatch) == 0
-}
-
-func (b *Batcher) getBatch() ([]nuclio.Event, map[string]*ChannelWithClosureCheck) {
-
-	batchLength := len(b.currentBatch)
-	responseChans := make(map[string]*ChannelWithClosureCheck)
-	batch := make([]nuclio.Event, batchLength)
-
-	for i := 0; i < batchLength; i++ {
-		batchedEventWithResponse := <-b.currentBatch
-		batch[i] = batchedEventWithResponse.event
-		eventId := batchedEventWithResponse.event.GetID()
-		if eventId == "" {
-			eventId = nuclio.ID(uuid.New().String())
-			batchedEventWithResponse.event.SetID(eventId)
-		}
-		responseChans[string(eventId)] = batchedEventWithResponse.responseChan
-	}
-	return batch, responseChans
-}
-
-func (b *Batcher) WaitForBatchIsFullOrTimeoutIsPassed(batchTimeout time.Duration) ([]nuclio.Event, map[string]*ChannelWithClosureCheck) {
+func (b *Batcher) WaitForBatch(batchTimeout time.Duration) ([]nuclio.Event, map[string]*common.ChannelWithRecover) {
 	for {
 		if b.batchIsEmpty() {
 			continue
@@ -91,23 +69,25 @@ func (b *Batcher) WaitForBatchIsFullOrTimeoutIsPassed(batchTimeout time.Duration
 	}
 }
 
-type ChannelWithClosureCheck struct {
-	context.Context
-	channel chan interface{}
+func (b *Batcher) batchIsEmpty() bool {
+	return len(b.currentBatch) == 0
 }
 
-func (c *ChannelWithClosureCheck) Write(logger logger.Logger, objectToWrite interface{}) {
-	defer func() {
-		if r := recover(); r != nil {
-			// Handle the panic: log the error and return without crashing
-			logger.WarnWith("Panic occurred during write operation to the channel", "error", r)
-		}
-	}()
+func (b *Batcher) getBatch() ([]nuclio.Event, map[string]*common.ChannelWithRecover) {
 
-	select {
-	case <-c.Done():
-		return
-	case c.channel <- objectToWrite:
-		return
+	batchLength := len(b.currentBatch)
+	responseChans := make(map[string]*common.ChannelWithRecover)
+	batch := make([]nuclio.Event, batchLength)
+
+	for i := 0; i < batchLength; i++ {
+		batchedEventWithResponse := <-b.currentBatch
+		batch[i] = batchedEventWithResponse.event
+		eventId := batchedEventWithResponse.event.GetID()
+		if eventId == "" {
+			eventId = nuclio.ID(uuid.New().String())
+			batchedEventWithResponse.event.SetID(eventId)
+		}
+		responseChans[string(eventId)] = batchedEventWithResponse.responseChan
 	}
+	return batch, responseChans
 }

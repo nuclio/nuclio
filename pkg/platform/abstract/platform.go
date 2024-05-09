@@ -1821,17 +1821,14 @@ func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig 
 
 func (ap *Platform) enrichBatchParams(ctx context.Context, functionConfig *functionconfig.Config) error {
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
+		// enrich batch configuration if it is empty
+		if triggerInstance.Batch == nil {
+			continue
+		}
 		ap.Logger.DebugWithCtx(ctx, "Enriching batch params for function trigger",
 			"functionName", functionConfig.Meta.Name,
 			"trigger", triggerName)
 
-		// enrich batch configuration if it is empty
-		if triggerInstance.Batch == nil {
-			triggerInstance.Batch = &functionconfig.BatchConfiguration{
-				Mode: functionconfig.BatchModeDisable,
-			}
-			continue
-		}
 		// if batch mode is enabled, check batching parameters
 		if functionconfig.BatchModeEnabled(triggerInstance.Batch) {
 			// if batch size isn't set, set it to default

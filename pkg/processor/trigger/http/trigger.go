@@ -109,11 +109,10 @@ func newTrigger(logger logger.Logger,
 		if batchTimeout, err := time.ParseDuration(configuration.Batch.Timeout); err != nil {
 			return nil, errors.New("Could not parse batch timeout")
 		} else {
-			// TODO: add timeout param
 			go newTrigger.StartBatcher(batchTimeout, batchTimeout)
 		}
+		newTrigger.Logger.Debug("Batcher started")
 	}
-	newTrigger.Logger.Debug("Batcher started")
 	return &newTrigger, nil
 }
 
@@ -160,7 +159,7 @@ func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 func (h *http) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeout time.Duration) {
 	h.Logger.DebugWith("Start batcher", "batcherConfiguration", h.configuration.Batch)
 	for {
-		batch, responseChans := h.Batcher.WaitForBatchIsFullOrTimeoutIsPassed(batchTimeout)
+		batch, responseChans := h.Batcher.WaitForBatch(batchTimeout)
 
 		h.Logger.Debug("Starting to process batch")
 		// allocate a worker

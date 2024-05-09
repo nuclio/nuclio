@@ -441,7 +441,7 @@ func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *work
 
 func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeout time.Duration) {
 	for {
-		batch, responseChans := at.Batcher.WaitForBatchIsFullOrTimeoutIsPassed(batchTimeout)
+		batch, responseChans := at.Batcher.WaitForBatch(batchTimeout)
 		// allocate a worker
 		workerInstance, err := at.WorkerAllocator.Allocate(workerAvailabilityTimeout)
 		if err != nil {
@@ -464,14 +464,14 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event) (chan interface{}, context.CancelFunc) {
 	responseChan := make(chan interface{})
 	cancelContext, cancelProcessing := context.WithCancel(context.Background())
-	at.Batcher.Add(event, &ChannelWithClosureCheck{
+	at.Batcher.Add(event, &common.ChannelWithRecover{
 		Context: cancelContext,
-		channel: responseChan,
+		Channel: responseChan,
 	})
 	return responseChan, cancelProcessing
 }
 
-func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChans map[string]*ChannelWithClosureCheck, workerInstance *worker.Worker) {
+func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChans map[string]*common.ChannelWithRecover, workerInstance *worker.Worker) {
 	// prepare batch
 	preparedBatch := make([]nuclio.Event, 0)
 	for _, event := range batch {
