@@ -496,6 +496,8 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		for _, channel := range responseChans {
 			go channel.Write(at.Logger, &runtime.ResponseWithErrors{ProcessError: err})
 		}
+		at.UpdateStatistics(false, uint64(len(responseChans)))
+		return
 	} else {
 		for _, response := range responses {
 			if response.EventId == "" {

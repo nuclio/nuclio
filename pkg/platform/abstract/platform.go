@@ -1686,8 +1686,25 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 				}
 			}
 		}
+
+		if err := ap.validateBatchConfiguration(triggerInstance.Batch); err != nil {
+			return nuclio.WrapErrBadRequest(err)
+		}
 	}
 
+	return nil
+}
+
+func (ap *Platform) validateBatchConfiguration(batchConfiguration *functionconfig.BatchConfiguration) error {
+	if batchConfiguration == nil {
+		return nil
+	}
+	if batchConfiguration.BatchSize <= 0 {
+		return nuclio.NewErrBadRequest("Batch size should be 1 or higher")
+	}
+	if _, err := time.ParseDuration(batchConfiguration.Timeout); err != nil {
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Batching timeout validation failed. Error: %s", err.Error()))
+	}
 	return nil
 }
 
