@@ -156,6 +156,7 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 	if processingResult.err != nil {
 		return nil, processingResult.err
 	}
+	// this is a single event processing flow, so we only take the first item from the result
 	return nuclio.Response{
 		Body:        processingResult.results[0].DecodedBody,
 		ContentType: processingResult.results[0].ContentType,
