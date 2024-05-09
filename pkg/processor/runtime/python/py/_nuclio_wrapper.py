@@ -445,14 +445,23 @@ class Wrapper(object):
 
         await self._write_packet_to_processor(self._event_sock, 'm' + json.dumps({'duration': duration}))
 
-        response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
-                                                              entrypoint_output)
-
         # try to json encode the response
-        encoded_response = self._json_encoder.encode(response)
+        encoded_response = self._encode_entrypoint_output(entrypoint_output)
 
         # write response to the socket
         await self._write_packet_to_processor(self._event_sock, 'r' + encoded_response)
+
+    def _encode_entrypoint_output(self, entrypoint_output):
+
+        # processing entrypoint output if response is batched
+        if isinstance(entrypoint_output, list):
+            response = [nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
+                                                                   _output) for _output in entrypoint_output]
+        else:
+            response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode, entrypoint_output)
+
+        # try to json encode the response
+        return self._json_encoder.encode(response)
 
     def _shutdown(self, error_code=0):
         print('Shutting down')
