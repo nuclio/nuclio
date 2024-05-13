@@ -755,9 +755,6 @@ func unmarshalResponseData(logger logger.Logger, data []byte, unmarshalledResult
 	// try to unmarshall data as a batched result
 	logger.DebugWith("data", "mydata", string(data))
 	if unmarshalledResults.err = json.Unmarshal(data, &results); unmarshalledResults.err != nil {
-		logger.DebugWith("Failed to unmarshal batch result, will try to unmarshal single result",
-			"err", unmarshalledResults.err.Error())
-
 		// try to unmarshall data as a single result
 		var singleResult *result
 		if unmarshalledResults.err = json.Unmarshal(data, &singleResult); unmarshalledResults.err != nil {
