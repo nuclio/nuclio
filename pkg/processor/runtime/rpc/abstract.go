@@ -196,9 +196,6 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 	}
 
 	for index, processingResult := range processingResults.results {
-		functionLogger.DebugWith("Processing result",
-			"eventId", processingResult.EventId,
-			"body", processingResult.DecodedBody)
 		if processingResult.EventId == "" {
 			functionLogger.WarnWith("Received response with empty event_id, response won't be returned")
 		}
@@ -752,8 +749,6 @@ func unmarshalResponseData(logger logger.Logger, data []byte, unmarshalledResult
 		}
 	}
 
-	// try to unmarshall data as a batched result
-	logger.DebugWith("data", "mydata", string(data))
 	if unmarshalledResults.err = json.Unmarshal(data, &results); unmarshalledResults.err != nil {
 		// try to unmarshall data as a single result
 		var singleResult *result

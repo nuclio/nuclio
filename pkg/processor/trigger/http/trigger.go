@@ -180,7 +180,7 @@ func (h *http) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeou
 
 		// release worker when we're done
 		h.WorkerAllocator.Release(workerInstance)
-		h.Logger.Debug("Batch processing is done")
+		h.Logger.Debug("Batch processing finished")
 
 		h.answering[workerIndex] = 1
 	}
