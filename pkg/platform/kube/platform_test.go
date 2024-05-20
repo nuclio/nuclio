@@ -912,6 +912,58 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 	}
 }
 
+func (suite *FunctionKubePlatformTestSuite) TestValidateAPIGateway() {
+	for _, testCase := range []struct {
+		name           string
+		apiGatewayName string
+		namespace      string
+		expectError    bool
+	}{
+		{
+			name:           "correct-config-1",
+			apiGatewayName: "function-name",
+			namespace:      "ns",
+			expectError:    false,
+		},
+		{
+			name:           "empty-ns",
+			apiGatewayName: "function-name",
+			expectError:    true,
+		},
+		{
+			name:           "empty-name",
+			apiGatewayName: "function-name",
+			expectError:    true,
+		},
+		{
+			name:           "wrong-name-1",
+			apiGatewayName: "--2-821",
+			namespace:      "ns",
+			expectError:    true,
+		},
+		{
+			name:           "wrong-name-1",
+			apiGatewayName: "2-%-%%^1",
+			namespace:      "ns",
+			expectError:    true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+
+			err := suite.platform.validateAPIGatewayMeta(&platform.APIGatewayMeta{
+				Name:      testCase.apiGatewayName,
+				Namespace: testCase.namespace,
+			})
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+
+		})
+	}
+}
+
 func (suite *FunctionKubePlatformTestSuite) TestGetFunctionInstanceAndConfig() {
 	for _, testCase := range []struct {
 		name                    string

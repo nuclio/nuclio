@@ -1734,6 +1734,10 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 		return nuclio.NewErrBadRequest("Api gateway name must be provided in metadata")
 	}
 
+	if !common.IsValidK8sResourceName(platformAPIGatewayMeta.Name) {
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Invalid API gateway name: %s. The name should only consist of letters, numbers, and dashes.", platformAPIGatewayMeta.Name))
+	}
+
 	if platformAPIGatewayMeta.Namespace == "" {
 		return nuclio.NewErrBadRequest("Api gateway namespace must be provided in metadata")
 	}
