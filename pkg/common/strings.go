@@ -20,7 +20,6 @@ package common
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
 
@@ -107,12 +106,4 @@ func returnEarlyIfPossible(stringOne, stringTwo string) float32 {
 	}
 
 	return -1
-}
-
-// Define the regex pattern for a k8s resource name
-var k8sResourceRegexp = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
-
-// IsValidK8sResourceName checks if the given name is a valid Kubernetes resource name
-func IsValidK8sResourceName(name string) bool {
-	return k8sResourceRegexp.MatchString(name)
 }

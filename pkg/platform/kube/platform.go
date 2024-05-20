@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"net/url"
 	"strings"
 	"sync"
@@ -1734,8 +1735,11 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 		return nuclio.NewErrBadRequest("Api gateway name must be provided in metadata")
 	}
 
-	if !common.IsValidK8sResourceName(platformAPIGatewayMeta.Name) {
-		return nuclio.NewErrBadRequest(fmt.Sprintf("Invalid API gateway name: %s. The name should only consist of letters, numbers, and dashes.", platformAPIGatewayMeta.Name))
+	// validate api gateway name is according to k8s convention
+	errorMessages := validation.IsQualifiedName(platformAPIGatewayMeta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return errors.Errorf("Api gateway name doesn't conform to k8s naming convention. Errors: %s", joinedErrorMessage)
 	}
 
 	if platformAPIGatewayMeta.Namespace == "" {
