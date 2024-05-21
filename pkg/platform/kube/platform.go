@@ -53,6 +53,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/cache"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type Platform struct {
@@ -1732,6 +1733,13 @@ func (p *Platform) enrichAPIGatewayConfig(ctx context.Context,
 func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGatewayMeta) error {
 	if platformAPIGatewayMeta.Name == "" {
 		return nuclio.NewErrBadRequest("Api gateway name must be provided in metadata")
+	}
+
+	// validate api gateway name is according to k8s convention
+	errorMessages := validation.IsQualifiedName(platformAPIGatewayMeta.Name)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return errors.Errorf("Api gateway name doesn't conform to k8s naming convention. Errors: %s", joinedErrorMessage)
 	}
 
 	if platformAPIGatewayMeta.Namespace == "" {
