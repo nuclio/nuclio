@@ -157,33 +157,15 @@ func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 
-func (h *http) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeout time.Duration) {
-	h.Logger.DebugWith("Start batcher", "batcherConfiguration", h.configuration.Batch)
-	for {
-		batch, responseChans := h.Batcher.WaitForBatch(batchTimeout)
+func (h *http) PreBatchHook(batch []nuclio.Event, workerInstance *worker.Worker) {
+	// mark worker as busy
+	h.timeouts[workerInstance.GetIndex()] = 0
+	h.answering[workerInstance.GetIndex()] = 0
+}
 
-		h.Logger.Debug("Starting to process batch")
-		// allocate a worker
-		workerInstance, workerIndex, err := h.allocateWorker(workerAvailabilityTimeout)
-		if err != nil {
-			h.UpdateStatistics(false, uint64(len(batch)))
-			workerError := errors.Wrap(err, "Failed to allocate worker")
-			for _, channel := range responseChans {
-				go channel.Write(h.Logger, &runtime.ResponseWithErrors{SubmitError: workerError})
-			}
-		}
-		h.timeouts[workerIndex] = 0
-		h.answering[workerIndex] = 0
-
-		// submit batch to the worker
-		h.SubmitBatchAndSendResponses(batch, responseChans, workerInstance)
-
-		// release worker when we're done
-		h.WorkerAllocator.Release(workerInstance)
-		h.Logger.Debug("Batch processing finished")
-
-		h.answering[workerIndex] = 1
-	}
+func (h *http) PostBatchHook(batch []nuclio.Event, workerInstance *worker.Worker) {
+	// mark worker as available
+	h.answering[workerInstance.GetIndex()] = 1
 }
 
 func (h *http) GetConfig() map[string]interface{} {

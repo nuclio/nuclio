@@ -32,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -245,6 +246,14 @@ func (t *testTrigger) SignalWorkersToTerminate() error {
 func (t *testTrigger) SignalWorkersToContinue() error {
 	t.Called()
 	return nil
+}
+
+func (t *testTrigger) PreBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker) {
+	t.Called(batch, workerInstance)
+}
+
+func (t *testTrigger) PostBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker) {
+	t.Called(batch, workerInstance)
 }
 
 func TestTriggerTestSuite(t *testing.T) {

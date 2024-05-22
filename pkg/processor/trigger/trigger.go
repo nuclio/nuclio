@@ -94,6 +94,12 @@ type Trigger interface {
 
 	// SignalWorkersToTerminate signal to all workers that the processor is about to stop working
 	SignalWorkersToTerminate() error
+
+	// PreBatchHooks does trigger-specific actions before sending a batch
+	PreBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker)
+
+	// PostBatchHooks does trigger-specific actions after sending a batch
+	PostBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker)
 }
 
 // AbstractTrigger implements common trigger operations
@@ -442,6 +448,8 @@ func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *work
 func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeout time.Duration) {
 	for {
 		batch, responseChans := at.Batcher.WaitForBatch(batchTimeout)
+		at.Logger.Debug("Starting to process batch")
+
 		// allocate a worker
 		workerInstance, err := at.WorkerAllocator.Allocate(workerAvailabilityTimeout)
 		if err != nil {
@@ -453,12 +461,23 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 			return
 		}
 
+		at.Trigger.PreBatchHooks(batch, workerInstance)
+
 		// submit batch to the worker
 		at.SubmitBatchAndSendResponses(batch, responseChans, workerInstance)
 
+		at.Trigger.PostBatchHooks(batch, workerInstance)
+
 		// release worker when we're done
 		at.WorkerAllocator.Release(workerInstance)
+		at.Logger.Debug("Batch processing finished")
 	}
+}
+
+func (at *AbstractTrigger) PreBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker) {
+}
+
+func (at *AbstractTrigger) PostBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker) {
 }
 
 func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event) (chan interface{}, context.CancelFunc) {
