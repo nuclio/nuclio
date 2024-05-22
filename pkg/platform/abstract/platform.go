@@ -1687,7 +1687,7 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 			}
 		}
 
-		if err := ap.validateBatchConfiguration(triggerInstance.Batch); err != nil {
+		if err := ap.validateBatchConfiguration(triggerInstance.Batch, functionConfig.Spec.Runtime, triggerInstance.Kind); err != nil {
 			return nuclio.WrapErrBadRequest(err)
 		}
 	}
@@ -1695,10 +1695,17 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 	return nil
 }
 
-func (ap *Platform) validateBatchConfiguration(batchConfiguration *functionconfig.BatchConfiguration) error {
+func (ap *Platform) validateBatchConfiguration(batchConfiguration *functionconfig.BatchConfiguration, runtime, triggerKind string) error {
 	if batchConfiguration == nil {
 		return nil
 	}
+
+	if functionconfig.BatchModeEnabled(batchConfiguration) && (triggerKind != "http" || !strings.Contains(runtime, "python")) {
+		ap.Logger.WarnWith("Batching is not supported for given runtime and kind - batching configuration is ignored",
+			"runtime", runtime,
+			"triggerKind", triggerKind)
+	}
+
 	if batchConfiguration.BatchSize <= 0 {
 		return nuclio.NewErrBadRequest("Batch size should be 1 or higher")
 	}

@@ -62,9 +62,9 @@ func (b *Batcher) WaitForBatch(batchTimeout time.Duration) ([]nuclio.Event, map[
 		}
 		select {
 		case <-b.batchIsFull:
-			return b.getBatch()
+			return b.extractBatch()
 		case <-time.After(batchTimeout):
-			return b.getBatch()
+			return b.extractBatch()
 		}
 	}
 }
@@ -73,7 +73,7 @@ func (b *Batcher) batchIsEmpty() bool {
 	return len(b.currentBatch) == 0
 }
 
-func (b *Batcher) getBatch() ([]nuclio.Event, map[string]*common.ChannelWithRecover) {
+func (b *Batcher) extractBatch() ([]nuclio.Event, map[string]*common.ChannelWithRecover) {
 
 	batchLength := len(b.currentBatch)
 	responseChans := make(map[string]*common.ChannelWithRecover)

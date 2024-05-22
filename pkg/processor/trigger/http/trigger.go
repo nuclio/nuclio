@@ -170,7 +170,6 @@ func (h *http) StartBatcher(batchTimeout time.Duration, workerAvailabilityTimeou
 			for _, channel := range responseChans {
 				go channel.Write(h.Logger, &runtime.ResponseWithErrors{SubmitError: workerError})
 			}
-			return
 		}
 		h.timeouts[workerIndex] = 0
 		h.answering[workerIndex] = 0
@@ -519,7 +518,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 			cancelProcessing()
 		}
 	} else {
-
+		// TODO: change to return runtime.ResponseWithErrors
 		response, timedOut, submitError, processError = h.AllocateWorkerAndSubmitEvent(ctx,
 			functionLogger,
 			time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)

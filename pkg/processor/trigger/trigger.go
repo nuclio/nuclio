@@ -483,6 +483,9 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 			if ok {
 				go channel.Write(at.Logger, &runtime.ResponseWithErrors{SubmitError: submitError})
 				delete(responseChans, string(event.GetID()))
+			} else {
+				at.Logger.WarnWith("Response chan for event not found",
+					"event_id", event.GetID())
 			}
 			at.UpdateStatistics(false, 1)
 		} else {

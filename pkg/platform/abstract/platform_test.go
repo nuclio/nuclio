@@ -446,7 +446,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			err := suite.Platform.validateBatchConfiguration(testCase.batchConfiguration)
+			err := suite.Platform.validateBatchConfiguration(testCase.batchConfiguration, "", "")
 			if testCase.expectError {
 				suite.Require().NotNil(err)
 			} else {
