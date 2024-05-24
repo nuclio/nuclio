@@ -496,8 +496,8 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 	for _, event := range batch {
 		preparedEvent, submitError := at.prepareEvent(event, workerInstance)
 
-		// if error, then send error to the corresponding channel and delete the channel from the map
 		if submitError != nil {
+			// send error to the corresponding channel and delete the channel from the map so we won't send the response to it
 			channel, ok := responseChans[string(event.GetID())]
 			if ok {
 				go channel.Write(at.Logger, &runtime.ResponseWithErrors{SubmitError: submitError})

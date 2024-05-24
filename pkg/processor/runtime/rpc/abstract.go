@@ -132,29 +132,9 @@ func (r *AbstractRuntime) Start() error {
 
 // ProcessEvent processes an event
 func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
-		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
-	}
-
-	r.functionLogger = functionLogger
-
-	// We don't use defer to reset r.functionLogger since it decreases performance
-	if err := r.eventEncoder.Encode(event); err != nil {
-		r.functionLogger = nil
-		return nil, errors.Wrapf(err, "Can't encode event: %+v", event)
-	}
-
-	processingResult, ok := <-r.resultChan
-	r.functionLogger = nil
-	if !ok {
-		msg := "Client disconnected"
-		r.Logger.Error(msg)
-		r.SetStatus(status.Error)
-		r.functionLogger = nil
-		return nil, errors.New(msg)
-	}
-	if processingResult.err != nil {
-		return nil, processingResult.err
+	processingResult, err := r.processItemAndWaitForResult(event, functionLogger)
+	if err != nil {
+		return nil, err
 	}
 	// this is a single event processing flow, so we only take the first item from the result
 	return nuclio.Response{
@@ -167,37 +147,16 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 
 // ProcessBatch processes a batch of events
 func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
-	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
-		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
-	}
-
-	r.functionLogger = functionLogger
-
-	// We don't use defer to reset r.functionLogger since it decreases performance
-	if err := r.eventEncoder.Encode(batch); err != nil {
-		r.functionLogger = nil
-		return nil, errors.Wrapf(err, "Can't encode batch: %+v", batch)
-	}
-
-	processingResults, ok := <-r.resultChan
-	r.functionLogger = nil
-	if !ok {
-		msg := "Client disconnected"
-		r.Logger.Error(msg)
-		r.SetStatus(status.Error)
-		r.functionLogger = nil
-		return nil, errors.New(msg)
+	processingResults, err := r.processItemAndWaitForResult(batch, functionLogger)
+	if err != nil {
+		return nil, err
 	}
 	responsesWithErrors := make([]*runtime.ResponseWithErrors, len(processingResults.results))
-
-	// if processingResults.err is not nil, it means that whole batch processing was failed
-	if processingResults.err != nil {
-		return nil, processingResults.err
-	}
 
 	for index, processingResult := range processingResults.results {
 		if processingResult.EventId == "" {
 			functionLogger.WarnWith("Received response with empty event_id, response won't be returned")
+			continue
 		}
 		responsesWithErrors[index] = &runtime.ResponseWithErrors{
 			Response: nuclio.Response{
@@ -329,6 +288,36 @@ func (r *AbstractRuntime) Terminate() error {
 	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
 
 	return nil
+}
+
+func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, functionLogger logger.Logger) (*batchedResults, error) {
+
+	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
+		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
+	}
+
+	r.functionLogger = functionLogger
+
+	// We don't use defer to reset r.functionLogger since it decreases performance
+	if err := r.eventEncoder.Encode(item); err != nil {
+		r.functionLogger = nil
+		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
+	}
+
+	processingResults, ok := <-r.resultChan
+	r.functionLogger = nil
+	if !ok {
+		msg := "Client disconnected"
+		r.Logger.Error(msg)
+		r.SetStatus(status.Error)
+		r.functionLogger = nil
+		return nil, errors.New(msg)
+	}
+	// if processingResults.err is not nil, it means that whole batch processing was failed
+	if processingResults.err != nil {
+		return nil, processingResults.err
+	}
+	return processingResults, nil
 }
 
 func (r *AbstractRuntime) signal(signal syscall.Signal) error {

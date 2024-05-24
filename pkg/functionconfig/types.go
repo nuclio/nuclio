@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -117,6 +118,32 @@ func BatchModeEnabled(batchConfiguration *BatchConfiguration) bool {
 		return false
 	}
 	return batchConfiguration.Mode == BatchModeEnable
+}
+
+var triggerKindsSupportBatching = []string{
+	"http",
+}
+
+var runtimesSupportBatchingList = []string{
+	"python",
+}
+
+func TriggerKindSupportsBatching(triggerKind string) bool {
+	for _, supportedKind := range triggerKindsSupportBatching {
+		if triggerKind == supportedKind {
+			return true
+		}
+	}
+	return false
+}
+
+func RuntimeSupportsBatching(runtime string) bool {
+	for _, supportedRuntime := range runtimesSupportBatchingList {
+		if strings.Contains(runtime, supportedRuntime) {
+			return true
+		}
+	}
+	return false
 }
 
 type ExplicitAckMode string

@@ -1618,6 +1618,10 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		return errors.Wrap(err, "Ingresses validation failed")
 	}
 
+	if err := ap.validateBatchConfiguration(functionConfig); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
+
 	for triggerKey, triggerInstance := range functionConfig.Spec.Triggers {
 
 		// do not allow trigger with empty name
@@ -1686,31 +1690,32 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 				}
 			}
 		}
-
-		if err := ap.validateBatchConfiguration(triggerInstance.Batch, functionConfig.Spec.Runtime, triggerInstance.Kind); err != nil {
-			return nuclio.WrapErrBadRequest(err)
-		}
 	}
 
 	return nil
 }
 
-func (ap *Platform) validateBatchConfiguration(batchConfiguration *functionconfig.BatchConfiguration, runtime, triggerKind string) error {
-	if batchConfiguration == nil {
-		return nil
-	}
+func (ap *Platform) validateBatchConfiguration(functionConfig *functionconfig.Config) error {
 
-	if functionconfig.BatchModeEnabled(batchConfiguration) && (triggerKind != "http" || !strings.Contains(runtime, "python")) {
-		ap.Logger.WarnWith("Batching is not supported for given runtime and kind - batching configuration is ignored",
-			"runtime", runtime,
-			"triggerKind", triggerKind)
-	}
+	for _, triggerInstance := range functionConfig.Spec.Triggers {
+		if triggerInstance.Batch == nil {
+			continue
+		}
 
-	if batchConfiguration.BatchSize <= 0 {
-		return nuclio.NewErrBadRequest("Batch size should be 1 or higher")
-	}
-	if _, err := time.ParseDuration(batchConfiguration.Timeout); err != nil {
-		return nuclio.NewErrBadRequest(fmt.Sprintf("Batching timeout validation failed. Error: %s", err.Error()))
+		if functionconfig.BatchModeEnabled(triggerInstance.Batch) &&
+			(!functionconfig.TriggerKindSupportsBatching(triggerInstance.Kind) ||
+				!functionconfig.RuntimeSupportsBatching(functionConfig.Spec.Runtime)) {
+			ap.Logger.WarnWith("Batching is not supported for given runtime and kind - batching configuration is ignored",
+				"runtime", functionConfig.Spec.Runtime,
+				"triggerKind", triggerInstance.Kind)
+		}
+
+		if triggerInstance.Batch.BatchSize <= 0 {
+			return nuclio.NewErrBadRequest("Batch size should be 1 or higher")
+		}
+		if _, err := time.ParseDuration(triggerInstance.Batch.Timeout); err != nil {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Batching timeout validation failed. Error: %s", err.Error()))
+		}
 	}
 	return nil
 }
@@ -1820,7 +1825,7 @@ func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig 
 
 func (ap *Platform) enrichBatchParams(ctx context.Context, functionConfig *functionconfig.Config) error {
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
-		// enrich batch configuration if it is empty
+		// skip batch configuration enrichment if it wasn't set
 		if triggerInstance.Batch == nil {
 			continue
 		}

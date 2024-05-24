@@ -416,6 +416,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 		name               string
 		batchConfiguration *functionconfig.BatchConfiguration
 		expectError        bool
+		runtime            string
+		triggerKind        string
 	}{
 
 		{
@@ -425,6 +427,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: -3,
 				Timeout:   "1s",
 			},
+			runtime:     "python:3.9",
+			triggerKind: "http",
 			expectError: true,
 		},
 		{
@@ -434,6 +438,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: 1,
 				Timeout:   "test",
 			},
+			runtime:     "python:3.9",
+			triggerKind: "http",
 			expectError: true,
 		},
 		{
@@ -443,10 +449,35 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: 1,
 				Timeout:   "1ms",
 			},
+			runtime:     "python:3.9",
+			triggerKind: "http",
+		},
+		{
+			name: "wrong-runtime",
+			batchConfiguration: &functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: 1,
+				Timeout:   "1ms",
+			},
+			runtime:     "go",
+			triggerKind: "http",
+		},
+		{
+			name: "wrong-trigger-kind",
+			batchConfiguration: &functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: 1,
+				Timeout:   "1ms",
+			},
+			runtime:     "python:3.11",
+			triggerKind: "cron",
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			err := suite.Platform.validateBatchConfiguration(testCase.batchConfiguration, "", "")
+
+			err := suite.Platform.validateBatchConfiguration(&functionconfig.Config{Spec: functionconfig.Spec{Runtime: testCase.runtime, Triggers: map[string]functionconfig.Trigger{
+				"my-trigger": {Kind: testCase.triggerKind, Batch: testCase.batchConfiguration},
+			}}})
 			if testCase.expectError {
 				suite.Require().NotNil(err)
 			} else {
