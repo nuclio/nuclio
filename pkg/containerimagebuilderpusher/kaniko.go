@@ -133,7 +133,7 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 }
 
 func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
-	onbuildStages := make([]string, len(onbuildArtifacts))
+	onbuildStages := make([]string, 0, len(onbuildArtifacts))
 	stage := 0
 
 	for _, artifact := range onbuildArtifacts {
