@@ -1753,18 +1753,26 @@ func (b *Builder) getFunctionTempFile(tempDir string,
 	}
 
 	// for archives, use a temporary local file renamed to something short to allow wacky long archive URLs
-	if isArchive || util.IsArchive(functionPathBase) {
+	if isArchive || util.IsArchive(functionPath) {
 		var fileExtension string
 
 		// get file archiver by its extension
 		archiverFormat, _, err := archiver.Identify(functionPath, nil)
 		if err != nil {
 
-			// fallback to .zip
-			b.logger.DebugWith("Could not determine file extension, fallback to .zip",
-				"functionPath",
-				functionPath)
-			fileExtension = "zip"
+			// try identifying to the file extension
+			if extension := strings.TrimPrefix(filepath.Ext(functionPath), "."); extension == "" {
+				// fallback to .zip
+				fileExtension = "zip"
+				b.logger.DebugWith("Could not determine file extension, fallback to .zip",
+					"functionPath",
+					functionPath)
+			} else {
+				fileExtension = extension
+				b.logger.DebugWith("Could not identify archive format, fallback to file extension",
+					"functionPath", functionPath,
+					"fileExtension", fileExtension)
+			}
 		} else {
 			fileExtension = strings.TrimPrefix(archiverFormat.Name(), ".")
 		}
