@@ -129,6 +129,10 @@ func (suite *unarchiverTestSuite) TestIsArchive() {
 			expectedCompressed: true,
 		},
 		{
+			name:               "tgz",
+			expectedCompressed: true,
+		},
+		{
 			name:               "tar.bz2",
 			expectedCompressed: true,
 		},

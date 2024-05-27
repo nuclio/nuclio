@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -746,6 +747,44 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 			suite.builder.cleanupTempDir() // nolint: errcheck
 		})
+	}
+}
+
+func (suite *testSuite) TestFallbackOnUnknownArchiveExtension() {
+	err := suite.builder.createTempDir()
+	suite.Assert().NoError(err)
+	defer suite.builder.cleanupTempDir() // nolint: errcheck
+
+	for _, testCase := range []struct {
+		name              string
+		functionPath      string
+		expectedExtension string
+	}{
+		{
+			name:              "tar",
+			functionPath:      "my-func.tar",
+			expectedExtension: "tar",
+		},
+		{
+			name:              "unknown",
+			functionPath:      "my-func.unknown",
+			expectedExtension: "unknown",
+		},
+		{
+			name:              "no-extension",
+			functionPath:      "my-func",
+			expectedExtension: "zip",
+		},
+		{
+			name:              "invalid",
+			functionPath:      "my-func.",
+			expectedExtension: "zip",
+		},
+	} {
+		tempFile, err := suite.builder.getFunctionTempFile(suite.builder.tempDir, testCase.functionPath, true, ArchiveEntryType)
+		suite.Require().NoError(err)
+		suite.Require().NotEmpty(tempFile)
+		suite.Require().Equal(testCase.expectedExtension, strings.TrimPrefix(filepath.Ext(tempFile.Name()), "."))
 	}
 }
 
