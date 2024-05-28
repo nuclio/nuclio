@@ -1831,12 +1831,11 @@ func (ap *Platform) enrichBatchParams(ctx context.Context, functionConfig *funct
 		if triggerInstance.Batch == nil {
 			continue
 		}
-		ap.Logger.DebugWithCtx(ctx, "Enriching batch params for function trigger",
-			"functionName", functionConfig.Meta.Name,
-			"trigger", triggerName)
-
 		// if batch mode is enabled, check batching parameters
 		if functionconfig.BatchModeEnabled(triggerInstance.Batch) {
+			ap.Logger.DebugWithCtx(ctx, "Enriching batch params for function trigger",
+				"functionName", functionConfig.Meta.Name,
+				"trigger", triggerName)
 			// if batch size isn't set, set it to default
 			if triggerInstance.Batch.BatchSize == 0 {
 				ap.Logger.DebugWithCtx(ctx, "Enriching batch size for function trigger",
