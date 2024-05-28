@@ -23,11 +23,14 @@ import (
 	"time"
 )
 
+// Usage example:
+// go run benchmark/bench.go  -url=<url> -requests=1000 -parallel=100
+// where requests is a total number of requests and parallel is a number of requests in parallel
 func main() {
 	// define command-line arguments
 	url := flag.String("url", "", "The URL to send requests to")
-	totalRequests := flag.Int("totalRequests", 100, "Total number of requests to send")
-	maxParallel := flag.Int("maxParallel", 1000, "Maximum number of parallel requests")
+	totalRequests := flag.Int("requests", 100, "Total number of requests to send")
+	maxParallel := flag.Int("parallel", 1000, "Maximum number of parallel requests")
 
 	// parse the command-line arguments
 	flag.Parse()
@@ -82,6 +85,7 @@ func main() {
 	if numCompleted > 0 {
 		avgTime := totalTime / time.Duration(numCompleted)
 		fmt.Printf("Average response time: %v\n", avgTime)
+		fmt.Printf("%d of %d requests succeeded\n", numCompleted, totalRequests)
 	} else {
 		fmt.Println("No requests were successful")
 	}
