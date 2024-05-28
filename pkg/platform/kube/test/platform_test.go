@@ -1745,7 +1745,7 @@ type DeleteFunctionTestSuite struct {
 	KubeTestSuite
 }
 
-func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways() {
+func (suite *DeleteFunctionTestSuite) TestDeleteFunctionWhichHasApiGateway() {
 	functionName := "func-to-delete"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
@@ -1754,12 +1754,20 @@ func (suite *DeleteFunctionTestSuite) TestFailOnDeletingFunctionWithAPIGateways(
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Assert().Contains(ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name, functionName)
 
-			// try to delete the function while it uses this api gateway
+			// try to delete the function while it uses this api gateway without DeleteApiGateways flag
 			err := suite.Platform.DeleteFunction(suite.Ctx, &platform.DeleteFunctionOptions{
 				FunctionConfig: createFunctionOptions.FunctionConfig,
 			})
+			// expect deletion error
 			suite.Assert().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
 
+			// try to delete the function while it uses this api gateway with DeleteApiGateways flag
+			err = suite.Platform.DeleteFunction(suite.Ctx, &platform.DeleteFunctionOptions{
+				FunctionConfig:    createFunctionOptions.FunctionConfig,
+				DeleteApiGateways: true,
+			})
+			// function should be deleted
+			suite.Require().NoError(err)
 		})
 		suite.Require().NoError(err)
 

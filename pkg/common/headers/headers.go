@@ -27,6 +27,7 @@ const (
 	FunctionNamespace                   = "X-Nuclio-Function-Namespace"
 	WaitFunctionAction                  = "X-Nuclio-Wait-Function-Action"
 	DeleteFunctionIgnoreStateValidation = "X-Nuclio-Delete-Function-Ignore-State-Validation"
+	DeleteFunctionWithGateways          = "X-Nuclio-Delete-Function-With-API-Gateways"
 	CreationStateUpdatedTimeout         = "X-Nuclio-Creation-State-Updated-Timeout"
 	FunctionEnrichApiGateways           = "X-Nuclio-Function-Enrich-Apigateways"
 	ImportedFunctionOnly                = "X-Nuclio-Imported-Function-Only"

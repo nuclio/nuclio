@@ -556,9 +556,28 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 		return nil
 	}
 
-	// user must clean api gateway before deleting the function
-	if err := p.validateFunctionHasNoAPIGateways(ctx, deleteFunctionOptions); err != nil {
-		return errors.Wrap(err, "Failed to validate that the function has no API gateways")
+	if !deleteFunctionOptions.DeleteApiGateways {
+		// user must clean api gateway before deleting the function
+		if err := p.validateFunctionHasNoAPIGateways(ctx, deleteFunctionOptions); err != nil {
+			return errors.Wrap(err, "Failed to validate that the function has no API gateways")
+		}
+	} else {
+		apiGatewayNames, err := p.getApiGatewaysForFunction(ctx, deleteFunctionOptions.FunctionConfig.Meta.Namespace, deleteFunctionOptions.FunctionConfig.Meta.Name)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
+		}
+		deleteAPIGatewayOptions := &platform.DeleteAPIGatewayOptions{
+			AuthSession: deleteFunctionOptions.AuthSession,
+		}
+		for _, apiGatewayInstance := range apiGatewayNames {
+			deleteAPIGatewayOptions.Meta = platform.APIGatewayMeta{
+				Name:      apiGatewayInstance.Name,
+				Namespace: apiGatewayInstance.Namespace,
+			}
+			if err := p.DeleteAPIGateway(ctx, deleteAPIGatewayOptions); err != nil {
+				return errors.Wrap(err, "Failed to delete api gateway associated with a function")
+			}
+		}
 	}
 
 	return p.deleter.Delete(ctx, p.consumer, deleteFunctionOptions)
@@ -1381,6 +1400,26 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, nam
 	}
 
 	return functionToAPIGateways, nil
+}
+
+func (p *Platform) getApiGatewaysForFunction(ctx context.Context, namespace string, functionName string) (map[string]nuclioio.NuclioAPIGateway, error) {
+	functionsApiGateways := make(map[string]nuclioio.NuclioAPIGateway)
+
+	apiGateways, err := p.consumer.NuclioClientSet.NuclioV1beta1().
+		NuclioAPIGateways(namespace).
+		List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list API gateways")
+	}
+	for _, apiGateway := range apiGateways.Items {
+		for _, upstream := range apiGateway.Spec.Upstreams {
+
+			if upstream.NuclioFunction.Name == functionName {
+				functionsApiGateways[apiGateway.Spec.Name] = apiGateway
+			}
+		}
+	}
+	return functionsApiGateways, nil
 }
 
 func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions []platform.Function, namespace string) error {
