@@ -562,20 +562,22 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 			return errors.Wrap(err, "Failed to validate that the function has no API gateways")
 		}
 	} else {
-		apiGatewayNames, err := p.getApiGatewaysForFunction(ctx, deleteFunctionOptions.FunctionConfig.Meta.Namespace, deleteFunctionOptions.FunctionConfig.Meta.Name)
+		apiGateways, err := p.getApiGatewaysForFunction(ctx, deleteFunctionOptions.FunctionConfig.Meta.Namespace, deleteFunctionOptions.FunctionConfig.Meta.Name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get a function to API-gateways mapping")
+			return errors.Wrap(err, fmt.Sprintf("Failed to get API gateways for function %s",
+				deleteFunctionOptions.FunctionConfig.Meta.Name))
 		}
 		deleteAPIGatewayOptions := &platform.DeleteAPIGatewayOptions{
 			AuthSession: deleteFunctionOptions.AuthSession,
 		}
-		for _, apiGatewayInstance := range apiGatewayNames {
+		for _, apiGatewayInstance := range apiGateways {
 			deleteAPIGatewayOptions.Meta = platform.APIGatewayMeta{
 				Name:      apiGatewayInstance.Name,
 				Namespace: apiGatewayInstance.Namespace,
 			}
 			if err := p.DeleteAPIGateway(ctx, deleteAPIGatewayOptions); err != nil {
-				return errors.Wrap(err, "Failed to delete api gateway associated with a function")
+				return errors.Wrap(err, fmt.Sprintf("Failed to delete api gateway %s associated with a function %s",
+					apiGatewayInstance.Name, deleteFunctionOptions.FunctionConfig.Meta.Name))
 			}
 		}
 	}
@@ -1402,8 +1404,10 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, nam
 	return functionToAPIGateways, nil
 }
 
-func (p *Platform) getApiGatewaysForFunction(ctx context.Context, namespace string, functionName string) (map[string]nuclioio.NuclioAPIGateway, error) {
-	functionsApiGateways := make(map[string]nuclioio.NuclioAPIGateway)
+func (p *Platform) getApiGatewaysForFunction(ctx context.Context,
+	namespace string,
+	functionName string) ([]nuclioio.NuclioAPIGateway, error) {
+	var functionsApiGateways []nuclioio.NuclioAPIGateway
 
 	apiGateways, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(namespace).
@@ -1415,7 +1419,8 @@ func (p *Platform) getApiGatewaysForFunction(ctx context.Context, namespace stri
 		for _, upstream := range apiGateway.Spec.Upstreams {
 
 			if upstream.NuclioFunction.Name == functionName {
-				functionsApiGateways[apiGateway.Spec.Name] = apiGateway
+				functionsApiGateways = append(functionsApiGateways, apiGateway)
+				break
 			}
 		}
 	}

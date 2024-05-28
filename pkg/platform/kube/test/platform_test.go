@@ -1759,7 +1759,7 @@ func (suite *DeleteFunctionTestSuite) TestDeleteFunctionWhichHasApiGateway() {
 				FunctionConfig: createFunctionOptions.FunctionConfig,
 			})
 			// expect deletion error
-			suite.Assert().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
+			suite.Require().Equal(platform.ErrFunctionIsUsedByAPIGateways, errors.RootCause(err))
 
 			// try to delete the function while it uses this api gateway with DeleteApiGateways flag
 			err = suite.Platform.DeleteFunction(suite.Ctx, &platform.DeleteFunctionOptions{

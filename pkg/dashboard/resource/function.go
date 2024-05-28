@@ -498,7 +498,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 		IgnoreFunctionStateValidation: fr.headerValueIsTrue(request,
 			headers.DeleteFunctionIgnoreStateValidation),
 		DeleteApiGateways: fr.headerValueIsTrue(request,
-			headers.DeleteFunctionWithGateways),
+			headers.DeleteFunctionWithAPIGateways),
 	}
 
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
