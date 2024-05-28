@@ -437,7 +437,7 @@ func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *work
 	}
 
 	// Not a cloud event
-	// id won't be empty only in batching mode
+	// In batch-mode and cloud event an ID already exists at this point, so don't override it
 	if event.GetID() == "" {
 		event.SetID(nuclio.ID(uuid.New().String()))
 	}

@@ -107,7 +107,7 @@ func newTrigger(logger logger.Logger,
 
 	if functionconfig.BatchModeEnabled(configuration.Batch) {
 		if batchTimeout, err := time.ParseDuration(configuration.Batch.Timeout); err != nil {
-			return nil, errors.New("Could not parse batch timeout")
+			return nil, errors.Errorf("Could not parse batch timeout: %s", configuration.Batch.Timeout)
 		} else {
 			workerAvailabilityTimeout := time.Duration(*newTrigger.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
 			go newTrigger.StartBatcher(batchTimeout, workerAvailabilityTimeout)

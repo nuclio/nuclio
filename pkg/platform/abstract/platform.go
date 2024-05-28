@@ -1701,13 +1701,15 @@ func (ap *Platform) validateBatchConfiguration(functionConfig *functionconfig.Co
 		if triggerInstance.Batch == nil {
 			continue
 		}
-
 		if functionconfig.BatchModeEnabled(triggerInstance.Batch) &&
-			(!functionconfig.TriggerKindSupportsBatching(triggerInstance.Kind) ||
-				!functionconfig.RuntimeSupportsBatching(functionConfig.Spec.Runtime)) {
-			ap.Logger.WarnWith("Batching is not supported for given runtime and kind - batching configuration is ignored",
-				"runtime", functionConfig.Spec.Runtime,
+			!functionconfig.TriggerKindSupportsBatching(triggerInstance.Kind) {
+			ap.Logger.WarnWith("Batching is not supported for given trigger kind - batching configuration is ignored",
 				"triggerKind", triggerInstance.Kind)
+		}
+		if functionconfig.BatchModeEnabled(triggerInstance.Batch) &&
+			!functionconfig.RuntimeSupportsBatching(functionConfig.Spec.Runtime) {
+			ap.Logger.WarnWith("Batching is not supported for given runtime - batching configuration is ignored",
+				"runtime", functionConfig.Spec.Runtime)
 		}
 
 		if triggerInstance.Batch.BatchSize <= 0 {

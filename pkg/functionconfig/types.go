@@ -124,7 +124,7 @@ var triggerKindsSupportBatching = []string{
 	"http",
 }
 
-var runtimesSupportBatchingList = []string{
+var runtimesSupportBatching = []string{
 	"python",
 }
 
@@ -138,7 +138,7 @@ func TriggerKindSupportsBatching(triggerKind string) bool {
 }
 
 func RuntimeSupportsBatching(runtime string) bool {
-	for _, supportedRuntime := range runtimesSupportBatchingList {
+	for _, supportedRuntime := range runtimesSupportBatching {
 		if strings.Contains(runtime, supportedRuntime) {
 			return true
 		}
