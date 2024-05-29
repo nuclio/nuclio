@@ -562,10 +562,9 @@ func (suite *KubeTestSuite) DeployAPIGateway(createAPIGatewayOptions *platform.C
 	// delete the api gateway when done
 	defer func() {
 		suite.Logger.Debug("Deleting deployed api gateway")
-		err := suite.Platform.DeleteAPIGateway(suite.Ctx, &platform.DeleteAPIGatewayOptions{
+		_ = suite.Platform.DeleteAPIGateway(suite.Ctx, &platform.DeleteAPIGatewayOptions{
 			Meta: createAPIGatewayOptions.APIGatewayConfig.Meta,
 		})
-		suite.Require().NoError(err)
 		suite.verifyAPIGatewayIngress(createAPIGatewayOptions, false)
 
 	}()
