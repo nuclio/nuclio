@@ -105,7 +105,7 @@ func newDeleteFunctionCommandeer(ctx context.Context, deleteCommandeer *deleteCo
 			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(ctx, deleteFunctionOptions)
 		},
 	}
-	cmd.Flags().BoolVar(&commandeer.withAPIGateways, "with-api-gateways", false, `Whether function should be removed with its api gateways (default: false)`)
+	cmd.Flags().BoolVar(&commandeer.withAPIGateways, "with-api-gateways", false, "Whether function should be removed with its api gateways (default: false)")
 	commandeer.cmd = cmd
 
 	return commandeer
