@@ -575,7 +575,8 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 			// check if there is any canary function in which this function is used
 			// if there is one, we not allow deleting such functions
 			if len(apiGatewayInstance.Spec.Upstreams) == 2 {
-				return errors.New("Failed to delete function - it is used in canary api gateway")
+				return errors.New(fmt.Sprintf("Failed to delete function - it is used in canary api gateway - %s",
+					apiGatewayInstance.Name))
 			}
 		}
 		for _, apiGatewayInstance := range apiGateways {
