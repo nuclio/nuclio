@@ -86,6 +86,9 @@ type DeleteFunctionOptions struct {
 
 	// whether to ignore the validation where functions being provisioned cannot be deleted
 	IgnoreFunctionStateValidation bool
+
+	// whether api gateways should be deleted if ones exist
+	DeleteApiGateways bool
 }
 
 type RedeployFunctionOptions struct {

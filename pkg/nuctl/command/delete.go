@@ -65,7 +65,8 @@ func newDeleteCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 
 type deleteFunctionCommandeer struct {
 	*deleteCommandeer
-	functionConfig functionconfig.Config
+	functionConfig  functionconfig.Config
+	withAPIGateways bool
 }
 
 func newDeleteFunctionCommandeer(ctx context.Context, deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
@@ -94,7 +95,8 @@ func newDeleteFunctionCommandeer(ctx context.Context, deleteCommandeer *deleteCo
 			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			deleteFunctionOptions := &platform.DeleteFunctionOptions{
-				FunctionConfig: commandeer.functionConfig,
+				FunctionConfig:    commandeer.functionConfig,
+				DeleteApiGateways: commandeer.withAPIGateways,
 			}
 			if deleteCommandeer.forceDelete {
 				deleteFunctionOptions.IgnoreFunctionStateValidation = true
@@ -103,7 +105,7 @@ func newDeleteFunctionCommandeer(ctx context.Context, deleteCommandeer *deleteCo
 			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(ctx, deleteFunctionOptions)
 		},
 	}
-
+	cmd.Flags().BoolVar(&commandeer.withAPIGateways, "with-api-gateways", false, "Whether function should be removed with its api gateways (default: false)")
 	commandeer.cmd = cmd
 
 	return commandeer
