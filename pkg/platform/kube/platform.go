@@ -562,6 +562,7 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 			return errors.Wrap(err, "Failed to validate that the function has no API gateways")
 		}
 	} else {
+
 		apiGateways, err := p.getApiGatewaysForFunction(ctx, deleteFunctionOptions.FunctionConfig.Meta.Namespace, deleteFunctionOptions.FunctionConfig.Meta.Name)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Failed to get API gateways for function %s",
@@ -569,6 +570,13 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 		}
 		deleteAPIGatewayOptions := &platform.DeleteAPIGatewayOptions{
 			AuthSession: deleteFunctionOptions.AuthSession,
+		}
+		for _, apiGatewayInstance := range apiGateways {
+			// check if there is any canary function in which this function is used
+			// if there is one, we not allow deleting such functions
+			if len(apiGatewayInstance.Spec.Upstreams) == 2 {
+				return errors.New("Failed to delete function - it is used in canary api gateway")
+			}
 		}
 		for _, apiGatewayInstance := range apiGateways {
 			deleteAPIGatewayOptions.Meta = platform.APIGatewayMeta{
