@@ -48,6 +48,7 @@ const (
 	SkipTLSVerification = "X-Nuclio-Skip-Tls-Verification"
 	Path                = "X-Nuclio-Path"
 	LogLevel            = "X-Nuclio-Log-Level"
+	SanitizeResponse    = "X-Nuclio-Sanitize-Response"
 
 	// ApiGateway headers
 	ApiGatewayName                      = "X-Nuclio-Api-Gateway-Name"
