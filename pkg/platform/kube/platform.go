@@ -1792,7 +1792,9 @@ func (p *Platform) validateAPIGatewayMeta(platformAPIGatewayMeta *platform.APIGa
 	errorMessages := validation.IsQualifiedName(platformAPIGatewayMeta.Name)
 	if len(errorMessages) != 0 {
 		joinedErrorMessage := strings.Join(errorMessages, ", ")
-		return errors.Errorf("Api gateway name doesn't conform to k8s naming convention. Errors: %s", joinedErrorMessage)
+		return nuclio.NewErrBadRequest(fmt.Sprintf(
+			"Api gateway name doesn't conform to k8s naming convention. Errors: %s",
+			joinedErrorMessage))
 	}
 
 	if platformAPIGatewayMeta.Namespace == "" {
