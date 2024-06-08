@@ -844,8 +844,8 @@ func (p *Platform) ValidateFunctionContainersHealthiness(ctx context.Context) {
 					functionconfig.FunctionStateError,
 					functionconfig.FunctionStateUnhealthy,
 				}) && functionStatus.Message == string(common.FunctionStateMessageUnhealthy)
-
-			if !(functionIsReady || functionWasSetAsUnhealthy) {
+			functionIsEnabled := !functionConfig.Spec.Disable
+			if !(functionIsReady || functionWasSetAsUnhealthy || functionIsEnabled) {
 
 				// cannot be monitored
 				continue
