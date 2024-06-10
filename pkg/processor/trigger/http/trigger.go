@@ -19,6 +19,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	nethttp "net/http"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -102,6 +104,16 @@ func newTrigger(logger logger.Logger,
 
 	newTrigger.AbstractTrigger.Trigger = &newTrigger
 	newTrigger.allocateEvents(numWorkers)
+
+	if functionconfig.BatchModeEnabled(configuration.Batch) {
+		if batchTimeout, err := time.ParseDuration(configuration.Batch.Timeout); err != nil {
+			return nil, errors.Errorf("Could not parse batch timeout: %s", configuration.Batch.Timeout)
+		} else {
+			workerAvailabilityTimeout := time.Duration(*newTrigger.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
+			go newTrigger.StartBatcher(batchTimeout, workerAvailabilityTimeout)
+		}
+		newTrigger.Logger.Debug("Batcher started")
+	}
 	return &newTrigger, nil
 }
 
@@ -145,6 +157,17 @@ func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 
+func (h *http) PreBatchHook(batch []nuclio.Event, workerInstance *worker.Worker) {
+	// mark worker as busy
+	h.timeouts[workerInstance.GetIndex()] = 0
+	h.answering[workerInstance.GetIndex()] = 0
+}
+
+func (h *http) PostBatchHook(batch []nuclio.Event, workerInstance *worker.Worker) {
+	// mark worker as available
+	h.answering[workerInstance.GetIndex()] = 1
+}
+
 func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
 }
@@ -180,6 +203,12 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 	return nil
 }
 
+func (h *http) PrepareEventAndSubmitToBatch(ctx *fasthttp.RequestCtx) (chan interface{}, context.CancelFunc) {
+	event := &Event{}
+	event.ctx = ctx
+	return h.SubmitEventToBatch(event)
+}
+
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	functionLogger logger.Logger,
 	timeout time.Duration) (response interface{}, timedOut bool, submitError error, processError error) {
@@ -189,18 +218,9 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	defer h.HandleSubmitPanic(workerInstance, &submitError)
 
 	// allocate a worker
-	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
+	workerInstance, workerIndex, err := h.allocateWorker(timeout)
 	if err != nil {
-		h.UpdateStatistics(false)
-		return nil, false, errors.Wrap(err, "Failed to allocate worker"), nil
-	}
-
-	// use the event @ the worker index
-	// TODO: event already used?
-	workerIndex := workerInstance.GetIndex()
-	if workerIndex < 0 || workerIndex >= len(h.events) {
-		h.WorkerAllocator.Release(workerInstance)
-		return nil, false, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
+		return nil, false, err, nil
 	}
 
 	h.activeContexts[workerIndex] = ctx
@@ -223,6 +243,24 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	h.activeContexts[workerIndex] = nil
 
 	return response, false, nil, processError
+}
+
+func (h *http) allocateWorker(timeout time.Duration) (*worker.Worker, int, error) {
+	// allocate a worker
+	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
+	if err != nil {
+		h.UpdateStatistics(false, 1)
+		return nil, -1, errors.Wrap(err, "Failed to allocate worker")
+	}
+
+	// use the event @ the worker index
+	// TODO: event already used?
+	workerIndex := workerInstance.GetIndex()
+	if workerIndex < 0 || workerIndex >= len(h.events) {
+		h.WorkerAllocator.Release(workerInstance)
+		return nil, -1, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events))
+	}
+	return workerInstance, workerIndex, nil
 }
 
 func (h *http) onRequestFromFastHTTP() fasthttp.RequestHandler {
@@ -309,7 +347,7 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 
 	// ensure preflight request headers are valid
 	if !h.preflightRequestValidation(ctx) {
-		h.UpdateStatistics(false)
+		h.UpdateStatistics(false, 1)
 		return
 	}
 
@@ -333,7 +371,7 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 
 	// specifications met, set preflight request as OK
 	ctx.SetStatusCode(nethttp.StatusOK)
-	h.UpdateStatistics(true)
+	h.UpdateStatistics(true, 1)
 }
 
 func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
@@ -400,7 +438,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	if !h.preHandleRequestValidation(ctx) {
 
 		// in case validation failed, stop here
-		h.UpdateStatistics(false)
+		h.UpdateStatistics(false, 1)
 		return
 	}
 
@@ -423,10 +461,51 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		// set the function logger to that of the chosen buffer logger
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
+	var timedOut bool
+	var response interface{}
+	var submitError error
+	var processError error
 
-	response, timedOut, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx,
-		functionLogger,
-		time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
+	if functionconfig.BatchModeEnabled(h.configuration.Batch) {
+		// cancelProcessing is a function that cancels the context to gracefully handle
+		// channel closure and avoid potential deadlocks
+		responseChan, cancelProcessing := h.PrepareEventAndSubmitToBatch(ctx)
+		defer close(responseChan)
+
+		// this flag indicates whether processing has been canceled
+		var processingCancelled bool
+
+		// wait for either event processing to finish or for the waiting timeout to pass
+		select {
+		case <-time.After(time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond):
+			// timeout occurred, cancel event processing and set flags accordingly
+			cancelProcessing()
+			processingCancelled = true
+			timedOut = true
+			response = nil
+			submitError = nil
+			processError = nil
+		case responseFromBatch := <-responseChan:
+			// handle the response received from batch processing
+			switch typedResponse := responseFromBatch.(type) {
+			case *runtime.ResponseWithErrors:
+				response = typedResponse.Response
+				submitError = typedResponse.SubmitError
+				processError = typedResponse.ProcessError
+			case nuclio.Response:
+				response = typedResponse
+			}
+		}
+		// if event processing is not yet canceled, cancel it
+		if !processingCancelled {
+			cancelProcessing()
+		}
+	} else {
+		// TODO: change to return runtime.ResponseWithErrors
+		response, timedOut, submitError, processError = h.AllocateWorkerAndSubmitEvent(ctx,
+			functionLogger,
+			time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
+	}
 
 	if timedOut {
 		return

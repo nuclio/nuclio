@@ -124,6 +124,10 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	}
 }
 
+func (s *shell) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+	return nil, nuclio.ErrNotImplemented
+}
+
 func (s *shell) processEvent(context context.Context,
 	command []string,
 	event nuclio.Event,

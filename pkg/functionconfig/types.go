@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -66,24 +67,24 @@ type Volume struct {
 
 // Trigger holds configuration for a trigger
 type Trigger struct {
-	Class                                 string            `json:"class"`
-	Kind                                  string            `json:"kind"`
-	Name                                  string            `json:"name"`
-	Disabled                              bool              `json:"disabled,omitempty"`
-	NumWorkers                            int               `json:"numWorkers,omitempty"`
-	URL                                   string            `json:"url,omitempty"`
-	Paths                                 []string          `json:"paths,omitempty"`
-	Username                              string            `json:"username,omitempty"`
-	Password                              string            `json:"password,omitempty"`
-	Secret                                string            `json:"secret,omitempty"`
-	Partitions                            []Partition       `json:"partitions,omitempty"`
-	Annotations                           map[string]string `json:"annotations,omitempty"`
-	WorkerAvailabilityTimeoutMilliseconds *int              `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
-	WorkerAllocatorName                   string            `json:"workerAllocatorName,omitempty"`
-	ExplicitAckMode                       ExplicitAckMode   `json:"explicitAckMode,omitempty"`
-	WaitExplicitAckDuringRebalanceTimeout string            `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
-	WorkerTerminationTimeout              string            `json:"workerTerminationTimeout,omitempty"`
-
+	Class                                 string              `json:"class"`
+	Kind                                  string              `json:"kind"`
+	Name                                  string              `json:"name"`
+	Disabled                              bool                `json:"disabled,omitempty"`
+	NumWorkers                            int                 `json:"numWorkers,omitempty"`
+	URL                                   string              `json:"url,omitempty"`
+	Paths                                 []string            `json:"paths,omitempty"`
+	Username                              string              `json:"username,omitempty"`
+	Password                              string              `json:"password,omitempty"`
+	Secret                                string              `json:"secret,omitempty"`
+	Partitions                            []Partition         `json:"partitions,omitempty"`
+	Annotations                           map[string]string   `json:"annotations,omitempty"`
+	WorkerAvailabilityTimeoutMilliseconds *int                `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
+	WorkerAllocatorName                   string              `json:"workerAllocatorName,omitempty"`
+	ExplicitAckMode                       ExplicitAckMode     `json:"explicitAckMode,omitempty"`
+	WaitExplicitAckDuringRebalanceTimeout string              `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
+	WorkerTerminationTimeout              string              `json:"workerTerminationTimeout,omitempty"`
+	Batch                                 *BatchConfiguration `json:"batch,omitempty"`
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
 	MaxTaskAllocation int `json:"max_task_allocation,omitempty"`
@@ -94,6 +95,55 @@ type Trigger struct {
 	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
 	// TODO: remove in 1.15.x
 	MaxWorkers int `json:"maxWorkers,omitempty"`
+}
+
+type BatchConfiguration struct {
+	Mode      BatchMode `json:"mode,omitempty"`
+	BatchSize int       `json:"batchSize,omitempty"`
+	Timeout   string    `json:"timeout,omitempty"`
+}
+
+type BatchMode string
+
+const (
+	BatchModeEnable  BatchMode = "enable"
+	BatchModeDisable BatchMode = "disable"
+
+	DefaultBatchSize    = 10
+	DefaultBatchTimeout = "1s"
+)
+
+func BatchModeEnabled(batchConfiguration *BatchConfiguration) bool {
+	if batchConfiguration == nil {
+		return false
+	}
+	return batchConfiguration.Mode == BatchModeEnable
+}
+
+var triggerKindsSupportBatching = []string{
+	"http",
+}
+
+var runtimesSupportBatching = []string{
+	"python",
+}
+
+func TriggerKindSupportsBatching(triggerKind string) bool {
+	for _, supportedKind := range triggerKindsSupportBatching {
+		if triggerKind == supportedKind {
+			return true
+		}
+	}
+	return false
+}
+
+func RuntimeSupportsBatching(runtime string) bool {
+	for _, supportedRuntime := range runtimesSupportBatching {
+		if strings.Contains(runtime, supportedRuntime) {
+			return true
+		}
+	}
+	return false
 }
 
 type ExplicitAckMode string

@@ -172,6 +172,49 @@ def handler(context, event):
 		})
 }
 
+func (suite *HTTPTestSuite) TestBatchedProcessing() {
+	functionName := "batch-function"
+	functionPath := path.Join(suite.GetTestFunctionsDir(),
+		"python",
+		"batch",
+		"batch-http-func.py")
+	createFunctionOptions := suite.GetDeployOptions("event_recorder",
+		suite.GetFunctionPath(path.Join("event_recorder_python")))
+
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Meta.Name = functionName
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		suite.triggerName: {
+			Kind:       "http",
+			Attributes: map[string]interface{}{},
+			Batch: &functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: 2,
+				Timeout:   "1ms",
+			},
+		},
+	}
+	statusOK := fasthttp.StatusOK
+	suite.DeployFunctionAndRequests(createFunctionOptions,
+		[]*Request{
+			// Happy flows
+			{
+				RequestMethod:              "POST",
+				RequestBody:                "hello-0",
+				ExpectedResponseStatusCode: &statusOK,
+				ExpectedResponseBody:       "Response to in-batch event",
+			},
+			{
+				RequestMethod:              "POST",
+				RequestBody:                "hello-1",
+				ExpectedResponseStatusCode: &statusOK,
+				ExpectedResponseBody:       "Response to in-batch event",
+			},
+		})
+
+}
+
 func (suite *HTTPTestSuite) getHTTPDeployOptions() *platform.CreateFunctionOptions {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder",
 		suite.GetFunctionPath(path.Join("event_recorder_python")))

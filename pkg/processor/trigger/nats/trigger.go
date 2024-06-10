@@ -145,7 +145,7 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 				// allocate a worker
 				workerInstance, err := n.WorkerAllocator.Allocate(time.Duration(*n.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond)
 				if err != nil {
-					n.UpdateStatistics(false)
+					n.UpdateStatistics(false, 1)
 					n.Logger.ErrorWith("Failed to allocate worker", "error", err)
 					return
 				}

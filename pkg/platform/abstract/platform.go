@@ -1618,6 +1618,10 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		return errors.Wrap(err, "Ingresses validation failed")
 	}
 
+	if err := ap.validateBatchConfiguration(functionConfig); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
+
 	for triggerKey, triggerInstance := range functionConfig.Spec.Triggers {
 
 		// do not allow trigger with empty name
@@ -1691,6 +1695,33 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 	return nil
 }
 
+func (ap *Platform) validateBatchConfiguration(functionConfig *functionconfig.Config) error {
+
+	for _, triggerInstance := range functionConfig.Spec.Triggers {
+		if triggerInstance.Batch == nil {
+			continue
+		}
+		if functionconfig.BatchModeEnabled(triggerInstance.Batch) &&
+			!functionconfig.TriggerKindSupportsBatching(triggerInstance.Kind) {
+			ap.Logger.WarnWith("Batching is not supported for given trigger kind - batching configuration is ignored",
+				"triggerKind", triggerInstance.Kind)
+		}
+		if functionconfig.BatchModeEnabled(triggerInstance.Batch) &&
+			!functionconfig.RuntimeSupportsBatching(functionConfig.Spec.Runtime) {
+			ap.Logger.WarnWith("Batching is not supported for given runtime - batching configuration is ignored",
+				"runtime", functionConfig.Spec.Runtime)
+		}
+
+		if triggerInstance.Batch.BatchSize <= 0 {
+			return nuclio.NewErrBadRequest("Batch size should be 1 or higher")
+		}
+		if _, err := time.ParseDuration(triggerInstance.Batch.Timeout); err != nil {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Batching timeout validation failed. Error: %s", err.Error()))
+		}
+	}
+	return nil
+}
+
 func (ap *Platform) validateIngresses(triggers map[string]functionconfig.Trigger) error {
 	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(triggers, "http") {
 
@@ -1740,6 +1771,10 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 		return errors.Wrap(err, "Failed to enrich explicit ack params")
 	}
 
+	if err := ap.enrichBatchParams(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich batch params")
+	}
+
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
 
 		// if name was not given, inherit its key
@@ -1787,6 +1822,39 @@ func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig 
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
 
+	return nil
+}
+
+func (ap *Platform) enrichBatchParams(ctx context.Context, functionConfig *functionconfig.Config) error {
+	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
+		// skip batch configuration enrichment if it wasn't set
+		if triggerInstance.Batch == nil {
+			continue
+		}
+		// if batch mode is enabled, check batching parameters
+		if functionconfig.BatchModeEnabled(triggerInstance.Batch) {
+			ap.Logger.DebugWithCtx(ctx, "Enriching batch params for function trigger",
+				"functionName", functionConfig.Meta.Name,
+				"trigger", triggerName)
+			// if batch size isn't set, set it to default
+			if triggerInstance.Batch.BatchSize == 0 {
+				ap.Logger.DebugWithCtx(ctx, "Enriching batch size for function trigger",
+					"functionName", functionConfig.Meta.Name,
+					"trigger", triggerName,
+					"batchSize", functionconfig.DefaultBatchSize)
+				triggerInstance.Batch.BatchSize = functionconfig.DefaultBatchSize
+			}
+
+			// if timeout isn't set, set it to default
+			if triggerInstance.Batch.Timeout == "" {
+				ap.Logger.DebugWithCtx(ctx, "Enriching batching timeout for function trigger",
+					"functionName", functionConfig.Meta.Name,
+					"trigger", triggerName,
+					"batchTimeout", functionconfig.DefaultBatchTimeout)
+				triggerInstance.Batch.Timeout = functionconfig.DefaultBatchTimeout
+			}
+		}
+	}
 	return nil
 }
 

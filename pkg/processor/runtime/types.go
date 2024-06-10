@@ -17,6 +17,7 @@ limitations under the License.
 package runtime
 
 import (
+	"errors"
 	"sync/atomic"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Statistics struct {
@@ -55,3 +57,13 @@ type Configuration struct {
 	WorkerTerminationTimeout time.Duration
 	ControlMessageBroker     *controlcommunication.AbstractControlMessageBroker
 }
+
+type ResponseWithErrors struct {
+	nuclio.Response
+	EventId         string
+	SubmitError     error
+	ProcessError    error
+	NoResponseError error
+}
+
+var ErrNoResponseFromBatchResponse = errors.New("processor hasn't received corresponding response for the event")

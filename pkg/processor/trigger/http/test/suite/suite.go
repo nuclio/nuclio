@@ -193,9 +193,8 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		return false
 	}
 
-	suite.Logger.DebugWith("Got response", "statusCode", httpResponse.StatusCode)
-
 	suite.Require().NoError(err, "Failed to send request")
+	suite.Logger.DebugWith("Got response", "statusCode", httpResponse.StatusCode)
 
 	body, err := io.ReadAll(httpResponse.Body)
 	suite.Require().NoError(err)

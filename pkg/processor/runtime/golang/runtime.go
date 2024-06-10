@@ -96,6 +96,10 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	return response, err
 }
 
+func (g *golang) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+	return nil, nuclio.ErrNotImplemented
+}
+
 func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (response interface{}, responseErr error) {
 	defer func() {
 		if err := recover(); err != nil {

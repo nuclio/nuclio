@@ -370,6 +370,123 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestEnrichBatchConfiguration() {
+	for _, testCase := range []struct {
+		name                       string
+		batchConfiguration         *functionconfig.BatchConfiguration
+		expectedBatchConfiguration functionconfig.BatchConfiguration
+	}{
+
+		{
+			name: "enable-batching-with-default-values",
+			batchConfiguration: &functionconfig.BatchConfiguration{
+				Mode: functionconfig.BatchModeEnable,
+			},
+			expectedBatchConfiguration: functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: 10,
+				Timeout:   "1s",
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionConfig := &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http": {
+							Name:  "http",
+							Batch: testCase.batchConfiguration,
+						},
+					},
+				},
+			}
+			err := suite.Platform.enrichBatchParams(suite.ctx, functionConfig)
+			suite.Require().NoError(err)
+
+			suite.Require().Equal(testCase.expectedBatchConfiguration.BatchSize, testCase.batchConfiguration.BatchSize)
+			suite.Require().Equal(testCase.expectedBatchConfiguration.Mode, testCase.batchConfiguration.Mode)
+			suite.Require().Equal(testCase.expectedBatchConfiguration.Timeout, testCase.batchConfiguration.Timeout)
+
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
+	for _, testCase := range []struct {
+		name               string
+		batchConfiguration *functionconfig.BatchConfiguration
+		expectError        bool
+		runtime            string
+		triggerKind        string
+	}{
+
+		{
+			name: "wrong-batch-size",
+			batchConfiguration: &functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: -3,
+				Timeout:   "1s",
+			},
+			runtime:     "python:3.9",
+			triggerKind: "http",
+			expectError: true,
+		},
+		{
+			name: "wrong-timeout-size",
+			batchConfiguration: &functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: 1,
+				Timeout:   "test",
+			},
+			runtime:     "python:3.9",
+			triggerKind: "http",
+			expectError: true,
+		},
+		{
+			name: "correct-configuration",
+			batchConfiguration: &functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: 1,
+				Timeout:   "1ms",
+			},
+			runtime:     "python:3.9",
+			triggerKind: "http",
+		},
+		{
+			name: "wrong-runtime",
+			batchConfiguration: &functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: 1,
+				Timeout:   "1ms",
+			},
+			runtime:     "go",
+			triggerKind: "http",
+		},
+		{
+			name: "wrong-trigger-kind",
+			batchConfiguration: &functionconfig.BatchConfiguration{
+				Mode:      functionconfig.BatchModeEnable,
+				BatchSize: 1,
+				Timeout:   "1ms",
+			},
+			runtime:     "python:3.11",
+			triggerKind: "cron",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+
+			err := suite.Platform.validateBatchConfiguration(&functionconfig.Config{Spec: functionconfig.Spec{Runtime: testCase.runtime, Triggers: map[string]functionconfig.Trigger{
+				"my-trigger": {Kind: testCase.triggerKind, Batch: testCase.batchConfiguration},
+			}}})
+			if testCase.expectError {
+				suite.Require().NotNil(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
 func (suite *AbstractPlatformTestSuite) TestValidateDeleteFunctionOptions() {
 	for _, testCase := range []struct {
 		name                  string
