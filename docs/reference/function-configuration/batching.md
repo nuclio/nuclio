@@ -16,7 +16,6 @@ Example of trigger configuration with batching enabled:
 ```yaml
   triggers:
     http:
-      class: ""
       kind: http
       name: http
       batch:
@@ -35,21 +34,22 @@ Handler example:
 
 ```python
 import nuclio_sdk
+
 def handler(context, batch: list[nuclio_sdk.Event]):
     context.logger.info_with('Got batched event!')
     batched_response = []
-    response = batch_processing(batch)
+    response = process_batch(batch)
     for item in batch:
         event_id = item.id
         batched_response.append(nuclio_sdk.Response(
             body=response,
             headers={},
-            content_type="text",
+            content_type="text/plain",
             status_code=200,
             event_id=event_id,
         ))
     return batched_response
 
-def batch_processing(event: list[nuclio_sdk.Event]):
+def process_batch(event: list[nuclio_sdk.Event]):
     return "Hello"
 ```
