@@ -98,6 +98,64 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 	}
 }
 
+func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
+	numOfAPIGateways := 3
+	var apiGatewaysName []string
+
+	for apiGatewayIdx := 0; apiGatewayIdx < numOfAPIGateways; apiGatewayIdx++ {
+		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), apiGatewayIdx)
+
+		apiGatewayName := "get-test-apigateway" + uniqueSuffix
+		functionName := fmt.Sprintf("function-%d", apiGatewayIdx)
+		namedArgs := map[string]string{
+			"host":              fmt.Sprintf("some-host-%d", apiGatewayIdx),
+			"description":       fmt.Sprintf("some-description-%d", apiGatewayIdx),
+			"path":              fmt.Sprintf("some-path-%d", apiGatewayIdx),
+			"function":          fmt.Sprintf("function-%d", apiGatewayIdx),
+			"canary-function":   fmt.Sprintf("canary-function-%d", apiGatewayIdx),
+			"canary-percentage": "25",
+		}
+
+		err := suite.ExecuteNuctl([]string{
+			"create",
+			"apigateway",
+			apiGatewayName,
+		}, namedArgs)
+
+		suite.Require().NoError(err)
+
+		err = suite.ExecuteNuctl([]string{"get", "apigateway", apiGatewayName, "-o", nuctlcommon.OutputFormatYAML},
+			nil)
+		suite.Require().NoError(err)
+
+		// list api gateways by function name - make sure that only one api gateway returned,
+		// because we create one api gateway on each function
+		err = suite.ExecuteNuctl([]string{"get", "apigateway", "--function-name", functionName},
+			nil)
+		suite.Require().NoError(err)
+		suite.Require().Contains(suite.outputBuffer.String(), apiGatewayName)
+
+		for _, gateway := range apiGatewaysName {
+			suite.Require().NotContains(suite.outputBuffer.String(), gateway)
+		}
+
+		// delete api gateway
+		defer func() {
+			err = suite.ExecuteNuctl([]string{"delete", "apigateway", apiGatewayName}, nil) // nolint: errcheck
+			suite.Require().NoError(err)
+		}()
+
+		apiGatewaysName = append(apiGatewaysName, apiGatewayName)
+
+		// list all api gateways
+		err = suite.ExecuteNuctl([]string{"get", "apigateway"}, nil)
+		suite.Require().NoError(err)
+		for _, gateway := range apiGatewaysName {
+			suite.Require().Contains(suite.outputBuffer.String(), gateway)
+		}
+	}
+}
+
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateFailsOnReservedResourceName() {
 	apiGatewayName := "dashboard"
 
