@@ -564,7 +564,7 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 		}
 	} else {
 
-		apiGateways, err := p.getApiGatewaysForFunction(ctx, deleteFunctionOptions.FunctionConfig.Meta.Namespace, deleteFunctionOptions.FunctionConfig.Meta.Name)
+		apiGateways, err := p.getApiGateways(ctx, &platform.GetAPIGatewaysOptions{FunctionName: deleteFunctionOptions.FunctionConfig.Meta.Name, Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace})
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Failed to get API gateways for function %s",
 				deleteFunctionOptions.FunctionConfig.Meta.Name))
@@ -962,6 +962,7 @@ func (p *Platform) DeleteAPIGateway(ctx context.Context, deleteAPIGatewayOptions
 func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]platform.APIGateway, error) {
 	var platformAPIGateways []platform.APIGateway
 	var apiGateways []nuclioio.NuclioAPIGateway
+	var err error
 
 	// if identifier specified, we need to get a single NuclioAPIGateway
 	if getAPIGatewaysOptions.Name != "" {
@@ -983,15 +984,10 @@ func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *pl
 		apiGateways = append(apiGateways, *apiGateway)
 
 	} else {
-
-		apiGatewayInstanceList, err := p.consumer.NuclioClientSet.NuclioV1beta1().
-			NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
-			List(ctx, metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
+		apiGateways, err = p.getApiGateways(ctx, getAPIGatewaysOptions)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list API gateways")
 		}
-
-		apiGateways = apiGatewayInstanceList.Items
 	}
 
 	// convert []nuclioio.NuclioAPIGateway -> NuclioAPIGateway
@@ -1414,27 +1410,28 @@ func (p *Platform) generateFunctionToAPIGatewaysMapping(ctx context.Context, nam
 	return functionToAPIGateways, nil
 }
 
-func (p *Platform) getApiGatewaysForFunction(ctx context.Context,
-	namespace string,
-	functionName string) ([]nuclioio.NuclioAPIGateway, error) {
-	var functionsApiGateways []nuclioio.NuclioAPIGateway
+func (p *Platform) getApiGateways(ctx context.Context, getAPIGatewaysOptions *platform.GetAPIGatewaysOptions) ([]nuclioio.NuclioAPIGateway, error) {
 
 	apiGateways, err := p.consumer.NuclioClientSet.NuclioV1beta1().
-		NuclioAPIGateways(namespace).
+		NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
 		List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list API gateways")
 	}
-	for _, apiGateway := range apiGateways.Items {
-		for _, upstream := range apiGateway.Spec.Upstreams {
+	if getAPIGatewaysOptions.FunctionName != "" {
+		var functionsApiGateways []nuclioio.NuclioAPIGateway
+		for _, apiGateway := range apiGateways.Items {
+			for _, upstream := range apiGateway.Spec.Upstreams {
 
-			if upstream.NuclioFunction.Name == functionName {
-				functionsApiGateways = append(functionsApiGateways, apiGateway)
-				break
+				if upstream.NuclioFunction.Name == getAPIGatewaysOptions.FunctionName {
+					functionsApiGateways = append(functionsApiGateways, apiGateway)
+					break
+				}
 			}
 		}
+		return functionsApiGateways, nil
 	}
-	return functionsApiGateways, nil
+	return apiGateways.Items, nil
 }
 
 func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions []platform.Function, namespace string) error {

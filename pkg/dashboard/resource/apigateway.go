@@ -62,11 +62,13 @@ func (agr *apiGatewayResource) GetAll(request *http.Request) (map[string]restful
 
 	exportFunction := agr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
 	projectName := request.Header.Get(headers.ProjectName)
+	functionName := request.Header.Get(headers.FunctionName)
 
 	// filter by project name (when it's specified)
 	getAPIGatewaysOptions := platform.GetAPIGatewaysOptions{
-		AuthSession: agr.getCtxSession(ctx),
-		Namespace:   namespace,
+		AuthSession:  agr.getCtxSession(ctx),
+		FunctionName: functionName,
+		Namespace:    namespace,
 	}
 	if projectName != "" {
 		getAPIGatewaysOptions.Labels = fmt.Sprintf("%s=%s",
