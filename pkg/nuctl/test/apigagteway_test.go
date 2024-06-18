@@ -100,7 +100,7 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 	numOfAPIGateways := 3
-	var apiGatewaysName []string
+	var apiGatewayNames []string
 
 	for apiGatewayIdx := 0; apiGatewayIdx < numOfAPIGateways; apiGatewayIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), apiGatewayIdx)
@@ -108,13 +108,13 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 		apiGatewayName := "get-test-apigateway" + uniqueSuffix
 		functionName := fmt.Sprintf("function-%d", apiGatewayIdx)
 		namedArgs := map[string]string{
-			"host":                fmt.Sprintf("some-host-%d", apiGatewayIdx),
+			"host":                fmt.Sprintf("host-%s", uniqueSuffix),
 			"description":         fmt.Sprintf("some-description-%d", apiGatewayIdx),
 			"path":                fmt.Sprintf("some-path-%d", apiGatewayIdx),
 			"authentication-mode": "basicAuth",
 			"basic-auth-username": "basic-username",
 			"basic-auth-password": "basic-password",
-			"function":            fmt.Sprintf("function-%d", apiGatewayIdx),
+			"function":            functionName,
 			"canary-function":     fmt.Sprintf("canary-function-%d", apiGatewayIdx),
 			"canary-percentage":   "25",
 		}
@@ -139,7 +139,7 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 		suite.Require().NoError(err)
 		suite.Require().Contains(suite.outputBuffer.String(), apiGatewayName)
 
-		for _, gateway := range apiGatewaysName {
+		for _, gateway := range apiGatewayNames {
 			suite.Require().NotContains(suite.outputBuffer.String(), gateway)
 		}
 
@@ -149,12 +149,12 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 			suite.Require().NoError(err)
 		}()
 
-		apiGatewaysName = append(apiGatewaysName, apiGatewayName)
+		apiGatewayNames = append(apiGatewayNames, apiGatewayName)
 
 		// list all api gateways
 		err = suite.ExecuteNuctl([]string{"get", "apigateway"}, nil)
 		suite.Require().NoError(err)
-		for _, gateway := range apiGatewaysName {
+		for _, gateway := range apiGatewayNames {
 			suite.Require().Contains(suite.outputBuffer.String(), gateway)
 		}
 	}

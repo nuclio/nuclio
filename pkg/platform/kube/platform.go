@@ -564,7 +564,11 @@ func (p *Platform) DeleteFunction(ctx context.Context, deleteFunctionOptions *pl
 		}
 	} else {
 
-		apiGateways, err := p.getApiGateways(ctx, &platform.GetAPIGatewaysOptions{FunctionName: deleteFunctionOptions.FunctionConfig.Meta.Name, Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace})
+		apiGateways, err := p.getApiGateways(ctx,
+			&platform.GetAPIGatewaysOptions{
+				FunctionName: deleteFunctionOptions.FunctionConfig.Meta.Name,
+				Namespace:    deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+			})
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Failed to get API gateways for function %s",
 				deleteFunctionOptions.FunctionConfig.Meta.Name))
@@ -1418,20 +1422,20 @@ func (p *Platform) getApiGateways(ctx context.Context, getAPIGatewaysOptions *pl
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list API gateways")
 	}
-	if getAPIGatewaysOptions.FunctionName != "" {
-		var functionsApiGateways []nuclioio.NuclioAPIGateway
-		for _, apiGateway := range apiGateways.Items {
-			for _, upstream := range apiGateway.Spec.Upstreams {
+	if getAPIGatewaysOptions.FunctionName == "" {
+		return apiGateways.Items, nil
+	}
+	var functionsApiGateways []nuclioio.NuclioAPIGateway
+	for _, apiGateway := range apiGateways.Items {
+		for _, upstream := range apiGateway.Spec.Upstreams {
 
-				if upstream.NuclioFunction.Name == getAPIGatewaysOptions.FunctionName {
-					functionsApiGateways = append(functionsApiGateways, apiGateway)
-					break
-				}
+			if upstream.NuclioFunction.Name == getAPIGatewaysOptions.FunctionName {
+				functionsApiGateways = append(functionsApiGateways, apiGateway)
+				break
 			}
 		}
-		return functionsApiGateways, nil
 	}
-	return apiGateways.Items, nil
+	return functionsApiGateways, nil
 }
 
 func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions []platform.Function, namespace string) error {
