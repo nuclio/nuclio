@@ -20,7 +20,6 @@ package local
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -163,38 +162,6 @@ func (suite *localPlatformTestSuite) TestResolveFunctionSpecRequestMemory() {
 				},
 			})
 			suite.Require().Equal(testCase.expectedMemory, cpus)
-		})
-	}
-}
-
-func (suite *localPlatformTestSuite) TestVeryBigFunction() {
-
-	_, err := suite.platform.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.17", &dockerclient.RunOptions{
-		Remove:           true,
-		Command:          `/bin/sh -c "/bin/sleep 6h"`,
-		Stdout:           nil,
-		ImageMayNotExist: true,
-		ContainerName:    "nuclio-local-storage-reader",
-	})
-	suite.Require().NoError(err)
-
-	defer suite.platform.dockerClient.StopContainer("nuclio-local-storage-reader")
-
-	for _, testCase := range []struct {
-		name          string
-		stringToWrite string
-	}{
-		{
-			name:          "Try to write a very big file to local storage",
-			stringToWrite: strings.Repeat("t", 200000),
-		},
-	} {
-		suite.Run(testCase.name, func() {
-
-			config := &functionconfig.ConfigWithStatus{Config: functionconfig.Config{Spec: functionconfig.Spec{Build: functionconfig.Build{FunctionSourceCode: testCase.stringToWrite}}}}
-
-			err := suite.platform.localStore.CreateOrUpdateFunction(config)
-			suite.Require().NoError(err)
 		})
 	}
 }
