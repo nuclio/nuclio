@@ -168,6 +168,18 @@ func (suite *localPlatformTestSuite) TestResolveFunctionSpecRequestMemory() {
 }
 
 func (suite *localPlatformTestSuite) TestVeryBigFunction() {
+
+	_, err := suite.platform.dockerClient.RunContainer("gcr.io/iguazio/alpine:3.17", &dockerclient.RunOptions{
+		Remove:           true,
+		Command:          `/bin/sh -c "/bin/sleep 6h"`,
+		Stdout:           nil,
+		ImageMayNotExist: true,
+		ContainerName:    "nuclio-local-storage-reader",
+	})
+	suite.Require().NoError(err)
+
+	defer suite.platform.dockerClient.StopContainer("nuclio-local-storage-reader")
+
 	for _, testCase := range []struct {
 		name          string
 		stringToWrite string
