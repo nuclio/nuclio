@@ -371,7 +371,7 @@ func (s *Store) getResources(resourceDir string,
 func (s *Store) writeFileContents(filePath string, contents []byte) error {
 	s.logger.DebugWith("Writing file contents", "path", filePath, "contents", string(contents))
 
-	tempFile, err := os.CreateTemp(".", "contents-temp-file")
+	tempFile, err := os.CreateTemp(".", "nuclio-contents-temp-file-*")
 	if err != nil {
 		fmt.Println("Error creating temporary file:", err)
 		return err
@@ -381,9 +381,7 @@ func (s *Store) writeFileContents(filePath string, contents []byte) error {
 	defer os.Remove(tempFile.Name())
 
 	// Write content to the temporary file
-	encodedContent := base64.StdEncoding.EncodeToString(contents)
-	_, err = tempFile.WriteString(encodedContent)
-	if err != nil {
+	if _, err = tempFile.WriteString(base64.StdEncoding.EncodeToString(contents)); err != nil {
 		fmt.Println("Error writing to temporary file:", err)
 		return err
 	}
