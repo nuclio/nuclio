@@ -108,18 +108,22 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 		apiGatewayName := "get-test-apigateway" + uniqueSuffix
 		functionName := fmt.Sprintf("function-%d", apiGatewayIdx)
 		namedArgs := map[string]string{
-			"host":              fmt.Sprintf("some-host-%d", apiGatewayIdx),
-			"description":       fmt.Sprintf("some-description-%d", apiGatewayIdx),
-			"path":              fmt.Sprintf("some-path-%d", apiGatewayIdx),
-			"function":          fmt.Sprintf("function-%d", apiGatewayIdx),
-			"canary-function":   fmt.Sprintf("canary-function-%d", apiGatewayIdx),
-			"canary-percentage": "25",
+			"host":                fmt.Sprintf("some-host-%d", apiGatewayIdx),
+			"description":         fmt.Sprintf("some-description-%d", apiGatewayIdx),
+			"path":                fmt.Sprintf("some-path-%d", apiGatewayIdx),
+			"authentication-mode": "basicAuth",
+			"basic-auth-username": "basic-username",
+			"basic-auth-password": "basic-password",
+			"function":            fmt.Sprintf("function-%d", apiGatewayIdx),
+			"canary-function":     fmt.Sprintf("canary-function-%d", apiGatewayIdx),
+			"canary-percentage":   "25",
 		}
 
 		err := suite.ExecuteNuctl([]string{
 			"create",
 			"apigateway",
 			apiGatewayName,
+			"--mask-sensitive-fields",
 		}, namedArgs)
 
 		suite.Require().NoError(err)
