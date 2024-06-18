@@ -381,7 +381,8 @@ func (s *Store) writeFileContents(filePath string, contents []byte) error {
 	defer os.Remove(tempFile.Name())
 
 	// Write content to the temporary file
-	_, err = tempFile.Write(contents)
+	encodedContent := base64.StdEncoding.EncodeToString(contents)
+	_, err = tempFile.WriteString(encodedContent)
 	if err != nil {
 		fmt.Println("Error writing to temporary file:", err)
 		return err
