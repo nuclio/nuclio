@@ -31,6 +31,9 @@ type Client interface {
 	// this through an intermediate container which is deleted afterwards
 	CopyObjectsFromImage(imageName string, objectsToCopy map[string]string, allowCopyErrors bool) error
 
+	// CopyObjectsToContainer copies objects (files, directories) from a local storage to a container
+	CopyObjectsToContainer(containerName string, objectsToCopy map[string]string) error
+
 	// PushImage pushes a local image to a remote docker repository
 	PushImage(imageName string, registryURL string) error
 

@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -370,19 +371,24 @@ func (s *Store) getResources(resourceDir string,
 func (s *Store) writeFileContents(filePath string, contents []byte) error {
 	s.logger.DebugWith("Writing file contents", "path", filePath, "contents", string(contents))
 
-	// get the file dir
-	fileDir := path.Dir(filePath)
+	tempFile, err := os.CreateTemp(".", "contents-temp-file")
+	if err != nil {
+		fmt.Println("Error creating temporary file:", err)
+		return err
+	}
 
-	// set NUCLIO_CONTENTS as base64 encoded value
-	env := map[string]string{"NUCLIO_CONTENTS": base64.StdEncoding.EncodeToString(contents)}
+	// remove the temporary file at the end
+	defer os.Remove(tempFile.Name())
 
-	// generate a command
-	_, _, err := s.runCommand(env,
-		`/bin/sh -c "mkdir -p %s && /bin/printenv NUCLIO_CONTENTS > %s"`,
-		fileDir,
-		filePath)
+	// Write content to the temporary file
+	_, err = tempFile.Write(contents)
+	if err != nil {
+		fmt.Println("Error writing to temporary file:", err)
+		return err
+	}
+	// copy temporary file content to container
+	return s.dockerClient.CopyObjectsToContainer(containerName, map[string]string{tempFile.Name(): filePath})
 
-	return err
 }
 
 func (s *Store) runCommand(env map[string]string, format string, args ...interface{}) (string, string, error) {
