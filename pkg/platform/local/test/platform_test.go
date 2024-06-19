@@ -312,22 +312,6 @@ func (suite *TestSuite) TestDeployFunctionDisabledDefaultHttpTrigger() {
 		})
 }
 
-func (suite *TestSuite) TestDeployFunctionWithVeryLongSourceCode() {
-	createFunctionOptions := suite.getDeployOptions("very-long-func")
-	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = strings.Repeat("t", 200000)
-	localPlatform := suite.Platform.(*local.Platform)
-	suite.DeployFunction(createFunctionOptions,
-
-		// sanity
-		func(deployResult *platform.CreateFunctionResult) bool {
-			suite.Require().NotNil(deployResult)
-			containerId := suite.getFunctionContainerId(localPlatform, &createFunctionOptions.FunctionConfig)
-			suite.Require().NotEqual("", containerId)
-			return true
-		})
-}
-
 func (suite *TestSuite) TestDeployFunctionDisablePublishingPorts() {
 	createFunctionOptions := suite.getDeployOptions("no-publish-ports")
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace

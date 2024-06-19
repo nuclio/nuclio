@@ -158,10 +158,10 @@ func (c *ShellClient) CopyObjectsToContainer(containerName string, objectsToCopy
 	// copy objects
 	for objectLocalPath, objectContainerPath := range objectsToCopy {
 
-		// check if target directory exists, create it if it doesn't
+		// create target directory if it doesn't exist
 		fileDir := path.Dir(objectContainerPath)
 		if _, err := c.runCommand(nil, "docker exec %s mkdir -p %s", containerName, fileDir); err != nil {
-			return errors.Wrapf(err, "Error when creating directory for new file in container")
+			return errors.Wrapf(err, "Failed creating directory in container")
 		}
 
 		// copy an object from local storage to the given container
@@ -170,7 +170,7 @@ func (c *ShellClient) CopyObjectsToContainer(containerName string, objectsToCopy
 			objectLocalPath,
 			containerName,
 			objectContainerPath); err != nil {
-			return errors.Wrapf(err, "Can't copy %s:%s -> %s", containerName, objectContainerPath, objectLocalPath)
+			return errors.Wrapf(err, "Failed copying object %s to container %s:%s", objectLocalPath, containerName, objectContainerPath)
 		}
 	}
 

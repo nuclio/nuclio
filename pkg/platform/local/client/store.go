@@ -377,7 +377,7 @@ func (s *Store) writeFileContents(filePath string, contents []byte) error {
 	}
 
 	// remove the temporary file at the end
-	defer os.Remove(tempFile.Name())
+	defer os.Remove(tempFile.Name()) // nolint: errcheck
 
 	// encode contents to base64 and add a newline at the end
 	// newline at the end is needed to be able to parse files one be one
@@ -386,13 +386,13 @@ func (s *Store) writeFileContents(filePath string, contents []byte) error {
 
 	// write content to the temporary file
 	if _, err = tempFile.WriteString(encodedContents); err != nil {
-		tempFile.Close()
-		return errors.Wrap(err, "Error writing to temporary file")
+		tempFile.Close() // nolint: errcheck
+		return errors.Wrap(err, "Failed writing to temporary file")
 	}
 
-	// not using defer to ensure than we have closed the file before copying it
+	// not using defer to ensure that we have closed the file before copying it
 	if err = tempFile.Close(); err != nil {
-		return errors.Wrap(err, "Error closing temporary file")
+		return errors.Wrap(err, "Failed closing temporary file")
 	}
 
 	// copy temporary file content to container

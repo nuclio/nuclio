@@ -20,6 +20,7 @@ package local
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -162,6 +163,29 @@ func (suite *localPlatformTestSuite) TestResolveFunctionSpecRequestMemory() {
 				},
 			})
 			suite.Require().Equal(testCase.expectedMemory, cpus)
+		})
+	}
+}
+
+func (suite *localPlatformTestSuite) TestVeryBigFunction() {
+
+	_, _ = suite.platform.localStore.GetFunctions(&functionconfig.Meta{})
+
+	for _, testCase := range []struct {
+		name          string
+		stringToWrite string
+	}{
+		{
+			name:          "Try to write a very big file to local storage",
+			stringToWrite: strings.Repeat("t", 200000),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+
+			config := &functionconfig.ConfigWithStatus{Config: functionconfig.Config{Spec: functionconfig.Spec{Build: functionconfig.Build{FunctionSourceCode: testCase.stringToWrite}}}}
+
+			err := suite.platform.localStore.CreateOrUpdateFunction(config)
+			suite.Require().NoError(err)
 		})
 	}
 }
