@@ -373,18 +373,28 @@ func (s *Store) writeFileContents(filePath string, contents []byte) error {
 
 	tempFile, err := os.CreateTemp(".", "nuclio-contents-temp-file-*")
 	if err != nil {
-		fmt.Println("Error creating temporary file:", err)
-		return err
+		return errors.Wrap(err, "Error creating temporary file")
 	}
 
 	// remove the temporary file at the end
 	defer os.Remove(tempFile.Name())
 
-	// Write content to the temporary file
-	if _, err = tempFile.WriteString(base64.StdEncoding.EncodeToString(contents)); err != nil {
-		fmt.Println("Error writing to temporary file:", err)
-		return err
+	// encode contents to base64 and add a newline at the end
+	// newline at the end is needed to be able to parse files one be one
+	// when doing `cat /functions/*`
+	encodedContents := base64.StdEncoding.EncodeToString(contents) + "\n"
+
+	// write content to the temporary file
+	if _, err = tempFile.WriteString(encodedContents); err != nil {
+		tempFile.Close()
+		return errors.Wrap(err, "Error writing to temporary file")
 	}
+
+	// not using defer to ensure than we have closed the file before copying it
+	if err = tempFile.Close(); err != nil {
+		return errors.Wrap(err, "Error closing temporary file")
+	}
+
 	// copy temporary file content to container
 	return s.dockerClient.CopyObjectsToContainer(containerName, map[string]string{tempFile.Name(): filePath})
 
