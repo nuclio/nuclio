@@ -169,7 +169,7 @@ func (suite *localPlatformTestSuite) TestResolveFunctionSpecRequestMemory() {
 
 func (suite *localPlatformTestSuite) TestVeryBigFunction() {
 
-	// a small hack to set up required environment
+	// a small hack to set up local storage reader
 	_, _ = suite.platform.localStore.GetFunctions(&functionconfig.Meta{})
 
 	config := &functionconfig.ConfigWithStatus{
