@@ -32,7 +32,7 @@ type Client interface {
 	CopyObjectsFromImage(imageName string, objectsToCopy map[string]string, allowCopyErrors bool) error
 
 	// CopyObjectsToContainer copies objects (files, directories) from a local storage to a container
-	// objectToCopy is a map where keys are local storage path and values and container paths
+	// objectToCopy is a map where keys are local storage path and values are container paths
 	CopyObjectsToContainer(containerName string, objectsToCopy map[string]string) error
 
 	// PushImage pushes a local image to a remote docker repository

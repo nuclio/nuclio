@@ -172,27 +172,22 @@ func (suite *localPlatformTestSuite) TestVeryBigFunction() {
 	// a small hack to set up required environment
 	_, _ = suite.platform.localStore.GetFunctions(&functionconfig.Meta{})
 
-	for _, testCase := range []struct {
-		name          string
-		stringToWrite string
-	}{
-		{
-			name:          "Try to write a very big file to local storage",
-			stringToWrite: strings.Repeat("t", 200000),
+	config := &functionconfig.ConfigWithStatus{
+		Config: functionconfig.Config{
+			Spec: functionconfig.Spec{
+				Build: functionconfig.Build{
+					FunctionSourceCode: strings.Repeat("t", 200000),
+				},
+			},
 		},
-	} {
-		suite.Run(testCase.name, func() {
-
-			config := &functionconfig.ConfigWithStatus{Config: functionconfig.Config{Spec: functionconfig.Spec{Build: functionconfig.Build{FunctionSourceCode: testCase.stringToWrite}}}}
-
-			err := suite.platform.localStore.CreateOrUpdateFunction(config)
-			suite.Require().NoError(err)
-
-			// check that function can be parsed successfully
-			_, err = suite.platform.localStore.GetFunctions(&functionconfig.Meta{Namespace: "nuclio"})
-			suite.Require().NoError(err)
-		})
 	}
+
+	err := suite.platform.localStore.CreateOrUpdateFunction(config)
+	suite.Require().NoError(err)
+
+	// check that function can be parsed successfully
+	_, err = suite.platform.localStore.GetFunctions(&functionconfig.Meta{Namespace: "nuclio"})
+	suite.Require().NoError(err)
 }
 
 func TestKubePlatformTestSuite(t *testing.T) {

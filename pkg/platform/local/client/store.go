@@ -396,7 +396,10 @@ func (s *Store) writeFileContents(filePath string, contents []byte) error {
 	}
 
 	// copy temporary file content to container
-	return s.dockerClient.CopyObjectsToContainer(containerName, map[string]string{tempFile.Name(): filePath})
+	return s.dockerClient.CopyObjectsToContainer(containerName,
+		map[string]string{
+			tempFile.Name(): filePath,
+		})
 
 }
 

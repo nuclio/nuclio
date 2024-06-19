@@ -153,6 +153,7 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string,
 }
 
 // CopyObjectsToContainer copies objects (files, directories) from a local storage to a container
+// objectToCopy is a map where keys are local storage path and values are container paths
 func (c *ShellClient) CopyObjectsToContainer(containerName string, objectsToCopy map[string]string) error {
 
 	// copy objects
