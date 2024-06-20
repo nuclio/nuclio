@@ -37,7 +37,7 @@ func main() {
 	cmd.DisableAutoGenTag = true
 
 	if err := doc.GenMarkdownTree(cmd, outputPath); err != nil {
-		log.Fatalf("Failed to generate Markdown documentation: %v", err)
+		log.Fatalf("Failed to generate Markdown documentation: %v", err.Error())
 	}
 
 	fmt.Printf("Documentation generated at: %s\n", outputPath)
