@@ -82,8 +82,8 @@ jobs:
 
       - name: Check Nuctl docs changes
         run: |
-          git config --global user.name ${{ env.GIT_ACTIONS_BOT_NAME }}
-          git config --global user.email ${{ env.GIT_ACTIONS_BOT_EMAIL }}
+          git config --global user.name ${{ env.GITHUB_ACTIONS_BOT_NAME }}
+          git config --global user.email ${{ env.GITHUB_ACTIONS_BOT_EMAIL }}
           if [[ -n $(git status --porcelain ${{ env.NUCTL_DOCUMENTATION_PATH }}) ]]; then
             echo "::error::Documentation needs to be regenerated. Please run 'make generate-nuctl-docs' and commit the changes."
             echo "Differences between current and generated state:"
