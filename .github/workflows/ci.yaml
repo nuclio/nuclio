@@ -38,6 +38,8 @@ env:
   NAMESPACE: nuclio
   NUCLIO_GO_TEST_TIMEOUT: "30m"
   DOCKER_BUILDKIT: 1
+  GIT_ACTIONS_BOT_NAME: github-actions[bot]
+  GIT_ACTIONS_BOT_EMAIL: github-actions[bot]@users.noreply.github.com
 
 jobs:
   lint:
@@ -79,8 +81,8 @@ jobs:
 
       - name: Check Nuctl docs changes
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name ${{ env.GIT_ACTIONS_BOT_NAME }}
+          git config --global user.email ${{ env.GIT_ACTIONS_BOT_EMAIL }}
           if [[ -n $(git status --porcelain docs/reference/nuctl/cli-docs) ]]; then
             echo "::error::Documentation needs to be regenerated. Please run 'make generate-nuctl-docs' and commit the changes."
             echo "Differences between current and generated state:"
