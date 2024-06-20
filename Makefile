@@ -882,9 +882,7 @@ print-nuctl-docs-path:
 
 .PHONY: generate-nuctl-docs
 generate-nuctl-docs:
-	go run \
-		pkg/nuctl/generator/docs.go \
- 		$(NUCTL_DOCUMENTATION_PATH)
+	@go run pkg/nuctl/generator/docs.go $(NUCTL_DOCUMENTATION_PATH)
 #
 # PATCH REMOTE SYSTEM
 #

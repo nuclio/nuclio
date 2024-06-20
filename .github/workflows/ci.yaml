@@ -56,6 +56,7 @@ jobs:
 
       - name: Lint
         run: make lint
+
   check-nuctl-docs:
     runs-on: ubuntu-latest
 
@@ -86,7 +87,7 @@ jobs:
           else
             echo "No changes in nuctl documentation."
           fi
-          
+
   check-copyright-license:
     name: Check copyright and license
     runs-on: ubuntu-latest
