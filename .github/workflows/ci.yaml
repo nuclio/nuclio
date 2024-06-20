@@ -76,7 +76,7 @@ jobs:
       - name: Generate Nuctl docs
         run: make generate-nuctl-docs
 
-      - name: Get Makefile Variable
+      - name: Get Nuctl docs path
         id: get-nuctl-docs-path
         run: echo "NUCTL_DOCUMENTATION_PATH=$(make print-nuctl-docs-path | tail -n 1)" >> $GITHUB_ENV
 
