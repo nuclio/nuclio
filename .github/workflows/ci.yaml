@@ -77,18 +77,17 @@ jobs:
         id: get-nuctl-docs-path
         run: echo "NUCTL_DOCUMENTATION_PATH=$(make print-nuctl-docs-path | tail -n 1)" >> $GITHUB_ENV
 
-      - name: Check for changes in docs
+      - name: Check Nuctl docs changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           if [[ -n $(git status --porcelain docs/reference/nuctl/cli-docs) ]]; then
-            echo "Documentation needs to be regenerated."
             echo "::error::Documentation needs to be regenerated. Please run 'make generate-nuctl-docs' and commit the changes."
             echo "Differences between current and generated state:"
             git diff docs/reference/nuctl/cli-docs
             exit 1
           else
-            echo "No changes in documentation."
+            echo "No changes in nuctl documentation."
           fi
 
   check-copyright-license:
