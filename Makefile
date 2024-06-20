@@ -874,7 +874,9 @@ modules: ensure-gopath
 targets:
 	@awk -F: '/^[^ \t="]+:/ && !/PHONY/ {print $$1}' Makefile | sort -u
 
+#
 # NUCTL DOCS
+#
 .PHONY: print-nuctl-docs-path
 print-nuctl-docs-path:
 	@echo $(NUCTL_DOCUMENTATION_PATH)
@@ -883,6 +885,7 @@ print-nuctl-docs-path:
 .PHONY: generate-nuctl-docs
 generate-nuctl-docs:
 	@go run pkg/nuctl/generator/docs.go $(NUCTL_DOCUMENTATION_PATH)
+
 #
 # PATCH REMOTE SYSTEM
 #
