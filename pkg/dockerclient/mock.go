@@ -47,6 +47,12 @@ func (mdc *MockDockerClient) CopyObjectsFromImage(imageName string, objectsToCop
 	return nil
 }
 
+// CopyObjectsToContainer copies objects (files, directories) from a local storage to a container
+// objectToCopy is a map where keys are local storage path and values are container paths
+func (mdc *MockDockerClient) CopyObjectsToContainer(containerName string, objectsToCopy map[string]string) error {
+	return nil
+}
+
 // PushImage pushes a local image to a remote docker repository
 func (mdc *MockDockerClient) PushImage(imageName string, registryURL string) error {
 	return nil

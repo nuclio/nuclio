@@ -20,6 +20,7 @@ package local
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -164,6 +165,29 @@ func (suite *localPlatformTestSuite) TestResolveFunctionSpecRequestMemory() {
 			suite.Require().Equal(testCase.expectedMemory, cpus)
 		})
 	}
+}
+
+func (suite *localPlatformTestSuite) TestVeryBigFunction() {
+
+	// a small hack to set up local storage reader
+	_, _ = suite.platform.localStore.GetFunctions(&functionconfig.Meta{})
+
+	config := &functionconfig.ConfigWithStatus{
+		Config: functionconfig.Config{
+			Spec: functionconfig.Spec{
+				Build: functionconfig.Build{
+					FunctionSourceCode: strings.Repeat("t", 200000),
+				},
+			},
+		},
+	}
+
+	err := suite.platform.localStore.CreateOrUpdateFunction(config)
+	suite.Require().NoError(err)
+
+	// check that function can be parsed successfully
+	_, err = suite.platform.localStore.GetFunctions(&functionconfig.Meta{Namespace: "nuclio"})
+	suite.Require().NoError(err)
 }
 
 func TestKubePlatformTestSuite(t *testing.T) {
