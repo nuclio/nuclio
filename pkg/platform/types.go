@@ -527,10 +527,11 @@ type DeleteAPIGatewayOptions struct {
 }
 
 type GetAPIGatewaysOptions struct {
-	Name        string
-	Namespace   string
-	Labels      string
-	AuthSession auth.Session
+	Name         string
+	Namespace    string
+	Labels       string
+	FunctionName string
+	AuthSession  auth.Session
 }
 
 // to appease k8s

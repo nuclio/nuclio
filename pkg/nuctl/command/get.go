@@ -275,6 +275,7 @@ func newGetAPIGatewayCommandeer(ctx context.Context, getCommandeer *getCommandee
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", common.OutputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().StringVar(&commandeer.getAPIGatewaysOptions.FunctionName, "function-name", "", "Function name to filter api gateways")
 
 	commandeer.cmd = cmd
 

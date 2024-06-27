@@ -152,6 +152,32 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string,
 	return nil
 }
 
+// CopyObjectsToContainer copies objects (files, directories) from a local storage to a container
+// objectToCopy is a map where keys are local storage path and values are container paths
+func (c *ShellClient) CopyObjectsToContainer(containerName string, objectsToCopy map[string]string) error {
+
+	// copy objects
+	for objectLocalPath, objectContainerPath := range objectsToCopy {
+
+		// create target directory if it doesn't exist
+		fileDir := path.Dir(objectContainerPath)
+		if _, err := c.runCommand(nil, "docker exec %s mkdir -p %s", containerName, fileDir); err != nil {
+			return errors.Wrapf(err, "Failed creating directory in container")
+		}
+
+		// copy an object from local storage to the given container
+		if _, err := c.runCommand(nil,
+			"docker cp %s %s:%s ",
+			objectLocalPath,
+			containerName,
+			objectContainerPath); err != nil {
+			return errors.Wrapf(err, "Failed copying object %s to container %s:%s", objectLocalPath, containerName, objectContainerPath)
+		}
+	}
+
+	return nil
+}
+
 // PushImage pushes a local image to a remote docker repository
 func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 	taggedImage := common.CompileImageName(registryURL, imageName)

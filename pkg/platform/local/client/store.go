@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"sort"
 	"strings"
@@ -370,19 +371,36 @@ func (s *Store) getResources(resourceDir string,
 func (s *Store) writeFileContents(filePath string, contents []byte) error {
 	s.logger.DebugWith("Writing file contents", "path", filePath, "contents", string(contents))
 
-	// get the file dir
-	fileDir := path.Dir(filePath)
+	tempFile, err := os.CreateTemp(".", "nuclio-contents-temp-file-*")
+	if err != nil {
+		return errors.Wrap(err, "Error creating temporary file")
+	}
 
-	// set NUCLIO_CONTENTS as base64 encoded value
-	env := map[string]string{"NUCLIO_CONTENTS": base64.StdEncoding.EncodeToString(contents)}
+	// remove the temporary file at the end
+	defer os.Remove(tempFile.Name()) // nolint: errcheck
 
-	// generate a command
-	_, _, err := s.runCommand(env,
-		`/bin/sh -c "mkdir -p %s && /bin/printenv NUCLIO_CONTENTS > %s"`,
-		fileDir,
-		filePath)
+	// encode contents to base64 and add a newline at the end
+	// newline at the end is needed to be able to parse files one be one
+	// when doing `cat /functions/*`
+	encodedContents := base64.StdEncoding.EncodeToString(contents) + "\n"
 
-	return err
+	// write content to the temporary file
+	if _, err = tempFile.WriteString(encodedContents); err != nil {
+		tempFile.Close() // nolint: errcheck
+		return errors.Wrap(err, "Failed writing to temporary file")
+	}
+
+	// not using defer to ensure that we have closed the file before copying it
+	if err = tempFile.Close(); err != nil {
+		return errors.Wrap(err, "Failed closing temporary file")
+	}
+
+	// copy temporary file content to container
+	return s.dockerClient.CopyObjectsToContainer(containerName,
+		map[string]string{
+			tempFile.Name(): filePath,
+		})
+
 }
 
 func (s *Store) runCommand(env map[string]string, format string, args ...interface{}) (string, string, error) {

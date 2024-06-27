@@ -110,14 +110,14 @@ endif
 
 NUCLIO_BASE_IMAGE_TAG ?= 1.21
 NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.21-alpine
-
+DEFAULT_NUCTL_DOCUMENTATION_PATH := docs/reference/nuctl/cli
+NUCTL_DOCUMENTATION_PATH := $(if $(NUCTL_DOCUMENTATION_PATH),$(NUCTL_DOCUMENTATION_PATH),$(DEFAULT_NUCTL_DOCUMENTATION_PATH))
 #
 #  Must be first target
 #
 .PHONY: all
 all:
 	$(error "Please pick a target (run 'make targets' to view targets)")
-
 
 #
 # Version resources
@@ -873,6 +873,18 @@ modules: ensure-gopath
 .PHONY: targets
 targets:
 	@awk -F: '/^[^ \t="]+:/ && !/PHONY/ {print $$1}' Makefile | sort -u
+
+#
+# NUCTL DOCS
+#
+.PHONY: print-nuctl-docs-path
+print-nuctl-docs-path:
+	@echo $(NUCTL_DOCUMENTATION_PATH)
+
+
+.PHONY: generate-nuctl-docs
+generate-nuctl-docs:
+	@go run pkg/nuctl/generator/docs.go $(NUCTL_DOCUMENTATION_PATH)
 
 #
 # PATCH REMOTE SYSTEM
