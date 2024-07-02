@@ -685,7 +685,7 @@ func (b *Builder) resolveFunctionPath(ctx context.Context, functionPath string) 
 
 	// if the function path is a URL, type is Github or S3 - first download the file
 	// for backwards compatibility, don't check for entry type url specifically
-	if functionPath, err = b.resolveFunctionPathFromURL(functionPath, codeEntryType); err != nil {
+	if functionPath, err = b.resolveFunctionPathFromURL(ctx, functionPath, codeEntryType); err != nil {
 		return "", "", errors.Wrap(err, "Failed to download function from the given URL")
 	}
 
@@ -1609,11 +1609,13 @@ func (b *Builder) renderDependantImageURL(imageURL string, dependantImagesRegist
 	return renderedImageURL, nil
 }
 
-func (b *Builder) resolveFunctionPathFromURL(functionPath string, codeEntryType string) (string, error) {
+func (b *Builder) resolveFunctionPathFromURL(ctx context.Context, functionPath string, codeEntryType string) (string, error) {
 	var err error
 
 	if common.IsURL(functionPath) || codeEntryType == S3EntryType {
 		if codeEntryType == GithubEntryType {
+			b.logger.WarnCtx(ctx, "'Github' code entry type is deprecated and will be removed in Nuclio 1.16.x, "+
+				"please use 'Git' entry type instead")
 			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
 			if err != nil {
 				return "", errors.Wrapf(err, "Failed to infer function path of github entry type")
