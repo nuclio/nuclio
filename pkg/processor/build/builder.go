@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -61,11 +62,14 @@ import (
 const (
 	uhttpcImage         = "quay.io/nuclio/uhttpc:0.0.1-%s"
 	GitEntryType        = "git"
-	GithubEntryType     = "github"
 	ArchiveEntryType    = "archive"
 	S3EntryType         = "s3"
 	ImageEntryType      = "image"
 	SourceCodeEntryType = "sourceCode"
+
+	// Deprecated: use GitEntryType
+	// TODO: Remove in 1.16.0
+	GithubEntryType = "github"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -743,13 +747,51 @@ func (b *Builder) validateAndParseS3Attributes(attributes map[string]interface{}
 
 func (b *Builder) getFunctionPathFromGithubURL(functionPath string) (string, error) {
 	if branch, ok := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["branch"]; ok {
-		functionPath = fmt.Sprintf("%s/archive/%s.zip",
-			strings.TrimRight(functionPath, "/"),
-			branch)
+		var err error
+		functionPath, err = b.generateGithubZipballURL(functionPath, branch.(string))
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to generate github zipball URL")
+		}
 	} else {
 		return "", errors.New("If code entry type is github, branch must be provided")
 	}
 	return functionPath, nil
+}
+
+func (b *Builder) generateGithubZipballURL(functionPath, branch string) (string, error) {
+	// split the URL to get the ORG and REPO using regex
+	org, repo, err := b.resolveGithubUrlComponents(functionPath)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to resolve github URL components")
+	}
+
+	// create the URL for downloading the zipball Github api
+	return fmt.Sprintf("https://api.github.com/repos/%s/%s/zipball/%s", org, repo, branch), nil
+}
+
+func (b *Builder) resolveGithubUrlComponents(url string) (string, string, error) {
+	githubURLPattern := "^.*://.*github.com(?:/repos)?/(?P<org>[^/]+)/(?P<repo>[^/]+)/?$"
+	exp := regexp.MustCompile(githubURLPattern)
+	match := exp.FindStringSubmatch(url)
+
+	if match == nil {
+		return "", "", errors.New("Failed to match github URL")
+	}
+
+	result := map[string]string{}
+	for i, name := range exp.SubexpNames() {
+		if i != 0 && name != "" {
+			result[name] = match[i]
+		}
+	}
+
+	_, orgOk := result["org"]
+	_, repoOk := result["repo"]
+	if !orgOk || !repoOk {
+		return "", "", errors.New("Failed to extract org and repo from github URL")
+	}
+
+	return result["org"], result["repo"], nil
 }
 
 func (b *Builder) extractFunctionArchive(ctx context.Context, functionPath string) (string, error) {

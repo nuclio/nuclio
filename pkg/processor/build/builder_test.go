@@ -568,7 +568,7 @@ func (suite *testSuite) TestResolveFunctionPathNonStringWorkDir() {
 }
 
 func (suite *testSuite) TestResolveFunctionPathGithubCodeEntry() {
-	archiveFileURL := "https://github.com/nuclio/my-func/archive/master.zip"
+	archiveFileURL := "https://api.github.com/repos/nuclio/my-func/zipball/master"
 	buildConfiguration := functionconfig.Build{
 		CodeEntryType: GithubEntryType,
 		Path:          "https://github.com/nuclio/my-func",
@@ -877,6 +877,77 @@ func (suite *testSuite) TestResolveRepoName() {
 		suite.builder.processorImage.imageName = testCase.imageName
 		repoName := suite.builder.resolveRepoName(testCase.imageURL)
 		suite.Assert().Equal(testCase.expectedRepoName, repoName)
+	}
+}
+
+func (suite *testSuite) TestResolveGithubUrlComponents() {
+	for _, testCase := range []struct {
+		name          string
+		url           string
+		org           string
+		repo          string
+		expectedError bool
+	}{
+		// Happy flows
+		{
+			name: "valid github url",
+			url:  "https://github.com/my-org/my-repo",
+			org:  "my-org",
+			repo: "my-repo",
+		},
+		{
+			name: "valid github with http",
+			url:  "http://github.com/my-org/my-repo",
+			org:  "my-org",
+			repo: "my-repo",
+		},
+		{
+			name: "valid github with trailing slash",
+			url:  "https://github.com/my-org/my-repo/",
+			org:  "my-org",
+			repo: "my-repo",
+		},
+		{
+			name: "valid github with www",
+			url:  "https://www.github.com/my-org/my-repo/",
+			org:  "my-org",
+			repo: "my-repo",
+		},
+		{
+			name: "valid github api url",
+			url:  "https://api.github.com/repos/my-org/my-repo",
+			org:  "my-org",
+			repo: "my-repo",
+		},
+		// Error flows
+		{
+			name:          "non github url",
+			url:           "https://foo.com/my-org/my-repo",
+			expectedError: true,
+		},
+
+		{
+			name:          "invalid github url",
+			url:           "https://github.com/my-org/something/my-repo",
+			expectedError: true,
+		},
+
+		{
+			name:          "valid github without protocol",
+			url:           "github.com/my-org/my-repo",
+			expectedError: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			org, repo, err := suite.builder.resolveGithubUrlComponents(testCase.url)
+			if testCase.expectedError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(testCase.org, org)
+				suite.Require().Equal(testCase.repo, repo)
+			}
+		})
 	}
 }
 
