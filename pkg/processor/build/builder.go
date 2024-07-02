@@ -67,7 +67,6 @@ const (
 	ImageEntryType      = "image"
 	SourceCodeEntryType = "sourceCode"
 
-	// Deprecated: use GitEntryType
 	// TODO: Remove in 1.16.0
 	GithubEntryType = "github"
 )
