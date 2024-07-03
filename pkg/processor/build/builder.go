@@ -72,6 +72,10 @@ const (
 	GithubURLRegexPattern = "^.*://.*github.com(?:/repos)?/(?P<org>[^/]+)/(?P<repo>[^/]+)/?$"
 )
 
+// githubURLRegex complies the GitHub URL regex once instead of every function build, to improve performance
+// TODO: Remove in 1.16.0
+var githubURLRegex = regexp.MustCompile(GithubURLRegexPattern)
+
 // holds parameters for things that are required before a runtime can be initialized
 type runtimeInfo struct {
 	extension    string
@@ -127,9 +131,6 @@ type Builder struct {
 	versionInfo *version.Info
 
 	gitClient gitcommon.Client
-
-	// TODO: Remove in 1.16.x once we remove the deprecated `github` entry type
-	githubRegex *regexp.Regexp
 }
 
 // NewBuilder returns a new builder
@@ -141,9 +142,6 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform, s3Client
 		platform:    platform,
 		s3Client:    s3Client,
 		versionInfo: version.Get(),
-
-		// TODO: Remove in 1.16.x once we remove the deprecated `github` entry type
-		githubRegex: regexp.MustCompile(GithubURLRegexPattern),
 	}
 
 	newBuilder.initializeSupportedRuntimes()
@@ -777,13 +775,13 @@ func (b *Builder) generateGithubZipballURL(functionPath, branch string) (string,
 
 // extractOrgAndRepoFromGithubURL extracts the org and repo from a GitHub URL
 func (b *Builder) extractOrgAndRepoFromGithubURL(url string) (string, string, error) {
-	match := b.githubRegex.FindStringSubmatch(url)
+	match := githubURLRegex.FindStringSubmatch(url)
 	if match == nil {
 		return "", "", errors.New("Failed to match GitHub URL")
 	}
 
 	result := map[string]string{}
-	for i, name := range b.githubRegex.SubexpNames() {
+	for i, name := range githubURLRegex.SubexpNames() {
 		if i != 0 && name != "" {
 			result[name] = match[i]
 		}
