@@ -880,7 +880,7 @@ func (suite *testSuite) TestResolveRepoName() {
 	}
 }
 
-func (suite *testSuite) TestResolveGithubUrlComponents() {
+func (suite *testSuite) TestExtractOrgAndRepoFromGithubURL() {
 	for _, testCase := range []struct {
 		name          string
 		url           string
@@ -939,7 +939,7 @@ func (suite *testSuite) TestResolveGithubUrlComponents() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			org, repo, err := suite.builder.resolveGithubUrlComponents(testCase.url)
+			org, repo, err := suite.builder.extractOrgAndRepoFromGithubURL(testCase.url)
 			if testCase.expectedError {
 				suite.Require().Error(err)
 			} else {
