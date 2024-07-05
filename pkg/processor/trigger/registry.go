@@ -17,11 +17,14 @@ limitations under the License.
 package trigger
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/registry"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -51,7 +54,7 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 
 	registree, err := r.Get(kind)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, fmt.Sprintf("Trigger of kind `%s` is not supported", kind))
 	}
 
 	triggerConfiguration.Name = name
