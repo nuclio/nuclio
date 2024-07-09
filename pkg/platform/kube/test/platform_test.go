@@ -146,6 +146,7 @@ func NotExpectedHandler(context *nuclio.Context, event nuclio.Event) (interface{
   return nil, nil
 }`
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+				createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 				return createFunctionOptions
 			}(),
 			ExpectedBriefErrorsMessage: `
@@ -163,6 +164,7 @@ Error - plugin: symbol ExpectedHandler not found in plugin github.com/nuclio/nuc
    return ""
 `
 				createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+				createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 				return createFunctionOptions
 			}(),
 
@@ -190,6 +192,7 @@ AttributeError: module 'main' has no attribute 'expected_handler'
 				createFunctionOptions.FunctionConfig.Spec.Resources.Limits = map[v1.ResourceName]resource.Quantity{
 					functionconfig.NvidiaGPUResourceName: resource.MustParse("99"),
 				}
+				createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 				return createFunctionOptions
 			}(),
 
@@ -1030,7 +1033,7 @@ func (suite *DeployFunctionTestSuite) TestMultipleVolumeSecrets() {
 			},
 		},
 	}
-
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 	// deploy function, we expect a failure due to the v3io access key being a dummy value
 	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
 
