@@ -708,7 +708,7 @@ test-k8s-undockerized: ensure-gopath
 test-functions-k8s-undockerized: ensure-gopath
 	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
 	go test \
-		-tags="test_integration,test_kube" \
+		-tags="test_integration,test_kube,test_functions_kube" \
  		-v \
  		-p 1 \
  		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
