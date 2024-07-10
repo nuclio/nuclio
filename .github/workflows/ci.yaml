@@ -342,6 +342,9 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build_docker_images
+    strategy:
+      matrix:
+        test-target: [ test-k8s, test-functions-k8s ]
     steps:
       - uses: actions/checkout@v3
 
@@ -397,14 +400,12 @@ jobs:
 
           # install helm chart
           ./test/k8s/ci_assets/install_nuclio_crds.sh
-
-      - name: Run k8s tests
+      - name: Write function host to /etc/hosts
         run: |
-
-          # write function host to /etc/hosts
           echo "${NUCLIO_EXTERNAL_IP_ADDRESS} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
 
-          make test-k8s
+      - name: Run k8s tests
+        run: make ${{ matrix.test-target }}
 
   test_python:
     name: Test python

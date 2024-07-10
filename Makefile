@@ -704,6 +704,16 @@ test-k8s-undockerized: ensure-gopath
  		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
  		$(shell go list -tags="test_integration,test_kube" ./cmd/... ./pkg/... | grep -v nuctl)
 
+.PHONY: test-functions-k8s-undockerized
+test-functions-k8s-undockerized: ensure-gopath
+	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
+	go test \
+		-tags="test_integration,test_kube" \
+ 		-v \
+ 		-p 1 \
+ 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+ 		$(shell go list -tags="test_integration,test_kube,test_functions" ./cmd/... ./pkg/... | grep -v nuctl)
+
 .PHONY: test-broken-undockerized
 test-broken-undockerized: ensure-gopath
 	${eval LIST=${shell make --no-print-directory $(LIST_TESTS_MAKE_COMMAND)}}
@@ -734,9 +744,8 @@ test: build-test
 		--env NUCLIO_CI_SKIP_STRESS_TEST \
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "git config --global --add safe.directory /nuclio && LIST_TESTS_MAKE_COMMAND=${LIST_TESTS_MAKE_COMMAND} make ${NUCLIO_TEST_MAKE_TARGET}"
-.PHONY: test-k8s
-test-k8s: build-test
-	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
+
+DOCKER_RUN_OPTIONS_FOR_K8S_TESTS := \
 	docker run \
 		--rm \
 		--network host \
@@ -758,7 +767,18 @@ test-k8s: build-test
 		--env KUBECONFIG=/kubeconfig \
 		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "git config --global --add safe.directory /nuclio && make test-k8s-undockerized"
+		/bin/bash -c "git config --global --add safe.directory /nuclio && make"
+
+.PHONY: test-k8s
+test-k8s: build-test
+	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
+	$(DOCKER_RUN_OPTIONS_FOR_K8S_TESTS) test-k8s-undockerized
+
+.PHONY: test-functions-k8s
+test-functions-k8s: build-test
+	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
+	$(DOCKER_RUN_OPTIONS_FOR_K8S_TESTS) test-functions-k8s-undockerized
+
 
 # Runs from host to allow full control over Kubernetes cluster
 .PHONY: test-k8s-functional

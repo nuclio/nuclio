@@ -26,14 +26,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/test"
+	suite2 "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ControllerTestSuite struct {
-	test.KubeTestSuite
+	suite2.KubeTestSuite
 }
 
 func (suite *ControllerTestSuite) SetupSuite() {
