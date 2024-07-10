@@ -344,7 +344,7 @@ jobs:
       - build_docker_images
     strategy:
       matrix:
-        test-target: [ test-k8s, test-functions-k8s ]
+        test-target: [test-k8s, test-functions-k8s]
     steps:
       - uses: actions/checkout@v3
 
