@@ -712,7 +712,7 @@ test-functions-k8s-undockerized: ensure-gopath
  		-v \
  		-p 1 \
  		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
- 		$(shell go list -tags="test_integration,test_kube,test_functions" ./cmd/... ./pkg/... | grep -v nuctl)
+ 		$(shell go list -tags="test_integration,test_kube,test_functions_kube" ./cmd/... ./pkg/... | grep -v nuctl)
 
 .PHONY: test-broken-undockerized
 test-broken-undockerized: ensure-gopath
@@ -745,40 +745,31 @@ test: build-test
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "git config --global --add safe.directory /nuclio && LIST_TESTS_MAKE_COMMAND=${LIST_TESTS_MAKE_COMMAND} make ${NUCLIO_TEST_MAKE_TARGET}"
 
-DOCKER_RUN_OPTIONS_FOR_K8S_TESTS := \
-	docker run \
-		--rm \
-		--network host \
-		--volume /var/run/docker.sock:/var/run/docker.sock \
-		--volume $(GOPATH)/bin:/go/bin \
-		--volume $(NUCLIO_PATH):$(GO_BUILD_TOOL_WORKDIR) \
-		--volume /tmp:/tmp \
-		--volume $(NUCLIO_TEST_KUBECONFIG)/:/kubeconfig \
-		--workdir $(GO_BUILD_TOOL_WORKDIR) \
-		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
-		--env NUCLIO_EXTERNAL_IP_ADDRESS=$(NUCLIO_EXTERNAL_IP_ADDRESS) \
-		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
-		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
-		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
-		--env NUCLIO_TEST_REGISTRY_URL=$(NUCLIO_TEST_REGISTRY_URL) \
-		--env NUCLIO_OS=$(NUCLIO_OS) \
-		--env MINIKUBE_HOME=$(MINIKUBE_HOME) \
-		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
-		--env KUBECONFIG=/kubeconfig \
-		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
-		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "git config --global --add safe.directory /nuclio && make"
-
 .PHONY: test-k8s
 test-k8s: build-test
-	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
-	$(DOCKER_RUN_OPTIONS_FOR_K8S_TESTS) test-k8s-undockerized
-
-.PHONY: test-functions-k8s
-test-functions-k8s: build-test
-	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
-	$(DOCKER_RUN_OPTIONS_FOR_K8S_TESTS) test-functions-k8s-undockerized
-
+	docker run \
+    		--rm \
+    		--network host \
+    		--volume /var/run/docker.sock:/var/run/docker.sock \
+    		--volume $(GOPATH)/bin:/go/bin \
+    		--volume $(NUCLIO_PATH):$(GO_BUILD_TOOL_WORKDIR) \
+    		--volume /tmp:/tmp \
+    		--volume $(NUCLIO_TEST_KUBECONFIG)/:/kubeconfig \
+    		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+    		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+    		--env NUCLIO_EXTERNAL_IP_ADDRESS=$(NUCLIO_EXTERNAL_IP_ADDRESS) \
+    		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+    		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+    		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+    		--env NUCLIO_TEST_REGISTRY_URL=$(NUCLIO_TEST_REGISTRY_URL) \
+    		--env NUCLIO_OS=$(NUCLIO_OS) \
+    		--env MINIKUBE_HOME=$(MINIKUBE_HOME) \
+    		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+    		--env KUBECONFIG=/kubeconfig \
+    		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
+    		--env NUCLIO_K8S_TEST_MAKE_TARGET=${NUCLIO_K8S_TEST_MAKE_TARGET} \
+    		$(NUCLIO_DOCKER_TEST_TAG) \
+    		/bin/bash -c "git config --global --add safe.directory /nuclio && make $(NUCLIO_K8S_TEST_MAKE_TARGET)"
 
 # Runs from host to allow full control over Kubernetes cluster
 .PHONY: test-k8s-functional

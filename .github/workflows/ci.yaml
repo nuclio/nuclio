@@ -344,7 +344,7 @@ jobs:
       - build_docker_images
     strategy:
       matrix:
-        test-target: [test-k8s, test-functions-k8s]
+        test-target: [test-functions-k8s-undockerized, test-k8s-undockerized]
     steps:
       - uses: actions/checkout@v3
 
@@ -405,7 +405,7 @@ jobs:
           echo "${NUCLIO_EXTERNAL_IP_ADDRESS} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
 
       - name: Run k8s tests
-        run: make ${{ matrix.test-target }}
+        run: NUCLIO_K8S_TEST_MAKE_TARGET=${{ matrix.test-target }} make test-k8s
 
   test_python:
     name: Test python
