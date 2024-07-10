@@ -11,4 +11,4 @@ Nuctl
    :maxdepth: 1
   
    nuctl
-   cli-docs/index
+   cli/index
