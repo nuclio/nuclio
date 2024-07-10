@@ -173,10 +173,11 @@ def handler(context, event):
   - [在免费的 Kubernetes 集群中安装 Nuclio 并运行函数，以进行各种探索和试验](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 - 贡献指南
   - [代码规范](/docs/devel/coding-conventions.md)
-  - [像 Nuclio 做贡献](/docs/devel/contributing.md)
+  - [向 Nuclio 做贡献](/docs/devel/contributing.md)
 - 媒体平台
   - [使用 Nuclio 运行告诉的 Serverless (PPT)](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio)
   - [CNCF 网络研讨会 – Serverless and AI (视频)](https://www.youtube.com/watch?v=pTCx569Kd4A)
+
   - [使用 Servreless 加快 AI 开发 (指南)](https://dzone.com/articles/tutorial-faster-ai-development-with-serverless)
   - [Nuclio 即 Serverless 的未来 (博客)](https://thenewstack.io/whats-next-serverless/)
   - [Nuclio: 新兴的 Serverless 超级英雄 (博客))](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
