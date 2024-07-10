@@ -767,7 +767,6 @@ test-k8s: build-test
     		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
     		--env KUBECONFIG=/kubeconfig \
     		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
-    		--env NUCLIO_K8S_TEST_MAKE_TARGET=${NUCLIO_K8S_TEST_MAKE_TARGET} \
     		$(NUCLIO_DOCKER_TEST_TAG) \
     		/bin/bash -c "git config --global --add safe.directory /nuclio && make $(NUCLIO_K8S_TEST_MAKE_TARGET)"
 
