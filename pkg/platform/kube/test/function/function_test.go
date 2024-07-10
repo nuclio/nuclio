@@ -37,7 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	suite2 "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
+	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
@@ -59,7 +59,7 @@ import (
 )
 
 type DeployFunctionTestSuite struct {
-	suite2.KubeTestSuite
+	kubesuite.KubeTestSuite
 }
 
 func (suite *DeployFunctionTestSuite) TestDeployCronTriggerK8sWithJSONEventBody() {
@@ -1742,7 +1742,7 @@ func (suite *DeployFunctionTestSuite) validatePodLogsContainData(podName string,
 }
 
 type DeleteFunctionTestSuite struct {
-	suite2.KubeTestSuite
+	kubesuite.KubeTestSuite
 }
 
 func (suite *DeleteFunctionTestSuite) TestDeleteFunctionWhichHasApiGateway() {
@@ -1900,7 +1900,7 @@ def init_context(context):
 }
 
 type UpdateFunctionTestSuite struct {
-	suite2.KubeTestSuite
+	kubesuite.KubeTestSuite
 }
 
 func (suite *UpdateFunctionTestSuite) TestSanity() {

@@ -31,7 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/resourcescaler"
-	suite2 "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
+	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 	httptrigger "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 
 	"github.com/stretchr/testify/suite"
@@ -49,7 +49,7 @@ import (
 )
 
 type ResourceScalerTestSuite struct {
-	suite2.KubeTestSuite
+	kubesuite.KubeTestSuite
 	dlx            *dlx.DLX
 	autoscaler     *autoscaler.Autoscaler
 	metricClient   *fake.FakeCustomMetricsClient

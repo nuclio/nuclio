@@ -24,7 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
-	suite2 "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
+	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/google/go-cmp/cmp"
@@ -33,7 +33,7 @@ import (
 )
 
 type ProjectTestSuite struct {
-	suite2.KubeTestSuite
+	kubesuite.KubeTestSuite
 }
 
 func (suite *ProjectTestSuite) TestCreate() {
