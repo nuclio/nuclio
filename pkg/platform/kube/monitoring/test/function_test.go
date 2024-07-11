@@ -29,7 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
-	kubetest "github.com/nuclio/nuclio/pkg/platform/kube/test"
+	kubetest "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
