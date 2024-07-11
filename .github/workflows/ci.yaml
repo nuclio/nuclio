@@ -344,7 +344,7 @@ jobs:
     strategy:
       matrix:
         test-target: [test-functions-k8s-undockerized, test-k8s-undockerized]
-    name: ${{ matrix.test-target == 'test-functions-k8s-undockerized' && 'Test Functions K8s' || 'Test K8s' }}
+    name: ${{ matrix.test-target == 'test-functions-k8s-undockerized' && 'Test Functions Kubernetes' || 'Test Kubernetes' }}
     steps:
       - uses: actions/checkout@v3
 
