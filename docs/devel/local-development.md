@@ -84,7 +84,7 @@ docker run --rm -d -p 5000:5000 registry:2
    --platform-config hack/env/platform_config.yaml --namespace default --kubeconfig-path path/to/.kube/config
    ```
    2. Run it.
-   
+
 
 6. Run UI:
    1. Open `pkg/dashboard/ui` in a terminal

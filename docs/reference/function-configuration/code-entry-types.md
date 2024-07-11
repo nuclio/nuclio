@@ -245,7 +245,7 @@ spec:
     codeEntryAttributes:
       branch: "my-branch"
       headers:
-        Authorization: "my-Github-access-token"
+        Authorization: "my-GitHub-access-token"
       workDir: "/go/myfunc"
 ```
 

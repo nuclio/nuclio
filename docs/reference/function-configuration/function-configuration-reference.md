@@ -209,17 +209,17 @@ spec:
 
 The `status` section contains the requirements and attributes and has the following elements:
 
-| **Path**               | **Type** | **Description**                                                                                   |
-|:-----------------------|:---------|:--------------------------------------------------------------------------------------------------|
-| state                  | string   | A textual representation of the function status                                                   |
-| message                | string   | Function state message, mostly in use to represent why a function has failed                      |
-| logs                   | map      | The function deployment logs to be returned                                                       |
-| scaleToZero            | object   | The details of the last scale event of the function (contains event message and time)             |
-| apiGateways            | []string | A list of the function's api-gateways                                                             |
-| httpPort               | int      | The http port used to invoke the function                                                         |
-| containerImage         | string   | The name of the built function container image, including the registry.                           |
-| internalInvocationUrls | []string | A list of internal urls to invoke the function                                                    |
-| externalInvocationUrls | []string | A list of external urls to invoke the function, including ingresses and external-ip:function-port |
+| **Path**               | **Type** | **Description**                                                                                  |
+|:-----------------------|:---------|:-------------------------------------------------------------------------------------------------|
+| state                  | string   | A textual representation of the function status                                                  |
+| message                | string   | Function state message, mostly in use to represent why a function has failed                     |
+| logs                   | map      | The function deployment logs to be returned                                                      |
+| scaleToZero            | object   | The details of the last scale event of the function (contains event message and time)            |
+| apiGateways            | []string | A list of the function's api-gateways                                                            |
+| httpPort               | int      | The http port used to invoke the function                                                        |
+| containerImage         | string   | The name of the built function container image, including the registry.                          |
+| internalInvocationUrls | []string | A list of internal URLs to invoke the function                                                   |
+| externalInvocationUrls | []string | A list of external URLs to invoke the function, including ingresses and external-ip:function-port |
 
 ### Function state (`state`)
 

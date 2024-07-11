@@ -12,7 +12,7 @@ pip install -r hack/scripts/patch-remote/requirements.txt
 ~~~
 * Create a `patch_env.yml` based on `patch_env_template.yml`, and fill in the required and optional fields
 * Have a docker registry you can push to (e.g. docker.io via account on docker.com)
-* Make sure you are logged in into your registry (docker login --username user --password passwd), or optionally add username/password to config
+* Make sure you are logged in into your registry (docker login --username user --password users_password), or optionally add username/password to config
 * From nuclio root dir run:
 ~~~bash
 make patch-remote-nuclio

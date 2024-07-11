@@ -83,7 +83,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 
 ## Create a container registry using the Azure CLI
 
-[Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/) is a managed Docker container registry service that's used for storing private container container images.
+[Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/) is a managed Docker container registry service that's used for storing private container images.
 For more information, see the [ACR documentation](https://docs.microsoft.com/azure/container-registry/).
 Microsoft's [Create a container registry using the Azure CLI](https://docs.microsoft.com/azure/container-registry/container-registry-get-started-azure-cli) guide explains how to use the `az` CLI to create a container registry.
 

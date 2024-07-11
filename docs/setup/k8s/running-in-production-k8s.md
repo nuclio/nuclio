@@ -39,7 +39,7 @@ Following is a quick example of how to use Helm charts to set up a specific stab
 
     unset mypassword
     ```
-   > **Note:** If you are using Amazon's ECR see [using kaniko with ECR](#Using kaniko with amazon elastic container registry (ECR)) section.
+   > **Note:** If you are using Amazon's ECR see [using Kaniko with ECR](#Using Kaniko with amazon elastic container registry (ECR)) section.
 
 3. Add the `nuclio` Helm chart:
 
@@ -101,7 +101,7 @@ If you select to handle the implementation yourself, follow these guidelines; th
   - Preload the images to a registry that's accessible to your system, to allow pulling the images from the registry.
     When using this method, set `registy.dependantImageRegistryURL` to the URL of an accessible local registry that contains the preloaded images (thus overriding the default location of `quay.io/nuclio`, which isn't accessible in air-gapped environments).
     <br/><br/>
-    > **Note:** To save yourself some work, you can use the [prebaked Nuclio registry](https://github.com/nuclio/prebaked-registry), either as-is or as a reference for creating your own local registry with preloaded images.
+    > **Note:** To save yourself some work, you can use the [pre-baked Nuclio registry](https://github.com/nuclio/prebaked-registry), either as-is or as a reference for creating your own local registry with preloaded images.
 
 - To use the Nuclio templates library (optional), package the templates into an archive; serve the templates archive via a local server whose address is accessible to your system; and set `dashboard.templatesArchiveAddress` to the address of this local server.
 
@@ -139,7 +139,7 @@ This is rather straightforward; however, note the following:
     --set dashboard.kaniko.cacheRepo=quay.io/<repo name>/cache
     ```
 
-### Using kaniko with amazon elastic container registry (ECR):
+### Using Kaniko with amazon elastic container registry (ECR):
 
 To work with ECR, you must create a secret with your AWS credentials, and a secret with ECR Token while providing both secret names to the helm install command. 
 This is relevant for instances running without attached IAM roles. 
@@ -188,7 +188,7 @@ EOF
 > Otherwise, Kaniko will fail to push the image to ECR because the image name is being determined during the build process.
 
 Create the ECR token secret to be used as `imagePullSecret` of function pods.
-Since ECR tokens go stale after 12 hours, the secret must be refreshed periodically (can be done with a cron job as described in [this blogpost](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
+Since ECR tokens go stale after 12 hours, the secret must be refreshed periodically (can be done with a cron job as described in [this page](https://skryvets.com/blog/2021/03/15/kubernetes-pull-image-from-private-ecr-registry/#update---aws-ecr-token-refresh))
 ```shell
 kubectl -n nuclio create secret docker-registry ecr-registry-credentials \
   --docker-server=${AWS_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com \

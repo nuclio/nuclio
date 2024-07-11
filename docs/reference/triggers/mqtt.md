@@ -25,7 +25,7 @@ triggers:
 
 ### Event
 
-The mqtt trigger emits an event object with the following attributes:
+The MQTT trigger emits an event object with the following attributes:
 -  `URL`: The URL of the MQTT broker
 - `topic`: The topic of the message
 - `path`: The topic of the message (alias for `topic`)

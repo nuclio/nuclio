@@ -139,7 +139,7 @@ body and not `404`.
 * URL: `POST /api/functions`
 * Headers:
     * `Content-Type`: Must be set to `application/json`
-    * `X-nuclio-creation-state-updated-timeout`: Set the timout for the function creation state to change (optional, defaults to `1m`)
+    * `X-nuclio-creation-state-updated-timeout`: Set the timeout for the function creation state to change (optional, defaults to `1m`)
 * Body:
 
 ```json
@@ -180,7 +180,7 @@ Updating a function is similar to creating a function. The only differences are:
 * URL: `PUT /api/functions/<function name>`
 * Headers:
     * `Content-Type`: Must be set to `application/json`
-    * `X-nuclio-creation-state-updated-timeout`: Set the timout for the function creation state to change (optional, defaults to `1m`)
+    * `X-nuclio-creation-state-updated-timeout`: Set the timeout for the function creation state to change (optional, defaults to `1m`)
 * Body:
 
 ```json
@@ -315,7 +315,7 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 * URL: `GET /api/functions/<function name>/logs/<replica-name>`
 * Headers:
     * `x-nuclio-function-namespace`: Namespace (required)
-* Params
+* Params:
     * `follow`: Follow the replica log stream (default: true)
     * `since`: A relative time before the current time from which to show logs (optional, e.g.: `1h`)
     * `tailLines`: Number of lines to show from the end of the logs (optional, e.g.: `100`)
@@ -986,7 +986,7 @@ Updating an API gateway is similar to creating an API gateway. The only differen
 
 #### Request
 
-Invoking an API gateway is done by calling endpoint that is given in the api geteway's `spec.host`  field.
+Invoking an API gateway is done by calling endpoint that is given in the api gateway's `spec.host`  field.
 
 * URL: `<Method> <api-gateway-endpoint>`
 * Headers:

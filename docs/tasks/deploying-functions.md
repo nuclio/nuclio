@@ -39,7 +39,7 @@ The entry point, essentially a function native to the runtime, is called wheneve
 
 > **Note:** Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (for example, `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived.
 
-The entry point may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
+The entry point may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ACK or NACK and others (like cron) ignore the response altogether.
 
 To put this in Python code, an entry point is a simple function with two arguments and a return value:
 
@@ -115,7 +115,7 @@ $ nuctl get function --namespace nuclio
 
 ```
 
-To illustrate that the function is indeed accessible via HTTP, you'll use [httpie](https://httpie.org) to invoke
+To illustrate that the function is indeed accessible via HTTP, you'll use [HTTPie](https://httpie.org) to invoke
 the function at the port specified by the deployment log:
 
 ```sh
@@ -345,7 +345,7 @@ Kubernetes network, you can do so in one of 2 ways during deployment, both contr
 2. Configure the function to use [serviceType](../reference/triggers/http.html#attributes) of type `nodePort`.
 
 If you are deploying the function using [nuctl](../reference/nuctl/nuctl.md) CLI, you can also configure a `nodePort` easily by using the
-`--http-trigger-service-type=nodePort` CLI arg.
+`--http-trigger-service-type=nodePort` CLI argument.
 
 <a id="whats-next"></a>
 ## What's next?

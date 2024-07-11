@@ -280,8 +280,8 @@ For that, Nuclio offers a way to accept new events without committing them, and 
 This enables the function to receive and process more events simultaneously.
 
 To enable this feature, set the `ExplicitAckMode` in the trigger's spec to `enable` or `explicitOnly`, where the optional modes are:
-* `enable` - allows explicit and implicit ack according to the "x-nuclio-stream-no-ack" header
-* `disable`- disables the explicit ack feature and allows only implicit acks (default)
+* `enable` - allows explicit and implicit ACK according to the "x-nuclio-stream-no-ack" header
+* `disable`- disables the explicit ACK feature and allows only implicit acks (default)
 * `explicitOnly`- allows only explicit acks and disables implicit acks
 
 To receive more events without committing them, your function handler must respond with a nuclio response object, set the `x-nuclio-stream-no-ack` header to `true` in the request.
@@ -313,7 +313,7 @@ Default value is `100ms`. It can be also set via function annotation `nuclio.io/
 
 
 **NOTES**:
-* Currently, the explicit ack feature is only available for python runtime and functions that have a stream trigger (kafka/v3io).
+* Currently, the Explicit Ack feature is only available for python runtime and functions that have a stream trigger (kafka/v3io).
 * The explicit ack feature can be enabled only when using a static worker allocation mode. Meaning that the function metadata must have the following annotation: `"nuclio.io/kafka-worker-allocation-mode":"static"`.
 * The `QualifiedOffset` object can be saved in a persistent storage and used to commit the offset on later invocation of the function.
 

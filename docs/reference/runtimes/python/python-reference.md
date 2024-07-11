@@ -28,7 +28,7 @@ For asynchronous support (e.g.: `asyncio`), you may want to decorate your functi
 Important to note:
   - Nuclio, at the moment, does not support concurrent requests handling for a single working. Each working may handle
     one request at a time, for more information see [here](../../../concepts/architecture.html#runtime-engine).
-  - However, using an async handler can still be beneficial in some scenarios; Since the event loop would keep running while listening on more incoming requests, it allows functions to asynchronously perform
+  - However, using an asynchronous handler can still be beneficial in some scenarios; Since the event loop would keep running while listening on more incoming requests, it allows functions to asynchronously perform
     I/O bound background tasks.
 
 ```python

@@ -44,7 +44,7 @@ func newBetaCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *bet
 
 	cmd := &cobra.Command{
 		Use:   "beta",
-		Short: "A beta version of nuctl as a Nuclio api cli client",
+		Short: "A beta version of nuctl as a Nuclio api CLI client",
 	}
 
 	cmd.PersistentFlags().StringVar(&commandeer.apiURL, "api-url", "", "URL of the nuclio API (e.g. https://nuclio.io:8070)")
