@@ -1,4 +1,4 @@
-//go:build test_integration && test_kube
+//go:build test_integration && (test_kube || test_functions_kube)
 
 /*
 Copyright 2023 The Nuclio Authors.
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package suite
 
 import (
 	"bytes"
@@ -153,14 +153,14 @@ func (suite *KubeTestSuite) TearDownTest() {
 	defer func() {
 
 		// delete leftovers if controller was not able to delete them
-		suite.executeKubectl([]string{"delete", "all"}, // nolint: errcheck
+		suite.ExecuteKubectl([]string{"delete", "all"}, // nolint: errcheck
 			map[string]string{
 				"selector": common.NuclioLabelKeyApp,
 			})
 	}()
 
 	// delete test artifacts
-	_, err := suite.executeKubectl([]string{"delete", "all", "--force"},
+	_, err := suite.ExecuteKubectl([]string{"delete", "all", "--force"},
 		map[string]string{
 			"selector": "nuclio.io/test",
 		})
@@ -187,7 +187,7 @@ func (suite *KubeTestSuite) TearDownTest() {
 	err = common.RetryUntilSuccessful(5*time.Minute,
 		5*time.Second,
 		func() bool {
-			results, err := suite.executeKubectl(
+			results, err := suite.ExecuteKubectl(
 				[]string{"get", "all"},
 				map[string]string{
 					"selector": common.NuclioLabelKeyApp,
@@ -408,7 +408,7 @@ func (suite *KubeTestSuite) GetFunctionPods(functionName string) []v1.Pod {
 
 func (suite *KubeTestSuite) RolloutRestartDeployment(deploymentName string) error {
 	positionalArgs := []string{"rollout", "restart", "deployment", deploymentName}
-	_, err := suite.executeKubectl(positionalArgs, nil)
+	_, err := suite.ExecuteKubectl(positionalArgs, nil)
 	return err
 }
 
@@ -417,12 +417,12 @@ func (suite *KubeTestSuite) DrainNode(nodeName string, ignoreDaemonSet bool) err
 	if ignoreDaemonSet {
 		positionalArgs = append(positionalArgs, "--ignore-daemonsets")
 	}
-	_, err := suite.executeKubectl(positionalArgs, nil)
+	_, err := suite.ExecuteKubectl(positionalArgs, nil)
 	return err
 }
 
 func (suite *KubeTestSuite) UnCordonNode(nodeName string) error {
-	_, err := suite.executeKubectl([]string{"uncordon", nodeName}, nil)
+	_, err := suite.ExecuteKubectl([]string{"uncordon", nodeName}, nil)
 	return err
 }
 
@@ -610,13 +610,13 @@ func (suite *KubeTestSuite) verifyAPIGatewayIngress(createAPIGatewayOptions *pla
 	return ingressObject
 }
 
-func (suite *KubeTestSuite) executeKubectl(positionalArgs []string,
+func (suite *KubeTestSuite) ExecuteKubectl(positionalArgs []string,
 	namedArgs map[string]string) (cmdrunner.RunResult, error) {
 	return kubectlclient.RunKubectlCommand(suite.CmdRunner, positionalArgs, namedArgs, nil)
 }
 
 func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) string {
-	results, err := suite.executeKubectl([]string{
+	results, err := suite.ExecuteKubectl([]string{
 		"get", resourceKind, resourceName},
 		map[string]string{
 			"namespace": suite.Namespace,
@@ -627,7 +627,7 @@ func (suite *KubeTestSuite) getResource(resourceKind, resourceName string) strin
 }
 
 func (suite *KubeTestSuite) deleteAllResourcesByKind(kind string) error {
-	_, err := suite.executeKubectl([]string{"delete", kind, "--all", "--force"},
+	_, err := suite.ExecuteKubectl([]string{"delete", kind, "--all", "--force"},
 		map[string]string{
 			"grace-period": "0",
 		})
@@ -686,7 +686,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	return controllerInstance
 }
 
-func (suite *KubeTestSuite) verifyCreatedTrigger(functionName string, trigger functionconfig.Trigger) bool {
+func (suite *KubeTestSuite) VerifyCreatedTrigger(functionName string, trigger functionconfig.Trigger) bool {
 	functionInstance := &nuclioio.NuclioFunction{}
 	suite.GetResourceAndUnmarshal("nucliofunction",
 		functionName,
@@ -699,7 +699,7 @@ func (suite *KubeTestSuite) verifyCreatedTrigger(functionName string, trigger fu
 	return true
 }
 
-func (suite *KubeTestSuite) ensureTriggerAmount(functionName, triggerKind string, amount int) {
+func (suite *KubeTestSuite) EnsureTriggerAmount(functionName, triggerKind string, amount int) {
 	functionInstance := &nuclioio.NuclioFunction{}
 	suite.GetResourceAndUnmarshal("nucliofunction",
 		functionName,

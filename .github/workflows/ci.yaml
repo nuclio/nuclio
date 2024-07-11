@@ -338,10 +338,13 @@ jobs:
           make test-docker-nuctl
 
   test_k8s:
-    name: Test Kubernetes
     runs-on: ubuntu-latest
     needs:
       - build_docker_images
+    strategy:
+      matrix:
+        test-target: [test-functions-k8s-undockerized, test-k8s-undockerized]
+    name: ${{ matrix.test-target == 'test-functions-k8s-undockerized' && 'Test Functions Kubernetes' || 'Test Kubernetes' }}
     steps:
       - uses: actions/checkout@v3
 
@@ -397,14 +400,12 @@ jobs:
 
           # install helm chart
           ./test/k8s/ci_assets/install_nuclio_crds.sh
-
-      - name: Run k8s tests
+      - name: Write ingress host to /etc/hosts
         run: |
-
-          # write function host to /etc/hosts
           echo "${NUCLIO_EXTERNAL_IP_ADDRESS} ${NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST}" | sudo tee -a /etc/hosts
 
-          make test-k8s
+      - name: Run k8s tests
+        run: NUCLIO_K8S_TEST_MAKE_TARGET=${{ matrix.test-target }} make test-k8s
 
   test_python:
     name: Test python
