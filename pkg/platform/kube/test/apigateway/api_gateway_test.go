@@ -27,7 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	suite2 "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
+	kubesuite "github.com/nuclio/nuclio/pkg/platform/kube/test/suite"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/rs/xid"
@@ -37,7 +37,7 @@ import (
 )
 
 type DeployAPIGatewayTestSuite struct {
-	suite2.KubeTestSuite
+	kubesuite.KubeTestSuite
 }
 
 func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {

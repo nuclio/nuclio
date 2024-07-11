@@ -747,28 +747,29 @@ test: build-test
 
 .PHONY: test-k8s
 test-k8s: build-test
+	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
 	docker run \
-    		--rm \
-    		--network host \
-    		--volume /var/run/docker.sock:/var/run/docker.sock \
-    		--volume $(GOPATH)/bin:/go/bin \
-    		--volume $(NUCLIO_PATH):$(GO_BUILD_TOOL_WORKDIR) \
-    		--volume /tmp:/tmp \
-    		--volume $(NUCLIO_TEST_KUBECONFIG)/:/kubeconfig \
-    		--workdir $(GO_BUILD_TOOL_WORKDIR) \
-    		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
-    		--env NUCLIO_EXTERNAL_IP_ADDRESS=$(NUCLIO_EXTERNAL_IP_ADDRESS) \
-    		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
-    		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
-    		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
-    		--env NUCLIO_TEST_REGISTRY_URL=$(NUCLIO_TEST_REGISTRY_URL) \
-    		--env NUCLIO_OS=$(NUCLIO_OS) \
-    		--env MINIKUBE_HOME=$(MINIKUBE_HOME) \
-    		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
-    		--env KUBECONFIG=/kubeconfig \
-    		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
-    		$(NUCLIO_DOCKER_TEST_TAG) \
-    		/bin/bash -c "git config --global --add safe.directory /nuclio && make $(NUCLIO_K8S_TEST_MAKE_TARGET)"
+		--rm \
+		--network host \
+		--volume /var/run/docker.sock:/var/run/docker.sock \
+		--volume $(GOPATH)/bin:/go/bin \
+		--volume $(NUCLIO_PATH):$(GO_BUILD_TOOL_WORKDIR) \
+		--volume /tmp:/tmp \
+		--volume $(NUCLIO_TEST_KUBECONFIG)/:/kubeconfig \
+		--workdir $(GO_BUILD_TOOL_WORKDIR) \
+		--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
+		--env NUCLIO_EXTERNAL_IP_ADDRESS=$(NUCLIO_EXTERNAL_IP_ADDRESS) \
+		--env NUCLIO_VERSION_GIT_COMMIT=$(NUCLIO_VERSION_GIT_COMMIT) \
+		--env NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--env NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--env NUCLIO_TEST_REGISTRY_URL=$(NUCLIO_TEST_REGISTRY_URL) \
+		--env NUCLIO_OS=$(NUCLIO_OS) \
+		--env MINIKUBE_HOME=$(MINIKUBE_HOME) \
+		--env NUCLIO_GO_TEST_TIMEOUT=$(NUCLIO_GO_TEST_TIMEOUT) \
+		--env KUBECONFIG=/kubeconfig \
+		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
+		$(NUCLIO_DOCKER_TEST_TAG) \
+    	/bin/bash -c "git config --global --add safe.directory /nuclio && make $(NUCLIO_K8S_TEST_MAKE_TARGET)"
 
 # Runs from host to allow full control over Kubernetes cluster
 .PHONY: test-k8s-functional
