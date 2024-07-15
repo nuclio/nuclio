@@ -115,7 +115,8 @@ files at this time, but it's very easy to create run/debug targets and use the d
 
 1. Clone nuclio `git clone git@github.com:nuclio/nuclio.git > ~/nuclio`
 2. Open GoLand and **File > Open** and select `~/nuclio`
-3. Run configurations are (currently) available for tests only
+3. Enable go modules **GoLand > Preferences > Go > Ensure `Enable Go Modules` box is checked
+4. Run configurations are (currently) available for tests only
 
 
 For developing in nuclio locally, see [Local development](local-development.md).
