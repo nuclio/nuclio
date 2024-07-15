@@ -1135,7 +1135,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 					SecurityContext:    function.Spec.SecurityContext,
 					Affinity:           function.Spec.Affinity,
 					Tolerations:        function.Spec.Tolerations,
-					NodeSelector:       function.Spec.NodeSelector,
+					NodeSelector:       function.Status.EnrichedNodeSelector,
 					NodeName:           function.Spec.NodeName,
 					PriorityClassName:  function.Spec.PriorityClassName,
 					PreemptionPolicy:   function.Spec.PreemptionPolicy,
@@ -1216,7 +1216,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 
 		deployment.Spec.Template.Spec.Tolerations = function.Spec.Tolerations
 		deployment.Spec.Template.Spec.Affinity = function.Spec.Affinity
-		deployment.Spec.Template.Spec.NodeSelector = function.Spec.NodeSelector
+		deployment.Spec.Template.Spec.NodeSelector = function.Status.EnrichedNodeSelector
 		deployment.Spec.Template.Spec.NodeName = function.Spec.NodeName
 		deployment.Spec.Template.Spec.PriorityClassName = function.Spec.PriorityClassName
 		deployment.Spec.Template.Spec.PreemptionPolicy = function.Spec.PreemptionPolicy
@@ -2117,7 +2117,7 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 						},
 					},
 					RestartPolicy:     v1.RestartPolicyNever,
-					NodeSelector:      function.Spec.NodeSelector,
+					NodeSelector:      function.Status.EnrichedNodeSelector,
 					NodeName:          function.Spec.NodeName,
 					Affinity:          function.Spec.Affinity,
 					PriorityClassName: function.Spec.PriorityClassName,
