@@ -521,7 +521,7 @@ func (fo *functionOperator) enrichNodeSelector(ctx context.Context, function *nu
 	var projectName string
 	var ok bool
 
-	if projectName, ok = function.Labels[common.NuclioResourceLabelKeyProjectName]; ok {
+	if projectName, ok = function.Labels[common.NuclioResourceLabelKeyProjectName]; !ok {
 		return errors.New("Failed to determine a project name for a function")
 	}
 

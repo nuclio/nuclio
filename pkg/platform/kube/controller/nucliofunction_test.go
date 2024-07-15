@@ -20,6 +20,8 @@ package controller
 
 import (
 	"context"
+	"github.com/nuclio/nuclio/pkg/common"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
 
@@ -45,6 +47,7 @@ type NuclioFunctionTestSuite struct {
 	k8sClientSet      *k8sfake.Clientset
 	controller        *Controller
 	ctx               context.Context
+	projectName       string
 }
 
 func (suite *NuclioFunctionTestSuite) SetupTest() {
@@ -70,6 +73,13 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 	functionresClient, err := functionres.NewLazyClient(suite.logger,
 		suite.k8sClientSet,
 		suite.functionClientSet)
+	suite.Require().NoError(err)
+	suite.projectName = "default"
+	project := &nuclioio.NuclioProject{}
+	project.Name = suite.projectName
+	project.Namespace = suite.namespace
+
+	_, err = suite.functionClientSet.NuclioV1beta1().NuclioProjects(suite.namespace).Create(suite.ctx, project, metav1.CreateOptions{})
 	suite.Require().NoError(err)
 
 	suite.controller, err = NewController(suite.logger,
@@ -102,6 +112,9 @@ func (suite *NuclioFunctionTestSuite) TestPreserveBuildLogs() {
 			"A": "B",
 		},
 	}
+	functionInstance.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: suite.projectName,
+	}
 
 	suite.k8sClientSet.PrependReactor("create",
 		"configmaps",
@@ -122,6 +135,9 @@ func (suite *NuclioFunctionTestSuite) TestRecoverFromPanic() {
 	functionInstance := &nuclioio.NuclioFunction{}
 	functionInstance.Name = "func-name"
 	functionInstance.Status.State = functionconfig.FunctionStateReady
+	functionInstance.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: suite.projectName,
+	}
 
 	suite.k8sClientSet.PrependReactor("create",
 		"configmaps",
