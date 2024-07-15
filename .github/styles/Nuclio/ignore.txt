@@ -39,6 +39,7 @@ Minikube
 multithreading
 NACK
 nodejs
+npm
 nullary
 Num
 OAuth
@@ -68,4 +69,3 @@ volumize
 Webadmin
 westeurope
 yaml
-npm

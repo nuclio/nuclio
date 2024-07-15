@@ -14,7 +14,6 @@
 
 name: Docs Language Linter
 on:
-  workflow_dispatch:
   pull_request:
     paths:
       - "docs/**"
