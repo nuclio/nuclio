@@ -39,7 +39,6 @@ Minikube
 multithreading
 NACK
 nodejs
-ns
 nullary
 Num
 OAuth

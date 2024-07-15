@@ -77,7 +77,7 @@ The standard output sink currently does not support any specific attributes.
 
 - `attributes.instrumentationKey` - The instrumentation key from Azure
 - `attributes.maxBatchSize` - Max number of records to batch together before sending to Azure (defaults to 1024)
-- `attributes.maxBatchInterval` - Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever is gathered will be sent towards Azure (defaults to 3s)
+- `attributes.maxBatchInterval` - Time to wait for maxBatchSize records (valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`), after which whatever is gathered will be sent towards Azure (defaults to `3s`)
 
 <a id="metrics"></a>
 ### Metric sinks (`metrics`)
@@ -129,8 +129,8 @@ All metric sinks support the following fields:
 - `url` - The URL at which the push proxy resides
 - `attributes.jobName` - The Prometheus job name
 - `attributes.instanceName` - The Prometheus instance name
-- `attributes.interval` - A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m".
-    Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
+- `attributes.interval` - A string holding the interval to which the push occurs such as `10s`, `1h` or `2h45m`.
+    Valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`
 
 <a id="metric-sink-prometheusPull"></a>
 ##### Prometheus pull (`prometheusPull`)
@@ -142,10 +142,10 @@ All metric sinks support the following fields:
 <a id="metric-sink-appinsights"></a>
 ##### Azure Application Insights (`appinsights`)
 
-- `attributes.interval` - A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
+- `attributes.interval` - A string holding the interval to which the push occurs such as `10s`, `1h` or `2h45m`. Valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`
 - `attributes.instrumentationKey` - The instrumentation key from Azure
 - `attributes.maxBatchSize` - Max number of records to batch together before sending to Azure (defaults to 1024)
-- `attributes.maxBatchInterval` - Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever is gathered will be sent towards Azure (defaults to 3s)
+- `attributes.maxBatchInterval` - Time to wait for maxBatchSize records (valid time units are `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`), after which whatever is gathered will be sent towards Azure (defaults to `3s`)
 
 <a id="webAdmin"></a>
 ### Webadmin (`webAdmin`)
