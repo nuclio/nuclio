@@ -77,7 +77,7 @@ curl -X POST \
 - [在 Kubernetes 中使用 Nuclio](/docs/setup/k8s/getting-started-k8s.md)
 - [在 GKE（Google Kubernetes Engine） 中使用 Nuclio](/docs/setup/gke/getting-started-gke.md)
 - [在 AKS（Azure Container Services） 中使用 Nuclio](/docs/setup/aks/getting-started-aks.md)
-- [在 Katacode 中使用免费的 Kubernetes 沙箱环境中，按步骤运行 Nuclio](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
+- [在 Katacoda 中使用免费的 Kubernetes 沙箱环境中，按步骤运行 Nuclio](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 
 ## 架构设计
 

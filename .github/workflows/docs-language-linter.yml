@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-name: Language Linter for Nuclio Docs
+name: Docs Language Linter
 on:
   workflow_dispatch:
   pull_request:
@@ -22,7 +22,7 @@ on:
 
 jobs:
   vale:
-    name: runner / vale
+    name: Review docs with Vale
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

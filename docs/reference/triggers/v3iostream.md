@@ -106,7 +106,7 @@ response.ensure_no_ack()
 ```
 
 To explicitly commit the offset on an event, save the relevant event information in the `QualifiedOffset` object,
-and pass it to asynchronous function `explicit_ack()` method of the context's response object, like so:
+and pass it to `explicit_ack()` - an asynchronous method of the context's response object - like so:
 ```py
 qualified_offset = nuclio.QualifiedOffset.from_event(event)
 await context.platform.explicit_ack(qualified_offset)
