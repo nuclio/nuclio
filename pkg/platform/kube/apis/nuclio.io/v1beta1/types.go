@@ -124,6 +124,8 @@ func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 	return 1
 }
 
+// EnrichNodeSelector enriches Spec.NodeSelector with platform and project NodeSelectors,
+// where function values take precedence over project values, and project values take precedence over platform values
 func (nf *NuclioFunction) EnrichNodeSelector(platformNodeSelector, projectNodeSelector map[string]string) {
 
 	if nf.Spec.NodeSelector == nil {
