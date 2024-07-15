@@ -333,10 +333,12 @@ func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string
 			enableSSLRedirect = *spec.EnableSSLRedirect
 		}
 
+		// if SSL redirect is enabled, set the annotation to true, otherwise set it to false unless it's already set
+		SSLRedirectAnnotation := "nginx.ingress.kubernetes.io/ssl-redirect"
 		if enableSSLRedirect {
-			ingressAnnotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "true"
-		} else {
-			ingressAnnotations["nginx.ingress.kubernetes.io/ssl-redirect"] = "false"
+			ingressAnnotations[SSLRedirectAnnotation] = "true"
+		} else if _, ok := ingressAnnotations[SSLRedirectAnnotation]; !ok {
+			ingressAnnotations[SSLRedirectAnnotation] = "false"
 		}
 	}
 
