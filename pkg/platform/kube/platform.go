@@ -51,7 +51,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
@@ -456,10 +455,6 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 
 	if err := p.enrichHTTPTriggers(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich http trigger")
-	}
-
-	if err := p.enrichFunctionNodeSelector(ctx, functionConfig); err != nil {
-		return errors.Wrap(err, "Failed to enrich node selector")
 	}
 
 	// enrich function tolerations
@@ -1856,52 +1851,6 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 	return p.Platform.ValidateFunctionConfigWithRetry(ctx, functionConfig, autofix)
-}
-
-// enrichFunctionNodeSelector enriches function node selector
-// if node selector is not specified in function config, we firstly try to get it from project CRD
-// if it is missing in project CRD, then we try to get it from platform config
-func (p *Platform) enrichFunctionNodeSelector(ctx context.Context, functionConfig *functionconfig.Config) error {
-	functionProject, err := p.Platform.GetFunctionProject(ctx, functionConfig)
-
-	if functionConfig.Spec.NodeSelector == nil {
-		if functionProject.GetConfig().Spec.DefaultFunctionNodeSelector == nil &&
-			p.Config.Kube.DefaultFunctionNodeSelector == nil {
-			return nil
-		}
-		functionConfig.Spec.NodeSelector = make(map[string]string)
-	}
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function project")
-	}
-
-	var defaultNodeSelector map[string]string
-
-	if p.Config.Kube.IgnorePlatformIfProjectNodeSelectors {
-		if functionProject.GetConfig().Spec.DefaultFunctionNodeSelector != nil {
-			p.Logger.DebugWithCtx(ctx,
-				"Enriching function node selector from project",
-				"functionName", functionConfig.Meta.Name,
-				"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-			defaultNodeSelector = functionProject.GetConfig().Spec.DefaultFunctionNodeSelector
-		} else {
-			p.Logger.DebugWithCtx(ctx,
-				"Enriching function node selector from platform config",
-				"functionName", functionConfig.Meta.Name,
-				"nodeSelector", p.Config.Kube.DefaultFunctionNodeSelector)
-			defaultNodeSelector = p.Config.Kube.DefaultFunctionNodeSelector
-		}
-	} else {
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching function node selector from platform config and project",
-			"functionName", functionConfig.Meta.Name,
-			"platformNodeSelector", p.Config.Kube.DefaultFunctionNodeSelector,
-			"projectNodeSelector", functionProject.GetConfig().Spec.DefaultFunctionNodeSelector)
-		defaultNodeSelector = labels.Merge(p.Config.Kube.DefaultFunctionNodeSelector, functionProject.GetConfig().Spec.DefaultFunctionNodeSelector)
-	}
-
-	functionConfig.Spec.NodeSelector = labels.Merge(defaultNodeSelector, functionConfig.Spec.NodeSelector)
-	return nil
 }
 
 func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) error {

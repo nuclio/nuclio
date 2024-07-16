@@ -21,6 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // +genclient
@@ -121,6 +122,22 @@ func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 
 	// If neither Replicas nor MaxReplicas nor MinReplicas is given, default to 1
 	return 1
+}
+
+// EnrichNodeSelector enriches Spec.NodeSelector with platform and project NodeSelectors,
+// where function values take precedence over project values, and project values take precedence over platform values
+func (nf *NuclioFunction) EnrichNodeSelector(platformNodeSelector, projectNodeSelector map[string]string) {
+
+	if nf.Spec.NodeSelector == nil {
+		if projectNodeSelector == nil &&
+			platformNodeSelector == nil {
+			return
+		}
+		nf.Spec.NodeSelector = make(map[string]string)
+	}
+
+	defaultNodeSelector := labels.Merge(platformNodeSelector, projectNodeSelector)
+	nf.Status.EnrichedNodeSelector = labels.Merge(defaultNodeSelector, nf.Spec.NodeSelector)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

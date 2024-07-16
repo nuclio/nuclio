@@ -238,6 +238,19 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	functionResourcesCreateOrUpdateTimestamp := time.Now()
 
+	fo.logger.DebugWithCtx(ctx,
+		"Enriching NodeSelector",
+		"functionNamespace", function.Namespace,
+		"functionName", function.Name)
+
+	// enrich node selectors with values from function, project and platform and save enriched value to function.status
+	if err := fo.enrichNodeSelector(ctx, function); err != nil {
+		return fo.setFunctionError(ctx,
+			function,
+			functionconfig.FunctionStateError,
+			errors.Wrap(err, "Failed to enrich node selectors when create/update function"))
+	}
+
 	// ensure function resources (deployment, ingress, configmap, etc ...)
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
@@ -303,9 +316,10 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// NOTE: this reconstructs function status and hence omits all other function status fields
 		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
-			State:          finalState,
-			Logs:           function.Status.Logs,
-			ContainerImage: function.Spec.Image,
+			State:                finalState,
+			Logs:                 function.Status.Logs,
+			ContainerImage:       function.Spec.Image,
+			EnrichedNodeSelector: function.Status.EnrichedNodeSelector,
 		}
 
 		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
@@ -386,6 +400,7 @@ func (fo *functionOperator) setFunctionError(ctx context.Context,
 		Message:                errors.GetErrorStackString(err, 10),
 		InternalInvocationURLs: []string{},
 		ExternalInvocationURLs: []string{},
+		EnrichedNodeSelector:   function.Status.EnrichedNodeSelector,
 	}); setStatusErr != nil {
 		fo.logger.WarnWithCtx(detachedContext,
 			"Failed to update function on error",
@@ -497,4 +512,41 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 	}
 	return nil
 
+}
+
+// enrichNodeSelector enriches function node selector
+// if node selector is not specified in function config, we firstly try to get it from project CRD
+// if it is missing in project CRD, then we try to get it from platform config
+func (fo *functionOperator) enrichNodeSelector(ctx context.Context, function *nuclioio.NuclioFunction) error {
+	var projectName string
+	var ok bool
+
+	if projectName, ok = function.Labels[common.NuclioResourceLabelKeyProjectName]; !ok {
+		return errors.New("Failed to determine a project name for a function")
+	}
+
+	project, err := fo.controller.nuclioClientSet.NuclioV1beta1().
+		NuclioProjects(function.Namespace).
+		Get(ctx, projectName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Failed to get project %s", projectName))
+	}
+
+	if fo.controller.GetPlatformConfiguration().Kube.IgnorePlatformIfProjectNodeSelectors {
+		function.EnrichNodeSelector(
+			nil,
+			project.Spec.DefaultFunctionNodeSelector,
+		)
+	} else {
+		function.EnrichNodeSelector(
+			fo.controller.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector,
+			project.Spec.DefaultFunctionNodeSelector,
+		)
+	}
+
+	fo.logger.DebugWithCtx(ctx, "Successfully enriched NodeSelector",
+		"functionName", function.Name,
+		"projectName", projectName,
+		"NodeSelector", function.Status.EnrichedNodeSelector)
+	return nil
 }
