@@ -880,6 +880,9 @@ type Status struct {
 	// list of external urls, containing ingresses and external-ip:function-port
 	// e.g.: [ my-function.some-domain.com/pathA, other-ingress.some-domain.co, 1.2.3.4:3000 ]
 	ExternalInvocationURLs []string `json:"externalInvocationUrls,omitempty"`
+
+	// node selector from function config enriched with project's and platform node selectors
+	EnrichedNodeSelector map[string]string `json:"enrichedNodeSelector,omitempty"`
 }
 
 func (s *Status) InvocationURLs() []string {
