@@ -115,7 +115,7 @@ files at this time, but it's very easy to create run/debug targets and use the d
 
 1. Clone nuclio `git clone git@github.com:nuclio/nuclio.git > ~/nuclio`
 2. Open GoLand and **File > Open** and select `~/nuclio`
-3. Enable go modules **GoLand > Preferences > Go > Go Modules (vgo)** and ensure `Enable Go Modules` box is checked
+3. Enable go modules **GoLand > Preferences > Go > Ensure `Enable Go Modules` box is checked
 4. Run configurations are (currently) available for tests only
 
 
@@ -188,7 +188,7 @@ work with Kubernetes.
 <a id="submitting-a-pr"></a>
 ## Submitting a PR
 
-Your PRs will go through Github Action CI and code review. Make sure to follow
+Your PRs will go through GitHub Action CI and code review. Make sure to follow
 the [coding conventions](../devel/coding-conventions.md) and run `make fmt lint` before submitting a PR, that would
 save you some time failing on CI linting and test validations
 

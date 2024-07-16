@@ -16,7 +16,7 @@ Nuclio command-line interface
 
 ### SEE ALSO
 
-* [nuctl beta](nuctl_beta.md)	 - A beta version of nuctl as a Nuclio api cli client
+* [nuctl beta](nuctl_beta.md)	 - A beta version of nuctl as a Nuclio api CLI client
 * [nuctl build](nuctl_build.md)	 - Build a function
 * [nuctl create](nuctl_create.md)	 - Create resources
 * [nuctl delete](nuctl_delete.md)	 - Delete resources

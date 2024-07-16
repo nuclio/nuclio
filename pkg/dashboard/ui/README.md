@@ -27,7 +27,7 @@ to reload every time you make a change in one of your files.
 Finally, activate the chrome extension in your tab by clicking on the new LiveReload icon next to the address bar, turning the circle in the middle of it from hollow to opaque.
 
 ## Dev flag
-Add `--dev` flag to your `gulp` command in order to prevent minifcation and uglification of source code.  
+Add `--dev` flag to your `gulp` command in order to prevent minification and uglification of source code.  
 This way it's easier to debug using the browser's developer tools.
 
 # Demo mode

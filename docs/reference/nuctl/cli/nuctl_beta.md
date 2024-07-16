@@ -1,6 +1,6 @@
 ## nuctl beta
 
-A beta version of nuctl as a Nuclio api cli client
+A beta version of nuctl as a Nuclio api CLI client
 
 ### Options
 

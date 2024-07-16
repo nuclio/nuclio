@@ -53,5 +53,5 @@ nuctl beta redeploy [<function>] [flags]
 
 ### SEE ALSO
 
-* [nuctl beta](nuctl_beta.md)	 - A beta version of nuctl as a Nuclio api cli client
+* [nuctl beta](nuctl_beta.md)	 - A beta version of nuctl as a Nuclio api CLI client
 

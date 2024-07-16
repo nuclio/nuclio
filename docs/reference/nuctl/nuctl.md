@@ -71,7 +71,7 @@ unless your function is explicitly exposed or reachable from wherever you run `n
 See [exposing a function](../../tasks/deploying-functions.html#exposing-a-function) for more details.
 
 For your convenience, when deploying a function using `nuctl`, exposing it via a `NodePort` can be easily done by using the
-CLI arg `--http-trigger-service-type=nodePort`.
+CLI arguments `--http-trigger-service-type=nodePort`.
 
 
 ### Redeploying functions
