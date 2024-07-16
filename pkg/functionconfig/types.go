@@ -932,7 +932,7 @@ type Status struct {
 	ExternalInvocationURLs []string `json:"externalInvocationUrls,omitempty"`
 
 	// node selector from function config enriched with project's and platform node selectors
-	EnrichedNodeSelector map[string]string `json:"resolvedNodeSelector,omitempty"`
+	EnrichedNodeSelector map[string]string `json:"enrichedNodeSelector,omitempty"`
 }
 
 func (s *Status) InvocationURLs() []string {

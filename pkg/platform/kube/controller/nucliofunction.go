@@ -529,12 +529,12 @@ func (fo *functionOperator) enrichNodeSelector(ctx context.Context, function *nu
 		NuclioProjects(function.Namespace).
 		Get(ctx, projectName, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrap(err, "Failed to get projects")
+		return errors.Wrap(err, fmt.Sprintf("Failed to get project %s", projectName))
 	}
 
 	if fo.controller.GetPlatformConfiguration().Kube.IgnorePlatformIfProjectNodeSelectors {
 		function.EnrichNodeSelector(
-			map[string]string{},
+			nil,
 			project.Spec.DefaultFunctionNodeSelector,
 		)
 	} else {
@@ -543,5 +543,10 @@ func (fo *functionOperator) enrichNodeSelector(ctx context.Context, function *nu
 			project.Spec.DefaultFunctionNodeSelector,
 		)
 	}
+
+	fo.logger.DebugWithCtx(ctx, "Successfully enriched NodeSelector",
+		"functionName", function.Name,
+		"projectName", projectName,
+		"NodeSelector", function.Status.EnrichedNodeSelector)
 	return nil
 }
