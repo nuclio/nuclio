@@ -72,14 +72,13 @@ func NewNuclioAPIClient(parentLogger logger.Logger,
 		return nil, errors.New("Access key must be provided")
 	}
 
-	// Ensure that apiURL is a correct URL
+	// ensure that apiURL is a correct URL
 	baseURL, err := url.Parse(apiURL)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Failed to parse API URL. API URL: %s", apiURL))
 	}
 
-	// Ensure that given API URL contains /api suffix
-	// Add it if it doesn't
+	// ensure that API URL contains the /api suffix and add it if it doesn't
 	if !strings.Contains(baseURL.Path, "api") {
 		parentLogger.WarnWith("No `api` suffix found in API URl, adding the suffix")
 		if apiURL, err = url.JoinPath(apiURL, "api"); err != nil {

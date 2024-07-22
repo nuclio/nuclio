@@ -40,7 +40,7 @@ func (suite *apiClientTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 }
 
-func (suite *apiClientTestSuite) TestParseValidResourceAllocation() {
+func (suite *apiClientTestSuite) TestCreateAPIClient() {
 	for _, testCase := range []struct {
 		name           string
 		apiURL         string
