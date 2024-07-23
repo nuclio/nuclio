@@ -78,7 +78,7 @@ func NewNuclioAPIClient(parentLogger logger.Logger,
 		return nil, errors.New(fmt.Sprintf("Failed to parse API URL: %s", apiURL))
 	}
 
-	// ensure that API URL contains the /api suffix and add it if it doesn't
+	// ensure that API URL contains the /api suffix
 	if !strings.HasSuffix(baseURL.Path, "api") && !strings.HasSuffix(baseURL.Path, "api/") {
 		parentLogger.InfoWith("Adding `api` suffix to API URL",
 			"apiURL", apiURL)
