@@ -433,6 +433,10 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 // ValidateFunctionConfig validates and enforces of required function creation logic
 func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 
+	if err := ap.validateFunctionName(functionConfig.Meta.Name); err != nil {
+		return errors.Wrap(err, "Failed to validate function name")
+	}
+
 	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
 		return nuclio.NewErrPreconditionFailed(fmt.Sprintf("Function name %s is reserved and cannot be used.",
 			functionConfig.Meta.Name))
@@ -1866,6 +1870,17 @@ func (ap *Platform) getBaseImagesOverrides() map[string]string {
 // returns overrides for base images per runtime
 func (ap *Platform) getOnbuildImagesOverrides() map[string]string {
 	return ap.Config.ImageRegistryOverrides.OnbuildImageRegistries
+}
+
+func (ap *Platform) validateFunctionName(functionName string) error {
+	errorMessages := validation.IsQualifiedName(functionName)
+	if len(errorMessages) != 0 {
+		joinedErrorMessage := strings.Join(errorMessages, ", ")
+		return nuclio.NewErrBadRequest(fmt.Sprintf(
+			"Function name doesn't conform to k8s naming convention. Errors: %s",
+			joinedErrorMessage))
+	}
+	return nil
 }
 
 func (ap *Platform) validateDockerImageFields(ctx context.Context, functionConfig *functionconfig.Config) error {

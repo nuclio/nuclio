@@ -387,6 +387,26 @@ func (suite *functionDeployTestSuite) TestDeployFromCodeEntryTypeS3InvalidValues
 	suite.Contains(errors.GetErrorStackString(err, 5), "Failed to download file from s3")
 }
 
+func (suite *functionDeployTestSuite) TestDeployWithInvalidName() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "Invalid function name" + uniqueSuffix
+	imageName := "nuclio/processor-" + functionName
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime": "python",
+		"handler": "reverser:handler",
+	}
+	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+	suite.Require().Error(err)
+	suite.Contains(errors.GetErrorStackString(err, 5), "Failed to validate function name")
+}
+
 func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "invoke-logging" + uniqueSuffix
