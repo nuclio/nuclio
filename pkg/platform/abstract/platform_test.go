@@ -1367,6 +1367,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigDockerImagesFi
 
 		functionConfig := *functionconfig.NewConfig()
 		functionConfig.Spec.Build.Image = testCase.buildImage
+		functionConfig.Meta.Name = "function-name"
 
 		suite.Logger.InfoWith("Running function spec sanitization case",
 			"functionConfig", functionConfig,
