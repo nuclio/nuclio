@@ -434,7 +434,8 @@ func (ap *Platform) EnrichFunctionsWithDeployLogStream(functions []platform.Func
 func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *functionconfig.Config) error {
 
 	if err := ap.validateFunctionName(functionConfig.Meta.Name); err != nil {
-		return errors.Wrap(err, "Failed to validate function name")
+		return errors.Wrap(err, fmt.Sprintf("Failed to validate function name '%s'",
+			functionConfig.Meta.Name))
 	}
 
 	if common.StringInSlice(functionConfig.Meta.Name, ap.ResolveReservedResourceNames()) {
