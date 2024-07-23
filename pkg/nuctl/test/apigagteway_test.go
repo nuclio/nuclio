@@ -206,7 +206,7 @@ func (suite *apiGatewayInvokeTestSuite) TestInvokeAuthenticationModeNone() {
 func (suite *apiGatewayInvokeTestSuite) testInvoke(authenticationMode ingress.AuthenticationMode) {
 	functionName := suite.deployFunction()
 
-	// use nutctl to delete the function when we're done
+	// use nuctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), 1)
