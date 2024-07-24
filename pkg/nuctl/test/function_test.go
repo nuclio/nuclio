@@ -1888,7 +1888,7 @@ type functionRedeployTestSuite struct {
 func (suite *functionRedeployTestSuite) TestRedeploy() {
 	functionName := "redeploy-test-function"
 	functionPath := path.Join(suite.GetImportsDir(), "redeploy-test-function.yaml")
-	apiUrl := "https://api.com"
+	apiUrl := "https://api.com/api"
 
 	namedArgs := map[string]string{
 		"api-url":    apiUrl,
