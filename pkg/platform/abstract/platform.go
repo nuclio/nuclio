@@ -177,12 +177,18 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 			}
 			createFunctionOptions.FunctionConfig = *restoredFunctionConfig
 		}
+		projectConfig, err := ap.platform.GetFunctionProject(ctx, &createFunctionOptions.FunctionConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get project for the function")
+		}
 
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(ctx,
 			&platform.CreateFunctionBuildOptions{
 				Logger:                     createFunctionOptions.Logger,
 				FunctionConfig:             createFunctionOptions.FunctionConfig,
 				PlatformName:               ap.platform.GetName(),
+				PlatformConfig:             *ap.platform.GetConfig(),
+				ProjectConfiguration:       *projectConfig.GetConfig(),
 				OnAfterConfigUpdate:        onAfterConfigUpdatedWrapper,
 				DependantImagesRegistryURL: createFunctionOptions.DependantImagesRegistryURL,
 			})

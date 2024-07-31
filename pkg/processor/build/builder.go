@@ -1101,7 +1101,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 
 			// kaniko pod attributes
-			NodeSelector:           b.options.FunctionConfig.Spec.NodeSelector,
+			NodeSelector:           b.resolveNodeSelector(),
 			NodeName:               b.options.FunctionConfig.Spec.NodeName,
 			Affinity:               b.options.FunctionConfig.Spec.Affinity,
 			PriorityClassName:      b.options.FunctionConfig.Spec.PriorityClassName,
@@ -1862,4 +1862,24 @@ func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
 		}
 	}
 	return healthCheckInterval, nil
+}
+
+// resolveNodeSelector resolves builder NodeSelector from function, project and platform NodeSelectors,
+// where function values take precedence over project values, and project values take precedence over platform values
+func (b *Builder) resolveNodeSelector() map[string]string {
+	var builderNodeSelector map[string]string
+	if b.options.PlatformConfig.Kube.IgnorePlatformIfProjectNodeSelectors {
+		builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
+			b.options.ProjectConfiguration.Spec.DefaultFunctionNodeSelector,
+			nil)
+	} else {
+		builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
+			b.options.ProjectConfiguration.Spec.DefaultFunctionNodeSelector,
+			b.options.PlatformConfig.Kube.DefaultFunctionNodeSelector)
+	}
+	b.logger.DebugWith("Enriched NodeSelector for processor image builder",
+		"builderNodeSelector", builderNodeSelector)
+
+	return builderNodeSelector
+
 }

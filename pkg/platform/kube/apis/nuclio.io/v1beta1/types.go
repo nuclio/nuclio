@@ -17,11 +17,11 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 // +genclient
@@ -127,17 +127,7 @@ func (nf *NuclioFunction) GetComputedMaxReplicas() int32 {
 // EnrichNodeSelector enriches Spec.NodeSelector with platform and project NodeSelectors,
 // where function values take precedence over project values, and project values take precedence over platform values
 func (nf *NuclioFunction) EnrichNodeSelector(platformNodeSelector, projectNodeSelector map[string]string) {
-
-	if nf.Spec.NodeSelector == nil {
-		if projectNodeSelector == nil &&
-			platformNodeSelector == nil {
-			return
-		}
-		nf.Spec.NodeSelector = make(map[string]string)
-	}
-
-	defaultNodeSelector := labels.Merge(platformNodeSelector, projectNodeSelector)
-	nf.Status.EnrichedNodeSelector = labels.Merge(defaultNodeSelector, nf.Spec.NodeSelector)
+	nf.Status.EnrichedNodeSelector = common.MergeNodeSelector(nf.Spec.NodeSelector, projectNodeSelector, platformNodeSelector)
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

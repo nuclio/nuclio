@@ -51,6 +51,8 @@ type AuthConfig struct {
 type CreateFunctionBuildOptions struct {
 	Logger                     logger.Logger
 	FunctionConfig             functionconfig.Config
+	ProjectConfiguration       ProjectConfig
+	PlatformConfig             platformconfig.Config
 	PlatformName               string
 	OnAfterConfigUpdate        func(*functionconfig.Config) error
 	OutputImageFile            string
