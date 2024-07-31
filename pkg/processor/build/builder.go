@@ -1878,10 +1878,12 @@ func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, e
 		return nil, errors.Wrap(err, "Failed to get project for the function")
 	}
 	if b.platform.GetConfig().Kube.IgnorePlatformIfProjectNodeSelectors {
+		// enriching from a project only
 		builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
 			project.GetConfig().Spec.DefaultFunctionNodeSelector,
 			nil)
 	} else {
+		// enriching from both project and platform
 		builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
 			project.GetConfig().Spec.DefaultFunctionNodeSelector,
 			b.platform.GetConfig().Kube.DefaultFunctionNodeSelector)
