@@ -1075,6 +1075,11 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	taggedImageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
+	enrichedNodeSelector, err := b.resolveNodeSelector(ctx)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to enrich NodeSelector for image builder")
+	}
+
 	b.logger.InfoWithCtx(ctx,
 		"Building processor image",
 		"registryURL", registryURL,
@@ -1101,7 +1106,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 
 			// kaniko pod attributes
-			NodeSelector:           b.resolveNodeSelector(),
+			NodeSelector:           enrichedNodeSelector,
 			NodeName:               b.options.FunctionConfig.Spec.NodeName,
 			Affinity:               b.options.FunctionConfig.Spec.Affinity,
 			PriorityClassName:      b.options.FunctionConfig.Spec.PriorityClassName,
@@ -1866,20 +1871,24 @@ func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
 
 // resolveNodeSelector resolves builder NodeSelector from function, project and platform NodeSelectors,
 // where function values take precedence over project values, and project values take precedence over platform values
-func (b *Builder) resolveNodeSelector() map[string]string {
+func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, error) {
 	var builderNodeSelector map[string]string
-	if b.options.PlatformConfig.Kube.IgnorePlatformIfProjectNodeSelectors {
+	project, err := b.platform.GetFunctionProject(ctx, &b.options.FunctionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get project for the function")
+	}
+	if b.platform.GetConfig().Kube.IgnorePlatformIfProjectNodeSelectors {
 		builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
-			b.options.ProjectConfiguration.Spec.DefaultFunctionNodeSelector,
+			project.GetConfig().Spec.DefaultFunctionNodeSelector,
 			nil)
 	} else {
 		builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
-			b.options.ProjectConfiguration.Spec.DefaultFunctionNodeSelector,
-			b.options.PlatformConfig.Kube.DefaultFunctionNodeSelector)
+			project.GetConfig().Spec.DefaultFunctionNodeSelector,
+			b.platform.GetConfig().Kube.DefaultFunctionNodeSelector)
 	}
-	b.logger.DebugWith("Enriched NodeSelector for processor image builder",
+	b.logger.DebugWith("Enriched NodeSelector for image builder",
 		"builderNodeSelector", builderNodeSelector)
 
-	return builderNodeSelector
+	return builderNodeSelector, nil
 
 }
