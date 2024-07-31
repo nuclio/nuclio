@@ -516,6 +516,11 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = "python:3.9"
 	}
 
+	// enrich project name
+	if _, err := b.options.FunctionConfig.GetProjectName(); err != nil {
+		b.options.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
+	}
+
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
