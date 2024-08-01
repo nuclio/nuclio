@@ -296,11 +296,6 @@ func (b *Builder) GetFunctionPath() string {
 	return b.options.FunctionConfig.Spec.Build.Path
 }
 
-// GetProjectName returns the name of the project
-func (b *Builder) GetProjectName() string {
-	return b.options.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
-}
-
 // GetFunctionName returns the name of the function
 func (b *Builder) GetFunctionName() string {
 	return b.options.FunctionConfig.Meta.Name
@@ -584,8 +579,11 @@ func (b *Builder) getImage() (string, error) {
 				repository = ""
 			}
 		}
-
-		imagePrefix, err := b.platform.RenderImageNamePrefixTemplate(b.GetProjectName(), b.GetFunctionName())
+		projectName, err := b.options.FunctionConfig.GetProjectName()
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to get project for the function")
+		}
+		imagePrefix, err := b.platform.RenderImageNamePrefixTemplate(projectName, b.GetFunctionName())
 
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to render image name prefix template")
