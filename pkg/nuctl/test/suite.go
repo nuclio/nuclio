@@ -128,6 +128,8 @@ func (suite *Suite) TearDownSuite() {
 
 	err = os.RemoveAll(suite.tempDir)
 	suite.Require().NoError(err, "Failed to remove temp dir - %s", suite.tempDir)
+	// remove project
+	suite.ExecuteNuctl([]string{"delete", "project", platform.DefaultProjectName}, map[string]string{}) // nolint: errcheck
 
 	suite.logger.Debug("Suite tear down completed")
 }
