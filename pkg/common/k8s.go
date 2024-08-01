@@ -27,7 +27,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -204,23 +203,4 @@ func FilterInvalidLabels(labels map[string]string) map[string]string {
 		filteredLabels[key] = value
 	}
 	return filteredLabels
-}
-
-// MergeNodeSelector merges function, project and platform NodeSelectors
-// where function values take precedence over project values, and project values take precedence over platform values
-func MergeNodeSelector(functionNodeSelector,
-	projectNodeSelector,
-	platformNodeSelector map[string]string) map[string]string {
-
-	if functionNodeSelector == nil {
-		if projectNodeSelector == nil &&
-			platformNodeSelector == nil {
-			return nil
-		}
-	}
-
-	defaultNodeSelector := labels.Merge(platformNodeSelector, projectNodeSelector)
-	mergedNodeSelector := labels.Merge(defaultNodeSelector, functionNodeSelector)
-
-	return mergedNodeSelector
 }
