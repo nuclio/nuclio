@@ -82,9 +82,14 @@ func (suite *testSuite) SetupTest() {
 		suite.Fail("Instantiating Builder failed:", err)
 	}
 
+	functionConfig := functionconfig.NewConfig()
+	functionConfig.Meta.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+	}
+
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:         suite.logger,
-		FunctionConfig: *functionconfig.NewConfig(),
+		FunctionConfig: *functionConfig,
 	}
 
 	createFunctionBuildOptions := &platform.CreateFunctionBuildOptions{
