@@ -296,11 +296,6 @@ func (b *Builder) GetFunctionPath() string {
 	return b.options.FunctionConfig.Spec.Build.Path
 }
 
-// GetProjectName returns the name of the project
-func (b *Builder) GetProjectName() string {
-	return b.options.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
-}
-
 // GetFunctionName returns the name of the function
 func (b *Builder) GetFunctionName() string {
 	return b.options.FunctionConfig.Meta.Name
@@ -516,6 +511,11 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = "python:3.9"
 	}
 
+	// enrich project name
+	if _, err := b.options.FunctionConfig.GetProjectName(); err != nil {
+		b.options.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
+	}
+
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
@@ -579,8 +579,11 @@ func (b *Builder) getImage() (string, error) {
 				repository = ""
 			}
 		}
-
-		imagePrefix, err := b.platform.RenderImageNamePrefixTemplate(b.GetProjectName(), b.GetFunctionName())
+		projectName, err := b.options.FunctionConfig.GetProjectName()
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to get project for the function")
+		}
+		imagePrefix, err := b.platform.RenderImageNamePrefixTemplate(projectName, b.GetFunctionName())
 
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to render image name prefix template")
@@ -1075,6 +1078,11 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 	taggedImageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 	registryURL := b.options.FunctionConfig.Spec.Build.Registry
 
+	enrichedNodeSelector, err := b.resolveNodeSelector(ctx)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to enrich NodeSelector for image builder")
+	}
+
 	b.logger.InfoWithCtx(ctx,
 		"Building processor image",
 		"registryURL", registryURL,
@@ -1101,7 +1109,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 
 			// kaniko pod attributes
-			NodeSelector:           b.options.FunctionConfig.Spec.NodeSelector,
+			NodeSelector:           enrichedNodeSelector,
 			NodeName:               b.options.FunctionConfig.Spec.NodeName,
 			Affinity:               b.options.FunctionConfig.Spec.Affinity,
 			PriorityClassName:      b.options.FunctionConfig.Spec.PriorityClassName,
@@ -1862,4 +1870,30 @@ func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
 		}
 	}
 	return healthCheckInterval, nil
+}
+
+// resolveNodeSelector resolves builder NodeSelector from function, project and platform NodeSelectors,
+// where function values take precedence over project values, and project values take precedence over platform values
+func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, error) {
+	var builderNodeSelector map[string]string
+	project, err := b.platform.GetFunctionProject(ctx, &b.options.FunctionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get project for the function")
+	}
+	if b.platform.GetConfig().Kube.IgnorePlatformIfProjectNodeSelectors {
+		// enriching from a project only
+		builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
+			project.GetConfig().Spec.DefaultFunctionNodeSelector,
+			nil)
+	} else {
+		// enriching from both project and platform
+		builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
+			project.GetConfig().Spec.DefaultFunctionNodeSelector,
+			b.platform.GetConfig().Kube.DefaultFunctionNodeSelector)
+	}
+	b.logger.DebugWith("Enriched NodeSelector for image builder",
+		"builderNodeSelector", builderNodeSelector)
+
+	return builderNodeSelector, nil
+
 }
