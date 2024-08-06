@@ -395,7 +395,7 @@ func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 			"partition", claim.Partition())
 
 	case <-time.After(k.configuration.maxWaitHandlerDuringRebalance):
-		k.Logger.DebugWith("Timed out waiting for handler to complete",
+		k.Logger.WarnWith("Timed out waiting for handler to complete",
 			"partition", claim.Partition())
 
 		// mark this as a failure, metric-wise

@@ -67,24 +67,27 @@ type Volume struct {
 
 // Trigger holds configuration for a trigger
 type Trigger struct {
-	Class                                 string              `json:"class"`
-	Kind                                  string              `json:"kind"`
-	Name                                  string              `json:"name"`
-	Disabled                              bool                `json:"disabled,omitempty"`
-	NumWorkers                            int                 `json:"numWorkers,omitempty"`
-	URL                                   string              `json:"url,omitempty"`
-	Paths                                 []string            `json:"paths,omitempty"`
-	Username                              string              `json:"username,omitempty"`
-	Password                              string              `json:"password,omitempty"`
-	Secret                                string              `json:"secret,omitempty"`
-	Partitions                            []Partition         `json:"partitions,omitempty"`
-	Annotations                           map[string]string   `json:"annotations,omitempty"`
-	WorkerAvailabilityTimeoutMilliseconds *int                `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
-	WorkerAllocatorName                   string              `json:"workerAllocatorName,omitempty"`
-	ExplicitAckMode                       ExplicitAckMode     `json:"explicitAckMode,omitempty"`
-	WaitExplicitAckDuringRebalanceTimeout string              `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
-	WorkerTerminationTimeout              string              `json:"workerTerminationTimeout,omitempty"`
-	Batch                                 *BatchConfiguration `json:"batch,omitempty"`
+	Class       string            `json:"class"`
+	Kind        string            `json:"kind"`
+	Name        string            `json:"name"`
+	Disabled    bool              `json:"disabled,omitempty"`
+	NumWorkers  int               `json:"numWorkers,omitempty"`
+	URL         string            `json:"url,omitempty"`
+	Paths       []string          `json:"paths,omitempty"`
+	Username    string            `json:"username,omitempty"`
+	Password    string            `json:"password,omitempty"`
+	Secret      string            `json:"secret,omitempty"`
+	Partitions  []Partition       `json:"partitions,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// TODO: move all these params to attributes for kafka trigger
+	WorkerTerminationTimeout              string          `json:"workerTerminationTimeout,omitempty"`
+	WorkerAvailabilityTimeoutMilliseconds *int            `json:"workerAvailabilityTimeoutMilliseconds,omitempty"`
+	WorkerAllocatorName                   string          `json:"workerAllocatorName,omitempty"`
+	ExplicitAckMode                       ExplicitAckMode `json:"explicitAckMode,omitempty"`
+	WaitExplicitAckDuringRebalanceTimeout string          `json:"waitExplicitAckDuringRebalanceTimeout,omitempty"`
+
+	Batch *BatchConfiguration `json:"batch,omitempty"`
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
 	MaxTaskAllocation int `json:"max_task_allocation,omitempty"`
