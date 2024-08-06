@@ -436,3 +436,9 @@ triggers:
         minVersion: "1.2"
 ```
 
+### Troubleshooting
+
+* Timeout during rebalance
+Issue: `Panic caught while trying to write into channel, which was closed because of wait for rebalance timeout` (log example)
+Solution: This issue can be resolved by increasing the `trigger.<name>.workerTerminationTimeout`. For more details, refer to the [function configuration documentation](../function-configuration/function-configuration-reference).
+
