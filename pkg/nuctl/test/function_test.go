@@ -1478,6 +1478,18 @@ func (suite *functionDeleteTestSuite) TestDelete() {
 	suite.Require().NoError(err, "Function was suppose to be deleted!")
 }
 
+func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
+	// Only supported on local
+	suite.ensureRunningOnPlatform(common.LocalPlatformName)
+	functionName := "Wrong function name"
+	functionPath := path.Join(suite.GetFunctionConfigsDir(), "error", "wrong-name", "function.yaml")
+	storageFunctionPath := fmt.Sprintf("/etc/nuclio/store/functions/%s/%s", suite.namespace, functionName)
+
+	suite.shellClient.CopyObjectsToContainer("nuclio-local-storage-reader", map[string]string{functionPath: storageFunctionPath})
+	err := suite.ExecuteNuctl([]string{"delete", "fu", functionName, "--force"}, nil)
+	suite.Require().NoError(err)
+}
+
 func (suite *functionDeleteTestSuite) TestForceDelete() {
 	// Force delete is currently not supported on local platform
 	suite.ensureRunningOnPlatform(common.KubePlatformName)
