@@ -20,11 +20,6 @@ package local
 
 import (
 	"context"
-	"fmt"
-	"github.com/nuclio/nuclio/pkg/platform"
-	"os"
-	"path"
-	"sigs.k8s.io/yaml"
 	"strings"
 	"testing"
 
@@ -192,27 +187,6 @@ func (suite *localPlatformTestSuite) TestVeryBigFunction() {
 
 	// check that function can be parsed successfully
 	_, err = suite.platform.localStore.GetFunctions(&functionconfig.Meta{Namespace: "nuclio"})
-	suite.Require().NoError(err)
-}
-
-func (suite *localPlatformTestSuite) TestDeleteBrokenFunction() {
-
-	// a small hack to set up local storage reader
-	_, _ = suite.platform.localStore.GetFunctions(&functionconfig.Meta{})
-
-	functionPath := path.Join(path.Join(common.GetSourceDir(), "test", "_function_configs"), "error", "wrong-name", "function.yaml")
-	functionConfig := functionconfig.Config{}
-	functionBody, err := os.ReadFile(functionPath)
-	suite.Require().NoError(err)
-	err = yaml.Unmarshal(functionBody, &functionConfig)
-	suite.Require().NoError(err)
-	functionName := functionConfig.Meta.Name
-	functionConfig.Meta.Namespace = "nuclio"
-	storageFunctionPath := fmt.Sprintf("/etc/nuclio/store/functions/%s/%s", functionConfig.Meta.Namespace, functionName)
-
-	err = suite.platform.dockerClient.CopyObjectsToContainer("nuclio-local-storage-reader", map[string]string{functionPath: storageFunctionPath})
-	suite.Require().NoError(err)
-	err = suite.platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{FunctionConfig: functionConfig})
 	suite.Require().NoError(err)
 }
 

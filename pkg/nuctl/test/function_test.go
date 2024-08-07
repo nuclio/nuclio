@@ -1488,6 +1488,7 @@ func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
 	functionPath := path.Join(path.Join(common.GetSourceDir(), "test", "_function_configs"), "error", "wrong-name", "function.json")
 	functionConfig := functionconfig.Config{}
 	functionBody, err := os.ReadFile(functionPath)
+	suite.Require().NoError(err)
 
 	err = json.Unmarshal(functionBody, &functionConfig)
 	suite.Require().NoError(err)
@@ -1511,6 +1512,7 @@ func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
 	suite.Require().NoError(err)
 
 	err = suite.ExecuteNuctl([]string{"get", "functions"}, nil)
+	suite.Require().NoError(err)
 	suite.Require().NotContains(suite.outputBuffer.String(), functionName)
 }
 
