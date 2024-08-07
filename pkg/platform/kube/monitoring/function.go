@@ -395,10 +395,6 @@ func (fm *FunctionMonitor) shouldSkipFunctionMonitoring(ctx context.Context, fun
 		functionconfig.FunctionStateReady,
 		functionconfig.FunctionStateUnhealthy,
 	}) {
-		fm.logger.DebugWithCtx(ctx,
-			"Function state is not ready or unhealthy, skipping",
-			"functionName", function.Name,
-			"functionState", function.Status.State)
 		return true
 	}
 
