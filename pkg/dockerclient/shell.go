@@ -798,7 +798,11 @@ func (c *ShellClient) CreateVolume(options *CreateVolumeOptions) error {
 func (c *ShellClient) DeleteVolume(volumeName string) error {
 	c.logger.DebugWith("Deleting docker volume", "volumeName", volumeName)
 	if !volumeNameRegex.MatchString(volumeName) {
-		volumeName = strconv.Quote(volumeName)
+		// if a name doesn't match regexp, volume could not be created,
+		// but we don't want to fail in that case, just do nothing
+		c.logger.WarnWith("Failed to validate a volume name, deletion of volume was skipped",
+			"volumeName", volumeName)
+		return nil
 	}
 
 	_, err := c.runCommand(nil, `docker volume rm --force %s`, volumeName)
