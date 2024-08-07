@@ -1506,7 +1506,7 @@ func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
 	_, err = tempFile.WriteString(decodedFunctionSourceCode)
 	suite.Require().NoError(err)
 
-	err = suite.dockerClient.CopyObjectsToContainer("nuclio-local-storage-reader", map[string]string{tempFile.Name(): storageFunctionPath})
+	err = suite.dockerClient.CopyObjectsToContainer("nuclio-local-storage-reader", map[string]string{tempFile.Name(): strings.Fields(storageFunctionPath)[0]})
 	suite.Require().NoError(err)
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName, "--force"}, nil)
 	suite.Require().NoError(err)

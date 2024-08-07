@@ -311,7 +311,14 @@ func (s *Store) serializeAndWriteFileContents(resourcePath string, resourceConfi
 }
 
 func (s *Store) getResourcePath(resourceDir string, resourceNamespace string, resourceName string) string {
-	return path.Join(s.getResourceNamespaceDir(resourceDir, resourceNamespace), resourceName+".json")
+	resourcePath := path.Join(s.getResourceNamespaceDir(resourceDir, resourceNamespace), resourceName+".json")
+	// try to check if a function name has a space in it
+	if strings.Contains(resourcePath, " ") {
+		// we can get there only if a function was deployed with a wrong name in Nuclio 1.11.24 and earlier.
+		// if a function name had a space in it, then we created a file called <first_word> instead of the correct name
+		resourcePath = strings.Fields(resourcePath)[0]
+	}
+	return resourcePath
 }
 
 func (s *Store) getResourceNamespaceDir(resourceDir string, resourceNamespace string) string {
@@ -460,6 +467,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 }
 
 func (s *Store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {
+	// get a resource path and quote it just in case
 	resourcePath := strconv.Quote(s.getResourcePath(resourceDir, resourceNamespace, resourceName))
 
 	// stat the file
