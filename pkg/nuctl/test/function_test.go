@@ -1479,15 +1479,39 @@ func (suite *functionDeleteTestSuite) TestDelete() {
 }
 
 func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
-	// Only supported on local
 	suite.ensureRunningOnPlatform(common.LocalPlatformName)
-	functionName := "Wrong function name"
-	functionPath := path.Join(suite.GetFunctionConfigsDir(), "error", "wrong-name", "function.yaml")
-	storageFunctionPath := fmt.Sprintf("/etc/nuclio/store/functions/%s/%s", suite.namespace, functionName)
 
-	suite.shellClient.CopyObjectsToContainer("nuclio-local-storage-reader", map[string]string{functionPath: storageFunctionPath})
-	err := suite.ExecuteNuctl([]string{"delete", "fu", functionName, "--force"}, nil)
+	// a small hack to set up local storage reader
+	err := suite.ExecuteNuctl([]string{"get", "functions"}, nil)
 	suite.Require().NoError(err)
+
+	functionPath := path.Join(path.Join(common.GetSourceDir(), "test", "_function_configs"), "error", "wrong-name", "function.json")
+	functionConfig := functionconfig.Config{}
+	functionBody, err := os.ReadFile(functionPath)
+
+	err = json.Unmarshal(functionBody, &functionConfig)
+	suite.Require().NoError(err)
+	functionName := functionConfig.Meta.Name
+	functionConfig.Meta.Namespace = suite.namespace
+	storageFunctionPath := fmt.Sprintf("/etc/nuclio/store/functions/%s/%s.json", suite.namespace, functionName)
+
+	// Create a temporary file in the system's default temporary directory
+	tempFile, err := os.CreateTemp(suite.tempDir, "decoded-func_*.json")
+	suite.Require().NoError(err)
+	defer os.Remove(tempFile.Name())
+
+	// decoding function config to base64 and writing it to a temp file
+	decodedFunctionSourceCode := base64.StdEncoding.EncodeToString(functionBody)
+	_, err = tempFile.WriteString(decodedFunctionSourceCode)
+	suite.Require().NoError(err)
+
+	err = suite.dockerClient.CopyObjectsToContainer("nuclio-local-storage-reader", map[string]string{tempFile.Name(): storageFunctionPath})
+	suite.Require().NoError(err)
+	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName, "--force"}, nil)
+	suite.Require().NoError(err)
+
+	err = suite.ExecuteNuctl([]string{"get", "functions"}, nil)
+	suite.Require().NotContains(suite.outputBuffer.String(), functionName)
 }
 
 func (suite *functionDeleteTestSuite) TestForceDelete() {

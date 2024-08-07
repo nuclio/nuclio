@@ -161,17 +161,23 @@ func (c *ShellClient) CopyObjectsToContainer(containerName string, objectsToCopy
 
 		// create target directory if it doesn't exist
 		fileDir := path.Dir(objectContainerPath)
-		if _, err := c.runCommand(nil, "docker exec %s mkdir -p %s", containerName, fileDir); err != nil {
+
+		// escape all paths (security matter)
+		escapedObjectLocalPath := strconv.Quote(objectLocalPath)
+		escapedObjectContainerPath := strconv.Quote(objectContainerPath)
+		escapedFileDir := strconv.Quote(fileDir)
+
+		if _, err := c.runCommand(nil, "docker exec %s mkdir -p %s", containerName, escapedFileDir); err != nil {
 			return errors.Wrapf(err, "Failed creating directory in container")
 		}
 
 		// copy an object from local storage to the given container
 		if _, err := c.runCommand(nil,
 			"docker cp %s %s:%s ",
-			objectLocalPath,
+			escapedObjectLocalPath,
 			containerName,
-			objectContainerPath); err != nil {
-			return errors.Wrapf(err, "Failed copying object %s to container %s:%s", objectLocalPath, containerName, objectContainerPath)
+			escapedObjectContainerPath); err != nil {
+			return errors.Wrapf(err, "Failed copying object %s to container %s:%s", escapedObjectLocalPath, containerName, escapedObjectContainerPath)
 		}
 	}
 
@@ -792,7 +798,7 @@ func (c *ShellClient) CreateVolume(options *CreateVolumeOptions) error {
 func (c *ShellClient) DeleteVolume(volumeName string) error {
 	c.logger.DebugWith("Deleting docker volume", "volumeName", volumeName)
 	if !volumeNameRegex.MatchString(volumeName) {
-		return errors.New("Invalid volume name to delete")
+		volumeName = strconv.Quote(volumeName)
 	}
 
 	_, err := c.runCommand(nil, `docker volume rm --force %s`, volumeName)

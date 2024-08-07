@@ -1,7 +1,0 @@
-metadata:
-  name: "Wrong function name"
-spec:
-  description: 'This is a function with wrong name'
-  handler: main:Handler
-  runtime: golang
-
