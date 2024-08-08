@@ -163,9 +163,9 @@ func (c *ShellClient) CopyObjectsToContainer(containerName string, objectsToCopy
 		fileDir := path.Dir(objectContainerPath)
 
 		// escape all paths (security matter)
-		escapedObjectLocalPath := strconv.Quote(objectLocalPath)
-		escapedObjectContainerPath := strconv.Quote(objectContainerPath)
-		escapedFileDir := strconv.Quote(fileDir)
+		escapedObjectLocalPath := common.Quote(objectLocalPath)
+		escapedObjectContainerPath := common.Quote(objectContainerPath)
+		escapedFileDir := common.Quote(fileDir)
 
 		if _, err := c.runCommand(nil, "docker exec %s mkdir -p %s", containerName, escapedFileDir); err != nil {
 			return errors.Wrapf(err, "Failed creating directory in container")
@@ -800,7 +800,7 @@ func (c *ShellClient) DeleteVolume(volumeName string) error {
 	if !volumeNameRegex.MatchString(volumeName) {
 		// if a name doesn't match regexp, volume could not be created,
 		// but we don't want to fail in that case, just do nothing
-		c.logger.WarnWith("Failed to validate a volume name, deletion of volume was skipped",
+		c.logger.WarnWith("Failed to validate volume name, deletion of volume was skipped",
 			"volumeName", volumeName)
 		return nil
 	}
