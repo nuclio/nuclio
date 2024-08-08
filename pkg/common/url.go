@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/nuclio/errors"
@@ -34,7 +35,10 @@ const (
 	HTTPPrefix      = "http://"
 	HTTPSPrefix     = "https://"
 	LocalFilePrefix = "file://"
+	urlPathRegex    = `^([\/]?([a-zA-Z0-9\-_]+[\/]?)*|)$`
 )
+
+var URLPathRegexpCompiled = regexp.MustCompile(urlPathRegex)
 
 func DownloadFile(url string, out *os.File, headers http.Header) error {
 	client := http.Client{}
@@ -110,6 +114,11 @@ func NormalizeURLPath(p string) string {
 	}
 
 	return string(res)
+}
+
+// ValidateURLPath validates only path of url (without host)
+func ValidateURLPath(path string) bool {
+	return URLPathRegexpCompiled.MatchString(path)
 }
 
 // SendHTTPRequest Sends an HTTP request using custom http client

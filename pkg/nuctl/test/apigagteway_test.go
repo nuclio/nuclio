@@ -98,6 +98,29 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateGetAndDelete() {
 	}
 }
 
+func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestCreateWithWrongPath() {
+
+	apiGatewayName := "get-test-apigateway-with-wrong-path"
+
+	namedArgs := map[string]string{
+		"path":                "wrong path",
+		"authentication-mode": "basicAuth",
+		"basic-auth-username": "basic-username",
+		"basic-auth-password": "basic-password",
+		"function":            "function-x",
+	}
+
+	err := suite.ExecuteNuctl([]string{
+		"create",
+		"apigateway",
+		apiGatewayName,
+		"--mask-sensitive-fields",
+	}, namedArgs)
+
+	suite.Require().Error(err)
+	suite.Require().ErrorContains(err, "Failed to validate and enrich an API gateway")
+}
+
 func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 	numOfAPIGateways := 3
 	var apiGatewayNames []string

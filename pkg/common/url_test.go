@@ -81,6 +81,22 @@ func (ts *IsURLTestSuite) TestNormalizeURLPath() {
 	}
 }
 
+func (ts *IsURLTestSuite) TestValidatePath() {
+	for inputPath, expectedOutput := range map[string]bool{
+		"/path/to/resource":           true,
+		"another/path/to/resource123": true,
+		"/yet-another_path":           true,
+		"yet-another_path":            true,
+		"invalid path":                false,
+		"/":                           true,
+		"":                            true,
+		"simplepath":                  true,
+		"complex/path-with-123_and-mixed_characters/": true,
+	} {
+		ts.Require().Equal(ValidateURLPath(inputPath), expectedOutput)
+	}
+}
+
 func (ts *DownloadFileTestSuite) TestDownloadFile() {
 	content := "content"
 	errResult := ts.testDownloadFile(func(req *http.Request) (*http.Response, error) {

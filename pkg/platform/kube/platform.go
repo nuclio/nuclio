@@ -838,7 +838,7 @@ func (p *Platform) CreateAPIGateway(ctx context.Context,
 		createAPIGatewayOptions.APIGatewayConfig,
 		createAPIGatewayOptions.ValidateFunctionsExistence,
 		nil); err != nil {
-		return errors.Wrap(err, "Failed to validate and enrich an API-gateway name")
+		return errors.Wrap(err, "Failed to validate and enrich an API gateway")
 	}
 
 	// scrub api gateway config
