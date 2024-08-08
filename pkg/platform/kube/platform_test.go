@@ -2325,7 +2325,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Host = "this-host-and-path-are-used.com"
-				apiGatewayConfig.Spec.Path = "//same-path"
+				apiGatewayConfig.Spec.Path = "/same-path"
 				return &apiGatewayConfig
 			}(),
 		},
@@ -2363,7 +2363,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				apiGatewayConfig.Spec.Host = "this-host-and-path-are-used.com"
-				apiGatewayConfig.Spec.Path = "//same-path"
+				apiGatewayConfig.Spec.Path = "/same-path"
 				return &apiGatewayConfig
 			}(),
 			validationError: platform.ErrIngressHostPathInUse.Error(),
