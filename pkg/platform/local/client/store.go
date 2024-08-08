@@ -25,7 +25,6 @@ import (
 	"os"
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -339,10 +338,6 @@ func (s *Store) getResources(resourceDir string,
 		resourcePath = path.Join(s.getResourceNamespaceDir(resourceDir, resourceNamespace), "*")
 	}
 
-	// if filename contains spaces, we want to escape them
-	if strings.Contains(resourcePath, " ") {
-		resourcePath = strings.ReplaceAll(resourcePath, " ", "\\ ")
-	}
 	commandStdout, _, err := s.runCommand(nil, `/bin/sh -c "/bin/cat %s"`, resourcePath)
 	if err != nil {
 
@@ -467,8 +462,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 }
 
 func (s *Store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {
-	// get a resource path and quote it just in case
-	resourcePath := strconv.Quote(s.getResourcePath(resourceDir, resourceNamespace, resourceName))
+	resourcePath := s.getResourcePath(resourceDir, resourceNamespace, resourceName)
 
 	// stat the file
 	if _, _, err := s.runCommand(nil, "/bin/stat %s", resourcePath); err != nil {

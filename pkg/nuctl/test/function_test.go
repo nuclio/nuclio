@@ -1481,10 +1481,6 @@ func (suite *functionDeleteTestSuite) TestDelete() {
 func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
 	suite.ensureRunningOnPlatform(common.LocalPlatformName)
 
-	// a small hack to set up local storage reader
-	err := suite.ExecuteNuctl([]string{"get", "functions"}, nil)
-	suite.Require().NoError(err)
-
 	functionPath := path.Join(path.Join(common.GetSourceDir(), "test", "_function_configs"), "error", "wrong-name", "function.json")
 	functionConfig := functionconfig.Config{}
 	functionBody, err := os.ReadFile(functionPath)
@@ -1494,7 +1490,6 @@ func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
 	suite.Require().NoError(err)
 	functionName := functionConfig.Meta.Name
 	functionConfig.Meta.Namespace = suite.namespace
-	storageFunctionPath := fmt.Sprintf("/etc/nuclio/store/functions/%s/%s.json", suite.namespace, functionName)
 
 	// Create a temporary file in the system's default temporary directory
 	tempFile, err := os.CreateTemp(suite.tempDir, "decoded-func_*.json")
@@ -1505,6 +1500,10 @@ func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
 	decodedFunctionSourceCode := base64.StdEncoding.EncodeToString(functionBody)
 	_, err = tempFile.WriteString(decodedFunctionSourceCode)
 	suite.Require().NoError(err)
+
+	// emulate the behaviour of previous versions bug, where we wrote file named as a first word before the 1st space
+	storageFunctionPath := fmt.Sprintf("/etc/nuclio/store/functions/%s/%s.json", suite.namespace, functionName)
+	storageFunctionPath = strings.Fields(storageFunctionPath)[0]
 
 	err = suite.dockerClient.CopyObjectsToContainer("nuclio-local-storage-reader", map[string]string{tempFile.Name(): strings.Fields(storageFunctionPath)[0]})
 	suite.Require().NoError(err)
