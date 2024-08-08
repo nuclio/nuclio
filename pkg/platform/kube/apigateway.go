@@ -40,7 +40,7 @@ func ValidateAPIGatewaySpec(apiGatewaySpec *platform.APIGatewaySpec) error {
 	}
 
 	if !common.ValidateURLPath(apiGatewaySpec.Path) {
-		return nuclio.NewErrBadRequest("Failed to validate api gateway path")
+		return nuclio.NewErrBadRequest(fmt.Sprintf("API Gateway path is invalid - %s", apiGatewaySpec.Path))
 	}
 
 	// TODO: update this when adding more upstream kinds. for now allow only `nucliofunction` upstreams

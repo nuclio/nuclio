@@ -92,6 +92,10 @@ func (ts *IsURLTestSuite) TestValidatePath() {
 		"":                            true,
 		"simplepath":                  true,
 		"complex/path-with-123_and-mixed_characters/": true,
+		"/path/with/special/characters/!@#$%^&*()":    false,
+		"/path/with/encoded/characters/%20":           false,
+		"another/weird@path":                          false,
+		"/path/with?query=parameters&and=more":        false,
 	} {
 		ts.Require().Equal(ValidateURLPath(inputPath), expectedOutput)
 	}
