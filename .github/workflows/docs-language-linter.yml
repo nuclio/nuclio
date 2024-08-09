@@ -41,6 +41,6 @@ jobs:
         uses: actions/setup-python@v4
       - name: Install dependencies
         run: |
-          pip install sphinx
+          pip install -r docs/requirements.txt
       - name: Check for broken links
         run: make linkcheck
