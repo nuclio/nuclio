@@ -43,4 +43,6 @@ jobs:
         run: |
           pip install -r docs/requirements.txt
       - name: Check for broken links
+        env:
+          FORCE_COLOR: 1  # Force color output
         run: make linkcheck
