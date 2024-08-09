@@ -1,6 +1,6 @@
 # MQTT trigger
 
-Reads messages from [MQTT](http://mqtt.org/) topics.
+Reads messages from [MQTT](https://mqtt.org/) topics.
 
 ## Attributes
 

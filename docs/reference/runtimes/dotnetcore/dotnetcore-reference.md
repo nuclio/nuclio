@@ -56,7 +56,7 @@ JsonConvert.SerializeObject(...);
 ```
 
 Adding more dependencies is made easy using `dotnet add package <package name>`.
-For more details about `dotnet add package`, see the [Microsoft documentation](https://docs.microsoft.com/en-us/dotnet/core/tools/dotnet-add-package).
+For more details about `dotnet add package`, see the [Microsoft documentation](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-add-package).
 
 ## Dockerfile
 

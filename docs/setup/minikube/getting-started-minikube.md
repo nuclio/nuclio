@@ -16,7 +16,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 
 - The following components are installed on your installation machine:
     - [Docker](https://docs.docker.com/get-docker/)
-    - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
+    - [Minikube](https://minikube.sigs.k8s.io/docs/start/)
     - [Helm](https://helm.sh/docs/intro/install/)
 - The [Nuclio CLI](../../reference/nuctl/nuctl.md) (`nuctl`) is installed &mdash; if you wish to [use the CLI to deploy Nuclio functions](#deploy-a-function-with-the-nuclio-cli-nuctl).
     To install the CLI, simply [download](https://github.com/nuclio/nuclio/releases) the appropriate CLI version to your installation machine.
@@ -63,7 +63,7 @@ Before Docker container images can be pushed to your newly created, insecure reg
 address (`$(minikube ip):5000`) to the list of insecure registries to instruct Docker to accept working against it:
 
 - **Docker for macOS** -  you can add it under **Preferences | Daemon**.
-- **Linux** - follow the instructions in the [Docker documentation](https://docs.docker.com/registry/insecure/#deploy-a-plain-http-registry).
+- **Linux** - follow the instructions in the [Docker documentation](https://docs.docker.com/registry).
 
 ## Install Nuclio
 
@@ -111,7 +111,7 @@ nuctl deploy helloworld \
 >**Note:** The difference between the two registries specified in this command, and the reason for their addresses being different is as follows:
 >
 > - The `--registry` option defines the Docker registry onto which the function images that you build will be pushed. This is the registry that you previously brought up on your Minikube VM.
-> - The `--registry-run` option defines the registry from which the [`kubelet`](https://kubernetes.io/docs/reference/generated/kubelet/) Kubernetes "node agent" will pull the function images. Because this operation occurs in the Minikube VM, the command specifies `localhost` instead of the VM's IP address.
+> - The `--registry-run` option defines the registry from which the [`kubelet`](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/) Kubernetes "node agent" will pull the function images. Because this operation occurs in the Minikube VM, the command specifies `localhost` instead of the VM's IP address.
 
 When the function deployment completes, you can get the function information by running the following CLI command:
 ```sh

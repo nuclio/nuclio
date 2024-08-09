@@ -28,6 +28,10 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+linkcheck_ignore = [
+    r'https:\/\/github\.com\/.*\/.*#L\d+-L\d+',  # Ignore GitHub links to specific lines
+]
+
 language = "go"
 
 # https://sphinx-copybutton.readthedocs.io/en/latest/use.html#strip-and-configure-input-prompts-for-code-cells

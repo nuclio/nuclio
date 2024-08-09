@@ -26,7 +26,7 @@
 
 Nuclio 是一个高性能的 "serverless" 框架，专注于数据、I/O和计算密集型的工作负载. 它与流行的数据科学工具集成地很好，例如 [Jupyter](https://jupyter.org/) 和 [Kubeflow](https://www.kubeflow.org/); 支持多种类型的数据和流式数据源; 并且支持在CPU和GPU上执行任务。Nuclio 项目于 2017 年启动，并处于持续不断的快速发展中；现如今，许多初创企业已将 Nuclio 应用于生产。
 
-你可以将 Nuclio 以一个独立的 Docker 容器运行或者运行在一个已有的 [Kubernetes](https://kubernetes.io) 集群中; 在 Nuclio 文档中查看具体的部署指南。 也可以通过 [Iguazio 数据科学平台](https://www.iguazio.com/) 中的全权托管应用服务平台（云上或者本地）来使用 Nuclio，它提供[免费的试用](https://go.iguazio.com/start-your-free-trial).
+你可以将 Nuclio 以一个独立的 Docker 容器运行或者运行在一个已有的 [Kubernetes](https://kubernetes.io) 集群中; 在 Nuclio 文档中查看具体的部署指南。 也可以通过 [Iguazio 数据科学平台](https://www.iguazio.com/) 中的全权托管应用服务平台（云上或者本地）来使用 Nuclio.
 
 如果想通过编码的方式创建或者管理 Nuclio 函数（functions）- 例如, 使用 Jupyter Notebook - 请参阅 [Nuclio Jupyter 项目](https://github.com/nuclio/nuclio-jupyter), 它包含一个完整的 Python 包和软件开发工具包（SDK）用于通过 Jupyter Notebook 创建和部署 Nuclio 函数。 Nuclio 作为新开源项目 [MLRun](https://github.com/mlrun/mlrun) library，以及开源项目 [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/) 中不可或缺的部分，分别提供数据科学自动化及追踪能力，以及构建和部署弹性可迁移机器学习（ML）工作流的能力。 
 
@@ -77,7 +77,6 @@ curl -X POST \
 - [在 Kubernetes 中使用 Nuclio](/docs/setup/k8s/getting-started-k8s.md)
 - [在 GKE（Google Kubernetes Engine） 中使用 Nuclio](/docs/setup/gke/getting-started-gke.md)
 - [在 AKS（Azure Container Services） 中使用 Nuclio](/docs/setup/aks/getting-started-aks.md)
-- [在 Katacoda 中使用免费的 Kubernetes 沙箱环境中，按步骤运行 Nuclio](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 
 ## 架构设计
 
@@ -169,8 +168,6 @@ def handler(context, event):
   - [运行时 - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
   - [运行时 - Shell](/docs/reference/runtimes/shell/shell-reference.md)
 - [示例](docs/examples/README.md)
-- 沙箱环境
-  - [在免费的 Kubernetes 集群中安装 Nuclio 并运行函数，以进行各种探索和试验](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 - 贡献指南
   - [代码规范](/docs/devel/coding-conventions.md)
   - [向 Nuclio 做贡献](/docs/devel/contributing.md)

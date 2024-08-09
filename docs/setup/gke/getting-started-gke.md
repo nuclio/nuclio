@@ -77,7 +77,7 @@ gcloud iam service-accounts keys create credentials.json --iam-account $(gcloud 
 
 ## Install Nuclio
 
-At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
+At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/reference/kubectl/).
 
 **Create a Kubernetes Docker-registry secret** from service-key file that you created as part of the [Kubernetes cluster setup](#set-up-a-kubernetes-cluster-and-a-local-environment)
 

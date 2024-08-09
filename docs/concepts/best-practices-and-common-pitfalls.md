@@ -47,7 +47,7 @@ Because each Nuclio worker receives its own context across all runtimes, `init_c
 <a id="http-clients-for-testing"></a>
 ## Use HTTP clients over browsers for HTTP(s) tests
 
-When testing functions over HTTP(s), prefer an HTTP client (such as [curl](https://curl.se/), [HTTPie](https://httpie.org/), or [Postman](https://www.getpostman.com/)) over a browser (such as Google Chrome).
+When testing functions over HTTP(s), prefer an HTTP client (such as [curl](https://curl.se/), [HTTPie](https://httpie.org/), or [Postman](https://www.postman.com/)) over a browser (such as Google Chrome).
 Browsers tend to create requests for **favicon.ico** and other sneaky things before you even press `ENTER`. This might cause confusion while debugging functions, as you can't really control when your function is invoked.
 
 <a id="tweak-worker-cfg-to-resolve-http-503-errors"></a>

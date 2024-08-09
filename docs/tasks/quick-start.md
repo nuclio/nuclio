@@ -23,4 +23,3 @@ For a complete step-by-step guide to using Nuclio over Kubernetes, either with t
 - [Getting Started with Nuclio on Kubernetes](../setup/k8s/getting-started-k8s)
 - [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](../setup/gke/getting-started-gke.md)
 - [Getting started with Nuclio on Azure Container Services (AKS)](../setup/aks/getting-started-aks.md)
-- [Hands-on live Kubernetes sandbox and guiding instructions for Nuclio, free on Katacoda](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
