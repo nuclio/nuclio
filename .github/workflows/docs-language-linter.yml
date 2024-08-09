@@ -18,6 +18,9 @@ on:
     paths:
       - "docs/**"
       - '**.md'
+      - ".github/workflows/docs-language-linter.yaml"
+      - ".vale.ini"
+      - ".github/styles/**"
 
 jobs:
   vale:
@@ -29,3 +32,15 @@ jobs:
         with:
           reporter: github-pr-check
 
+  docs_linkcheck:
+    name: Build docs and check for broken links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+      - name: Install dependencies
+        run: |
+          pip install sphinx
+      - name: Check for broken links
+        run: make linkcheck

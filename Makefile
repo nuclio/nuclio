@@ -628,6 +628,15 @@ lint: modules ensure-test-files-annotated
 	$(GOPATH)/bin/golangci-lint run -v
 	@echo Done.
 
+.PHONY: lint-docs
+lint-docs:
+	vale docs
+	@sort .github/styles/Nuclio/ignore.txt -o .github/styles/Nuclio/ignore.txt
+
+.PHONY: linkcheck
+linkcheck:
+	make -C docs/ linkcheck
+
 .PHONY: ensure-test-files-annotated
 ensure-test-files-annotated:
 	$(eval test_files_missing_build_annotations=$(strip $(shell find . -type f -name '*_test.go' -exec bash -c "grep -m 1 -L '//go:build ' {} | grep go" \;)))
