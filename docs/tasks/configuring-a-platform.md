@@ -208,7 +208,7 @@ For example to define custom PyPI repository, add the following section:
 
 `envFrom` is a configuration of [`[]v1.envFromSource`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#envfromsource-v1-core) type 
 which enables the specification of secrets/configMaps for propagation to all functions. Platform values take lower precedence 
-compared to function config values, which can be specified in the function config spec under `envFrom` ([function configuration](../reference/function-configuration) documentation).
+compared to function config values, which can be specified in the function config spec under `envFrom` ([function configuration](../reference/function-configuration/function-configuration-reference) documentation).
 ```yaml
   envFrom:
     - secretRef:
