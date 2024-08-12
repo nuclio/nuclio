@@ -33,7 +33,7 @@ jobs:
           reporter: github-pr-check
 
   docs_linkcheck:
-    name: Build docs and check for broken links
+    name: Check for broken links
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
