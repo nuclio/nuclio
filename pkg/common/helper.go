@@ -50,6 +50,7 @@ var SmallLettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
 var LettersAndNumbers = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 var containerHostname string
+var specialCharPattern = regexp.MustCompile(`[^\w@%+=:,./-]`)
 
 // IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
@@ -432,8 +433,6 @@ func GetSourceDir() string {
 // Quote returns a shell-escaped version of the string s. The returned value
 // is a string that can safely be used as one token in a shell command line.
 func Quote(s string) string {
-	var specialCharPattern = regexp.MustCompile(`[^\w@%+=:,./-]`)
-
 	if len(s) == 0 {
 		return "''"
 	}
