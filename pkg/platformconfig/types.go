@@ -181,11 +181,6 @@ type PlatformKubeConfig struct {
 	DefaultSidecarResources          PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
 	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
 	PreemptibleNodes                 *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
-
-	// when enriching function node selector, if this flag is set we ignore platform's node selectors if the project's node selectors are set.
-	// if project's node selectors aren't set, we enrich with the platform's selectors anyway.
-	// if set to false, we will enrich function node selector with the values in both the platform config and the project
-	IgnorePlatformIfProjectNodeSelectors bool `json:"ignorePlatformIfProjectNodeSelectors,omitempty"`
 }
 
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)

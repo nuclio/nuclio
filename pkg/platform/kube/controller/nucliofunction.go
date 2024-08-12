@@ -532,17 +532,10 @@ func (fo *functionOperator) enrichNodeSelector(ctx context.Context, function *nu
 		return errors.Wrap(err, fmt.Sprintf("Failed to get project %s", projectName))
 	}
 
-	if fo.controller.GetPlatformConfiguration().Kube.IgnorePlatformIfProjectNodeSelectors {
-		function.EnrichNodeSelector(
-			nil,
-			project.Spec.DefaultFunctionNodeSelector,
-		)
-	} else {
-		function.EnrichNodeSelector(
-			fo.controller.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector,
-			project.Spec.DefaultFunctionNodeSelector,
-		)
-	}
+	function.EnrichNodeSelector(
+		fo.controller.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector,
+		project.Spec.DefaultFunctionNodeSelector,
+	)
 
 	fo.logger.DebugWithCtx(ctx, "Successfully enriched NodeSelector",
 		"functionName", function.Name,
