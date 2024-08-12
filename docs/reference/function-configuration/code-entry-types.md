@@ -20,7 +20,7 @@ This document describes the Nuclio function code-entry types and related configu
 
 ## Overview
 
-As part of the [function specification](../../reference/function-configuration/function-configuration-reference.md#specification) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
+As part of the [function specification](function-configuration-reference.md#specification) (`spec`), you must configure one of the following code-entry types and related information that points either to a pre-built function image or to code from which to build such an image:
 
 - Function image (`image`) &mdash; set the `spec.image` configuration field to the name of a function container image. See [Function-image code-entry type (`image`)](#code-entry-type-image).
 
@@ -38,15 +38,15 @@ As part of the [function specification](../../reference/function-configuration/f
 
 The code-entry type is determined by using the following processing logic:
 
-1. If [`spec.image`](../../reference/function-configuration/function-configuration-reference.md#spec.image) is set, the implied code-entry type is [function image](#code-entry-type-image) (`image`) and the configured function image is used. The `spec.build.codeEntryType`, `spec.build.functionSourceCode`, and `spec.build.path` fields are ignored.
+1. If [`spec.image`](function-configuration-reference.md#spec.image) is set, the implied code-entry type is [function image](#code-entry-type-image) (`image`) and the configured function image is used. The `spec.build.codeEntryType`, `spec.build.functionSourceCode`, and `spec.build.path` fields are ignored.
 
    > **Note:** When you build and deploy a Nuclio function, the `spec.image` field is automatically updated to the name of the function's container image, so to use a different code-entry type for a redeployed function you must first reset the `spec.image` configuration field. This is handled implicitly when deploying a function from the Nuclio dashboard.
 
-2. If [`spec.build.functionSourceCode`](../../reference/function-configuration/function-configuration-reference.md#spec.build.functionSourceCode) is set (and `spec.image` isn't set), the implied code-entry type is [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`) and the function is built from the configured source code. The `spec.build.codeEntryType` and `spec.build.path` fields are ignored.
+2. If [`spec.build.functionSourceCode`](function-configuration-reference.md#spec.build.functionSourceCode) is set (and `spec.image` isn't set), the implied code-entry type is [encoded source-code string](#code-entry-type-sourcecode) (`sourceCode`) and the function is built from the configured source code. The `spec.build.codeEntryType` and `spec.build.path` fields are ignored.
 
-3. If [`spec.build.codeEntryType`](../../reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) is set (and `spec.image` and `spec.build.functionSourceCode` aren't set), the value of the code-entry field determines the [external function-code code-entry type](#external-func-code-entry-types) (`archive`, `github`, or `s3`).
+3. If [`spec.build.codeEntryType`](function-configuration-reference.md#spec.build.codeEntryType) is set (and `spec.image` and `spec.build.functionSourceCode` aren't set), the value of the code-entry field determines the [external function-code code-entry type](#external-func-code-entry-types) (`archive`, `github`, or `s3`).
 
-4. If [`spec.build.path`](../../reference/function-configuration/function-configuration-reference.md#spec.build.path) is set (and `spec.image`, `spec.build.functionSourceCode`, and `spec.build.codeEntryType` aren't set), the implied code-entry type is [source-code-file](#code-entry-type-codefile) and the function is built from the configured source code.
+4. If [`spec.build.path`](function-configuration-reference.md#spec.build.path) is set (and `spec.image`, `spec.build.functionSourceCode`, and `spec.build.codeEntryType` aren't set), the implied code-entry type is [source-code-file](#code-entry-type-codefile) and the function is built from the configured source code.
 
 <a id="dashboard-configuration"></a>
 ### Configuring the code-entry type from the dashboard
@@ -59,7 +59,7 @@ The dashboard notes in this reference refer to fields in the **Code** function d
 <a id="code-entry-type-image"></a>
 ## Function-image code-entry type (`image`)
 
-Set the [`spec.image`](../../reference/function-configuration/function-configuration-reference.md#spec.image) function-configuration field to the name of a function container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
+Set the [`spec.image`](function-configuration-reference.md#spec.image) function-configuration field to the name of a function container image (`[<host name>.]<namespace>.<repository>[:<tag>]`) to deploy the function from this image.
 
 > **Note:** When `spec.image` is set, the implied code-entry type is `image` and `spec.build.codeEntryType` and `spec.build.path` are ignored. See [Determining the code-entry type](#code-entry-type-determine).
 
@@ -128,7 +128,7 @@ spec:
 <a id="external-func-code-entry-types"></a>
 ## External function-code entry types
 
-Set the [`spec.build.codeEntryType`](/docs/reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
+Set the [`spec.build.codeEntryType`](function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to one of the following code-entry types to download the function code from the respective external source:
 
 - `github` &mdash; download the code from a GitHub repository. See [GitHub code-entry type (`github`)](#code-entry-type-github).
 - `archive` &mdash; download the code as an archive file from an Iguazio Data Science Platform data container (authenticated) or from any URL that doesn't require download authentication. See [Archive-file code-entry type (`archive`)](#code-entry-type-archive).
@@ -152,7 +152,7 @@ The downloaded function code can optionally contain a **function.yaml** file wit
 <a id="code-entry-type-git"></a>
 ### Git code-entry type (`git`)
 
-Set the [`spec.build.codeEntryType`](../../reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `git` (dashboard: **Code entry type** = `Git`) to clone the function code from a Git repository. The following configuration fields provide additional information for performing the cloning:
+Set the [`spec.build.codeEntryType`](function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `git` (dashboard: **Code entry type** = `Git`) to clone the function code from a Git repository. The following configuration fields provide additional information for performing the cloning:
 
 - `spec.build` &mdash;
   - `path` (dashboard: **URL**) (Required) &mdash; the URL of the Git repository that contains the function code.
@@ -221,7 +221,7 @@ spec:
 <a id="code-entry-type-github"></a>
 ### GitHub code-entry type (`github`)
 
-Set the [`spec.build.codeEntryType`](../../reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `github` (dashboard: **Code entry type** = `GitHub`) to download the function code from a GitHub repository. The following configuration fields provide additional information for performing the download:
+Set the [`spec.build.codeEntryType`](function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `github` (dashboard: **Code entry type** = `GitHub`) to download the function code from a GitHub repository. The following configuration fields provide additional information for performing the download:
 
 - `spec.build` &mdash;
   - `path` (dashboard: **URL**) (Required) &mdash; the URL of the GitHub repository that contains the function code.
@@ -252,7 +252,7 @@ spec:
 <a id="code-entry-type-archive"></a>
 ### Archive-file code-entry type (`archive`)
 
-Set the [`spec.build.codeEntryType`](../../reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-file-formats) of the function code from one of the following sources:
+Set the [`spec.build.codeEntryType`](function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `archive` (dashboard: **Code entry type** = `Archive`) to download [an archive file](#archive-file-formats) of the function code from one of the following sources:
 
 - An [Iguazio Data Science Platform](https://www.iguazio.com) ("platform") data container. Downloads from this source require user authentication.
 - Any URL that doesn't require user authentication to perform the download.
@@ -287,7 +287,7 @@ spec:
 <a id="code-entry-type-s3"></a>
 ### AWS S3 code-entry type (`s3`)
 
-Set the [`spec.build.codeEntryType`](../../reference/function-configuration/function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `s3` (dashboard: **Code entry type** = `S3`) to download [an archive file](#archive-file-formats) of the function code from an Amazon Simple Storage Service (AWS S3) bucket. The following configuration fields provide additional information for performing the download:
+Set the [`spec.build.codeEntryType`](function-configuration-reference.md#spec.build.codeEntryType) function-configuration field to `s3` (dashboard: **Code entry type** = `S3`) to download [an archive file](#archive-file-formats) of the function code from an Amazon Simple Storage Service (AWS S3) bucket. The following configuration fields provide additional information for performing the download:
 
 - `spec.build.codeEntryAttributes` &mdash;
   - `s3Bucket` (dashboard: **Bucket**) (Required) &mdash; the name of the S3 bucket that contains the archive file.
@@ -321,4 +321,4 @@ spec:
 
 ## See also
 
-- [Function-Configuration Reference](../../reference/function-configuration/function-configuration-reference.md)
+- [Function-Configuration Reference](function-configuration-reference.md)

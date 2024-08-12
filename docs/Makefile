@@ -16,6 +16,7 @@ help:
 
 # Link check target: checks for broken links in the documentation.
 linkcheck:
+	make html
 	@$(SPHINXBUILD) -b linkcheck "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 # Catch-all target: route all unknown targets to Sphinx using the new

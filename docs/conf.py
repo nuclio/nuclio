@@ -28,9 +28,14 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
-linkcheck_ignore = [
-    r'https:\/\/github\.com\/.*\/.*#L\d+-L\d+',  # Ignore GitHub links to specific lines
-]
+linkcheck_ignore = {
+    r'https:\/\/github\.com\/.*\/.*#L\d+-L\d+',
+    # linkcheck doesn't work well with relative paths which contain anchor, so ignore them
+    r'^.*\.html#.*$',
+    r'^\./[^/]+\.html#.*$',
+    r'^\.\./[^/]+\.html#.*$',
+
+}
 linkcheck_anchors = True
 
 language = "go"
