@@ -77,11 +77,11 @@ gcloud iam service-accounts keys create credentials.json --iam-account $(gcloud 
 
 ## Install Nuclio
 
-At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
+At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/reference/kubectl/).
 
 **Create a Kubernetes Docker-registry secret** from service-key file that you created as part of the [Kubernetes cluster setup](#set-up-a-kubernetes-cluster-and-a-local-environment)
 
-And then follow the instructions of [How to run nuclio in Production](../../setup/k8s/running-in-production-k8s.html#the-preferred-deployment-method)
+And then follow the instructions of [How to run nuclio in Production](../../setup/k8s/running-in-production-k8s.md#the-preferred-deployment-method)
 
 > NOTE: use the below  docker registry secret creation command:
 
@@ -103,7 +103,7 @@ Use the command `kubectl --namespace nuclio get pods` to verify both the control
 See the following resources to make the best of your new Nuclio environment:
 
 - [Deploying Functions](../../tasks/deploying-functions.md)
-- [Invoking Functions by Name with a Kubernetes Ingress](../../concepts/k8s/function-ingress.md)
+- [Invoking Functions by Name with a Kubernetes Ingress](../../concepts/k8s/function-ingress)
 - [More function examples](../../examples/README.md)
-- [References](../../reference/index.html)
-- [Best Practices and Common Pitfalls](../../concepts/best-practices-and-common-pitfalls.md)
+- [References](../../reference/index)
+- [Best Practices and Common Pitfalls](../../concepts/best-practices-and-common-pitfalls)

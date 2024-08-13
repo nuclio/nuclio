@@ -193,7 +193,7 @@ Now, browse to http://127.0.0.1:3000/ and log in using the admin username and pa
 
 Verify that `Azure Monitor` exists in the plugins page.
 
-Configure a data source using the [plugin support page](https://github.com/grafana/azure-monitor-datasource#configure-the-data-source).
+Configure a data source using the [plugin support page](https://github.com/grafana/azure-monitor-datasource?tab=readme-ov-file#configure-the-data-source.
 
 You can import a [sample Grafana JSON file](https://raw.githubusercontent.com/nuclio/nuclio/development/docs/assets/grafana-sample-dashboard.json) from the Grafana dashboard: from the menu (plus icon - `+`) select **Create > Import** and upload the sample JSON file.
 

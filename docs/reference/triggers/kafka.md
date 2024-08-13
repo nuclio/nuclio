@@ -109,7 +109,7 @@ For more information on Nuclio function configuration, see the [function-configu
   - **`handshake`** (`bool`) - Whether to send Kafka SASL handshake first. (default to: `true`)
   - **`user`** (`string`) - Username to be used for authentication.
   - **`password`** (`string`) - Password to be used for authentication.
-  - **`mechanism`** (`string`) - Name of SASL mechanism to use for authentication. (default to: `plain`, see [here](https://github.com/Shopify/sarama/blob/f16c9d8fbe4866c970b20a08be14d57553b0b660/broker.go#L62) for options)
+  - **`mechanism`** (`string`) - Name of SASL mechanism to use for authentication. (default to: `plain`, see [here](https://pkg.go.dev/github.com/Shopify/sarama#SASLMechanism) for options)
     > `GSSAPI` is yet to be supported by Nuclio. (read: Kerberos)
 
   - <a id="sasl.oauth"></a>**`sasl.oauth`** - SASL OAuth configuration object.
@@ -186,7 +186,7 @@ The current configurations supported via secrets are: `accessKey`, `accessCertif
 <a id="message-course"></a>
 ## How a message travels through Nuclio to the handler
 
-Nuclio leverages the [Sarama](https://pkg.go.dev/github.com/Shopify/sarama?tab=doc) Go client library (`sarama`) to read from Kafka. This library takes care of reading messages from Kafka partitions and distributing them to a consumer - in this case, the Nuclio trigger. A Nuclio replica has exactly one instance of Sarama and one instance of the Nuclio trigger for each Kafka trigger configured for the Nuclio function.
+Nuclio leverages the [Sarama](https://pkg.go.dev/github.com/Shopify/sarama) Go client library (`sarama`) to read from Kafka. This library takes care of reading messages from Kafka partitions and distributing them to a consumer - in this case, the Nuclio trigger. A Nuclio replica has exactly one instance of Sarama and one instance of the Nuclio trigger for each Kafka trigger configured for the Nuclio function.
 
 Upon its creation, the Nuclio trigger configures Sarama to start reading messages from a given broker, topics, or consumer group. At this point, Sarama calculates which partitions the Nuclio replica must handle, communicates the results to the Nuclio trigger, and then starts dispatching messages.
 
@@ -202,7 +202,7 @@ The Nuclio trigger reads directly from this partition consumer queue (remember t
 
 <a id="message-course-config-params"></a>
 ### Configuration parameters
-<!-- See https://pkg.go.dev/github.com/Shopify/sarama?tab=doc /
+<!-- See https://pkg.go.dev/github.com/Shopify/sarama /
   vendor/github.com/Shopify/sarama/config.go, and
   https://kafka.apache.org/documentation/#consumerconfigs + types and default
   values in pkg/processor/trigger/kafka/types.go. -->
@@ -342,7 +342,7 @@ This aggressive termination helps the consumer groups stabilize in a determinist
 
 <a id="rebalancing-config-params"></a>
 ### Configuration parameters
-<!-- See https://pkg.go.dev/github.com/Shopify/sarama?tab=doc /
+<!-- See https://pkg.go.dev/github.com/Shopify/sarama /
   vendor/github.com/Shopify/sarama/config.go, and
   https://kafka.apache.org/documentation/#consumerconfigs + types and default
   values in pkg/processor/trigger/kafka/types.go. -->

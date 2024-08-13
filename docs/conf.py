@@ -28,6 +28,16 @@ extensions = [
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+linkcheck_ignore = {
+    r'https:\/\/github\.com\/.*\/.*#L\d+-L\d+',
+    # linkcheck doesn't work well with relative paths which contain anchor, so ignore them
+    r'^.*\.html#.*$',
+    r'^\./[^/]+\.html#.*$',
+    r'^\.\./[^/]+\.html#.*$',
+
+}
+linkcheck_anchors = True
+
 language = "go"
 
 # https://sphinx-copybutton.readthedocs.io/en/latest/use.html#strip-and-configure-input-prompts-for-code-cells
@@ -75,6 +85,13 @@ html_sidebars = {
 
 def setup(app):
     app.connect('source-read', process_tables)
+    app.connect('source-read', replace_md_links)
+
+import re
+import markdown
+from sphinx.util import logging
+
+logger = logging.getLogger(__name__)
 
 
 def process_tables(app, docname, source):
@@ -87,8 +104,6 @@ def process_tables(app, docname, source):
     This function is called by sphinx for each document. `source` is a 1-item list. To update the document, replace
     element 0 in `source`.
     """
-    import markdown
-    import re
     md = markdown.Markdown(extensions=['markdown.extensions.tables'])
     table_processor = markdown.extensions.tables.TableProcessor(md.parser, {})
 
@@ -104,3 +119,16 @@ def process_tables(app, docname, source):
     # re-assemble into markdown-with-tables-replaced
     # must replace element 0 for changes to persist
     source[0] = ''.join(blocks)
+
+
+def replace_md_links(app, docname, source):
+    """Replace .md#section links with .html#section links in Markdown files."""
+
+    # Regex pattern to match Markdown links with .md files and anchors
+    md_link_pattern = re.compile(r'\[([^]]+)]\(([^)]+)\.md(#.*?)\)')
+    new_source = md_link_pattern.sub(r'[\1](\2.html\3)', source[0])
+
+    if source[0] != new_source:
+        logger.warn(f'Updated markdown links in {docname}')
+
+    source[0] = new_source

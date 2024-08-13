@@ -26,7 +26,7 @@ Translations:
 
 Nuclio is a high-performance "serverless" framework focused on data, I/O, and compute intensive workloads. It is well integrated with popular data science tools, such as [Jupyter](https://jupyter.org/) and [Kubeflow](https://www.kubeflow.org/); supports a variety of data and streaming sources; and supports execution over CPUs and GPUs. The Nuclio project began in 2017 and is constantly and rapidly evolving; many start-ups and enterprises are now using Nuclio in production.
 
-You can use Nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster; see the deployment instructions in the Nuclio [documentation](https://docs.nuclio.io/en/stable). You can also use Nuclio through a fully managed application service (in the cloud or on-prem) in the [Iguazio Data Science Platform](https://www.iguazio.com/), which you can [try for free](https://go.iguazio.com/start-your-free-trial).
+You can use Nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster; see the deployment instructions in the Nuclio [documentation](https://docs.nuclio.io/en/stable). You can also use Nuclio through a fully managed application service (in the cloud or on-prem) in the [Iguazio Data Science Platform](https://www.iguazio.com/).
 
 If you wish to create and manage Nuclio functions through code - for example, from Jupyter Notebook - see the [Nuclio Jupyter project](https://github.com/nuclio/nuclio-jupyter), which features a Python package and SDK for creating and deploying Nuclio functions from Jupyter Notebook.
 Nuclio is also an integral part of the new open-source [MLRun](https://github.com/mlrun/mlrun) library for data science automation and tracking and of the open-source [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/) framework for building and deploying portable, scalable ML workflows.
@@ -76,7 +76,6 @@ For a complete step-by-step guide to using Nuclio over Kubernetes, either with t
 - [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
 - [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
 - [Getting started with Nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md)
-- [Hands-on live Kubernetes sandbox and guiding instructions for Nuclio, free on Katacoda](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 
 ## How it works
 
@@ -164,8 +163,6 @@ More examples can be found in the **[Examples page](docs/examples/README.md)**.
   - [Runtime - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
   - [Runtime - Shell](/docs/reference/runtimes/shell/shell-reference.md)
 - [Examples](docs/examples/README.md)
-- Sandbox
-  - [Install Nuclio and run functions. Explore and experiment on a free Kubernetes cluster.](https://katacoda.com/javajon/courses/kubernetes-serverless/nuclio)
 - Contributing
   - [Code conventions](/docs/devel/coding-conventions.md)
   - [Contributing to Nuclio](/docs/devel/contributing.md)

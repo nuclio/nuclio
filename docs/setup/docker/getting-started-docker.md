@@ -12,7 +12,7 @@ Follow this step-by-step guide to set up a Nuclio development environment that u
 
 Before starting the set-up procedure, ensure that the following prerequisites are met:
 
-- Your environment has a running [Docker](https://docker.com) daemon.
+- Your environment has a running [Docker](https://www.docker.com/) daemon.
     To ensure that your Docker daemon is running properly, run the following command with the same user that will be used to execute Nuclio CLI commands:
     ```sh
     docker version
@@ -42,5 +42,5 @@ See the following resources to make the best of your new Nuclio environment:
 
 - [Deploying Functions](../../tasks/deploying-functions.md)
 - [More function examples](../../examples/README.md)
-- [References](../../reference/index.html)
+- [References](../../reference/index)
 - [Best Practices and Common Pitfalls](../../concepts/best-practices-and-common-pitfalls.md)

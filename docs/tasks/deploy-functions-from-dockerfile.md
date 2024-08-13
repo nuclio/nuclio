@@ -30,7 +30,7 @@ Create an empty directory in your preferred location. Then, download a simple Go
 curl -LO https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go
 ```
 
-Now, create a Dockerfile by following the guidelines in the [Go reference](../reference/runtimes/golang/golang-reference.html#dockerfile).
+Now, create a Dockerfile by following the guidelines in the [Go reference](../reference/runtimes/golang/golang-reference.md#dockerfile).
 
 > **Note:** Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python`, which will create a Dockerfile, a **function.yaml** file, and an empty Python handler.
 
@@ -75,7 +75,7 @@ It is up to you to customize this Dockerfile, if you so choose (for example, by 
 docker build -t helloworld-from-df .
 ```
 
-> **Note:** Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](../reference/runtimes/index.html) to understand the specific nuances.
+> **Note:** Each runtime has a different Dockerfile. Consult the appropriate [runtime reference documents](../reference/runtimes/index) to understand the specific nuances.
 
 ## Deploying a function built with Docker
 

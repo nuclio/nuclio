@@ -21,7 +21,7 @@ Before starting the set-up procedure, ensure that the following prerequisites ar
 
 ## Install Nuclio
 
-At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
+At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy Nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/reference/kubectl/).
 
 Follow the instructions of [How to run nuclio in Production](running-in-production-k8s.md)
 
@@ -35,5 +35,5 @@ See the following resources to make the best of your new Nuclio environment:
 - [Deploying Functions](../../tasks/deploying-functions.md)
 - [Invoking Functions by Name with a Kubernetes Ingress](../../concepts/k8s/function-ingress.md)
 - [More function examples](../../examples/README.md)
-- [References](../../reference/index.html)
+- [References](../../reference/index)
 - [Best Practices and Common Pitfalls](../../concepts/best-practices-and-common-pitfalls.md)

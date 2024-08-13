@@ -23,7 +23,6 @@ HTTPie
 http
 instantiatable
 jessie
-Katacoda
 Kerberos
 Kinesis
 kube
