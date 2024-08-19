@@ -613,6 +613,7 @@ func (k *Kaniko) resolveFailFast(ctx context.Context,
 		readinessTimout = 5 * time.Minute
 	}
 	failFastTimeout := time.After(readinessTimout)
+	var lastError string
 
 	// fail fast if job pod stuck in Pending or Unknown state
 	for {
@@ -623,7 +624,8 @@ func (k *Kaniko) resolveFailFast(ctx context.Context,
 				"jobName", jobName,
 				"failFastTimeoutDuration", readinessTimout.String())
 
-			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
+			return fmt.Errorf("Job was not completed in time, job name: %s. Error: %s ", jobName,
+				lastError)
 		default:
 			jobPod, err := k.getJobPod(ctx, jobName, namespace, true)
 			if err != nil {
@@ -637,6 +639,19 @@ func (k *Kaniko) resolveFailFast(ctx context.Context,
 				continue
 			}
 			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
+				if failure, failed := k.getLastPodFailureEvent(ctx, namespace, jobPod.Name); failed {
+					errorMessage := fmt.Sprintf("%s event for Kaniko pod %s. Message: %s",
+						failure.Reason,
+						jobPod.Name,
+						failure.Message)
+
+					// if an error has changed, print it to the logs
+					if errorMessage != lastError {
+						k.logger.WarnWithCtx(ctx, fmt.Sprintf("%s event for Kaniko pod", failure.Reason),
+							"podName", jobPod.Name,
+							"message", failure.Message)
+					}
+				}
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -680,6 +695,38 @@ func (k *Kaniko) getPodLogs(ctx context.Context, jobPod *v1.Pod) (string, error)
 	formattedLogContents := k.prettifyLogContents(string(logContents))
 
 	return formattedLogContents, nil
+}
+
+// isPodFailedScheduling check if pod cannot be scheduled
+// if failed to schedule a pod, then returns (event, true)
+// else returns nil, false
+func (k *Kaniko) getLastPodFailureEvent(ctx context.Context, namespace, podName string) (*v1.Event, bool) {
+	events := k.getPodEvents(namespace, podName)
+	if events == nil {
+		return nil, false
+	}
+	// Iterate over the events and look for FailedScheduling warnings
+	for i := len(events.Items) - 1; i >= 0; i-- {
+		if events.Items[i].Type == v1.EventTypeWarning {
+			return &events.Items[i], true
+		}
+	}
+	return nil, false
+}
+
+func (k *Kaniko) getPodEvents(namespace, podName string) *v1.EventList {
+
+	events, err := k.kubeClientSet.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.kind=Pod,involvedObject.name=%s", podName),
+	})
+
+	if err != nil {
+		k.logger.WarnWith("Failed to list events for Kaniko pod",
+			"podName", podName,
+			"err", err)
+		return nil
+	}
+	return events
 }
 
 func (k *Kaniko) getJobPod(ctx context.Context, jobName, namespace string, quiet bool) (*v1.Pod, error) {
