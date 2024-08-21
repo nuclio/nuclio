@@ -1119,6 +1119,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			ReadinessTimeoutSeconds: b.platform.GetConfig().GetFunctionReadinessTimeoutOrDefault(
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
 			SecurityContext: b.options.FunctionConfig.Spec.SecurityContext,
+			BuildLogger:     b.logger,
 		})
 
 	return taggedImageName, err
