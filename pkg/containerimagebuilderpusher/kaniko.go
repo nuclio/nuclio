@@ -618,8 +618,12 @@ func (k *Kaniko) resolveFailFast(ctx context.Context, buildLogger logger.Logger,
 				"jobName", jobName,
 				"failFastTimeoutDuration", readinessTimout.String())
 
-			return fmt.Errorf("Job was not completed in time, job name: %s. Error: %s ", jobName,
-				lastError)
+			if lastError != "" {
+				return fmt.Errorf("Job was not completed in time, job name: %s. Error: %s ", jobName,
+					lastError)
+			} else {
+				return fmt.Errorf("Job was not completed in time, job name: %s", jobName)
+			}
 		default:
 			jobPod, err := k.getJobPod(ctx, jobName, namespace, true)
 			if err != nil {
