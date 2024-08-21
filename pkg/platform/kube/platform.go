@@ -1413,7 +1413,7 @@ func (p *Platform) getApiGateways(ctx context.Context, getAPIGatewaysOptions *pl
 
 	apiGateways, err := p.consumer.NuclioClientSet.NuclioV1beta1().
 		NuclioAPIGateways(getAPIGatewaysOptions.Namespace).
-		List(ctx, metav1.ListOptions{})
+		List(ctx, metav1.ListOptions{LabelSelector: getAPIGatewaysOptions.Labels})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list API gateways")
 	}
