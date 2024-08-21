@@ -647,7 +647,7 @@ func (k *Kaniko) resolveFailFast(ctx context.Context, buildLogger logger.Logger,
 					if errorMessage != lastError {
 						buildLogger.WarnWithCtx(ctx, fmt.Sprintf("%s event for Kaniko pod", failure.Reason),
 							"podName", jobPod.Name,
-							"message", failure.Message)
+							"reason", failure.Message)
 						lastError = errorMessage
 					}
 				}
