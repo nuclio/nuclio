@@ -637,7 +637,7 @@ func (k *Kaniko) resolveFailFast(ctx context.Context, buildLogger logger.Logger,
 				continue
 			}
 			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
-				if failure, failed := k.getLastPodFailureEvent(ctx, namespace, jobPod.Name); failed {
+				if failure, failed := k.getLastPodWarningEvent(ctx, namespace, jobPod.Name); failed {
 					errorMessage := fmt.Sprintf("%s event for Kaniko pod %s. Message: %s",
 						failure.Reason,
 						jobPod.Name,
@@ -696,15 +696,15 @@ func (k *Kaniko) getPodLogs(ctx context.Context, jobPod *v1.Pod) (string, error)
 	return formattedLogContents, nil
 }
 
-// isPodFailedScheduling check if pod cannot be scheduled
-// if failed to schedule a pod, then returns (event, true)
+// getLastPodWarningEvent returns the last k8s warning event for a given pod
+// if event found, then returns (event, true)
 // else returns nil, false
-func (k *Kaniko) getLastPodFailureEvent(ctx context.Context, namespace, podName string) (*v1.Event, bool) {
-	events := k.getPodEvents(namespace, podName)
+func (k *Kaniko) getLastPodWarningEvent(ctx context.Context, namespace, podName string) (*v1.Event, bool) {
+	events := k.getPodEvents(ctx, namespace, podName)
 	if events == nil {
 		return nil, false
 	}
-	// Iterate over the events and look for FailedScheduling warnings
+	// Iterate over the events and look for warnings
 	for i := len(events.Items) - 1; i >= 0; i-- {
 		if events.Items[i].Type == v1.EventTypeWarning {
 			return &events.Items[i], true
@@ -713,14 +713,15 @@ func (k *Kaniko) getLastPodFailureEvent(ctx context.Context, namespace, podName 
 	return nil, false
 }
 
-func (k *Kaniko) getPodEvents(namespace, podName string) *v1.EventList {
+func (k *Kaniko) getPodEvents(ctx context.Context, namespace, podName string) *v1.EventList {
 
-	events, err := k.kubeClientSet.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
+	events, err := k.kubeClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.kind=Pod,involvedObject.name=%s", podName),
 	})
 
 	if err != nil {
-		k.logger.WarnWith("Failed to list events for Kaniko pod",
+		k.logger.WarnWithCtx(ctx,
+			"Failed to list events for Kaniko pod",
 			"podName", podName,
 			"err", err)
 		return nil
