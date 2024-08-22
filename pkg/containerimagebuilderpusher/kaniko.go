@@ -734,7 +734,7 @@ func (k *Kaniko) getPodEvents(ctx context.Context, namespace, podName string) *v
 		k.logger.WarnWithCtx(ctx,
 			"Failed to list events for Kaniko pod",
 			"podName", podName,
-			"err", err)
+			"err", err.Error())
 		return nil
 	}
 	return events
