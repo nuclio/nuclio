@@ -507,7 +507,12 @@ func (k *Kaniko) compileJobName(ctx context.Context, image string) string {
 	return jobName
 }
 
-func (k *Kaniko) waitForJobCompletion(ctx context.Context, namespace string, jobName string, buildTimeoutSeconds int64, readinessTimoutSeconds int, buildLogger logger.Logger) error {
+func (k *Kaniko) waitForJobCompletion(ctx context.Context,
+	namespace string,
+	jobName string,
+	buildTimeoutSeconds int64,
+	readinessTimoutSeconds int,
+	buildLogger logger.Logger) error {
 	k.logger.DebugWithCtx(ctx,
 		"Waiting for job completion",
 		"buildTimeoutSeconds", buildTimeoutSeconds,
@@ -600,7 +605,11 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context, namespace string, job
 	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
 }
 
-func (k *Kaniko) resolveFailFast(ctx context.Context, buildLogger logger.Logger, namespace, jobName string, readinessTimout time.Duration) error {
+func (k *Kaniko) resolveFailFast(ctx context.Context,
+	buildLogger logger.Logger,
+	namespace,
+	jobName string,
+	readinessTimout time.Duration) error {
 
 	// fail fast timeout is max(readinessTimeout, 5 minutes)
 	if readinessTimout < 5*time.Minute {
@@ -645,9 +654,11 @@ func (k *Kaniko) resolveFailFast(ctx context.Context, buildLogger logger.Logger,
 
 					// if an error has changed, print it to the logs
 					if errorMessage != lastError {
-						buildLogger.WarnWithCtx(ctx, fmt.Sprintf("%s event for Kaniko pod", failure.Reason),
-							"podName", jobPod.Name,
-							"reason", failure.Message)
+						buildLogger.WarnWithCtx(ctx,
+							"Kaniko pod received a warning event",
+							"eventReason", failure.Reason,
+							"eventMessage", failure.Message,
+							"podName", jobPod.Name)
 						lastError = errorMessage
 					}
 				}
