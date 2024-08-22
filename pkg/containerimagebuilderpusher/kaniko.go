@@ -129,7 +129,8 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 		namespace,
 		job.Name,
 		buildOptions.BuildTimeoutSeconds,
-		buildOptions.ReadinessTimeoutSeconds)
+		buildOptions.ReadinessTimeoutSeconds,
+		buildOptions.BuildLogger)
 }
 
 func (k *Kaniko) GetOnbuildStages(onbuildArtifacts []runtime.Artifact) ([]string, error) {
@@ -510,14 +511,15 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context,
 	namespace string,
 	jobName string,
 	buildTimeoutSeconds int64,
-	readinessTimoutSeconds int) error {
+	readinessTimoutSeconds int,
+	buildLogger logger.Logger) error {
 	k.logger.DebugWithCtx(ctx,
 		"Waiting for job completion",
 		"buildTimeoutSeconds", buildTimeoutSeconds,
 		"readinessTimeoutSeconds", readinessTimoutSeconds)
 	timeout := time.Now().Add(time.Duration(buildTimeoutSeconds) * time.Second)
 
-	if err := k.resolveFailFast(ctx, namespace, jobName, time.Duration(readinessTimoutSeconds)*time.Second); err != nil {
+	if err := k.resolveFailFast(ctx, buildLogger, namespace, jobName, time.Duration(readinessTimoutSeconds)*time.Second); err != nil {
 		return errors.Wrap(err, "Kaniko job failed to run")
 	}
 
@@ -555,7 +557,7 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context,
 			if err != nil {
 				return errors.Wrap(err, "Failed to get job pod")
 			}
-			k.logger.WarnWithCtx(ctx,
+			buildLogger.WarnWithCtx(ctx,
 				"Build container image job has failed",
 				"initContainerStatuses", jobPod.Status.InitContainerStatuses,
 				"containerStatuses", jobPod.Status.ContainerStatuses,
@@ -567,7 +569,7 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context,
 
 			jobLogs, err := k.getPodLogs(ctx, jobPod)
 			if err != nil {
-				k.logger.WarnWithCtx(ctx,
+				buildLogger.WarnWithCtx(ctx,
 					"Failed to get job logs", "err", err.Error())
 				return errors.Wrap(err, "Failed to retrieve kaniko job logs")
 			}
@@ -604,6 +606,7 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context,
 }
 
 func (k *Kaniko) resolveFailFast(ctx context.Context,
+	buildLogger logger.Logger,
 	namespace,
 	jobName string,
 	readinessTimout time.Duration) error {
@@ -613,17 +616,23 @@ func (k *Kaniko) resolveFailFast(ctx context.Context,
 		readinessTimout = 5 * time.Minute
 	}
 	failFastTimeout := time.After(readinessTimout)
+	var lastError string
 
 	// fail fast if job pod stuck in Pending or Unknown state
 	for {
 		select {
 		case <-failFastTimeout:
-			k.logger.WarnWithCtx(ctx,
+			buildLogger.WarnWithCtx(ctx,
 				"Kaniko job was not completed in time",
 				"jobName", jobName,
 				"failFastTimeoutDuration", readinessTimout.String())
 
-			return fmt.Errorf("Job was not completed in time, job name:\n%s", jobName)
+			if lastError != "" {
+				return fmt.Errorf("Job was not completed in time, job name: %s. Error: %s ", jobName,
+					lastError)
+			} else {
+				return fmt.Errorf("Job was not completed in time, job name: %s", jobName)
+			}
 		default:
 			jobPod, err := k.getJobPod(ctx, jobName, namespace, true)
 			if err != nil {
@@ -637,6 +646,22 @@ func (k *Kaniko) resolveFailFast(ctx context.Context,
 				continue
 			}
 			if jobPod.Status.Phase == v1.PodPending || jobPod.Status.Phase == v1.PodUnknown {
+				if failure, failed := k.getLastPodWarningEvent(ctx, namespace, jobPod.Name); failed {
+					errorMessage := fmt.Sprintf("%s event for Kaniko pod %s. Message: %s",
+						failure.Reason,
+						jobPod.Name,
+						failure.Message)
+
+					// if an error has changed, print it to the logs
+					if errorMessage != lastError {
+						buildLogger.WarnWithCtx(ctx,
+							"Kaniko pod received a warning event",
+							"eventReason", failure.Reason,
+							"eventMessage", failure.Message,
+							"podName", jobPod.Name)
+						lastError = errorMessage
+					}
+				}
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -680,6 +705,39 @@ func (k *Kaniko) getPodLogs(ctx context.Context, jobPod *v1.Pod) (string, error)
 	formattedLogContents := k.prettifyLogContents(string(logContents))
 
 	return formattedLogContents, nil
+}
+
+// getLastPodWarningEvent returns the last k8s warning event for a given pod
+// if event found, then returns (event, true)
+// else returns nil, false
+func (k *Kaniko) getLastPodWarningEvent(ctx context.Context, namespace, podName string) (*v1.Event, bool) {
+	events := k.getPodEvents(ctx, namespace, podName)
+	if events == nil {
+		return nil, false
+	}
+	// Iterate over the events and look for warnings
+	for i := len(events.Items) - 1; i >= 0; i-- {
+		if events.Items[i].Type == v1.EventTypeWarning {
+			return &events.Items[i], true
+		}
+	}
+	return nil, false
+}
+
+func (k *Kaniko) getPodEvents(ctx context.Context, namespace, podName string) *v1.EventList {
+
+	events, err := k.kubeClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.kind=Pod,involvedObject.name=%s", podName),
+	})
+
+	if err != nil {
+		k.logger.WarnWithCtx(ctx,
+			"Failed to list events for Kaniko pod",
+			"podName", podName,
+			"err", err.Error())
+		return nil
+	}
+	return events
 }
 
 func (k *Kaniko) getJobPod(ctx context.Context, jobName, namespace string, quiet bool) (*v1.Pod, error) {

@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
 )
 
@@ -52,6 +53,8 @@ type BuildOptions struct {
 	FunctionServiceAccount  string
 	BuilderServiceAccount   string
 	SecurityContext         *v1.PodSecurityContext
+
+	BuildLogger logger.Logger
 }
 
 type ContainerBuilderConfiguration struct {
