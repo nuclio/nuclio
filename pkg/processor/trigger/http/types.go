@@ -43,7 +43,18 @@ type Configuration struct {
 
 	// Used to disable port publishing for the HTTP trigger on docker platform
 	DisablePortPublishing bool
+
+	Mode TriggerMode `json:"mode,omitempty"`
 }
+
+type TriggerMode string
+
+const (
+	TriggerModeAsync TriggerMode = "async"
+	TriggerModeSync  TriggerMode = "sync"
+
+	DefaultTriggerMode = TriggerModeSync
+)
 
 func NewConfiguration(id string,
 	triggerConfiguration *functionconfig.Trigger,
@@ -68,6 +79,10 @@ func NewConfiguration(id string,
 
 	if newConfiguration.ReadBufferSize == 0 {
 		newConfiguration.ReadBufferSize = DefaultReadBufferSize
+	}
+
+	if newConfiguration.Mode == "" {
+		newConfiguration.Mode = DefaultTriggerMode
 	}
 
 	if newConfiguration.MaxRequestBodySize == 0 {
