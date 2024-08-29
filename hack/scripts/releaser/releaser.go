@@ -576,6 +576,10 @@ Once re-run, it will catch up here.`)
 }
 
 func (r *Release) bumpHelmChartVersion() error {
+	r.logger.DebugWith("Bumping helm chart version",
+		"targetVersion", r.targetVersion,
+		"helmChartsTargetVersion", r.helmChartsTargetVersion)
+
 	runOptions := &cmdrunner.RunOptions{
 		WorkingDir: &r.repositoryDirPath,
 	}
@@ -586,15 +590,13 @@ func (r *Release) bumpHelmChartVersion() error {
 		r.releaseBranch); err != nil {
 		return errors.Wrap(err, "Failed to checkout to release branch")
 	}
-	for _, chartDir := range r.resolveSupportedChartDirs() {
-		if _, err := r.cmdRunner.Run(runOptions,
-			`git grep -lF "%s" %s | grep yaml | xargs sed -i '' -e "s/%s/%s/g"`,
-			r.helmChartConfig.AppVersion,
-			path.Join("hack", chartDir),
-			r.helmChartConfig.AppVersion,
-			r.targetVersion); err != nil {
-			return errors.Wrap(err, "Failed to update target versions")
-		}
+	if _, err := r.cmdRunner.Run(runOptions,
+		`git grep -lF "%s" %s | grep yaml | xargs sed -i '' -e "s/%s/%s/g"`,
+		r.helmChartConfig.AppVersion,
+		path.Join("hack", "k8s"),
+		r.helmChartConfig.AppVersion,
+		r.targetVersion); err != nil {
+		return errors.Wrap(err, "Failed to update target version")
 	}
 
 	// explicitly bump the app version
@@ -781,14 +783,6 @@ func (r *Release) bumpVersion(version *semver.Version) {
 	case r.bumpMajor:
 		r.logger.Info("Bumping major version")
 		version.BumpMajor()
-	}
-}
-
-func (r *Release) resolveSupportedChartDirs() []string {
-	return []string{
-		"k8s",
-		"gke",
-		"aks",
 	}
 }
 
