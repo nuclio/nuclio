@@ -22,7 +22,7 @@ home: https://nuclio.io
 sources:
   - https://github.com/nuclio/nuclio
 maintainers:
-  - name: Liran Ben Gida
-    email: liranb@iguazio.com
   - name: Tomer Shor
-    email: tomers@iguazio.com
+    email: tomer_shor@mckinsey.com
+  - name: Kate Molchanova
+    email: ekaterina_molchanova@mckinsey.com
