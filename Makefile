@@ -331,11 +331,11 @@ NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE    = $(NUCLIO_CACHE_REPO)/dashboard:$(N
 NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  		?= $(NUCLIO_ARCH)
 
 ifeq ($(NUCLIO_ARCH), armhf)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.25-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.27-alpine
 else ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.25-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.27-alpine
 else
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.25-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.27-alpine
 endif
 
 .PHONY: dashboard
