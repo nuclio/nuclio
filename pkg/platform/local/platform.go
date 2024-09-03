@@ -108,11 +108,11 @@ func NewPlatform(ctx context.Context,
 
 	switch runtime.GOARCH {
 	case "arm64":
-		newPlatform.storeImageName = "gcr.io/iguazio/arm64v8/alpine:3.17"
+		newPlatform.storeImageName = "gcr.io/iguazio/arm64v8/alpine:3.20"
 	case "arm":
-		newPlatform.storeImageName = "gcr.io/iguazio/arm32v7/alpine:3.17"
+		newPlatform.storeImageName = "gcr.io/iguazio/arm32v7/alpine:3.20"
 	default:
-		newPlatform.storeImageName = "gcr.io/iguazio/alpine:3.17"
+		newPlatform.storeImageName = "gcr.io/iguazio/alpine:3.20"
 	}
 
 	if newPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewDocker(newPlatform.Logger,
