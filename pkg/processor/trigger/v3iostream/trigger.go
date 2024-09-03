@@ -192,7 +192,12 @@ func (vs *v3iostream) ConsumeClaim(session streamconsumergroup.Session, claim st
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
 
-		go vs.explicitAckHandler(explicitAckControlMessageChan, commitRecordFuncHandler, claim.GetShardID(), claim.GetStreamPath())
+		go vs.explicitAckHandler(
+			explicitAckControlMessageChan,
+			commitRecordFuncHandler,
+			claim.GetShardID(),
+			claim.GetStreamPath(),
+		)
 	}
 
 	// the exit condition is that (a) the Messages() channel was closed and (b) we got a signal telling us
@@ -420,7 +425,11 @@ func (vs *v3iostream) resolveCommitRecordFuncHandler(session streamconsumergroup
 	return commitRecordDefaultFuncHandler
 }
 
-func (vs *v3iostream) explicitAckHandler(controlMessageChan chan *controlcommunication.ControlMessage, commitRecordFuncHandler func(*v3io.StreamRecord), claimShardId int, claimStreamPath string) {
+func (vs *v3iostream) explicitAckHandler(
+	controlMessageChan chan *controlcommunication.ControlMessage,
+	commitRecordFuncHandler func(*v3io.StreamRecord),
+	claimShardId int,
+	claimStreamPath string) {
 
 	vs.Logger.DebugWith("Listening for explicit ack control messages")
 
