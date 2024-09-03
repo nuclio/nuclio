@@ -63,7 +63,7 @@ func (g *golang) GetName() string {
 func (g *golang) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
-		BaseImage: "alpine:3.17",
+		BaseImage: "alpine:3.20",
 	}
 
 	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image

@@ -30,7 +30,7 @@ See [Deploying Functions from a Dockerfile](../../../tasks/deploy-functions-from
 ```
 ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=alpine:3.17
+ARG NUCLIO_BASE_IMAGE=alpine:3.20
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
 
 # Supplies processor uhttpc, used for healthcheck
