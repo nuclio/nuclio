@@ -246,7 +246,7 @@ jobs:
           minikube kubectl -- config view --flatten > kubeconfig_flatten
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: nuclio-docker-images
 
@@ -324,7 +324,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: nuclio-docker-images
 
@@ -377,7 +377,7 @@ jobs:
           minikube kubectl -- config view --flatten > kubeconfig_flatten
 
       - name: Fetch nuclio docker images
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: nuclio-docker-images
 
