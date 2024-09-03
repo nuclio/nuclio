@@ -46,7 +46,7 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tsenart/vegeta/v12 v12.11.1
-	github.com/v3io/scaler v0.5.4
+	github.com/v3io/scaler v0.8.0
 	github.com/v3io/v3io-go v0.3.8
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
