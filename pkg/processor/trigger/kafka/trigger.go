@@ -232,7 +232,12 @@ func (k *kafka) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.C
 			return errors.Wrap(err, "Failed to subscribe to explicit ack control messages")
 		}
 
-		go k.explicitAckHandler(session, explicitAckControlMessageChan, claim.Partition())
+		go k.explicitAckHandler(
+			session,
+			explicitAckControlMessageChan,
+			claim.Partition(),
+			claim.Topic(),
+		)
 	}
 
 	k.Logger.DebugWith("Starting claim consumption",
@@ -633,9 +638,11 @@ func (k *kafka) resolveSCRAMClientGeneratorFunc(mechanism sarama.SASLMechanism) 
 
 // explicitAckHandler reads offset data messages from the trigger's control channel, and marks the
 // offset accordingly
-func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
+func (k *kafka) explicitAckHandler(
+	session sarama.ConsumerGroupSession,
 	controlMessageChan chan *controlcommunication.ControlMessage,
-	partitionNumber int32) {
+	partitionNumber int32,
+	topic string) {
 
 	k.Logger.InfoWith("Listening for explicit ack control messages")
 
@@ -650,8 +657,8 @@ func (k *kafka) explicitAckHandler(session sarama.ConsumerGroupSession,
 			continue
 		}
 
-		// skip the message if it is not for this partition
-		if explicitAckAttributes.Partition != partitionNumber {
+		// skip the message if it is not for this topic and partition
+		if !(explicitAckAttributes.Partition == partitionNumber && explicitAckAttributes.Topic == topic) {
 			continue
 		}
 
