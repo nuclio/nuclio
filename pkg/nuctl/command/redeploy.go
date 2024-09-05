@@ -256,7 +256,13 @@ func (d *redeployCommandeer) patchFunction(ctx context.Context, functionName str
 		d.rootCommandeer.namespace,
 		payload,
 		requestHeaders); err != nil {
-		return errors.Wrap(err, "Failed to patch function")
+		switch typedError := err.(type) {
+		case *nuclio.ErrorWithStatusCode:
+			// wrap it again with the status code to communicate if it is retryable
+			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(typedError.GetError())
+		default:
+			return errors.Wrap(typedError, "Failed to patch function")
+		}
 	}
 
 	d.rootCommandeer.loggerInstance.DebugWithCtx(ctx,
