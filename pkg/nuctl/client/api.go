@@ -238,15 +238,7 @@ func (c *NuclioAPIClient) sendRequest(ctx context.Context,
 		return nil, nil, errors.Wrap(err, "Failed to send request")
 	}
 
-	if response.StatusCode != expectedStatusCode {
-		c.logger.WarnWithCtx(ctx, "Received unexpected status code", "statusCode", response.StatusCode)
-		return nil, nil, nuclio.GetByStatusCode(response.StatusCode)(fmt.Sprintf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode))
-	}
-
-	if !returnResponseBody {
-		return response, nil, nil
-	}
-
+	// extract the response message
 	encodedResponseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to read response body")
@@ -257,6 +249,24 @@ func (c *NuclioAPIClient) sendRequest(ctx context.Context,
 	decodedResponseBody := map[string]interface{}{}
 	if err := json.Unmarshal(encodedResponseBody, &decodedResponseBody); err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to decode response body")
+	}
+
+	if response.StatusCode != expectedStatusCode {
+		reason := ""
+		message := fmt.Sprintf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode)
+		if errString, ok := decodedResponseBody["error"].(string); ok {
+			reason = errString
+			message = fmt.Sprintf("%s: %s", message, errString)
+		}
+		c.logger.WarnWithCtx(ctx,
+			"Received unexpected status code",
+			"statusCode", response.StatusCode,
+			"reason", reason)
+		return nil, nil, nuclio.GetByStatusCode(response.StatusCode)(message)
+	}
+
+	if !returnResponseBody {
+		return response, nil, nil
 	}
 
 	return response, decodedResponseBody, nil

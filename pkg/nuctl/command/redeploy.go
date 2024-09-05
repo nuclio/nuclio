@@ -204,7 +204,6 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 		function := function
 		patchErrGroup.Go("redeploy function", func() error {
 			if err := d.patchFunction(ctx, function, d.desiredState); err != nil {
-				d.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "TOMER - Failed to redeploy function", "function", function, "err", err.Error())
 				d.outputManifest.AddFailure(function, err, d.isRedeploymentRetryable(err))
 				return errors.Wrap(err, "Failed to redeploy function")
 			}
