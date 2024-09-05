@@ -193,7 +193,7 @@ func (c *NuclioAPIClient) PatchFunction(ctx context.Context,
 		false); err != nil {
 		switch typedError := err.(type) {
 		case *nuclio.ErrorWithStatusCode:
-			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(errors.Wrap(err, "Failed to send patch API request"))
+			return errors.Wrap(typedError.GetError(), "Failed to send patch API request")
 		default:
 			return errors.Wrap(typedError, "Failed to send patch API request")
 		}
@@ -239,6 +239,7 @@ func (c *NuclioAPIClient) sendRequest(ctx context.Context,
 	}
 
 	if response.StatusCode != expectedStatusCode {
+		c.logger.WarnWithCtx(ctx, "Received unexpected status code", "statusCode", response.StatusCode)
 		return nil, nil, nuclio.GetByStatusCode(response.StatusCode)(fmt.Sprintf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode))
 	}
 
