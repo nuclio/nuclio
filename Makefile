@@ -614,12 +614,16 @@ $(eval DOCKER_IMAGES_CACHE += $(filter-out $(DOCKER_IMAGES_CACHE),$(NUCLIO_DOCKE
 #
 
 .PHONY: fmt
-fmt: ensure-golangci-linter
+fmt:
 	gofmt -s -w .
-	$(GOPATH)/bin/golangci-lint run --fix
+	golangci-lint run --fix
 
 .PHONY: lint
-lint: modules ensure-test-files-annotated ensure-golangci-linter
+lint: modules ensure-test-files-annotated
+	@echo Installing linters...
+	@test -e $(GOPATH)/bin/golangci-lint || \
+	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.54.2)
+
 	@echo Linting...
 	$(GOPATH)/bin/golangci-lint run -v
 	@echo Done.
@@ -635,12 +639,6 @@ ensure-test-files-annotated:
 	fi
 	@echo "All go test files have //go:build test_X annotation"
 	@exit $(.SHELLSTATUS)
-
-.PHONY: ensure-golangci-linter
-ensure-golangci-linter:
-	@echo Ensuring linters...
-	@test -e $(GOPATH)/bin/golangci-lint || \
-		(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.54.2)
 
 #
 # Testing
