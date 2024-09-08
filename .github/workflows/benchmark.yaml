@@ -133,7 +133,7 @@ jobs:
             await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
 
       - name: Upload benchmarking results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmarking
           path: ./.benchmarking
