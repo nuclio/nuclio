@@ -193,7 +193,7 @@ func (c *NuclioAPIClient) PatchFunction(ctx context.Context,
 		false); err != nil {
 		switch typedError := err.(type) {
 		case *nuclio.ErrorWithStatusCode:
-			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(errors.Wrap(err, "Failed to send patch API request"))
+			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(typedError.GetError())
 		default:
 			return errors.Wrap(typedError, "Failed to send patch API request")
 		}
@@ -239,26 +239,51 @@ func (c *NuclioAPIClient) sendRequest(ctx context.Context,
 	}
 
 	if response.StatusCode != expectedStatusCode {
-		return nil, nil, nuclio.GetByStatusCode(response.StatusCode)(fmt.Sprintf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode))
+		reason := ""
+		message := fmt.Sprintf("Expected status code %d, got %d", expectedStatusCode, response.StatusCode)
+
+		// try to extract the error message from the response, ignore it if it fails
+		decodedResponseBody, err := c.decodeResponseBody(response)
+		if err == nil {
+			if errString, ok := decodedResponseBody["error"].(string); ok {
+				reason = errString
+				message = fmt.Sprintf("%s: %s", message, errString)
+			}
+		}
+
+		c.logger.WarnWithCtx(ctx,
+			"Received unexpected status code",
+			"statusCode", response.StatusCode,
+			"reason", reason)
+		return nil, nil, nuclio.GetByStatusCode(response.StatusCode)(message)
 	}
 
 	if !returnResponseBody {
 		return response, nil, nil
 	}
 
+	// extract the response message
+	decodedResponseBody, err := c.decodeResponseBody(response)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to decode response body")
+	}
+
+	return response, decodedResponseBody, nil
+}
+
+func (c *NuclioAPIClient) decodeResponseBody(response *http.Response) (map[string]interface{}, error) {
 	encodedResponseBody, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to read response body")
+		return nil, errors.Wrap(err, "Failed to read response body")
 	}
 
 	defer response.Body.Close() // nolint: errcheck
 
 	decodedResponseBody := map[string]interface{}{}
 	if err := json.Unmarshal(encodedResponseBody, &decodedResponseBody); err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to decode response body")
+		return nil, errors.Wrap(err, "Failed to decode response body")
 	}
-
-	return response, decodedResponseBody, nil
+	return decodedResponseBody, nil
 }
 
 // createAuthorizationHeaders creates authorization headers for the nuclio API
