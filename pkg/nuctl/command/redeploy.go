@@ -202,10 +202,10 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 	patchErrGroup, _ := errgroup.WithContextSemaphore(ctx, d.rootCommandeer.loggerInstance, uint(d.rootCommandeer.concurrency))
 	for _, function := range functionNames {
 		function := function
-		patchErrGroup.Go("patch function", func() error {
+		patchErrGroup.Go("redeploy function", func() error {
 			if err := d.patchFunction(ctx, function, d.desiredState); err != nil {
 				d.outputManifest.AddFailure(function, err, d.isRedeploymentRetryable(err))
-				return errors.Wrap(err, "Failed to patch function")
+				return errors.Wrap(err, "Failed to redeploy function")
 			}
 			d.outputManifest.AddSuccess(function)
 			return nil
@@ -216,7 +216,7 @@ func (d *redeployCommandeer) redeployFunctions(ctx context.Context, functionName
 
 		// Functions that failed to patch are included in the output manifest,
 		// so we don't need to fail the entire operation here
-		d.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to patch functions", "err", err)
+		d.rootCommandeer.loggerInstance.WarnWithCtx(ctx, "Failed to redeploy functions", "err", err)
 	}
 
 	d.outputManifest.LogOutput(ctx, d.rootCommandeer.loggerInstance)
@@ -258,7 +258,8 @@ func (d *redeployCommandeer) patchFunction(ctx context.Context, functionName str
 		requestHeaders); err != nil {
 		switch typedError := err.(type) {
 		case *nuclio.ErrorWithStatusCode:
-			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(errors.Wrap(err, "Failed to patch function"))
+			// wrap it again with the status code to communicate if it is retryable
+			return nuclio.GetWrapByStatusCode(typedError.StatusCode())(typedError.GetError())
 		default:
 			return errors.Wrap(typedError, "Failed to patch function")
 		}
