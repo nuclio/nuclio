@@ -1911,13 +1911,13 @@ func (suite *functionRedeployTestSuite) TestRedeploy() {
 			name:        "failed-retryable",
 			expectError: true,
 			statusCode:  http.StatusInternalServerError,
-			report:      `{"failed":{"redeploy-test-function":{"error":"Failed to patch function","retryable":true}}}`,
+			report:      `{"failed":{"redeploy-test-function":{"error":"Expected status code 202, got 500","retryable":true}}}`,
 		},
 		{
 			name:        "failed-not-retryable",
 			expectError: true,
 			statusCode:  http.StatusPreconditionFailed,
-			report:      `{"failed":{"redeploy-test-function":{"error":"Failed to patch function","retryable":false}}}`,
+			report:      `{"failed":{"redeploy-test-function":{"error":"Expected status code 202, got 412","retryable":false}}}`,
 		},
 	} {
 		suite.Run(testcase.name, func() {

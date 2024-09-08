@@ -84,7 +84,7 @@ func (m *PatchManifest) AddFailure(name string, err error, retryable bool) {
 	defer m.lock.Unlock()
 
 	m.Failed[name] = failDescription{
-		Err:       errors.Cause(err).Error(),
+		Err:       errors.RootCause(err).Error(),
 		Retryable: retryable,
 	}
 }
@@ -162,7 +162,7 @@ func (m *PatchManifest) SprintfError() string {
 
 	for name, reason := range m.Failed {
 		errorString += fmt.Sprintf(
-			"Failed to redeploy function `%s`.Reason: `%s`. Retryable: %t.",
+			"Failed to redeploy function `%s`.\n\tReason: `%s`.\n\tRetryable: %t.\n",
 			name,
 			reason.Err,
 			reason.Retryable)
