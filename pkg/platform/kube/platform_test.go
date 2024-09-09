@@ -639,7 +639,6 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			triggers: nil,
 			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
 				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
-				defaultHTTPTrigger.WorkerAllocatorName = defaultHTTPTrigger.Name
 				defaultHTTPTrigger.Attributes = map[string]interface{}{
 					"serviceType": suite.platformKubeConfig.DefaultServiceType,
 				}
