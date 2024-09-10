@@ -1797,15 +1797,6 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 			}
 		}
 
-		if triggerInstance.WorkerAllocatorName == "" {
-			triggerInstance.WorkerAllocatorName = triggerName
-			ap.Logger.DebugWithCtx(ctx, "Enriched WorkerAllocatorName",
-				"triggerName", triggerName,
-				"triggerKind", triggerInstance.Kind,
-				"WorkerAllocatorName", triggerInstance.WorkerAllocatorName,
-			)
-		}
-
 		functionConfig.Spec.Triggers[triggerName] = triggerInstance
 	}
 
