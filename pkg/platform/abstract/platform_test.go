@@ -955,10 +955,9 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			},
 			expectedEnrichedTriggers: map[string]functionconfig.Trigger{
 				"some-trigger": {
-					Kind:                "http",
-					NumWorkers:          1,
-					Name:                "some-trigger",
-					WorkerAllocatorName: "some-trigger",
+					Kind:       "http",
+					NumWorkers: 1,
+					Name:       "some-trigger",
 				},
 			},
 		},
@@ -968,7 +967,6 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			triggers: nil,
 			expectedEnrichedTriggers: func() map[string]functionconfig.Trigger {
 				defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
-				defaultHTTPTrigger.WorkerAllocatorName = defaultHTTPTrigger.Name
 				return map[string]functionconfig.Trigger{
 					defaultHTTPTrigger.Name: defaultHTTPTrigger,
 				}
@@ -1040,17 +1038,15 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			},
 			expectedEnrichedTriggers: map[string]functionconfig.Trigger{
 				"http-trigger": {
-					Kind:                "http",
-					NumWorkers:          1,
-					Name:                "http-trigger",
-					WorkerAllocatorName: "http-trigger",
+					Kind:       "http",
+					NumWorkers: 1,
+					Name:       "http-trigger",
 				},
 				"kafka-trigger": {
 					Kind:                     "kafka-cluster",
 					Name:                     "kafka-trigger",
 					ExplicitAckMode:          functionconfig.ExplicitAckModeDisable,
 					WorkerTerminationTimeout: functionconfig.DefaultWorkerTerminationTimeout,
-					WorkerAllocatorName:      "kafka-trigger",
 				},
 			},
 			shouldFailValidation: false,
