@@ -81,14 +81,14 @@ func (d *Unarchiver) extractFile(file archiver.File, targetPath string) error {
 
 	if file.IsDir() {
 		// create the directory if it doesn't exist and continue to the next file
-		if err := os.MkdirAll(filePath, 0755); err != nil {
+		if err := os.MkdirAll(filePath, 0700); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Failed to create directory %s", filePath))
 		}
 		return nil
 	}
 
 	// create the file's parent directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0700); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to create directory %s", filepath.Dir(filePath)))
 	}
 
