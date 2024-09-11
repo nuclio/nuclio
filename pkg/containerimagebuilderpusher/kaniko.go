@@ -229,7 +229,7 @@ func (k *Kaniko) createContainerBuildBundle(ctx context.Context,
 	}
 
 	buildDir := "/tmp/kaniko-builds"
-	if err := os.MkdirAll(buildDir, 0755); err != nil {
+	if err := os.MkdirAll(buildDir, 0700); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to ensure directory")
 	}
 
