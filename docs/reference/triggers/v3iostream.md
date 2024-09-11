@@ -142,7 +142,7 @@ As of Nuclio v1.1.33 / v1.3.20, you can configure the following configuration pa
 - **Read Batch Size**: Read batch size - the number of messages to read in each read request that's submitted to the platform.
 - **Polling Interval (ms)**: The time, in milliseconds, to wait between reading messages from the platform stream.
 - **Username**: DEPRECATED (ignored)
-- **Password**: A platform access key for accessing the data.
+- **Password**: A platform access key for accessing the data. If set as `$generate`, Nuclio will look for the `V3IO_ACCESS_KEY` environment variable and use its value as the access key.
 - **Worker allocator name**: DEPRECATED (ignored)
 
 > **Note:** In future versions of Nuclio, it's planned that the dashboard will better reflect the role of the configuration parameters and add more parameters (such as session timeout and heartbeat interval, which are currently always set to the default values of 10s and 3s, respectively, unless you edit the function-configuration file).
