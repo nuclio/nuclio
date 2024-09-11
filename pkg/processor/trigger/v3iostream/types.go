@@ -19,6 +19,7 @@ package v3iostream
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -122,7 +123,7 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 		return nil, errors.New("Explicit ack mode is not allowed when using worker pool allocation mode")
 	}
 
-	// for backwards compatibility, allow populating container name, streampath and consumer group
+	// for backwards compatibility, allow populating container name, stream path and consumer group
 	// name from url
 	if newConfiguration.ContainerName == "" &&
 		newConfiguration.StreamPath == "" &&
@@ -132,11 +133,18 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 		}
 	}
 
-	// if the password is a uuid - assume it is an access key and clear out the username/pass
+	// if the password is an uuid - assume it is an access key and clear out the username/pass
 	if _, err := uuid.Parse(newConfiguration.Password); err == nil {
 		newConfiguration.Secret = newConfiguration.Password
 		newConfiguration.Username = ""
 		newConfiguration.Password = ""
+	} else if newConfiguration.Password == "$generate" {
+		// enrich the secret from the access key in the env var
+		if accessKeyEnvVar := os.Getenv("V3IO_ACCESS_KEY"); accessKeyEnvVar != "" {
+			newConfiguration.Secret = accessKeyEnvVar
+			newConfiguration.Username = ""
+			newConfiguration.Password = ""
+		}
 	}
 
 	return &newConfiguration, nil
