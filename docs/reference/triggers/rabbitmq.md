@@ -26,12 +26,12 @@ Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 
 ```yaml
 triggers:
-  myNatsTopic:
+  myRabbit:
     kind: "rabbit-mq"
     url: "amqp://user:pass@10.0.0.1:5672"
     attributes:
       exchangeName: "myExchangeName"
-      queueName: "myQueueNameName"
+      queueName: "myQueueName"
       reconnectDuration: "10m"
       reconnectInterval: "60s"
       prefetchCount: 1
