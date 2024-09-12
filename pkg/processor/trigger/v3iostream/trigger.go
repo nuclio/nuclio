@@ -449,10 +449,9 @@ func (vs *v3iostream) explicitAckHandler(
 		// transform offset data into a StreamRecord - MarkRecord uses record.ShardID & record.SequenceNumber
 		// to determine which shard/sequence number to mark.
 		shardID := int(explicitAckAttributes.Partition)
-		streamPath := explicitAckAttributes.Topic
 
-		// skip the message if it is not for this shardId and streamPath
-		if !(claimShardId == shardID && claimStreamPath == streamPath) {
+		// skip the message if it is not for this shardId
+		if claimShardId != shardID {
 			continue
 		}
 
