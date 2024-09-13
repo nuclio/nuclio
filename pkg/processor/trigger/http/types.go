@@ -32,17 +32,17 @@ const InternalHealthPath = "/__internal/health"
 
 type Configuration struct {
 	trigger.Configuration
-	ReadBufferSize int
+	ReadBufferSize int `json:"readBufferSize,omitempty"`
 
 	// NOTE: Modifying the max request body size affect with gradually memory consumption increasing
 	// as the entire request being read into the memory
 	// https://github.com/valyala/fasthttp/issues/667#issuecomment-540965683
-	MaxRequestBodySize int
-	ReduceMemoryUsage  bool
-	CORS               *cors.CORS
+	MaxRequestBodySize int        `json:"maxRequestBodySize,omitempty"`
+	ReduceMemoryUsage  bool       `json:"reduceMemoryUsage,omitempty"`
+	CORS               *cors.CORS `json:"cors,omitempty"`
 
 	// Used to disable port publishing for the HTTP trigger on docker platform
-	DisablePortPublishing bool
+	DisablePortPublishing bool `json:"disablePortPublishing,omitempty"`
 
 	Mode TriggerMode `json:"mode,omitempty"`
 }
