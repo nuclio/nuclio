@@ -77,7 +77,7 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 		{Key: "custom.nuclio.io/v3iostream-window-size", ValueUInt64: &newConfiguration.AckWindowSize},
 		{Key: "nuclio.io/v3iostream-worker-allocation-mode", ValueString: &workerAllocationModeValue},
 
-		{Key: "nuclio.io/v3io-log-level", ValueInt: &newConfiguration.LogLevel},
+		{Key: "nuclio.io/v3iostream-log-level", ValueInt: &newConfiguration.LogLevel},
 
 		// allow changing explicit ack mode via annotation
 		{Key: "nuclio.io/v3iostream-explicit-ack-mode", ValueString: &explicitAckModeValue},

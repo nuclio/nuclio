@@ -459,7 +459,7 @@ func (vs *v3iostream) explicitAckHandler(
 		}
 
 		// this log is mostly for development purposes, to see that we are actually marking the offset
-		// to enable it use the "nuclio.io/v3io-log-level" annotation
+		// to enable it use the "nuclio.io/v3iostream-log-level" annotation
 		if vs.configuration.LogLevel > 5 {
 			vs.Logger.InfoWith("Marking offset on explicit ack request",
 				"streamPath", claimStreamPath,
