@@ -51,8 +51,8 @@ type Configuration struct {
 	SequenceNumberShardWaitInterval string
 	RecordBatchSizeChan             int
 	AckWindowSize                   uint64
-
-	seekTo v3io.SeekShardInputType
+	LogLevel                        int
+	seekTo                          v3io.SeekShardInputType
 
 	// backwards compatibility
 	PollingIntervalMs int
@@ -76,6 +76,8 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	if err := newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "custom.nuclio.io/v3iostream-window-size", ValueUInt64: &newConfiguration.AckWindowSize},
 		{Key: "nuclio.io/v3iostream-worker-allocation-mode", ValueString: &workerAllocationModeValue},
+
+		{Key: "nuclio.io/v3io-log-level", ValueInt: &newConfiguration.LogLevel},
 
 		// allow changing explicit ack mode via annotation
 		{Key: "nuclio.io/v3iostream-explicit-ack-mode", ValueString: &explicitAckModeValue},
