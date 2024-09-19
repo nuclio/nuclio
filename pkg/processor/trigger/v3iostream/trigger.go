@@ -435,8 +435,6 @@ func (vs *v3iostream) explicitAckHandler(
 
 	for streamAckControlMessage := range controlMessageChan {
 
-		vs.Logger.DebugWith("Received explicit ack control message", "controlMessage", streamAckControlMessage)
-
 		// retrieve attributes from control message
 		explicitAckAttributes := &controlcommunication.ControlMessageAttributesExplicitAck{}
 
@@ -458,6 +456,15 @@ func (vs *v3iostream) explicitAckHandler(
 		record := &v3io.StreamRecord{
 			ShardID:        &shardID,
 			SequenceNumber: uint64(explicitAckAttributes.Offset),
+		}
+
+		// this log is mostly for development purposes, to see that we are actually marking the offset
+		// to enable it use the "nuclio.io/v3iostream-log-level" annotation
+		if vs.configuration.LogLevel > 5 {
+			vs.Logger.InfoWith("Marking offset on explicit ack request",
+				"streamPath", claimStreamPath,
+				"shardId", shardID,
+				"offset", record.SequenceNumber)
 		}
 
 		// commit record
