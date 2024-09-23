@@ -453,6 +453,13 @@ func (vs *v3iostream) explicitAckHandler(
 			continue
 		}
 
+		// we check for stream to be equal to "/" to keep BC with mlrun < 1.7.0
+		// where instead of passing a streamPath, "/" is passed
+		// TODO: deprecate the check for "/" in 1.16.0
+		if explicitAckAttributes.Topic != "/" && (explicitAckAttributes.Topic != claimStreamPath) {
+			continue
+		}
+
 		record := &v3io.StreamRecord{
 			ShardID:        &shardID,
 			SequenceNumber: uint64(explicitAckAttributes.Offset),
@@ -463,6 +470,7 @@ func (vs *v3iostream) explicitAckHandler(
 		if vs.configuration.LogLevel > 5 {
 			vs.Logger.InfoWith("Marking offset on explicit ack request",
 				"streamPath", claimStreamPath,
+				"explicitAckMessageTopic", explicitAckAttributes.Topic,
 				"shardId", shardID,
 				"offset", record.SequenceNumber)
 		}
