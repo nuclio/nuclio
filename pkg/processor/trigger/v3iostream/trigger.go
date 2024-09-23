@@ -470,7 +470,7 @@ func (vs *v3iostream) explicitAckHandler(
 		if vs.configuration.LogLevel > 5 {
 			vs.Logger.InfoWith("Marking offset on explicit ack request",
 				"streamPath", claimStreamPath,
-				"explicitAckTopic", explicitAckAttributes.Topic,
+				"explicitAckMessageTopic", explicitAckAttributes.Topic,
 				"shardId", shardID,
 				"offset", record.SequenceNumber)
 		}
