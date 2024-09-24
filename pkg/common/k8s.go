@@ -222,5 +222,16 @@ func MergeNodeSelector(functionNodeSelector,
 	defaultNodeSelector := labels.Merge(platformNodeSelector, projectNodeSelector)
 	mergedNodeSelector := labels.Merge(defaultNodeSelector, functionNodeSelector)
 
+	// Remove keys with empty values
+	for key, value := range mergedNodeSelector {
+		if value == "" {
+			delete(mergedNodeSelector, key)
+		}
+	}
+
+	if len(mergedNodeSelector) == 0 {
+		return nil
+	}
+
 	return mergedNodeSelector
 }

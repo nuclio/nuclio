@@ -46,6 +46,18 @@ func (suite *KubeNuclioTestSuite) TestEnrichNodeSelector() {
 			expectedFunctionNodeSelector: map[string]string{"test": "test"},
 		},
 		{
+			name:                 "clean-up-platform-ns",
+			platformNodeSelector: map[string]string{"test": "test"},
+			functionNodeSelector: map[string]string{"test": ""},
+		},
+		{
+			name:                         "clean-up-project-ns",
+			platformNodeSelector:         map[string]string{"test": "test"},
+			projectNodeSelector:          map[string]string{"test": "test1"},
+			functionNodeSelector:         map[string]string{"test": "", "test1": "value"},
+			expectedFunctionNodeSelector: map[string]string{"test1": "value"},
+		},
+		{
 			name: "get-selector-from-project",
 			platformNodeSelector: map[string]string{
 				"test":  "from-platform",
