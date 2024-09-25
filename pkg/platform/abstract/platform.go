@@ -154,54 +154,62 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 		return onAfterConfigUpdated()
 	}
 
-	functionBuildRequired, err := ap.functionBuildRequired(&createFunctionOptions.FunctionConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed determining whether function should build")
-	}
-
-	// clear build mode
-	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
+	var functionBuildRequired bool
+	var err error
 
 	// check if we need to build the image
-	if functionBuildRequired && !functionconfig.ShouldSkipBuild(createFunctionOptions.FunctionConfig.Meta.Annotations) {
+	if !functionconfig.ShouldSkipBuild(createFunctionOptions.FunctionConfig.Meta.Annotations) {
 
-		// if the function is updated, it might have scrubbed data in the spec that the builder requires,
-		// so we need to restore it before building
-		if functionScrubber := ap.platform.GetFunctionScrubber(); functionScrubber != nil {
-			restoredFunctionConfig, err := functionScrubber.RestoreFunctionConfig(ctx,
-				&createFunctionOptions.FunctionConfig,
-				ap.platform.GetName())
-
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to restore function config")
-			}
-			createFunctionOptions.FunctionConfig = *restoredFunctionConfig
+		functionBuildRequired, err = ap.functionBuildRequired(&createFunctionOptions.FunctionConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed determining whether function should build")
 		}
 
-		buildResult, buildErr = ap.platform.CreateFunctionBuild(ctx,
-			&platform.CreateFunctionBuildOptions{
-				Logger:                     createFunctionOptions.Logger,
-				FunctionConfig:             createFunctionOptions.FunctionConfig,
-				PlatformName:               ap.platform.GetName(),
-				OnAfterConfigUpdate:        onAfterConfigUpdatedWrapper,
-				DependantImagesRegistryURL: createFunctionOptions.DependantImagesRegistryURL,
-			})
+		// clear build mode
+		createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
-		if buildErr == nil {
+		if functionBuildRequired {
 
-			// use the function configuration augmented by the builder
-			createFunctionOptions.FunctionConfig.Spec.Image = buildResult.Image
+			// if the function is updated, it might have scrubbed data in the spec that the builder requires,
+			// so we need to restore it before building
+			if functionScrubber := ap.platform.GetFunctionScrubber(); functionScrubber != nil {
+				restoredFunctionConfig, err := functionScrubber.RestoreFunctionConfig(ctx,
+					&createFunctionOptions.FunctionConfig,
+					ap.platform.GetName())
 
-			// if run registry isn't set, set it to that of the build
-			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
-				createFunctionOptions.FunctionConfig.Spec.RunRegistry =
-					createFunctionOptions.FunctionConfig.Spec.Build.Registry
+				if err != nil {
+					return nil, errors.Wrap(err, "Failed to restore function config")
+				}
+				createFunctionOptions.FunctionConfig = *restoredFunctionConfig
 			}
 
-			// on successful build set the timestamp of build
-			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
+			buildResult, buildErr = ap.platform.CreateFunctionBuild(ctx,
+				&platform.CreateFunctionBuildOptions{
+					Logger:                     createFunctionOptions.Logger,
+					FunctionConfig:             createFunctionOptions.FunctionConfig,
+					PlatformName:               ap.platform.GetName(),
+					OnAfterConfigUpdate:        onAfterConfigUpdatedWrapper,
+					DependantImagesRegistryURL: createFunctionOptions.DependantImagesRegistryURL,
+				})
+
+			if buildErr == nil {
+
+				// use the function configuration augmented by the builder
+				createFunctionOptions.FunctionConfig.Spec.Image = buildResult.Image
+
+				// if run registry isn't set, set it to that of the build
+				if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
+					createFunctionOptions.FunctionConfig.Spec.RunRegistry =
+						createFunctionOptions.FunctionConfig.Spec.Build.Registry
+				}
+
+				// on successful build set the timestamp of build
+				createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
+			}
 		}
-	} else {
+	}
+
+	if !functionBuildRequired {
 		createFunctionOptions.Logger.InfoWithCtx(ctx,
 			"Skipping build",
 			"name", createFunctionOptions.FunctionConfig.Meta.Name)
@@ -217,7 +225,7 @@ func (ap *Platform) HandleDeployFunction(ctx context.Context,
 		}
 
 		// trigger the on after config update ourselves
-		if err = onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
+		if err := onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
 			return nil, errors.Wrap(err, "Failed to trigger on after config update")
 		}
 	}
