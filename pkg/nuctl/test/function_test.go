@@ -1617,6 +1617,21 @@ func (suite *functionExportImportTestSuite) TestImportFunction() {
 	suite.assertFunctionImported(functionName, true)
 }
 
+func (suite *functionExportImportTestSuite) TestImportFunctionWhichNeverRun() {
+	functionConfigPath := path.Join(suite.GetImportsDir(), "never_run_before_export_function.yaml")
+
+	// this name is defined within never_run_before_export_function.yaml
+	functionName := "never-run-func"
+
+	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
+
+	// import the project
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil) // nolint: errcheck
+	suite.Require().NoError(err)
+
+	suite.assertFunctionImported(functionName, true)
+}
+
 func (suite *functionExportImportTestSuite) TestAutofixWhenImportFunction() {
 	functionConfigPath := path.Join(suite.GetImportsDir(), "autofixable_function.yaml")
 

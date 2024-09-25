@@ -1,0 +1,36 @@
+metadata:
+  annotations:
+    nuclio.io/previous-state: error
+    skip-build: "true"
+    skip-deploy: "true"
+  name: never-run-func
+spec:
+  alias: latest
+  build:
+    codeEntryType: image
+    image: ""
+    noBaseImagesPull: true
+  disableDefaultHTTPTrigger: false
+  platform: {}
+  preemptionMode: prevent
+  priorityClassName: igz-workload-medium
+  resources:
+    limits:
+      cpu: "2"
+      memory: 20Gi
+    requests:
+      cpu: 25m
+      memory: 1Mi
+  runtime: python:3.9
+  securityContext:
+    runAsGroup: 65534
+    runAsUser: 50
+  serviceType: ClusterIP
+  triggers:
+    http:
+      class: ""
+      kind: http
+      maxWorkers: 1
+      name: http
+      numWorkers: 1
+      workerAvailabilityTimeoutMilliseconds: 10000
