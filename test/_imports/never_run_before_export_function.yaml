@@ -8,7 +8,7 @@ spec:
   alias: latest
   build:
     codeEntryType: image
-    image: ""
+    image: ""  #this function always leads to an `error` state due to image isn't defined
     noBaseImagesPull: true
   disableDefaultHTTPTrigger: false
   platform: {}

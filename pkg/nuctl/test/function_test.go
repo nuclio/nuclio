@@ -1611,7 +1611,7 @@ func (suite *functionExportImportTestSuite) TestImportFunction() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil) // nolint: errcheck
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	suite.assertFunctionImported(functionName, true)
@@ -1626,7 +1626,7 @@ func (suite *functionExportImportTestSuite) TestImportFunctionWhichNeverRun() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// import the project
-	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil) // nolint: errcheck
+	err := suite.ExecuteNuctl([]string{"import", "fu", functionConfigPath, "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	suite.assertFunctionImported(functionName, true)
