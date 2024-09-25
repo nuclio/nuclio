@@ -470,6 +470,7 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 			runAsGroupID,
 			fsGroup),
 			strings.TrimSpace(results.Output))
+		suite.InvokeFunction("GET", deployResult.Port, "", nil)
 		return true
 	})
 }
