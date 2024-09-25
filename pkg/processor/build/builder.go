@@ -962,7 +962,7 @@ func (b *Builder) prepareStagingDir() error {
 
 	// make sure the handler staging dir exists
 	handlerDirIncludingSubPath := path.Join(handlerDirInStaging, handlerSubPath)
-	if err := os.MkdirAll(handlerDirIncludingSubPath, 0700); err != nil {
+	if err := os.MkdirAll(handlerDirIncludingSubPath, 0755); err != nil {
 		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirIncludingSubPath)
 	}
 
