@@ -690,6 +690,7 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 		"error", processWaitResult.Err.Error(),
 		"status", processWaitResult.ProcessState.String(),
 		"exitCode", processWaitResult.ProcessState.ExitCode(),
+		"wid", r.Context.WorkerID,
 	)
 
 	var panicMessage string
