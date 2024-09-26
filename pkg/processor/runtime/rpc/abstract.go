@@ -687,8 +687,10 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 	}
 
 	r.Logger.ErrorWith(string(common.UnexpectedTerminationChildProcess),
-		"error", processWaitResult.Err,
-		"status", processWaitResult.ProcessState.String())
+		"error", processWaitResult.Err.Error(),
+		"status", processWaitResult.ProcessState.String(),
+		"exitCode", processWaitResult.ProcessState.ExitCode(),
+	)
 
 	var panicMessage string
 	if processWaitResult.Err != nil {
