@@ -158,6 +158,10 @@ func (r *AbstractRuntime) Stop() error {
 		"status", r.GetStatus(),
 		"wrapperProcess", r.wrapperProcess)
 
+	// move to `stopped` state before actually stopping it
+	// to avoid sending any events while stopping
+	r.SetStatus(status.Stopped)
+
 	if r.wrapperProcess != nil {
 
 		// stop waiting for process
@@ -175,8 +179,6 @@ func (r *AbstractRuntime) Stop() error {
 	r.waitForProcessTermination(10 * time.Second)
 
 	r.wrapperProcess = nil
-
-	r.SetStatus(status.Stopped)
 	r.Logger.Warn("Successfully stopped wrapper process")
 	return nil
 }
@@ -230,6 +232,15 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 
 // Drain signals to the runtime to drain its accumulated events and waits for it to finish
 func (r *AbstractRuntime) Drain() error {
+
+	// do not send a signal if the runtime isn't ready,
+	// because the signal handler may not be initialized yet.
+	// if the process receives a signal before the handler is set up,
+	// the default behaviour will cause the Linux process to terminate.
+	if r.GetStatus() != status.Ready {
+		return nil
+	}
+
 	// we use SIGUSR2 to signal the wrapper process to drain events
 	if err := r.signal(syscall.SIGUSR2); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process to drain")
@@ -649,9 +660,17 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 		return
 	}
 
+	var errorMsg string
+	if processWaitResult.Err != nil {
+		errorMsg = processWaitResult.Err.Error()
+	}
+
 	r.Logger.ErrorWith(string(common.UnexpectedTerminationChildProcess),
-		"error", processWaitResult.Err,
-		"status", processWaitResult.ProcessState.String())
+		"error", errorMsg,
+		"status", processWaitResult.ProcessState.String(),
+		"exitCode", processWaitResult.ProcessState.ExitCode(),
+		"pid", r.wrapperProcess.Pid,
+	)
 
 	var panicMessage string
 	if processWaitResult.Err != nil {
