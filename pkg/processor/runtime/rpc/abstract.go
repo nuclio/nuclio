@@ -697,8 +697,13 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 		return
 	}
 
+	var errorMsg string
+	if processWaitResult.Err != nil {
+		errorMsg = processWaitResult.Err.Error()
+	}
+
 	r.Logger.ErrorWith(string(common.UnexpectedTerminationChildProcess),
-		"error", processWaitResult.Err.Error(),
+		"error", errorMsg,
 		"status", processWaitResult.ProcessState.String(),
 		"exitCode", processWaitResult.ProcessState.ExitCode(),
 		"pid", r.wrapperProcess.Pid,
