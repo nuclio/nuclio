@@ -15,7 +15,7 @@
 apiVersion: v1
 description: Serverless for Real-Time and Data-Driven Applications
 name: nuclio
-version: 0.19.13
+version: 0.19.14
 appVersion: 1.13.13
 icon: https://github.com/nuclio/nuclio/raw/master/docs/assets/images/logo.png
 home: https://nuclio.io
