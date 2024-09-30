@@ -56,7 +56,10 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newDotnetCoreRuntime, nil
 }
 
-func (d *dotnetcore) RunWrapper(socketPath, controlSocketPath string) (*os.Process, error) {
+func (d *dotnetcore) RunWrapper(socketPath []string, controlSocketPath string) (*os.Process, error) {
+	if len(socketPath) != 1 {
+		return nil, fmt.Errorf("Dotnet doesn't support multiple socket processing yet")
+	}
 	wrapperDLLPath := d.getWrapperDLLPath()
 	d.Logger.DebugWith("Using dotnet core wrapper dll path", "path", wrapperDLLPath)
 	if !common.IsFile(wrapperDLLPath) {
@@ -71,7 +74,7 @@ func (d *dotnetcore) RunWrapper(socketPath, controlSocketPath string) (*os.Proce
 	env = append(env, d.GetEnvFromConfiguration()...)
 
 	args := []string{
-		"dotnet", wrapperDLLPath, socketPath,
+		"dotnet", wrapperDLLPath, socketPath[0],
 	}
 
 	d.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))

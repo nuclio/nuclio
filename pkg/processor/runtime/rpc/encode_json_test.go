@@ -170,7 +170,7 @@ type EventJSONEncoderSuite struct {
 func (suite *EventJSONEncoderSuite) TestEncode() {
 	require := suite.Require()
 	logger, err := nucliozap.NewNuclioZapTest("test")
-	require.NoError(err, "Can't create logger")
+	require.NoError(err, "Can't create Logger")
 
 	var buf bytes.Buffer
 	enc := NewEventJSONEncoder(logger, &buf)

@@ -33,7 +33,7 @@ const (
 type Runtime interface {
 
 	// RunWrapper runs the wrapper
-	RunWrapper(string, string) (*os.Process, error)
+	RunWrapper([]string, string) (*os.Process, error)
 
 	// GetSocketType returns the type of socket the runtime works with (unix/tcp)
 	GetSocketType() SocketType

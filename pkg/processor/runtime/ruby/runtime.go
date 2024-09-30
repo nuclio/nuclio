@@ -17,6 +17,7 @@ limitations under the License.
 package ruby
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -56,13 +57,16 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newRubyRuntime, nil
 }
 
-func (r *ruby) RunWrapper(socketPath, controlSocketPath string) (*os.Process, error) {
+func (r *ruby) RunWrapper(socketPath []string, controlSocketPath string) (*os.Process, error) {
+	if len(socketPath) != 1 {
+		return nil, fmt.Errorf("Ruby doesn't support multiple socket processing yet")
+	}
 	wrapperPath := common.GetEnvOrDefaultString("NUCLIO_WRAPPER_PATH", "/opt/nuclio/wrapper.rb")
 	args := []string{
 		"ruby",
 		wrapperPath,
 		"--handler", r.configuration.Spec.Handler,
-		"--socket-path", socketPath,
+		"--socket-path", socketPath[0],
 	}
 
 	env := os.Environ()

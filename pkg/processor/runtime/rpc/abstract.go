@@ -17,14 +17,9 @@ limitations under the License.
 package rpc
 
 import (
-	"bufio"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net"
-	"net/http"
 	"os"
 	"syscall"
 	"time"
@@ -37,57 +32,20 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/rs/xid"
 )
-
-// TODO: Find a better place (both on file system and configuration)
-const (
-	socketPathTemplate = "/tmp/nuclio-rpc-%s.sock"
-	connectionTimeout  = 2 * time.Minute
-)
-
-type socketConnection struct {
-	conn     net.Conn
-	listener net.Listener
-	address  string
-}
-
-type result struct {
-	StatusCode   int                    `json:"status_code"`
-	ContentType  string                 `json:"content_type"`
-	Body         string                 `json:"body"`
-	BodyEncoding string                 `json:"body_encoding"`
-	Headers      map[string]interface{} `json:"headers"`
-	EventId      string                 `json:"event_id"`
-
-	DecodedBody []byte
-	err         error
-}
-
-type batchedResults struct {
-	results []*result
-	err     error
-}
-
-func newBatchedResults() *batchedResults {
-	return &batchedResults{results: make([]*result, 0)}
-}
 
 // AbstractRuntime is a runtime that communicates via unix domain socket
 type AbstractRuntime struct {
 	runtime.AbstractRuntime
-	configuration     *runtime.Configuration
-	eventEncoder      EventEncoder
-	controlEncoder    EventEncoder
-	wrapperProcess    *os.Process
-	resultChan        chan *batchedResults
-	functionLogger    logger.Logger
-	runtime           Runtime
-	startChan         chan struct{}
-	stopChan          chan struct{}
-	cancelHandlerChan chan struct{}
-	socketType        SocketType
-	processWaiter     *processwaiter.ProcessWaiter
+	configuration  *runtime.Configuration
+	wrapperProcess *os.Process
+	functionLogger logger.Logger
+	runtime        Runtime
+	stopChan       chan struct{}
+	socketType     SocketType
+	processWaiter  *processwaiter.ProcessWaiter
+
+	socketAllocator *SocketAllocator
 }
 
 type rpcLogRecord struct {
@@ -112,7 +70,6 @@ func NewAbstractRuntime(logger logger.Logger,
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
 		runtime:         runtimeInstance,
-		startChan:       make(chan struct{}, 1),
 		stopChan:        make(chan struct{}, 1),
 		socketType:      UnixSocket,
 	}
@@ -132,7 +89,7 @@ func (r *AbstractRuntime) Start() error {
 
 // ProcessEvent processes an event
 func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	processingResult, err := r.processItemAndWaitForResult(event, functionLogger)
+	processingResult, err := r.allocateSocketAndWaitForResult(event, functionLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +104,7 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 
 // ProcessBatch processes a batch of events
 func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
-	processingResults, err := r.processItemAndWaitForResult(batch, functionLogger)
+	processingResults, err := r.allocateSocketAndWaitForResult(batch, functionLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +130,7 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 	return responsesWithErrors, nil
 }
 
-// Stop stops the runtime
+// Stop stops the abstractRuntime
 func (r *AbstractRuntime) Stop() error {
 	r.Logger.WarnWith("Stopping",
 		"status", r.GetStatus(),
@@ -210,20 +167,6 @@ func (r *AbstractRuntime) Restart() error {
 		return err
 	}
 
-	// Send error for current event (non-blocking)
-	select {
-	case r.resultChan <- &batchedResults{
-		results: []*result{{
-			StatusCode: http.StatusRequestTimeout,
-			err:        errors.New("Runtime restarted"),
-		}},
-	}:
-
-	default:
-		r.Logger.Warn("Nothing waiting on result channel during restart. Continuing")
-	}
-
-	close(r.resultChan)
 	if err := r.startWrapper(); err != nil {
 		r.SetStatus(status.Error)
 		return errors.Wrap(err, "Can't start wrapper process")
@@ -301,34 +244,20 @@ func (r *AbstractRuntime) Terminate() error {
 	return nil
 }
 
-func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, functionLogger logger.Logger) (*batchedResults, error) {
+func (r *AbstractRuntime) allocateSocketAndWaitForResult(item interface{}, functionLogger logger.Logger) (*batchedResults, error) {
 
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
 
+	socket := r.socketAllocator.Allocate()
+
 	r.functionLogger = functionLogger
-
-	// We don't use defer to reset r.functionLogger since it decreases performance
-	if err := r.eventEncoder.Encode(item); err != nil {
+	defer func() {
 		r.functionLogger = nil
-		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
-	}
+	}()
 
-	processingResults, ok := <-r.resultChan
-	r.functionLogger = nil
-	if !ok {
-		msg := "Client disconnected"
-		r.Logger.Error(msg)
-		r.SetStatus(status.Error)
-		r.functionLogger = nil
-		return nil, errors.New(msg)
-	}
-	// if processingResults.err is not nil, it means that whole batch processing was failed
-	if processingResults.err != nil {
-		return nil, processingResults.err
-	}
-	return processingResults, nil
+	return socket.processEvent(item)
 }
 
 func (r *AbstractRuntime) signal(signal syscall.Signal) error {
@@ -351,28 +280,17 @@ func (r *AbstractRuntime) signal(signal syscall.Signal) error {
 }
 
 func (r *AbstractRuntime) startWrapper() error {
-	var (
-		err                                error
-		eventConnection, controlConnection socketConnection
-	)
-
-	// create socket connections
-	if err := r.createSocketConnection(&eventConnection); err != nil {
-		return errors.Wrap(err, "Failed to create socket connection")
+	r.socketAllocator = NewSocketAllocator(r.Logger.GetChild("socketAllocator"), r)
+	var err error
+	if err = r.socketAllocator.startListeners(); err != nil {
+		return errors.Wrap(err, "Failed to start sockets")
 	}
 
-	if r.runtime.SupportsControlCommunication() {
-		if err := r.createSocketConnection(&controlConnection); err != nil {
-			return errors.Wrap(err, "Failed to create socket connection")
-		}
-	}
-
-	r.processWaiter, err = processwaiter.NewProcessWaiter()
-	if err != nil {
+	if r.processWaiter, err = processwaiter.NewProcessWaiter(); err != nil {
 		return errors.Wrap(err, "Failed to create process waiter")
 	}
 
-	wrapperProcess, err := r.runtime.RunWrapper(eventConnection.address, controlConnection.address)
+	wrapperProcess, err := r.runtime.RunWrapper(r.socketAllocator.getSocketAddresses())
 	if err != nil {
 		return errors.Wrap(err, "Can't run wrapper")
 	}
@@ -381,296 +299,19 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	go r.watchWrapperProcess()
 
-	// event connection
-	eventConnection.conn, err = eventConnection.listener.Accept()
-	if err != nil {
-		return errors.Wrap(err, "Can't get connection from wrapper")
-	}
-
-	r.Logger.InfoWith("Wrapper connected",
-		"wid", r.Context.WorkerID,
-		"pid", r.wrapperProcess.Pid)
-
-	r.eventEncoder = r.runtime.GetEventEncoder(eventConnection.conn)
-	r.resultChan = make(chan *batchedResults)
-	r.cancelHandlerChan = make(chan struct{})
-	go r.eventWrapperOutputHandler(eventConnection.conn, r.resultChan)
-
-	// control connection
-	if r.runtime.SupportsControlCommunication() {
-
-		r.Logger.DebugWith("Creating control connection",
-			"wid", r.Context.WorkerID)
-		controlConnection.conn, err = controlConnection.listener.Accept()
-		if err != nil {
-			return errors.Wrap(err, "Can't get control connection from wrapper")
-		}
-
-		r.controlEncoder = r.runtime.GetEventEncoder(controlConnection.conn)
-
-		// initialize control message broker
-		r.ControlMessageBroker = NewRpcControlMessageBroker(r.controlEncoder, r.Logger, r.configuration.ControlMessageBroker)
-
-		go r.controlOutputHandler(controlConnection.conn)
-
-		r.Logger.DebugWith("Control connection created",
-			"wid", r.Context.WorkerID)
-	}
-
-	// wait for start if required to
-	if r.runtime.WaitForStart() {
-		r.Logger.Debug("Waiting for start")
-
-		<-r.startChan
-	}
-
-	r.Logger.Debug("Started")
-
-	return nil
-}
-
-// Create a listener on unix domain docker, return listener, path to socket and error
-func (r *AbstractRuntime) createSocketConnection(connection *socketConnection) error {
-	var err error
-	if r.runtime.GetSocketType() == UnixSocket {
-		connection.listener, connection.address, err = r.createUnixListener()
-	} else {
-		connection.listener, connection.address, err = r.createTCPListener()
-	}
-
-	if err != nil {
-		return errors.Wrap(err, "Can't create listener")
+	if err := r.socketAllocator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start socket allocator")
 	}
 
 	return nil
 }
 
-// Create a listener on unix domain docker, return listener, path to socket and error
-func (r *AbstractRuntime) createUnixListener() (net.Listener, string, error) {
-	socketPath := fmt.Sprintf(socketPathTemplate, xid.New().String())
-
-	if common.FileExists(socketPath) {
-		if err := os.Remove(socketPath); err != nil {
-			return nil, "", errors.Wrapf(err, "Can't remove socket at %q", socketPath)
-		}
-	}
-
-	r.Logger.DebugWith("Creating listener socket", "path", socketPath)
-
-	listener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		return nil, "", errors.Wrapf(err, "Can't listen on %s", socketPath)
-	}
-
-	unixListener, ok := listener.(*net.UnixListener)
-	if !ok {
-		return nil, "", fmt.Errorf("Can't get underlying Unix listener")
-	}
-
-	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
-		return nil, "", errors.Wrap(err, "Can't set deadline")
-	}
-
-	return listener, socketPath, nil
-}
-
-// Create a listener on TCP docker, return listener, port and error
-func (r *AbstractRuntime) createTCPListener() (net.Listener, string, error) {
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, "", errors.Wrap(err, "Can't find free port")
-	}
-
-	tcpListener, ok := listener.(*net.TCPListener)
-	if !ok {
-		return nil, "", errors.Wrap(err, "Can't get underlying TCP listener")
-	}
-	if err = tcpListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
-		return nil, "", errors.Wrap(err, "Can't set deadline")
-	}
-
-	port := listener.Addr().(*net.TCPAddr).Port
-
-	return listener, fmt.Sprintf("%d", port), nil
-}
-
-func (r *AbstractRuntime) eventWrapperOutputHandler(conn io.Reader, resultChan chan *batchedResults) {
-
-	// Reset might close outChan, which will cause panic when sending
-	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
-		r.Logger,
-		"handling event wrapper output (Restart called?)",
-		&common.CatchAndLogPanicOptions{
-			Args:          nil,
-			CustomHandler: nil,
-		})
-	defer func() {
-		r.cancelHandlerChan <- struct{}{}
-	}()
-
-	outReader := bufio.NewReader(conn)
-
-	// Read logs & output
-	for {
-		select {
-
-		// TODO: sync between event and control output handlers using a shared context
-		case <-r.cancelHandlerChan:
-			r.Logger.Warn("Event output handler was canceled (Restart called?)")
-			return
-
-		default:
-
-			unmarshalledResults := newBatchedResults()
-			var data []byte
-			data, unmarshalledResults.err = outReader.ReadBytes('\n')
-
-			if unmarshalledResults.err != nil {
-				r.Logger.WarnWith(string(common.FailedReadFromEventConnection),
-					"err", unmarshalledResults.err.Error())
-				resultChan <- unmarshalledResults
-				continue
-			}
-
-			switch data[0] {
-			case 'r':
-				unmarshalResponseData(r.Logger, data[1:], unmarshalledResults)
-
-				// write back to result channel
-				resultChan <- unmarshalledResults
-			case 'm':
-				r.handleResponseMetric(data[1:])
-			case 'l':
-				r.handleResponseLog(data[1:])
-			case 's':
-				r.handleStart()
-			}
-		}
-	}
-}
-
-func (r *AbstractRuntime) controlOutputHandler(conn io.Reader) {
-
-	// recover from panic in case of error
-	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
-		r.Logger,
-		"control wrapper output handler (Restart called?)",
-		&common.CatchAndLogPanicOptions{
-			Args:          nil,
-			CustomHandler: nil,
-		})
-	defer func() {
-		r.cancelHandlerChan <- struct{}{}
-	}()
-
-	outReader := bufio.NewReader(conn)
-
-	// keep a counter for log throttling
-	errLogCounter := 0
-	logCounterTime := time.Now()
-
-	for {
-		select {
-
-		// TODO: sync between event and control output handlers using a shared context
-		case <-r.cancelHandlerChan:
-			r.Logger.Warn("Control output handler was canceled (Restart called?)")
-			return
-
-		default:
-
-			// read control message
-			controlMessage, err := r.ControlMessageBroker.ReadControlMessage(outReader)
-			if err != nil {
-
-				// if enough time has passed, log the error
-				if time.Since(logCounterTime) > 500*time.Millisecond {
-					logCounterTime = time.Now()
-					errLogCounter = 0
-				}
-				if errLogCounter%5 == 0 {
-					r.Logger.WarnWith(string(common.FailedReadControlMessage),
-						"errRootCause", errors.RootCause(err).Error())
-					errLogCounter++
-				}
-
-				// if error is EOF it means the connection was closed, so we should exit
-				if errors.RootCause(err) == io.EOF {
-					r.Logger.Debug("Control connection was closed")
-					return
-				}
-
-				continue
-			} else {
-				errLogCounter = 0
-			}
-
-			r.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)
-
-			// send message to control consumers
-			if err := r.GetControlMessageBroker().SendToConsumers(controlMessage); err != nil {
-				r.Logger.WarnWith("Failed to send control message to consumers", "err", err.Error())
-			}
-
-			// TODO: validate and respond to wrapper process
-		}
-	}
-}
-
-func (r *AbstractRuntime) handleResponseLog(response []byte) {
-	var logRecord rpcLogRecord
-
-	if err := json.Unmarshal(response, &logRecord); err != nil {
-		r.Logger.ErrorWith("Can't decode log", "error", err)
-		return
-	}
-
-	loggerInstance := r.resolveFunctionLogger(r.functionLogger)
-	logFunc := loggerInstance.DebugWith
-
-	switch logRecord.Level {
-	case "error", "critical", "fatal":
-		logFunc = loggerInstance.ErrorWith
-	case "warning":
-		logFunc = loggerInstance.WarnWith
-	case "info":
-		logFunc = loggerInstance.InfoWith
-	}
-
-	vars := common.MapToSlice(logRecord.With)
-	logFunc(logRecord.Message, vars...)
-}
-
-func (r *AbstractRuntime) handleResponseMetric(response []byte) {
-	var metrics struct {
-		DurationSec float64 `json:"duration"`
-	}
-
-	loggerInstance := r.resolveFunctionLogger(r.functionLogger)
-	if err := json.Unmarshal(response, &metrics); err != nil {
-		loggerInstance.ErrorWith("Can't decode metric", "error", err)
-		return
-	}
-
-	if metrics.DurationSec == 0 {
-		loggerInstance.ErrorWith("No duration in metrics", "metrics", metrics)
-		return
-	}
-
-	r.Statistics.DurationMilliSecondsCount++
-	r.Statistics.DurationMilliSecondsSum += uint64(metrics.DurationSec * 1000)
-}
-
-func (r *AbstractRuntime) handleStart() {
-	r.startChan <- struct{}{}
-}
-
-// resolveFunctionLogger return either functionLogger if provided or root logger if not
-func (r *AbstractRuntime) resolveFunctionLogger(functionLogger logger.Logger) logger.Logger {
-	if functionLogger == nil {
+// resolveFunctionLogger return either functionLogger if provided or root Logger if not
+func (r *AbstractRuntime) resolveFunctionLogger() logger.Logger {
+	if r.functionLogger == nil {
 		return r.Logger
 	}
-	return functionLogger
+	return r.functionLogger
 }
 
 func (r *AbstractRuntime) watchWrapperProcess() {

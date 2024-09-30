@@ -17,6 +17,7 @@ limitations under the License.
 package java
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -56,7 +57,12 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newJavaRuntime, nil
 }
 
-func (j *java) RunWrapper(port, controlPort string) (*os.Process, error) {
+func (j *java) RunWrapper(ports []string, controlPort string) (*os.Process, error) {
+
+	if len(ports) != 1 {
+		return nil, fmt.Errorf("Java doesn't support multiple ports processing yet")
+	}
+
 	jvmOptions, err := j.getJVMOptions()
 	if err != nil {
 		return nil, err
@@ -66,7 +72,7 @@ func (j *java) RunWrapper(port, controlPort string) (*os.Process, error) {
 	args = append(args, []string{
 		"-jar", j.wrapperJarPath(),
 		"-handler", j.handlerName(),
-		"-port", port,
+		"-port", ports[0],
 		"-workerid", strconv.Itoa(j.configuration.WorkerID),
 	}...)
 
