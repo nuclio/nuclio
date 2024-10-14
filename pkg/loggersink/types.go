@@ -33,11 +33,11 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 	var level logger.Level
 
 	switch loggerSinkConfiguration.Level {
-	case "info":
+	case "info", "INFO":
 		level = logger.LevelInfo
-	case "warn":
+	case "warn", "WARN", "warning", "WARNING":
 		level = logger.LevelWarn
-	case "error":
+	case "error", "ERROR":
 		level = logger.LevelError
 	default:
 		level = logger.LevelDebug
