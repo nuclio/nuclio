@@ -17,6 +17,8 @@ limitations under the License.
 package loggersink
 
 import (
+	"strings"
+
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
@@ -32,12 +34,12 @@ type Configuration struct {
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) *Configuration {
 	var level logger.Level
 
-	switch loggerSinkConfiguration.Level {
-	case "info", "INFO":
+	switch strings.ToLower(loggerSinkConfiguration.Level) {
+	case "info":
 		level = logger.LevelInfo
-	case "warn", "WARN", "warning", "WARNING":
+	case "warn", "warning":
 		level = logger.LevelWarn
-	case "error", "ERROR":
+	case "error":
 		level = logger.LevelError
 	default:
 		level = logger.LevelDebug
