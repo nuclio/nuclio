@@ -345,9 +345,11 @@ class Wrapper(object):
 
         for _ in range(timeout):
             try:
-                self._logger.debug(f"Connecting to socket {socket_path}..")
+                # TODO: remove this log when support multiple sockets as it can be too spammy
+                self._logger.debug(f"Connecting to socket {socket_path}")
                 sock.connect(socket_path)
-                self._logger.debug(f"Connected to socket {socket_path}")
+                # TODO: remove this log when support multiple sockets as it can be too spammy
+                self._logger.debug(f"Successfully connected to socket {socket_path}")
                 return sock
 
             except:

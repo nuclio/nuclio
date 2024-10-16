@@ -59,9 +59,9 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 }
 
 // We can't use n.Logger since it's not initialized
-func (n *nodejs) RunWrapper(socketPath []string, controlSocketPath string) (*os.Process, error) {
-	if len(socketPath) != 1 {
-		return nil, fmt.Errorf("Nodejs doesn't support multiple socket processing yet")
+func (n *nodejs) RunWrapper(socketPaths []string, controlSocketPath string) (*os.Process, error) {
+	if len(socketPaths) != 1 {
+		return nil, fmt.Errorf("Nodejs runtime doesn't support multiple socket processing")
 	}
 	wrapperScriptPath := n.getWrapperScriptPath()
 	n.Logger.DebugWith("Using nodejs wrapper script path", "path", wrapperScriptPath)
@@ -85,7 +85,7 @@ func (n *nodejs) RunWrapper(socketPath []string, controlSocketPath string) (*os.
 		return nil, errors.Wrap(err, "Bad handler")
 	}
 
-	args := []string{nodeExePath, wrapperScriptPath, socketPath[0], handlerFilePath, handlerName}
+	args := []string{nodeExePath, wrapperScriptPath, socketPaths[0], handlerFilePath, handlerName}
 
 	n.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
 

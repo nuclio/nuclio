@@ -89,7 +89,7 @@ func (r *AbstractRuntime) Start() error {
 
 // ProcessEvent processes an event
 func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	processingResult, err := r.allocateSocketAndWaitForResult(event, functionLogger)
+	processingResult, err := r.processItemAndWaitForResult(event, functionLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 
 // ProcessBatch processes a batch of events
 func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
-	processingResults, err := r.allocateSocketAndWaitForResult(batch, functionLogger)
+	processingResults, err := r.processItemAndWaitForResult(batch, functionLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (r *AbstractRuntime) Terminate() error {
 	return nil
 }
 
-func (r *AbstractRuntime) allocateSocketAndWaitForResult(item interface{}, functionLogger logger.Logger) (*batchedResults, error) {
+func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, functionLogger logger.Logger) (*batchedResults, error) {
 
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
@@ -282,7 +282,7 @@ func (r *AbstractRuntime) signal(signal syscall.Signal) error {
 func (r *AbstractRuntime) startWrapper() error {
 	r.socketAllocator = NewSocketAllocator(r.Logger.GetChild("socketAllocator"), r)
 	var err error
-	if err = r.socketAllocator.startListeners(); err != nil {
+	if err = r.socketAllocator.createSockets(); err != nil {
 		return errors.Wrap(err, "Failed to start sockets")
 	}
 

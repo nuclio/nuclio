@@ -70,7 +70,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 
 func (r *testRuntime) RunWrapper(eventSocketPaths []string, controlSocketPath string) (*os.Process, error) {
 	if len(eventSocketPaths) > 1 {
-		return nil, fmt.Errorf("test runtime doesn't support multiple socket processing yet")
+		return nil, fmt.Errorf("test runtime doesn't support multiple socket processing")
 	}
 	var err error
 	cmd := exec.Command("sleep", "999999")

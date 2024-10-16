@@ -256,7 +256,7 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 	return newContext, nil
 }
 
-// Stop stops the runtime
+// Stop stops the AbstractRuntime
 func (ar *AbstractRuntime) Stop() error {
 	ar.SetStatus(status.Stopped)
 	return nil

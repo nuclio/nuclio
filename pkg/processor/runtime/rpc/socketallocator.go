@@ -45,10 +45,17 @@ type SocketAllocator struct {
 }
 
 func NewSocketAllocator(logger logger.Logger, runtime *AbstractRuntime) *SocketAllocator {
-	return &SocketAllocator{logger: logger, minSocketsNum: 1, maxSocketsNum: 1, eventSockets: make([]*EventSocket, 0), abstractRuntime: runtime}
+	// TODO: make minSocketsNum and maxSocketsNum when support multiple sockets
+	return &SocketAllocator{
+		logger:          logger,
+		minSocketsNum:   1,
+		maxSocketsNum:   1,
+		eventSockets:    make([]*EventSocket, 0),
+		abstractRuntime: runtime,
+	}
 }
 
-func (sa *SocketAllocator) startListeners() error {
+func (sa *SocketAllocator) createSockets() error {
 	if sa.abstractRuntime.runtime.SupportsControlCommunication() {
 		controlConnection, err := sa.createSocketConnection()
 		if err != nil {
@@ -83,7 +90,7 @@ func (sa *SocketAllocator) start() error {
 		socket.cancelChan = make(chan struct{})
 		go socket.runHandler()
 	}
-	sa.logger.Debug("Events sockets established connection")
+	sa.logger.Debug("Successfully established connection for event sockets")
 
 	if sa.abstractRuntime.runtime.SupportsControlCommunication() {
 		sa.logger.DebugWith("Creating control connection",
@@ -119,6 +126,7 @@ func (sa *SocketAllocator) start() error {
 }
 
 func (sa *SocketAllocator) Allocate() *EventSocket {
+	// TODO: implement allocation logic when support multiple sockets
 	return sa.eventSockets[0]
 }
 
