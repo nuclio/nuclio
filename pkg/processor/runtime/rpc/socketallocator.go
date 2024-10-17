@@ -125,9 +125,21 @@ func (sa *SocketAllocator) start() error {
 	return nil
 }
 
-func (sa *SocketAllocator) Allocate() *EventSocket {
+func (sa *SocketAllocator) Stop() {
+	for _, eventSocket := range sa.eventSockets {
+		socket := eventSocket
+		go func() {
+			socket.stop()
+		}()
+	}
+	go func() {
+		sa.controlMessageSocket.stop()
+	}()
+}
+
+func (sa *SocketAllocator) Allocate() (*EventSocket, error) {
 	// TODO: implement allocation logic when support multiple sockets
-	return sa.eventSockets[0]
+	return sa.eventSockets[0], nil
 }
 
 func (sa *SocketAllocator) getSocketAddresses() ([]string, string) {

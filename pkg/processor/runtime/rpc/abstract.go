@@ -167,6 +167,8 @@ func (r *AbstractRuntime) Restart() error {
 		return err
 	}
 
+	r.socketAllocator.Stop()
+
 	if err := r.startWrapper(); err != nil {
 		r.SetStatus(status.Error)
 		return errors.Wrap(err, "Can't start wrapper process")
@@ -250,14 +252,16 @@ func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, function
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
 
-	socket := r.socketAllocator.Allocate()
-
+	socket, err := r.socketAllocator.Allocate()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to allocate socket")
+	}
+	// We don't use defer to reset r.functionLogger since it decreases performance
 	r.functionLogger = functionLogger
-	defer func() {
-		r.functionLogger = nil
-	}()
+	processingResult, err := socket.processEvent(item)
+	r.functionLogger = nil
 
-	return socket.processEvent(item)
+	return processingResult, err
 }
 
 func (r *AbstractRuntime) signal(signal syscall.Signal) error {

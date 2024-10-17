@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -67,14 +68,18 @@ type AbstractSocket struct {
 	//status     status.Status
 }
 
+func (s *AbstractSocket) stop() {
+	s.cancelChan <- struct{}{}
+}
+
 type ControlMessageSocket struct {
 	*AbstractSocket
 }
 
-func NewControlMessageSocket(logger logger.Logger, socketConnection *socketConnection, runtime *AbstractRuntime) *ControlMessageSocket {
+func NewControlMessageSocket(parentLogger logger.Logger, socketConnection *socketConnection, runtime *AbstractRuntime) *ControlMessageSocket {
 	abstractSocket := &AbstractSocket{
 		socketConnection: socketConnection,
-		Logger:           logger,
+		Logger:           parentLogger.GetChild("control message socket"),
 		runtime:          runtime,
 		cancelChan:       make(chan struct{}, 1),
 	}
@@ -155,11 +160,11 @@ type EventSocket struct {
 	startChan  chan struct{}
 }
 
-func NewEventSocket(logger logger.Logger, socketConnection *socketConnection, runtime *AbstractRuntime) *EventSocket {
+func NewEventSocket(parentLogger logger.Logger, socketConnection *socketConnection, runtime *AbstractRuntime) *EventSocket {
 
 	abstractSocket := &AbstractSocket{
 		socketConnection: socketConnection,
-		Logger:           logger,
+		Logger:           parentLogger.GetChild("event socket"),
 		runtime:          runtime,
 		cancelChan:       make(chan struct{}, 1),
 	}
@@ -171,7 +176,6 @@ func NewEventSocket(logger logger.Logger, socketConnection *socketConnection, ru
 }
 
 func (s *EventSocket) processEvent(item interface{}) (*batchedResults, error) {
-	// We don't use defer to reset r.functionLogger since it decreases performance
 	if err := s.encoder.Encode(item); err != nil {
 		s.runtime = nil
 		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
@@ -203,7 +207,18 @@ func (s *EventSocket) runHandler() {
 			CustomHandler: nil,
 		})
 	defer func() {
-		s.cancelChan <- struct{}{}
+		select {
+		case s.resultChan <- &batchedResults{
+			results: []*result{{
+				StatusCode: http.StatusRequestTimeout,
+				err:        errors.New("Runtime restarted"),
+			}},
+		}:
+
+		default:
+			s.Logger.Warn("Nothing waiting on result channel during restart. Continuing")
+		}
+
 	}()
 
 	outReader := bufio.NewReader(s.conn)
