@@ -132,9 +132,11 @@ func (sa *SocketAllocator) Stop() {
 			socket.stop()
 		}()
 	}
-	go func() {
-		sa.controlMessageSocket.stop()
-	}()
+	if sa.controlMessageSocket != nil {
+		go func() {
+			sa.controlMessageSocket.stop()
+		}()
+	}
 }
 
 func (sa *SocketAllocator) Allocate() (*EventSocket, error) {
