@@ -65,6 +65,8 @@ type AbstractSocket struct {
 	runtime    *AbstractRuntime
 	encoder    EventEncoder
 	cancelChan chan struct{}
+
+	// TODO: implement status attribute logic when support multiple sockets
 	//status     status.Status
 }
 

@@ -60,7 +60,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 func (j *java) RunWrapper(ports []string, controlPort string) (*os.Process, error) {
 
 	if len(ports) != 1 {
-		return nil, fmt.Errorf("Java doesn't support multiple ports processing yet")
+		return nil, fmt.Errorf("Java runtime doesn't support multiple ports processing")
 	}
 
 	jvmOptions, err := j.getJVMOptions()

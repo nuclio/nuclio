@@ -130,7 +130,7 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 	return responsesWithErrors, nil
 }
 
-// Stop stops the abstractRuntime
+// Stop stops the runtime
 func (r *AbstractRuntime) Stop() error {
 	r.Logger.WarnWith("Stopping",
 		"status", r.GetStatus(),
@@ -303,7 +303,7 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	go r.watchWrapperProcess()
 
-	if err := r.socketAllocator.start(); err != nil {
+	if err := r.socketAllocator.Start(); err != nil {
 		return errors.Wrap(err, "Failed to start socket allocator")
 	}
 

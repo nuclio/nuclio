@@ -260,7 +260,7 @@ func (suite *RuntimeSuite) TearDownTest() {
 
 func (suite *RuntimeSuite) createLogger() logger.Logger {
 	loggerInstance, err := nucliozap.NewNuclioZapTest("rpc-runtime-test")
-	suite.Require().NoError(err, "Can't create Logger")
+	suite.Require().NoError(err, "Can't create logger")
 
 	return loggerInstance
 }
