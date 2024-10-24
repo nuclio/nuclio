@@ -219,7 +219,7 @@ without being needed to volumize the function configuration upon each deployment
 
 As of now, this feature is exclusively supported in the Python runtime. It enables the definition of a termination callback within user code through the following:
 ```py
-context.platform.set_drain_termination(callback)  # where 'callback' is a user-defined function
+context.platform.set_termination_callback(callback)  # where 'callback' is a user-defined function
 ```
 Termination callback is triggered by the processor when it is about to exit.
 The termination callback facilitates a graceful shutdown.
