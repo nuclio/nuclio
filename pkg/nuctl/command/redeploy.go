@@ -321,11 +321,18 @@ func (d *redeployCommandeer) isFunctionInTerminalState(ctx context.Context, func
 		return true, nil
 	}
 
+	// unhealthy is not an end-state and function can become ready, so continue waiting
+	if function.Status.State == functionconfig.FunctionStateUnhealthy {
+		d.rootCommandeer.loggerInstance.WarnWithCtx(ctx,
+			"Function is unhealthy",
+			"functionName", functionName,
+			"message", function.Status.Message)
+	}
+
 	// we use this function to check if the function is in terminal state, as we already checked if it's ready
 	if functionconfig.FunctionStateInSlice(function.Status.State,
 		[]functionconfig.FunctionState{
 			functionconfig.FunctionStateError,
-			functionconfig.FunctionStateUnhealthy,
 			functionconfig.FunctionStateScaledToZero,
 		}) {
 		return true, errors.New(fmt.Sprintf("Function '%s' is in terminal state '%s' but not ready",
