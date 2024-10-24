@@ -6,6 +6,6 @@
   "dependencies": {
     "express": "^4.19.2",
     "express-http-proxy": "^1.6.2",
-    "serve-static": "1.16.0"
+    "serve-static": "1.16.2"
   }
 }
