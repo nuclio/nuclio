@@ -325,7 +325,6 @@ func (d *redeployCommandeer) isFunctionInTerminalState(ctx context.Context, func
 	if functionconfig.FunctionStateInSlice(function.Status.State,
 		[]functionconfig.FunctionState{
 			functionconfig.FunctionStateError,
-			functionconfig.FunctionStateUnhealthy,
 			functionconfig.FunctionStateScaledToZero,
 		}) {
 		return true, errors.New(fmt.Sprintf("Function '%s' is in terminal state '%s' but not ready",
