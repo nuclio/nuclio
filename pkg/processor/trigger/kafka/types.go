@@ -45,7 +45,7 @@ type Configuration struct {
 	BalanceStrategy string
 	SASL            struct {
 		Enable    bool
-		Handshake bool
+		Handshake *bool
 		User      string
 		Password  string
 		Mechanism string
@@ -155,7 +155,7 @@ func NewConfiguration(id string,
 		{Key: "nuclio.io/kafka-sasl-user", ValueString: &newConfiguration.SASL.User},
 		{Key: "nuclio.io/kafka-sasl-password", ValueString: &newConfiguration.SASL.Password},
 		{Key: "nuclio.io/kafka-sasl-mechanism", ValueString: &newConfiguration.SASL.Mechanism},
-		{Key: "nuclio.io/kafka-sasl-handshake", ValueBool: &newConfiguration.SASL.Handshake},
+		{Key: "nuclio.io/kafka-sasl-handshake", ValueBool: newConfiguration.SASL.Handshake},
 
 		// sasl.oauth
 		{Key: "nuclio.io/kafka-sasl-oauth-client-id", ValueString: &newConfiguration.SASL.OAuth.ClientID},
