@@ -19,6 +19,7 @@ limitations under the License.
 package kafka
 
 import (
+	"crypto/tls"
 	"os"
 	"path"
 	"testing"
@@ -30,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
+	"github.com/Shopify/sarama"
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -230,6 +232,91 @@ func (suite *TestSuite) TestWorkerTimeoutConfiguration() {
 				suite.Require().NoError(err)
 				suite.Require().Equal(testCase.expectedRuntimeTimeout, configuration.RuntimeConfiguration.WorkerTerminationTimeout, "Bad timeout value")
 			}
+		})
+	}
+}
+
+func (suite *TestSuite) TestSASLHandshakeConfiguration() {
+	trueValue := true
+	falseValue := false
+
+	testCases := []struct {
+		name              string
+		handshake         *bool
+		expectedHandshake bool
+	}{
+		{
+			name:              "Default handshake (nil) - expect true",
+			handshake:         nil,
+			expectedHandshake: true,
+		},
+		{
+			name:              "Explicit handshake true",
+			handshake:         &trueValue,
+			expectedHandshake: true,
+		},
+		{
+			name:              "Explicit handshake false",
+			handshake:         &falseValue,
+			expectedHandshake: false,
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			triggerInstance := &functionconfig.Trigger{
+				Attributes: map[string]interface{}{
+					"topics":        []string{"some-topic"},
+					"consumerGroup": "kafkaGroup1",
+					"initialOffset": "earliest",
+					"brokers":       []string{"some-broker"},
+					"sasl": map[string]interface{}{
+						"enable":    true,
+						"user":      "my_user",
+						"password":  "my_password",
+						"mechanism": "PLAIN",
+					},
+					"tls": map[string]interface{}{
+						"enable":             true,
+						"insecureSkipVerify": true,
+						"minimumVersion":     "1.2",
+					},
+					"version": "1.0.0",
+				},
+			}
+
+			// Set handshake if provided
+			if testCase.handshake != nil {
+				triggerInstance.Attributes["sasl"].(map[string]interface{})["handshake"] = *testCase.handshake
+			}
+
+			// Create and validate configuration
+			configuration, err := NewConfiguration("new-configuration", triggerInstance, &runtime.Configuration{
+				Configuration: &processor.Configuration{
+					Config: functionconfig.Config{
+						Meta: functionconfig.Meta{},
+					},
+				},
+			}, suite.logger)
+			suite.Require().NoError(err)
+
+			trigger, err := newTrigger(suite.logger, nil, configuration, nil)
+			suite.Require().NoError(err)
+			kafkaTrigger := trigger.(*kafka)
+
+			// Assert SASL configuration
+			suite.Require().Equal(true, kafkaTrigger.kafkaConfig.Net.SASL.Enable)
+			suite.Require().Equal("my_user", kafkaTrigger.kafkaConfig.Net.SASL.User)
+			suite.Require().Equal("my_password", kafkaTrigger.kafkaConfig.Net.SASL.Password)
+			suite.Require().Equal(sarama.SASLMechanism(sarama.SASLTypePlaintext), kafkaTrigger.kafkaConfig.Net.SASL.Mechanism)
+
+			// Assert TLS configuration
+			suite.Require().Equal(true, kafkaTrigger.kafkaConfig.Net.TLS.Enable)
+			suite.Require().Equal(true, kafkaTrigger.kafkaConfig.Net.TLS.Config.InsecureSkipVerify)
+			suite.Require().Equal(uint16(tls.VersionTLS12), kafkaTrigger.kafkaConfig.Net.TLS.Config.MinVersion)
+
+			// Assert SASL handshake
+			suite.Require().Equal(testCase.expectedHandshake, kafkaTrigger.kafkaConfig.Net.SASL.Handshake)
 		})
 	}
 }
