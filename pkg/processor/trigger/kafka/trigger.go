@@ -558,7 +558,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 		config.Net.SASL.Password = k.configuration.SASL.Password
 		config.Net.SASL.Mechanism = sarama.SASLMechanism(k.configuration.SASL.Mechanism)
 
-		// Set SASL handshake if explicitly specified in configuration, so we can use sarama's 
+		// Set SASL handshake if explicitly specified in configuration, so we can use sarama's
 		// default handshake (which is true)
 		if k.configuration.SASL.Handshake != nil {
 			config.Net.SASL.Handshake = *k.configuration.SASL.Handshake
