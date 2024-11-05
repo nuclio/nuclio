@@ -17,7 +17,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/gobuffalo/flect v1.0.2
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.3.1
 	github.com/heptiolabs/healthcheck v0.0.0-20211123025425-613501dd5deb
