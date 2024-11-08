@@ -72,8 +72,7 @@ func NewBaseConnectionManager(logger logger.Logger, runtimeConfiguration runtime
 }
 
 func (bc *BaseConnectionManager) Prepare() error {
-	// Common or base implementation
-	return nil
+	return nuclio.ErrNotImplemented
 }
 
 func (bc *BaseConnectionManager) Start() error {
