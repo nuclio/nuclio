@@ -34,7 +34,7 @@ type ConnectionManager interface {
 
 	Stop() error
 
-	Allocate() (AbstractEventConnection, error)
+	Allocate() (EventConnection, error)
 
 	GetAddressesForWrapperStart() ([]string, string)
 
@@ -83,7 +83,7 @@ func (bc *BaseConnectionManager) Stop() error {
 	return nuclio.ErrNotImplemented
 }
 
-func (bc *BaseConnectionManager) Allocate() (AbstractEventConnection, error) {
+func (bc *BaseConnectionManager) Allocate() (EventConnection, error) {
 	return nil, nuclio.ErrNotImplemented
 }
 

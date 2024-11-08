@@ -102,7 +102,7 @@ func (sa *SocketAllocator) Stop() error {
 	return nil
 }
 
-func (sa *SocketAllocator) Allocate() (AbstractEventConnection, error) {
+func (sa *SocketAllocator) Allocate() (EventConnection, error) {
 	// TODO: implement allocation logic when support multiple sockets
 	return sa.eventSockets[0], nil
 }

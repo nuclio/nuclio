@@ -36,7 +36,7 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type AbstractEventConnection interface {
+type EventConnection interface {
 	Start()
 
 	Stop()

@@ -170,7 +170,7 @@ func (r *AbstractRuntime) Restart() error {
 
 // GetSocketType returns the type of socket the runtime works with (unix/tcp)
 func (r *AbstractRuntime) GetSocketType() connection.SocketType {
-	return r.runtime.GetSocketType()
+	return connection.UnixSocket
 }
 
 // WaitForStart returns whether the runtime supports sending an indication that it started
