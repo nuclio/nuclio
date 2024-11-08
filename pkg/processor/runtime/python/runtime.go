@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -182,8 +183,8 @@ func (py *python) getPythonExePath() (string, error) {
 	return "", errors.Wrap(err, "Can't find python executable")
 }
 
-func (py *python) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
-	return rpc.NewEventMsgPackEncoder(py.Logger, writer)
+func (py *python) GetEventEncoder(writer io.Writer) encoder.EventEncoder {
+	return encoder.NewEventMsgPackEncoder(py.Logger, writer)
 }
 
 func (py *python) resolveDecodeEvents() bool {

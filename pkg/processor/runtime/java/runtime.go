@@ -26,6 +26,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/connection"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -89,8 +91,8 @@ func (j *java) RunWrapper(ports []string, controlPort string) (*os.Process, erro
 }
 
 // GetSocketType returns the type of socket the runtime works with (unix/tcp)
-func (j *java) GetSocketType() rpc.SocketType {
-	return rpc.TCPSocket
+func (j *java) GetSocketType() connection.SocketType {
+	return connection.TCPSocket
 }
 
 func (j *java) wrapperJarPath() string {
@@ -142,6 +144,6 @@ func (j *java) getJVMOptions() ([]string, error) {
 	return jvmOptions, nil
 }
 
-func (j *java) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
-	return rpc.NewEventJSONEncoder(j.Logger, writer)
+func (j *java) GetEventEncoder(writer io.Writer) encoder.EventEncoder {
+	return encoder.NewEventJSONEncoder(j.Logger, writer)
 }

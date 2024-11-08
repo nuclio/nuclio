@@ -17,8 +17,6 @@ limitations under the License.
 package rpc
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"syscall"
@@ -27,6 +25,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/connection"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
 	"github.com/nuclio/errors"
@@ -39,20 +39,11 @@ type AbstractRuntime struct {
 	runtime.AbstractRuntime
 	configuration  *runtime.Configuration
 	wrapperProcess *os.Process
-	functionLogger logger.Logger
 	runtime        Runtime
 	stopChan       chan struct{}
-	socketType     SocketType
 	processWaiter  *processwaiter.ProcessWaiter
 
-	socketAllocator *SocketAllocator
-}
-
-type rpcLogRecord struct {
-	DateTime string                 `json:"datetime"`
-	Level    string                 `json:"level"`
-	Message  string                 `json:"message"`
-	With     map[string]interface{} `json:"with"`
+	connectionManager connection.ConnectionManager
 }
 
 // NewAbstractRuntime returns a new RPC runtime
@@ -71,7 +62,6 @@ func NewAbstractRuntime(logger logger.Logger,
 		configuration:   configuration,
 		runtime:         runtimeInstance,
 		stopChan:        make(chan struct{}, 1),
-		socketType:      UnixSocket,
 	}
 
 	return newRuntime, nil
@@ -95,11 +85,11 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 	}
 	// this is a single event processing flow, so we only take the first item from the result
 	return nuclio.Response{
-		Body:        processingResult.results[0].DecodedBody,
-		ContentType: processingResult.results[0].ContentType,
-		Headers:     processingResult.results[0].Headers,
-		StatusCode:  processingResult.results[0].StatusCode,
-	}, processingResult.results[0].err
+		Body:        processingResult.Results[0].DecodedBody,
+		ContentType: processingResult.Results[0].ContentType,
+		Headers:     processingResult.Results[0].Headers,
+		StatusCode:  processingResult.Results[0].StatusCode,
+	}, processingResult.Results[0].Err
 }
 
 // ProcessBatch processes a batch of events
@@ -108,9 +98,9 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 	if err != nil {
 		return nil, err
 	}
-	responsesWithErrors := make([]*runtime.ResponseWithErrors, len(processingResults.results))
+	responsesWithErrors := make([]*runtime.ResponseWithErrors, len(processingResults.Results))
 
-	for index, processingResult := range processingResults.results {
+	for index, processingResult := range processingResults.Results {
 		if processingResult.EventId == "" {
 			functionLogger.WarnWith("Received response with empty event_id, response won't be returned")
 			continue
@@ -123,7 +113,7 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 				StatusCode:  processingResult.StatusCode,
 			},
 			EventId:      processingResult.EventId,
-			ProcessError: processingResult.err,
+			ProcessError: processingResult.Err,
 		}
 	}
 
@@ -167,7 +157,7 @@ func (r *AbstractRuntime) Restart() error {
 		return err
 	}
 
-	r.socketAllocator.Stop()
+	_ = r.connectionManager.Stop()
 
 	if err := r.startWrapper(); err != nil {
 		r.SetStatus(status.Error)
@@ -179,8 +169,8 @@ func (r *AbstractRuntime) Restart() error {
 }
 
 // GetSocketType returns the type of socket the runtime works with (unix/tcp)
-func (r *AbstractRuntime) GetSocketType() SocketType {
-	return r.socketType
+func (r *AbstractRuntime) GetSocketType() connection.SocketType {
+	return r.runtime.GetSocketType()
 }
 
 // WaitForStart returns whether the runtime supports sending an indication that it started
@@ -246,20 +236,17 @@ func (r *AbstractRuntime) Terminate() error {
 	return nil
 }
 
-func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, functionLogger logger.Logger) (*batchedResults, error) {
+func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
 
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
 
-	socket, err := r.socketAllocator.Allocate()
+	connection, err := r.connectionManager.Allocate()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to allocate socket")
+		return nil, errors.Wrap(err, "Failed to allocate connection")
 	}
-	// We don't use defer to reset r.functionLogger since it decreases performance
-	r.functionLogger = functionLogger
-	processingResult, err := socket.processEvent(item)
-	r.functionLogger = nil
+	processingResult, err := connection.ProcessEvent(item, functionLogger)
 
 	return processingResult, err
 }
@@ -284,17 +271,24 @@ func (r *AbstractRuntime) signal(signal syscall.Signal) error {
 }
 
 func (r *AbstractRuntime) startWrapper() error {
-	r.socketAllocator = NewSocketAllocator(r.Logger.GetChild("socketAllocator"), r)
+	connectionManagerConfiguration := &connection.ManagerConfigration{
+		SupportControlCommunication: r.runtime.SupportsControlCommunication(),
+		WaitForStart:                r.runtime.WaitForStart(),
+		SocketType:                  r.runtime.GetSocketType(),
+		GetEventEncoderFunc:         r.runtime.GetEventEncoder,
+		Statistics:                  r.Statistics,
+	}
+	r.connectionManager = connection.NewConnectionManager(r.Logger.GetChild("connection manager"), *r.configuration, connectionManagerConfiguration)
 	var err error
-	if err = r.socketAllocator.createSockets(); err != nil {
-		return errors.Wrap(err, "Failed to start sockets")
+	if err = r.connectionManager.Prepare(); err != nil {
+		return errors.Wrap(err, "Failed to prepare connections")
 	}
 
 	if r.processWaiter, err = processwaiter.NewProcessWaiter(); err != nil {
 		return errors.Wrap(err, "Failed to create process waiter")
 	}
 
-	wrapperProcess, err := r.runtime.RunWrapper(r.socketAllocator.getSocketAddresses())
+	wrapperProcess, err := r.runtime.RunWrapper(r.connectionManager.GetAddressesForWrapperStart())
 	if err != nil {
 		return errors.Wrap(err, "Can't run wrapper")
 	}
@@ -303,19 +297,11 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	go r.watchWrapperProcess()
 
-	if err := r.socketAllocator.Start(); err != nil {
-		return errors.Wrap(err, "Failed to start socket allocator")
+	if err := r.connectionManager.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start connection manager")
 	}
 
 	return nil
-}
-
-// resolveFunctionLogger return either functionLogger if provided or root Logger if not
-func (r *AbstractRuntime) resolveFunctionLogger() logger.Logger {
-	if r.functionLogger == nil {
-		return r.Logger
-	}
-	return r.functionLogger
 }
 
 func (r *AbstractRuntime) watchWrapperProcess() {
@@ -384,40 +370,5 @@ func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
 				"process", r.wrapperProcess)
 			return
 		}
-	}
-}
-
-func unmarshalResponseData(logger logger.Logger, data []byte, unmarshalledResults *batchedResults) {
-	var results []*result
-
-	// define method to process a single result
-	handleSingleUnmarshalledResult := func(unmarshalledResult *result) {
-		switch unmarshalledResult.BodyEncoding {
-		case "text":
-			unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
-		case "base64":
-			unmarshalledResult.DecodedBody, unmarshalledResults.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
-		default:
-			unmarshalledResult.err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
-		}
-	}
-
-	if unmarshalledResults.err = json.Unmarshal(data, &results); unmarshalledResults.err != nil {
-		// try to unmarshall data as a single result
-		var singleResult *result
-		if unmarshalledResults.err = json.Unmarshal(data, &singleResult); unmarshalledResults.err != nil {
-			logger.DebugWith("Failed to unmarshal result",
-				"err", unmarshalledResults.err.Error())
-			return
-		} else {
-			handleSingleUnmarshalledResult(singleResult)
-			unmarshalledResults.results = append(unmarshalledResults.results, singleResult)
-			return
-		}
-	}
-
-	unmarshalledResults.results = results
-	for _, unmarshalledResult := range unmarshalledResults.results {
-		handleSingleUnmarshalledResult(unmarshalledResult)
 	}
 }

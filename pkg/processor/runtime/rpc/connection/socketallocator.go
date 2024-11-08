@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rpc
+package connection
 
 import (
 	"fmt"
@@ -25,7 +25,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/logger"
 	"github.com/rs/xid"
 )
 
@@ -35,46 +34,38 @@ const (
 )
 
 type SocketAllocator struct {
-	abstractRuntime *AbstractRuntime
-	logger          logger.Logger
+	*BaseConnectionManager
 
-	minSocketsNum        int
-	maxSocketsNum        int
 	eventSockets         []*EventSocket
 	controlMessageSocket *ControlMessageSocket
 }
 
-func NewSocketAllocator(logger logger.Logger, runtime *AbstractRuntime) *SocketAllocator {
-	// TODO: make minSocketsNum and maxSocketsNum when support multiple sockets
+func NewSocketAllocator(baseConnectionManager *BaseConnectionManager) *SocketAllocator {
 	return &SocketAllocator{
-		logger:          logger,
-		minSocketsNum:   1,
-		maxSocketsNum:   1,
-		eventSockets:    make([]*EventSocket, 0),
-		abstractRuntime: runtime,
+		BaseConnectionManager: baseConnectionManager,
+		eventSockets:          make([]*EventSocket, 0),
 	}
 }
 
-func (sa *SocketAllocator) createSockets() error {
-	if sa.abstractRuntime.runtime.SupportsControlCommunication() {
+func (sa *SocketAllocator) Prepare() error {
+	if sa.Configuration.SupportControlCommunication {
 		controlConnection, err := sa.createSocketConnection()
 		if err != nil {
 			return errors.Wrap(err, "Failed to create socket connection")
 		}
 		sa.controlMessageSocket = NewControlMessageSocket(
-			sa.logger.GetChild("ControlMessageSocket"),
+			sa.Logger.GetChild("ControlMessageSocket"),
 			controlConnection,
-			sa.abstractRuntime)
+			sa.RuntimeConfiguration.ControlMessageBroker)
 	}
 
-	for i := 0; i < sa.minSocketsNum; i++ {
+	for i := 0; i < sa.MinSocketsNum; i++ {
 		eventConnection, err := sa.createSocketConnection()
 		if err != nil {
 			return errors.Wrap(err, "Failed to create socket connection")
 		}
-		sa.eventSockets = append(sa.eventSockets, NewEventSocket(sa.logger.GetChild("EventSocket"),
-			eventConnection,
-			sa.abstractRuntime))
+		sa.eventSockets = append(sa.eventSockets, NewEventSocket(sa.Logger.GetChild("EventSocket"),
+			eventConnection, sa))
 	}
 	return nil
 }
@@ -85,87 +76,78 @@ func (sa *SocketAllocator) Start() error {
 	}
 
 	// wait for start if required to
-	if sa.abstractRuntime.runtime.WaitForStart() {
-		sa.logger.Debug("Waiting for start")
+	if sa.Configuration.WaitForStart {
+		sa.Logger.Debug("Waiting for start")
 		for _, socket := range sa.eventSockets {
-			<-socket.startChan
+			socket.Start()
 		}
 	}
 
-	sa.logger.Debug("Socker allocator started")
+	sa.Logger.Debug("Socker allocator started")
 	return nil
 }
 
-func (sa *SocketAllocator) Stop() {
+func (sa *SocketAllocator) Stop() error {
 	for _, eventSocket := range sa.eventSockets {
 		socket := eventSocket
 		go func() {
-			socket.stop()
+			socket.Stop()
 		}()
 	}
 	if sa.controlMessageSocket != nil {
 		go func() {
-			sa.controlMessageSocket.stop()
+			sa.controlMessageSocket.Stop()
 		}()
 	}
+	return nil
 }
 
-func (sa *SocketAllocator) Allocate() (*EventSocket, error) {
+func (sa *SocketAllocator) Allocate() (AbstractEventConnection, error) {
 	// TODO: implement allocation logic when support multiple sockets
 	return sa.eventSockets[0], nil
 }
 
-func (sa *SocketAllocator) getSocketAddresses() ([]string, string) {
+func (sa *SocketAllocator) GetAddressesForWrapperStart() ([]string, string) {
 	eventAddresses := make([]string, 0)
 
 	for _, socket := range sa.eventSockets {
-		eventAddresses = append(eventAddresses, socket.address)
+		eventAddresses = append(eventAddresses, socket.Address)
 	}
 
 	if sa.controlMessageSocket == nil {
-		sa.logger.DebugWith("Get socket addresses",
+		sa.Logger.DebugWith("Get socket addresses",
 			"eventAddresses", eventAddresses,
 			"controlAddress", "")
 		return eventAddresses, ""
 	}
-	sa.logger.DebugWith("Get socket addresses",
+	sa.Logger.DebugWith("Get socket addresses",
 		"eventAddresses", eventAddresses,
-		"controlAddress", sa.controlMessageSocket.address)
-	return eventAddresses, sa.controlMessageSocket.address
+		"controlAddress", sa.controlMessageSocket.Address)
+	return eventAddresses, sa.controlMessageSocket.Address
 }
 
 func (sa *SocketAllocator) startSockets() error {
 	var err error
 	for _, socket := range sa.eventSockets {
-		if socket.conn, err = socket.listener.Accept(); err != nil {
+		if socket.Conn, err = socket.listener.Accept(); err != nil {
 			return errors.Wrap(err, "Can't get connection from wrapper")
 		}
-		socket.encoder = sa.abstractRuntime.runtime.GetEventEncoder(socket.conn)
-		socket.resultChan = make(chan *batchedResults)
-		socket.cancelChan = make(chan struct{})
-		go socket.runHandler()
+		socket.SetEncoder(sa.Configuration.GetEventEncoderFunc(socket.Conn))
+		go socket.BaseEventConnection.RunHandler()
 	}
-	sa.logger.Debug("Successfully established connection for event sockets")
+	sa.Logger.Debug("Successfully established connection for event sockets")
 
-	if sa.abstractRuntime.runtime.SupportsControlCommunication() {
-		sa.logger.DebugWith("Creating control connection",
-			"wid", sa.abstractRuntime.Context.WorkerID)
-		sa.controlMessageSocket.conn, err = sa.controlMessageSocket.listener.Accept()
+	if sa.Configuration.SupportControlCommunication {
+		sa.controlMessageSocket.Conn, err = sa.controlMessageSocket.listener.Accept()
 		if err != nil {
 			return errors.Wrap(err, "Can't get control connection from wrapper")
 		}
-		sa.controlMessageSocket.encoder = sa.abstractRuntime.runtime.GetEventEncoder(sa.controlMessageSocket.conn)
+		sa.controlMessageSocket.SetEncoder(sa.Configuration.GetEventEncoderFunc(sa.controlMessageSocket.Conn))
 
 		// initialize control message broker
-		sa.abstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(
-			sa.controlMessageSocket.encoder,
-			sa.logger,
-			sa.abstractRuntime.configuration.ControlMessageBroker)
+		sa.controlMessageSocket.SetBroker(sa.RuntimeConfiguration.ControlMessageBroker)
+		go sa.controlMessageSocket.RunHandler()
 
-		go sa.controlMessageSocket.runHandler()
-
-		sa.logger.DebugWith("Control connection created",
-			"wid", sa.abstractRuntime.Context.WorkerID)
 	}
 	return nil
 }
@@ -174,7 +156,7 @@ func (sa *SocketAllocator) startSockets() error {
 func (sa *SocketAllocator) createSocketConnection() (*socketConnection, error) {
 	connection := &socketConnection{}
 	var err error
-	if sa.abstractRuntime.runtime.GetSocketType() == UnixSocket {
+	if sa.Configuration.SocketType == UnixSocket {
 		connection.listener, connection.address, err = sa.createUnixListener()
 	} else {
 		connection.listener, connection.address, err = sa.createTCPListener()
@@ -196,7 +178,7 @@ func (sa *SocketAllocator) createUnixListener() (net.Listener, string, error) {
 		}
 	}
 
-	sa.logger.DebugWith("Creating listener socket", "path", socketPath)
+	sa.Logger.DebugWith("Creating listener socket", "path", socketPath)
 
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {

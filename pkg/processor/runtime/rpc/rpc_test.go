@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -62,7 +63,7 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 }
 
 func (suite *RPCSuite) emitLog(message string, conn io.Writer) {
-	log := &rpcLogRecord{
+	log := &result.RpcLogRecord{
 		DateTime: time.Now().String(),
 		Level:    "info",
 		Message:  message,

@@ -35,6 +35,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/controlmessagebroker"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -63,7 +65,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	newTestRuntime.AbstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(nil, parentLogger, nil)
+	newTestRuntime.AbstractRuntime.ControlMessageBroker = controlmessagebroker.NewRpcControlMessageBroker(nil, parentLogger, nil)
 
 	return newTestRuntime, nil
 }
@@ -100,8 +102,8 @@ func (r *testRuntime) RunWrapper(eventSocketPaths []string, controlSocketPath st
 	return cmd.Process, nil
 }
 
-func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
-	return NewEventJSONEncoder(r.Logger, writer)
+func (r *testRuntime) GetEventEncoder(writer io.Writer) encoder.EventEncoder {
+	return encoder.NewEventJSONEncoder(r.Logger, writer)
 }
 
 type RuntimeSuite struct {
@@ -211,45 +213,6 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 	// check if control message was read correctly
 	suite.Require().NoError(err, "Can't read control message")
 	suite.Require().Equal(controlMessage, reslovedControlMessage, "Read control message doesn't match")
-}
-
-func (suite *RuntimeSuite) TestUnmarshalResponseData() {
-	for _, testCase := range []struct {
-		name               string
-		data               []byte
-		unmarshalledResult []*result
-	}{
-		{
-			name: "single-result",
-			data: []byte("{\"body\": \"123\", \"content_type\": \"123\", \"headers\": {}, \"status_code\": 200, \"body_encoding\": \"text\"}"),
-			unmarshalledResult: []*result{{
-				StatusCode:   200,
-				ContentType:  "123",
-				Body:         "123",
-				BodyEncoding: "text",
-				DecodedBody:  []uint8{49, 50, 51},
-				Headers:      map[string]interface{}{},
-			}},
-		},
-		{
-			name: "batch-result",
-			data: []byte("[{\"body\": \"123\", \"content_type\": \"123\", \"headers\": {}, \"status_code\": 200, \"body_encoding\": \"text\"}]"),
-			unmarshalledResult: []*result{{
-				StatusCode:   200,
-				ContentType:  "123",
-				Body:         "123",
-				BodyEncoding: "text",
-				DecodedBody:  []uint8{49, 50, 51},
-				Headers:      map[string]interface{}{},
-			}},
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			unmarshalledResults := newBatchedResults()
-			unmarshalResponseData(suite.createLogger(), testCase.data, unmarshalledResults)
-			suite.Require().Equal(unmarshalledResults.results, testCase.unmarshalledResult)
-		})
-	}
 }
 
 func (suite *RuntimeSuite) TearDownTest() {

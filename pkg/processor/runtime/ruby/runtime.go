@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -81,6 +82,6 @@ func (r *ruby) RunWrapper(socketPaths []string, controlSocketPath string) (*os.P
 	return cmd.Process, cmd.Start()
 }
 
-func (r *ruby) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
-	return rpc.NewEventJSONEncoder(r.Logger, writer)
+func (r *ruby) GetEventEncoder(writer io.Writer) encoder.EventEncoder {
+	return encoder.NewEventJSONEncoder(r.Logger, writer)
 }

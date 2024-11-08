@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -101,6 +102,6 @@ func (d *dotnetcore) getWrapperDLLPath() string {
 	return scriptPath
 }
 
-func (d *dotnetcore) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
-	return rpc.NewEventJSONEncoder(d.Logger, writer)
+func (d *dotnetcore) GetEventEncoder(writer io.Writer) encoder.EventEncoder {
+	return encoder.NewEventJSONEncoder(d.Logger, writer)
 }

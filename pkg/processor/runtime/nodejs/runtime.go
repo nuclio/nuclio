@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -147,8 +148,8 @@ func (n *nodejs) getNodeExePath() (string, error) {
 	return exec.LookPath(baseName)
 }
 
-func (n *nodejs) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
-	return rpc.NewEventJSONEncoder(n.Logger, writer)
+func (n *nodejs) GetEventEncoder(writer io.Writer) encoder.EventEncoder {
+	return encoder.NewEventJSONEncoder(n.Logger, writer)
 }
 
 func (n *nodejs) WaitForStart() bool {

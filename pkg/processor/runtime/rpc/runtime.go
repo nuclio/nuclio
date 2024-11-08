@@ -19,15 +19,9 @@ package rpc
 import (
 	"io"
 	"os"
-)
 
-// SocketType is type of socket to use
-type SocketType int
-
-// RPC socket types
-const (
-	UnixSocket SocketType = iota
-	TCPSocket
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/connection"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 )
 
 type Runtime interface {
@@ -36,9 +30,9 @@ type Runtime interface {
 	RunWrapper([]string, string) (*os.Process, error)
 
 	// GetSocketType returns the type of socket the runtime works with (unix/tcp)
-	GetSocketType() SocketType
+	GetSocketType() connection.SocketType
 
-	GetEventEncoder(writer io.Writer) EventEncoder
+	GetEventEncoder(writer io.Writer) encoder.EventEncoder
 
 	// WaitForStart returns whether the runtime supports sending an indication that it started
 	WaitForStart() bool
