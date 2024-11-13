@@ -312,7 +312,7 @@ func (rmq *rabbitMq) consume() error {
 }
 
 func (rmq *rabbitMq) handleConnectionError(handleErr *amqp.Error) error {
-	rmq.Logger.WarnWith("SetBroker connection closed",
+	rmq.Logger.WarnWith("Broker connection closed",
 		"err", handleErr.Error(),
 		"serverErr", handleErr.Server,
 		"recover", handleErr.Recover,

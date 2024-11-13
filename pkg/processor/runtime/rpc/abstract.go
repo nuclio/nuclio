@@ -157,7 +157,9 @@ func (r *AbstractRuntime) Restart() error {
 		return err
 	}
 
-	_ = r.connectionManager.Stop()
+	if err := r.connectionManager.Stop(); err != nil {
+		return errors.Wrap(err, "Can't stop wrapper process")
+	}
 
 	if err := r.startWrapper(); err != nil {
 		r.SetStatus(status.Error)
@@ -278,7 +280,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		GetEventEncoderFunc:         r.runtime.GetEventEncoder,
 		Statistics:                  r.Statistics,
 	}
-	r.connectionManager = connection.NewConnectionManager(r.Logger.GetChild("connection manager"), *r.configuration, connectionManagerConfiguration)
+	r.connectionManager = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
 	var err error
 	if err = r.connectionManager.Prepare(); err != nil {
 		return errors.Wrap(err, "Failed to prepare connections")

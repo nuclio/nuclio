@@ -34,16 +34,16 @@ const (
 )
 
 type SocketAllocator struct {
-	*BaseConnectionManager
+	*AbstractConnectionManager
 
 	eventSockets         []*EventSocket
 	controlMessageSocket *ControlMessageSocket
 }
 
-func NewSocketAllocator(baseConnectionManager *BaseConnectionManager) *SocketAllocator {
+func NewSocketAllocator(baseConnectionManager *AbstractConnectionManager) *SocketAllocator {
 	return &SocketAllocator{
-		BaseConnectionManager: baseConnectionManager,
-		eventSockets:          make([]*EventSocket, 0),
+		AbstractConnectionManager: baseConnectionManager,
+		eventSockets:              make([]*EventSocket, 0),
 	}
 }
 
@@ -54,7 +54,7 @@ func (sa *SocketAllocator) Prepare() error {
 			return errors.Wrap(err, "Failed to create socket connection")
 		}
 		sa.controlMessageSocket = NewControlMessageSocket(
-			sa.Logger.GetChild("ControlMessageSocket"),
+			sa.Logger,
 			controlConnection,
 			sa.RuntimeConfiguration.ControlMessageBroker)
 	}
@@ -64,7 +64,7 @@ func (sa *SocketAllocator) Prepare() error {
 		if err != nil {
 			return errors.Wrap(err, "Failed to create socket connection")
 		}
-		sa.eventSockets = append(sa.eventSockets, NewEventSocket(sa.Logger.GetChild("EventSocket"),
+		sa.eventSockets = append(sa.eventSockets, NewEventSocket(sa.Logger,
 			eventConnection, sa))
 	}
 	return nil
@@ -133,7 +133,7 @@ func (sa *SocketAllocator) startSockets() error {
 			return errors.Wrap(err, "Can't get connection from wrapper")
 		}
 		socket.SetEncoder(sa.Configuration.GetEventEncoderFunc(socket.Conn))
-		go socket.BaseEventConnection.RunHandler()
+		go socket.AbstractEventConnection.RunHandler()
 	}
 	sa.Logger.Debug("Successfully established connection for event sockets")
 

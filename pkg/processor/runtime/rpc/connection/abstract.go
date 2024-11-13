@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/controlmessagebroker"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
@@ -36,17 +37,45 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type EventConnection interface {
-	Start()
+type AbstractConnectionManager struct {
+	Logger logger.Logger
 
-	Stop()
+	MinSocketsNum int
+	MaxSocketsNum int
 
-	ProcessEvent(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error)
-
-	RunHandler()
+	RuntimeConfiguration runtime.Configuration
+	Configuration        *ManagerConfigration
 }
 
-type BaseConnection struct {
+func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) *AbstractConnectionManager {
+	// TODO: make MinSocketsNum and MaxSocketsNum configurable when support multiple event connections
+	return &AbstractConnectionManager{
+		Logger:               parentLogger.GetChild("connection-manager"),
+		MinSocketsNum:        1,
+		MaxSocketsNum:        1,
+		RuntimeConfiguration: runtimeConfiguration,
+		Configuration:        configuration,
+	}
+}
+
+func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {
+	bc.Configuration.Statistics.DurationMilliSecondsCount++
+	bc.Configuration.Statistics.DurationMilliSecondsSum += uint64(durationSec * 1000)
+}
+
+func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
+	//bc.abstractRuntime.SetStatus(newStatus)
+}
+
+type ManagerConfigration struct {
+	SupportControlCommunication bool
+	WaitForStart                bool
+	SocketType                  SocketType
+	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
+	Statistics                  runtime.Statistics
+}
+
+type AbstractConnection struct {
 	Logger     logger.Logger
 	encoder    encoder.EventEncoder
 	cancelChan chan struct{}
@@ -58,16 +87,16 @@ type BaseConnection struct {
 	//status     status.Status
 }
 
-func (b *BaseConnection) Stop() {
+func (b *AbstractConnection) Stop() {
 	b.cancelChan <- struct{}{}
 }
 
-func (b *BaseConnection) SetEncoder(encoderInstance encoder.EventEncoder) {
+func (b *AbstractConnection) SetEncoder(encoderInstance encoder.EventEncoder) {
 	b.encoder = encoderInstance
 }
 
-type BaseEventConnection struct {
-	*BaseConnection
+type AbstractEventConnection struct {
+	*AbstractConnection
 	resultChan chan *result.BatchedResults
 	startChan  chan struct{}
 
@@ -75,22 +104,22 @@ type BaseEventConnection struct {
 	functionLogger    logger.Logger
 }
 
-func NewBaseEventConnection(parentLogger logger.Logger, connectionManager ConnectionManager) *BaseEventConnection {
-	baseConnection := &BaseConnection{
+func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager ConnectionManager) *AbstractEventConnection {
+	baseConnection := &AbstractConnection{
 		Logger:     parentLogger.GetChild("event connection"),
 		cancelChan: make(chan struct{}, 1),
 	}
-	return &BaseEventConnection{
-		BaseConnection:    baseConnection,
-		resultChan:        make(chan *result.BatchedResults),
-		startChan:         make(chan struct{}, 1),
-		connectionManager: connectionManager}
+	return &AbstractEventConnection{
+		AbstractConnection: baseConnection,
+		resultChan:         make(chan *result.BatchedResults),
+		startChan:          make(chan struct{}, 1),
+		connectionManager:  connectionManager}
 }
-func (be *BaseEventConnection) Start() {
+func (be *AbstractEventConnection) Start() {
 	<-be.startChan
 }
 
-func (be *BaseEventConnection) ProcessEvent(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
+func (be *AbstractEventConnection) ProcessEvent(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	be.functionLogger = functionLogger
 	if err := be.encoder.Encode(item); err != nil {
 		be.functionLogger = nil
@@ -116,14 +145,14 @@ func (be *BaseEventConnection) ProcessEvent(item interface{}, functionLogger log
 	return processingResults, nil
 }
 
-func (be *BaseEventConnection) resolveFunctionLogger() logger.Logger {
+func (be *AbstractEventConnection) resolveFunctionLogger() logger.Logger {
 	if be.functionLogger == nil {
 		return be.Logger
 	}
 	return be.functionLogger
 }
 
-func (be *BaseEventConnection) RunHandler() {
+func (be *AbstractEventConnection) RunHandler() {
 
 	// Reset might close outChan, which will cause panic when sending
 	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
@@ -189,7 +218,7 @@ func (be *BaseEventConnection) RunHandler() {
 	}
 }
 
-func (be *BaseEventConnection) handleResponseMetric(response []byte) {
+func (be *AbstractEventConnection) handleResponseMetric(response []byte) {
 	var metrics struct {
 		DurationSec float64 `json:"duration"`
 	}
@@ -207,7 +236,7 @@ func (be *BaseEventConnection) handleResponseMetric(response []byte) {
 	be.connectionManager.UpdateStatistics(metrics.DurationSec)
 }
 
-func (be *BaseEventConnection) handleResponseLog(response []byte) {
+func (be *AbstractEventConnection) handleResponseLog(response []byte) {
 	var logRecord result.RpcLogRecord
 
 	if err := json.Unmarshal(response, &logRecord); err != nil {
@@ -231,40 +260,40 @@ func (be *BaseEventConnection) handleResponseLog(response []byte) {
 	logFunc(logRecord.Message, vars...)
 }
 
-func (be *BaseEventConnection) handleStart() {
+func (be *AbstractEventConnection) handleStart() {
 	be.startChan <- struct{}{}
 }
 
-type BaseControlMessageConnection struct {
-	*BaseConnection
+type AbstractControlMessageConnection struct {
+	*AbstractConnection
 
 	broker controlcommunication.ControlMessageBroker
 }
 
-func NewBaseControlMessageConnection(parentLogger logger.Logger, broker controlcommunication.ControlMessageBroker) *BaseControlMessageConnection {
+func NewAbstractControlMessageConnection(parentLogger logger.Logger, broker controlcommunication.ControlMessageBroker) *AbstractControlMessageConnection {
 
-	baseConnection := &BaseConnection{
-		Logger:     parentLogger.GetChild("event connection"),
+	baseConnection := &AbstractConnection{
+		Logger:     parentLogger.GetChild("event-connection"),
 		cancelChan: make(chan struct{}, 1),
 	}
-	return &BaseControlMessageConnection{
-		BaseConnection: baseConnection,
-		broker:         broker,
+	return &AbstractControlMessageConnection{
+		AbstractConnection: baseConnection,
+		broker:             broker,
 	}
 }
 
-func (bc *BaseControlMessageConnection) SetBroker(abstractBroker *controlcommunication.AbstractControlMessageBroker) {
+func (bc *AbstractControlMessageConnection) SetBroker(abstractBroker *controlcommunication.AbstractControlMessageBroker) {
 	bc.broker = controlmessagebroker.NewRpcControlMessageBroker(
 		bc.encoder,
 		bc.Logger,
 		abstractBroker)
 }
 
-func (bc *BaseControlMessageConnection) GetBroker() controlcommunication.ControlMessageBroker {
+func (bc *AbstractControlMessageConnection) GetBroker() controlcommunication.ControlMessageBroker {
 	return bc.broker
 }
 
-func (bc *BaseControlMessageConnection) RunHandler() {
+func (bc *AbstractControlMessageConnection) RunHandler() {
 
 	// recover from panic in case of error
 	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck

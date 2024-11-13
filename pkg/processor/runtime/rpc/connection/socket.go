@@ -40,7 +40,7 @@ type socketConnection struct {
 }
 
 type ControlMessageSocket struct {
-	*BaseControlMessageConnection
+	*AbstractControlMessageConnection
 
 	// socket-specific entity
 	listener net.Listener
@@ -48,18 +48,18 @@ type ControlMessageSocket struct {
 
 func NewControlMessageSocket(parentLogger logger.Logger, socketConn *socketConnection, broker controlcommunication.ControlMessageBroker) *ControlMessageSocket {
 
-	baseControlMessageConnection := NewBaseControlMessageConnection(parentLogger, broker)
+	baseControlMessageConnection := NewAbstractControlMessageConnection(parentLogger, broker)
 	baseControlMessageConnection.Conn = socketConn.conn
 	baseControlMessageConnection.Address = socketConn.address
 
 	return &ControlMessageSocket{
-		BaseControlMessageConnection: baseControlMessageConnection,
-		listener:                     socketConn.listener,
+		AbstractControlMessageConnection: baseControlMessageConnection,
+		listener:                         socketConn.listener,
 	}
 }
 
 type EventSocket struct {
-	*BaseEventConnection
+	*AbstractEventConnection
 
 	// socket-specific entity
 	listener net.Listener
@@ -67,12 +67,12 @@ type EventSocket struct {
 
 func NewEventSocket(parentLogger logger.Logger, socketConn *socketConnection, connectionManager ConnectionManager) *EventSocket {
 
-	baseEventConnection := NewBaseEventConnection(parentLogger, connectionManager)
+	baseEventConnection := NewAbstractEventConnection(parentLogger, connectionManager)
 	baseEventConnection.Conn = socketConn.conn
 	baseEventConnection.Address = socketConn.address
 
 	return &EventSocket{
-		BaseEventConnection: baseEventConnection,
-		listener:            socketConn.listener,
+		AbstractEventConnection: baseEventConnection,
+		listener:                socketConn.listener,
 	}
 }
