@@ -962,6 +962,8 @@ func (b *Builder) prepareStagingDir() error {
 
 	// make sure the handler staging dir exists
 	handlerDirIncludingSubPath := path.Join(handlerDirInStaging, handlerSubPath)
+
+	// we need 755 permission to allow running nuclio function with non-root SecurityContext
 	if err := os.MkdirAll(handlerDirIncludingSubPath, 0755); err != nil {
 		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirIncludingSubPath)
 	}
