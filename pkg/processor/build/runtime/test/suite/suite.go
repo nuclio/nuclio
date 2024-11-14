@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
+	"k8s.io/api/core/v1"
 
 	"github.com/mholt/archiver/v4"
 	"github.com/nuclio/errors"
@@ -323,6 +324,16 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 	compressor func(context.Context, io.Writer, []archiver.File) error) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
+	runAsUserID := int64(1000)
+	runAsGroupID := int64(2000)
+	fsGroup := int64(3000)
+
+	// setting security context to check that function can be run in non-root mode
+	createFunctionOptions.FunctionConfig.Spec.SecurityContext = &v1.PodSecurityContext{
+		RunAsUser:  &runAsUserID,
+		RunAsGroup: &runAsGroupID,
+		FSGroup:    &fsGroup,
+	}
 
 	archivePath := suite.createFunctionArchive(createFunctionOptions.FunctionConfig.Spec.Build.Path,
 		archiveExtension,

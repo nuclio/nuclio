@@ -81,6 +81,7 @@ func (d *Unarchiver) extractFile(file archiver.File, targetPath string) error {
 
 	if file.IsDir() {
 		// create the directory if it doesn't exist and continue to the next file
+		// we need 755 permission to allow running nuclio function with non-root SecurityContext
 		if err := os.MkdirAll(filePath, 0755); err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Failed to create directory %s", filePath))
 		}
@@ -88,6 +89,7 @@ func (d *Unarchiver) extractFile(file archiver.File, targetPath string) error {
 	}
 
 	// create the file's parent directory if it doesn't exist
+	// we need 755 permission to allow running nuclio function with non-root SecurityContext
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to create directory %s", filepath.Dir(filePath)))
 	}

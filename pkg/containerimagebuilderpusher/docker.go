@@ -180,6 +180,7 @@ func (d *Docker) gatherArtifactsForSingleStageDockerfile(ctx context.Context,
 	artifactsDir := path.Join(buildOptions.ContextDir, artifactDirNameInStaging)
 
 	// create an artifacts directory to which we'll copy all of our stuff
+	// we need 755 permission to allow running nuclio function with non-root SecurityContext
 	if err := os.MkdirAll(artifactsDir, 0755); err != nil {
 		return errors.Wrap(err, "Failed to create artifacts directory")
 	}
