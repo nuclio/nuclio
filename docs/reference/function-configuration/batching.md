@@ -1,6 +1,6 @@
 # Event batching
 
-:bangbang: Feature is supported only for:
+**_NOTE:_** Event batching is supported only for:
 * runtimes:
     * `python`
 * trigger kinds:
