@@ -33,10 +33,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 	"github.com/nuclio/nuclio/test/httpsrv"
-	"k8s.io/api/core/v1"
 
 	"github.com/mholt/archiver/v4"
 	"github.com/nuclio/errors"
+	"k8s.io/api/core/v1"
 )
 
 type FunctionInfo struct {
