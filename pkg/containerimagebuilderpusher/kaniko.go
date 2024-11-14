@@ -229,6 +229,7 @@ func (k *Kaniko) createContainerBuildBundle(ctx context.Context,
 	}
 
 	buildDir := "/tmp/kaniko-builds"
+	// we need 755 permission to allow running nuclio function with non-root SecurityContext
 	if err := os.MkdirAll(buildDir, 0755); err != nil {
 		return "", "", errors.Wrapf(err, "Failed to ensure directory")
 	}
