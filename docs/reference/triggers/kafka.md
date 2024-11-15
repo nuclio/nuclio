@@ -82,10 +82,6 @@ For more information on Nuclio function configuration, see the [function-configu
   <br/>
   **Type:** `[]string`
 
-- <a id="partitions"></a>**`partitions`** - A list of partitions for which the function receives events.
-  <br/>
-  **Type:** `[]int`
-
 - <a id="consumerGroup"></a>**`consumerGroup`** - The name of the Kafka consumer group to use.
   <br/>
   **Type:** `string`
