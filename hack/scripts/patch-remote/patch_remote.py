@@ -20,6 +20,7 @@ import logging
 import os
 import shlex
 import subprocess
+import time
 import typing
 
 import click
@@ -295,27 +296,38 @@ class NuclioPatcher:
                 "status",
                 "deployment",
                 f"nuclio-{target}",
-                "--timeout=120s",
+                "--timeout=240s",
             ],
             live=True,
         )
 
+        self._wait_for_pod_ready(target)
+
+    def _wait_for_pod_ready(self, target):
+        """
+        Waits for a pod to become ready.
+        Since the deployments' strategy is RollingUpdate, using 'kubectl wait --for condition=Ready' sometimes times
+        out because it waits for the terminating pod to be ready. Instead, we will poll the pod status until it's ready.
+        """
+
         self._logger.info(f"Waiting for {target} pod to become ready")
-        self._exec_remote(
-            [
-                "kubectl",
-                "-n",
-                self._namespace,
-                "wait",
-                "pods",
-                "-l",
-                f"nuclio.io/app={target}",
-                "--for",
-                "condition=Ready",
-                "--timeout=120s",
-            ],
-            live=True,
-        )
+        while True:
+            out = self._exec_remote(
+                [
+                    "kubectl",
+                    "--namespace",
+                    self._namespace,
+                    "get",
+                    "pod",
+                    "-l",
+                    f"nuclio.io/app={target}",
+                    "-o",
+                    "jsonpath={.items[*].status.phase}",
+                ]
+            )
+            if out.strip() == "Running":
+                break
+            time.sleep(5)
 
     def _log_pod_names(self):
         out = self._exec_remote(
