@@ -4,6 +4,7 @@
 [![Slack](https://img.shields.io/badge/slack-chat-blueviolet.svg?label=Slack&logo=slack)](https://nuclio-io.slack.com)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/nuclio)](https://artifacthub.io/packages/search?repo=nuclio)
 [![Iguazio Careers](https://img.shields.io/badge/careers-We're%20Hiring!-informational?style=square-flat-square)](https://www.iguazio.com/careers)
+[![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20Nuclio%20Guru-006BFF)](https://gurubase.io/g/nuclio)
 
 <p align="center"><img src="/docs/assets/images/logo.png" width="180" alt="nuclio"/></p>
 
