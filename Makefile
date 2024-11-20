@@ -108,10 +108,13 @@ else
 	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:14.21
 endif
 
+NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
+
 NUCLIO_BASE_IMAGE_TAG ?= 1.21
 NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.21-alpine
 DEFAULT_NUCTL_DOCUMENTATION_PATH := docs/reference/nuctl/cli
 NUCTL_DOCUMENTATION_PATH := $(if $(NUCTL_DOCUMENTATION_PATH),$(NUCTL_DOCUMENTATION_PATH),$(DEFAULT_NUCTL_DOCUMENTATION_PATH))
+
 #
 #  Must be first target
 #
@@ -426,6 +429,7 @@ handler-builder-python-onbuild: processor
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
+		--build-arg NUCLIO_PYTHON_BASE_IMAGE_NAME=$(NUCLIO_PYTHON_BASE_IMAGE_NAME) \
 		--cache-from $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME_CACHE) \
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) \
