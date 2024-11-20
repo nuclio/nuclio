@@ -17,6 +17,7 @@
 #
 ARG NGINX_IMAGE=gcr.io/iguazio/nginx:1.25-alpine
 ARG NUCLIO_DOCKER_IMAGE_TAG
+ARG UHTTPC_IMAGE=gcr.io/iguazio/uhttpc:0.0.1
 ARG UHTTPC_ARCH=amd64
 ARG NUCLIO_DOCKER_ALPINE_IMAGE
 ARG NUCLIO_DOCKER_REPO
@@ -47,7 +48,7 @@ RUN go build \
     -o dashboard cmd/dashboard/main.go
 
 
-FROM gcr.io/iguazio/uhttpc:0.0.1-$UHTTPC_ARCH AS uhttpc
+FROM $UHTTPC_IMAGE-$UHTTPC_ARCH AS uhttpc
 
 #
 # Output stage: Creates version file, copies binary and assets to an alpine image
