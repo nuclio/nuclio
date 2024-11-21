@@ -143,6 +143,9 @@ func (r *Release) Run() error {
 }
 
 func (r *Release) compileRepositoryURL(scheme string) string {
+	if scheme == "git" {
+		return fmt.Sprintf("git@github.com:%s/nuclio", r.repositoryOwnerName)
+	}
 	return fmt.Sprintf("%s://github.com/%s/nuclio", scheme, r.repositoryOwnerName)
 }
 
@@ -805,7 +808,7 @@ func run() error {
 	flag.Var(release.helmChartsTargetVersion, "helm-charts-release-version", "Helm charts release target version")
 	flag.StringVar(&release.githubToken, "github-token", common.GetEnvOrDefaultString("NUCLIO_RELEASER_GITHUB_TOKEN", ""), "A scope-less Github token header to avoid API rate limit")
 	flag.StringVar(&release.repositoryOwnerName, "repository-owner-name", "nuclio", "Repository owner name to clone nuclio from (Default: nuclio)")
-	flag.StringVar(&release.repositoryScheme, "repository-scheme", "https", "Scheme to use when cloning nuclio repository")
+	flag.StringVar(&release.repositoryScheme, "repository-scheme", "git", "Scheme to use when cloning nuclio repository")
 	flag.StringVar(&release.developmentBranch, "development-branch", "development", "Development branch (e.g.: development, 1.3.x")
 	flag.StringVar(&release.releaseBranch, "release-branch", "master", "Release branch (e.g.: master, 1.3.x, ...)")
 	flag.BoolVar(&release.skipCreateRelease, "skip-create-release", false, "Skip build & release flow (useful when publishing helm charts only)")
