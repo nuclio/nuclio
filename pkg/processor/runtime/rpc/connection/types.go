@@ -17,7 +17,11 @@ limitations under the License.
 package connection
 
 import (
+	"io"
+
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 
 	"github.com/nuclio/logger"
@@ -61,3 +65,16 @@ type EventConnection interface {
 	// RunHandler starts the main event handler loop, managing incoming responses until the connection is stopped
 	RunHandler()
 }
+
+type ManagerConfigration struct {
+	Kind                        ManagerKind
+	SupportControlCommunication bool
+	WaitForStart                bool
+	SocketType                  SocketType
+	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
+	Statistics                  runtime.Statistics
+}
+
+type ManagerKind string
+
+const SocketAllocatorManagerKind ManagerKind = "socketAllocator"

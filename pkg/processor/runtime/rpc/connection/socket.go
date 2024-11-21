@@ -48,12 +48,12 @@ type ControlMessageSocket struct {
 
 func NewControlMessageSocket(parentLogger logger.Logger, socketConn *socketConnection, broker controlcommunication.ControlMessageBroker) *ControlMessageSocket {
 
-	baseControlMessageConnection := NewAbstractControlMessageConnection(parentLogger, broker)
-	baseControlMessageConnection.Conn = socketConn.conn
-	baseControlMessageConnection.Address = socketConn.address
+	abstractControlMessageConnection := NewAbstractControlMessageConnection(parentLogger, broker)
+	abstractControlMessageConnection.Conn = socketConn.conn
+	abstractControlMessageConnection.Address = socketConn.address
 
 	return &ControlMessageSocket{
-		AbstractControlMessageConnection: baseControlMessageConnection,
+		AbstractControlMessageConnection: abstractControlMessageConnection,
 		listener:                         socketConn.listener,
 	}
 }
@@ -67,12 +67,12 @@ type EventSocket struct {
 
 func NewEventSocket(parentLogger logger.Logger, socketConn *socketConnection, connectionManager ConnectionManager) *EventSocket {
 
-	baseEventConnection := NewAbstractEventConnection(parentLogger, connectionManager)
-	baseEventConnection.Conn = socketConn.conn
-	baseEventConnection.Address = socketConn.address
+	abstractEventConnection := NewAbstractEventConnection(parentLogger, connectionManager)
+	abstractEventConnection.Conn = socketConn.conn
+	abstractEventConnection.Address = socketConn.address
 
 	return &EventSocket{
-		AbstractEventConnection: baseEventConnection,
+		AbstractEventConnection: abstractEventConnection,
 		listener:                socketConn.listener,
 	}
 }

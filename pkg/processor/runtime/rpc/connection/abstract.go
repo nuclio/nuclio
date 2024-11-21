@@ -40,19 +40,19 @@ import (
 type AbstractConnectionManager struct {
 	Logger logger.Logger
 
-	MinSocketsNum int
-	MaxSocketsNum int
+	MinConnectionsNum int
+	MaxConnectionsNum int
 
 	RuntimeConfiguration runtime.Configuration
 	Configuration        *ManagerConfigration
 }
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) *AbstractConnectionManager {
-	// TODO: make MinSocketsNum and MaxSocketsNum configurable when support multiple event connections
+	// TODO: make MinConnectionsNum and MaxConnectionsNum configurable when support multiple event connections
 	return &AbstractConnectionManager{
 		Logger:               parentLogger.GetChild("connection-manager"),
-		MinSocketsNum:        1,
-		MaxSocketsNum:        1,
+		MinConnectionsNum:    1,
+		MaxConnectionsNum:    1,
 		RuntimeConfiguration: runtimeConfiguration,
 		Configuration:        configuration,
 	}
@@ -65,14 +65,6 @@ func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {
 
 func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
 	//bc.abstractRuntime.SetStatus(newStatus)
-}
-
-type ManagerConfigration struct {
-	SupportControlCommunication bool
-	WaitForStart                bool
-	SocketType                  SocketType
-	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
-	Statistics                  runtime.Statistics
 }
 
 type AbstractConnection struct {
@@ -105,15 +97,16 @@ type AbstractEventConnection struct {
 }
 
 func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager ConnectionManager) *AbstractEventConnection {
-	baseConnection := &AbstractConnection{
+	abstractConnection := &AbstractConnection{
 		Logger:     parentLogger.GetChild("event connection"),
 		cancelChan: make(chan struct{}, 1),
 	}
 	return &AbstractEventConnection{
-		AbstractConnection: baseConnection,
+		AbstractConnection: abstractConnection,
 		resultChan:         make(chan *result.BatchedResults),
 		startChan:          make(chan struct{}, 1),
-		connectionManager:  connectionManager}
+		connectionManager:  connectionManager,
+	}
 }
 func (be *AbstractEventConnection) Start() {
 	<-be.startChan
@@ -272,12 +265,12 @@ type AbstractControlMessageConnection struct {
 
 func NewAbstractControlMessageConnection(parentLogger logger.Logger, broker controlcommunication.ControlMessageBroker) *AbstractControlMessageConnection {
 
-	baseConnection := &AbstractConnection{
+	abstractConnection := &AbstractConnection{
 		Logger:     parentLogger.GetChild("event-connection"),
 		cancelChan: make(chan struct{}, 1),
 	}
 	return &AbstractControlMessageConnection{
-		AbstractConnection: baseConnection,
+		AbstractConnection: abstractConnection,
 		broker:             broker,
 	}
 }

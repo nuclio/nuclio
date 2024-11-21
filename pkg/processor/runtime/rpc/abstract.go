@@ -130,6 +130,10 @@ func (r *AbstractRuntime) Stop() error {
 	// to avoid sending any events while stopping
 	r.SetStatus(status.Stopped)
 
+	if err := r.connectionManager.Stop(); err != nil {
+		return errors.Wrap(err, "Can't stop wrapper process")
+	}
+
 	if r.wrapperProcess != nil {
 
 		// stop waiting for process
@@ -155,10 +159,6 @@ func (r *AbstractRuntime) Stop() error {
 func (r *AbstractRuntime) Restart() error {
 	if err := r.Stop(); err != nil {
 		return err
-	}
-
-	if err := r.connectionManager.Stop(); err != nil {
-		return errors.Wrap(err, "Can't stop wrapper process")
 	}
 
 	if err := r.startWrapper(); err != nil {
@@ -274,14 +274,18 @@ func (r *AbstractRuntime) signal(signal syscall.Signal) error {
 
 func (r *AbstractRuntime) startWrapper() error {
 	connectionManagerConfiguration := &connection.ManagerConfigration{
+		Kind:                        connection.SocketAllocatorManagerKind,
 		SupportControlCommunication: r.runtime.SupportsControlCommunication(),
 		WaitForStart:                r.runtime.WaitForStart(),
 		SocketType:                  r.runtime.GetSocketType(),
 		GetEventEncoderFunc:         r.runtime.GetEventEncoder,
 		Statistics:                  r.Statistics,
 	}
-	r.connectionManager = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
 	var err error
+	r.connectionManager, err = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create connection manager")
+	}
 	if err = r.connectionManager.Prepare(); err != nil {
 		return errors.Wrap(err, "Failed to prepare connections")
 	}

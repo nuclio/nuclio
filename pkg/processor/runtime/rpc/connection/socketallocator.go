@@ -40,13 +40,21 @@ type SocketAllocator struct {
 	controlMessageSocket *ControlMessageSocket
 }
 
-func NewSocketAllocator(baseConnectionManager *AbstractConnectionManager) *SocketAllocator {
+func NewSocketAllocator(abstractConnectionManager *AbstractConnectionManager) *SocketAllocator {
 	return &SocketAllocator{
-		AbstractConnectionManager: baseConnectionManager,
+		AbstractConnectionManager: abstractConnectionManager,
 		eventSockets:              make([]*EventSocket, 0),
 	}
 }
 
+// Prepare initializes the SocketAllocator by setting up control and event sockets
+// according to the configuration.
+//
+// If SupportControlCommunication is enabled, a control communication socket is created,
+//
+//	wrapped in a ControlMessageSocket, and integrated with the ControlMessageBroker for runtime operations.
+//
+// Creates a minimum number of event sockets (MinConnectionsNum).
 func (sa *SocketAllocator) Prepare() error {
 	if sa.Configuration.SupportControlCommunication {
 		controlConnection, err := sa.createSocketConnection()
@@ -59,7 +67,7 @@ func (sa *SocketAllocator) Prepare() error {
 			sa.RuntimeConfiguration.ControlMessageBroker)
 	}
 
-	for i := 0; i < sa.MinSocketsNum; i++ {
+	for i := 0; i < sa.MinConnectionsNum; i++ {
 		eventConnection, err := sa.createSocketConnection()
 		if err != nil {
 			return errors.Wrap(err, "Failed to create socket connection")
@@ -114,21 +122,20 @@ func (sa *SocketAllocator) GetAddressesForWrapperStart() ([]string, string) {
 		eventAddresses = append(eventAddresses, socket.Address)
 	}
 
-	if sa.controlMessageSocket == nil {
-		sa.Logger.DebugWith("Get socket addresses",
-			"eventAddresses", eventAddresses,
-			"controlAddress", "")
-		return eventAddresses, ""
+	controlAddress := ""
+	if sa.controlMessageSocket != nil {
+		controlAddress = sa.controlMessageSocket.Address
 	}
-	sa.Logger.DebugWith("Get socket addresses",
+	sa.Logger.DebugWith("Got socket addresses",
 		"eventAddresses", eventAddresses,
-		"controlAddress", sa.controlMessageSocket.Address)
-	return eventAddresses, sa.controlMessageSocket.Address
+		"controlAddress", controlAddress)
+	return eventAddresses, controlAddress
 }
 
 func (sa *SocketAllocator) startSockets() error {
 	var err error
 	for _, socket := range sa.eventSockets {
+		// TODO: when having multiple sockets supported, we might want to reconsider failing here
 		if socket.Conn, err = socket.listener.Accept(); err != nil {
 			return errors.Wrap(err, "Can't get connection from wrapper")
 		}

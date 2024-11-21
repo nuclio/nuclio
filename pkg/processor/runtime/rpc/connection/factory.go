@@ -20,11 +20,18 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // NewConnectionManager is a Factory function that returns a ConnectionManager based on the configuration
-func NewConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) ConnectionManager {
-	baseConnectionManager := NewAbstractConnectionManager(parentLogger, runtimeConfiguration, configuration)
-	// TODO: when support ConnectionPool, add option to return ConnectionPool object
-	return NewSocketAllocator(baseConnectionManager)
+func NewConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (ConnectionManager, error) {
+	abstractConnectionManager := NewAbstractConnectionManager(parentLogger, runtimeConfiguration, configuration)
+
+	switch configuration.Kind {
+	case SocketAllocatorManagerKind:
+		return NewSocketAllocator(abstractConnectionManager), nil
+	default:
+		// TODO: when support ConnectionPool, add option to return ConnectionPool object
+		return nil, nuclio.ErrNotImplemented
+	}
 }
