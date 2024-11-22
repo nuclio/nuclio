@@ -347,7 +347,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	suite.Require().Equal(1, len(functionconfig.GetTriggersByKind(deployedFunctionConfig.Spec.Triggers, "http")))
 	suite.Require().Equal("http", deployedFunctionConfig.Spec.Triggers["api"].Kind)
 
-	suite.Require().Equal("0.5", deployedFunctionConfig.Spec.Resources.Requests.Cpu().String())
+	suite.Require().Equal("500m", deployedFunctionConfig.Spec.Resources.Requests.Cpu().String())
 	suite.Require().Equal("2Mi", deployedFunctionConfig.Spec.Resources.Requests.Memory().String())
 
 	// use nutctl to delete the function when we're done
