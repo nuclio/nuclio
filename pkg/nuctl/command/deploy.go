@@ -678,6 +678,10 @@ func (d *deployCommandeer) resolveFunctionNameFromPath() (string, error) {
 
 func (d *deployCommandeer) resolveFunctionConfigPath() string {
 
+	if d.functionConfigPath != "" {
+		return d.functionConfigPath
+	}
+
 	// if the user provided a configuration path, use that
 	if d.functionBuild.FunctionConfigPath != "" {
 		return d.functionBuild.FunctionConfigPath
