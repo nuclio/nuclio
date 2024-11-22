@@ -20,7 +20,7 @@ spec:
   maxReplicas: 8
   resources:
     requests:
-      cpu: "2"
+      cpu: "0.5"
       memory: "2Mi"
   handler: parser:handler
   build:
