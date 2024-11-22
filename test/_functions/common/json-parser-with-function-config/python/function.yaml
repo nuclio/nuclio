@@ -21,7 +21,7 @@ spec:
   resources:
     requests:
       cpu: "2"
-      memory: "123"
+      memory: "2Mi"
   handler: parser:handler
   build:
     commands:

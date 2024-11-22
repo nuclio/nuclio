@@ -348,7 +348,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	suite.Require().Equal("http", deployedFunctionConfig.Spec.Triggers["api"].Kind)
 
 	suite.Require().Equal("2", deployedFunctionConfig.Spec.Resources.Requests.Cpu().String())
-	suite.Require().Equal("123", deployedFunctionConfig.Spec.Resources.Requests.Memory().String())
+	suite.Require().Equal("2Mi", deployedFunctionConfig.Spec.Resources.Requests.Memory().String())
 
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
