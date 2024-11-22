@@ -115,6 +115,8 @@ func newDeployCommandeer(ctx context.Context, rootCommandeer *RootCommandeer) *d
 				}
 			}
 
+			commandeer.functionConfigPath = commandeer.resolveFunctionConfigPath()
+
 			// If config file is provided
 			if importedFunction == nil && commandeer.functionConfigPath != "" {
 				commandeer.rootCommandeer.loggerInstance.DebugWithCtx(ctx, "Loading function config from file", "file", commandeer.functionConfigPath)

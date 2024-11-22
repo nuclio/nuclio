@@ -18,6 +18,10 @@ spec:
   runtime: python
   minReplicas: 1
   maxReplicas: 8
+  resources:
+    requests:
+      cpu: "2"
+      memory: "123"
   handler: parser:handler
   build:
     commands:
