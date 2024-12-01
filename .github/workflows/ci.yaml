@@ -21,6 +21,7 @@ on:
       - "[0-9]+.[0-9]+.x"
     paths-ignore:
       - 'docs/**'
+      - '.github/styles/**'
       - 'README.md'
       - 'README_zh.md'
 
