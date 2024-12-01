@@ -45,6 +45,7 @@ const (
 	InvokeURL           = "X-Nuclio-Invoke-Url"
 	InvokeTimeout       = "X-Nuclio-Invoke-Timeout"
 	InvokeVia           = "X-Nuclio-Invoke-Via"
+	InvokeTrigger       = "X-Nuclio-Invoke-Trigger"
 	SkipTLSVerification = "X-Nuclio-Skip-Tls-Verification"
 	Path                = "X-Nuclio-Path"
 	LogLevel            = "X-Nuclio-Log-Level"
