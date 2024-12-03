@@ -53,8 +53,8 @@ type ConnectionManager interface {
 }
 
 type EventConnection interface {
-	// Start initializes and starts the event connection, preparing it for processing events
-	Start()
+	// WaitForStart waits for connection and handler to be ready for event processing
+	WaitForStart()
 
 	// Stop stops the event connection and performs any necessary cleanup tasks
 	Stop()

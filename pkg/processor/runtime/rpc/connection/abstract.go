@@ -108,7 +108,7 @@ func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager Co
 		connectionManager:  connectionManager,
 	}
 }
-func (be *AbstractEventConnection) Start() {
+func (be *AbstractEventConnection) WaitForStart() {
 	<-be.startChan
 }
 
