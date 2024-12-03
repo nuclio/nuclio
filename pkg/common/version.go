@@ -17,8 +17,9 @@ limitations under the License.
 package common
 
 import (
-	"github.com/v3io/version-go"
 	"runtime"
+
+	"github.com/v3io/version-go"
 )
 
 // SetVersionFromEnv is being used by tests to override linker injected values
