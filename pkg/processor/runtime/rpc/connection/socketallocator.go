@@ -51,15 +51,14 @@ func NewSocketAllocator(abstractConnectionManager *AbstractConnectionManager) *S
 // according to the configuration.
 //
 // If SupportControlCommunication is enabled, a control communication socket is created,
-//
-//	wrapped in a ControlMessageSocket, and integrated with the ControlMessageBroker for runtime operations.
+// wrapped in a ControlMessageSocket, and integrated with the ControlMessageBroker for runtime operations.
 //
 // Creates a minimum number of event sockets (MinConnectionsNum).
 func (sa *SocketAllocator) Prepare() error {
 	if sa.Configuration.SupportControlCommunication {
 		controlConnection, err := sa.createSocketConnection()
 		if err != nil {
-			return errors.Wrap(err, "Failed to create socket connection")
+			return errors.Wrap(err, "Failed to create control socket connection")
 		}
 		sa.controlMessageSocket = NewControlMessageSocket(
 			sa.Logger,
@@ -70,10 +69,10 @@ func (sa *SocketAllocator) Prepare() error {
 	for i := 0; i < sa.MinConnectionsNum; i++ {
 		eventConnection, err := sa.createSocketConnection()
 		if err != nil {
-			return errors.Wrap(err, "Failed to create socket connection")
+			return errors.Wrap(err, "Failed to create event socket connection")
 		}
-		sa.eventSockets = append(sa.eventSockets, NewEventSocket(sa.Logger,
-			eventConnection, sa))
+		sa.eventSockets = append(sa.eventSockets,
+			NewEventSocket(sa.Logger, eventConnection, sa))
 	}
 	return nil
 }
@@ -147,14 +146,14 @@ func (sa *SocketAllocator) startSockets() error {
 	if sa.Configuration.SupportControlCommunication {
 		sa.controlMessageSocket.Conn, err = sa.controlMessageSocket.listener.Accept()
 		if err != nil {
-			return errors.Wrap(err, "Can't get control connection from wrapper")
+			return errors.Wrap(err, "Failed to get control connection from wrapper")
 		}
 		sa.controlMessageSocket.SetEncoder(sa.Configuration.GetEventEncoderFunc(sa.controlMessageSocket.Conn))
 
 		// initialize control message broker
 		sa.controlMessageSocket.SetBroker(sa.RuntimeConfiguration.ControlMessageBroker)
 		go sa.controlMessageSocket.RunHandler()
-
+		sa.Logger.Debug("Successfully established connection for control socket")
 	}
 	return nil
 }

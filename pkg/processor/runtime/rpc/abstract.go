@@ -131,7 +131,7 @@ func (r *AbstractRuntime) Stop() error {
 	r.SetStatus(status.Stopped)
 
 	if err := r.connectionManager.Stop(); err != nil {
-		return errors.Wrap(err, "Can't stop wrapper process")
+		return errors.Wrap(err, "Failed to stop connection manager")
 	}
 
 	if r.wrapperProcess != nil {
