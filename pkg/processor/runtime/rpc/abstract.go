@@ -37,12 +37,11 @@ import (
 // AbstractRuntime is a runtime that communicates via unix domain socket
 type AbstractRuntime struct {
 	runtime.AbstractRuntime
-	configuration  *runtime.Configuration
-	wrapperProcess *os.Process
-	runtime        Runtime
-	stopChan       chan struct{}
-	processWaiter  *processwaiter.ProcessWaiter
-
+	configuration     *runtime.Configuration
+	wrapperProcess    *os.Process
+	runtime           Runtime
+	stopChan          chan struct{}
+	processWaiter     *processwaiter.ProcessWaiter
 	connectionManager connection.ConnectionManager
 }
 

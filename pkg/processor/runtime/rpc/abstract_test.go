@@ -65,7 +65,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	newTestRuntime.AbstractRuntime.ControlMessageBroker = controlmessagebroker.NewRpcControlMessageBroker(nil, parentLogger, nil)
+	newTestRuntime.AbstractRuntime.configuration.ControlMessageBroker = controlmessagebroker.NewRpcControlMessageBroker(nil, parentLogger, nil).AbstractControlMessageBroker
 
 	return newTestRuntime, nil
 }
@@ -208,7 +208,7 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 
 	// read control message from buffer
 	buf := bufio.NewReader(bytes.NewReader(byteMessage))
-	reslovedControlMessage, err := suite.testRuntimeInstance.ControlMessageBroker.ReadControlMessage(buf)
+	reslovedControlMessage, err := suite.testRuntimeInstance.configuration.ControlMessageBroker.ReadControlMessage(buf)
 
 	// check if control message was read correctly
 	suite.Require().NoError(err, "Can't read control message")
