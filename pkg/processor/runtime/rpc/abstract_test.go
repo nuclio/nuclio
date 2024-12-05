@@ -208,11 +208,11 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 
 	// read control message from buffer
 	buf := bufio.NewReader(bytes.NewReader(byteMessage))
-	reslovedControlMessage, err := suite.testRuntimeInstance.configuration.ControlMessageBroker.ReadControlMessage(buf)
+	resolvedControlMessage, err := suite.testRuntimeInstance.configuration.ControlMessageBroker.ReadControlMessage(buf)
 
 	// check if control message was read correctly
 	suite.Require().NoError(err, "Can't read control message")
-	suite.Require().Equal(controlMessage, reslovedControlMessage, "Read control message doesn't match")
+	suite.Require().Equal(controlMessage, resolvedControlMessage, "Read control message doesn't match")
 }
 
 func (suite *RuntimeSuite) TearDownTest() {
@@ -230,7 +230,8 @@ func (suite *RuntimeSuite) createLogger() logger.Logger {
 
 func (suite *RuntimeSuite) createConfig(loggerInstance logger.Logger) *runtime.Configuration {
 	return &runtime.Configuration{
-		FunctionLogger: loggerInstance,
+		FunctionLogger:       loggerInstance,
+		ControlMessageBroker: controlcommunication.NewAbstractControlMessageBroker(),
 		Configuration: &processor.Configuration{
 			Config: functionconfig.Config{
 				Meta: functionconfig.Meta{
