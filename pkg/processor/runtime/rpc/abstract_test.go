@@ -208,7 +208,12 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 
 	// read control message from buffer
 	buf := bufio.NewReader(bytes.NewReader(byteMessage))
-	resolvedControlMessage, err := suite.testRuntimeInstance.configuration.ControlMessageBroker.ReadControlMessage(buf)
+	messageBroker := controlmessagebroker.NewRpcControlMessageBroker(
+		nil,
+		suite.createLogger(),
+		suite.testRuntimeInstance.configuration.ControlMessageBroker,
+	)
+	resolvedControlMessage, err := messageBroker.ReadControlMessage(buf)
 
 	// check if control message was read correctly
 	suite.Require().NoError(err, "Can't read control message")
