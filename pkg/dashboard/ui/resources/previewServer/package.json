@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "main": "app.js",
   "dependencies": {
-    "express": "^4.21.1",
+    "express": "^4.21.2",
     "express-http-proxy": "^1.6.2",
     "serve-static": "1.16.2"
   }
