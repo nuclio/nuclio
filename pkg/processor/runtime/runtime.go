@@ -80,14 +80,13 @@ type Runtime interface {
 
 // AbstractRuntime is the base for all runtimes
 type AbstractRuntime struct {
-	Logger               logger.Logger
-	FunctionLogger       logger.Logger
-	Context              *nuclio.Context
-	Statistics           Statistics
-	ControlMessageBroker controlcommunication.ControlMessageBroker
-	databindings         map[string]databinding.DataBinding
-	configuration        *Configuration
-	status               status.Status
+	Logger         logger.Logger
+	FunctionLogger logger.Logger
+	Context        *nuclio.Context
+	Statistics     Statistics
+	databindings   map[string]databinding.DataBinding
+	configuration  *Configuration
+	status         status.Status
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -182,7 +181,7 @@ func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
 
 // GetControlMessageBroker returns the control message broker
 func (ar *AbstractRuntime) GetControlMessageBroker() controlcommunication.ControlMessageBroker {
-	return ar.ControlMessageBroker
+	return ar.configuration.ControlMessageBroker
 }
 
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
