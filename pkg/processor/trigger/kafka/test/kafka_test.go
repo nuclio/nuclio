@@ -142,37 +142,57 @@ func (suite *testSuite) TearDownSuite() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	functionName := "event_recorder"
-	createFunctionOptions := suite.GetDeployOptions(functionName, suite.FunctionPaths["python"])
-	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
-		Attributes: map[string]interface{}{
-			"network": suite.BrokerContainerNetworkName,
+	for _, testCase := range []struct {
+		name         string
+		functionPath string
+		runtime      string
+	}{
+		{
+			name:         "python-runtime",
+			functionPath: suite.FunctionPaths["python"],
+			runtime:      "python",
 		},
-	}
+		{
+			name:         "golang-runtime",
+			functionPath: suite.FunctionPaths["golang"],
+			runtime:      "golang",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionName := "event_recorder"
+			createFunctionOptions := suite.GetDeployOptions(functionName, testCase.functionPath)
+			createFunctionOptions.FunctionConfig.Spec.Runtime = testCase.runtime
+			createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+				Attributes: map[string]interface{}{
+					"network": suite.BrokerContainerNetworkName,
+				},
+			}
 
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"my-kafka": {
-			Kind: "kafka-cluster",
-			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-			Attributes: map[string]interface{}{
-				"topics":        []string{suite.topic},
-				"consumerGroup": functionName,
-				"initialOffset": suite.initialOffset,
-			},
-			WorkerTerminationTimeout: "5s",
-		},
-	}
+			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+				"my-kafka": {
+					Kind: "kafka-cluster",
+					URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+					Attributes: map[string]interface{}{
+						"topics":        []string{suite.topic},
+						"consumerGroup": functionName,
+						"initialOffset": suite.initialOffset,
+					},
+					WorkerTerminationTimeout: "5s",
+				},
+			}
 
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
-		suite.BrokerHost,
-		createFunctionOptions,
-		map[string]triggertest.TopicMessages{
-			suite.topic: {
-				NumMessages: int(suite.NumPartitions),
-			},
-		},
-		nil,
-		suite.publishMessageToTopic)
+			triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+				suite.BrokerHost,
+				createFunctionOptions,
+				map[string]triggertest.TopicMessages{
+					suite.topic: {
+						NumMessages: int(suite.NumPartitions),
+					},
+				},
+				nil,
+				suite.publishMessageToTopic)
+		})
+	}
 }
 
 func (suite *testSuite) TestExplicitAck() {
