@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuclio/nuclio-sdk-go"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -58,10 +57,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	}
 
 	// Read log file
-	data, err := ioutil.ReadFile(eventsLogFilePath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to read log file: %w", err)
-	}
+	data, _ := os.ReadFile(eventsLogFilePath)
 
 	// Make valid JSON
 	encodedEventLog := "[]"
