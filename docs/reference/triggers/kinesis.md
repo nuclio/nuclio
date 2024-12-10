@@ -28,7 +28,7 @@ triggers:
       secretAccessKey: "my-secret"
       regionName: "eu-west-1"
       streamName: "my-stream"
-      shards: [shard-0, shard-1, shard-2]
+      shards: [shardId-000000000000,shardId-000000000001,shardId-000000000002,shardId-0000000000003]
 ```
 
 ### IAM Configuration
