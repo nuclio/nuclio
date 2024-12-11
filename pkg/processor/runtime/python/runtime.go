@@ -23,8 +23,10 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
 
@@ -124,6 +126,54 @@ func (py *python) WaitForStart() bool {
 
 func (py *python) SupportsControlCommunication() bool {
 	return true
+}
+
+// Drain signals to the runtime to drain its accumulated events and waits for it to finish
+func (py *python) Drain() error {
+
+	// do not send a signal if the runtime isn't ready,
+	// because the signal handler may not be initialized yet.
+	// if the process receives a signal before the handler is set up,
+	// the default behaviour will cause the Linux process to terminate.
+	if py.GetStatus() != status.Ready {
+		return nil
+	}
+
+	// we use SIGUSR2 to signal the wrapper process to drain events
+	if err := py.Signal(syscall.SIGUSR2); err != nil {
+		return errors.Wrap(err, "Failed to signal wrapper process to drain")
+	}
+
+	// wait for process to finish event handling or timeout
+	// TODO: replace the following function with one that waits for a control communication message or timeout
+	py.AbstractRuntime.WaitForProcessTermination(py.configuration.WorkerTerminationTimeout)
+
+	return nil
+}
+
+// Terminate signals to the runtime process that processor is about to stop working
+func (py *python) Terminate() error {
+
+	// we use SIGUSR1 to signal the wrapper process to terminate
+	if err := py.Signal(syscall.SIGUSR1); err != nil {
+		return errors.Wrap(err, "Failed to signal wrapper process to terminate")
+	}
+
+	// wait for process to finish event handling or timeout
+	// TODO: replace the following function with one that waits for a control communication message or timeout
+	py.WaitForProcessTermination(py.configuration.WorkerTerminationTimeout)
+
+	return nil
+}
+
+// Continue signals the runtime to continue event processing
+func (py *python) Continue() error {
+	// we use SIGCONT to signal the wrapper process to continue event processing
+	if err := py.Signal(syscall.SIGCONT); err != nil {
+		return errors.Wrap(err, "Failed to signal wrapper process to continue")
+	}
+
+	return nil
 }
 
 func (py *python) getHandler() string {
