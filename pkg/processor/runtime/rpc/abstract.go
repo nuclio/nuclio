@@ -176,7 +176,7 @@ func (r *AbstractRuntime) Stop() error {
 		}
 	}
 
-	r.waitForProcessTermination(10 * time.Second)
+	r.WaitForProcessTermination(10 * time.Second)
 
 	r.wrapperProcess = nil
 	r.Logger.Warn("Successfully stopped wrapper process")
@@ -230,55 +230,7 @@ func (r *AbstractRuntime) SupportsControlCommunication() bool {
 	return false
 }
 
-// Drain signals to the runtime to drain its accumulated events and waits for it to finish
-func (r *AbstractRuntime) Drain() error {
-
-	// do not send a signal if the runtime isn't ready,
-	// because the signal handler may not be initialized yet.
-	// if the process receives a signal before the handler is set up,
-	// the default behaviour will cause the Linux process to terminate.
-	if r.GetStatus() != status.Ready {
-		return nil
-	}
-
-	// we use SIGUSR2 to signal the wrapper process to drain events
-	if err := r.signal(syscall.SIGUSR2); err != nil {
-		return errors.Wrap(err, "Failed to signal wrapper process to drain")
-	}
-
-	// wait for process to finish event handling or timeout
-	// TODO: replace the following function with one that waits for a control communication message or timeout
-	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
-
-	return nil
-}
-
-// Continue signals the runtime to continue event processing
-func (r *AbstractRuntime) Continue() error {
-	// we use SIGCONT to signal the wrapper process to continue event processing
-	if err := r.signal(syscall.SIGCONT); err != nil {
-		return errors.Wrap(err, "Failed to signal wrapper process to continue")
-	}
-
-	return nil
-}
-
-// Terminate signals to the runtime process that processor is about to stop working
-func (r *AbstractRuntime) Terminate() error {
-
-	// we use SIGUSR1 to signal the wrapper process to terminate
-	if err := r.signal(syscall.SIGUSR1); err != nil {
-		return errors.Wrap(err, "Failed to signal wrapper process to terminate")
-	}
-
-	// wait for process to finish event handling or timeout
-	// TODO: replace the following function with one that waits for a control communication message or timeout
-	r.waitForProcessTermination(r.configuration.WorkerTerminationTimeout)
-
-	return nil
-}
-
-func (r *AbstractRuntime) signal(signal syscall.Signal) error {
+func (r *AbstractRuntime) Signal(signal syscall.Signal) error {
 
 	if r.wrapperProcess != nil {
 		r.Logger.DebugWith("Signaling wrapper process",
@@ -295,6 +247,29 @@ func (r *AbstractRuntime) signal(signal syscall.Signal) error {
 	}
 
 	return nil
+}
+
+// WaitForProcessTermination will best effort wait few seconds to stop channel, if timeout - assume closed
+func (r *AbstractRuntime) WaitForProcessTermination(timeout time.Duration) {
+	r.Logger.DebugWith("Waiting for process termination",
+		"wid", r.Context.WorkerID,
+		"process", r.wrapperProcess,
+		"timeout", timeout.String())
+
+	for {
+		select {
+		case <-r.stopChan:
+			r.Logger.DebugWith("Process terminated",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
+			return
+		case <-time.After(timeout):
+			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
+				"wid", r.Context.WorkerID,
+				"process", r.wrapperProcess)
+			return
+		}
+	}
 }
 
 func (r *AbstractRuntime) startWrapper() error {
@@ -680,27 +655,4 @@ func (r *AbstractRuntime) watchWrapperProcess() {
 	}
 
 	panic(fmt.Sprintf("Wrapper process for worker %d exited unexpectedly with: %s", r.Context.WorkerID, panicMessage))
-}
-
-// waitForProcessTermination will best effort wait few seconds to stop channel, if timeout - assume closed
-func (r *AbstractRuntime) waitForProcessTermination(timeout time.Duration) {
-	r.Logger.DebugWith("Waiting for process termination",
-		"wid", r.Context.WorkerID,
-		"process", r.wrapperProcess,
-		"timeout", timeout.String())
-
-	for {
-		select {
-		case <-r.stopChan:
-			r.Logger.DebugWith("Process terminated",
-				"wid", r.Context.WorkerID,
-				"process", r.wrapperProcess)
-			return
-		case <-time.After(timeout):
-			r.Logger.DebugWith("Timeout waiting for process termination, assuming closed",
-				"wid", r.Context.WorkerID,
-				"process", r.wrapperProcess)
-			return
-		}
-	}
 }
