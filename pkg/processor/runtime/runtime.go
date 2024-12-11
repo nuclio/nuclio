@@ -184,6 +184,24 @@ func (ar *AbstractRuntime) GetControlMessageBroker() controlcommunication.Contro
 	return ar.configuration.ControlMessageBroker
 }
 
+// Stop stops the runtime
+func (ar *AbstractRuntime) Stop() error {
+	ar.SetStatus(status.Stopped)
+	return nil
+}
+
+func (ar *AbstractRuntime) Drain() error {
+	return nil
+}
+
+func (ar *AbstractRuntime) Terminate() error {
+	return nil
+}
+
+func (ar *AbstractRuntime) Continue() error {
+	return nil
+}
+
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
 	configuration *Configuration) (map[string]databinding.DataBinding, error) {
 
@@ -253,22 +271,4 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 	}
 
 	return newContext, nil
-}
-
-// Stop stops the runtime
-func (ar *AbstractRuntime) Stop() error {
-	ar.SetStatus(status.Stopped)
-	return nil
-}
-
-func (ar *AbstractRuntime) Drain() error {
-	return nil
-}
-
-func (ar *AbstractRuntime) Terminate() error {
-	return nil
-}
-
-func (ar *AbstractRuntime) Continue() error {
-	return nil
 }
