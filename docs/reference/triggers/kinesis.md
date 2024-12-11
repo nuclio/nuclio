@@ -28,8 +28,11 @@ triggers:
       secretAccessKey: "my-secret"
       regionName: "eu-west-1"
       streamName: "my-stream"
-      shards: [shardId-000000000000,shardId-000000000001,shardId-000000000002,shardId-0000000000003]
+      shards: [shard-0, shard-1, shard-2]
 ```
+> **Note:** If Kinesis is configured with On-Demand capacity mode, the shard ids should be set as:<br>
+            `[shardId-000000000000,shardId-000000000001,shardId-000000000002,...]`
+
 
 ### IAM Configuration
 
