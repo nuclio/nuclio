@@ -92,7 +92,8 @@ func (suite *testSuite) TestReceiveRecords() {
 		createFunctionOptions,
 		map[string]triggertest.TopicMessages{suite.streamName: {NumMessages: suite.shardCount}},
 		nil,
-		suite.publishMessageToTopic)
+		suite.publishMessageToTopic,
+		nil)
 }
 
 // GetContainerRunInfo returns information about the broker container

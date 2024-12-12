@@ -82,6 +82,13 @@ func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
 		"event-recorder",
 		"golang",
 		"event_recorder.go")
+
+	newAbstractBrokerSuite.FunctionPaths["java"] = path.Join(newAbstractBrokerSuite.GetTestFunctionsDir(),
+		"common",
+		"event-recorder",
+		"java",
+		"Handler.java")
+
 	return newAbstractBrokerSuite
 }
 

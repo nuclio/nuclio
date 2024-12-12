@@ -133,7 +133,7 @@ func (suite *testSuite) TestReconnect() {
 
 			// publish
 			return suite.publishMessageToTopic(topic, body)
-		})
+		}, nil)
 }
 
 func (suite *testSuite) TestPreexistingResources() {
@@ -163,7 +163,8 @@ func (suite *testSuite) TestPreexistingResources() {
 			"t3": {NumMessages: 3},
 		},
 		nil,
-		suite.publishMessageToTopic)
+		suite.publishMessageToTopic,
+		nil)
 }
 
 func (suite *testSuite) TestResourcesCreatedByFunction() {
@@ -192,7 +193,8 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 			"t4": {NumMessages: 3},
 			"t5": {NumMessages: 3},
 		},
-		suite.publishMessageToTopic)
+		suite.publishMessageToTopic,
+		nil)
 }
 
 func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {

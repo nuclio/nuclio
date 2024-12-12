@@ -129,7 +129,8 @@ func (suite *testSuite) TestMultipleTopics() {
 			"a2/b2/c3/c4": {NumMessages: 3},
 		},
 		nil,
-		suite.publishMessageToTopic)
+		suite.publishMessageToTopic,
+		nil)
 }
 
 func (suite *testSuite) getCreateFunctionOptionsWithMQTTTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
