@@ -135,7 +135,8 @@ func (suite *testConfluentSuite) TestReceiveRecords() {
 			},
 		},
 		nil,
-		suite.publishMessageToTopic)
+		suite.publishMessageToTopic,
+		nil)
 }
 
 func (suite *testConfluentSuite) publishMessageToTopic(topic string, body string) error {

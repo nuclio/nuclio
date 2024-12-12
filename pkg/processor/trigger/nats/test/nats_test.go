@@ -70,7 +70,8 @@ func (suite *testSuite) TestPostEvent() {
 			suite.topicName: {NumMessages: 20},
 		},
 		nil,
-		suite.publishMessageToTopic)
+		suite.publishMessageToTopic,
+		nil)
 }
 
 func (suite *testSuite) getDeployOptions() *platform.CreateFunctionOptions {
