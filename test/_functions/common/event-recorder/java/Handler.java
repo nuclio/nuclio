@@ -64,7 +64,7 @@ public class Handler implements EventHandler {
     }
 
     private boolean invokedByCron(Event event) {
-        String header = getHeader(event, "x-nuclio-invoke-trigger");
+        String header = getHeader(event, "X-Nuclio-Invoke-Trigger");
         return "cron".equals(header);
     }
 

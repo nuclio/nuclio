@@ -141,7 +141,8 @@ func (suite *testSuite) TearDownSuite() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	numberOfCommittedMessages := 0
+	// we don't reset it every test, because all tests use the same topic to write to
+	expectedNumberOfCommittedMessages := 0
 	for _, testCase := range []struct {
 		name         string
 		functionPath string
@@ -172,7 +173,7 @@ func (suite *testSuite) TestReceiveRecords() {
 			createFunctionOptions := suite.GetDeployOptions(functionName, testCase.functionPath)
 			createFunctionOptions.FunctionConfig.Spec.Runtime = testCase.runtime
 			if testCase.handler != "" {
-				createFunctionOptions.FunctionConfig.Spec.Handler = "Handler"
+				createFunctionOptions.FunctionConfig.Spec.Handler = testCase.handler
 			}
 			createFunctionOptions.FunctionConfig.Spec.Build.Dependencies = testCase.dependencies
 			createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
@@ -194,7 +195,7 @@ func (suite *testSuite) TestReceiveRecords() {
 				},
 			}
 
-			numberOfCommittedMessages += int(suite.NumPartitions)
+			expectedNumberOfCommittedMessages += int(suite.NumPartitions)
 
 			triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
 				suite.BrokerHost,
@@ -208,8 +209,8 @@ func (suite *testSuite) TestReceiveRecords() {
 				nil,
 				suite.publishMessageToTopic,
 				&triggertest.PostPublishChecks{
-					EnsureAckFunction:                suite.ensureNumberOfCommittedOffsets,
-					ExpectedNumberOfCommittedOffsets: numberOfCommittedMessages,
+					ValidateAckFunction:              suite.validateNumberOfCommittedOffsets,
+					ExpectedNumberOfCommittedOffsets: expectedNumberOfCommittedMessages,
 					ConsumerGroup:                    functionName,
 				})
 		})
@@ -303,7 +304,7 @@ func (suite *testSuite) TestExplicitAck() {
 
 				// ensure commit offset is 0
 				suite.Logger.Debug("Getting commit offset before processing")
-				commitOffset := suite.getLastCommitOffset(deployResult.Port)
+				commitOffset := suite.getLastCommitOffsetFromFunction(deployResult.Port)
 				suite.Require().Equal(commitOffset, 0, "Commit offset is not 0")
 
 				// send http request "start processing"
@@ -331,7 +332,7 @@ func (suite *testSuite) TestExplicitAck() {
 
 				// ensure commit offset is 9 (10 in zero-indexed offsets)
 				suite.Logger.Debug("Getting commit offset after processing")
-				commitOffset = suite.getLastCommitOffset(deployResult.Port)
+				commitOffset = suite.getLastCommitOffsetFromFunction(deployResult.Port)
 				suite.Require().Equal(commitOffset, 9, "Commit offset is not 10")
 
 				return true
@@ -738,18 +739,18 @@ func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.Create
 	return receivedBodies
 }
 
-func (suite *testSuite) ensureNumberOfCommittedOffsets(consumerGroup string, topic string, expectedNumberOfCommittedOffsets int) bool {
+func (suite *testSuite) validateNumberOfCommittedOffsets(consumerGroup string, topic string, expectedNumberOfCommittedOffsets int) bool {
 	if topic == "" {
 		topic = suite.topic
 	}
-	numberOfCommittedOffsets, err := suite.getNumberOfCommittedOffsets(consumerGroup, topic, int(suite.NumPartitions))
+	numberOfCommittedOffsets, err := suite.getNumberOfCommittedOffsetsFromBroker(consumerGroup, topic, int(suite.NumPartitions))
 	if err != nil {
 		return false
 	}
 	return int(numberOfCommittedOffsets) == expectedNumberOfCommittedOffsets
 }
 
-func (suite *testSuite) getNumberOfCommittedOffsets(consumerGroup, topic string, partitions int) (int64, error) {
+func (suite *testSuite) getNumberOfCommittedOffsetsFromBroker(consumerGroup, topic string, partitions int) (int64, error) {
 	// Create an OffsetFetchRequest
 	request := &sarama.OffsetFetchRequest{
 		ConsumerGroup: consumerGroup,
@@ -763,7 +764,7 @@ func (suite *testSuite) getNumberOfCommittedOffsets(consumerGroup, topic string,
 	// Send the request to the broker
 	response, err := suite.broker.FetchOffset(request)
 	if err != nil {
-		return -1, fmt.Errorf("failed to fetch offsets: %w", err)
+		return -1, fmt.Errorf("Failed to fetch offsets: %w", err)
 	}
 
 	// Sum committed offsets across all partitions
@@ -771,10 +772,10 @@ func (suite *testSuite) getNumberOfCommittedOffsets(consumerGroup, topic string,
 	for partition := 0; partition < partitions; partition++ {
 		block := response.GetBlock(topic, int32(partition))
 		if block == nil {
-			return -1, fmt.Errorf("no offset block returned for topic %s partition %d", topic, partition)
+			return -1, fmt.Errorf("No offset block returned for topic %s partition %d", topic, partition)
 		}
 		if block.Err != sarama.ErrNoError {
-			return -1, fmt.Errorf("error in offset block for partition %d: %v", partition, block.Err)
+			return -1, fmt.Errorf("Error in offset block for partition %d: %v", partition, block.Err)
 		}
 		if block.Offset != -1 {
 			totalOffset += block.Offset
@@ -784,7 +785,7 @@ func (suite *testSuite) getNumberOfCommittedOffsets(consumerGroup, topic string,
 	return totalOffset, nil
 }
 
-func (suite *testSuite) getLastCommitOffset(port int) int {
+func (suite *testSuite) getLastCommitOffsetFromFunction(port int) int {
 	body := map[string]string{
 		"resource": "last_committed_offset",
 	}

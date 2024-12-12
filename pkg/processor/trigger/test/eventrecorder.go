@@ -46,7 +46,7 @@ type TopicMessages struct {
 }
 
 type PostPublishChecks struct {
-	EnsureAckFunction                func(consumerGroup string, topic string, expectedNumberOfCommittedOffsets int) bool
+	ValidateAckFunction              func(consumerGroup string, topic string, expectedNumberOfCommittedOffsets int) bool
 	ExpectedNumberOfCommittedOffsets int
 	ConsumerGroup                    string
 }
@@ -128,17 +128,16 @@ func InvokeEventRecorder(
 		// compare bodies
 		suite.Require().Equal(sentBodies, receivedBodies)
 
-		if postPublishChecks != nil {
-			if postPublishChecks.EnsureAckFunction != nil {
-				err = common.RetryUntilSuccessful(
-					60*time.Second,
-					2*time.Second,
-					func() bool {
-						return postPublishChecks.EnsureAckFunction(postPublishChecks.ConsumerGroup, "", postPublishChecks.ExpectedNumberOfCommittedOffsets)
-					},
-				)
-				suite.Require().NoError(err)
-			}
+		if postPublishChecks != nil && postPublishChecks.ValidateAckFunction != nil {
+			// it might take time to ACK on messages, so we give it some time to happen
+			err = common.RetryUntilSuccessful(
+				60*time.Second,
+				2*time.Second,
+				func() bool {
+					return postPublishChecks.ValidateAckFunction(postPublishChecks.ConsumerGroup, "", postPublishChecks.ExpectedNumberOfCommittedOffsets)
+				},
+			)
+			suite.Require().NoError(err)
 		}
 		return true
 	})
