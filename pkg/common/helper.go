@@ -230,11 +230,11 @@ func retryUntilSuccessful(duration time.Duration,
 	if lastErr != nil {
 
 		// wrap last error
-		return errors.Wrapf(lastErr, timedOutErrorMessage)
+		return errors.Wrapf(lastErr, "%s", timedOutErrorMessage)
 	}
 
 	// duration expired without any last error
-	return errors.Errorf(timedOutErrorMessage)
+	return errors.Errorf("%s", timedOutErrorMessage)
 }
 
 // RunningInContainer returns true if currently running in a container, false otherwise

@@ -23,8 +23,6 @@ linters:
     - misspell
     - staticcheck
     - unconvert
-    - vet
-    - vetshadow
     - errcheck
     - govet
     - typecheck

@@ -84,6 +84,7 @@ func (suite *ShellRunnerTestSuite) TestStream() {
 			ctx, cancel := context.WithCancel(context.Background())
 			fileReader, err := suite.shellRunner.Stream(ctx,
 				&RunOptions{},
+				"%s",
 				testCase.streamCommand,
 			)
 			suite.Require().NoError(err)

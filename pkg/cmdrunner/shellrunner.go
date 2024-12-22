@@ -55,7 +55,7 @@ func (sr *ShellRunner) RunWithPositionalAndNamedArguments(runOptions *RunOptions
 	encodedCommand := strings.Join(argsStringSlice, " ")
 
 	sr.logger.DebugWith("Running command", "encodedCommand", encodedCommand)
-	return sr.Run(runOptions, encodedCommand)
+	return sr.Run(runOptions, "%s", encodedCommand)
 }
 
 func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error) {
