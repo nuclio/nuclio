@@ -1,0 +1,285 @@
+# Copyright 2023 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+import select
+import sys
+import traceback
+
+import nuclio_sdk
+import nuclio_sdk.helpers
+import nuclio_sdk.json_encoder
+import nuclio_sdk.logger
+from wrapper_common import (
+    WrapperFatalException,
+    AbstractWrapper,
+    create_logger,
+    get_parser_with_common_args)
+import socket
+import asyncio
+import selectors
+
+
+class Wrapper(AbstractWrapper):
+    def __init__(self,
+                 logger,
+                 loop,
+                 handler,
+                 control_socket_path,
+                 platform_kind,
+                 namespace=None,
+                 worker_id=None,
+                 trigger_kind=None,
+                 trigger_name=None,
+                 decode_event_strings=True,
+                 port=1337,
+                 max_connections=None):
+        super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
+                         trigger_name, decode_event_strings)
+
+        self._port = port
+        self._host = "0.0.0.0"
+        # Max file descriptors allowed by the OS
+        self._max_connections = max_connections if max_connections else os.sysconf("SC_OPEN_MAX")
+        self.selector = selectors.DefaultSelector()
+        self.connections = {}  # Track active sockets
+        self.tasks = {}  # Track active asyncio tasks
+        self.shutdown_event = asyncio.Event()
+
+    async def _process_connection(self, sock):
+        """Process all events for a single connection."""
+        try:
+            while True:
+                # Resolve event message length
+                self._logger.debug("Got event from socket")
+                # resolve event message length
+                event_message_length = await self._resolve_event_message_length(sock)
+                self._logger.debug("Got len")
+
+                # Resolve event message
+                event = await self._resolve_event(sock, event_message_length)
+
+                # Handle the event
+                if not self._discard_events:
+                    try:
+                        await self._handle_event(event, sock)
+                    except BaseException as exc:
+                        await self._on_handle_event_error(exc)
+                else:
+                    self._logger.debug("Event discarded")
+
+                # Release event reference
+                del event
+
+        except (ConnectionResetError, asyncio.IncompleteReadError):
+            self._logger.info("Client disconnected")
+        except WrapperFatalException as exc:
+            await self._on_serving_error(exc, sock)
+
+            # explode, unrecoverable exception
+            await self._shutdown(error_code=1)
+
+        except UnicodeDecodeError as exc:
+
+            # reset unpacker to avoid consecutive errors
+            # this may happen when msgpack fails to decode a non-utf8 events
+            self._unpacker = self._resolve_unpacker()
+            await self._on_serving_error(exc, sock)
+
+        except asyncio.CancelledError:
+            self._logger.debug('Waiting for event message was interrupted by a signal')
+        except Exception as exc:
+            await self._on_serving_error(exc, sock)
+        finally:
+            if self._is_drain_needed:
+                result = self._call_drain_handler()
+                if asyncio.iscoroutine(result):
+                    await result
+
+            if self._is_termination_needed:
+                result = self._call_termination_handler()
+                if asyncio.iscoroutine(result):
+                    await result
+            self.cleanup_connection(sock)
+
+    def cleanup_connection(self, sock):
+        """Cleanup resources for a disconnected client."""
+        fileno = sock.fileno()
+        if fileno in self.connections:
+            self.selector.unregister(fileno)
+            del self.connections[fileno]
+            self._logger.info(f"Connection {fileno} removed from tracking")
+        sock.close()
+
+        # Cancel and remove the associated task
+        if fileno in self.tasks:
+            task = self.tasks.pop(fileno)
+            if not task.done():
+                task.cancel()
+            self._logger.info(f"Task for connection {fileno} cancelled and removed")
+
+    async def start(self):
+        """Start the server."""
+        # Create server socket
+        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_sock.bind((self._host, self._port))
+        server_sock.listen()
+        server_sock.setblocking(False)
+
+        self._logger.info(f"Server started on {self._host}:{self._port}")
+
+        # Register server socket with epoll
+        self.selector.register(server_sock, selectors.EVENT_READ)
+        self.connections[server_sock.fileno()] = server_sock
+
+        try:
+            while True:
+                events = await self.select_events()  # Now awaiting the select operation
+                for key, event in events:
+                    sock = key.fileobj
+                    if sock == server_sock:
+                        # Accept new connection
+                        client_sock, addr = server_sock.accept()
+                        self._logger.info(f"Accepted connection from {addr}")
+                        client_sock.setblocking(False)
+                        self.selector.register(client_sock, selectors.EVENT_READ)
+                        self.connections[client_sock.fileno()] = client_sock
+                        task = self._loop.create_task(self._process_connection(client_sock))
+                        self.tasks[client_sock.fileno()] = task
+                    elif event & selectors.EVENT_READ:
+                        #self._logger.info(f"Get read event: {event}")
+                        pass
+                    else:
+                        self._logger.error(f"Unexpected event: {event}")
+        except KeyboardInterrupt:
+            self._logger.info("Shutting down server")
+        finally:
+            self._logger.info("Closing all connections")
+            for sock in self.connections.values():
+                self.selector.unregister(sock)
+                sock.close()
+
+    async def select_events(self, timeout=1):
+        # Run the selector.select in the default executor (this is a blocking operation)
+        events = await self._loop.run_in_executor(None, self.selector.select, timeout)
+        return events
+
+    async def _accept_new_connection(self, server_sock):
+        """Accept a new client connection."""
+        client_sock, addr = server_sock.accept()
+        self._logger.info(f"Accepted connection from {addr}")
+        client_sock.setblocking(False)
+        self.epoll.register(client_sock.fileno(), select.EPOLLIN)
+        self.connections[client_sock.fileno()] = client_sock
+        task = asyncio.create_task(self._process_connection(client_sock))
+        self.tasks[client_sock.fileno()] = task
+
+    async def initialize(self):
+
+        # call init_context
+        await self._initialize_context()
+
+        # register to the SIGUSR1 and SIGUSR2 signals, used to signal termination/draining respectively
+        self._register_to_signal()
+
+        # TODO: write this into each connection
+        # await self._write_packet_to_processor(self._event_sock, 's')
+        await self._send_data_on_control_socket({
+            'kind': 'wrapperInitialized',
+            'attributes': {'ready': 'true'}
+        })
+
+    async def _shutdown(self, error_code=0):
+        """Shutdown the server and cleanup resources."""
+        self._logger.info("Shutting down...")
+        try:
+            self.shutdown_event.set()
+
+            # Cancel all active tasks
+            for fileno, task in list(self.tasks.items()):
+                self._logger.info(f"Cancelling task for connection {fileno}")
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            # Close all active sockets
+            for fileno, sock in list(self.connections.items()):
+                self._logger.info(f"Closing connection {fileno}")
+                self.epoll.unregister(fileno)
+                sock.close()
+
+            # Cleanup epoll and exit
+            self.epoll.close()
+        finally:
+            super()._shutdown()
+
+
+def parse_args():
+    parser = get_parser_with_common_args()
+    return parser.parse_args()
+
+
+def run_wrapper():
+    # parse arguments
+    args = parse_args()
+
+    # create a logger instance. note: there are no outputters until socket is created
+    root_logger = create_logger(args.log_level)
+
+    # add a logger output that is in a JSON format. we'll remove it once we have a socket output. this
+    # way all output goes to stdout until a socket is available and then switches exclusively to socket
+    root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.JSONFormatter())
+
+    # bind worker_id to the logger
+    root_logger.bind(worker_id=args.worker_id)
+
+    loop = asyncio.get_event_loop()
+
+    try:
+
+        # create a new wrapper
+        wrapper_instance = Wrapper(root_logger,
+                                   loop,
+                                   args.handler,
+                                   args.control_socket_path,
+                                   args.platform_kind,
+                                   args.namespace,
+                                   args.worker_id,
+                                   args.trigger_kind,
+                                   args.trigger_name,
+                                   args.decode_event_strings)
+
+    except BaseException as exc:
+        root_logger.error_with('Caught unhandled exception while initializing',
+                               err=str(exc),
+                               traceback=traceback.format_exc())
+
+        raise SystemExit(1)
+
+    try:
+        loop.run_until_complete(wrapper_instance.initialize())
+        loop.run_until_complete(wrapper_instance.start())
+    finally:
+
+        # finalize all scheduled asynchronous generators reliably
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
+
+
+if __name__ == '__main__':
+    # run the wrapper
+    run_wrapper()
