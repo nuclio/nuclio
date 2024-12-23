@@ -54,7 +54,7 @@ require (
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.1.2
 	golang.org/x/image v0.18.0
-	golang.org/x/net v0.25.0
+	golang.org/x/net v0.33.0
 	golang.org/x/oauth2 v0.11.0
 	golang.org/x/sync v0.10.0
 	golang.org/x/text v0.21.0
