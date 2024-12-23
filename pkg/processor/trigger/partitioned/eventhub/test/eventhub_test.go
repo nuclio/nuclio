@@ -84,7 +84,8 @@ func (suite *testSuite) TestReceiveRecords() {
 		createFunctionOptions,
 		map[string]triggertest.TopicMessages{"": {NumMessages: 3}},
 		nil,
-		suite.publishMessageToTopic)
+		suite.publishMessageToTopic,
+		nil)
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {

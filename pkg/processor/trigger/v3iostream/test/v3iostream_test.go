@@ -295,7 +295,8 @@ func (suite *testSuite) TestReceiveRecords() {
 			},
 		},
 		nil,
-		suite.writeMessageToStream)
+		suite.writeMessageToStream,
+		nil)
 }
 
 // before running this test - create a function on your system with numOfReplicas and a v3iostream trigger,

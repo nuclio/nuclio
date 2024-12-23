@@ -22,6 +22,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -34,6 +35,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/controlmessagebroker"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -54,7 +57,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 
 	newTestRuntime := &testRuntime{}
 
-	newTestRuntime.AbstractRuntime, err = NewAbstractRuntime(parentLogger.GetChild("logger"),
+	newTestRuntime.AbstractRuntime, err = NewAbstractRuntime(parentLogger.GetChild("Logger"),
 		configuration,
 		newTestRuntime)
 
@@ -62,18 +65,26 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	newTestRuntime.AbstractRuntime.ControlMessageBroker = NewRpcControlMessageBroker(nil, parentLogger, nil)
+	newTestRuntime.AbstractRuntime.configuration.ControlMessageBroker = controlmessagebroker.NewRpcControlMessageBroker(nil, parentLogger, nil).AbstractControlMessageBroker
 
 	return newTestRuntime, nil
 }
 
-func (r *testRuntime) RunWrapper(eventSocketPath, controlSocketPath string) (*os.Process, error) {
+func (r *testRuntime) RunWrapper(eventSocketPaths []string, controlSocketPath string) (*os.Process, error) {
+	if len(eventSocketPaths) > 1 {
+		return nil, fmt.Errorf("test runtime doesn't support multiple socket processing")
+	}
 	var err error
 	cmd := exec.Command("sleep", "999999")
 	if err = cmd.Start(); err != nil {
 		return nil, err
 	}
 	r.wrapperProcess = cmd.Process
+
+	var eventSocketPath string
+	if len(eventSocketPaths) == 1 {
+		eventSocketPath = eventSocketPaths[0]
+	}
 
 	// Connect to runtime
 	r.eventConn, err = net.Dial("unix", eventSocketPath)
@@ -91,8 +102,8 @@ func (r *testRuntime) RunWrapper(eventSocketPath, controlSocketPath string) (*os
 	return cmd.Process, nil
 }
 
-func (r *testRuntime) GetEventEncoder(writer io.Writer) EventEncoder {
-	return NewEventJSONEncoder(r.Logger, writer)
+func (r *testRuntime) GetEventEncoder(writer io.Writer) encoder.EventEncoder {
+	return encoder.NewEventJSONEncoder(r.Logger, writer)
 }
 
 type RuntimeSuite struct {
@@ -197,50 +208,16 @@ func (suite *RuntimeSuite) TestReadControlMessage() {
 
 	// read control message from buffer
 	buf := bufio.NewReader(bytes.NewReader(byteMessage))
-	reslovedControlMessage, err := suite.testRuntimeInstance.ControlMessageBroker.ReadControlMessage(buf)
+	messageBroker := controlmessagebroker.NewRpcControlMessageBroker(
+		nil,
+		suite.createLogger(),
+		suite.testRuntimeInstance.configuration.ControlMessageBroker,
+	)
+	resolvedControlMessage, err := messageBroker.ReadControlMessage(buf)
 
 	// check if control message was read correctly
 	suite.Require().NoError(err, "Can't read control message")
-	suite.Require().Equal(controlMessage, reslovedControlMessage, "Read control message doesn't match")
-}
-
-func (suite *RuntimeSuite) TestUnmarshalResponseData() {
-	for _, testCase := range []struct {
-		name               string
-		data               []byte
-		unmarshalledResult []*result
-	}{
-		{
-			name: "single-result",
-			data: []byte("{\"body\": \"123\", \"content_type\": \"123\", \"headers\": {}, \"status_code\": 200, \"body_encoding\": \"text\"}"),
-			unmarshalledResult: []*result{{
-				StatusCode:   200,
-				ContentType:  "123",
-				Body:         "123",
-				BodyEncoding: "text",
-				DecodedBody:  []uint8{49, 50, 51},
-				Headers:      map[string]interface{}{},
-			}},
-		},
-		{
-			name: "batch-result",
-			data: []byte("[{\"body\": \"123\", \"content_type\": \"123\", \"headers\": {}, \"status_code\": 200, \"body_encoding\": \"text\"}]"),
-			unmarshalledResult: []*result{{
-				StatusCode:   200,
-				ContentType:  "123",
-				Body:         "123",
-				BodyEncoding: "text",
-				DecodedBody:  []uint8{49, 50, 51},
-				Headers:      map[string]interface{}{},
-			}},
-		},
-	} {
-		suite.Run(testCase.name, func() {
-			unmarshalledResults := newBatchedResults()
-			unmarshalResponseData(suite.createLogger(), testCase.data, unmarshalledResults)
-			suite.Require().Equal(unmarshalledResults.results, testCase.unmarshalledResult)
-		})
-	}
+	suite.Require().Equal(controlMessage, resolvedControlMessage, "Read control message doesn't match")
 }
 
 func (suite *RuntimeSuite) TearDownTest() {
@@ -258,7 +235,8 @@ func (suite *RuntimeSuite) createLogger() logger.Logger {
 
 func (suite *RuntimeSuite) createConfig(loggerInstance logger.Logger) *runtime.Configuration {
 	return &runtime.Configuration{
-		FunctionLogger: loggerInstance,
+		FunctionLogger:       loggerInstance,
+		ControlMessageBroker: controlcommunication.NewAbstractControlMessageBroker(),
 		Configuration: &processor.Configuration{
 			Config: functionconfig.Config{
 				Meta: functionconfig.Meta{

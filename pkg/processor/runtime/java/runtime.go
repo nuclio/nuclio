@@ -17,6 +17,7 @@ limitations under the License.
 package java
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -25,6 +26,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/connection"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -56,7 +59,12 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newJavaRuntime, nil
 }
 
-func (j *java) RunWrapper(port, controlPort string) (*os.Process, error) {
+func (j *java) RunWrapper(ports []string, controlPort string) (*os.Process, error) {
+
+	if len(ports) != 1 {
+		return nil, fmt.Errorf("Java runtime doesn't support multiple ports processing")
+	}
+
 	jvmOptions, err := j.getJVMOptions()
 	if err != nil {
 		return nil, err
@@ -66,7 +74,7 @@ func (j *java) RunWrapper(port, controlPort string) (*os.Process, error) {
 	args = append(args, []string{
 		"-jar", j.wrapperJarPath(),
 		"-handler", j.handlerName(),
-		"-port", port,
+		"-port", ports[0],
 		"-workerid", strconv.Itoa(j.configuration.WorkerID),
 	}...)
 
@@ -83,8 +91,8 @@ func (j *java) RunWrapper(port, controlPort string) (*os.Process, error) {
 }
 
 // GetSocketType returns the type of socket the runtime works with (unix/tcp)
-func (j *java) GetSocketType() rpc.SocketType {
-	return rpc.TCPSocket
+func (j *java) GetSocketType() connection.SocketType {
+	return connection.TCPSocket
 }
 
 func (j *java) wrapperJarPath() string {
@@ -136,6 +144,6 @@ func (j *java) getJVMOptions() ([]string, error) {
 	return jvmOptions, nil
 }
 
-func (j *java) GetEventEncoder(writer io.Writer) rpc.EventEncoder {
-	return rpc.NewEventJSONEncoder(j.Logger, writer)
+func (j *java) GetEventEncoder(writer io.Writer) encoder.EventEncoder {
+	return encoder.NewEventJSONEncoder(j.Logger, writer)
 }

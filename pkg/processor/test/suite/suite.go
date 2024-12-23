@@ -605,9 +605,13 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 			functionConfig = deployResult.UpdatedFunctionConfig
 		}
 
-		suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{ // nolint: errcheck
+		if err := suite.Platform.DeleteFunction(suite.ctx, &platform.DeleteFunctionOptions{
 			FunctionConfig: functionConfig,
-		})
+		}); err != nil {
+			suite.Logger.WarnWith("Failed to delete function",
+				"functionName", createFunctionOptions.FunctionConfig.Meta.Name,
+				"error", err)
+		}
 	}()
 
 	return suite.deployFunction(createFunctionOptions, onAfterContainerRun)

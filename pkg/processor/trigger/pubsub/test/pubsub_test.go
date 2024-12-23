@@ -135,7 +135,8 @@ func (suite *testSuite) TestReceiveRecords() {
 			},
 		},
 		nil,
-		suite.publishMessageToTopic)
+		suite.publishMessageToTopic,
+		nil)
 }
 
 // GetContainerRunInfo returns information about the broker container

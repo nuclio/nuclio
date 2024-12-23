@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
@@ -2060,8 +2061,14 @@ func (lc *lazyClient) generateCronTriggerCronJobSpec(ctx context.Context,
 		headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, headerKey, headerValue)
 	}
 
-	// add default header
-	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\"", headersAsCurlArg, "x-nuclio-invoke-trigger", "cron")
+	// add default headers
+	headersAsCurlArg = fmt.Sprintf("%s --header \"%s: %s\" --header \"%s: %s\"",
+		headersAsCurlArg,
+		headers.InvokeTrigger,
+		"cron",
+		headers.TargetName,
+		function.Name,
+	)
 
 	functionAddress, err := lc.getCronTriggerInvocationURL(resources, function.Namespace)
 	if err != nil {

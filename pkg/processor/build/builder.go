@@ -174,6 +174,7 @@ func (b *Builder) Build(ctx context.Context, options *platform.CreateFunctionBui
 		"Function configuration found in directory",
 		"configFilePath", configFilePath)
 	if common.IsFile(configFilePath) {
+		// TODO: reconsider if we should read it again if it was already enriched in nuctl
 		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
 		}

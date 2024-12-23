@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rpc
+package controlmessagebroker
 
 import (
 	"bufio"
@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -29,12 +30,12 @@ import (
 
 type rpcControlMessageBroker struct {
 	*controlcommunication.AbstractControlMessageBroker
-	ControlMessageEventEncoder EventEncoder
+	ControlMessageEventEncoder encoder.EventEncoder
 	logger                     logger.Logger
 }
 
 // NewRpcControlMessageBroker creates a new RPC control message broker
-func NewRpcControlMessageBroker(encoder EventEncoder, logger logger.Logger, abstractControlMessageBroker *controlcommunication.AbstractControlMessageBroker) *rpcControlMessageBroker {
+func NewRpcControlMessageBroker(encoder encoder.EventEncoder, logger logger.Logger, abstractControlMessageBroker *controlcommunication.AbstractControlMessageBroker) *rpcControlMessageBroker {
 
 	if abstractControlMessageBroker == nil {
 		abstractControlMessageBroker = controlcommunication.NewAbstractControlMessageBroker()

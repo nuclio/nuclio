@@ -99,7 +99,7 @@ class NuclioPatcher:
             self._log_pod_names()
 
         self._logger.info(
-            "Successfully patched branch successfully to remote (Note this may not survive system restarts)"
+            "Successfully patched local branch to remote (Note this may not survive system restarts)"
         )
 
     def _validate_config(self):

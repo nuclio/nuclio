@@ -111,7 +111,6 @@ func (suite *testSuite) SetupSuite() {
 	// connect to the broker
 	err = suite.broker.Open(brokerConfig)
 	suite.Require().NoError(err, "Failed to open broker")
-
 	// create topic
 	createTopicsResponse, err := suite.broker.CreateTopics(&sarama.CreateTopicsRequest{
 		TopicDetails: map[string]*sarama.TopicDetail{
@@ -142,37 +141,80 @@ func (suite *testSuite) TearDownSuite() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	functionName := "event_recorder"
-	createFunctionOptions := suite.GetDeployOptions(functionName, suite.FunctionPaths["python"])
-	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
-		Attributes: map[string]interface{}{
-			"network": suite.BrokerContainerNetworkName,
+	// we don't reset it every test, because all tests use the same topic to write to
+	expectedNumberOfCommittedMessages := 0
+	for _, testCase := range []struct {
+		name         string
+		functionPath string
+		runtime      string
+		dependencies []string
+		handler      string
+	}{
+		{
+			name:         "python-runtime",
+			functionPath: suite.FunctionPaths["python"],
+			runtime:      "python",
 		},
-	}
+		{
+			name:         "golang-runtime",
+			functionPath: suite.FunctionPaths["golang"],
+			runtime:      "golang",
+		},
+		{
+			name:         "java-runtime",
+			functionPath: suite.FunctionPaths["java"],
+			runtime:      "java",
+			dependencies: []string{"group: org.json, name: json, version: 20210307"},
+			handler:      "Handler",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			functionName := "event_recorder"
+			createFunctionOptions := suite.GetDeployOptions(functionName, testCase.functionPath)
+			createFunctionOptions.FunctionConfig.Spec.Runtime = testCase.runtime
+			if testCase.handler != "" {
+				createFunctionOptions.FunctionConfig.Spec.Handler = testCase.handler
+			}
+			createFunctionOptions.FunctionConfig.Spec.Build.Dependencies = testCase.dependencies
+			createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
+				Attributes: map[string]interface{}{
+					"network": suite.BrokerContainerNetworkName,
+				},
+			}
 
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"my-kafka": {
-			Kind: "kafka-cluster",
-			URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
-			Attributes: map[string]interface{}{
-				"topics":        []string{suite.topic},
-				"consumerGroup": functionName,
-				"initialOffset": suite.initialOffset,
-			},
-			WorkerTerminationTimeout: "5s",
-		},
-	}
+			createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+				"my-kafka": {
+					Kind: "kafka-cluster",
+					URL:  fmt.Sprintf("%s:9090", suite.brokerContainerName),
+					Attributes: map[string]interface{}{
+						"topics":        []string{suite.topic},
+						"consumerGroup": functionName,
+						"initialOffset": suite.initialOffset,
+					},
+					WorkerTerminationTimeout: "5s",
+				},
+			}
 
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
-		suite.BrokerHost,
-		createFunctionOptions,
-		map[string]triggertest.TopicMessages{
-			suite.topic: {
-				NumMessages: int(suite.NumPartitions),
-			},
-		},
-		nil,
-		suite.publishMessageToTopic)
+			expectedNumberOfCommittedMessages += int(suite.NumPartitions)
+
+			triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+				suite.BrokerHost,
+				createFunctionOptions,
+				map[string]triggertest.TopicMessages{
+					suite.topic: {
+						NumMessages:         int(suite.NumPartitions),
+						CustomMessagePrefix: testCase.runtime,
+					},
+				},
+				nil,
+				suite.publishMessageToTopic,
+				&triggertest.PostPublishChecks{
+					ValidateAckFunction:              suite.validateNumberOfCommittedOffsets,
+					ExpectedNumberOfCommittedOffsets: expectedNumberOfCommittedMessages,
+					ConsumerGroup:                    functionName,
+				})
+		})
+	}
 }
 
 func (suite *testSuite) TestExplicitAck() {
@@ -262,7 +304,7 @@ func (suite *testSuite) TestExplicitAck() {
 
 				// ensure commit offset is 0
 				suite.Logger.Debug("Getting commit offset before processing")
-				commitOffset := suite.getLastCommitOffset(deployResult.Port)
+				commitOffset := suite.getLastCommitOffsetFromFunction(deployResult.Port)
 				suite.Require().Equal(commitOffset, 0, "Commit offset is not 0")
 
 				// send http request "start processing"
@@ -290,7 +332,7 @@ func (suite *testSuite) TestExplicitAck() {
 
 				// ensure commit offset is 9 (10 in zero-indexed offsets)
 				suite.Logger.Debug("Getting commit offset after processing")
-				commitOffset = suite.getLastCommitOffset(deployResult.Port)
+				commitOffset = suite.getLastCommitOffsetFromFunction(deployResult.Port)
 				suite.Require().Equal(commitOffset, 9, "Commit offset is not 10")
 
 				return true
@@ -697,7 +739,53 @@ func (suite *testSuite) resolveReceivedEventBodies(deployResult *platform.Create
 	return receivedBodies
 }
 
-func (suite *testSuite) getLastCommitOffset(port int) int {
+func (suite *testSuite) validateNumberOfCommittedOffsets(consumerGroup string, topic string, expectedNumberOfCommittedOffsets int) bool {
+	if topic == "" {
+		topic = suite.topic
+	}
+	numberOfCommittedOffsets, err := suite.getNumberOfCommittedOffsetsFromBroker(consumerGroup, topic, int(suite.NumPartitions))
+	if err != nil {
+		return false
+	}
+	return int(numberOfCommittedOffsets) == expectedNumberOfCommittedOffsets
+}
+
+func (suite *testSuite) getNumberOfCommittedOffsetsFromBroker(consumerGroup, topic string, partitions int) (int64, error) {
+	// Create an OffsetFetchRequest
+	request := &sarama.OffsetFetchRequest{
+		ConsumerGroup: consumerGroup,
+		Version:       1,
+	}
+
+	for partition := 0; partition < partitions; partition++ {
+		request.AddPartition(topic, int32(partition))
+	}
+
+	// Send the request to the broker
+	response, err := suite.broker.FetchOffset(request)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to fetch offsets: %w", err)
+	}
+
+	// Sum committed offsets across all partitions
+	var totalOffset int64 = 0
+	for partition := 0; partition < partitions; partition++ {
+		block := response.GetBlock(topic, int32(partition))
+		if block == nil {
+			return -1, fmt.Errorf("No offset block returned for topic %s partition %d", topic, partition)
+		}
+		if block.Err != sarama.ErrNoError {
+			return -1, fmt.Errorf("Error in offset block for partition %d: %v", partition, block.Err)
+		}
+		if block.Offset != -1 {
+			totalOffset += block.Offset
+		}
+	}
+
+	return totalOffset, nil
+}
+
+func (suite *testSuite) getLastCommitOffsetFromFunction(port int) int {
 	body := map[string]string{
 		"resource": "last_committed_offset",
 	}
