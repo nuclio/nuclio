@@ -70,6 +70,10 @@ func (m *Manager) GenerateResources(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to compile ingress annotations")
 	}
 
+	if spec.IngressClassName == "" {
+		spec.IngressClassName = m.platformConfiguration.Kube.DefaultHTTPIngressClassName
+	}
+
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        spec.Name,
@@ -78,6 +82,7 @@ func (m *Manager) GenerateResources(ctx context.Context,
 			Labels:      spec.Labels,
 		},
 		Spec: networkingv1.IngressSpec{
+			IngressClassName: &spec.IngressClassName,
 			Rules: []networkingv1.IngressRule{
 				{
 					Host: spec.Host,
@@ -295,9 +300,7 @@ func (m *Manager) compileAnnotations(ctx context.Context, spec Spec) (map[string
 	var err error
 	var basicAuthSecret *v1.Secret
 
-	ingressAnnotations := map[string]string{
-		"kubernetes.io/ingress.class": "nginx",
-	}
+	ingressAnnotations := map[string]string{}
 	if spec.RewriteTarget != "" {
 		ingressAnnotations["nginx.ingress.kubernetes.io/rewrite-target"] = spec.RewriteTarget
 	}

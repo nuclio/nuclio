@@ -318,9 +318,6 @@ func (lc *lazyClient) getServiceNameAndPort(upstream *platform.APIGatewayUpstrea
 func (lc *lazyClient) resolveCommonAnnotations(canaryDeployment bool, upstreamPercentage int) map[string]string {
 	annotations := map[string]string{}
 
-	// add nginx specific annotations
-	annotations["kubernetes.io/ingress.class"] = "nginx"
-
 	// add canary deployment specific annotations
 	if canaryDeployment {
 		annotations["nginx.ingress.kubernetes.io/canary"] = "true"

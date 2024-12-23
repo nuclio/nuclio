@@ -284,6 +284,7 @@ type ResourceRequirements struct {
 const (
 	DefaultStreamMonitoringWebapiURL = "http://v3io-webapi:8081"
 	DefaultV3ioRequestConcurrency    = 64
+	DefaultHTTPIngressClassName      = "nginx"
 )
 
 type StreamMonitoringConfig struct {

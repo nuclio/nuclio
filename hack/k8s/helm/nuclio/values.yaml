@@ -201,6 +201,7 @@ dashboard:
     #  - secretName: nuclio-tls
     #    hosts:
     #      - nuclio.local
+    ingressClassName: ""
 
   authConfig:
 
