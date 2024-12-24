@@ -1,2 +1,0 @@
--r common.txt
-msgpack==0.6.1  --no-binary=msgpack
