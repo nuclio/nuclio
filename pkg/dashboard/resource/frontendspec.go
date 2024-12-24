@@ -84,6 +84,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	validFunctionPriorityClassNames := fsr.resolveValidFunctionPriorityClassNames()
 	defaultFunctionPodResources := fsr.resolveDefaultFunctionPodResources()
 	autoScaleMetrics := fsr.resolveAutoScaleMetrics(inactivityWindowPresets)
+	logsScreenEnabled := fsr.isLogsScreenEnabled()
 
 	frontendSpec := map[string]restful.Attributes{
 		"frontendSpec": { // frontendSpec is the ID of this singleton resource
@@ -99,6 +100,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 			"defaultFunctionPodResources":     defaultFunctionPodResources,
 			"autoScaleMetrics":                autoScaleMetrics,
 			"disableDefaultHttpTrigger":       fsr.getPlatform().GetDisableDefaultHttpTrigger(),
+			"logsScreenEnabled":               logsScreenEnabled,
 		},
 	}
 
@@ -281,6 +283,21 @@ func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {
 
 	return common.GetEnvOrDefaultString(
 		"NUCLIO_DASHBOARD_HTTP_INGRESS_HOST_TEMPLATE", "")
+}
+
+func (fsr *frontendSpecResource) isLogsScreenEnabled() bool {
+	// try read from platform configuration first, if true use that, otherwise
+	// fallback reading from envvar for backwards compatibility with old helm charts
+	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+		logsScreenEnabled := dashboardServer.GetPlatformConfiguration().LogsScreenEnabled
+		if !logsScreenEnabled {
+			return common.GetEnvOrDefaultBool(
+				"NUCLIO_DASHBOARD_LOGS_SCREEN_ENABLED", false)
+		}
+		return logsScreenEnabled
+	}
+
+	return false
 }
 
 // register the resource
