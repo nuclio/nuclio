@@ -2290,10 +2290,15 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 		"labels", functionLabels,
 		"host", ingress.Host,
 		"paths", ingress.Paths,
-		"TLS", ingress.TLS)
+		"TLS", ingress.TLS,
+		"IngressClassName", ingress.IngressClassName)
 
 	ingressRule := networkingv1.IngressRule{
 		Host: ingress.Host,
+	}
+
+	if ingress.IngressClassName != "" {
+		spec.IngressClassName = &ingress.IngressClassName
 	}
 
 	ingressRule.IngressRuleValue.HTTP = &networkingv1.HTTPIngressRuleValue{}
@@ -3073,6 +3078,10 @@ func (lc *lazyClient) enrichIngressWithDefaultValues(ingress *functionconfig.Ing
 	if ingress.TLS.SecretName == "" && platformConfig.IngressConfig.TLSSecret != "" {
 		ingress.TLS.Hosts = []string{ingress.Host}
 		ingress.TLS.SecretName = platformConfig.IngressConfig.TLSSecret
+	}
+
+	if ingress.IngressClassName == "" && platformConfig.Kube.DefaultHTTPIngressClassName != "" {
+		ingress.IngressClassName = platformConfig.Kube.DefaultHTTPIngressClassName
 	}
 
 	return nil

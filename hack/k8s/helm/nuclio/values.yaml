@@ -201,6 +201,7 @@ dashboard:
     #  - secretName: nuclio-tls
     #    hosts:
     #      - nuclio.local
+    ingressClassName: ""
 
   authConfig:
 
@@ -483,6 +484,7 @@ platform: {}
 #    defaultHTTPIngressHostTemplate: ""
 #    defaultHTTPIngressAnnotations:
 #      ingressAnnotationKey: ingressAnnotationValue
+#    defaultHTTPIngressClassName: ""
 #  imageRegistryOverrides:
 #    baseImageRegistries:
 #      "python:3.9": "myregistry"
