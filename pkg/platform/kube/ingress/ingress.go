@@ -34,7 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// keeps resources needed for ingress creation
+// Resources keeps resources needed for ingress creation
 // (BasicAuthSecret is used when it is an ingress with basic-auth authentication)
 type Resources struct {
 	Ingress         *networkingv1.Ingress
@@ -71,7 +71,11 @@ func (m *Manager) GenerateResources(ctx context.Context,
 	}
 
 	if spec.IngressClassName == "" {
-		spec.IngressClassName = m.platformConfiguration.Kube.DefaultHTTPIngressClassName
+		if m.platformConfiguration.Kube.DefaultHTTPIngressClassName != "" {
+			spec.IngressClassName = m.platformConfiguration.Kube.DefaultHTTPIngressClassName
+		} else {
+			spec.IngressClassName = platformconfig.DefaultHTTPIngressClassName
+		}
 	}
 
 	ingress := &networkingv1.Ingress{
