@@ -87,7 +87,7 @@ type Platform interface {
 	GetFunctionReplicaLogsStream(context.Context, *GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error)
 
 	// GetFunctionReplicaNames returns function replica names (Pod / Container names)
-	GetFunctionReplicaNames(context.Context, *functionconfig.Config) ([]string, error)
+	GetFunctionReplicaNames(context.Context, Function, opa.PermissionOptions) ([]string, error)
 
 	// GetFunctionReplicaContainers returns function replica containers (Pod / Container names)
 	GetFunctionReplicaContainers(context.Context, *functionconfig.Config, string) ([]string, error)

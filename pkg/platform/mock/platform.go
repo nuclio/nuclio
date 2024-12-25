@@ -150,8 +150,8 @@ func (mp *Platform) GetFunctionReplicaLogsStream(ctx context.Context, options *p
 }
 
 // GetFunctionReplicaNames returns function replica names (Pod / Container names)
-func (mp *Platform) GetFunctionReplicaNames(ctx context.Context, functionConfig *functionconfig.Config) ([]string, error) {
-	args := mp.Called(ctx, functionConfig)
+func (mp *Platform) GetFunctionReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
+	args := mp.Called(ctx, function, permissionOptions)
 	return args.Get(0).([]string), args.Error(1)
 }
 
