@@ -19,7 +19,6 @@ package restful
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -581,6 +580,7 @@ func (ar *AbstractResource) callCustomStreamRouteFunc(responseWriter http.Respon
 func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWriter,
 	request *http.Request,
 	routeFunc CustomRouteFunc) {
+	routeFuncName := common.GetFunctionName(routeFunc)
 
 	// see if the resource only supports a single record
 	response, err := routeFunc(request)
@@ -588,8 +588,9 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	if err != nil {
 		ar.Logger.WarnWith("Custom routed handler failed",
 			"err", err.Error(),
-			"routeFunc", fmt.Sprintf("%T", routeFunc),
-			"request", request)
+			"routeFunc", routeFuncName,
+			"requestURL", request.URL.String(),
+			"requestMethod", request.Method)
 	}
 
 	// if response object was not created, fill a placeholder
@@ -600,8 +601,9 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}
 		ar.Logger.WarnWith("Response object not filled by handler, using placeholder",
-			"routeFunc", fmt.Sprintf("%T", routeFunc),
-			"request", request,
+			"routeFunc", routeFuncName,
+			"requestURL", request.URL.String(),
+			"requestMethod", request.Method,
 			"response", response)
 	}
 
@@ -629,9 +631,10 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 
 				// should never happen
 				ar.Logger.ErrorWith("Response writer failed writing empty resources",
-					"err", err,
-					"routeFunc", routeFunc,
-					"request", request)
+					"err", err.Error(),
+					"routeFunc", routeFuncName,
+					"requestURL", request.URL.String(),
+					"requestMethod", request.Method)
 			}
 
 		}

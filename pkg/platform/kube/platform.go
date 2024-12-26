@@ -644,19 +644,11 @@ func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
 func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 	function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
 
-	p.Logger.DebugWithCtx(ctx, "TOMER - Getting function replica names",
-		"functionName", function.GetConfig().Meta.Name,
-		"functionNamespace", function.GetConfig().Meta.Namespace,
-		"memberIds", permissionOptions.MemberIds,
-		"overrideHeaderValue", permissionOptions.OverrideHeaderValue)
-
 	functions, err := p.Platform.FilterFunctionsByPermissions(ctx, &permissionOptions, []platform.Function{function})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
 	if len(functions) == 0 {
-		p.Logger.DebugWithCtx(ctx, "TOMER - Function was filtered out by permissions, return not found error",
-			"functionName", function.GetConfig().Meta.Name)
 		// Function was filtered out by permissions, return not found error
 		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Function not found - %s", function.GetConfig().Meta.Name))
 	}
