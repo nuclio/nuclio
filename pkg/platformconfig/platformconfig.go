@@ -62,7 +62,6 @@ type Config struct {
 	SensitiveFields               SensitiveFieldsConfig                                      `json:"sensitiveFields,omitempty"`
 	DisableDefaultHTTPTrigger     bool                                                       `json:"disableDefaultHTTPTrigger,omitempty"`
 	ContainerBuilderConfiguration *containerimagebuilderpusher.ContainerBuilderConfiguration `json:"containerBuilderConfiguration,omitempty"`
-	LogsScreenEnabled             bool                                                       `json:"logsScreenEnabled,omitempty"`
 
 	// stores the encoded FunctionReadinessTimeout as time.Duration
 	functionReadinessTimeout *time.Duration

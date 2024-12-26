@@ -289,6 +289,8 @@ dashboard:
   # Note: secret name must contain "pip-ca-certificates.crt" key
   pipCACertSecretName: ""
 
+  logsScreenEnabled: false
+
 autoscaler:
   enabled: false
   replicas: 1
@@ -513,8 +515,6 @@ platform: {}
 #
 #  sensitiveFields:
 #    maskSensitiveFields: true
-#
-#  logsScreenEnabled: false
 
 # global is a stanza that is used if this is used as a subchart. Ignore otherwise
 global:

@@ -286,18 +286,9 @@ func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {
 }
 
 func (fsr *frontendSpecResource) isLogsScreenEnabled() bool {
-	// try read from platform configuration first, if true use that, otherwise
-	// fallback reading from envvar for backwards compatibility with old helm charts
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
-		logsScreenEnabled := dashboardServer.GetPlatformConfiguration().LogsScreenEnabled
-		if !logsScreenEnabled {
-			return common.GetEnvOrDefaultBool(
-				"NUCLIO_DASHBOARD_LOGS_SCREEN_ENABLED", false)
-		}
-		return logsScreenEnabled
-	}
-
-	return false
+	// This is a workaround until a BE log solution is implemented
+	return common.GetEnvOrDefaultBool(
+		"NUCLIO_DASHBOARD_LOGS_SCREEN_ENABLED", false)
 }
 
 // register the resource
