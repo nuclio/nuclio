@@ -587,7 +587,7 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 
 	if err != nil {
 		ar.Logger.WarnWith("Custom routed handler failed",
-			"err", err,
+			"err", err.Error(),
 			"routeFunc", fmt.Sprintf("%T", routeFunc),
 			"request", request)
 	}

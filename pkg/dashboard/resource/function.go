@@ -432,6 +432,8 @@ func (fr *functionResource) validateLogStreamOptions(ctx context.Context,
 func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 	*restful.CustomRouteFuncResponse, error) {
 
+	fr.Logger.InfoWithCtx(request.Context(), "TOMER - Getting function replicas")
+
 	// ensure namespace
 	namespace := fr.getNamespaceFromRequest(request)
 	if namespace == "" {
