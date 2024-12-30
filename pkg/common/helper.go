@@ -647,3 +647,15 @@ func SanitizeResponseData(data []byte, headers http.Header) []byte {
 	sanitizedData := policy.Sanitize(string(data))
 	return []byte(sanitizedData)
 }
+
+// GetFunctionName returns the actual name of a function variable
+func GetFunctionName(function interface{}) string {
+	fullName := runtime.FuncForPC(reflect.ValueOf(function).Pointer()).Name()
+	parts := strings.Split(fullName, ".")
+	shortName := parts[len(parts)-1]
+
+	// Methods passed by reference have a suffix of "-fm"
+	shortName = strings.TrimSuffix(shortName, "-fm")
+
+	return shortName
+}
