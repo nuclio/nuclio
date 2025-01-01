@@ -6,10 +6,12 @@ This document describes the specific Python build and deploy configurations.
 
 - [Function and handler](#function-and-handler)
 - [Dockerfile](#dockerfile)
-- [Python runtime 2.7 EOL](#python-runtime-27-eol)
-- [Introducing Python runtimes 3.7, 3.8 and 3.9](#introducing-python-runtimes-37-38-and-39)
+- [Supported versions](#supported-versions)
+- [Python versions EOL](#python-runtime-eol)
 - [Function configuration](#function-configuration)
 - [Build and execution](#build-and-execution)
+- [Portable execution](#portable-execution)
+- [Termination callback](#termination-callback)
 
 ## Function and handler
 
@@ -88,12 +90,12 @@ COPY . /opt/nuclio
 CMD [ "processor" ]
 ```
 
-## Supported versions:
+## Supported versions
 * Python 3.9
 * Python 3.10
 * Python 3.11
 
-These versions are no longer supported: [EOL version](#python-runtime-eol)
+These versions are no longer supported: [EOL versions](#python-versions-eol)
 
 In Python 3.9+ runtimes, events metadata, such as headers, path, method, etc can be decoded as byte-strings.
 This may incur changes in your code to refer to the various (now) byte-string event properties correctly in the new runtimes.
@@ -123,7 +125,7 @@ The new snippet would be looking like this:
 > Note: To *disable* decoding to all incoming events to byte-strings, set the function environment variable: `NUCLIO_PYTHON_DECODE_EVENT_STRINGS=true`.
 > Not disabling event strings decoding means that the Nuclio python wrapper might fail to handle events with non-utf8 metadata contents.
 
-<a id="python-runtime-eol"></a>
+<a id="python-versions-eol"></a>
 ## Python versions EOL
 The following Python versions are no longer supported in Nuclio, due to their End Of Life (EOL) status:
 - Python 2.7 (EOL since Jan 2020)
