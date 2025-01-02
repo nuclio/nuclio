@@ -2,6 +2,8 @@
 
 This document describes the specific .NET Core build and deploy configurations.
 
+> **NOTE:**  .Net Core runtime is in tech-preview.
+
 #### In this document
 
 - [Function and handler](#function-and-handler)

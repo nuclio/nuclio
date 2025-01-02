@@ -2,6 +2,8 @@
 
 This guide uses practical examples to guide you through the process of writing serverless shell functions.
 
+> **NOTE:**  Shell runtime is in tech-preview.
+
 #### In this document
 
 - [Overview](#overview)

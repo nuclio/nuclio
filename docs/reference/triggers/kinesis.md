@@ -1,5 +1,7 @@
 # Kinesis trigger
 
+> **NOTE:**  Kinesis trigger is in tech-preview.
+
 Reads records from [Amazon Kinesis](https://aws.amazon.com/kinesis/) streams.
 
 ## In this document
