@@ -37,7 +37,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"github.com/valyala/fasthttp"
 )

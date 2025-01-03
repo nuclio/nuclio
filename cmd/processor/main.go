@@ -26,7 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/errors"
-	"github.com/v3io/version-go"
+	version "github.com/v3io/version-go"
 
 	_ "github.com/nuclio/nuclio/pkg/processor/webadmin/resource"
 )

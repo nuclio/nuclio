@@ -29,7 +29,7 @@ type MockClient struct {
 func (mc *MockClient) QueryPermissions(resource string,
 	action Action,
 	permissionOptions *PermissionOptions) (bool, error) {
-	args := mc.Called(resource, action, permissionOptions)
+	args := mc.Mock.Called(resource, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }
 
@@ -38,6 +38,6 @@ func (mc *MockClient) QueryPermissionsMultiResources(ctx context.Context,
 	action Action,
 	permissionOptions *PermissionOptions) ([]bool, error) {
 
-	args := mc.Called(ctx, resources, action, permissionOptions)
+	args := mc.Mock.Called(ctx, resources, action, permissionOptions)
 	return args.Get(0).([]bool), args.Error(1)
 }

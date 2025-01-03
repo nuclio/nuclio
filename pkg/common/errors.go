@@ -21,7 +21,7 @@ import (
 	"reflect"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 func ResolveErrorStatusCodeOrDefault(err error, defaultStatusCode int) int {

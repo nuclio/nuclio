@@ -32,7 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"

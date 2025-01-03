@@ -19,7 +19,7 @@ package main
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 func Sleeper(context *nuclio.Context, event nuclio.Event) (interface{}, error) {

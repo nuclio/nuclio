@@ -30,7 +30,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type functionEventResource struct {
@@ -180,7 +180,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 	}
 
 	// create a functionEvent
-	newFunctionEvent, err := platform.NewAbstractFunctionEvent(fer.Logger, fer.getPlatform(), functionEventConfig)
+	newFunctionEvent, err := platform.NewAbstractFunctionEvent(fer.resource.AbstractResource.Logger, fer.getPlatform(), functionEventConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 	// get function event config and status from body
 	functionEventInfo, err := fer.getFunctionEventInfoFromRequest(request, true)
 	if err != nil {
-		fer.Logger.WarnWithCtx(ctx, "Failed to get function event config and status from body", "err", err)
+		fer.resource.AbstractResource.Logger.WarnWithCtx(ctx, "Failed to get function event config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -272,7 +272,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 	// get function event config and status from body
 	functionEventInfo, err := fer.getFunctionEventInfoFromRequest(request, true)
 	if err != nil {
-		fer.Logger.WarnWithCtx(ctx, "Failed to get function event config and status from body", "err", err)
+		fer.resource.AbstractResource.Logger.WarnWithCtx(ctx, "Failed to get function event config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -293,7 +293,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
 	}); err != nil {
-		fer.Logger.WarnWith("Failed to update function event", "err", err)
+		fer.resource.AbstractResource.Logger.WarnWith("Failed to update function event", "err", err)
 		statusCode = common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError)
 	}
 
@@ -363,6 +363,6 @@ var functionEventResourceInstance = &functionEventResource{
 }
 
 func init() {
-	functionEventResourceInstance.Resource = functionEventResourceInstance
-	functionEventResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	functionEventResourceInstance.resource.AbstractResource.Resource = functionEventResourceInstance
+	functionEventResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

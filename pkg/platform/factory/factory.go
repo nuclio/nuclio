@@ -28,7 +28,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/v3io/version-go"
+	version "github.com/v3io/version-go"
 )
 
 // CreatePlatform creates a platform based on a requested type (platformType) and configuration it receives

@@ -41,7 +41,7 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"

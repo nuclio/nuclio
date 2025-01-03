@@ -71,7 +71,7 @@ func (r *ruby) RunWrapper(socketPaths []string, controlSocketPath string) (*os.P
 	}
 
 	env := os.Environ()
-	env = append(env, r.GetEnvFromConfiguration()...)
+	env = append(env, r.AbstractRuntime.GetEnvFromConfiguration()...)
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env

@@ -43,7 +43,7 @@ func newTrigger(logger logger.Logger,
 		&configuration.Configuration,
 		"async",
 		"kickstart",
-		configuration.Name,
+		configuration.Configuration.Trigger.Name,
 		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
@@ -59,11 +59,11 @@ func newTrigger(logger logger.Logger,
 }
 
 func (k *kickstart) Start(checkpoint functionconfig.Checkpoint) error {
-	k.Logger.DebugWith("Kickstarting")
+	k.AbstractTrigger.Logger.DebugWith("Kickstarting")
 
-	k.AllocateWorkerAndSubmitEvent( // nolint: errcheck
+	k.AbstractTrigger.AllocateWorkerAndSubmitEvent( // nolint: errcheck
 		&k.configuration.Event,
-		k.Logger,
+		k.AbstractTrigger.Logger,
 		10*time.Second)
 
 	return nil

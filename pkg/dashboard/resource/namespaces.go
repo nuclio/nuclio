@@ -57,6 +57,6 @@ var namespaceResourceInstance = &namespaceResource{
 }
 
 func init() {
-	namespaceResourceInstance.Resource = namespaceResourceInstance
-	namespaceResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	namespaceResourceInstance.resource.AbstractResource.Resource = namespaceResourceInstance
+	namespaceResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

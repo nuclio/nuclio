@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type Event struct {

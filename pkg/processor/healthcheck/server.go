@@ -45,14 +45,14 @@ func NewProcessorServer(logger logger.Logger,
 func (s *ProcessorServer) Start() error {
 
 	// if we're disabled, simply log and do nothing
-	if !s.Enabled {
-		s.Logger.Debug("Disabled, not listening")
+	if !s.AbstractServer.Enabled {
+		s.AbstractServer.Logger.Debug("Disabled, not listening")
 		return nil
 	}
 
 	// register the processor's status check as its readiness check
-	s.Handler.AddReadinessCheck("processor_readiness", func() error {
-		if s.StatusProvider.GetStatus() != status.Ready {
+	s.AbstractServer.Handler.AddReadinessCheck("processor_readiness", func() error {
+		if s.AbstractServer.StatusProvider.GetStatus() != status.Ready {
 			return errors.New("Processor not ready yet")
 		}
 
@@ -60,7 +60,7 @@ func (s *ProcessorServer) Start() error {
 	})
 
 	// register an always-healthy liveness check until we have a better design for detecting handler deaths
-	s.Handler.AddLivenessCheck("processor_liveness", func() error {
+	s.AbstractServer.Handler.AddLivenessCheck("processor_liveness", func() error {
 		return nil
 	})
 

@@ -44,7 +44,7 @@ func (r *Registry) NewDataBinding(logger logger.Logger,
 	name string,
 	databindingConfiguration *functionconfig.DataBinding) (DataBinding, error) {
 
-	registree, err := r.Get(kind)
+	registree, err := r.Registry.Get(kind)
 	if err != nil {
 		return nil, err
 	}

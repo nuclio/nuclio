@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type Batcher struct {

@@ -22,7 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
-	"github.com/Azure/go-amqp"
+	amqp "github.com/Azure/go-amqp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
@@ -55,7 +55,7 @@ func newPartition(parentLogger logger.Logger, eventhubTrigger *eventhub, partiti
 }
 
 func (p *partition) Read() error {
-	p.Logger.DebugWith("Starting to read from partition")
+	p.AbstractPartition.Logger.DebugWith("Starting to read from partition")
 
 	ctx := context.Background()
 
@@ -93,6 +93,6 @@ func (p *partition) Read() error {
 		p.event.body = msg.Data[0]
 
 		// process the event, don't really do anything with response
-		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
+		p.eventhubTrigger.AbstractStream.AbstractTrigger.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
 	}
 }

@@ -44,7 +44,7 @@ func (r *Registry) NewLoggerSink(kind platformconfig.LoggerSinkKind,
 	name string,
 	loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
 
-	registree, err := r.Get(string(kind))
+	registree, err := r.Registry.Get(string(kind))
 	if err != nil {
 		return nil, err
 	}

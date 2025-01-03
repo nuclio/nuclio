@@ -72,7 +72,7 @@ func (d *dotnetcore) RunWrapper(socketPaths []string, controlSocketPath string) 
 
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
-	env = append(env, d.GetEnvFromConfiguration()...)
+	env = append(env, d.AbstractRuntime.GetEnvFromConfiguration()...)
 
 	args := []string{
 		"dotnet", wrapperDLLPath, socketPaths[0],

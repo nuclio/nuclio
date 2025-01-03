@@ -26,7 +26,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // Runtime receives an event from a worker and passes it to a specific runtime like Golang, Python, et
@@ -100,7 +100,7 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 	}
 
 	// set some environment variables
-	if err = os.Setenv("NUCLIO_HANDLER", configuration.Spec.Handler); err != nil {
+	if err = os.Setenv("NUCLIO_HANDLER", configuration.Configuration.Spec.Handler); err != nil {
 		return nil, errors.Wrap(err, "Failed to set handler env")
 	}
 
@@ -156,7 +156,7 @@ func (ar *AbstractRuntime) Start() error {
 
 // Restart restarts the runtime
 func (ar *AbstractRuntime) Restart() error {
-	runtimeName := ar.GetConfiguration().Spec.Runtime
+	runtimeName := ar.GetConfiguration().Configuration.Spec.Runtime
 	return errors.Errorf("Runtime %s does not support restart", runtimeName)
 }
 
@@ -172,10 +172,10 @@ func (ar *AbstractRuntime) SupportsControlCommunication() bool {
 
 func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
 	return []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", ar.configuration.Meta.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", ar.configuration.Spec.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", ar.configuration.Spec.Version),
-		fmt.Sprintf("NUCLIO_FUNCTION_HANDLER=%s", ar.configuration.Spec.Handler),
+		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", ar.configuration.Configuration.Meta.Name),
+		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", ar.configuration.Configuration.Spec.Description),
+		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", ar.configuration.Configuration.Spec.Version),
+		fmt.Sprintf("NUCLIO_FUNCTION_HANDLER=%s", ar.configuration.Configuration.Config.Spec.Handler),
 	}
 }
 
@@ -209,7 +209,7 @@ func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger
 
 	// create data bindings through the data binding registry
 	// TODO: this should be in parallel
-	for dataBindingName, dataBindingConfiguration := range configuration.Spec.DataBindings {
+	for dataBindingName, dataBindingConfiguration := range configuration.Configuration.Spec.DataBindings {
 
 		// There was an error in the initial implementation of databinding where "kind" was mistaken for "class". This
 		// patch makes it so that if the user declared "kind" (as he should) it will use that to determine the kind
@@ -248,15 +248,15 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 		Logger:          parentLogger,
 		DataBinding:     map[string]nuclio.DataBinding{},
 		WorkerID:        configuration.WorkerID,
-		FunctionName:    configuration.Meta.Name,
-		FunctionVersion: configuration.Spec.Version,
+		FunctionName:    configuration.Configuration.Meta.Name,
+		FunctionVersion: configuration.Configuration.Spec.Version,
 		TriggerKind:     configuration.TriggerKind,
 		TriggerName:     configuration.TriggerName,
 	}
 
 	if newContext.Platform, err = nuclio.NewPlatform(parentLogger,
-		ar.configuration.PlatformConfig.Kind,
-		ar.configuration.Meta.Namespace,
+		ar.configuration.Configuration.PlatformConfig.Kind,
+		ar.configuration.Configuration.Meta.Namespace,
 	); err != nil {
 		return nil, errors.Wrap(err, "Failed to initialize Platform")
 	}

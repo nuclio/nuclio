@@ -28,8 +28,8 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/v3io/v3io-go-http"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
+	v3io "github.com/v3io/v3io-go-http"
 )
 
 type v3ioItemPoller struct {
@@ -55,10 +55,10 @@ func newTrigger(logger logger.Logger,
 		configuration:  configuration,
 		firstPoll:      true,
 	}
-	newTrigger.AbstractTrigger.Trigger = &newTrigger
+	newTrigger.AbstractPoller.AbstractTrigger.Trigger = &newTrigger
 
 	// register self as the poller (to allow parent to call child functions)
-	newTrigger.SetPoller(&newTrigger)
+	newTrigger.AbstractPoller.SetPoller(&newTrigger)
 
 	// connect to v3io container
 	// TODO: create context, session, container from configuration
@@ -72,7 +72,7 @@ func newTrigger(logger logger.Logger,
 
 func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan nuclio.Event) error {
 
-	vip.Logger.InfoWith("Getting new events", "configuration", vip.configuration)
+	vip.AbstractPoller.AbstractTrigger.Logger.InfoWith("Getting new events", "configuration", vip.configuration)
 
 	// initialize a wait group with the # of paths we need to get
 	var itemsGetterWaitGroup sync.WaitGroup
@@ -135,7 +135,7 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []
 			if err != nil {
 
 				// TODO: handle error somehow?
-				vip.Logger.WarnWith("Failed to update item", "err", err)
+				vip.AbstractPoller.AbstractTrigger.Logger.WarnWith("Failed to update item", "err", err)
 			}
 		}
 	}
@@ -198,7 +198,7 @@ func (vip *v3ioItemPoller) getAttributesToRequest() string {
 	// add attributes requested by the user
 	attributes = append(attributes, vip.configuration.Attributes...)
 
-	vip.Logger.DebugWith("Gathered attributes to request", "attributes", attributes)
+	vip.AbstractPoller.AbstractTrigger.Logger.DebugWith("Gathered attributes to request", "attributes", attributes)
 
 	// request format is attributes separated by comma
 	return strings.Join(attributes, ",")
@@ -206,7 +206,7 @@ func (vip *v3ioItemPoller) getAttributesToRequest() string {
 
 // get attributes added by the trigger
 func (vip *v3ioItemPoller) getTriggerAttributes() []string {
-	prefix := "__nuclio_vip_" + vip.configuration.ID
+	prefix := "__nuclio_vip_" + vip.configuration.Configuration.ID
 
 	// order is assumed (secs first, nsecs second) - do not reorder
 	return []string{
@@ -227,7 +227,7 @@ func (vip *v3ioItemPoller) getQueryToRequest() string {
 	// add the user queries
 	queries = append(queries, vip.configuration.Queries...)
 
-	vip.Logger.DebugWith("Gathered queries to request", "queries", queries)
+	vip.AbstractPoller.AbstractTrigger.Logger.DebugWith("Gathered queries to request", "queries", queries)
 
 	// wrap each query in parenthesis
 	queries = vip.encloseStrings(queries, "(", ")")

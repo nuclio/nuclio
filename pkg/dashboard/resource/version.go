@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/restful"
 
-	"github.com/v3io/version-go"
+	version "github.com/v3io/version-go"
 )
 
 type versionResource struct {
@@ -52,6 +52,6 @@ var versionResourceInstance = &versionResource{
 }
 
 func init() {
-	versionResourceInstance.Resource = versionResourceInstance
-	versionResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	versionResourceInstance.resource.AbstractResource.Resource = versionResourceInstance
+	versionResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

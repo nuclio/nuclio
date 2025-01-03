@@ -18,7 +18,7 @@ package nats
 
 import (
 	natsio "github.com/nats-io/nats.go"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // Event allows access to the NATS message

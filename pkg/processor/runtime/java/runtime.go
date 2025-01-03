@@ -79,7 +79,7 @@ func (j *java) RunWrapper(ports []string, controlPort string) (*os.Process, erro
 	}...)
 
 	env := os.Environ()
-	env = append(env, j.GetEnvFromConfiguration()...)
+	env = append(env, j.AbstractRuntime.GetEnvFromConfiguration()...)
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env

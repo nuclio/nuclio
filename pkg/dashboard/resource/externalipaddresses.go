@@ -58,6 +58,6 @@ var externalIPAddressesResourceInstance = &externalIPAddressesResource{
 }
 
 func init() {
-	externalIPAddressesResourceInstance.Resource = externalIPAddressesResourceInstance
-	externalIPAddressesResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	externalIPAddressesResourceInstance.resource.AbstractResource.Resource = externalIPAddressesResourceInstance
+	externalIPAddressesResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

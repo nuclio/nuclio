@@ -46,7 +46,7 @@ func newShard(parentLogger logger.Logger, kinesisTrigger *kinesis, shardID strin
 		shardID:        shardID,
 	}
 
-	newShard.worker, err = kinesisTrigger.WorkerAllocator.Allocate(0)
+	newShard.worker, err = kinesisTrigger.AbstractTrigger.WorkerAllocator.Allocate(0)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate worker")
 	}
@@ -91,7 +91,7 @@ func (s *shard) readFromShard() error {
 				}
 
 				// process the event, don't really do anything with response
-				s.kinesisTrigger.SubmitEventToWorker(nil, s.worker, &event) // nolint: errcheck
+				s.kinesisTrigger.AbstractTrigger.SubmitEventToWorker(nil, s.worker, &event) // nolint: errcheck
 			}
 
 			// save last sequence number in the batch. we might need to create a shard iterator at this

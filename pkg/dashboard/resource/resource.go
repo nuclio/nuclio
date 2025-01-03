@@ -29,7 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type resource struct {
@@ -92,15 +92,15 @@ func (r *resource) headerValueIsTrue(request *http.Request, headerName string) b
 }
 
 func (r *resource) getDashboard() *dashboard.Server {
-	return r.GetServer().(*dashboard.Server)
+	return r.AbstractResource.GetServer().(*dashboard.Server)
 }
 
 func (r *resource) addAuthMiddleware(options *auth.Options) {
 	authenticator := r.getDashboard().GetAuthenticator()
-	r.Logger.DebugWith("Installing auth middleware on router",
+	r.AbstractResource.Logger.DebugWith("Installing auth middleware on router",
 		"authenticatorKind", authenticator.Kind(),
-		"resourceName", r.GetName())
-	r.GetRouter().Use(authenticator.Middleware(options))
+		"resourceName", r.AbstractResource.GetName())
+	r.AbstractResource.GetRouter().Use(authenticator.Middleware(options))
 }
 
 func (r *resource) getCtxSession(ctx context.Context) auth.Session {

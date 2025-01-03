@@ -28,7 +28,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	"golang.org/x/image/draw"
 )
 

@@ -33,7 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type v3ioStreamResource struct {
@@ -138,7 +138,7 @@ func (vsr *v3ioStreamResource) getStreamShardLags(request *http.Request) (*restf
 
 	shardLags, err := v3io.GetShardLagsMap(ctx,
 		vsr.getCtxSession(ctx).GetPassword(),
-		vsr.Logger,
+		vsr.resource.AbstractResource.Logger,
 		vsr.getPlatform().GetConfig(),
 		&v3ioStreamInfoInstance,
 		consumerGroups)
@@ -223,6 +223,6 @@ var v3ioStreamResourceInstance = &v3ioStreamResource{
 }
 
 func init() {
-	v3ioStreamResourceInstance.Resource = v3ioStreamResourceInstance
-	v3ioStreamResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	v3ioStreamResourceInstance.resource.AbstractResource.Resource = v3ioStreamResourceInstance
+	v3ioStreamResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

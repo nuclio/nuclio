@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	"github.com/valyala/fasthttp"
 )
 

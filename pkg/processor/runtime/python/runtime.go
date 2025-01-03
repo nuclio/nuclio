@@ -88,7 +88,7 @@ func (py *python) RunWrapper(eventSocketPaths []string, controlSocketPath string
 
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
-	env = append(env, py.GetEnvFromConfiguration()...)
+	env = append(env, py.AbstractRuntime.GetEnvFromConfiguration()...)
 	envPath := fmt.Sprintf("PYTHONPATH=%s", py.getPythonPath())
 	py.Logger.DebugWith("Setting PYTHONPATH", "value", envPath)
 	env = append(env, envPath)
@@ -137,12 +137,12 @@ func (py *python) Drain() error {
 	// because the signal handler may not be initialized yet.
 	// if the process receives a signal before the handler is set up,
 	// the default behaviour will cause the Linux process to terminate.
-	if py.GetStatus() != status.Ready {
+	if py.AbstractRuntime.GetStatus() != status.Ready {
 		return nil
 	}
 
 	// we use SIGUSR2 to signal the wrapper process to drain events
-	if err := py.Signal(syscall.SIGUSR2); err != nil {
+	if err := py.AbstractRuntime.Signal(syscall.SIGUSR2); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process to drain")
 	}
 
@@ -157,13 +157,13 @@ func (py *python) Drain() error {
 func (py *python) Terminate() error {
 
 	// we use SIGUSR1 to signal the wrapper process to terminate
-	if err := py.Signal(syscall.SIGUSR1); err != nil {
+	if err := py.AbstractRuntime.Signal(syscall.SIGUSR1); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process to terminate")
 	}
 
 	// wait for process to finish event handling or timeout
 	// TODO: replace the following function with one that waits for a control communication message or timeout
-	py.WaitForProcessTermination(py.configuration.WorkerTerminationTimeout)
+	py.AbstractRuntime.WaitForProcessTermination(py.configuration.WorkerTerminationTimeout)
 
 	return nil
 }
@@ -171,7 +171,7 @@ func (py *python) Terminate() error {
 // Continue signals the runtime to continue event processing
 func (py *python) Continue() error {
 	// we use SIGCONT to signal the wrapper process to continue event processing
-	if err := py.Signal(syscall.SIGCONT); err != nil {
+	if err := py.AbstractRuntime.Signal(syscall.SIGCONT); err != nil {
 		return errors.Wrap(err, "Failed to signal wrapper process to continue")
 	}
 

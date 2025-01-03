@@ -45,8 +45,8 @@ func (s *shell) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, 
 		Name: "nuclio-processor",
 		Image: fmt.Sprintf("%s/nuclio/processor:%s-%s",
 			onbuildImageRegistry,
-			s.VersionInfo.Label,
-			s.VersionInfo.Arch),
+			s.AbstractRuntime.VersionInfo.Label,
+			s.AbstractRuntime.VersionInfo.Arch),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor": "/usr/local/bin/processor",
 		},
@@ -63,7 +63,7 @@ func (s *shell) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, 
 // GetHandlerDirObjectPaths returns the paths of all objects that should reside in the handler
 // directory
 func (s *shell) GetHandlerDirObjectPaths() []string {
-	if s.FunctionConfig.Spec.Build.Path != "/dev/null" {
+	if s.AbstractRuntime.FunctionConfig.Spec.Build.Path != "/dev/null" {
 		return s.AbstractRuntime.GetHandlerDirObjectPaths()
 	}
 

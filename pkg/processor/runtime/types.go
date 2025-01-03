@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type Statistics struct {

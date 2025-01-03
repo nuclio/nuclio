@@ -37,7 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
@@ -78,8 +78,8 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	exportFunction := fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
-	exportOptions := fr.getExportOptionsFromRequest(request)
+	exportFunction := fr.resource.AbstractResource.GetURLParamBoolOrDefault(request, restful.ParamExport, false)
+	exportOptions := fr.resource.getExportOptionsFromRequest(request)
 	// create a map of attributes keyed by the function id (name)
 	for _, function := range functions {
 		if exportFunction {
@@ -108,7 +108,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, errors.Wrap(err, "Failed to get get function")
 	}
 	exportOptions := fr.getExportOptionsFromRequest(request)
-	if fr.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
+	if fr.resource.AbstractResource.GetURLParamBoolOrDefault(request, restful.ParamExport, false) {
 		return fr.export(ctx, function, exportOptions), nil
 	}
 
@@ -237,11 +237,11 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 func (fr *functionResource) export(ctx context.Context, function platform.Function, exportOptions *common.ExportFunctionOptions) restful.Attributes {
 
 	functionConfig := function.GetConfig()
-	fr.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
+	fr.resource.AbstractResource.Logger.DebugWithCtx(ctx, "Preparing function for export", "functionName", functionConfig.Meta.Name)
 	exportOptions.PrevState = string(function.GetStatus().State)
 	functionConfig.PrepareFunctionForExport(exportOptions)
 
-	fr.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)
+	fr.resource.AbstractResource.Logger.DebugWithCtx(ctx, "Exporting function", "functionName", functionConfig.Meta.Name)
 
 	attributes := restful.Attributes{
 		"metadata": functionConfig.Meta,
@@ -275,13 +275,13 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				fr.Logger.ErrorWithCtx(ctx, "Panic caught while creating function",
+				fr.resource.AbstractResource.Logger.ErrorWithCtx(ctx, "Panic caught while creating function",
 					"err", err,
 					"stack", string(callStack))
 			}
 		}()
 
-		dashboardServer := fr.GetServer().(*dashboard.Server)
+		dashboardServer := fr.resource.AbstractResource.GetServer().(*dashboard.Server)
 
 		// if registry / run-registry aren't set - use dashboard settings
 		if functionInfo.Spec.Build.Registry == "" {
@@ -298,7 +298,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 		// just deploy. the status is async through polling
 		if _, err := fr.getPlatform().CreateFunction(ctx,
 			&platform.CreateFunctionOptions{
-				Logger: fr.Logger,
+				Logger: fr.resource.AbstractResource.Logger,
 				FunctionConfig: functionconfig.Config{
 					Meta: *functionInfo.Meta,
 					Spec: *functionInfo.Spec,
@@ -306,14 +306,14 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				CreationStateUpdated:       creationStateUpdatedChan,
 				AuthConfig:                 authConfig,
 				AutofixConfiguration:       autofix,
-				DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
+				DependantImagesRegistryURL: fr.resource.AbstractResource.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
 				AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 				PermissionOptions: opa.PermissionOptions{
 					MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
 					OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 				},
 			}); err != nil {
-			fr.Logger.WarnWithCtx(ctx,
+			fr.resource.AbstractResource.Logger.WarnWithCtx(ctx,
 				"Failed to deploy function",
 				"err", errors.GetErrorStackString(err, 10))
 			errDeployingChan <- err
@@ -350,13 +350,13 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 	}
 
 	// ensure function name
-	functionName := fr.GetRouterURLParam(request, "id")
+	functionName := fr.resource.AbstractResource.GetRouterURLParam(request, "id")
 	if functionName == "" {
 		return nil, errors.New("Function name must not be empty")
 	}
 
 	// ensure replica name
-	functionReplicaName := fr.GetRouterURLParam(request, "replicaName")
+	functionReplicaName := fr.resource.AbstractResource.GetRouterURLParam(request, "replicaName")
 	if functionReplicaName == "" {
 		return nil, errors.New("Function instance must not be empty")
 	}
@@ -439,7 +439,7 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 	}
 
 	// ensure function name
-	functionName := fr.GetRouterURLParam(request, "id")
+	functionName := fr.resource.AbstractResource.GetRouterURLParam(request, "id")
 	if functionName == "" {
 		return nil, errors.New("Function name must not be empty")
 	}
@@ -471,7 +471,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 	// get function config and status from body
 	functionInfo, err := fr.getFunctionInfoFromRequest(request)
 	if err != nil {
-		fr.Logger.WarnWithCtx(ctx, "Failed to get function config and status from body", "err", err)
+		fr.resource.AbstractResource.Logger.WarnWithCtx(ctx, "Failed to get function config and status from body", "err", err)
 
 		return &restful.CustomRouteFuncResponse{
 			Single:     true,
@@ -555,11 +555,11 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 	importedOnly := fr.headerValueIsTrue(request, headers.ImportedFunctionOnly)
 
 	if importedOnly && function.GetStatus().State != functionconfig.FunctionStateImported {
-		fr.Logger.DebugWithCtx(ctx, "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
+		fr.resource.AbstractResource.Logger.DebugWithCtx(ctx, "Function is not imported, skipping redeploy", "functionName", id, "functionState", function.GetStatus().State)
 		return nuclio.ErrAccepted
 	}
 
-	fr.Logger.DebugWith("Redeploying function",
+	fr.resource.AbstractResource.Logger.DebugWith("Redeploying function",
 		"functionName", id,
 		"desiredState", *options.DesiredState)
 
@@ -567,7 +567,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		FunctionMeta:               &function.GetConfig().Meta,
 		FunctionSpec:               &function.GetConfig().Spec,
 		AuthConfig:                 authConfig,
-		DependantImagesRegistryURL: fr.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
+		DependantImagesRegistryURL: fr.resource.AbstractResource.GetServer().(*dashboard.Server).GetDependantImagesRegistryURL(),
 		AuthSession:                fr.getCtxSession(ctx),
 		PermissionOptions: opa.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
@@ -739,12 +739,12 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 	getFunctionReplicaLogsStreamOptions := &platform.GetFunctionReplicaLogsStreamOptions{
 		Name:          replicaName,
 		Namespace:     namespace,
-		Follow:        fr.GetURLParamBoolOrDefault(request, "follow", true),
-		ContainerName: fr.GetURLParamStringOrDefault(request, "containerName", client.FunctionContainerName),
+		Follow:        fr.resource.AbstractResource.GetURLParamBoolOrDefault(request, "follow", true),
+		ContainerName: fr.resource.AbstractResource.GetURLParamStringOrDefault(request, "containerName", client.FunctionContainerName),
 	}
 
 	// populate since seconds
-	sinceStr := fr.GetURLParamStringOrDefault(request, "since", "")
+	sinceStr := fr.resource.AbstractResource.GetURLParamStringOrDefault(request, "since", "")
 	if sinceStr != "" {
 		since, err := time.ParseDuration(sinceStr)
 		if err != nil {
@@ -757,7 +757,7 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 	}
 
 	// populate since seconds
-	tailLines := fr.GetURLParamInt64OrDefault(request, "tailLines", -1)
+	tailLines := fr.resource.AbstractResource.GetURLParamInt64OrDefault(request, "tailLines", -1)
 	if tailLines != -1 {
 		getFunctionReplicaLogsStreamOptions.TailLines = &tailLines
 	} else {
@@ -777,7 +777,7 @@ func (fr *functionResource) getCreationStateUpdatedTimeout(request *http.Request
 
 		// parse the timeout
 		if parsedTimeoutDuration, err := time.ParseDuration(timeout); err != nil {
-			fr.Logger.WarnWith("Failed to parse timeout from header, using default",
+			fr.resource.AbstractResource.Logger.WarnWith("Failed to parse timeout from header, using default",
 				"timeout", timeout,
 				"err", err)
 		} else {
@@ -799,6 +799,6 @@ var functionResourceInstance = &functionResource{
 }
 
 func init() {
-	functionResourceInstance.Resource = functionResourceInstance
-	functionResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	functionResourceInstance.resource.AbstractResource.Resource = functionResourceInstance
+	functionResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

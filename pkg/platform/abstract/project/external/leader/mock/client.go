@@ -34,26 +34,26 @@ func NewClient() (*Client, error) {
 }
 
 func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	args := c.Called(ctx, getProjectOptions)
+	args := c.Mock.Called(ctx, getProjectOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
 func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
-	args := c.Called(ctx, createProjectOptions)
+	args := c.Mock.Called(ctx, createProjectOptions)
 	return args.Error(0)
 }
 
 func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
-	args := c.Called(ctx, updateProjectOptions)
+	args := c.Mock.Called(ctx, updateProjectOptions)
 	return args.Error(0)
 }
 
 func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
-	args := c.Called(ctx, deleteProjectOptions)
+	args := c.Mock.Called(ctx, deleteProjectOptions)
 	return args.Error(0)
 }
 
 func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Time) ([]platform.Project, error) {
-	args := c.Called(ctx, updatedAfterTime)
+	args := c.Mock.Called(ctx, updatedAfterTime)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }

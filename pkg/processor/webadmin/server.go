@@ -48,7 +48,7 @@ func NewServer(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
 
-	if err := newServer.Initialize(configuration); err != nil {
+	if err := newServer.AbstractServer.Initialize(configuration); err != nil {
 		return nil, errors.Wrap(err, "Failed to initialize new server")
 	}
 

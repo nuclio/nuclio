@@ -18,7 +18,7 @@ package pubsub
 
 import (
 	pubsubClient "cloud.google.com/go/pubsub"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // Event stores a whole pubsub message

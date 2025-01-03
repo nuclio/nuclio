@@ -31,7 +31,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // Attributes are resource attributes

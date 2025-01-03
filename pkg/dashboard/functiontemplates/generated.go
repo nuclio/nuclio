@@ -55,7 +55,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
@@ -114,7 +114,7 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
@@ -232,7 +232,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 const eventLogFilePath = "/tmp/events.json"
@@ -337,7 +337,7 @@ import (
 	"encoding/json"
 	"regexp"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // list of regular expression filters

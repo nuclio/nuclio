@@ -67,8 +67,8 @@ func NewConfiguration(id string,
 	}
 
 	// set defaults
-	if configuration.NumWorkers == 0 {
-		configuration.NumWorkers = 1
+	if configuration.Trigger.NumWorkers == 0 {
+		configuration.Trigger.NumWorkers = 1
 	}
 
 	if triggerConfiguration.WorkerTerminationTimeout == "" {
@@ -141,16 +141,16 @@ func (c *Configuration) PopulateExplicitAckMode(explicitAckModeValue string,
 	triggerConfigurationExplicitAckMode functionconfig.ExplicitAckMode) error {
 	switch explicitAckModeValue {
 	case string(functionconfig.ExplicitAckModeEnable):
-		c.ExplicitAckMode = functionconfig.ExplicitAckModeEnable
+		c.Trigger.ExplicitAckMode = functionconfig.ExplicitAckModeEnable
 	case string(functionconfig.ExplicitAckModeExplicitOnly):
-		c.ExplicitAckMode = functionconfig.ExplicitAckModeExplicitOnly
+		c.Trigger.ExplicitAckMode = functionconfig.ExplicitAckModeExplicitOnly
 	default:
 
 		// default explicit ack mode to 'disable' if not set
 		if triggerConfigurationExplicitAckMode != "" {
-			c.ExplicitAckMode = triggerConfigurationExplicitAckMode
+			c.Trigger.ExplicitAckMode = triggerConfigurationExplicitAckMode
 		} else {
-			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+			c.Trigger.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
 	}
 	return nil

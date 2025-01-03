@@ -29,7 +29,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/v3io/version-go"
+	version "github.com/v3io/version-go"
 )
 
 type ProcessorDockerfileInfo struct {

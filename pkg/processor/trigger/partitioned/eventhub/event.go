@@ -17,7 +17,7 @@ limitations under the License.
 package eventhub
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // Event allows access to the EventHub message

@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	"github.com/stretchr/testify/suite"
 )
 
