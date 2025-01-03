@@ -42,8 +42,8 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	if newConfiguration.URL == "" {
-		newConfiguration.URL = ":8090"
+	if newConfiguration.Configuration.MetricSink.URL == "" {
+		newConfiguration.Configuration.MetricSink.URL = ":8090"
 	}
 
 	envInstanceName := os.Getenv("NUCLIO_FUNCTION_INSTANCE")

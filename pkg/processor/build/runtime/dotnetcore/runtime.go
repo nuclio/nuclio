@@ -42,8 +42,8 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Con
 		Name: "dotnetcore-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
 			onbuildImageRegistry,
-			d.VersionInfo.Label,
-			d.VersionInfo.Arch),
+			d.AbstractRuntime.VersionInfo.Label,
+			d.AbstractRuntime.VersionInfo.Arch),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":             "/usr/local/bin/processor",
 			"/home/nuclio/bin/wrapper":               "/opt/nuclio/wrapper",

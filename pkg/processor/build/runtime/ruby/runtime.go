@@ -48,8 +48,8 @@ func (r *ruby) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, o
 		Name: "ruby-onbuild",
 		Image: fmt.Sprintf("%s/nuclio/handler-builder-ruby-onbuild:%s-%s",
 			onbuildImageRegistry,
-			r.VersionInfo.Label,
-			r.VersionInfo.Arch),
+			r.AbstractRuntime.VersionInfo.Label,
+			r.AbstractRuntime.VersionInfo.Arch),
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 			"/home/nuclio/bin/wrapper.rb": "/opt/nuclio/wrapper.rb",

@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/cmd/nuctl/app"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 func main() {

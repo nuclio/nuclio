@@ -19,7 +19,7 @@ package v3iostream
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/v3io-go/pkg/dataplane"
 )
 

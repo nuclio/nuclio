@@ -44,7 +44,7 @@ func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
-	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.Configuration.ID),
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
@@ -84,14 +84,14 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 		return errors.Wrapf(err, "Can't connect to pubsub project")
 	}
 
-	p.Logger.DebugWith("Created client")
+	p.AbstractTrigger.Logger.DebugWith("Created client")
 
 	for _, subscription := range p.configuration.Subscriptions {
 		subscription := subscription
 
 		go func() {
 			if err := p.receiveFromSubscription(&subscription); err != nil {
-				p.Logger.WarnWith("Failed to create subscription",
+				p.AbstractTrigger.Logger.WarnWith("Failed to create subscription",
 					"err", errors.GetErrorStackString(err, 10),
 					"subscription", subscription)
 			}
@@ -153,7 +153,7 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 		event.message = message
 
 		// process the event, don't really do anything with response
-		_, submitError, processError := p.AllocateWorkerAndSubmitEvent(event, p.Logger, 10*time.Second)
+		_, submitError, processError := p.AbstractTrigger.AllocateWorkerAndSubmitEvent(event, p.Logger, 10*time.Second)
 		if submitError != nil {
 			p.Logger.ErrorWith("Can't submit event", "error", submitError)
 

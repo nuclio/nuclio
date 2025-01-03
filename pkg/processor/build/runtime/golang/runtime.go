@@ -34,14 +34,14 @@ type golang struct {
 // DetectFunctionHandlers returns a list of all the handlers
 // in that directory given a path holding a function (or functions)
 func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	parser := eventhandlerparser.NewEventHandlerParser(g.Logger)
+	parser := eventhandlerparser.NewEventHandlerParser(g.AbstractRuntime.Logger)
 
 	packages, handlers, err := parser.ParseEventHandlers(functionPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't find handlers in %q", functionPath)
 	}
 
-	g.Logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
+	g.AbstractRuntime.Logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
 
 	if len(handlers) != 1 {
 		return nil, errors.Wrapf(err, "Expected one handler, found %d", len(handlers))
@@ -68,8 +68,8 @@ func (g *golang) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 
 	// if the base image is not default (which is alpine) and is not alpine based, must use the non-alpine onbuild image
 	var onbuildImage string
-	if g.FunctionConfig.Spec.Build.BaseImage != "" &&
-		!strings.Contains(g.FunctionConfig.Spec.Build.BaseImage, "alpine") {
+	if g.AbstractRuntime.FunctionConfig.Spec.Build.BaseImage != "" &&
+		!strings.Contains(g.AbstractRuntime.FunctionConfig.Spec.Build.BaseImage, "alpine") {
 
 		// use non-alpine based image
 		onbuildImage = "%s/nuclio/handler-builder-golang-onbuild:%s-%s"
@@ -81,7 +81,7 @@ func (g *golang) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
-		Image: fmt.Sprintf(onbuildImage, onbuildImageRegistry, g.VersionInfo.Label, g.VersionInfo.Arch),
+		Image: fmt.Sprintf(onbuildImage, onbuildImageRegistry, g.AbstractRuntime.VersionInfo.Label, g.AbstractRuntime.VersionInfo.Arch),
 		Name:  "golang-onbuild",
 		Paths: map[string]string{
 			"/home/nuclio/bin/processor":  "/usr/local/bin/processor",

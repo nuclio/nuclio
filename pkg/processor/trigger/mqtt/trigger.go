@@ -45,14 +45,14 @@ func NewAbstractTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (*AbstractTrigger, error) {
-	instanceLogger := parentLogger.GetChild(configuration.ID)
+	instanceLogger := parentLogger.GetChild(configuration.Configuration.ID)
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(instanceLogger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"mqtt",
-		configuration.Name,
+		configuration.Configuration.Trigger.Name,
 		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
@@ -81,7 +81,7 @@ func (t *AbstractTrigger) GetConfig() map[string]interface{} {
 }
 
 func (t *AbstractTrigger) Connect() error {
-	t.Logger.InfoWith("Connecting")
+	t.AbstractTrigger.Logger.InfoWith("Connecting")
 
 	clientOptions, err := t.createClientOptions()
 	if err != nil {
@@ -101,10 +101,10 @@ func (t *AbstractTrigger) Connect() error {
 }
 
 func (t *AbstractTrigger) createClient(clientOptions *mqttclient.ClientOptions) (mqttclient.Client, error) {
-	t.Logger.InfoWith("Creating client",
-		"brokerUrl", t.configuration.URL,
+	t.AbstractTrigger.Logger.InfoWith("Creating client",
+		"brokerUrl", t.configuration.Configuration.Trigger.URL,
 		"clientID", t.configuration.ClientID,
-		"username", t.configuration.Username,
+		"username", t.configuration.Configuration.Trigger.Username,
 		"protocolVersion", t.configuration.ProtocolVersion)
 
 	client := mqttclient.NewClient(clientOptions)
@@ -118,15 +118,15 @@ func (t *AbstractTrigger) createClient(clientOptions *mqttclient.ClientOptions) 
 func (t *AbstractTrigger) createClientOptions() (*mqttclient.ClientOptions, error) {
 	clientOptions := mqttclient.NewClientOptions()
 
-	clientOptions.AddBroker(t.configuration.URL)
+	clientOptions.AddBroker(t.configuration.Configuration.Trigger.URL)
 	clientOptions.SetProtocolVersion(uint(t.configuration.ProtocolVersion))
 
-	if t.configuration.Username != "" {
-		clientOptions.SetUsername(t.configuration.Username)
+	if t.configuration.Configuration.Trigger.Username != "" {
+		clientOptions.SetUsername(t.configuration.Configuration.Trigger.Username)
 	}
 
-	if t.configuration.Password != "" {
-		clientOptions.SetPassword(t.configuration.Password)
+	if t.configuration.Configuration.Trigger.Password != "" {
+		clientOptions.SetPassword(t.configuration.Configuration.Trigger.Password)
 	}
 
 	clientOptions.SetClientID(t.configuration.ClientID)
@@ -135,7 +135,7 @@ func (t *AbstractTrigger) createClientOptions() (*mqttclient.ClientOptions, erro
 }
 
 func (t *AbstractTrigger) createSubscriptions(clientOptions *mqttclient.ClientOptions) error {
-	t.Logger.InfoWith("Creating subscriptions",
+	t.AbstractTrigger.Logger.InfoWith("Creating subscriptions",
 		"subscriptions", t.configuration.Subscriptions)
 
 	// subscribe to topics
@@ -163,16 +163,16 @@ func (t *AbstractTrigger) handleMessage(client mqttclient.Client, message mqttcl
 	// get a worker for this message
 	workerInstance, workerAllocator, err := t.allocateWorker(message)
 	if err != nil {
-		t.Logger.WarnWith("Failed to allocate worker, message dropped", "topic", message.Topic())
+		t.AbstractTrigger.Logger.WarnWith("Failed to allocate worker, message dropped", "topic", message.Topic())
 		return
 	}
 
 	//nolint: errcheck
-	t.SubmitEventToWorker(nil,
+	t.AbstractTrigger.SubmitEventToWorker(nil,
 		workerInstance,
 		&Event{
 			message: message,
-			url:     t.configuration.URL,
+			url:     t.configuration.Configuration.Trigger.URL,
 		})
 
 	workerAllocator.Release(workerInstance)
@@ -191,10 +191,10 @@ func (t *AbstractTrigger) allocateWorker(message mqttclient.Message) (*worker.Wo
 	// if there's no allocated worker allocator (either because per topic worker allocator is not enabled, or it
 	// is but there's no specific worker allocator for this topic) - use the trigger's worker allocator
 	if workerAllocator == nil {
-		workerAllocator = t.WorkerAllocator
+		workerAllocator = t.AbstractTrigger.WorkerAllocator
 	}
 
-	workerAvailabilityTimeout := time.Duration(*t.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
+	workerAvailabilityTimeout := time.Duration(*t.configuration.Configuration.Trigger.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
 
 	// try to allocate the worker
 	workerInstance, err := workerAllocator.Allocate(workerAvailabilityTimeout)

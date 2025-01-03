@@ -45,22 +45,22 @@ func NewDashboardServer(logger logger.Logger,
 func (s *DashboardServer) Start() error {
 
 	// if we're disabled, simply log and do nothing
-	if !s.Enabled {
-		s.Logger.Debug("Disabled, not listening")
+	if !s.AbstractServer.Enabled {
+		s.AbstractServer.Logger.Debug("Disabled, not listening")
 		return nil
 	}
 
 	// ready for incoming traffic
-	s.Handler.AddReadinessCheck("dashboard_readiness", func() error {
-		if s.StatusProvider.GetStatus() != status.Ready {
+	s.AbstractServer.Handler.AddReadinessCheck("dashboard_readiness", func() error {
+		if s.AbstractServer.StatusProvider.GetStatus() != status.Ready {
 			return errors.New("Dashboard is not ready yet")
 		}
 		return nil
 	})
 
 	// application is functioning correctly
-	s.Handler.AddLivenessCheck("dashboard_liveness", func() error {
-		if s.StatusProvider.GetStatus().OneOf(status.Error, status.Stopped) {
+	s.AbstractServer.Handler.AddLivenessCheck("dashboard_liveness", func() error {
+		if s.AbstractServer.StatusProvider.GetStatus().OneOf(status.Error, status.Stopped) {
 			return errors.New("Dashboard is unhealthy")
 		}
 		return nil

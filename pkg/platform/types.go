@@ -32,7 +32,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

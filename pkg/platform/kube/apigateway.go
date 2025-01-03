@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 func ValidateAPIGatewaySpec(apiGatewaySpec *platform.APIGatewaySpec) error {

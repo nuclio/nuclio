@@ -17,7 +17,7 @@ limitations under the License.
 package kinesis
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // Event allows access to the event body

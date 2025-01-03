@@ -23,7 +23,7 @@ import (
 	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/logger-appinsights"
+	appinsightslogger "github.com/nuclio/logger-appinsights"
 )
 
 type factory struct{}
@@ -44,7 +44,7 @@ func (f *factory) Create(name string,
 	// create a telemetry client
 	telemetryClient := appinsights.NewTelemetryClientFromConfig(telemetryClientConfig)
 
-	return appinsightslogger.NewLogger(telemetryClient, "processor", configuration.Level)
+	return appinsightslogger.NewLogger(telemetryClient, "processor", configuration.Configuration.Level)
 }
 
 // register factory

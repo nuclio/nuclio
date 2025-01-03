@@ -39,11 +39,11 @@ func newMetricSink(parentLogger logger.Logger,
 	processorConfiguration *processor.Configuration,
 	configuration *Configuration,
 	metricProvider metricsink.MetricProvider) (*MetricSink, error) {
-	loggerInstance := parentLogger.GetChild(configuration.Name)
+	loggerInstance := parentLogger.GetChild(configuration.Configuration.Name)
 
 	newAbstractMetricSink, err := metricsink.NewAbstractMetricSink(loggerInstance,
 		"appinsights",
-		configuration.Name,
+		configuration.Configuration.Name,
 		metricProvider)
 
 	if err != nil {
@@ -67,23 +67,23 @@ func newMetricSink(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create gatherers")
 	}
 
-	newMetricPuller.Logger.InfoWith("Created")
+	newMetricPuller.AbstractMetricSink.Logger.InfoWith("Created")
 
 	return newMetricPuller, nil
 }
 
 func (ms *MetricSink) Start() error {
-	if !*ms.configuration.Enabled {
-		ms.Logger.DebugWith("Disabled, not starting")
+	if !*ms.configuration.Configuration.MetricSink.Enabled {
+		ms.AbstractMetricSink.Logger.DebugWith("Disabled, not starting")
 
 		return nil
 	}
 
 	// set when stop() is called and channel is closed
 	done := false
-	defer close(ms.StoppedChannel)
+	defer close(ms.AbstractMetricSink.StoppedChannel)
 
-	ms.Logger.DebugWith("Pushing periodically",
+	ms.AbstractMetricSink.Logger.DebugWith("Pushing periodically",
 		"interval", ms.configuration.parsedInterval)
 
 	for !done {
@@ -97,7 +97,7 @@ func (ms *MetricSink) Start() error {
 				return errors.Wrap(err, "Failed to gather")
 			}
 
-		case <-ms.StopChannel:
+		case <-ms.AbstractMetricSink.StopChannel:
 			done = true
 		}
 	}

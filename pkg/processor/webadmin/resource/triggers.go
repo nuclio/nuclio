@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/restful"
 
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 )
 
 type triggersResource struct {
@@ -105,6 +105,6 @@ var triggers = &triggersResource{
 }
 
 func init() {
-	triggers.Resource = triggers
-	triggers.Register(webadmin.WebAdminResourceRegistrySingleton)
+	triggers.resource.AbstractResource.Resource = triggers
+	triggers.resource.AbstractResource.Register(webadmin.WebAdminResourceRegistrySingleton)
 }

@@ -58,7 +58,7 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 		"--find-links", destOnbuildWheelsPath,
 	}
 
-	_, runtimeVersion := common.GetRuntimeNameAndVersion(p.FunctionConfig.Spec.Runtime)
+	_, runtimeVersion := common.GetRuntimeNameAndVersion(p.AbstractRuntime.FunctionConfig.Spec.Runtime)
 
 	switch runtimeVersion {
 	case "3.6":
@@ -66,7 +66,7 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 			"Migrate your code and use Python 3.9 runtime (`python:3.9`) or higher")
 	case "3.7", "3.8":
 		baseImage = fmt.Sprintf("python:%s", runtimeVersion)
-		p.Logger.Warn(fmt.Sprintf("Python %s runtime is deprecated and will soon not be supported. ", runtimeVersion) +
+		p.AbstractRuntime.Logger.Warn(fmt.Sprintf("Python %s runtime is deprecated and will soon not be supported. ", runtimeVersion) +
 			"Migrate your code and use Python 3.9 runtime (`python:3.9`) or higher")
 	default:
 		baseImage = fmt.Sprintf("python:%s", runtimeVersion)
@@ -102,8 +102,8 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 				Name: "python-onbuild",
 				Image: fmt.Sprintf("%s/nuclio/handler-builder-python-onbuild:%s-%s",
 					onbuildImageRegistry,
-					p.VersionInfo.Label,
-					p.VersionInfo.Arch),
+					p.AbstractRuntime.VersionInfo.Label,
+					p.AbstractRuntime.VersionInfo.Arch),
 				Paths: map[string]string{
 					"/home/nuclio/bin/processor": "/usr/local/bin/processor",
 					"/home/nuclio/bin/py":        "/opt/nuclio/",
@@ -162,7 +162,7 @@ func (p *python) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, s
 		}
 
 		destPath := path.Join(stagingDir, path.Base(pipCAFileLocation))
-		p.Logger.DebugWith("Writing pip ca contents", "destPath", destPath)
+		p.AbstractRuntime.Logger.DebugWith("Writing pip ca contents", "destPath", destPath)
 		if err := os.WriteFile(destPath, PipCAContents, 0644); err != nil {
 			return errors.Wrap(err, "Failed to write pip ca contents to file")
 		}

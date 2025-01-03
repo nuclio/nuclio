@@ -48,7 +48,7 @@ func (r *Registry) NewMetricSink(logger logger.Logger,
 	metricSinkConfiguration *platformconfig.MetricSink,
 	metricProvider MetricProvider) (MetricSink, error) {
 
-	registree, err := r.Get(kind)
+	registree, err := r.Registry.Get(kind)
 	if err != nil {
 		return nil, err
 	}

@@ -44,7 +44,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 	externalIPAddresses, err := fsr.getPlatform().GetExternalIPAddresses()
 	if err != nil {
 		externalIPAddresses = []string{"localhost"}
-		fsr.Logger.WarnWithCtx(ctx,
+		fsr.resource.AbstractResource.Logger.WarnWithCtx(ctx,
 			"Failed to get external IP addresses, falling back to default",
 			"err", err,
 			"externalIPAddresses", externalIPAddresses)
@@ -52,7 +52,7 @@ func (fsr *frontendSpecResource) getFrontendSpec(request *http.Request) (*restfu
 
 	// try to get platform kind
 	platformKind := ""
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		platformConfiguration := dashboardServer.GetPlatformConfiguration()
 		if platformConfiguration != nil {
 			platformKind = platformConfiguration.Kind
@@ -175,7 +175,7 @@ func (fsr *frontendSpecResource) GetCustomRoutes() ([]restful.CustomRoute, error
 
 func (fsr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
 	var defaultServiceType v1.ServiceType
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		defaultServiceType = dashboardServer.GetPlatformConfiguration().Kube.DefaultServiceType
 	}
 	return defaultServiceType
@@ -183,7 +183,7 @@ func (fsr *frontendSpecResource) resolveDefaultServiceType() v1.ServiceType {
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionPreemptionMode() functionconfig.RunOnPreemptibleNodeMode {
 	var defaultPreemptionMode functionconfig.RunOnPreemptibleNodeMode
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		if dashboardServer.GetPlatformConfiguration().Kube.PreemptibleNodes != nil {
 			defaultPreemptionMode = dashboardServer.GetPlatformConfiguration().Kube.PreemptibleNodes.DefaultMode
 		}
@@ -193,7 +193,7 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionPreemptionMode() function
 
 func (fsr *frontendSpecResource) resolveFunctionReadinessTimeoutSeconds() int {
 	readinessTimeoutSeconds := platformconfig.DefaultFunctionReadinessTimeoutSeconds
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		return int(dashboardServer.GetPlatformConfiguration().GetDefaultFunctionReadinessTimeout().Seconds())
 	}
 	return readinessTimeoutSeconds
@@ -201,7 +201,7 @@ func (fsr *frontendSpecResource) resolveFunctionReadinessTimeoutSeconds() int {
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionNodeSelector() map[string]string {
 	var defaultFunctionNodeSelector map[string]string
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		defaultFunctionNodeSelector = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionNodeSelector
 	}
 	return defaultFunctionNodeSelector
@@ -209,7 +209,7 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionNodeSelector() map[string
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionTolerations() []v1.Toleration {
 	var defaultFunctionTolerations []v1.Toleration
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		defaultFunctionTolerations = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionTolerations
 	}
 	return defaultFunctionTolerations
@@ -217,7 +217,7 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionTolerations() []v1.Tolera
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionPriorityClassName() string {
 	var defaultFunctionPriorityClassName string
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		defaultFunctionPriorityClassName = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionPriorityClassName
 	}
 	return defaultFunctionPriorityClassName
@@ -225,7 +225,7 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionPriorityClassName() strin
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionServiceAccount() string {
 	var defaultFunctionServiceAccount string
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		defaultFunctionServiceAccount = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionServiceAccount
 	}
 	return defaultFunctionServiceAccount
@@ -233,7 +233,7 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionServiceAccount() string {
 
 func (fsr *frontendSpecResource) resolveDefaultFunctionPodResources() platformconfig.PodResourceRequirements {
 	var defaultFunctionPodResources platformconfig.PodResourceRequirements
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		defaultFunctionPodResources = dashboardServer.GetPlatformConfiguration().Kube.DefaultFunctionPodResources
 	}
 	return defaultFunctionPodResources
@@ -241,7 +241,7 @@ func (fsr *frontendSpecResource) resolveDefaultFunctionPodResources() platformco
 
 func (fsr *frontendSpecResource) resolveValidFunctionPriorityClassNames() []string {
 	var validFunctionPriorityClassNames []string
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		validFunctionPriorityClassNames = dashboardServer.GetPlatformConfiguration().Kube.ValidFunctionPriorityClassNames
 	}
 	return validFunctionPriorityClassNames
@@ -251,7 +251,7 @@ func (fsr *frontendSpecResource) resolveAutoScaleMetrics(inactivityWindowPresets
 	var supportedAutoScaleMetrics []functionconfig.AutoScaleMetric
 	windowSizePresets := inactivityWindowPresets
 	customMetricsEnabled := false
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().SupportedAutoScaleMetrics
 		if len(supportedAutoScaleMetrics) == 0 {
 			supportedAutoScaleMetrics = dashboardServer.GetPlatformConfiguration().GetDefaultSupportedAutoScaleMetrics()
@@ -274,7 +274,7 @@ func (fsr *frontendSpecResource) getDefaultHTTPIngressHostTemplate() string {
 
 	// try read from platform configuration first, if set use that, otherwise
 	// fallback reading from envvar for backwards compatibility with old helm charts
-	if dashboardServer, ok := fsr.resource.GetServer().(*dashboard.Server); ok {
+	if dashboardServer, ok := fsr.resource.AbstractResource.GetServer().(*dashboard.Server); ok {
 		defaultHTTPIngressHostTemplate := dashboardServer.GetPlatformConfiguration().Kube.DefaultHTTPIngressHostTemplate
 		if defaultHTTPIngressHostTemplate != "" {
 			return defaultHTTPIngressHostTemplate
@@ -297,6 +297,6 @@ var frontendSpecResourceInstance = &frontendSpecResource{
 }
 
 func init() {
-	frontendSpecResourceInstance.Resource = frontendSpecResourceInstance
-	frontendSpecResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	frontendSpecResourceInstance.resource.AbstractResource.Resource = frontendSpecResourceInstance
+	frontendSpecResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

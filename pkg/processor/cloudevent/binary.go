@@ -19,7 +19,7 @@ package cloudevent
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // Binary wraps a nuclio.Event with a cloudevent whose data is encoded in the nuclio.Event body.

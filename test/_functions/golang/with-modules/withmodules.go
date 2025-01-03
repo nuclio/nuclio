@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 
 	"github.com/aidarkhanov/nanoid"
 )

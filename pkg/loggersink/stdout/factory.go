@@ -25,7 +25,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	nucliozap "github.com/nuclio/zap"
 )
 
 type factory struct{}
@@ -51,7 +51,7 @@ func (f *factory) Create(name string,
 
 	var level nucliozap.Level
 
-	switch configuration.Level {
+	switch configuration.Configuration.Level {
 	case logger.LevelInfo:
 		level = nucliozap.InfoLevel
 	case logger.LevelWarn:

@@ -42,7 +42,7 @@ func (r *Registry) NewRuntime(logger logger.Logger,
 	kind string,
 	runtimeConfiguration *Configuration) (Runtime, error) {
 
-	registree, err := r.Get(kind)
+	registree, err := r.Registry.Get(kind)
 	if err != nil {
 		return nil, err
 	}

@@ -25,7 +25,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type AbstractPoller struct {
@@ -43,7 +43,7 @@ func NewAbstractPoller(logger logger.Logger,
 		&configuration.Configuration,
 		"batch",
 		"poller",
-		configuration.Name,
+		configuration.Configuration.Trigger.Name,
 		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
@@ -105,11 +105,11 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 				// TODO
 			}
 
-			ap.Logger.DebugWith("Got events", "num", len(eventBatch))
+			ap.AbstractTrigger.Logger.DebugWith("Got events", "num", len(eventBatch))
 
 			// send the batch to the worker
 			// eventResponses, submitError, eventErrors := ap.AllocateWorkerAndSubmitEvents(eventBatch, 10 * time.Second)
-			eventResponses, submitError, eventErrors := ap.AllocateWorkerAndSubmitEvents(eventBatch, nil, 10*time.Second)
+			eventResponses, submitError, eventErrors := ap.AbstractTrigger.AllocateWorkerAndSubmitEvents(eventBatch, nil, 10*time.Second)
 
 			if submitError != nil {
 				continue

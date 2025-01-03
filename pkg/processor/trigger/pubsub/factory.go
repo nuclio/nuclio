@@ -47,7 +47,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// get or create worker allocator
-	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
+	workerAllocator, err := f.Factory.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
 		func() (worker.Allocator, error) {
 			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
@@ -70,7 +70,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 	triggerLogger.DebugWith("Created trigger",
 		"triggerName", configuration.Name,
-		"triggerKind", configuration.Kind)
+		"triggerKind", configuration.Configuration.Trigger.Kind)
 	return triggerInstance, nil
 }
 

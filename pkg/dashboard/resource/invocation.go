@@ -31,7 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type invocationResource struct {
@@ -48,12 +48,12 @@ func (tr *invocationResource) OnAfterInitialize() error {
 
 	// all methods
 	for _, registrar := range []func(string, http.HandlerFunc){
-		tr.GetRouter().Get,
-		tr.GetRouter().Post,
-		tr.GetRouter().Put,
-		tr.GetRouter().Delete,
-		tr.GetRouter().Patch,
-		tr.GetRouter().Options,
+		tr.resource.AbstractResource.GetRouter().Get,
+		tr.resource.AbstractResource.GetRouter().Post,
+		tr.resource.AbstractResource.GetRouter().Put,
+		tr.resource.AbstractResource.GetRouter().Delete,
+		tr.resource.AbstractResource.GetRouter().Patch,
+		tr.resource.AbstractResource.GetRouter().Options,
 	} {
 		registrar("/*", tr.handleRequest)
 	}
@@ -118,7 +118,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	})
 
 	if err != nil {
-		tr.Logger.WarnWithCtx(ctx, "Failed to invoke function", "err", err)
+		tr.resource.AbstractResource.Logger.WarnWithCtx(ctx, "Failed to invoke function", "err", err)
 		tr.writeErrorHeader(responseWriter, common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError))
 		tr.writeErrorMessage(responseWriter, fmt.Sprintf("Failed to invoke function: %v", errors.RootCause(err)))
 		return
@@ -171,6 +171,6 @@ var invocationResourceInstance = &invocationResource{
 }
 
 func init() {
-	invocationResourceInstance.Resource = invocationResourceInstance
-	invocationResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	invocationResourceInstance.resource.AbstractResource.Resource = invocationResourceInstance
+	invocationResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

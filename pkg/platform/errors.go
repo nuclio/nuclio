@@ -17,7 +17,7 @@ limitations under the License.
 package platform
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // projects

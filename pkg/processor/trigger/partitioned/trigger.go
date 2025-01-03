@@ -55,12 +55,12 @@ func NewAbstractStream(parentLogger logger.Logger,
 	kind string,
 	restartTriggerChan chan trigger.Trigger) (*AbstractStream, error) {
 
-	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.Configuration.ID),
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		kind,
-		configuration.Name,
+		configuration.Configuration.Trigger.Name,
 		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
@@ -94,7 +94,7 @@ func (as *AbstractStream) Start(checkpoint functionconfig.Checkpoint) error {
 		// start reading from partition
 		go func(partition Partition) {
 			if err := partition.Read(); err != nil {
-				as.Logger.ErrorWith("Failed to read from partition", "err", err)
+				as.AbstractTrigger.Logger.ErrorWith("Failed to read from partition", "err", err)
 			}
 		}(partition)
 	}

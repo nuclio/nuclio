@@ -102,14 +102,14 @@ func (f *Function) Initialize(ctx context.Context, str []string) error {
 	waitGroup.Add(3)
 
 	listOptions := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, f.Config.Meta.Name),
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, f.AbstractFunction.Config.Meta.Name),
 	}
 
 	// get deployment info
 	go func() {
 		if deploymentList == nil {
 			deploymentList, deploymentErr = f.consumer.KubeClientSet.AppsV1().
-				Deployments(f.Config.Meta.Namespace).
+				Deployments(f.AbstractFunction.Config.Meta.Namespace).
 				List(ctx, listOptions)
 
 			if deploymentErr != nil {
@@ -133,7 +133,7 @@ func (f *Function) Initialize(ctx context.Context, str []string) error {
 	go func() {
 		if serviceList == nil {
 			serviceList, serviceErr = f.consumer.KubeClientSet.CoreV1().
-				Services(f.Config.Meta.Namespace).
+				Services(f.AbstractFunction.Config.Meta.Namespace).
 				List(ctx, listOptions)
 
 			if serviceErr != nil {
@@ -157,7 +157,7 @@ func (f *Function) Initialize(ctx context.Context, str []string) error {
 	go func() {
 		if ingressList == nil {
 			ingressList, ingressErr = f.consumer.KubeClientSet.NetworkingV1().
-				Ingresses(f.Config.Meta.Namespace).
+				Ingresses(f.AbstractFunction.Config.Meta.Namespace).
 				List(ctx, listOptions)
 
 			if ingressErr != nil {

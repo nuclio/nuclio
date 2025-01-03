@@ -79,7 +79,7 @@ func (n *nodejs) RunWrapper(socketPaths []string, controlSocketPath string) (*os
 
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
-	env = append(env, n.GetEnvFromConfiguration()...)
+	env = append(env, n.AbstractRuntime.GetEnvFromConfiguration()...)
 
 	handlerFilePath, handlerName, err := n.getHandler()
 	if err != nil {

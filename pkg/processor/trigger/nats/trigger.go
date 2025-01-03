@@ -43,12 +43,12 @@ func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
-	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.Configuration.ID),
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"nats",
-		configuration.Name,
+		configuration.Configuration.Trigger.Name,
 		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
@@ -70,7 +70,7 @@ func newTrigger(parentLogger logger.Logger,
 }
 
 func (n *nats) validateConfiguration() error {
-	natsURL, err := url.Parse(n.configuration.URL)
+	natsURL, err := url.Parse(n.configuration.Configuration.Trigger.URL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse NATS URL")
 	}
@@ -95,25 +95,25 @@ func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
 
 	var queueNameTemplateBuffer bytes.Buffer
 	err = queueNameTemplate.Execute(&queueNameTemplateBuffer, &map[string]interface{}{
-		"Namespace":   n.configuration.RuntimeConfiguration.Meta.Namespace,
-		"Name":        n.configuration.RuntimeConfiguration.Meta.Name,
-		"Id":          n.configuration.ID,
-		"Labels":      n.configuration.RuntimeConfiguration.Meta.Labels,
-		"Annotations": n.configuration.RuntimeConfiguration.Meta.Annotations,
+		"Namespace":   n.configuration.Configuration.RuntimeConfiguration.Meta.Namespace,
+		"Name":        n.configuration.Configuration.RuntimeConfiguration.Meta.Name,
+		"Id":          n.configuration.Configuration.ID,
+		"Labels":      n.configuration.Configuration.RuntimeConfiguration.Meta.Labels,
+		"Annotations": n.configuration.Configuration.RuntimeConfiguration.Meta.Annotations,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to execute queueName template")
 	}
 
 	queueName = queueNameTemplateBuffer.String()
-	n.Logger.InfoWith("Starting",
-		"serverURL", n.configuration.URL,
+	n.AbstractTrigger.Logger.InfoWith("Starting",
+		"serverURL", n.configuration.Configuration.Trigger.URL,
 		"topic", n.configuration.Topic,
 		"queueName", queueName)
 
-	natsConnection, err := natsio.Connect(n.configuration.URL)
+	natsConnection, err := natsio.Connect(n.configuration.Configuration.Trigger.URL)
 	if err != nil {
-		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.URL)
+		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.Configuration.Trigger.URL)
 	}
 
 	messageChan := make(chan *natsio.Msg, 64)
@@ -143,21 +143,21 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 				}
 
 				// allocate a worker
-				workerInstance, err := n.WorkerAllocator.Allocate(time.Duration(*n.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond)
+				workerInstance, err := n.AbstractTrigger.WorkerAllocator.Allocate(time.Duration(*n.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond)
 				if err != nil {
-					n.UpdateStatistics(false, 1)
-					n.Logger.ErrorWith("Failed to allocate worker", "error", err)
+					n.AbstractTrigger.UpdateStatistics(false, 1)
+					n.AbstractTrigger.Logger.ErrorWith("Failed to allocate worker", "error", err)
 					return
 				}
 
 				// submit the event to the worker, don't really do anything with response
-				_, processErr := n.SubmitEventToWorker(nil, workerInstance, event)
+				_, processErr := n.AbstractTrigger.SubmitEventToWorker(nil, workerInstance, event)
 				if processErr != nil {
-					n.Logger.ErrorWith("Can't process event", "error", processErr)
+					n.AbstractTrigger.Logger.ErrorWith("Can't process event", "error", processErr)
 				}
 
 				// release the worker
-				n.WorkerAllocator.Release(workerInstance)
+				n.AbstractTrigger.WorkerAllocator.Release(workerInstance)
 			}()
 
 		case <-n.stop:

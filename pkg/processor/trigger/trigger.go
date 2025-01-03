@@ -32,7 +32,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 const (
@@ -131,13 +131,13 @@ func NewAbstractTrigger(logger logger.Logger,
 	restartTriggerChan chan Trigger) (AbstractTrigger, error) {
 
 	// enrich default trigger configuration
-	if configuration.WorkerAvailabilityTimeoutMilliseconds == nil || *configuration.WorkerAvailabilityTimeoutMilliseconds < 0 {
+	if configuration.Trigger.WorkerAvailabilityTimeoutMilliseconds == nil || *configuration.Trigger.WorkerAvailabilityTimeoutMilliseconds < 0 {
 		logger.InfoWith("Setting default worker availability timeout",
 			"DefaultWorkerAvailabilityTimeoutMilliseconds",
 			DefaultWorkerAvailabilityTimeoutMilliseconds)
 
 		defaultWorkerAvailabilityTimeoutMilliseconds := DefaultWorkerAvailabilityTimeoutMilliseconds
-		configuration.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
+		configuration.Trigger.WorkerAvailabilityTimeoutMilliseconds = &defaultWorkerAvailabilityTimeoutMilliseconds
 	}
 
 	trigger := AbstractTrigger{
@@ -152,8 +152,8 @@ func NewAbstractTrigger(logger logger.Logger,
 		ProjectName:     configuration.RuntimeConfiguration.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		restartChan:     restartTriggerChan,
 	}
-	if functionconfig.BatchModeEnabled(configuration.Batch) {
-		trigger.Batcher = NewBatcher(logger, configuration.Batch.BatchSize)
+	if functionconfig.BatchModeEnabled(configuration.Trigger.Batch) {
+		trigger.Batcher = NewBatcher(logger, configuration.Trigger.Batch.BatchSize)
 	}
 	return trigger, nil
 }

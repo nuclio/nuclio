@@ -19,7 +19,7 @@ package main
 import (
 	"errors"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 func InitContext(context *nuclio.Context) error {

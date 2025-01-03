@@ -39,14 +39,14 @@ func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
-	instanceLogger := parentLogger.GetChild(configuration.ID)
+	instanceLogger := parentLogger.GetChild(configuration.Configuration.ID)
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(instanceLogger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"kinesis",
-		configuration.Name,
+		configuration.Configuration.Trigger.Name,
 		restartTriggerChan)
 	if err != nil {
 		return nil, errors.New("Failed to create abstract trigger")
@@ -61,7 +61,7 @@ func newTrigger(parentLogger logger.Logger,
 		configuration.SecretAccessKey,
 		"")
 
-	switch endpoint := configuration.URL; {
+	switch endpoint := configuration.Configuration.Trigger.URL; {
 	case endpoint != "":
 		newTrigger.kinesisClient = kinesisclient.NewWithEndpoint(newTrigger.kinesisAuth,
 			configuration.RegionName,
@@ -74,7 +74,7 @@ func newTrigger(parentLogger logger.Logger,
 	for _, shardID := range configuration.Shards {
 
 		// create the shard
-		shard, err := newShard(newTrigger.Logger, newTrigger, shardID)
+		shard, err := newShard(newTrigger.AbstractTrigger.Logger, newTrigger, shardID)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create shard")
 		}
@@ -87,7 +87,7 @@ func newTrigger(parentLogger logger.Logger,
 }
 
 func (k *kinesis) Start(checkpoint functionconfig.Checkpoint) error {
-	k.Logger.InfoWith("Starting",
+	k.AbstractTrigger.Logger.InfoWith("Starting",
 		"streamName", k.configuration.StreamName,
 		"shards", k.configuration.Shards)
 
@@ -96,7 +96,7 @@ func (k *kinesis) Start(checkpoint functionconfig.Checkpoint) error {
 		// start reading from shard
 		go func(shardInstance *shard) {
 			if err := shardInstance.readFromShard(); err != nil {
-				k.Logger.ErrorWith("Failed to read from shard", "err", err)
+				k.AbstractTrigger.Logger.ErrorWith("Failed to read from shard", "err", err)
 			}
 		}(shardInstance)
 	}

@@ -20,7 +20,7 @@ import (
 	"strconv"
 
 	mqttclient "github.com/eclipse/paho.mqtt.golang"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 // Event allows access to the MQTT message

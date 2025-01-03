@@ -40,11 +40,11 @@ func newMetricSink(parentLogger logger.Logger,
 	processorConfiguration *processor.Configuration,
 	configuration *Configuration,
 	metricProvider metricsink.MetricProvider) (*MetricSink, error) {
-	loggerInstance := parentLogger.GetChild(configuration.Name)
+	loggerInstance := parentLogger.GetChild(configuration.Configuration.Name)
 
 	newAbstractMetricSink, err := metricsink.NewAbstractMetricSink(loggerInstance,
 		"promethuesPush",
-		configuration.Name,
+		configuration.Configuration.Name,
 		metricProvider)
 
 	if err != nil {
@@ -62,18 +62,18 @@ func newMetricSink(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create gatherers")
 	}
 
-	newMetricPusher.Logger.InfoWith("Created",
+	newMetricPusher.AbstractMetricSink.Logger.InfoWith("Created",
 		"jobName", configuration.JobName,
 		"instanceName", configuration.InstanceName,
-		"pushGatewayURL", configuration.URL,
+		"pushGatewayURL", configuration.Configuration.MetricSink.URL,
 		"pushInterval", configuration.Interval)
 
 	return newMetricPusher, nil
 }
 
 func (ms *MetricSink) Start() error {
-	if !*ms.configuration.Enabled {
-		ms.Logger.DebugWith("Disabled, not starting")
+	if !*ms.configuration.Configuration.MetricSink.Enabled {
+		ms.AbstractMetricSink.Logger.DebugWith("Disabled, not starting")
 
 		return nil
 	}
@@ -88,11 +88,11 @@ func (ms *MetricSink) pushPeriodically() {
 
 	// set when stop() is called and channel is closed
 	done := false
-	defer close(ms.StoppedChannel)
+	defer close(ms.AbstractMetricSink.StoppedChannel)
 
-	ms.Logger.DebugWith("Pushing periodically",
+	ms.AbstractMetricSink.Logger.DebugWith("Pushing periodically",
 		"interval", ms.configuration.parsedInterval,
-		"target", ms.configuration.URL)
+		"target", ms.configuration.Configuration.MetricSink.URL)
 
 	for !done {
 
@@ -102,17 +102,17 @@ func (ms *MetricSink) pushPeriodically() {
 			// gather the metrics from the triggers - this will update the metrics
 			// from counters internally held by triggers and their child objects
 			if err := ms.gather(); err != nil {
-				ms.Logger.WarnWith("Failed to gather metrics", "err", err)
+				ms.AbstractMetricSink.Logger.WarnWith("Failed to gather metrics", "err", err)
 
 				continue
 			}
 
 			// Add is used here rather than Put to not delete a
 			// previously pushed success timestamp in case of a failure of this backup.
-			if err := push.New(ms.configuration.URL, ms.configuration.JobName).Gatherer(ms.metricRegistry).Add(); err != nil {
-				ms.Logger.WarnWith("Failed to push metrics", "err", err)
+			if err := push.New(ms.configuration.Configuration.MetricSink.URL, ms.configuration.JobName).Gatherer(ms.metricRegistry).Add(); err != nil {
+				ms.AbstractMetricSink.Logger.WarnWith("Failed to push metrics", "err", err)
 			}
-		case <-ms.StopChannel:
+		case <-ms.AbstractMetricSink.StopChannel:
 			done = true
 		}
 	}
@@ -125,7 +125,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		// create a gatherer for the trigger
 		triggerGatherer, err := prometheus.NewTriggerGatherer(ms.configuration.InstanceName,
 			trigger,
-			ms.Logger,
+			ms.AbstractMetricSink.Logger,
 			ms.metricRegistry)
 
 		if err != nil {
@@ -138,7 +138,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		for _, worker := range trigger.GetWorkers() {
 			workerGatherer, err := prometheus.NewWorkerGatherer(ms.configuration.InstanceName,
 				trigger,
-				ms.Logger,
+				ms.AbstractMetricSink.Logger,
 				worker,
 				ms.metricRegistry)
 

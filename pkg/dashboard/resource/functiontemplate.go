@@ -28,7 +28,7 @@ import (
 
 	"github.com/fatih/structs"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type functionTemplateResource struct {
@@ -39,7 +39,7 @@ type functionTemplateResource struct {
 
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
 	ftr.functionTemplateRepository = ftr.getDashboard().Repository
-	ftr.renderer = functiontemplates.NewFunctionTemplateRenderer(ftr.Logger)
+	ftr.renderer = functiontemplates.NewFunctionTemplateRenderer(ftr.resource.AbstractResource.Logger)
 	return nil
 }
 
@@ -145,6 +145,6 @@ var functionTemplateResourceInstance = &functionTemplateResource{
 }
 
 func init() {
-	functionTemplateResourceInstance.Resource = functionTemplateResourceInstance
-	functionTemplateResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
+	functionTemplateResourceInstance.resource.AbstractResource.Resource = functionTemplateResourceInstance
+	functionTemplateResourceInstance.resource.AbstractResource.Register(dashboard.DashboardResourceRegistrySingleton)
 }

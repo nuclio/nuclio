@@ -19,7 +19,7 @@ package eventhub
 import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
-	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
+	eventhubutil "github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	eventhubclient "github.com/Azure/go-amqp"

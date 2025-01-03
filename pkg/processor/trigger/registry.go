@@ -52,7 +52,7 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 	namedWorkerAllocators *worker.AllocatorSyncMap,
 	restartTriggerChan chan Trigger) (Trigger, error) {
 
-	registree, err := r.Get(kind)
+	registree, err := r.Registry.Get(kind)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("Trigger of kind `%s` is not supported", kind))
 	}

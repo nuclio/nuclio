@@ -49,11 +49,11 @@ func newMetricSink(parentLogger logger.Logger,
 	processorConfiguration *processor.Configuration,
 	configuration *Configuration,
 	metricProvider metricsink.MetricProvider) (*MetricSink, error) {
-	loggerInstance := parentLogger.GetChild(configuration.Name)
+	loggerInstance := parentLogger.GetChild(configuration.Configuration.Name)
 
 	newAbstractMetricSink, err := metricsink.NewAbstractMetricSink(loggerInstance,
 		"promethuesPull",
-		configuration.Name,
+		configuration.Configuration.Name,
 		metricProvider)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract metric sink")
@@ -76,24 +76,24 @@ func newMetricSink(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create gatherers")
 	}
 
-	newMetricPuller.Logger.InfoWith("Created",
+	newMetricPuller.AbstractMetricSink.Logger.InfoWith("Created",
 		"env", os.Getenv("NUCLIO_FUNCTION_INSTANCE"),
 		"instanceName", newMetricPuller.instanceName,
-		"listenAddr", configuration.URL,
+		"listenAddr", configuration.Configuration.MetricSink.URL,
 		"gatherers", len(newMetricPuller.gatherers))
 
 	return newMetricPuller, nil
 }
 
 func (ms *MetricSink) Start() error {
-	if !*ms.configuration.Enabled {
-		ms.Logger.DebugWith("Disabled, not starting")
+	if !*ms.configuration.Configuration.MetricSink.Enabled {
+		ms.AbstractMetricSink.Logger.DebugWith("Disabled, not starting")
 
 		return nil
 	}
 
 	// create server so that we can stop it
-	ms.httpServer = &http.Server{Addr: ms.configuration.URL, Handler: nil}
+	ms.httpServer = &http.Server{Addr: ms.configuration.Configuration.MetricSink.URL, Handler: nil}
 
 	// listen in the background
 	go ms.listen() // nolint: errcheck
@@ -116,7 +116,7 @@ func (ms *MetricSink) ServeHTTP(responseWriter http.ResponseWriter, request *htt
 
 	// gather all metrics from the processor. reads all the primitive data into the prometheus counters
 	if err := ms.gather(); err != nil {
-		ms.Logger.WarnWith("Failure detected while gathering metrics", "err", err)
+		ms.AbstractMetricSink.Logger.WarnWith("Failure detected while gathering metrics", "err", err)
 		responseWriter.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -126,7 +126,7 @@ func (ms *MetricSink) ServeHTTP(responseWriter http.ResponseWriter, request *htt
 }
 
 func (ms *MetricSink) listen() error {
-	ms.Logger.DebugWith("Listening", "addr", ms.configuration.URL)
+	ms.AbstractMetricSink.Logger.DebugWith("Listening", "addr", ms.configuration.Configuration.MetricSink.URL)
 
 	// save the handler that the registry provides
 	ms.metricRegistryHandler = promhttp.HandlerFor(ms.metricRegistry, promhttp.HandlerOpts{})
@@ -136,7 +136,7 @@ func (ms *MetricSink) listen() error {
 
 	// start listening
 	if err := ms.httpServer.ListenAndServe(); err != nil {
-		return errors.Wrapf(err, "Failed to listen on %s", ms.configuration.URL)
+		return errors.Wrapf(err, "Failed to listen on %s", ms.configuration.Configuration.MetricSink.URL)
 	}
 
 	return nil
@@ -149,7 +149,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		// create a gatherer for the trigger
 		triggerGatherer, err := prometheus.NewTriggerGatherer(ms.instanceName,
 			trigger,
-			ms.Logger,
+			ms.AbstractMetricSink.Logger,
 			ms.metricRegistry)
 
 		if err != nil {
@@ -162,7 +162,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		for _, worker := range trigger.GetWorkers() {
 			workerGatherer, err := prometheus.NewWorkerGatherer(ms.instanceName,
 				trigger,
-				ms.Logger,
+				ms.AbstractMetricSink.Logger,
 				worker,
 				ms.metricRegistry)
 
@@ -174,7 +174,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 		}
 	}
 
-	ms.Logger.DebugWith("Created trigger and worker gatherers")
+	ms.AbstractMetricSink.Logger.DebugWith("Created trigger and worker gatherers")
 
 	return nil
 }

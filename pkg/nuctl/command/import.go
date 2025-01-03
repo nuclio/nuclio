@@ -30,7 +30,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/semaphore"
 )

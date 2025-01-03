@@ -19,7 +19,7 @@ package controlcommunication
 import (
 	"encoding/json"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type ControlMessageEvent struct {
