@@ -40,6 +40,7 @@ type Spec struct {
 	ProxyReadTimeout     string
 	Annotations          map[string]string
 	Labels               map[string]string
+	IngressClassName     string
 }
 
 type SpecRole string

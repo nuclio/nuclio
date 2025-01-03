@@ -3757,7 +3757,8 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 			"1m",
 			"2m"
 		]
-	}
+	},
+	"logsScreenEnabled": false
 }`
 
 	suite.sendRequest("GET",

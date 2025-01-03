@@ -30,6 +30,9 @@ metadata:
 {{ toYaml . | indent 4 }}
 {{- end }}
 spec:
+{{- if .Values.dashboard.ingress.ingressClassName }}
+  ingressClassName: {{ .Values.dashboard.ingress.ingressClassName }}
+{{- end }}
 {{- if .Values.dashboard.ingress.tls }}
   tls:
   {{- range .Values.dashboard.ingress.tls }}

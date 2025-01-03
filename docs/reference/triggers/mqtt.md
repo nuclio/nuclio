@@ -1,5 +1,7 @@
 # MQTT trigger
 
+> **NOTE:**  MQTT trigger is in tech-preview.
+
 Reads messages from [MQTT](https://mqtt.org/) topics.
 
 ## Attributes

@@ -400,7 +400,7 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 func (fr *functionResource) validateLogStreamOptions(ctx context.Context,
 	function platform.Function,
 	getFunctionReplicaLogsStreamOptions *platform.GetFunctionReplicaLogsStreamOptions) error {
-	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(ctx, function.GetConfig())
+	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(ctx, function, getFunctionReplicaLogsStreamOptions.PermissionOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function replica names")
 	}
@@ -431,6 +431,7 @@ func (fr *functionResource) validateLogStreamOptions(ctx context.Context,
 
 func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 	*restful.CustomRouteFuncResponse, error) {
+	ctx := request.Context()
 
 	// ensure namespace
 	namespace := fr.getNamespaceFromRequest(request)
@@ -449,7 +450,13 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
-	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(request.Context(), function.GetConfig())
+	permissionOptions := opa.PermissionOptions{
+		MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
+		OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		RaiseForbidden:      true,
+	}
+
+	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(ctx, function, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function replicas")
 	}
@@ -741,6 +748,11 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 		Namespace:     namespace,
 		Follow:        fr.resource.AbstractResource.GetURLParamBoolOrDefault(request, "follow", true),
 		ContainerName: fr.resource.AbstractResource.GetURLParamStringOrDefault(request, "containerName", client.FunctionContainerName),
+		PermissionOptions: opa.PermissionOptions{
+			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request.Context())),
+			RaiseForbidden:      true,
+			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		},
 	}
 
 	// populate since seconds

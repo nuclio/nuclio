@@ -516,9 +516,9 @@ func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
 }
 
 func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
-	functionConfig *functionconfig.Config) ([]string, error) {
+	function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
 	return []string{
-		p.GetFunctionContainerName(functionConfig),
+		p.GetFunctionContainerName(function.GetConfig()),
 	}, nil
 }
 

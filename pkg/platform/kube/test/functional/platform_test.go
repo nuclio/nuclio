@@ -164,7 +164,7 @@ func (suite *PlatformTestSuite) compileFunctionConfig() *functionconfig.Config {
 	functionConfig.Spec.RunRegistry = suite.registryURL
 	functionConfig.Spec.Build.Registry = suite.registryURL
 	functionConfig.Spec.Handler = "main:handler"
-	functionConfig.Spec.Runtime = "python:3.8"
+	functionConfig.Spec.Runtime = "python:3.11"
 	functionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
 def handler(context, event):
   return "hello world"

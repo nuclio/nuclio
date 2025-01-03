@@ -176,28 +176,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			one := 1
-			defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
-			defaultHTTPTrigger.Annotations = testCase.functionIngressAnnotations
-			defaultHTTPTrigger.Attributes = map[string]interface{}{
-				"ingresses": map[string]interface{}{
-					"0": map[string]interface{}{
-						"host":  "something.com",
-						"paths": []string{"/"},
-					},
-				},
-			}
-			function := nuclioio.NuclioFunction{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "my-function" + testCase.name,
-				},
-				Spec: functionconfig.Spec{
-					Replicas: &one,
-					Triggers: map[string]functionconfig.Trigger{
-						defaultHTTPTrigger.Name: defaultHTTPTrigger,
-					},
-				},
-			}
+			function := suite.generateFunctionWithIngress(testCase.name, "", testCase.functionIngressAnnotations)
 			functionLabels := suite.client.getFunctionLabels(&function)
 			functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
 
@@ -211,9 +190,29 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			delete(ingressInstance.Annotations, "nginx.ingress.kubernetes.io/configuration-snippet")
 			suite.Require().Equal(testCase.expectedFunctionIngressAnnotations,
 				ingressInstance.Annotations)
-
 		})
 	}
+}
+
+func (suite *lazyTestSuite) TestEnrichIngressWithDefaultIngressClassName() {
+	defaultIngressClassName := "my-ingress-class"
+	suite.client.SetPlatformConfigurationProvider(&mockedPlatformConfigurationProvider{
+		platformConfiguration: &platformconfig.Config{
+			Kube: platformconfig.PlatformKubeConfig{
+				DefaultHTTPIngressClassName: defaultIngressClassName,
+			},
+		},
+	})
+
+	function := suite.generateFunctionWithIngress("function-name", "", nil)
+	functionLabels := suite.client.getFunctionLabels(&function)
+	functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
+
+	// "create the ingress
+	ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(ingressInstance)
+	suite.Require().Equal(defaultIngressClassName, *ingressInstance.Spec.IngressClassName)
 }
 
 func (suite *lazyTestSuite) TestEnrichIngressTLS() {
@@ -250,27 +249,7 @@ func (suite *lazyTestSuite) TestEnrichIngressTLS() {
 				},
 			})
 			host := "something.com"
-			one := 1
-			defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
-			defaultHTTPTrigger.Attributes = map[string]interface{}{
-				"ingresses": map[string]interface{}{
-					"0": map[string]interface{}{
-						"host":  host,
-						"paths": []string{"/"},
-					},
-				},
-			}
-			function := nuclioio.NuclioFunction{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "my-function" + testCase.name,
-				},
-				Spec: functionconfig.Spec{
-					Replicas: &one,
-					Triggers: map[string]functionconfig.Trigger{
-						defaultHTTPTrigger.Name: defaultHTTPTrigger,
-					},
-				},
-			}
+			function := suite.generateFunctionWithIngress(testCase.name, host, nil)
 			functionLabels := suite.client.getFunctionLabels(&function)
 
 			ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
@@ -921,6 +900,38 @@ func (suite *lazyTestSuite) TestResolveAutoScaleMetricSpec() {
 			suite.Require().True(metricSpec.Pods.Target.AverageValue.Equal(podTargetValue))
 		}
 	}
+}
+
+func (suite *lazyTestSuite) generateFunctionWithIngress(functionName, host string, annotations map[string]string) nuclioio.NuclioFunction {
+	one := 1
+	if host == "" {
+		host = "something.com"
+	}
+	defaultHTTPTrigger := functionconfig.GetDefaultHTTPTrigger()
+	defaultHTTPTrigger.Attributes = map[string]interface{}{
+		"ingresses": map[string]interface{}{
+			"0": map[string]interface{}{
+				"host":  host,
+				"paths": []string{"/"},
+			},
+		},
+	}
+	if annotations != nil {
+		defaultHTTPTrigger.Annotations = annotations
+	}
+
+	function := nuclioio.NuclioFunction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: functionName,
+		},
+		Spec: functionconfig.Spec{
+			Replicas: &one,
+			Triggers: map[string]functionconfig.Trigger{
+				defaultHTTPTrigger.Name: defaultHTTPTrigger,
+			},
+		},
+	}
+	return function
 }
 
 func (suite *lazyTestSuite) getIngressRuleByHost(rules []networkingv1.IngressRule, host string) *networkingv1.IngressRule {
