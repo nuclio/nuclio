@@ -16,5 +16,20 @@ limitations under the License.
 
 package connection
 
+import (
+	"github.com/nuclio/logger"
+	"net"
+)
+
 type Connection struct {
+	*AbstractEventConnection
+}
+
+func NewConnection(parentLogger logger.Logger, connection net.Conn, connectionManager ConnectionManager) *Connection {
+	abstractEventConnection := NewAbstractEventConnection(parentLogger, connectionManager)
+	abstractEventConnection.Conn = connection
+
+	return &Connection{
+		AbstractEventConnection: abstractEventConnection,
+	}
 }

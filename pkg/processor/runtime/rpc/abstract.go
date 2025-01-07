@@ -247,14 +247,16 @@ func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, function
 }
 
 func (r *AbstractRuntime) startWrapper() error {
-	connectionManagerConfiguration := &connection.ManagerConfigration{
-		Kind:                        connection.SocketAllocatorManagerKind,
-		SupportControlCommunication: r.runtime.SupportsControlCommunication(),
-		WaitForStart:                r.runtime.WaitForStart(),
-		SocketType:                  r.runtime.GetSocketType(),
-		GetEventEncoderFunc:         r.runtime.GetEventEncoder,
-		Statistics:                  r.Statistics,
-	}
+	connectionManagerConfiguration := connection.NewManagerConfigration(
+		connection.SocketAllocatorManagerKind,
+		r.runtime.SupportsControlCommunication(),
+		r.runtime.WaitForStart(),
+		r.runtime.GetSocketType(),
+		r.runtime.GetEventEncoder,
+		r.Statistics,
+		r.configuration.WorkerID,
+	)
+
 	var err error
 	r.connectionManager, err = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
 	if err != nil {

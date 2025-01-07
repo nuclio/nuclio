@@ -16,39 +16,84 @@ limitations under the License.
 
 package connection
 
+import (
+	"fmt"
+	"github.com/nuclio/errors"
+	"net"
+)
+
 type ConnectionAllocator struct {
 	*AbstractConnectionManager
 
-	host string
-	port int
+	serverAddress string
 
+	// should be a buffered chan when support multiple
 	eventConnections     []*Connection
 	controlMessageSocket *ControlMessageSocket
 }
 
-func NewConnectionAllocator(abstractConnectionManager *AbstractConnectionManager, host string, port int) *ConnectionAllocator {
+func NewConnectionAllocator(abstractConnectionManager *AbstractConnectionManager) *ConnectionAllocator {
 	return &ConnectionAllocator{
 		AbstractConnectionManager: abstractConnectionManager,
-		host:                      host,
-		port:                      port,
-		eventConnections:          make([]*Connection, 0),
+		serverAddress: fmt.Sprintf("%s:%d",
+			abstractConnectionManager.Configuration.host,
+			abstractConnectionManager.Configuration.port),
+		eventConnections: make([]*Connection, 0),
 	}
 }
 
 func (ca *ConnectionAllocator) Prepare() error {
+	if ca.MinConnectionsNum != 0 {
+		for i := 0; i < ca.MinConnectionsNum; i++ {
+			conn, err := net.Dial("tcp", ca.serverAddress)
+			if err != nil {
+				return errors.Wrap(err, "Failed to establish connection")
+			}
+			ca.eventConnections = append(ca.eventConnections, NewConnection(ca.Logger, conn, ca))
+		}
+	}
 	return nil
 }
 
 func (ca *ConnectionAllocator) Start() error {
+	if err := ca.startSockets(); err != nil {
+		return errors.Wrap(err, "Failed to start socket allocator")
+	}
+
+	// wait for start if required to
+	if sa.Configuration.WaitForStart {
+		sa.Logger.Debug("Waiting for start")
+		for _, socket := range sa.eventSockets {
+			socket.WaitForStart()
+		}
+	}
+
+	ca.Logger.Debug("Connection allocator started")
 	return nil
+
 }
 
 func (ca *ConnectionAllocator) Stop() error {
+	for _, eventConnection := range ca.eventConnections {
+		connection := eventConnection
+		go func() {
+			if err := connection.Conn.Close(); err != nil {
+				ca.Logger.WarnWith("Failed to close connection",
+					"error", err)
+			}
+		}()
+	}
+	if ca.controlMessageSocket != nil {
+		go func() {
+			ca.controlMessageSocket.Stop()
+		}()
+	}
 	return nil
 }
 
 func (ca *ConnectionAllocator) Allocate() (EventConnection, error) {
-	return nil, nil
+	// TODO: support multiple connections
+	return ca.eventConnections[0], nil
 }
 
 func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) {

@@ -73,8 +73,39 @@ type ManagerConfigration struct {
 	SocketType                  SocketType
 	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
 	Statistics                  runtime.Statistics
+
+	host     string
+	port     int
+	workerId int
+}
+
+func NewManagerConfigration(kind ManagerKind,
+	supportControlCommunication bool,
+	waitForStart bool,
+	socketType SocketType,
+	getEventEncoderFunc func(writer io.Writer) encoder.EventEncoder,
+	statistics runtime.Statistics,
+	workerId int,
+) *ManagerConfigration {
+	manager := &ManagerConfigration{
+		Kind:                        kind,
+		SupportControlCommunication: supportControlCommunication,
+		WaitForStart:                waitForStart,
+		SocketType:                  socketType,
+		GetEventEncoderFunc:         getEventEncoderFunc,
+		Statistics:                  statistics,
+		workerId:                    workerId,
+	}
+	if kind == ConnectionAllocatorManagerKind {
+		manager.host = "127.0.0.1"
+		manager.port = portRangeBeginning + workerId
+	}
+	return manager
 }
 
 type ManagerKind string
 
 const SocketAllocatorManagerKind ManagerKind = "socketAllocator"
+const ConnectionAllocatorManagerKind ManagerKind = "connectionAllocator"
+
+const portRangeBeginning = 1337
