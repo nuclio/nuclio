@@ -1185,7 +1185,9 @@ func (suite *functionTestSuite) TestPatchFunction() {
 			function.Status.State = testCase.functionState
 			function.Config.Spec.Image = "image"
 
-			// verifications
+			// (!) Caution: since this test includes multiple mocks of the same function,
+			// do not include any Require() checks here!
+			// It may lead to false negative errors because of the way how testify checks work
 			verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
 				if testCase.functionName != getFunctionsOptions.Name ||
 					namespace != getFunctionsOptions.Namespace {
