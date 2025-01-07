@@ -44,7 +44,7 @@ require (
 	github.com/samber/lo v1.38.1
 	github.com/sendgridlabs/go-kinesis v0.0.0-20190306160747-8de9069567f6
 	github.com/spf13/cobra v1.7.0
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.10.0
 	github.com/tsenart/vegeta/v12 v12.11.1
 	github.com/v3io/scaler v0.8.0
 	github.com/v3io/v3io-go v0.3.9
@@ -158,7 +158,7 @@ require (
 	github.com/sergi/go-diff v1.3.1 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.5.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/therootcompany/xz v1.0.1 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
