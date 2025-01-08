@@ -31,8 +31,6 @@ import (
 	"github.com/nuclio/logger"
 )
 
-var runtimesSupportingExplicitAck = []string{"python"}
-
 type DurationConfigField struct {
 	Name    string
 	Value   string
@@ -158,14 +156,7 @@ func (c *Configuration) PopulateExplicitAckMode(logger logger.Logger, explicitAc
 	}
 
 	if c.ExplicitAckMode != functionconfig.ExplicitAckModeDisable {
-		supported := false
-		for _, supportedRuntime := range runtimesSupportingExplicitAck {
-			if strings.HasPrefix(c.RuntimeConfiguration.Config.Spec.Runtime, supportedRuntime) {
-				supported = true
-				break
-			}
-		}
-		if !supported {
+		if !functionconfig.RuntimeSupportExplicitAck(c.RuntimeConfiguration.Config.Spec.Runtime) {
 			logger.WarnWith("Given runtime doesn't support explicitAck mode, setting explicitAck to `disable`",
 				"runtime", c.RuntimeConfiguration.Config.Spec.Runtime)
 			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
