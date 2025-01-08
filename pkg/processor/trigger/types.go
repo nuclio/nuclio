@@ -28,7 +28,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
 )
+
+var runtimesSupportingExplicitAck = []string{"python"}
 
 type DurationConfigField struct {
 	Name    string
@@ -137,7 +140,7 @@ func (c *Configuration) ParseDurationOrDefault(durationConfigField *DurationConf
 	return nil
 }
 
-func (c *Configuration) PopulateExplicitAckMode(explicitAckModeValue string,
+func (c *Configuration) PopulateExplicitAckMode(logger logger.Logger, explicitAckModeValue string,
 	triggerConfigurationExplicitAckMode functionconfig.ExplicitAckMode) error {
 	switch explicitAckModeValue {
 	case string(functionconfig.ExplicitAckModeEnable):
@@ -150,6 +153,21 @@ func (c *Configuration) PopulateExplicitAckMode(explicitAckModeValue string,
 		if triggerConfigurationExplicitAckMode != "" {
 			c.ExplicitAckMode = triggerConfigurationExplicitAckMode
 		} else {
+			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+		}
+	}
+
+	if c.ExplicitAckMode != functionconfig.ExplicitAckModeDisable {
+		supported := false
+		for _, supportedRuntime := range runtimesSupportingExplicitAck {
+			if strings.HasPrefix(c.RuntimeConfiguration.Config.Spec.Runtime, supportedRuntime) {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			logger.WarnWith("Given runtime doesn't support explicitAck mode, setting explicitAck to `disable`",
+				"runtime", c.RuntimeConfiguration.Config.Spec.Runtime)
 			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
 	}
