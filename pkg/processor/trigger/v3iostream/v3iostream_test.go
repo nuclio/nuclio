@@ -54,43 +54,71 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 		name                 string
 		explicitAckMode      functionconfig.ExplicitAckMode
 		workerAllocationMode partitionworker.AllocationMode
+		runtime              string
 		expectedFailure      bool
 	}{
 		{
 			name:                 "Disable-Static",
 			explicitAckMode:      functionconfig.ExplicitAckModeDisable,
 			workerAllocationMode: partitionworker.AllocationModeStatic,
+			runtime:              "python",
 			expectedFailure:      false,
 		},
 		{
 			name:                 "Disable-Pool",
 			explicitAckMode:      functionconfig.ExplicitAckModeDisable,
 			workerAllocationMode: partitionworker.AllocationModePool,
+			runtime:              "python",
 			expectedFailure:      false,
 		},
 		{
 			name:                 "Enable-Static",
 			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
 			workerAllocationMode: partitionworker.AllocationModeStatic,
+			runtime:              "python",
 			expectedFailure:      false,
 		},
 		{
 			name:                 "Enable-Pool",
 			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
 			workerAllocationMode: partitionworker.AllocationModePool,
+			runtime:              "python3.9",
 			expectedFailure:      true,
 		},
 		{
 			name:                 "ExplicitOnly-Static",
 			explicitAckMode:      functionconfig.ExplicitAckModeExplicitOnly,
 			workerAllocationMode: partitionworker.AllocationModeStatic,
+			runtime:              "python3.10",
 			expectedFailure:      false,
 		},
 		{
 			name:                 "ExplicitOnly-Pool",
 			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
 			workerAllocationMode: partitionworker.AllocationModePool,
+			runtime:              "python",
 			expectedFailure:      true,
+		},
+		{
+			name:                 "ExplicitOnly-Pool",
+			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
+			workerAllocationMode: partitionworker.AllocationModePool,
+			runtime:              "golang",
+			expectedFailure:      false,
+		},
+		{
+			name:                 "ExplicitOnly-Pool",
+			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			runtime:              "golang",
+			expectedFailure:      false,
+		},
+		{
+			name:                 "ExplicitOnly-Static",
+			explicitAckMode:      functionconfig.ExplicitAckModeExplicitOnly,
+			workerAllocationMode: partitionworker.AllocationModeStatic,
+			runtime:              "golang",
+			expectedFailure:      false,
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -112,6 +140,9 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 								Annotations: map[string]string{
 									"nuclio.io/v3iostream-explicit-ack-mode": string(testCase.explicitAckMode),
 								},
+							},
+							Spec: functionconfig.Spec{
+								Runtime: testCase.runtime,
 							},
 						},
 					},
