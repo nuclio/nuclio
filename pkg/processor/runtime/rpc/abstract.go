@@ -57,7 +57,7 @@ func NewAbstractRuntime(logger logger.Logger,
 	}
 
 	newRuntime := &AbstractRuntime{
-		AbstractRuntime: *abstractRuntime, // go
+		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
 		runtime:         runtimeInstance,
 		stopChan:        make(chan struct{}, 1),
