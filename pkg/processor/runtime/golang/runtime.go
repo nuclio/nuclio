@@ -17,6 +17,7 @@ limitations under the License.
 package golang
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -33,6 +34,9 @@ type golang struct {
 	*runtime.AbstractRuntime
 	configuration *runtime.Configuration
 	entrypoint    entrypoint
+
+	// TODO: support multiple cancels when implementing async
+	cancelEventHandling context.CancelFunc
 }
 
 // NewRuntime returns a new golang runtime
@@ -100,6 +104,30 @@ func (g *golang) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger
 	return nil, nuclio.ErrNotImplemented
 }
 
+func (g *golang) Restart() error {
+	if err := g.Stop(); err != nil {
+		return errors.Wrap(err, "Failed to stop golang runtime")
+	}
+	g.SetStatus(status.Ready)
+	return nil
+}
+
+func (g *golang) Stop() error {
+	g.SetStatus(status.Stopped)
+	g.Logger.DebugWith("Stopped")
+
+	if g.cancelEventHandling != nil {
+		g.cancelEventHandling()
+	}
+	g.cancelEventHandling = nil
+	return nil
+}
+
+// SupportsRestart returns true if the runtime supports restart
+func (g *golang) SupportsRestart() bool {
+	return true
+}
+
 func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (response interface{}, responseErr error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -119,17 +147,57 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 		}
 	}()
 
-	// before we call, save timestamp
-	startTime := time.Now()
+	ctx, cancel := context.WithCancel(context.Background())
+	g.cancelEventHandling = cancel
 
-	response, responseErr = g.entrypoint(g.Context, event)
+	responseChan := make(chan *processingResponse, 1)
+	// Run the function in a goroutine
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				callStack := debug.Stack()
+				functionLogger.ErrorWith("Panic caught in event handler",
+					"err",
+					err,
+					"stack",
+					string(callStack))
+			}
+		}()
+		// before we call, save timestamp
+		startTime := time.Now()
 
-	// calculate how long it took to invoke the function
-	callDuration := time.Since(startTime)
+		// call entrypoint
+		response, responseErr = g.entrypoint(g.Context, event)
 
-	// add duration to sum
-	g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
-	g.Statistics.DurationMilliSecondsCount++
+		// calculate how long it took to invoke the function
+		callDuration := time.Since(startTime)
 
-	return
+		// signal that results
+		responseChan <- &processingResponse{
+			response,
+			responseErr,
+		}
+
+		// add duration to sum
+		g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
+		g.Statistics.DurationMilliSecondsCount++
+	}()
+	select {
+	case result := <-responseChan:
+		g.cancelEventHandling = nil
+		response = result.response
+		responseErr = result.responseErr
+
+		// cancelling cancel-context
+		defer cancel()
+		return
+	case <-ctx.Done():
+		defer close(responseChan)
+		return nil, errors.New("Event processing was cancelled")
+	}
+}
+
+type processingResponse struct {
+	response    interface{}
+	responseErr error
 }
