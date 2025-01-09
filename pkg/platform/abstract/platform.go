@@ -1789,9 +1789,12 @@ func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig 
 		}
 
 		if triggerInstance.ExplicitAckMode != functionconfig.ExplicitAckModeDisable &&
-			functionconfig.RuntimeSupportExplicitAck(functionConfig.Spec.Runtime) {
-			ap.Logger.WarnWith("Given runtime doesn't support explicitAck mode, setting explicitAck to `disable`",
-				"runtime", functionConfig.Spec.Runtime)
+			!functionconfig.RuntimeSupportExplicitAck(functionConfig.Spec.Runtime) {
+			ap.Logger.WarnWith("Explicit Ack is not supported for the configured runtime. "+
+				"Setting explicitAck mode to `disable`",
+				"functionName", functionConfig.Meta.Name,
+				"runtime", functionConfig.Spec.Runtime,
+				"trigger", triggerName)
 			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
 

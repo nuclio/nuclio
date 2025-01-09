@@ -157,7 +157,8 @@ func (c *Configuration) PopulateExplicitAckMode(logger logger.Logger, explicitAc
 
 	if c.ExplicitAckMode != functionconfig.ExplicitAckModeDisable {
 		if !functionconfig.RuntimeSupportExplicitAck(c.RuntimeConfiguration.Config.Spec.Runtime) {
-			logger.WarnWith("Given runtime doesn't support explicitAck mode, setting explicitAck to `disable`",
+			logger.WarnWith("Explicit Ack is not supported for the configured runtime. "+
+				"Setting explicitAck mode to `disable`",
 				"runtime", c.RuntimeConfiguration.Config.Spec.Runtime)
 			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
