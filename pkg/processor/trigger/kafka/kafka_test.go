@@ -155,7 +155,7 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 		{
 			name:                 "Golang-ExplicitOnly-Pool",
 			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
-			workerAllocationMode: partitionworker.AllocationModeStatic,
+			workerAllocationMode: partitionworker.AllocationModePool,
 			runtime:              "golang",
 			expectedFailure:      false,
 		},
