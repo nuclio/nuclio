@@ -1185,16 +1185,22 @@ func (suite *functionTestSuite) TestPatchFunction() {
 			function.Status.State = testCase.functionState
 			function.Config.Spec.Image = "image"
 
-			// verifications
+			// (!) Caution: since this test includes multiple mocks of the same function,
+			// do not include any Require() checks here!
+			// It may lead to false negative errors because of the way how testify checks work
 			verifyGetFunctionsOptions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
-				suite.Require().Equal(testCase.functionName, getFunctionsOptions.Name)
-				suite.Require().Equal(namespace, getFunctionsOptions.Namespace)
+				if testCase.functionName != getFunctionsOptions.Name ||
+					namespace != getFunctionsOptions.Namespace {
+					return false
+				}
 				return true
 			}
 			verifyRedeployFunctionsOptions := func(redeployFunctionsOptions *platform.RedeployFunctionOptions) bool {
-				suite.Require().Equal(testCase.functionName, redeployFunctionsOptions.FunctionMeta.Name)
-				suite.Require().Equal(namespace, redeployFunctionsOptions.FunctionMeta.Namespace)
-				suite.Require().Equal(1*time.Minute, redeployFunctionsOptions.CreationStateUpdatedTimeout)
+				if testCase.functionName != redeployFunctionsOptions.FunctionMeta.Name ||
+					namespace != redeployFunctionsOptions.FunctionMeta.Namespace ||
+					redeployFunctionsOptions.CreationStateUpdatedTimeout != 1*time.Minute {
+					return false
+				}
 				return true
 			}
 
