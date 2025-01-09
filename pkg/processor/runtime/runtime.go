@@ -86,7 +86,7 @@ type AbstractRuntime struct {
 	Statistics     Statistics
 	databindings   map[string]databinding.DataBinding
 	configuration  *Configuration
-	status         *status.AsyncStatus
+	status         *status.SafeStatus
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -118,7 +118,7 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 		return nil, errors.Wrap(err, "Failed to create context")
 	}
 	// set the initial status
-	newAbstractRuntime.status = status.NewAsyncStatus(status.Initializing)
+	newAbstractRuntime.status = status.NewSafeStatus(status.Initializing)
 
 	return &newAbstractRuntime, nil
 }

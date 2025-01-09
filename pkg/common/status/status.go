@@ -63,23 +63,23 @@ func (s Status) OneOf(statuses ...Status) bool {
 	return false
 }
 
-type AsyncStatus struct {
+type SafeStatus struct {
 	status      Status
 	statusMutex sync.RWMutex
 }
 
-func NewAsyncStatus(status Status) *AsyncStatus {
-	return &AsyncStatus{status: status, statusMutex: sync.RWMutex{}}
+func NewSafeStatus(status Status) *SafeStatus {
+	return &SafeStatus{status: status, statusMutex: sync.RWMutex{}}
 }
 
-func (as *AsyncStatus) SetStatus(status Status) {
+func (as *SafeStatus) SetStatus(status Status) {
 	as.statusMutex.Lock()
 	defer as.statusMutex.Unlock()
 
 	as.status = status
 }
 
-func (as *AsyncStatus) GetStatus() Status {
+func (as *SafeStatus) GetStatus() Status {
 	as.statusMutex.RLock()
 	defer as.statusMutex.RUnlock()
 
