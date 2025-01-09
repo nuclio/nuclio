@@ -1,3 +1,5 @@
+//go:build test_unit
+
 /*
 Copyright 2025 The Nuclio Authors.
 
@@ -16,16 +18,18 @@ limitations under the License.
 package golang
 
 import (
-	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	"testing"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
-	runtime "github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type runtimeTestSuite struct {
