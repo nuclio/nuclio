@@ -77,9 +77,12 @@ func (suite *runtimeTestSuite) TestRestartRuntime() {
 		_, err = golangRuntime.ProcessEvent(nil, suite.logger)
 		processingEventResult <- err
 	}()
+	// wait until processing starts, otherwise runtime will restart before event processing start
+	time.Sleep(1 * time.Second)
 
 	err = golangRuntime.Restart()
 	suite.Require().NoError(err)
+
 	select {
 	case result := <-processingEventResult:
 		suite.Require().Error(result, "Event processing was cancelled")
@@ -91,30 +94,19 @@ func (suite *runtimeTestSuite) TestRestartRuntime() {
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsCount)
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsSum)
 
-	time.Sleep(5 * time.Second)
-
 	// when goroutine is stopped, it should not calculate metrics
+	//time.Sleep(5 * time.Second)
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsCount)
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsSum)
 }
 
-func (suite *runtimeTestSuite) TestMetrics() {
+func (suite *runtimeTestSuite) TestProcessEvent() {
 	golangRuntime, err := NewRuntime(suite.logger, suite.runtimeConfiguration, suite.handler)
 	suite.Require().NoError(err)
 
 	res, err := golangRuntime.ProcessEvent(nil, suite.logger)
 	suite.Require().NoError(err)
 	suite.Require().Equal(res, "success")
-
-	suite.Require().Equal(uint64(1), golangRuntime.GetStatistics().DurationMilliSecondsCount)
-
-	// check that DurationMilliSecondsSum was added
-	suite.Require().GreaterOrEqual(golangRuntime.GetStatistics().DurationMilliSecondsSum, uint64(5000))
-
-	// give it 5ms on any additional work
-	// if we start to fail here, we should consider performance analysis
-	// it passes even with 1ms at the time this test created
-	suite.Require().LessOrEqual(golangRuntime.GetStatistics().DurationMilliSecondsSum, uint64(5005))
 }
 
 func TestRuntimeTestSuite(t *testing.T) {

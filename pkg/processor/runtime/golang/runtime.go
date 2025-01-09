@@ -36,7 +36,7 @@ type golang struct {
 	entrypoint    entrypoint
 
 	// TODO: support multiple cancels when implementing async
-	cancelEventHandling context.CancelFunc
+	cancelEventHandlingChan chan context.CancelFunc
 }
 
 // NewRuntime returns a new golang runtime
@@ -74,7 +74,7 @@ func NewRuntime(parentLogger logger.Logger,
 			return nil, errors.Wrap(err, "Failed to initialize context")
 		}
 	}
-
+	newGoRuntime.cancelEventHandlingChan = make(chan context.CancelFunc, 1)
 	newGoRuntime.SetStatus(status.Ready)
 
 	return newGoRuntime, nil
@@ -114,12 +114,13 @@ func (g *golang) Restart() error {
 
 func (g *golang) Stop() error {
 	g.SetStatus(status.Stopped)
-	g.Logger.DebugWith("Stopped")
 
-	if g.cancelEventHandling != nil {
-		g.cancelEventHandling()
+	select {
+	case cancelEventHandling := <-g.cancelEventHandlingChan:
+		cancelEventHandling()
+	default:
 	}
-	g.cancelEventHandling = nil
+
 	return nil
 }
 
@@ -129,6 +130,9 @@ func (g *golang) SupportsRestart() bool {
 }
 
 func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (response interface{}, responseErr error) {
+	if currentStatus := g.GetStatus(); currentStatus != status.Ready {
+		return nil, errors.Errorf("Runtime not ready (current status: %s)", currentStatus)
+	}
 	defer func() {
 		if err := recover(); err != nil {
 			callStack := debug.Stack()
@@ -148,15 +152,14 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	g.cancelEventHandling = cancel
-
+	g.cancelEventHandlingChan <- cancel
 	responseChan := make(chan *processingResponse, 1)
 	// Run the function in a goroutine
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				functionLogger.ErrorWith("Panic caught in event handler",
+				functionLogger.WarnWith("Panic caught in event handler",
 					"err",
 					err,
 					"stack",
@@ -184,12 +187,14 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 	}()
 	select {
 	case result := <-responseChan:
-		g.cancelEventHandling = nil
+		select {
+		case cancelEventHandling := <-g.cancelEventHandlingChan:
+			// cancelling cancel-context
+			defer cancelEventHandling()
+		default:
+		}
 		response = result.response
 		responseErr = result.responseErr
-
-		// cancelling cancel-context
-		defer cancel()
 		return
 	case <-ctx.Done():
 		defer close(responseChan)

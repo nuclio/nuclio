@@ -16,7 +16,10 @@ limitations under the License.
 
 package status
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // Provider is an interface for entities that have a reportable status
 type Provider interface {
@@ -58,4 +61,27 @@ func (s Status) OneOf(statuses ...Status) bool {
 		}
 	}
 	return false
+}
+
+type AsyncStatus struct {
+	status      Status
+	statusMutex sync.RWMutex
+}
+
+func NewAsyncStatus(status Status) *AsyncStatus {
+	return &AsyncStatus{status: status, statusMutex: sync.RWMutex{}}
+}
+
+func (as *AsyncStatus) SetStatus(status Status) {
+	as.statusMutex.Lock()
+	defer as.statusMutex.Unlock()
+
+	as.status = status
+}
+
+func (as *AsyncStatus) GetStatus() Status {
+	as.statusMutex.RLock()
+	defer as.statusMutex.RUnlock()
+
+	return as.status
 }
