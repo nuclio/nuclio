@@ -140,13 +140,13 @@ func (suite *TestSuite) TestExplicitAckModeWithWorkerAllocationModes() {
 		},
 		{
 			name:                 "Python-ExplicitOnly-Pool",
-			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
+			explicitAckMode:      functionconfig.ExplicitAckModeExplicitOnly,
 			workerAllocationMode: partitionworker.AllocationModePool,
 			runtime:              "python",
 			expectedFailure:      true,
 		},
 		{
-			name:                 "Golang-ExplicitOnly-Pool",
+			name:                 "Golang-Enable-Pool",
 			explicitAckMode:      functionconfig.ExplicitAckModeEnable,
 			workerAllocationMode: partitionworker.AllocationModePool,
 			runtime:              "golang",
