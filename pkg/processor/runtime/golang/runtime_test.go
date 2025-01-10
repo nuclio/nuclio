@@ -95,7 +95,7 @@ func (suite *runtimeTestSuite) TestRestartRuntime() {
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsSum)
 
 	// when goroutine is stopped, it should not calculate metrics
-	//time.Sleep(5 * time.Second)
+	time.Sleep(5 * time.Second)
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsCount)
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsSum)
 }
@@ -107,6 +107,26 @@ func (suite *runtimeTestSuite) TestProcessEvent() {
 	res, err := golangRuntime.ProcessEvent(nil, suite.logger)
 	suite.Require().NoError(err)
 	suite.Require().Equal(res, "success")
+}
+
+func (suite *runtimeTestSuite) TestPanicHandler() {
+	abstractHandler := abstractHandler{
+		logger: suite.logger,
+		entrypoint: func(*nuclio.Context, nuclio.Event) (interface{}, error) {
+			panic("PANIC")
+			return "code-unreachable", nil
+		},
+	}
+	panicHandler := &pluginHandlerLoader{
+		abstractHandler,
+	}
+	golangRuntime, err := NewRuntime(suite.logger, suite.runtimeConfiguration, panicHandler)
+	suite.Require().NoError(err)
+
+	res, err := golangRuntime.ProcessEvent(nil, suite.logger)
+	suite.Require().Error(err)
+	suite.Require().Equal(nil, res)
+	suite.Require().Equal(err.Error(), "Caught panic: PANIC")
 }
 
 func TestRuntimeTestSuite(t *testing.T) {

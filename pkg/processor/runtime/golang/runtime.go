@@ -129,7 +129,7 @@ func (g *golang) SupportsRestart() bool {
 	return true
 }
 
-func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (response interface{}, responseErr error) {
+func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 	if currentStatus := g.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Runtime not ready (current status: %s)", currentStatus)
 	}
@@ -144,52 +144,72 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 			functionLogger.ErrorWith("Panic caught in event handler",
 				"err", err,
 				"stack", string(callStack))
-
-			responseErr = fmt.Errorf("Caught panic: %s", err)
 		}
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancelEventHandlingChan <- cancel
-	responseChan := make(chan struct{}, 1)
+	responseChan := make(chan *processingResponse)
+
 	// Run the function in a goroutine
 	go func() {
+		processingResult := &processingResponse{}
+		defer close(responseChan)
 		defer func() {
 			if err := recover(); err != nil {
 				callStack := debug.Stack()
-				functionLogger.WarnWith("Panic caught in event handler",
+
+				if functionLogger == nil {
+					functionLogger = g.FunctionLogger
+				}
+
+				functionLogger.ErrorWith("Panic caught in event handler",
 					"err", err,
 					"stack", string(callStack))
+
+				processingResult.responseErr = fmt.Errorf("Caught panic: %s", err)
+				// try to write response to the channel if it wasn't yet
+				select {
+				// if the reader is waiting, then it means that runtime wasn't stopped and waits for a response
+				case responseChan <- processingResult:
+				default:
+				}
 			}
 		}()
 		// before we call, save timestamp
 		startTime := time.Now()
 
 		// call entrypoint
-		response, responseErr = g.entrypoint(g.Context, event)
+		processingResult.response, processingResult.responseErr = g.entrypoint(g.Context, event)
 
 		// calculate how long it took to invoke the function
 		callDuration := time.Since(startTime)
 
-		// signal that results
-		responseChan <- struct{}{}
-
-		// add duration to sum
-		g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
-		g.Statistics.DurationMilliSecondsCount++
+		select {
+		// if the reader is waiting, then it means that runtime wasn't stopped and waits for a response
+		case responseChan <- processingResult:
+			// add duration to sum
+			g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
+			g.Statistics.DurationMilliSecondsCount++
+		default:
+		}
 	}()
 
 	select {
-	case <-responseChan:
+	case result := <-responseChan:
 		select {
 		case cancelEventHandling := <-g.cancelEventHandlingChan:
 			// cancelling cancel-context
 			defer cancelEventHandling()
 		default:
 		}
-		return
+		return result.response, result.responseErr
 	case <-ctx.Done():
-		defer close(responseChan)
 		return nil, errors.New("Event processing was cancelled")
 	}
+}
+
+type processingResponse struct {
+	response    interface{}
+	responseErr error
 }
