@@ -102,7 +102,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 				"function", function,
 			},
 			CustomHandler: func(panicError error) {
-				fo.setFunctionError(
+				fo.setFunctionError( // nolint: errcheck
 					ctx,
 					function,
 					functionconfig.FunctionStateError,
