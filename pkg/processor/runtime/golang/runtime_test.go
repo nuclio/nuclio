@@ -95,7 +95,7 @@ func (suite *runtimeTestSuite) TestRestartRuntime() {
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsSum)
 
 	// when goroutine is stopped, it should not calculate metrics
-	//time.Sleep(5 * time.Second)
+	time.Sleep(5 * time.Second)
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsCount)
 	suite.Require().Equal(uint64(0), golangRuntime.GetStatistics().DurationMilliSecondsSum)
 }
