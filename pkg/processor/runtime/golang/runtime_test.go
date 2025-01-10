@@ -114,7 +114,6 @@ func (suite *runtimeTestSuite) TestPanicHandler() {
 		logger: suite.logger,
 		entrypoint: func(*nuclio.Context, nuclio.Event) (interface{}, error) {
 			panic("PANIC")
-			return "code-unreachable", nil
 		},
 	}
 	panicHandler := &pluginHandlerLoader{
