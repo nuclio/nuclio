@@ -1,0 +1,16 @@
+{
+  "LABEL": {
+    "name": "PR title format",
+    "color": "EEEEEE"
+  },
+  "CHECKS": {
+    "regexp": "^((\\[[[A-Z][^\\]]+\\]+)|Revert) .*$",
+    "regexpFlags": "im",
+    "ignoreLabels": []
+  },
+  "MESSAGES": {
+    "success": "All OK",
+    "failure": "PR title should be in the following format: '[Component] Brief summary'",
+    "notice": ""
+  }
+}
