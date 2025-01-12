@@ -170,6 +170,8 @@ def handler(context, event):
 			// function would become unhealthy as its function deployment is missing the mentioned configmap
 			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateUnhealthy)
 
+			checkInvocationURLs(getFunctionOptions)
+
 			// create the missing configmap
 			configMap, err = suite.KubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Create(suite.Ctx, configMap, metav1.CreateOptions{})
 			suite.Require().NoError(err, "Failed to create configmap")
