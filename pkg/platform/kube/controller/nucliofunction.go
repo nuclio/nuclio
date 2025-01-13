@@ -102,9 +102,11 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 				"function", function,
 			},
 			CustomHandler: func(panicError error) {
-				fo.setFunctionError(ctx, // nolint: errcheck
+				fo.setFunctionError( // nolint: errcheck
+					ctx,
 					function,
 					functionconfig.FunctionStateError,
+					nil,
 					errors.Wrap(panicError, "Failed to create/update function"))
 			},
 		})
@@ -245,19 +247,13 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	// enrich node selectors with values from function, project and platform and save enriched value to function.status
 	if err := fo.enrichNodeSelector(ctx, function); err != nil {
-		return fo.setFunctionError(ctx,
-			function,
-			functionconfig.FunctionStateError,
-			errors.Wrap(err, "Failed to enrich node selectors when create/update function"))
+		return fo.setFunctionError(ctx, function, functionconfig.FunctionStateError, nil, errors.Wrap(err, "Failed to enrich node selectors when create/update function"))
 	}
 
 	// ensure function resources (deployment, ingress, configmap, etc ...)
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
-		return fo.setFunctionError(ctx,
-			function,
-			functionconfig.FunctionStateError,
-			errors.Wrap(err, "Failed to create/update function"))
+		return fo.setFunctionError(ctx, function, functionconfig.FunctionStateError, nil, errors.Wrap(err, "Failed to create/update function"))
 	}
 
 	// readinessTimeout would be zero when
@@ -279,6 +275,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			return fo.setFunctionError(ctx,
 				function,
 				functionState,
+				resources,
 				errors.Wrap(err, "Failed to wait for function resources to be available"))
 		}
 	}
@@ -287,6 +284,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return fo.setFunctionError(ctx,
 			function,
 			functionconfig.FunctionStateError,
+			nil,
 			errors.Wrap(err, "Failed to patch function service selector when scale from zero"))
 	}
 
@@ -378,9 +376,11 @@ func (fo *functionOperator) updateFunctionSelectorIfRequired(ctx context.Context
 	return nil
 }
 
-func (fo *functionOperator) setFunctionError(ctx context.Context,
+func (fo *functionOperator) setFunctionError(
+	ctx context.Context,
 	function *nuclioio.NuclioFunction,
 	functionErrorState functionconfig.FunctionState,
+	resources functionres.Resources,
 	err error) error {
 
 	// context might time out, but we still want to set the error,
@@ -394,14 +394,24 @@ func (fo *functionOperator) setFunctionError(ctx context.Context,
 		"functionName", function.Name,
 		"err", err)
 
-	if setStatusErr := fo.setFunctionStatus(detachedContext, function, &functionconfig.Status{
+	functionStatus := &functionconfig.Status{
 		Logs:                   function.Status.Logs,
 		State:                  functionErrorState,
 		Message:                errors.GetErrorStackString(err, 10),
 		InternalInvocationURLs: []string{},
 		ExternalInvocationURLs: []string{},
 		EnrichedNodeSelector:   function.Status.EnrichedNodeSelector,
-	}); setStatusErr != nil {
+	}
+
+	// if function is unhealthy, it might be invokable, and
+	// it can become ready, so enrich invocation status
+	if functionErrorState == functionconfig.FunctionStateUnhealthy && resources != nil {
+		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
+			return errors.Wrap(err, "Failed to populate function invocation status")
+		}
+	}
+
+	if setStatusErr := fo.setFunctionStatus(detachedContext, function, functionStatus); setStatusErr != nil {
 		fo.logger.WarnWithCtx(detachedContext,
 			"Failed to update function on error",
 			"setStatusErr", errors.Cause(setStatusErr))
