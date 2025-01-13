@@ -166,6 +166,17 @@ const (
 	DefaultWorkerTerminationTimeout string = "10s"
 )
 
+var runtimesSupportingExplicitAck = []string{"python"}
+
+func RuntimeSupportExplicitAck(runtime string) bool {
+	for _, supportedRuntime := range runtimesSupportingExplicitAck {
+		if strings.HasPrefix(runtime, supportedRuntime) {
+			return true
+		}
+	}
+	return false
+}
+
 func ExplicitAckModeInSlice(ackMode ExplicitAckMode, ackModes []ExplicitAckMode) bool {
 	for _, mode := range ackModes {
 		if ackMode == mode {

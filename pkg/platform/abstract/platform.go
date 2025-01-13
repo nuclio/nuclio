@@ -1823,6 +1823,16 @@ func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig 
 			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
 
+		if triggerInstance.ExplicitAckMode != functionconfig.ExplicitAckModeDisable &&
+			!functionconfig.RuntimeSupportExplicitAck(functionConfig.Spec.Runtime) {
+			ap.Logger.WarnWith("Explicit Ack is not supported for the configured runtime. "+
+				"Setting explicitAck mode to `disable`",
+				"functionName", functionConfig.Meta.Name,
+				"runtime", functionConfig.Spec.Runtime,
+				"trigger", triggerName)
+			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+		}
+
 		if triggerInstance.WorkerTerminationTimeout == "" {
 			triggerInstance.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
 		}
