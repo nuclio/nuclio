@@ -157,11 +157,6 @@ class Wrapper(AbstractWrapper):
 
 def parse_args():
     parser = get_parser_with_common_args()
-
-    parser.add_argument('--event-socket-path',
-                        help='path to unix socket to listen on',
-                        required=True)
-
     return parser.parse_args()
 
 

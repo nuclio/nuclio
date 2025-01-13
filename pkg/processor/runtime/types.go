@@ -56,7 +56,15 @@ type Configuration struct {
 	TriggerKind              string
 	WorkerTerminationTimeout time.Duration
 	ControlMessageBroker     *controlcommunication.AbstractControlMessageBroker
+	Mode                     WorkMode
 }
+
+type WorkMode int
+
+const (
+	SyncWorkMode WorkMode = iota
+	AsyncWorkMode
+)
 
 type ResponseWithErrors struct {
 	nuclio.Response

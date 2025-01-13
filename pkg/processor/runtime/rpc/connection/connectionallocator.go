@@ -101,5 +101,5 @@ func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) 
 	if ca.controlMessageSocket != nil {
 		controlAddress = ca.controlMessageSocket.Address
 	}
-	return []string{}, controlAddress
+	return []string{ca.serverAddress}, controlAddress
 }

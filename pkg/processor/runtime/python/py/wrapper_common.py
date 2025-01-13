@@ -385,6 +385,10 @@ def get_parser_with_common_args():
                         help='handler (module.sub:handler)',
                         required=True)
 
+    parser.add_argument('--event-socket-path',
+                        help='path to unix socket to listen on',
+                        required=True)
+
     parser.add_argument('--control-socket-path',
                         help='path to unix socket to send the processor messages on',
                         default=None)
