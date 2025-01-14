@@ -17,15 +17,9 @@ limitations under the License.
 package connection
 
 import (
-	"fmt"
-	"net"
-	"os"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
-
 	"github.com/nuclio/errors"
-	"github.com/rs/xid"
 )
 
 const (
@@ -36,8 +30,7 @@ const (
 type SocketAllocator struct {
 	*AbstractConnectionManager
 
-	eventSockets         []*EventSocket
-	controlMessageSocket *ControlMessageSocket
+	eventSockets []*EventSocket
 }
 
 func NewSocketAllocator(abstractConnectionManager *AbstractConnectionManager) *SocketAllocator {
@@ -55,17 +48,9 @@ func NewSocketAllocator(abstractConnectionManager *AbstractConnectionManager) *S
 //
 // Creates a minimum number of event sockets (MinConnectionsNum).
 func (sa *SocketAllocator) Prepare() error {
-	if sa.Configuration.SupportControlCommunication {
-		controlConnection, err := sa.createSocketConnection()
-		if err != nil {
-			return errors.Wrap(err, "Failed to create control socket connection")
-		}
-		sa.controlMessageSocket = NewControlMessageSocket(
-			sa.Logger,
-			controlConnection,
-			sa.RuntimeConfiguration.ControlMessageBroker)
+	if err := sa.prepareControlMessageSocket(); err != nil {
+		return errors.Wrap(err, "Failed to prepare control message socket")
 	}
-
 	for i := 0; i < sa.MinConnectionsNum; i++ {
 		eventConnection, err := sa.createSocketConnection()
 		if err != nil {
@@ -143,82 +128,8 @@ func (sa *SocketAllocator) startSockets() error {
 	}
 	sa.Logger.Debug("Successfully established connection for event sockets")
 
-	if sa.Configuration.SupportControlCommunication {
-		sa.controlMessageSocket.Conn, err = sa.controlMessageSocket.listener.Accept()
-		if err != nil {
-			return errors.Wrap(err, "Failed to get control connection from wrapper")
-		}
-		sa.controlMessageSocket.SetEncoder(sa.Configuration.GetEventEncoderFunc(sa.controlMessageSocket.Conn))
-
-		// initialize control message broker
-		sa.controlMessageSocket.SetBroker(sa.RuntimeConfiguration.ControlMessageBroker)
-		go sa.controlMessageSocket.RunHandler()
-		sa.Logger.Debug("Successfully established connection for control socket")
+	if err := sa.startControlMessageSocket(); err != nil {
+		return errors.Wrap(err, "Failed to start control message socket")
 	}
 	return nil
-}
-
-// Create a listener on unix domain docker, return listener, path to socket and error
-func (sa *SocketAllocator) createSocketConnection() (*socketConnection, error) {
-	connection := &socketConnection{}
-	var err error
-	if sa.Configuration.SocketType == UnixSocket {
-		connection.listener, connection.address, err = sa.createUnixListener()
-	} else {
-		connection.listener, connection.address, err = sa.createTCPListener()
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't create listener")
-	}
-
-	return connection, nil
-}
-
-// Create a listener on unix domain docker, return listener, path to socket and error
-func (sa *SocketAllocator) createUnixListener() (net.Listener, string, error) {
-	socketPath := fmt.Sprintf(socketPathTemplate, xid.New().String())
-
-	if common.FileExists(socketPath) {
-		if err := os.Remove(socketPath); err != nil {
-			return nil, "", errors.Wrapf(err, "Can't remove socket at %q", socketPath)
-		}
-	}
-
-	sa.Logger.DebugWith("Creating listener socket", "path", socketPath)
-
-	listener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		return nil, "", errors.Wrapf(err, "Can't listen on %s", socketPath)
-	}
-
-	unixListener, ok := listener.(*net.UnixListener)
-	if !ok {
-		return nil, "", fmt.Errorf("Can't get underlying Unix listener")
-	}
-
-	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
-		return nil, "", errors.Wrap(err, "Can't set deadline")
-	}
-
-	return listener, socketPath, nil
-}
-
-// Create a listener on TCP docker, return listener, port and error
-func (sa *SocketAllocator) createTCPListener() (net.Listener, string, error) {
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return nil, "", errors.Wrap(err, "Can't find free port")
-	}
-
-	tcpListener, ok := listener.(*net.TCPListener)
-	if !ok {
-		return nil, "", errors.Wrap(err, "Can't get underlying TCP listener")
-	}
-	if err = tcpListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
-		return nil, "", errors.Wrap(err, "Can't set deadline")
-	}
-
-	port := listener.Addr().(*net.TCPAddr).Port
-
-	return listener, fmt.Sprintf("%d", port), nil
 }

@@ -17,8 +17,9 @@ limitations under the License.
 package connection
 
 import (
-	"github.com/nuclio/logger"
 	"net"
+
+	"github.com/nuclio/logger"
 )
 
 type Connection struct {

@@ -18,8 +18,9 @@ package connection
 
 import (
 	"fmt"
-	"github.com/nuclio/errors"
 	"net"
+
+	"github.com/nuclio/errors"
 )
 
 type ConnectionAllocator struct {
@@ -28,8 +29,7 @@ type ConnectionAllocator struct {
 	serverAddress string
 
 	// should be a buffered chan when support multiple
-	eventConnections     []*Connection
-	controlMessageSocket *ControlMessageSocket
+	eventConnections []*Connection
 }
 
 func NewConnectionAllocator(abstractConnectionManager *AbstractConnectionManager) *ConnectionAllocator {
@@ -43,6 +43,10 @@ func NewConnectionAllocator(abstractConnectionManager *AbstractConnectionManager
 }
 
 func (ca *ConnectionAllocator) Prepare() error {
+	if err := ca.prepareControlMessageSocket(); err != nil {
+		return errors.Wrap(err, "Failed to prepare control message socket")
+	}
+
 	if ca.MinConnectionsNum != 0 {
 		for i := 0; i < ca.MinConnectionsNum; i++ {
 			conn, err := net.Dial("tcp", ca.serverAddress)
@@ -56,15 +60,22 @@ func (ca *ConnectionAllocator) Prepare() error {
 }
 
 func (ca *ConnectionAllocator) Start() error {
-	if err := ca.startSockets(); err != nil {
-		return errors.Wrap(err, "Failed to start socket allocator")
+
+	// start event processing
+	for _, eventConnection := range ca.eventConnections {
+		eventConnection.SetEncoder(ca.Configuration.GetEventEncoderFunc(eventConnection.Conn))
+		go eventConnection.AbstractEventConnection.RunHandler()
+	}
+
+	if err := ca.startControlMessageSocket(); err != nil {
+		return errors.Wrap(err, "Failed to start control message socket")
 	}
 
 	// wait for start if required to
-	if sa.Configuration.WaitForStart {
-		sa.Logger.Debug("Waiting for start")
-		for _, socket := range sa.eventSockets {
-			socket.WaitForStart()
+	if ca.Configuration.WaitForStart {
+		ca.Logger.Debug("Waiting for start")
+		for _, eventConnection := range ca.eventConnections {
+			eventConnection.WaitForStart()
 		}
 	}
 

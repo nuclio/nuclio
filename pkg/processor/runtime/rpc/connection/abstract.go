@@ -20,9 +20,11 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -35,6 +37,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 )
 
 type AbstractConnectionManager struct {
@@ -45,6 +48,8 @@ type AbstractConnectionManager struct {
 
 	RuntimeConfiguration runtime.Configuration
 	Configuration        *ManagerConfigration
+
+	controlMessageSocket *ControlMessageSocket
 }
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) *AbstractConnectionManager {
@@ -65,6 +70,105 @@ func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {
 
 func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
 	//bc.abstractRuntime.SetStatus(newStatus)
+}
+
+// PrepareControlMessageSocket prepares control message socket for processing
+// If SupportControlCommunication is enabled, a control communication socket is created,
+// wrapped in a ControlMessageSocket, and integrated with the ControlMessageBroker for runtime operations.
+func (bc *AbstractConnectionManager) prepareControlMessageSocket() error {
+	if bc.Configuration.SupportControlCommunication {
+		controlConnection, err := bc.createSocketConnection()
+		if err != nil {
+			return errors.Wrap(err, "Failed to create control socket connection")
+		}
+		bc.controlMessageSocket = NewControlMessageSocket(
+			bc.Logger,
+			controlConnection,
+			bc.RuntimeConfiguration.ControlMessageBroker)
+	}
+	return nil
+}
+
+func (bc *AbstractConnectionManager) startControlMessageSocket() error {
+	if bc.Configuration.SupportControlCommunication {
+		var err error
+		bc.controlMessageSocket.Conn, err = bc.controlMessageSocket.listener.Accept()
+		if err != nil {
+			return errors.Wrap(err, "Failed to get control connection from wrapper")
+		}
+		bc.controlMessageSocket.SetEncoder(bc.Configuration.GetEventEncoderFunc(bc.controlMessageSocket.Conn))
+
+		// initialize control message broker
+		bc.controlMessageSocket.SetBroker(bc.RuntimeConfiguration.ControlMessageBroker)
+		go bc.controlMessageSocket.RunHandler()
+		bc.Logger.Debug("Successfully established connection for control socket")
+	}
+	return nil
+}
+
+// Create a listener on unix domain docker, return listener, path to socket and error
+func (bc *AbstractConnectionManager) createSocketConnection() (*socketConnection, error) {
+	connection := &socketConnection{}
+	var err error
+	if bc.Configuration.SocketType == UnixSocket {
+		connection.listener, connection.address, err = bc.createUnixListener()
+	} else {
+		connection.listener, connection.address, err = bc.createTCPListener()
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't create listener")
+	}
+
+	return connection, nil
+}
+
+// Create a listener on unix domain docker, return listener, path to socket and error
+func (bc *AbstractConnectionManager) createUnixListener() (net.Listener, string, error) {
+	socketPath := fmt.Sprintf(socketPathTemplate, xid.New().String())
+
+	if common.FileExists(socketPath) {
+		if err := os.Remove(socketPath); err != nil {
+			return nil, "", errors.Wrapf(err, "Can't remove socket at %q", socketPath)
+		}
+	}
+
+	bc.Logger.DebugWith("Creating listener socket", "path", socketPath)
+
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return nil, "", errors.Wrapf(err, "Can't listen on %s", socketPath)
+	}
+
+	unixListener, ok := listener.(*net.UnixListener)
+	if !ok {
+		return nil, "", fmt.Errorf("Can't get underlying Unix listener")
+	}
+
+	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
+		return nil, "", errors.Wrap(err, "Can't set deadline")
+	}
+
+	return listener, socketPath, nil
+}
+
+// Create a listener on TCP docker, return listener, port and error
+func (bc *AbstractConnectionManager) createTCPListener() (net.Listener, string, error) {
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, "", errors.Wrap(err, "Can't find free port")
+	}
+
+	tcpListener, ok := listener.(*net.TCPListener)
+	if !ok {
+		return nil, "", errors.Wrap(err, "Can't get underlying TCP listener")
+	}
+	if err = tcpListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
+		return nil, "", errors.Wrap(err, "Can't set deadline")
+	}
+
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	return listener, fmt.Sprintf("%d", port), nil
 }
 
 type AbstractConnection struct {
