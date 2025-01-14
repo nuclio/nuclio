@@ -419,6 +419,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 					Configuration:        processorConfiguration,
 					FunctionLogger:       p.functionLogger,
 					ControlMessageBroker: abstractControlMessageBroker,
+					Mode:                 triggerConfiguration.Mode,
 				},
 				p.namedWorkerAllocators,
 				p.restartTriggerChan)

@@ -98,7 +98,15 @@ type Trigger struct {
 	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
 	// TODO: remove in 1.15.x
 	MaxWorkers int `json:"maxWorkers,omitempty"`
+	Mode       TriggerWorkMode
 }
+
+type TriggerWorkMode int
+
+const (
+	SyncWorkMode TriggerWorkMode = iota
+	AsyncWorkMode
+)
 
 type BatchConfiguration struct {
 	Mode      BatchMode `json:"mode,omitempty"`

@@ -18,6 +18,7 @@ package runtime
 
 import (
 	"errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"sync/atomic"
 	"time"
 
@@ -56,15 +57,8 @@ type Configuration struct {
 	TriggerKind              string
 	WorkerTerminationTimeout time.Duration
 	ControlMessageBroker     *controlcommunication.AbstractControlMessageBroker
-	Mode                     WorkMode
+	Mode                     functionconfig.TriggerWorkMode
 }
-
-type WorkMode int
-
-const (
-	SyncWorkMode WorkMode = iota
-	AsyncWorkMode
-)
 
 type ResponseWithErrors struct {
 	nuclio.Response
