@@ -36,6 +36,7 @@ class Wrapper(AbstractWrapper):
                  logger,
                  loop,
                  handler,
+                 event_socket_path,
                  control_socket_path,
                  platform_kind,
                  namespace=None,
@@ -43,13 +44,14 @@ class Wrapper(AbstractWrapper):
                  trigger_kind=None,
                  trigger_name=None,
                  decode_event_strings=True,
-                 port=1337,
                  max_connections=None):
         super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
                          trigger_name, decode_event_strings)
 
-        self._port = port
-        self._host = "0.0.0.0"
+        split_address = event_socket_path.split(":")
+        self._host = split_address[0]
+        self._port = split_address[1]
+
         # Max file descriptors allowed by the OS
         self._max_connections = max_connections if max_connections else os.sysconf("SC_OPEN_MAX")
         self.selector = selectors.DefaultSelector()
@@ -255,6 +257,8 @@ def run_wrapper():
         wrapper_instance = Wrapper(root_logger,
                                    loop,
                                    args.handler,
+                                   # TODO: rename it to serving_address or smth like it
+                                   args.event_socket_path,
                                    args.control_socket_path,
                                    args.platform_kind,
                                    args.namespace,

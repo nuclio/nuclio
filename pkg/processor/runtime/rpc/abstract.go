@@ -237,11 +237,11 @@ func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, function
 		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
 	}
 
-	connection, err := r.connectionManager.Allocate()
+	connectionInstance, err := r.connectionManager.Allocate()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection")
 	}
-	processingResult, err := connection.ProcessEvent(item, functionLogger)
+	processingResult, err := connectionInstance.ProcessEvent(item, functionLogger)
 
 	return processingResult, err
 }

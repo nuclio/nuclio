@@ -94,11 +94,7 @@ func (ca *ConnectionAllocator) Stop() error {
 			}
 		}()
 	}
-	if ca.controlMessageSocket != nil {
-		go func() {
-			ca.controlMessageSocket.Stop()
-		}()
-	}
+	ca.stopControlMessageSocket()
 	return nil
 }
 

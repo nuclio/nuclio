@@ -106,6 +106,14 @@ func (bc *AbstractConnectionManager) startControlMessageSocket() error {
 	return nil
 }
 
+func (bc *AbstractConnectionManager) stopControlMessageSocket() {
+	if bc.controlMessageSocket != nil {
+		go func() {
+			bc.controlMessageSocket.Stop()
+		}()
+	}
+}
+
 // Create a listener on unix domain docker, return listener, path to socket and error
 func (bc *AbstractConnectionManager) createSocketConnection() (*socketConnection, error) {
 	connection := &socketConnection{}

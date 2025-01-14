@@ -86,11 +86,7 @@ func (sa *SocketAllocator) Stop() error {
 			socket.Stop()
 		}()
 	}
-	if sa.controlMessageSocket != nil {
-		go func() {
-			sa.controlMessageSocket.Stop()
-		}()
-	}
+	sa.stopControlMessageSocket()
 	return nil
 }
 
