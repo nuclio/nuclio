@@ -19,6 +19,7 @@ package connection
 import (
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/nuclio/errors"
 )
@@ -46,21 +47,28 @@ func (ca *ConnectionAllocator) Prepare() error {
 	if err := ca.prepareControlMessageSocket(); err != nil {
 		return errors.Wrap(err, "Failed to prepare control message socket")
 	}
+	return nil
+}
 
+func (ca *ConnectionAllocator) Start() error {
 	if ca.MinConnectionsNum != 0 {
 		for i := 0; i < ca.MinConnectionsNum; i++ {
-			conn, err := net.Dial("tcp", ca.serverAddress)
+			var conn net.Conn
+			var err error
+
+			// Use retryable dial for the first connection
+			if i == 0 {
+				conn, err = retryableDial(ca.serverAddress, 30, 1*time.Second)
+			} else {
+				conn, err = net.Dial("tcp", ca.serverAddress)
+			}
+
 			if err != nil {
 				return errors.Wrap(err, "Failed to establish connection")
 			}
 			ca.eventConnections = append(ca.eventConnections, NewConnection(ca.Logger, conn, ca))
 		}
 	}
-	return nil
-}
-
-func (ca *ConnectionAllocator) Start() error {
-
 	// start event processing
 	for _, eventConnection := range ca.eventConnections {
 		eventConnection.SetEncoder(ca.Configuration.GetEventEncoderFunc(eventConnection.Conn))
@@ -109,4 +117,23 @@ func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) 
 		controlAddress = ca.controlMessageSocket.Address
 	}
 	return []string{ca.serverAddress}, controlAddress
+}
+
+func retryableDial(address string, maxRetries int, retryInterval time.Duration) (net.Conn, error) {
+	var conn net.Conn
+	var err error
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		conn, err = net.Dial("tcp", address)
+		if err == nil {
+			return conn, nil
+		}
+
+		// Log the retry attempt if necessary (optional)
+		if attempt < maxRetries {
+			time.Sleep(retryInterval)
+		}
+	}
+
+	return nil, errors.Wrap(err, "Failed to establish connection after retries")
 }

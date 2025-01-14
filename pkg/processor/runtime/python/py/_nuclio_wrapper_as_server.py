@@ -47,10 +47,9 @@ class Wrapper(AbstractWrapper):
                  max_connections=None):
         super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
                          trigger_name, decode_event_strings)
-
         split_address = event_socket_path.split(":")
         self._host = split_address[0]
-        self._port = split_address[1]
+        self._port = int(split_address[1])
 
         # Max file descriptors allowed by the OS
         self._max_connections = max_connections if max_connections else os.sysconf("SC_OPEN_MAX")

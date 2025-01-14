@@ -20,6 +20,7 @@ import (
 	"io"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
@@ -79,16 +80,8 @@ type ManagerConfigration struct {
 	workerId int
 }
 
-func NewManagerConfigration(kind ManagerKind,
-	supportControlCommunication bool,
-	waitForStart bool,
-	socketType SocketType,
-	getEventEncoderFunc func(writer io.Writer) encoder.EventEncoder,
-	statistics runtime.Statistics,
-	workerId int,
-) *ManagerConfigration {
+func NewManagerConfigration(supportControlCommunication bool, waitForStart bool, socketType SocketType, getEventEncoderFunc func(writer io.Writer) encoder.EventEncoder, statistics runtime.Statistics, workerId int, mode functionconfig.TriggerWorkMode) *ManagerConfigration {
 	manager := &ManagerConfigration{
-		Kind:                        kind,
 		SupportControlCommunication: supportControlCommunication,
 		WaitForStart:                waitForStart,
 		SocketType:                  socketType,
@@ -96,7 +89,13 @@ func NewManagerConfigration(kind ManagerKind,
 		Statistics:                  statistics,
 		workerId:                    workerId,
 	}
-	if kind == ConnectionAllocatorManagerKind {
+	switch mode {
+	case functionconfig.AsyncTriggerWorkMode:
+		manager.Kind = ConnectionAllocatorManagerKind
+	default:
+		manager.Kind = SocketAllocatorManagerKind
+	}
+	if manager.Kind == ConnectionAllocatorManagerKind {
 		manager.host = "127.0.0.1"
 		manager.port = portRangeBeginning + workerId
 	}

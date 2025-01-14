@@ -248,13 +248,13 @@ func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, function
 
 func (r *AbstractRuntime) startWrapper() error {
 	connectionManagerConfiguration := connection.NewManagerConfigration(
-		connection.SocketAllocatorManagerKind,
 		r.runtime.SupportsControlCommunication(),
 		r.runtime.WaitForStart(),
 		r.runtime.GetSocketType(),
 		r.runtime.GetEventEncoder,
 		r.Statistics,
 		r.configuration.WorkerID,
+		r.configuration.Mode,
 	)
 
 	var err error

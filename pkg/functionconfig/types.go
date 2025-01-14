@@ -95,10 +95,11 @@ type Trigger struct {
 	// General attributes
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 
+	Mode TriggerWorkMode `json:"mode,omitempty"`
+
 	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
 	// TODO: remove in 1.15.x
 	MaxWorkers int `json:"maxWorkers,omitempty"`
-	Mode       TriggerWorkMode
 }
 
 type TriggerWorkMode int
