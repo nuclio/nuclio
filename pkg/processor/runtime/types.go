@@ -18,10 +18,10 @@ package runtime
 
 import (
 	"errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 

@@ -104,8 +104,8 @@ type Trigger struct {
 type TriggerWorkMode int
 
 const (
-	SyncWorkMode TriggerWorkMode = iota
-	AsyncWorkMode
+	SyncTriggerWorkMode TriggerWorkMode = iota
+	AsyncTriggerWorkMode
 )
 
 type BatchConfiguration struct {
