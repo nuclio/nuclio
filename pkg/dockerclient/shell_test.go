@@ -186,10 +186,11 @@ func (suite *ShellClientTestSuite) TestBuildBailOnUnknownError() {
 	suite.mockedCmdRunner.
 		On("Run",
 			mock.Anything,
-			mock.MatchedBy(func(command string) bool {
+			mock.Anything,
+			mock.MatchedBy(func(vars []interface{}) bool {
+				command := vars[0].(string)
 				return strings.Contains(command, "docker build")
-			}),
-			mock.Anything).
+			})).
 		Return(cmdrunner.RunResult{
 			Stderr: `some bad happened`,
 		}, errors.New("unexpected error")).
@@ -211,10 +212,11 @@ func (suite *ShellClientTestSuite) TestBuildRetryOnErrors() {
 	suite.mockedCmdRunner.
 		On("Run",
 			mock.Anything,
-			mock.MatchedBy(func(command string) bool {
+			mock.Anything,
+			mock.MatchedBy(func(vars []interface{}) bool {
+				command := vars[0].(string)
 				return strings.Contains(command, "docker build")
-			}),
-			mock.Anything).
+			})).
 		Return(cmdrunner.RunResult{
 			Stderr: `Unable to find image 'nuclio-onbuild-someid:sometag' locally`,
 		}, errors.New("execution error")).

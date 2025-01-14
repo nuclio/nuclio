@@ -642,13 +642,22 @@ func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
 }
 
 func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
-	functionConfig *functionconfig.Config) ([]string, error) {
+	function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
+
+	functions, err := p.Platform.FilterFunctionsByPermissions(ctx, &permissionOptions, []platform.Function{function})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
+	}
+	if len(functions) == 0 {
+		// Function was filtered out by permissions, return not found error
+		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Function not found - %s", function.GetConfig().Meta.Name))
+	}
 
 	pods, err := p.consumer.KubeClientSet.
 		CoreV1().
-		Pods(functionConfig.Meta.Namespace).
+		Pods(function.GetConfig().Meta.Namespace).
 		List(ctx, metav1.ListOptions{
-			LabelSelector: common.CompileListFunctionPodsLabelSelector(functionConfig.Meta.Name),
+			LabelSelector: common.CompileListFunctionPodsLabelSelector(function.GetConfig().Meta.Name),
 		})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function pods")

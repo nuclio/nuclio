@@ -203,6 +203,8 @@ spec:
           value: {{ template "nuclio.externalIPAddresses" . }}
         - name: NUCLIO_DASHBOARD_IMAGE_NAME_PREFIX_TEMPLATE
           value: {{ .Values.dashboard.imageNamePrefixTemplate | quote }}
+        - name: NUCLIO_DASHBOARD_LOGS_SCREEN_ENABLED
+          value: {{ .Values.dashboard.logsScreenEnabled | quote }}
       {{- if .Values.dashboard.opa.enabled }}
       - name: {{ template "nuclio.name" . }}-{{ .Values.dashboard.opa.name }}
         securityContext:

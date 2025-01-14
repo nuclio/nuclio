@@ -16,28 +16,6 @@ ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 ARG NUCLIO_PYTHON_BASE_IMAGE_NAME=gcr.io/iguazio/python
 
-# Supplies python 3.7 & common wheels
-FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.7 as python37-builder
-
-COPY pkg/processor/runtime/python/py/requirements /requirements
-
-# Python 3.7 wheels
-RUN pip download \
-        --dest /whl \
-        --exists-action i \
-        --requirement /requirements/python3_7.txt
-
-# Supplies python 3.8 & common wheels
-FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.8 as python38-builder
-
-COPY pkg/processor/runtime/python/py/requirements /requirements
-
-# Python 3.8 wheels
-RUN pip download \
-        --dest /whl \
-        --exists-action i \
-        --requirement /requirements/python3_8.txt
-
 # Supplies python 3.9 & common wheels
 FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.9 as python39-builder
 
@@ -83,8 +61,6 @@ COPY pkg/processor/runtime/python/py /home/nuclio/bin/py
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
 # Copy wheels
-COPY --from=python37-builder /whl /home/nuclio/bin/py3.7-whl
-COPY --from=python38-builder /whl /home/nuclio/bin/py3.8-whl
 COPY --from=python39-builder /whl /home/nuclio/bin/py3.9-whl
 COPY --from=python310-builder /whl /home/nuclio/bin/py3.10-whl
 COPY --from=python311-builder /whl /home/nuclio/bin/py3.11-whl

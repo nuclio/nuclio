@@ -1,5 +1,7 @@
 # RabbitMQ trigger
 
+> **NOTE:**  RabbitMQ trigger is in tech-preview.
+
 Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 
 ## Attributes

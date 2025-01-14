@@ -293,10 +293,11 @@ func GetDefaultHTTPTrigger() Trigger {
 // Ingress holds configuration for an ingress - an entity that can route HTTP requests
 // to the function
 type Ingress struct {
-	Host     string                `json:"host,omitempty"`
-	Paths    []string              `json:"paths,omitempty"`
-	PathType networkingv1.PathType `json:"pathType,omitempty"`
-	TLS      IngressTLS            `json:"tls,omitempty"`
+	Host             string                `json:"host,omitempty"`
+	Paths            []string              `json:"paths,omitempty"`
+	PathType         networkingv1.PathType `json:"pathType,omitempty"`
+	TLS              IngressTLS            `json:"tls,omitempty"`
+	IngressClassName string                `json:"ingressClassName,omitempty"`
 }
 
 // IngressTLS holds configuration for an ingress's TLS

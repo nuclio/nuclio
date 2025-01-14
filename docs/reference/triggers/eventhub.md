@@ -1,5 +1,7 @@
 # Azure Event Hub trigger
 
+> **NOTE:**  Azure Event Hub trigger is in tech-preview.
+
 Reads events from [Microsoft Azure Event Hubs](https://azure.microsoft.com/services/event-hubs/).
 
 ## Attributes

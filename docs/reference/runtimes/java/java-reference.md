@@ -2,6 +2,8 @@
 
 This document describes specific Java build and deploy configurations.
 
+> **NOTE:**  Java runtime is in tech-preview.
+
 #### In this document
 
 - [Function and handler](#function-and-handler)

@@ -24,7 +24,7 @@ controller:
   enabled: true
   image:
     repository: quay.io/nuclio/controller
-    tag: 1.14.0-amd64
+    tag: 1.14.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -97,7 +97,7 @@ dashboard:
   replicas: 1
   image:
     repository: quay.io/nuclio/dashboard
-    tag: 1.14.0-amd64
+    tag: 1.14.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -201,6 +201,7 @@ dashboard:
     #  - secretName: nuclio-tls
     #    hosts:
     #      - nuclio.local
+    ingressClassName: ""
 
   authConfig:
 
@@ -289,12 +290,14 @@ dashboard:
   # Note: secret name must contain "pip-ca-certificates.crt" key
   pipCACertSecretName: ""
 
+  logsScreenEnabled: false
+
 autoscaler:
   enabled: false
   replicas: 1
   image:
     repository: quay.io/nuclio/autoscaler
-    tag: 1.14.0-amd64
+    tag: 1.14.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -328,7 +331,7 @@ dlx:
   replicas: 1
   image:
     repository: quay.io/nuclio/dlx
-    tag: 1.14.0-amd64
+    tag: 1.14.1-amd64
     pullPolicy: IfNotPresent
   resources: {}
 
@@ -483,6 +486,7 @@ platform: {}
 #    defaultHTTPIngressHostTemplate: ""
 #    defaultHTTPIngressAnnotations:
 #      ingressAnnotationKey: ingressAnnotationValue
+#    defaultHTTPIngressClassName: ""
 #  imageRegistryOverrides:
 #    baseImageRegistries:
 #      "python:3.9": "myregistry"
@@ -494,7 +498,7 @@ platform: {}
 #
 #    # set to 10 for extra verbosity on top of nuclio logger
 #    logLevel: 0
-#    address: http://1.14.0.0.1.14.01
+#    address: http://1.14.1.0.1.14.11
 #    clientKind: nop
 #    requestTimeout: 10
 #    permissionQueryPath: /v1/data/somewhere/authz/allow

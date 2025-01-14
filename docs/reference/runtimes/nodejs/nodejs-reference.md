@@ -2,6 +2,8 @@
 
 This document describes the specific NodeJS build and deploy configurations.
 
+> **NOTE:**  NodeJS runtime is in tech-preview.
+
 #### In this document
 
 - [Function and handler](#function-and-handler)

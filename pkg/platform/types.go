@@ -534,7 +534,7 @@ type GetAPIGatewaysOptions struct {
 	AuthSession  auth.Session
 }
 
-// to appease k8s
+// DeepCopyInto to appease k8s
 func (s *APIGatewaySpec) DeepCopyInto(out *APIGatewaySpec) {
 
 	// TODO: proper deep copy
@@ -561,4 +561,7 @@ type GetFunctionReplicaLogsStreamOptions struct {
 	// A specific container name to stream logs from (if not specified, the "nuclio" container in the pod is used)
 	// Relevant only for pods with multiple containers
 	ContainerName string
+
+	// Permission options for the log stream
+	PermissionOptions opa.PermissionOptions
 }

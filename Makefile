@@ -110,8 +110,8 @@ endif
 
 NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
 
-NUCLIO_BASE_IMAGE_TAG ?= 1.21
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.21-alpine
+NUCLIO_BASE_IMAGE_TAG ?= 1.23
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.23-alpine
 DEFAULT_NUCTL_DOCUMENTATION_PATH := docs/reference/nuctl/cli
 NUCTL_DOCUMENTATION_PATH := $(if $(NUCTL_DOCUMENTATION_PATH),$(NUCTL_DOCUMENTATION_PATH),$(DEFAULT_NUCTL_DOCUMENTATION_PATH))
 
@@ -655,7 +655,7 @@ ensure-test-files-annotated:
 ensure-golangci-linter:
 	@echo Ensuring linters...
 	@test -e $(GOPATH)/bin/golangci-lint || \
-		(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.54.2)
+		(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.63.4)
 
 #
 # Testing
@@ -832,7 +832,7 @@ test-nodejs:
 .PHONY: test-python
 test-python:
 	@set -e; \
-	for runtime in 3.11 3.10 3.9 3.8 3.7; do \
+	for runtime in 3.11 3.10 3.9; do \
 		docker build \
 			--build-arg PYTHON_IMAGE_TAG=$$runtime \
 			--build-arg CACHEBUST=$(shell date +%s) \
