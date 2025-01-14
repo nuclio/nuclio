@@ -552,11 +552,12 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 		// no available workers
 		case worker.ErrNoAvailableWorkers, worker.ErrAllWorkersAreTerminated:
+			h.Logger.WarnWith("No workers available", "err", submitError.Error())
 			ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 
 			// something else - most likely a bug
 		default:
-			h.Logger.WarnWith("Failed to submit event", "err", submitError)
+			h.Logger.WarnWith("Failed to submit event", "err", submitError.Error())
 			ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
 		}
 
