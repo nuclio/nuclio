@@ -66,16 +66,15 @@ class AbstractWrapper(object):
 
         # holds the function that will be called
         self._entrypoint = self._load_entrypoint_from_handler(handler)
-        if self._control_sock:
-        # connect to processor
-            self._control_sock = self._connect_to_processor(self._control_socket_path)
+    # connect to processor
+        self._control_sock = self._connect_to_processor(self._control_socket_path)
 
-            # make a writeable file from processor
-            self._control_sock_wfile = self._control_sock.makefile('w')
+        # make a writeable file from processor
+        self._control_sock_wfile = self._control_sock.makefile('w')
 
-            # set socket to nonblocking to allow the asyncio event loop to run while we're waiting on a socket, and so
-            # that we are able to cancel the wait if needed
-            self._control_sock.setblocking(False)
+        # set socket to nonblocking to allow the asyncio event loop to run while we're waiting on a socket, and so
+        # that we are able to cancel the wait if needed
+        self._control_sock.setblocking(False)
 
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
