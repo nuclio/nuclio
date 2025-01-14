@@ -60,6 +60,10 @@ class Wrapper(AbstractWrapper):
 
     async def _process_connection(self, sock):
         """Process all events for a single connection."""
+        # signal start
+        self._logger.info("Signalling connection processing start")
+        await self._write_packet_to_processor(sock, 's')
+        self._logger.info(f"Event processing started for socket")
         try:
             while True:
                 # Resolve event message length
@@ -172,7 +176,7 @@ class Wrapper(AbstractWrapper):
                 self.selector.unregister(sock)
                 sock.close()
 
-    async def select_events(self, timeout=1):
+    async def select_events(self, timeout=0.1):
         # Run the selector.select in the default executor (this is a blocking operation)
         events = await self._loop.run_in_executor(None, self.selector.select, timeout)
         return events
@@ -182,7 +186,7 @@ class Wrapper(AbstractWrapper):
         client_sock, addr = server_sock.accept()
         self._logger.info(f"Accepted connection from {addr}")
         client_sock.setblocking(False)
-        self.epoll.register(client_sock.fileno(), select.EPOLLIN)
+        self.selector.register(client_sock, selectors.EVENT_READ)
         self.connections[client_sock.fileno()] = client_sock
         task = asyncio.create_task(self._process_connection(client_sock))
         self.tasks[client_sock.fileno()] = task
@@ -195,8 +199,6 @@ class Wrapper(AbstractWrapper):
         # register to the SIGUSR1 and SIGUSR2 signals, used to signal termination/draining respectively
         self._register_to_signal()
 
-        # TODO: write this into each connection
-        # await self._write_packet_to_processor(self._event_sock, 's')
         await self._send_data_on_control_socket({
             'kind': 'wrapperInitialized',
             'attributes': {'ready': 'true'}
@@ -220,7 +222,7 @@ class Wrapper(AbstractWrapper):
             # Close all active sockets
             for fileno, sock in list(self.connections.items()):
                 self._logger.info(f"Closing connection {fileno}")
-                self.epoll.unregister(fileno)
+                self.selector.unregister(sock)
                 sock.close()
 
             # Cleanup epoll and exit
