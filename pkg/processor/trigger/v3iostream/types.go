@@ -85,7 +85,9 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 		return nil, errors.Wrap(err, "Failed to populate configuration from annotations")
 	}
 
-	if err := newConfiguration.PopulateExplicitAckMode(explicitAckModeValue,
+	if err := newConfiguration.PopulateExplicitAckMode(
+		logger,
+		explicitAckModeValue,
 		triggerConfiguration.ExplicitAckMode); err != nil {
 		return nil, errors.Wrap(err, "Failed to populate explicit ack mode")
 	}
