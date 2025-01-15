@@ -54,6 +54,7 @@ func (suite *TestSuite) SetupSuite() {
 			Logger: suite.logger,
 		},
 		configuration: &Configuration{},
+		status:        status.NewSafeStatus(status.Ready),
 	}
 	suite.fastDummyHTTPServer = fasthttputil.NewInmemoryListener()
 	suite.serveDummyHTTPServer(suite.trigger.onRequestFromFastHTTP())
