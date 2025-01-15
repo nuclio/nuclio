@@ -25,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/test/offline"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -59,8 +60,10 @@ func (suite *TestSuite) TestOutputs() {
 	logLevelWarn := "warn"
 	testPath := "/path/to/nowhere"
 
-	createFunctionOptions := suite.GetDeployOptions("outputter",
-		suite.GetFunctionPath("outputter"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"outputter",
+		suite.GetFunctionPath("outputter"),
+		functionconfig.SyncTriggerWorkMode)
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Outputter"
 
 	testRequests := []*httpsuite.Request{
@@ -179,8 +182,10 @@ func (suite *TestSuite) TestOutputs() {
 }
 
 func (suite *TestSuite) TestCustomOptions() {
-	createFunctionOptions := suite.GetDeployOptions("memory",
-		path.Join(suite.GetTestFunctionsDir(), "java", "memory"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"memory",
+		path.Join(suite.GetTestFunctionsDir(), "java", "memory"),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "nuclio-test-memory-handler.jar:MemoryHandler"
 	bodyVerifier := func(body []byte) {

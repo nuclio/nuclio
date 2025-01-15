@@ -108,8 +108,10 @@ func (suite *TestSuite) TestPostEventPythonSchedule() {
 }
 
 func (suite *TestSuite) getCronDeployOptions() *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder",
-		suite.GetFunctionPath(path.Join("event_recorder_python")))
+	createFunctionOptions := suite.GetDeployOptions(
+		"event_recorder",
+		suite.GetFunctionPath(path.Join("event_recorder_python")),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Meta.Name = "cron-trigger-test"

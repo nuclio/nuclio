@@ -103,7 +103,10 @@ func (suite *testConfluentSuite) SetupSuite() {
 }
 
 func (suite *testConfluentSuite) TestReceiveRecords() {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+	createFunctionOptions := suite.GetDeployOptions(
+		"event_recorder",
+		suite.FunctionPaths["python"],
+		functionconfig.SyncTriggerWorkMode)
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"confluent-kafka": {
 			Kind:       "kafka-cluster",

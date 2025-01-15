@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
@@ -73,6 +74,7 @@ func (suite *TestSuite) getFunctionCreateOptions() *platform.CreateFunctionOptio
 			"reverser",
 			suite.HTTPSuite.GetRuntimeDir(),
 		),
+		functionconfig.SyncTriggerWorkMode,
 	)
 
 	// assume offline, no images pull, etc

@@ -21,6 +21,7 @@ package test
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -71,8 +72,10 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 }
 
 func (suite *TestSuite) TestBuildWithCustomGradleScript() {
-	createFunctionOptions := suite.GetDeployOptions("custom-gradle-script",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "custom-gradle-script"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"custom-gradle-script",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "custom-gradle-script"),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "JsonParser"
 	suite.DeployFunctionAndRequest(createFunctionOptions,
@@ -83,8 +86,10 @@ func (suite *TestSuite) TestBuildWithCustomGradleScript() {
 }
 
 func (suite *TestSuite) TestBuildWithCustomRepositories() {
-	createFunctionOptions := suite.GetDeployOptions("reverser",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "reverser", "java", "Reverser.java"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"reverser",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "reverser", "java", "Reverser.java"),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
 	createFunctionOptions.FunctionConfig.Spec.Build.RuntimeAttributes = map[string]interface{}{
@@ -99,8 +104,10 @@ func (suite *TestSuite) TestBuildWithCustomRepositories() {
 }
 
 func (suite *TestSuite) TestBuildWithJar() {
-	createFunctionOptions := suite.GetDeployOptions("reverser",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "reverser-jar", "reverser.jar"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"reverser",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "reverser-jar", "reverser.jar"),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
 	suite.DeployFunctionAndRequest(createFunctionOptions,
@@ -111,8 +118,10 @@ func (suite *TestSuite) TestBuildWithJar() {
 }
 
 func (suite *TestSuite) TestBuildWithJarFromURL() {
-	createFunctionOptions := suite.GetDeployOptions("reverser",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "reverser-jar", "reverser.jar"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"reverser",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "reverser-jar", "reverser.jar"),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
 	suite.DeployFunctionFromURL(createFunctionOptions, &httpsuite.Request{

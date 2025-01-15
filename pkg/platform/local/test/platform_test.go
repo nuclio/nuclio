@@ -64,7 +64,10 @@ func (suite *TestSuite) TestRunFunctionContainerWithCustomRestartPolicy() {
 	restartEventsFrom := time.Now()
 	functionContainerMaximumRetryCount := 1
 	functionPath := []string{suite.GetTestFunctionsDir(), "common", "context-init-fail", "python", "contextinitfail.py"}
-	createFunctionOptions := suite.TestSuite.GetDeployOptions("restartable", filepath.Join(functionPath...))
+	createFunctionOptions := suite.TestSuite.GetDeployOptions(
+		"restartable",
+		filepath.Join(functionPath...),
+		functionconfig.SyncTriggerWorkMode)
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.namespace
 
@@ -372,7 +375,10 @@ func (suite *TestSuite) TestDeployFunctionDisablePublishingPorts() {
 
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
 	functionPath := []string{suite.GetTestFunctionsDir(), "common", "reverser", "python", "reverser.py"}
-	createFunctionOptions := suite.TestSuite.GetDeployOptions(functionName, filepath.Join(functionPath...))
+	createFunctionOptions := suite.TestSuite.GetDeployOptions(
+		functionName,
+		filepath.Join(functionPath...),
+		functionconfig.SyncTriggerWorkMode)
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	return createFunctionOptions
 }

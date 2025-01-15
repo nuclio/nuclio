@@ -97,7 +97,10 @@ func (suite *testSuite) SetupSuite() {
 
 func (suite *testSuite) TestReceiveRecords() {
 	pubsubContainerBrokerURL := fmt.Sprintf("%s:%d", suite.brokerContainerName, suite.brokerPort)
-	createFunctionOptions := suite.GetDeployOptions("pubsub-event-recorder", suite.FunctionPaths["python"])
+	createFunctionOptions := suite.GetDeployOptions(
+		"pubsub-event-recorder",
+		suite.FunctionPaths["python"],
+		functionconfig.SyncTriggerWorkMode)
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 		Attributes: map[string]interface{}{
 			"network": suite.BrokerContainerNetworkName,

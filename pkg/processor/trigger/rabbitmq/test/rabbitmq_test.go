@@ -198,7 +198,10 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 }
 
 func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder", "")
+	createFunctionOptions := suite.GetDeployOptions(
+		"event_recorder",
+		"",
+		functionconfig.SyncTriggerWorkMode)
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Meta.Name = "rmq-trigger-test"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = suite.FunctionPaths["python"]

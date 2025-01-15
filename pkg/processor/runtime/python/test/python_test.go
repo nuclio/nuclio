@@ -47,6 +47,7 @@ type TestSuite struct {
 	CallFunctionTestSuite callfunction.TestSuite
 	OfflineTestSuite      offline.TestSuite
 	runtime               string
+	mode                  functionconfig.TriggerWorkMode
 }
 
 func (suite *TestSuite) SetupTest() {
@@ -72,7 +73,8 @@ func (suite *TestSuite) TestAsyncHandler() {
 	statusOK := http.StatusOK
 
 	createFunctionOptions := suite.GetDeployOptions("asyncer",
-		suite.GetFunctionPath("outputter"))
+		suite.GetFunctionPath("outputter"),
+		suite.mode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "async_outputter:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
@@ -131,7 +133,8 @@ func (suite *TestSuite) TestOutputs() {
 	testPath := "/path/to/nowhere"
 
 	createFunctionOptions := suite.GetDeployOptions("outputter",
-		suite.GetFunctionPath("outputter"))
+		suite.GetFunctionPath("outputter"),
+		suite.mode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
@@ -280,7 +283,8 @@ func (suite *TestSuite) TestOutputs() {
 
 func (suite *TestSuite) TestCustomEvent() {
 	createFunctionOptions := suite.GetDeployOptions("event-returner",
-		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "python"))
+		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "python"),
+		suite.mode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "eventreturner:handler"
 
@@ -323,7 +327,8 @@ func (suite *TestSuite) TestCustomEvent() {
 
 func (suite *TestSuite) TestContextInitError() {
 	createFunctionOptions := suite.GetDeployOptions("context-init-fail",
-		path.Join(suite.GetTestFunctionsDir(), "common", "context-init-fail", "python"))
+		path.Join(suite.GetTestFunctionsDir(), "common", "context-init-fail", "python"),
+		suite.mode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "contextinitfail:handler"
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
@@ -345,7 +350,8 @@ func (suite *TestSuite) TestModifiedRequestBodySize() {
 	}
 	for index, maxRequestBodySize := range maxRequestBodySizes {
 		createFunctionOptions := suite.GetDeployOptions(fmt.Sprintf("custom-allowed-body-size-%d", index),
-			path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+			path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"),
+			suite.mode)
 		createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 		createFunctionOptions.FunctionConfig.Spec.Triggers["http"] = functionconfig.Trigger{
 			Kind: "http",
@@ -361,7 +367,8 @@ func (suite *TestSuite) TestModifiedRequestBodySize() {
 
 func (suite *TestSuite) TestNonUTF8Headers() {
 	createFunctionOptions := suite.GetDeployOptions("non-utf8-headers",
-		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"),
+		suite.mode)
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 	internalServerErrorStatus := http.StatusInternalServerError
 	okStatus := http.StatusOK
@@ -460,8 +467,10 @@ func (suite *TestSuite) TestStableSDKThroughput() {
 
 func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
 	numWorkers int) *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions(functionName,
-		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
+	createFunctionOptions := suite.GetDeployOptions(
+		functionName,
+		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"),
+		suite.mode)
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 
@@ -479,17 +488,17 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	for _, testCase := range []struct {
-		runtimeName string
-	}{
-		{runtimeName: "python:3.9"},
-		{runtimeName: "python:3.10"},
-		{runtimeName: "python:3.11"},
-	} {
-		t.Run(testCase.runtimeName, func(t *testing.T) {
-			testSuite := new(TestSuite)
-			testSuite.runtime = testCase.runtimeName
-			suite.Run(t, testSuite)
-		})
+	runtimes := []string{"python:3.9", "python:3.10", "python:3.11"}
+	modes := []functionconfig.TriggerWorkMode{functionconfig.AsyncTriggerWorkMode, functionconfig.SyncTriggerWorkMode}
+
+	for _, runtime := range runtimes {
+		for _, mode := range modes {
+			t.Run(runtime+"_"+mode.String(), func(t *testing.T) {
+				testSuite := new(TestSuite)
+				testSuite.runtime = runtime
+				testSuite.mode = mode // Set the mode for the test
+				suite.Run(t, testSuite)
+			})
+		}
 	}
 }

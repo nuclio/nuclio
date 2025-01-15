@@ -144,8 +144,6 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 	h.Logger.Debug("Shutting down")
 
-	h.status = status.Stopped
-
 	if h.server != nil {
 		err := h.server.Shutdown()
 

@@ -178,8 +178,10 @@ func (suite *HTTPTestSuite) TestBatchedProcessing() {
 		"python",
 		"batch",
 		"batch-http-func.py")
-	createFunctionOptions := suite.GetDeployOptions("event_recorder",
-		suite.GetFunctionPath(path.Join("event_recorder_python")))
+	createFunctionOptions := suite.GetDeployOptions(
+		"event_recorder",
+		suite.GetFunctionPath(path.Join("event_recorder_python")),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
@@ -216,8 +218,10 @@ func (suite *HTTPTestSuite) TestBatchedProcessing() {
 }
 
 func (suite *HTTPTestSuite) getHTTPDeployOptions() *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder",
-		suite.GetFunctionPath(path.Join("event_recorder_python")))
+	createFunctionOptions := suite.GetDeployOptions(
+		"event_recorder",
+		suite.GetFunctionPath(path.Join("event_recorder_python")),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Meta.Name = "http-trigger-test"

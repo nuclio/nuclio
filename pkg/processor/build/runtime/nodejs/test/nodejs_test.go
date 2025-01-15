@@ -21,6 +21,7 @@ package test
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -73,8 +74,10 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 }
 
 func (suite *TestSuite) TestBuildWithContextInitializer() {
-	createFunctionOptions := suite.GetDeployOptions("context-init",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "context-init", "nodejs", "contextinit.js"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"context-init",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "context-init", "nodejs", "contextinit.js"),
+		functionconfig.SyncTriggerWorkMode)
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{

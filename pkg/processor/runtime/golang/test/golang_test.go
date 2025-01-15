@@ -73,8 +73,10 @@ func (suite *TestSuite) TestOutputs() {
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
 
 	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
-	createFunctionOptions := suite.GetDeployOptions("outputter",
-		suite.GetFunctionPath("_outputter"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"outputter",
+		suite.GetFunctionPath("_outputter"),
+		functionconfig.SyncTriggerWorkMode)
 
 	testRequests := []*httpsuite.Request{
 		{
@@ -168,8 +170,10 @@ func (suite *TestSuite) TestOutputs() {
 }
 
 func (suite *TestSuite) TestCustomEvent() {
-	createFunctionOptions := suite.GetDeployOptions("event-returner",
-		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "golang"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"event-returner",
+		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "golang"),
+		functionconfig.SyncTriggerWorkMode)
 
 	requestMethod := "POST"
 	requestPath := "/testPath"
@@ -211,8 +215,10 @@ func (suite *TestSuite) TestCustomEvent() {
 }
 
 func (suite *TestSuite) TestFileStream() {
-	createFunctionOptions := suite.GetDeployOptions("file-streamer",
-		path.Join(suite.GetTestFunctionsDir(), "common", "file-streamer", "golang"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"file-streamer",
+		path.Join(suite.GetTestFunctionsDir(), "common", "file-streamer", "golang"),
+		functionconfig.SyncTriggerWorkMode)
 
 	tempDir := suite.CreateTempDir()
 	defer os.RemoveAll(tempDir)

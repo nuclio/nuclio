@@ -134,7 +134,10 @@ func (suite *testSuite) TestMultipleTopics() {
 }
 
 func (suite *testSuite) getCreateFunctionOptionsWithMQTTTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder", "")
+	createFunctionOptions := suite.GetDeployOptions(
+		"event_recorder",
+		"",
+		functionconfig.SyncTriggerWorkMode)
 	createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 		Attributes: map[string]interface{}{
 			"network": suite.BrokerContainerNetworkName,

@@ -25,6 +25,7 @@ import (
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
@@ -51,8 +52,14 @@ func (suite *TestSuite) TestCallFunction() {
 		"function-caller",
 		suite.HTTPSuite.RuntimeDir)
 
-	calleeDeployOptions := suite.HTTPSuite.GetDeployOptions("callee", path.Join(functionCallerPath, "callee"))
-	callerDeployOptions := suite.HTTPSuite.GetDeployOptions("caller", path.Join(functionCallerPath, "caller"))
+	calleeDeployOptions := suite.HTTPSuite.GetDeployOptions(
+		"callee",
+		path.Join(functionCallerPath, "callee"),
+		functionconfig.SyncTriggerWorkMode)
+	callerDeployOptions := suite.HTTPSuite.GetDeployOptions(
+		"caller",
+		path.Join(functionCallerPath, "caller"),
+		functionconfig.SyncTriggerWorkMode)
 
 	// set network of both functions to the same so that they can communicate
 	calleeDeployOptions.FunctionConfig.Spec.Platform.Attributes = map[string]interface{}{"network": networkName}

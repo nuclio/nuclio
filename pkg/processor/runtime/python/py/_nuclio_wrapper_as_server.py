@@ -151,7 +151,8 @@ class Wrapper(AbstractWrapper):
 
         try:
             while True:
-                events = await self.select_events()  # Now awaiting the select operation
+                events = await self.select_events()
+                # Now awaiting the select operation
                 for key, event in events:
                     sock = key.fileobj
                     if sock == server_sock:
@@ -159,6 +160,7 @@ class Wrapper(AbstractWrapper):
                         client_sock, addr = server_sock.accept()
                         self._logger.info(f"Accepted connection from {addr}")
                         client_sock.setblocking(False)
+                        # ??
                         self.selector.register(client_sock, selectors.EVENT_READ)
                         self.connections[client_sock.fileno()] = client_sock
                         task = self._loop.create_task(self._process_connection(client_sock))
@@ -168,6 +170,7 @@ class Wrapper(AbstractWrapper):
                         pass
                     else:
                         self._logger.error(f"Unexpected event: {event}")
+                await asyncio.sleep(0.2)
         except KeyboardInterrupt:
             self._logger.info("Shutting down server")
         finally:

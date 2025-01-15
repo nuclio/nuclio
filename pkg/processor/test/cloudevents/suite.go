@@ -25,6 +25,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
@@ -136,6 +137,7 @@ func (suite *TestSuite) getCreateOptions() *platform.CreateFunctionOptions {
 			"event-returner",
 			suite.HTTPSuite.GetRuntimeDir(),
 		),
+		functionconfig.SyncTriggerWorkMode,
 	)
 
 	if suite.CloudEventsHandler != "" {

@@ -45,8 +45,10 @@ func (suite *workerWaitTestSuite) deploySleeperWithTimeout(workerAvailabilityTim
 	expectedSuccesses int,
 	expectedErrors int) {
 
-	createFunctionOptions := suite.GetDeployOptions("sleeper",
-		path.Join(suite.GetTestFunctionsDir(), "common", "sleeper", "golang"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"sleeper",
+		path.Join(suite.GetTestFunctionsDir(), "common", "sleeper", "golang"),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "golang"
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{

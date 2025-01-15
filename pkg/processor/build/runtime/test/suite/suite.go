@@ -464,8 +464,10 @@ func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFu
 		suite.T().Skip()
 	}
 
-	createFunctionOptions := suite.GetDeployOptions(functionName,
-		path.Join(functionInfo.Path...))
+	createFunctionOptions := suite.GetDeployOptions(
+		functionName,
+		path.Join(functionInfo.Path...),
+		functionconfig.SyncTriggerWorkMode)
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = functionInfo.Handler
 	createFunctionOptions.FunctionConfig.Spec.Runtime = functionInfo.Runtime

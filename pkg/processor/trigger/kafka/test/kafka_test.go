@@ -170,7 +170,10 @@ func (suite *testSuite) TestReceiveRecords() {
 	} {
 		suite.Run(testCase.name, func() {
 			functionName := "event_recorder"
-			createFunctionOptions := suite.GetDeployOptions(functionName, testCase.functionPath)
+			createFunctionOptions := suite.GetDeployOptions(
+				functionName,
+				testCase.functionPath,
+				functionconfig.SyncTriggerWorkMode)
 			createFunctionOptions.FunctionConfig.Spec.Runtime = testCase.runtime
 			if testCase.handler != "" {
 				createFunctionOptions.FunctionConfig.Spec.Handler = testCase.handler
@@ -257,7 +260,10 @@ func (suite *testSuite) TestExplicitAck() {
 		suite.Run(testCase.name, func() {
 
 			// create explicit ack function
-			createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+			createFunctionOptions := suite.GetDeployOptions(
+				functionName,
+				functionPath,
+				functionconfig.SyncTriggerWorkMode)
 			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install nuclio-sdk"}
 			createFunctionOptions.FunctionConfig.Spec.Platform = functionconfig.Platform{
 				Attributes: map[string]interface{}{
@@ -372,7 +378,10 @@ func (suite *testSuite) TestDrainHook() {
 		"createTopicResponse", createTopicsResponse)
 
 	// create a function
-	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+	createFunctionOptions := suite.GetDeployOptions(
+		functionName,
+		functionPath,
+		functionconfig.SyncTriggerWorkMode)
 
 	platformSpec := functionconfig.Platform{
 		Attributes: map[string]interface{}{
@@ -442,7 +451,10 @@ func (suite *testSuite) TestDrainHook() {
 		}
 
 		// create another function that consumes from the same topic and consumer group, to trigger rebalance
-		newCreateFunctionOptions := suite.GetDeployOptions("drain-hook-new", functionPath)
+		newCreateFunctionOptions := suite.GetDeployOptions(
+			"drain-hook-new",
+			functionPath,
+			functionconfig.SyncTriggerWorkMode)
 		newCreateFunctionOptions.FunctionConfig.Spec.Platform = platformSpec
 		newCreateFunctionOptions.FunctionConfig.Spec.Triggers = triggerSpec
 

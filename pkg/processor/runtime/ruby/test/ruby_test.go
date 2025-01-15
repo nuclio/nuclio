@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -54,8 +55,10 @@ func (suite *TestSuite) TestOutputs() {
 	logLevelWarn := "warn"
 	testPath := "/path/to/nowhere"
 
-	createFunctionOptions := suite.GetDeployOptions("outputter",
-		suite.GetFunctionPath("outputter"))
+	createFunctionOptions := suite.GetDeployOptions(
+		"outputter",
+		suite.GetFunctionPath("outputter"),
+		functionconfig.SyncTriggerWorkMode)
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:main"
 
 	testRequests := []*httpsuite.Request{
