@@ -140,7 +140,7 @@ func (suite *TestSuite) TestCORS() {
 		suite.trigger.Statistics.EventsHandledFailureTotal = 0
 
 		// ensure trigger is ready
-		suite.trigger.status = status.Ready
+		suite.trigger.status.SetStatus(status.Ready)
 
 		// create request, use OPTIONS to trigger preflight flow
 		request, err := nethttp.NewRequest(fasthttp.MethodOptions, "http://foo.bar/", nil)
@@ -193,7 +193,7 @@ func (suite *TestSuite) TestInternalHealthiness() {
 			suite.logger.DebugWith("Testing internal healthiness endpoint", "testCase", testCase)
 
 			// ensure trigger is ready
-			suite.trigger.status = status.Ready
+			suite.trigger.status.SetStatus(status.Ready)
 
 			request, err := nethttp.NewRequest(nethttp.MethodGet,
 				"http://foo.bar"+string(suite.trigger.internalHealthPath),
