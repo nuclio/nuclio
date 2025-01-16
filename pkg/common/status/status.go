@@ -85,3 +85,7 @@ func (as *SafeStatus) GetStatus() Status {
 
 	return as.status
 }
+
+func (as *SafeStatus) String() string {
+	return as.GetStatus().String()
+}

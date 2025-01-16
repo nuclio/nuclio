@@ -184,7 +184,9 @@ func NewConfiguration(id string,
 		return nil, errors.Wrap(err, "Failed to populate configuration from secrets")
 	}
 
-	if err := newConfiguration.PopulateExplicitAckMode(explicitAckModeValue,
+	if err := newConfiguration.PopulateExplicitAckMode(
+		logger,
+		explicitAckModeValue,
 		triggerConfiguration.ExplicitAckMode); err != nil {
 		return nil, errors.Wrap(err, "Failed to populate explicit ack mode")
 	}

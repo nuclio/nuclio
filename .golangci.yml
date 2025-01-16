@@ -43,10 +43,6 @@ run:
     - test_iguazio
     - test_broken
 
-  skip-dirs:
-    - docs
-    - vendor
-
 linters-settings:
   revive:
     rules:
@@ -57,7 +53,8 @@ linters-settings:
 
   gocritic:
     disabled-checks:
-      - commentFormatting # we dont want to enforce space before the comment text
+      # we don't want to enforce space before the comment text
+      - commentFormatting
 
   gci:
     sections:
@@ -75,6 +72,10 @@ issues:
   exclude:
     - "comment on"
     - "error should be the last"
+
+  exclude-dirs:
+    - docs
+    - vendor
 
   exclude-rules:
 

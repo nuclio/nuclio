@@ -153,8 +153,24 @@ def handler(context, event):
 			// wait for monitoring
 			time.Sleep(postDeploymentSleepInterval)
 
+			checkInvocationURLs := func(getFunctionOptions *platform.GetFunctionsOptions) {
+				function := suite.GetFunction(getFunctionOptions)
+
+				// function should have external and internal URL enriched
+				suite.Require().Equal(1, len(function.GetStatus().InternalInvocationURLs))
+				suite.Require().Equal(1, len(function.GetStatus().ExternalInvocationURLs))
+
+				suite.Require().Equal("nuclio-function-recover-after-deploy-fail.default.svc.cluster.local:8080",
+					function.GetStatus().InternalInvocationURLs[0])
+				suite.Require().Equal(
+					fmt.Sprintf(":%d", function.GetStatus().HTTPPort),
+					function.GetStatus().ExternalInvocationURLs[0])
+			}
+
 			// function would become unhealthy as its function deployment is missing the mentioned configmap
 			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateUnhealthy)
+
+			checkInvocationURLs(getFunctionOptions)
 
 			// create the missing configmap
 			configMap, err = suite.KubeClientSet.CoreV1().ConfigMaps(suite.Namespace).Create(suite.Ctx, configMap, metav1.CreateOptions{})
@@ -176,6 +192,8 @@ def handler(context, event):
 
 			// function should be recovered by function monitoring
 			suite.GetFunctionAndExpectState(getFunctionOptions, functionconfig.FunctionStateReady)
+
+			checkInvocationURLs(getFunctionOptions)
 
 			return true
 		})
