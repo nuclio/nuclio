@@ -55,9 +55,6 @@ class TestSubmitEvents(unittest.TestCase):
         # generate socket path
         self._event_socket_path = os.path.join(self._temp_path, 'nuclio.event.sock')
 
-        # TODO: to make it work we need to check why having 2 daemon threads
-        #  serving socket cause performance degradation
-        self._control_socket_path = os.path.join(self._temp_path, 'nuclio.event.sock')
 
         # create transport
         self._unix_stream_server, self._unix_stream_server_thread = \
@@ -79,7 +76,7 @@ class TestSubmitEvents(unittest.TestCase):
                                         self._loop,
                                         self._default_test_handler,
                                         self._event_socket_path,
-                                        self._control_socket_path,
+                                        None,
                                         self._platform_kind,
                                         decode_event_strings=self._decode_event_strings)
         self._loop.run_until_complete(self._wrapper.initialize())
@@ -87,7 +84,7 @@ class TestSubmitEvents(unittest.TestCase):
     def tearDown(self):
         sys.path.remove(self._temp_path)
         self._wrapper._event_sock.close()
-        self._wrapper._control_sock.close()
+
 
         for unix_stream_server, unix_stream_server_thread in [
             (self._unix_stream_server, self._unix_stream_server_thread),
