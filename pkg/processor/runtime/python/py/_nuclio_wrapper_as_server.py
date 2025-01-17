@@ -16,7 +16,8 @@ import os
 import select
 import sys
 import traceback
-
+import time
+import json
 import nuclio_sdk
 import nuclio_sdk.helpers
 import nuclio_sdk.json_encoder
@@ -36,7 +37,7 @@ class Wrapper(AbstractWrapper):
                  logger,
                  loop,
                  handler,
-                 event_socket_path,
+                 serving_address,
                  control_socket_path,
                  platform_kind,
                  namespace=None,
@@ -47,7 +48,7 @@ class Wrapper(AbstractWrapper):
                  max_connections=None):
         super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
                          trigger_name, decode_event_strings)
-        split_address = event_socket_path.split(":")
+        split_address = serving_address.split(":")
         self._host = split_address[0]
         self._port = int(split_address[1])
 
@@ -57,6 +58,24 @@ class Wrapper(AbstractWrapper):
         self.connections = {}  # Track active sockets
         self.tasks = {}  # Track active asyncio tasks
         self.shutdown_event = asyncio.Event()
+
+    async def _handle_event(self, event, sock):
+        # take call time
+        start_time = time.time()
+
+        # call the entrypoint
+        entrypoint_output = await self._entrypoint(self._context, event)
+
+        # measure duration, set to minimum float in case execution was too fast
+        duration = time.time() - start_time or sys.float_info.min
+
+        await self._write_packet_to_processor(sock, 'm' + json.dumps({'duration': duration}))
+
+        # try to json encode the response
+        encoded_response = self._encode_entrypoint_output(entrypoint_output)
+
+        # write response to the socket
+        await self._write_packet_to_processor(sock, 'r' + encoded_response)
 
     async def _process_connection(self, sock):
         """Process all events for a single connection."""
@@ -80,7 +99,7 @@ class Wrapper(AbstractWrapper):
                     try:
                         await self._handle_event(event, sock)
                     except BaseException as exc:
-                        await self._on_handle_event_error(exc)
+                        await self._on_handle_event_error(exc, sock)
                 else:
                     self._logger.debug("Event discarded")
 
@@ -134,7 +153,7 @@ class Wrapper(AbstractWrapper):
                 task.cancel()
             self._logger.info(f"Task for connection {fileno} cancelled and removed")
 
-    async def start(self):
+    async def start(self, num_requests=None):
         """Start the server."""
         # Create server socket
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -148,7 +167,6 @@ class Wrapper(AbstractWrapper):
         # Register server socket with epoll
         self.selector.register(server_sock, selectors.EVENT_READ)
         self.connections[server_sock.fileno()] = server_sock
-
         try:
             while True:
                 events = await self.select_events()
@@ -160,14 +178,9 @@ class Wrapper(AbstractWrapper):
                         client_sock, addr = server_sock.accept()
                         self._logger.info(f"Accepted connection from {addr}")
                         client_sock.setblocking(False)
-                        # ??
-                        self.selector.register(client_sock, selectors.EVENT_READ)
                         self.connections[client_sock.fileno()] = client_sock
                         task = self._loop.create_task(self._process_connection(client_sock))
                         self.tasks[client_sock.fileno()] = task
-                    elif event & selectors.EVENT_READ:
-                        #self._logger.info(f"Get read event: {event}")
-                        pass
                     else:
                         self._logger.error(f"Unexpected event: {event}")
                 await asyncio.sleep(0.2)

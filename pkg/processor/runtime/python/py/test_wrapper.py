@@ -32,9 +32,10 @@ import nuclio_sdk
 import nuclio_sdk.helpers
 
 import _nuclio_wrapper as wrapper
+from test_base import BaseTestSubmitEvents
 
 
-class TestSubmitEvents(unittest.TestCase):
+class TestSubmitEvents(BaseTestSubmitEvents):
 
     @classmethod
     def setUpClass(cls):
@@ -54,7 +55,6 @@ class TestSubmitEvents(unittest.TestCase):
 
         # generate socket path
         self._event_socket_path = os.path.join(self._temp_path, 'nuclio.event.sock')
-
 
         # create transport
         self._unix_stream_server, self._unix_stream_server_thread = \
@@ -84,7 +84,6 @@ class TestSubmitEvents(unittest.TestCase):
     def tearDown(self):
         sys.path.remove(self._temp_path)
         self._wrapper._event_sock.close()
-
 
         for unix_stream_server, unix_stream_server_thread in [
             (self._unix_stream_server, self._unix_stream_server_thread),
@@ -300,7 +299,6 @@ class TestSubmitEvents(unittest.TestCase):
         assert encoded_batch[0] == encoded_single
         assert encoded_batch[1] == encoded_single
 
-
     # to run memory profiling test, uncomment the tests below
     # and from terminal run with
     # > mprof run python -m py.test test_wrapper.py::TestSubmitEvents::test_memory_profiling_<num> --full-trace
@@ -359,9 +357,6 @@ class TestSubmitEvents(unittest.TestCase):
     def _get_packed_event_body_len(self, event):
         return len(msgpack.Packer().pack(self._event_to_dict(event)))
 
-    def _event_to_dict(self, event):
-        return json.loads(event.to_json())
-
     def _wait_for_socket_creation(self, timeout=10, interval=0.1):
 
         # wait for socket connection
@@ -389,34 +384,6 @@ class TestSubmitEvents(unittest.TestCase):
         unix_stream_server_thread.daemon = True
         unix_stream_server_thread.start()
         return unix_stream_server, unix_stream_server_thread
-
-    def _ensure_str(self, s, encoding='utf-8', errors='strict'):
-
-        # Optimization: Fast return for the common case.
-        if type(s) is str:
-            return s
-        if isinstance(s, bytes):
-            return s.decode(encoding, errors)
-        raise TypeError(f"not expecting type '{type(s)}'")
-
-    def _write_handler(self, temp_path):
-        handler_code = '''import sys
-
-def handler(ctx, event):
-    """Return reversed body as string"""
-    body = event.body
-    if isinstance(event.body, bytes):
-        body = event.body.decode('utf-8')
-    ctx.logger.warn('the end is nigh')
-    return body[::-1]
-'''
-
-        handler_path = os.path.join(temp_path, 'reverser.py')
-
-        with open(handler_path, 'w') as out:
-            out.write(handler_code)
-
-        return handler_path
 
 
 class TestSubmitEventsDecoded(TestSubmitEvents):
