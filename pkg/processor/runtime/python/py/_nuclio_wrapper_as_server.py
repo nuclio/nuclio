@@ -141,7 +141,6 @@ class Wrapper(AbstractWrapper):
         """Cleanup resources for a disconnected client."""
         fileno = sock.fileno()
         if fileno in self.connections:
-            self.selector.unregister(fileno)
             del self.connections[fileno]
             self._logger.info(f"Connection {fileno} removed from tracking")
         sock.close()
@@ -238,11 +237,10 @@ class Wrapper(AbstractWrapper):
             # Close all active sockets
             for fileno, sock in list(self.connections.items()):
                 self._logger.info(f"Closing connection {fileno}")
-                self.selector.unregister(sock)
                 sock.close()
 
             # Cleanup epoll and exit
-            self.epoll.close()
+            self.selector.close()
         finally:
             super()._shutdown()
 
