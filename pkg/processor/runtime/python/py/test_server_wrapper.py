@@ -71,7 +71,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
 
     def tearDown(self):
         sys.path.remove(self._temp_path)
-        self._wrapper._shutdown()
+        asyncio.run(self._wrapper._shutdown())
 
     def test_async_handler_single_connection(self):
         self._test_async_handler(single_connection=True)

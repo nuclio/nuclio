@@ -377,7 +377,8 @@ class AbstractWrapper(object):
     def _shutdown(self, error_code=0):
         self._logger.info("Shutting down...")
         try:
-            self._control_sock.close()
+            if self._control_sock:
+                self._control_sock.close()
         finally:
             sys.exit(error_code)
 
