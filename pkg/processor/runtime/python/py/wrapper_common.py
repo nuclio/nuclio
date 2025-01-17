@@ -66,15 +66,17 @@ class AbstractWrapper(object):
 
         # holds the function that will be called
         self._entrypoint = self._load_entrypoint_from_handler(handler)
-    # connect to processor
-        self._control_sock = self._connect_to_processor(self._control_socket_path)
+        # connect to processor
+        # emtpy only in tests
+        if self._control_socket_path:
+            self._control_sock = self._connect_to_processor(self._control_socket_path)
 
-        # make a writeable file from processor
-        self._control_sock_wfile = self._control_sock.makefile('w')
+            # make a writeable file from processor
+            self._control_sock_wfile = self._control_sock.makefile('w')
 
-        # set socket to nonblocking to allow the asyncio event loop to run while we're waiting on a socket, and so
-        # that we are able to cancel the wait if needed
-        self._control_sock.setblocking(False)
+            # set socket to nonblocking to allow the asyncio event loop to run while we're waiting on a socket, and so
+            # that we are able to cancel the wait if needed
+            self._control_sock.setblocking(False)
 
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
@@ -102,7 +104,8 @@ class AbstractWrapper(object):
         self._event_message_length_task = None
 
     async def _send_data_on_control_socket(self, data):
-        return
+        if not self._control_sock:
+            return
         self._logger.debug_with('Sending data on control socket', data_length=len(data))
 
         # send message to processor
@@ -115,7 +118,6 @@ class AbstractWrapper(object):
         await self._loop.sock_sendall(sock, (body + '\n').encode('utf-8'))
 
     async def _handle_event(self, event, sock):
-        self._logger.debug("Start handling")
         # take call time
         start_time = time.time()
 
@@ -147,7 +149,6 @@ class AbstractWrapper(object):
         """
         Reading the expected event length from socket and instantiate an event message
         """
-        self._logger.info(f"resolving event: {expected_event_bytes_length}")
         cumulative_bytes_read = 0
         while cumulative_bytes_read < expected_event_bytes_length:
             bytes_to_read_now = expected_event_bytes_length - cumulative_bytes_read
@@ -163,17 +164,14 @@ class AbstractWrapper(object):
         event_message = next(self._unpacker)
 
         # instantiate event message
-        self._logger.info("resolved event")
         return nuclio_sdk.Event.deserialize(event_message, kind=self._event_deserializer_kind)
 
     async def _resolve_event_message_length(self, sock):
         """
         Determines the message body size
         """
-        self._logger.debug("Getting len")
         int_buf = await self._loop.sock_recv(sock, Constants.msgpack_message_length_bytes)
 
-        self._logger.debug("Got a len")
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
             raise WrapperFatalException('Client disconnected')
