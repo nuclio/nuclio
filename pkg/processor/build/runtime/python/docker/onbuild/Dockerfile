@@ -21,7 +21,8 @@ FROM gcr.io/iguazio/python:3.7 as python37-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.7 wheels
-RUN pip download \
+RUN pip install --upgrade "pip<23" && \
+    pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_7.txt
@@ -32,7 +33,8 @@ FROM gcr.io/iguazio/python:3.8 as python38-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.8 wheels
-RUN pip download \
+RUN pip install --upgrade pip && \
+    pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_8.txt
@@ -43,7 +45,8 @@ FROM gcr.io/iguazio/python:3.9 as python39-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.9 wheels
-RUN pip download \
+RUN pip install --upgrade pip && \
+    pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_9.txt
@@ -54,7 +57,8 @@ FROM gcr.io/iguazio/python:3.10 as python310-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.10 wheels
-RUN pip download \
+RUN pip install --upgrade pip && \
+    pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_10.txt
@@ -65,7 +69,8 @@ FROM gcr.io/iguazio/python:3.11 as python311-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.11 wheels
-RUN pip download \
+RUN pip install --upgrade pip && \
+    pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_11.txt
