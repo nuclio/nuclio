@@ -14,9 +14,10 @@
 
 ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
+ARG NUCLIO_PYTHON_BASE_IMAGE_NAME=gcr.io/iguazio/python
 
 # Supplies python 3.7 & common wheels
-FROM gcr.io/iguazio/python:3.7 as python37-builder
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.7 as python37-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
@@ -28,7 +29,7 @@ RUN pip install --upgrade "pip<23" && \
         --requirement /requirements/python3_7.txt
 
 # Supplies python 3.8 & common wheels
-FROM gcr.io/iguazio/python:3.8 as python38-builder
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.8 as python38-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
@@ -40,7 +41,7 @@ RUN pip install --upgrade pip && \
         --requirement /requirements/python3_8.txt
 
 # Supplies python 3.9 & common wheels
-FROM gcr.io/iguazio/python:3.9 as python39-builder
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.9 as python39-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
@@ -52,7 +53,7 @@ RUN pip install --upgrade pip && \
         --requirement /requirements/python3_9.txt
 
 # Supplies python 3.10 & common wheels
-FROM gcr.io/iguazio/python:3.10 as python310-builder
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.10 as python310-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
@@ -64,7 +65,7 @@ RUN pip install --upgrade pip && \
         --requirement /requirements/python3_10.txt
 
 # Supplies python 3.11 & common wheels
-FROM gcr.io/iguazio/python:3.11 as python311-builder
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.11 as python311-builder
 
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
