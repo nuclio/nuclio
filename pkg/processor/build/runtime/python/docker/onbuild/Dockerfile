@@ -22,8 +22,7 @@ FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.7 as python37-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.7 wheels
-RUN pip install --upgrade "pip<23" && \
-    pip download \
+RUN pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_7.txt
@@ -34,8 +33,7 @@ FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.8 as python38-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.8 wheels
-RUN pip install --upgrade pip && \
-    pip download \
+RUN pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_8.txt
@@ -46,8 +44,7 @@ FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.9 as python39-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.9 wheels
-RUN pip install --upgrade pip && \
-    pip download \
+RUN pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_9.txt
@@ -58,8 +55,7 @@ FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.10 as python310-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.10 wheels
-RUN pip install --upgrade pip && \
-    pip download \
+RUN pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_10.txt
@@ -70,8 +66,7 @@ FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.11 as python311-builder
 COPY pkg/processor/runtime/python/py/requirements /requirements
 
 # Python 3.11 wheels
-RUN pip install --upgrade pip && \
-    pip download \
+RUN pip download \
         --dest /whl \
         --exists-action i \
         --requirement /requirements/python3_11.txt
