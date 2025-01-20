@@ -1915,7 +1915,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 
 	// add additional ports for sidecars
 	if function.Spec.Sidecars != nil {
-		if spec.Ports == nil || len(spec.Ports) == 0 {
+		if len(spec.Ports) == 0 {
 			spec.Ports = []v1.ServicePort{}
 		}
 		for _, sidecar := range function.Spec.Sidecars {
