@@ -31,7 +31,9 @@ from test_base import BaseTestSubmitEvents
 class TestSubmitEvents(BaseTestSubmitEvents):
 
     def setUp(self):
-        self._loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self._loop = loop
         self._loop.set_debug(True)
 
         self._temp_path = tempfile.mkdtemp(prefix='nuclio-test-py-server-wrapper')
@@ -66,6 +68,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         sys.path.remove(self._temp_path)
         asyncio.run(self._wrapper._stop_processing())
         self._wrapper_run_task.cancel()
+        self._loop.close()
 
     def test_async_handler_single_connection(self):
         self._test_async_handler(single_connection=True)
