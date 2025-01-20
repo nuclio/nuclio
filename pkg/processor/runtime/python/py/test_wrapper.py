@@ -42,7 +42,9 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         cls._decode_event_strings = False
 
     def setUp(self):
-        self._loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self._loop = loop
         self._loop.set_debug(True)
 
         self._temp_path = tempfile.mkdtemp(prefix='nuclio-test-py-wrapper')
@@ -94,6 +96,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             unix_stream_server.server_close()
             unix_stream_server.shutdown()
             unix_stream_server_thread.join()
+        self._loop.close()
 
     def test_async_handler(self):
         """Test function decorated with async and running an event loop"""
