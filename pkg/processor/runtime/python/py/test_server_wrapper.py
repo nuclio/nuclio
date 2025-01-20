@@ -12,20 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
-import functools
-import http.client
-import json
 import logging
 import operator
-import os
 import socket
-import socketserver
 import struct
 import sys
 import tempfile
-import threading
-import time
-import unittest.mock
 import random
 
 import msgpack
@@ -68,13 +60,18 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             platform_kind=self._platform_kind,
             decode_event_strings=self._decode_event_strings)
         self._loop.run_until_complete(self._wrapper.initialize())
+        self._wrapper_run_task = self._loop.create_task(self._wrapper.start())
 
     def tearDown(self):
         sys.path.remove(self._temp_path)
-        asyncio.run(self._wrapper._shutdown())
+        asyncio.run(self._wrapper._stop_processing())
+        self._wrapper_run_task.cancel()
 
     def test_async_handler_single_connection(self):
         self._test_async_handler(single_connection=True)
+
+    def test_async_handler_multiple_connections(self):
+        self._test_async_handler(single_connection=False)
 
     def _test_async_handler(self, single_connection):
         """Test function decorated with async and running an event loop"""
@@ -82,17 +79,10 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         recorded_events = []
 
         async def event_recorder(context, event):
-            async def append_event(_event):
-                context.logger.debug_with('sleeping', event=repr(_event.id))
-                await asyncio.sleep(random.uniform(0.1, 1))
-                context.logger.debug_with('appending event', event=repr(_event.id))
-                recorded_events.append(_event)
-
+            # random execution time
             await asyncio.sleep(random.uniform(0.1, 1))
-            # Deprecated. To be removed on nuclio > 1.18
-            # using `ensure_future` to BC with python:3.6 (on >= 3.7, you will see "create_task")
-            # https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
-            asyncio.ensure_future(append_event(event), loop=self._loop)
+            recorded_events.append(event)
+            context.logger.debug_with('appending event', event=repr(event.id))
             return 'ok'
 
         num_of_events = 10
@@ -101,7 +91,6 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             for i in range(num_of_events)
         )
         self._wrapper._entrypoint = event_recorder
-        wrapper_run_task = self._loop.create_task(self._wrapper.start())
         self._loop.run_until_complete(self._send_events(events, single_connection=single_connection))
 
         self.assertEqual(num_of_events, len(recorded_events), 'wrong number of events')
@@ -111,8 +100,6 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             for recorded_event_index, recorded_event in enumerate(sorted(recorded_events, key=operator.attrgetter('id'))):
                 self.assertEqual(recorded_event_index, recorded_event.id)
                 self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
-
-        wrapper_run_task.cancel()
 
     async def _send_events(self, events, single_connection=True):
         if single_connection:
@@ -146,12 +133,30 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         # then write body content
         await self._loop.sock_sendall(client_socket, body)
 
-        x = await self._loop.sock_recv(client_socket, 1024)
-        x = await self._loop.sock_recv(client_socket, 1024)
+        x = await self.read_until_delimiter(client_socket)
+        x = await self.read_until_delimiter(client_socket)
+
+    async def read_until_delimiter(self, client_socket, delimiter=b'\n', buffer_size=128):
+        """Read data from a socket until the specified delimiter is encountered."""
+        data = bytearray()
+        while True:
+            chunk = await self._loop.sock_recv(client_socket, buffer_size)
+            if not chunk:
+                raise ConnectionError("Socket closed before receiving a complete message.")
+
+            data.extend(chunk)
+
+            # Search for the delimiter in the received data
+            delimiter_index = data.find(delimiter)
+            if delimiter_index != -1:
+                # Extract the message up to the delimiter
+                message = data[:delimiter_index]
+                # Save the remaining data for future reads
+                self._remaining_data = data[delimiter_index + len(delimiter):]
+                return message.decode('utf-8')
 
     def _create_client_socket(self):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((self._host, self._port))
         client_socket.setblocking(False)
         return client_socket
-

@@ -85,12 +85,8 @@ class Wrapper(AbstractWrapper):
         self._logger.info(f"Event processing started for socket")
         try:
             while True:
-                # Resolve event message length
-                self._logger.debug("Got event from socket")
                 # resolve event message length
                 event_message_length = await self._resolve_event_message_length(sock)
-                self._logger.debug("Got len")
-
                 # Resolve event message
                 event = await self._resolve_event(sock, event_message_length)
 
@@ -158,10 +154,10 @@ class Wrapper(AbstractWrapper):
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_sock.bind((self._host, self._port))
-        server_sock.listen()
+        server_sock.listen(self._max_connections)
         server_sock.setblocking(False)
 
-        self._logger.info(f"Server started on {self._host}:{self._port}")
+        self._logger.info(f"Server started on {self._host}:{self._port}, max_connections: {self._max_connections}")
 
         # Register server socket with epoll
         self.selector.register(server_sock, selectors.EVENT_READ)
@@ -188,7 +184,6 @@ class Wrapper(AbstractWrapper):
         finally:
             self._logger.info("Closing all connections")
             for sock in self.connections.values():
-                self.selector.unregister(sock)
                 sock.close()
 
     async def select_events(self, timeout=0.1):
@@ -219,28 +214,24 @@ class Wrapper(AbstractWrapper):
             'attributes': {'ready': 'true'}
         })
 
+    async def _stop_processing(self):
+        self.shutdown_event.set()
+
+        # Cancel all active tasks
+        for fileno, task in list(self.tasks.items()):
+            self._logger.info(f"Cancelling task for connection {fileno}")
+            task.cancel()
+        # Close all active sockets
+        for fileno, sock in list(self.connections.items()):
+            self._logger.info(f"Closing connection {fileno}")
+            sock.close()
+        self.selector.close()
+
     async def _shutdown(self, error_code=0):
         """Shutdown the server and cleanup resources."""
         self._logger.info("Shutting down...")
         try:
-            self.shutdown_event.set()
-
-            # Cancel all active tasks
-            for fileno, task in list(self.tasks.items()):
-                self._logger.info(f"Cancelling task for connection {fileno}")
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-            # Close all active sockets
-            for fileno, sock in list(self.connections.items()):
-                self._logger.info(f"Closing connection {fileno}")
-                sock.close()
-
-            # Cleanup epoll and exit
-            self.selector.close()
+            await self._stop_processing()
         finally:
             super()._shutdown()
 
