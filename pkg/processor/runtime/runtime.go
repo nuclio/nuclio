@@ -178,7 +178,7 @@ func (ar *AbstractRuntime) GetEnvFromConfiguration() []string {
 
 // GetControlMessageBroker returns the control message broker
 func (ar *AbstractRuntime) GetControlMessageBroker() controlcommunication.ControlMessageBroker {
-	return ar.configuration.ControlMessageBroker
+	return ar.ControlMessageBroker
 }
 
 // Stop stops the runtime
