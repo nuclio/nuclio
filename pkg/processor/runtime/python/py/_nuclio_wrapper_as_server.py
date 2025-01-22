@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import os
-import select
+import inspect
 import sys
 import traceback
 import time
@@ -46,6 +46,12 @@ class Wrapper(AbstractWrapper):
                  trigger_name=None,
                  decode_event_strings=True,
                  max_connections=None):
+
+        # Validate that the handler is an async function
+        if not inspect.iscoroutinefunction(handler):
+            raise WrapperFatalException(f"The provided handler '{handler.__name__}' "
+                                        f"must be an async function (async def).")
+
         super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
                          trigger_name, decode_event_strings)
         split_address = serving_address.split(":")
@@ -190,16 +196,6 @@ class Wrapper(AbstractWrapper):
         # Run the selector.select in the default executor (this is a blocking operation)
         events = await self._loop.run_in_executor(None, self.selector.select, timeout)
         return events
-
-    async def _accept_new_connection(self, server_sock):
-        """Accept a new client connection."""
-        client_sock, addr = server_sock.accept()
-        self._logger.info(f"Accepted connection from {addr}")
-        client_sock.setblocking(False)
-        self.selector.register(client_sock, selectors.EVENT_READ)
-        self.connections[client_sock.fileno()] = client_sock
-        task = asyncio.create_task(self._process_connection(client_sock))
-        self.tasks[client_sock.fileno()] = task
 
     async def initialize(self):
 

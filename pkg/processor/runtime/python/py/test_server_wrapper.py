@@ -19,13 +19,18 @@ import struct
 import sys
 import tempfile
 import random
+import unittest
 
 import msgpack
 import nuclio_sdk
 import nuclio_sdk.helpers
+import collections
+
+import pytest
 
 import _nuclio_wrapper_as_server as wrapper
 from test_base import BaseTestSubmitEvents
+from wrapper_common import WrapperFatalException
 
 
 class TestSubmitEvents(BaseTestSubmitEvents):
@@ -100,9 +105,24 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         if single_connection:
             # we expect the event to be ordered since though the function is "asynchronous", it is blocked
             # by the processor until it gets response.
-            for recorded_event_index, recorded_event in enumerate(sorted(recorded_events, key=operator.attrgetter('id'))):
+            for recorded_event_index, recorded_event in enumerate(
+                    sorted(recorded_events, key=operator.attrgetter('id'))):
                 self.assertEqual(recorded_event_index, recorded_event.id)
                 self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
+        else:
+            expected_events = [
+                {'id': i, 'body': f'e{i}'}
+                for i in range(num_of_events)
+            ]
+            actual_events = [
+                {'id': recorded_event.id, 'body': self._ensure_str(recorded_event.body)}
+                for recorded_event in recorded_events
+            ]
+            self.assertEqual(
+                collections.Counter(map(frozenset, expected_events)),
+                collections.Counter(map(frozenset, actual_events)),
+                "Recorded events do not match the expected events"
+            )
 
     async def _send_events(self, events, single_connection=True):
         if single_connection:
@@ -136,8 +156,11 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         # then write body content
         await self._loop.sock_sendall(client_socket, body)
 
-        x = await self.read_until_delimiter(client_socket)
-        x = await self.read_until_delimiter(client_socket)
+        await self.read_until_delimiter(client_socket)
+        await self.read_until_delimiter(client_socket)
+
+        if close_socket_needed:
+            client_socket.close()
 
     async def read_until_delimiter(self, client_socket, delimiter=b'\n', buffer_size=128):
         """Read data from a socket until the specified delimiter is encountered."""
@@ -163,3 +186,29 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         client_socket.connect((self._host, self._port))
         client_socket.setblocking(False)
         return client_socket
+
+
+class TestWrapperValidation(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._logger = nuclio_sdk.Logger(logging.DEBUG)
+        cls._decode_event_strings = False
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        cls._loop = loop
+        cls._platform_kind = 'test'
+
+    def test_invalid_handler(self):
+        def sync_handler():
+            return "wrong handler"
+
+        with pytest.raises(WrapperFatalException):
+            wrapper.Wrapper(
+                logger=self._logger,
+                loop=self._loop,
+                handler=sync_handler,
+                serving_address="0.0.0.0:1337",
+                control_socket_path=None,
+                platform_kind=self._platform_kind,
+                decode_event_strings=self._decode_event_strings)
