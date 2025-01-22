@@ -38,6 +38,8 @@ async def random_sleep(context, event):
     await asyncio.sleep(random.uniform(0.1, 1))
     return 'ok'
 
+def sync_handler():
+    return "wrong handler"
 
 class TestSubmitEvents(BaseTestSubmitEvents):
 
@@ -205,14 +207,11 @@ class TestWrapperValidation(unittest.TestCase):
         cls._platform_kind = 'test'
 
     def test_invalid_handler(self):
-        def sync_handler():
-            return "wrong handler"
-
         with pytest.raises(WrapperFatalException):
             wrapper.Wrapper(
                 logger=self._logger,
                 loop=self._loop,
-                handler=sync_handler,
+                handler="test_server_wrapper:sync_handler",
                 serving_address="0.0.0.0:1337",
                 control_socket_path=None,
                 platform_kind=self._platform_kind,
