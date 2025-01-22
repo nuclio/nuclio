@@ -33,6 +33,12 @@ from test_base import BaseTestSubmitEvents
 from wrapper_common import WrapperFatalException
 
 
+async def random_sleep(context, event):
+    # random execution time
+    await asyncio.sleep(random.uniform(0.1, 1))
+    return 'ok'
+
+
 class TestSubmitEvents(BaseTestSubmitEvents):
 
     def setUp(self):
@@ -54,7 +60,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         self._logger.set_handler('test-default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
 
         self._platform_kind = 'test'
-        self._default_test_handler = 'reverser:handler'
+        self._default_test_handler = 'test_server_wrapper:random_sleep'
         self._host = "0.0.0.0"
         self._port = 1337
 
@@ -123,7 +129,6 @@ class TestSubmitEvents(BaseTestSubmitEvents):
                 collections.Counter(map(frozenset, actual_events)),
                 "Recorded events do not match the expected events"
             )
-
     async def _send_events(self, events, single_connection=True):
         if single_connection:
             client_socket = self._create_client_socket()

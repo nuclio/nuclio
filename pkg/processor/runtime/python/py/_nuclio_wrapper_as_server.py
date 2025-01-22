@@ -46,14 +46,13 @@ class Wrapper(AbstractWrapper):
                  trigger_name=None,
                  decode_event_strings=True,
                  max_connections=None):
-
-        # Validate that the handler is an async function
-        if not inspect.iscoroutinefunction(handler):
-            raise WrapperFatalException(f"The provided handler '{handler.__name__}' "
-                                        f"must be an async function (async def).")
-
         super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
                          trigger_name, decode_event_strings)
+
+        # Validate that the handler is an async function
+        if not inspect.iscoroutinefunction(self._entrypoint):
+            raise WrapperFatalException(f"The provided handler '{self._entrypoint.__name__}' "
+                                        f"must be an async function (async def).")
         split_address = serving_address.split(":")
         self._host = split_address[0]
         self._port = int(split_address[1])
