@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import inspect
 import sys
 import traceback
 import time
@@ -22,14 +21,15 @@ import nuclio_sdk
 import nuclio_sdk.helpers
 import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
+import socket
+import asyncio
+import selectors
+
 from wrapper_common import (
     WrapperFatalException,
     AbstractWrapper,
     create_logger,
     get_parser_with_common_args)
-import socket
-import asyncio
-import selectors
 
 
 class Wrapper(AbstractWrapper):
@@ -50,7 +50,7 @@ class Wrapper(AbstractWrapper):
                          trigger_name, decode_event_strings)
 
         # Validate that the handler is an async function
-        if not inspect.iscoroutinefunction(self._entrypoint):
+        if not asyncio.iscoroutinefunction(self._entrypoint):
             raise WrapperFatalException(f"The provided handler '{self._entrypoint.__name__}' "
                                         f"must be an async function (async def).")
         split_address = serving_address.split(":")
@@ -64,23 +64,62 @@ class Wrapper(AbstractWrapper):
         self.tasks = {}  # Track active asyncio tasks
         self.shutdown_event = asyncio.Event()
 
-    async def _handle_event(self, event, sock):
-        # take call time
-        start_time = time.time()
+    async def start(self, num_requests=None):
+        """Start the server."""
+        # Create server socket
+        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_sock.bind((self._host, self._port))
+        server_sock.listen(self._max_connections)
+        server_sock.setblocking(False)
 
-        # call the entrypoint
-        entrypoint_output = await self._entrypoint(self._context, event)
+        self._logger.info(f"Python wrapper server started on {self._host}:{self._port}, "
+                          f"max_connections: {self._max_connections}")
 
-        # measure duration, set to minimum float in case execution was too fast
-        duration = time.time() - start_time or sys.float_info.min
+        # Register server socket with default os selector (epoll for Linux)
+        self.selector.register(server_sock, selectors.EVENT_READ)
+        self.connections[server_sock.fileno()] = server_sock
+        try:
+            while True:
+                events = await self.select_events()
+                # Now awaiting the select operation
+                for key, event in events:
+                    sock = key.fileobj
+                    if sock == server_sock:
+                        # Accept new connection
+                        client_sock, addr = server_sock.accept()
+                        self._logger.info(f"Accepted connection from {addr}")
+                        client_sock.setblocking(False)
+                        self.connections[client_sock.fileno()] = client_sock
+                        task = self._loop.create_task(self._process_connection(client_sock))
+                        self.tasks[client_sock.fileno()] = task
+                    else:
+                        self._logger.error(f"Unexpected event: {event}")
+                await asyncio.sleep(0.2)
+        except KeyboardInterrupt:
+            self._logger.info("Shutting down server")
+        finally:
+            self._logger.info("Closing all connections")
+            for sock in self.connections.values():
+                sock.close()
 
-        await self._write_packet_to_processor(sock, 'm' + json.dumps({'duration': duration}))
+    async def select_events(self, timeout=0.1):
+        # Run the selector.select in the default executor (this is a blocking operation)
+        events = await self._loop.run_in_executor(None, self.selector.select, timeout)
+        return events
 
-        # try to json encode the response
-        encoded_response = self._encode_entrypoint_output(entrypoint_output)
+    async def initialize(self):
 
-        # write response to the socket
-        await self._write_packet_to_processor(sock, 'r' + encoded_response)
+        # call init_context
+        await self._initialize_context()
+
+        # register to the SIGUSR1 and SIGUSR2 signals, used to signal termination/draining respectively
+        self._register_to_signal()
+
+        await self._send_data_on_control_socket({
+            'kind': 'wrapperInitialized',
+            'attributes': {'ready': 'true'}
+        })
 
     async def _process_connection(self, sock):
         """Process all events for a single connection."""
@@ -136,9 +175,27 @@ class Wrapper(AbstractWrapper):
                 result = self._call_termination_handler()
                 if asyncio.iscoroutine(result):
                     await result
-            self.cleanup_connection(sock)
+            self._cleanup_connection(sock)
 
-    def cleanup_connection(self, sock):
+    async def _handle_event(self, event, sock):
+        # take call time
+        start_time = time.time()
+
+        # call the entrypoint
+        entrypoint_output = await self._entrypoint(self._context, event)
+
+        # measure duration, set to minimum float in case execution was too fast
+        duration = time.time() - start_time or sys.float_info.min
+
+        await self._write_packet_to_processor(sock, 'm' + json.dumps({'duration': duration}))
+
+        # try to json encode the response
+        encoded_response = self._encode_entrypoint_output(entrypoint_output)
+
+        # write response to the socket
+        await self._write_packet_to_processor(sock, 'r' + encoded_response)
+
+    def _cleanup_connection(self, sock):
         """Cleanup resources for a disconnected client."""
         fileno = sock.fileno()
         if fileno in self.connections:
@@ -153,61 +210,13 @@ class Wrapper(AbstractWrapper):
                 task.cancel()
             self._logger.info(f"Task for connection {fileno} cancelled and removed")
 
-    async def start(self, num_requests=None):
-        """Start the server."""
-        # Create server socket
-        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_sock.bind((self._host, self._port))
-        server_sock.listen(self._max_connections)
-        server_sock.setblocking(False)
-
-        self._logger.info(f"Server started on {self._host}:{self._port}, max_connections: {self._max_connections}")
-
-        # Register server socket with epoll
-        self.selector.register(server_sock, selectors.EVENT_READ)
-        self.connections[server_sock.fileno()] = server_sock
+    async def _shutdown(self, error_code=0):
+        """Shutdown the server and cleanup resources."""
+        self._logger.info("Shutting down...")
         try:
-            while True:
-                events = await self.select_events()
-                # Now awaiting the select operation
-                for key, event in events:
-                    sock = key.fileobj
-                    if sock == server_sock:
-                        # Accept new connection
-                        client_sock, addr = server_sock.accept()
-                        self._logger.info(f"Accepted connection from {addr}")
-                        client_sock.setblocking(False)
-                        self.connections[client_sock.fileno()] = client_sock
-                        task = self._loop.create_task(self._process_connection(client_sock))
-                        self.tasks[client_sock.fileno()] = task
-                    else:
-                        self._logger.error(f"Unexpected event: {event}")
-                await asyncio.sleep(0.2)
-        except KeyboardInterrupt:
-            self._logger.info("Shutting down server")
+            await self._stop_processing()
         finally:
-            self._logger.info("Closing all connections")
-            for sock in self.connections.values():
-                sock.close()
-
-    async def select_events(self, timeout=0.1):
-        # Run the selector.select in the default executor (this is a blocking operation)
-        events = await self._loop.run_in_executor(None, self.selector.select, timeout)
-        return events
-
-    async def initialize(self):
-
-        # call init_context
-        await self._initialize_context()
-
-        # register to the SIGUSR1 and SIGUSR2 signals, used to signal termination/draining respectively
-        self._register_to_signal()
-
-        await self._send_data_on_control_socket({
-            'kind': 'wrapperInitialized',
-            'attributes': {'ready': 'true'}
-        })
+            super()._shutdown()
 
     async def _stop_processing(self):
         self.shutdown_event.set()
@@ -221,14 +230,6 @@ class Wrapper(AbstractWrapper):
             self._logger.info(f"Closing connection {fileno}")
             sock.close()
         self.selector.close()
-
-    async def _shutdown(self, error_code=0):
-        """Shutdown the server and cleanup resources."""
-        self._logger.info("Shutting down...")
-        try:
-            await self._stop_processing()
-        finally:
-            super()._shutdown()
 
 
 def parse_args():
