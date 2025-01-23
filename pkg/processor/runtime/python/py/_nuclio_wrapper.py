@@ -42,8 +42,18 @@ class Wrapper(AbstractWrapper):
                  trigger_kind=None,
                  trigger_name=None,
                  decode_event_strings=True):
-        super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
-                         trigger_name, decode_event_strings)
+        super().__init__(
+            logger,
+            loop,
+            handler,
+            control_socket_path,
+            platform_kind,
+            namespace,
+            worker_id,
+            trigger_kind,
+            trigger_name,
+            decode_event_strings,
+        )
         self._event_socket_path = event_socket_path
         self._event_sock = None
 

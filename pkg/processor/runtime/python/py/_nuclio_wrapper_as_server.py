@@ -46,9 +46,18 @@ class Wrapper(AbstractWrapper):
                  trigger_name=None,
                  decode_event_strings=True,
                  max_connections=None):
-        super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
-                         trigger_name, decode_event_strings)
-
+        super().__init__(
+            logger,
+            loop,
+            handler,
+            control_socket_path,
+            platform_kind,
+            namespace,
+            worker_id,
+            trigger_kind,
+            trigger_name,
+            decode_event_strings,
+        )
         # Validate that the handler is an async function
         if not asyncio.iscoroutinefunction(self._entrypoint):
             raise WrapperFatalException(f"The provided handler '{self._entrypoint.__name__}' "
