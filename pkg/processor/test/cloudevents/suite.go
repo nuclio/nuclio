@@ -25,7 +25,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
@@ -129,16 +128,12 @@ func (suite *TestSuite) TestBinaryCloudEvent() {
 }
 
 func (suite *TestSuite) getCreateOptions() *platform.CreateFunctionOptions {
-	options := suite.HTTPSuite.GetDeployOptions(
+	options := suite.HTTPSuite.GetDeployOptions("event-returner", path.Join(
+		suite.HTTPSuite.GetTestFunctionsDir(),
+		"common",
 		"event-returner",
-		path.Join(
-			suite.HTTPSuite.GetTestFunctionsDir(),
-			"common",
-			"event-returner",
-			suite.HTTPSuite.GetRuntimeDir(),
-		),
-		functionconfig.SyncTriggerWorkMode,
-	)
+		suite.HTTPSuite.GetRuntimeDir(),
+	))
 
 	if suite.CloudEventsHandler != "" {
 		options.FunctionConfig.Spec.Handler = suite.CloudEventsHandler

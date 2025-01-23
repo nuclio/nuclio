@@ -109,10 +109,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 }
 
 func (suite *testSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions(
-		functionName,
-		suite.FunctionPaths["python"],
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions(functionName, suite.FunctionPaths["python"])
 
 	if suite.useDummyKinesis {
 		// function must be within the same network of broker to allow communication

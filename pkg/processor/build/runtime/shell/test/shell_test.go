@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -41,10 +40,7 @@ func (suite *TestSuite) SetupSuite() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithStdin() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"reverser",
-		"/dev/null",
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("reverser", "/dev/null")
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "rev"
@@ -58,10 +54,7 @@ func (suite *TestSuite) TestBuildBinaryWithStdin() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithArguments() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"echoer",
-		"/dev/null",
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "echo"
@@ -77,10 +70,7 @@ func (suite *TestSuite) TestBuildBinaryWithArguments() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"echoer",
-		"/dev/null",
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "echo"
@@ -99,10 +89,7 @@ func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"echoer",
-		"/dev/null",
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 	expectedResponseHeaders := map[string]string{
 		"header1": "value1",
 		"header2": "value2",
@@ -130,10 +117,7 @@ func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithResponseHeadersFailsOnInvalidResponseHeadersType() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"echoer",
-		"/dev/null",
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "echo"

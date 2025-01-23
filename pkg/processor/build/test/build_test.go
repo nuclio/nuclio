@@ -230,10 +230,8 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 }
 
 func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"reverser",
-		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "common", "reverser", "python", "reverser.py"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("reverser",
+		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "common", "reverser", "python", "reverser.py"))
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "reverser:handler"
@@ -264,10 +262,7 @@ func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
 func (suite *testSuite) TestBuildInvalidFunctionPath() {
 	var err error
 
-	createFunctionOptions := suite.GetDeployOptions(
-		"invalid",
-		"invalidpath",
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("invalid", "invalidpath")
 
 	_, err = suite.Platform.CreateFunctionBuild(suite.Ctx,
 		&platform.CreateFunctionBuildOptions{

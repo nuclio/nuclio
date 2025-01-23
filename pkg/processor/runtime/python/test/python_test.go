@@ -73,8 +73,7 @@ func (suite *TestSuite) TestAsyncHandler() {
 	statusOK := http.StatusOK
 
 	createFunctionOptions := suite.GetDeployOptions("asyncer",
-		suite.GetFunctionPath("outputter"),
-		suite.mode)
+		suite.GetFunctionPath("outputter"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "async_outputter:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
@@ -133,8 +132,7 @@ func (suite *TestSuite) TestOutputs() {
 	testPath := "/path/to/nowhere"
 
 	createFunctionOptions := suite.GetDeployOptions("outputter",
-		suite.GetFunctionPath("outputter"),
-		suite.mode)
+		suite.GetFunctionPath("outputter"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
@@ -283,8 +281,7 @@ func (suite *TestSuite) TestOutputs() {
 
 func (suite *TestSuite) TestCustomEvent() {
 	createFunctionOptions := suite.GetDeployOptions("event-returner",
-		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "python"),
-		suite.mode)
+		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "python"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "eventreturner:handler"
 
@@ -327,8 +324,7 @@ func (suite *TestSuite) TestCustomEvent() {
 
 func (suite *TestSuite) TestContextInitError() {
 	createFunctionOptions := suite.GetDeployOptions("context-init-fail",
-		path.Join(suite.GetTestFunctionsDir(), "common", "context-init-fail", "python"),
-		suite.mode)
+		path.Join(suite.GetTestFunctionsDir(), "common", "context-init-fail", "python"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "contextinitfail:handler"
 	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
@@ -350,8 +346,7 @@ func (suite *TestSuite) TestModifiedRequestBodySize() {
 	}
 	for index, maxRequestBodySize := range maxRequestBodySizes {
 		createFunctionOptions := suite.GetDeployOptions(fmt.Sprintf("custom-allowed-body-size-%d", index),
-			path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"),
-			suite.mode)
+			path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 		createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 		createFunctionOptions.FunctionConfig.Spec.Triggers["http"] = functionconfig.Trigger{
 			Kind: "http",
@@ -367,8 +362,7 @@ func (suite *TestSuite) TestModifiedRequestBodySize() {
 
 func (suite *TestSuite) TestNonUTF8Headers() {
 	createFunctionOptions := suite.GetDeployOptions("non-utf8-headers",
-		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"),
-		suite.mode)
+		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 	internalServerErrorStatus := http.StatusInternalServerError
 	okStatus := http.StatusOK
@@ -467,10 +461,9 @@ func (suite *TestSuite) TestStableSDKThroughput() {
 
 func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
 	numWorkers int) *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions(
+	createFunctionOptions := suite.getDeployOptions(
 		functionName,
-		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"),
-		suite.mode)
+		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 
@@ -481,6 +474,14 @@ func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
 		httpTrigger.Name: httpTrigger,
 	}
 	return createFunctionOptions
+}
+
+func (suite *TestSuite) getDeployOptions(functionName, functionPath string) *platform.CreateFunctionOptions {
+	if suite.mode == functionconfig.AsyncTriggerWorkMode {
+		return suite.GetDeployOptionsAsync(functionName, functionPath)
+	}
+	return suite.GetDeployOptions(functionName, functionPath)
+
 }
 
 func TestIntegrationSuite(t *testing.T) {

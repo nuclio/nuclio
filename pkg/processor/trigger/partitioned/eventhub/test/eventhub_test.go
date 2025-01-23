@@ -66,10 +66,7 @@ func (suite *testSuite) SetupSuite() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"event_recorder",
-		suite.FunctionPaths["python"],
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	createFunctionOptions.FunctionConfig.Spec.Triggers["my-eventhub"] = functionconfig.Trigger{
 		Kind: "eventhub",

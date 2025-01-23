@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
@@ -47,10 +46,8 @@ func (suite *testSuite) SetupSuite() {
 func (suite *testSuite) TestBuildWithCompilationError() {
 	var err error
 
-	createFunctionOptions := suite.GetDeployOptions(
-		"compilation-error",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "compilation-error", "golang", "compilation-error.go"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("compilation-error",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "compilation-error", "golang", "compilation-error.go"))
 
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
@@ -73,10 +70,8 @@ func (suite *testSuite) TestBuildWithCompilationError() {
 }
 
 func (suite *testSuite) TestBuildWithContextInitializer() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"context-init",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "context-init", "golang", "contextinit.go"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("context-init",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "context-init", "golang", "contextinit.go"))
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
