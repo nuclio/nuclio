@@ -79,7 +79,7 @@ func (suite *eventTimeoutSuite) TestWatcher() {
 		workers: []eventprocessor.EventProcessor{},
 	}
 
-	mockTrigger.On("GetObjects").Return(mockTrigger.GetWorkers())
+	mockTrigger.On("GetWorkers").Return(mockTrigger.GetWorkers())
 
 	mockProcessor := &mockTestProcessor{
 		triggers: []trigger.Trigger{
