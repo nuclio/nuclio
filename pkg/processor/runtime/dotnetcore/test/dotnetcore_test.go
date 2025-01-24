@@ -23,7 +23,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -55,10 +54,8 @@ func (suite *TestSuite) TestOutputs() {
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 
 	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
-	deployOptions := suite.GetDeployOptions(
-		"outputter",
-		suite.GetFunctionPath("_outputter"),
-		functionconfig.SyncTriggerWorkMode)
+	deployOptions := suite.GetDeployOptions("outputter",
+		suite.GetFunctionPath("_outputter"))
 
 	deployOptions.FunctionConfig.Spec.Handler = "nuclio:outputter"
 	suite.DeployFunctionAndRequests(deployOptions, []*httpsuite.Request{

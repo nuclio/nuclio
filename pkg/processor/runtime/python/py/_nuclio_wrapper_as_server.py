@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import inspect
 import sys
 import traceback
 import time
@@ -22,14 +21,15 @@ import nuclio_sdk
 import nuclio_sdk.helpers
 import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
+import socket
+import asyncio
+import selectors
+
 from wrapper_common import (
     WrapperFatalException,
     AbstractWrapper,
     create_logger,
     get_parser_with_common_args)
-import socket
-import asyncio
-import selectors
 
 
 class Wrapper(AbstractWrapper):
@@ -46,11 +46,20 @@ class Wrapper(AbstractWrapper):
                  trigger_name=None,
                  decode_event_strings=True,
                  max_connections=None):
-        super().__init__(logger, loop, handler, control_socket_path, platform_kind, namespace, worker_id, trigger_kind,
-                         trigger_name, decode_event_strings)
-
+        super().__init__(
+            logger,
+            loop,
+            handler,
+            control_socket_path,
+            platform_kind,
+            namespace,
+            worker_id,
+            trigger_kind,
+            trigger_name,
+            decode_event_strings,
+        )
         # Validate that the handler is an async function
-        if not inspect.iscoroutinefunction(self._entrypoint):
+        if not asyncio.iscoroutinefunction(self._entrypoint):
             raise WrapperFatalException(f"The provided handler '{self._entrypoint.__name__}' "
                                         f"must be an async function (async def).")
         split_address = serving_address.split(":")
@@ -64,96 +73,7 @@ class Wrapper(AbstractWrapper):
         self.tasks = {}  # Track active asyncio tasks
         self.shutdown_event = asyncio.Event()
 
-    async def _handle_event(self, event, sock):
-        # take call time
-        start_time = time.time()
-
-        # call the entrypoint
-        entrypoint_output = await self._entrypoint(self._context, event)
-
-        # measure duration, set to minimum float in case execution was too fast
-        duration = time.time() - start_time or sys.float_info.min
-
-        await self._write_packet_to_processor(sock, 'm' + json.dumps({'duration': duration}))
-
-        # try to json encode the response
-        encoded_response = self._encode_entrypoint_output(entrypoint_output)
-
-        # write response to the socket
-        await self._write_packet_to_processor(sock, 'r' + encoded_response)
-
-    async def _process_connection(self, sock):
-        """Process all events for a single connection."""
-        # signal start
-        self._logger.info("Signalling connection processing start")
-        await self._write_packet_to_processor(sock, 's')
-        self._logger.info(f"Event processing started for socket")
-        try:
-            while True:
-                # resolve event message length
-                event_message_length = await self._resolve_event_message_length(sock)
-                # Resolve event message
-                event = await self._resolve_event(sock, event_message_length)
-
-                # Handle the event
-                if not self._discard_events:
-                    try:
-                        await self._handle_event(event, sock)
-                    except BaseException as exc:
-                        await self._on_handle_event_error(exc, sock)
-                else:
-                    self._logger.debug("Event discarded")
-
-                # Release event reference
-                del event
-
-        except (ConnectionResetError, asyncio.IncompleteReadError):
-            self._logger.info("Client disconnected")
-        except WrapperFatalException as exc:
-            await self._on_serving_error(exc, sock)
-
-            # explode, unrecoverable exception
-            await self._shutdown(error_code=1)
-
-        except UnicodeDecodeError as exc:
-
-            # reset unpacker to avoid consecutive errors
-            # this may happen when msgpack fails to decode a non-utf8 events
-            self._unpacker = self._resolve_unpacker()
-            await self._on_serving_error(exc, sock)
-
-        except asyncio.CancelledError:
-            self._logger.debug('Waiting for event message was interrupted by a signal')
-        except Exception as exc:
-            await self._on_serving_error(exc, sock)
-        finally:
-            if self._is_drain_needed:
-                result = self._call_drain_handler()
-                if asyncio.iscoroutine(result):
-                    await result
-
-            if self._is_termination_needed:
-                result = self._call_termination_handler()
-                if asyncio.iscoroutine(result):
-                    await result
-            self.cleanup_connection(sock)
-
-    def cleanup_connection(self, sock):
-        """Cleanup resources for a disconnected client."""
-        fileno = sock.fileno()
-        if fileno in self.connections:
-            del self.connections[fileno]
-            self._logger.info(f"Connection {fileno} removed from tracking")
-        sock.close()
-
-        # Cancel and remove the associated task
-        if fileno in self.tasks:
-            task = self.tasks.pop(fileno)
-            if not task.done():
-                task.cancel()
-            self._logger.info(f"Task for connection {fileno} cancelled and removed")
-
-    async def start(self, num_requests=None):
+    async def start(self):
         """Start the server."""
         # Create server socket
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -162,9 +82,10 @@ class Wrapper(AbstractWrapper):
         server_sock.listen(self._max_connections)
         server_sock.setblocking(False)
 
-        self._logger.info(f"Server started on {self._host}:{self._port}, max_connections: {self._max_connections}")
+        self._logger.info(f"Python wrapper server started on {self._host}:{self._port}, "
+                          f"max_connections: {self._max_connections}")
 
-        # Register server socket with epoll
+        # Register server socket with default os selector (epoll for Linux)
         self.selector.register(server_sock, selectors.EVENT_READ)
         self.connections[server_sock.fileno()] = server_sock
         try:
@@ -209,6 +130,104 @@ class Wrapper(AbstractWrapper):
             'attributes': {'ready': 'true'}
         })
 
+    async def _process_connection(self, sock):
+        """Process all events for a single connection."""
+        # signal start
+        self._logger.info("Signalling connection processing start")
+        await self._write_packet_to_processor(sock, 's')
+        self._logger.info(f"Event processing started for socket")
+        try:
+            while True:
+                # resolve event message length
+                event_message_length = await self._resolve_event_message_length(sock)
+                # Resolve event message
+                event = await self._resolve_event(sock, event_message_length)
+
+                # Handle the event
+                if not self._discard_events:
+                    try:
+                        await self._handle_event(event, sock)
+                    except BaseException as exc:
+                        await self._on_handle_event_error(exc, sock)
+                else:
+                    self._logger.debug("Event discarded")
+
+                # Release event reference
+                del event
+
+        except (ConnectionResetError, asyncio.IncompleteReadError):
+            self._logger.info("Client disconnected")
+        except WrapperFatalException as exc:
+            await self._on_serving_error(exc, sock)
+
+            # explode, unrecoverable exception
+            await self._shutdown(error_code=1)
+
+        except UnicodeDecodeError as exc:
+
+            # reset unpacker to avoid consecutive errors
+            # this may happen when msgpack fails to decode a non-utf8 events
+            self._unpacker = self._resolve_unpacker()
+            await self._on_serving_error(exc, sock)
+
+        except asyncio.CancelledError:
+            self._logger.debug('Connection processing was cancelled by a signal')
+        except Exception as exc:
+            await self._on_serving_error(exc, sock)
+        finally:
+            if self._is_drain_needed:
+                result = self._call_drain_handler()
+                if asyncio.iscoroutine(result):
+                    await result
+
+            if self._is_termination_needed:
+                result = self._call_termination_handler()
+                if asyncio.iscoroutine(result):
+                    await result
+            self._cleanup_connection(sock, cancel_task=False)
+
+    async def _handle_event(self, event, sock):
+        # take call time
+        start_time = time.time()
+
+        # call the entrypoint
+        entrypoint_output = await self._entrypoint(self._context, event)
+
+        # measure duration, set to minimum float in case execution was too fast
+        duration = time.time() - start_time or sys.float_info.min
+
+        await self._write_packet_to_processor(sock, 'm' + json.dumps({'duration': duration}))
+
+        # try to json encode the response
+        encoded_response = self._encode_entrypoint_output(entrypoint_output)
+
+        # write response to the socket
+        await self._write_packet_to_processor(sock, 'r' + encoded_response)
+
+    def _cleanup_connection(self, sock, cancel_task=True):
+        """Cleanup resources for a disconnected client."""
+        fileno = sock.fileno()
+        if fileno in self.connections:
+            del self.connections[fileno]
+            self._logger.info(f"Connection {fileno} removed from tracking")
+        sock.close()
+
+        # Cancel and remove the associated task
+        # do not cancel if calling from the task itself
+        if cancel_task and fileno in self.tasks:
+            task = self.tasks.pop(fileno)
+            if not task.done():
+                task.cancel()
+            self._logger.info(f"Task for connection {fileno} cancelled and removed")
+
+    async def _shutdown(self, error_code=0):
+        """Shutdown the server and cleanup resources."""
+        self._logger.info("Shutting down...")
+        try:
+            await self._stop_processing()
+        finally:
+            super()._shutdown()
+
     async def _stop_processing(self):
         self.shutdown_event.set()
 
@@ -221,14 +240,6 @@ class Wrapper(AbstractWrapper):
             self._logger.info(f"Closing connection {fileno}")
             sock.close()
         self.selector.close()
-
-    async def _shutdown(self, error_code=0):
-        """Shutdown the server and cleanup resources."""
-        self._logger.info("Shutting down...")
-        try:
-            await self._stop_processing()
-        finally:
-            super()._shutdown()
 
 
 def parse_args():

@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
@@ -66,16 +65,12 @@ func (suite *TestSuite) TestOffline() {
 }
 
 func (suite *TestSuite) getFunctionCreateOptions() *platform.CreateFunctionOptions {
-	options := suite.HTTPSuite.GetDeployOptions(
+	options := suite.HTTPSuite.GetDeployOptions("reverser", path.Join(
+		suite.HTTPSuite.GetTestFunctionsDir(),
+		"common",
 		"reverser",
-		path.Join(
-			suite.HTTPSuite.GetTestFunctionsDir(),
-			"common",
-			"reverser",
-			suite.HTTPSuite.GetRuntimeDir(),
-		),
-		functionconfig.SyncTriggerWorkMode,
-	)
+		suite.HTTPSuite.GetRuntimeDir(),
+	))
 
 	// assume offline, no images pull, etc
 	options.FunctionConfig.Spec.Build.Offline = true

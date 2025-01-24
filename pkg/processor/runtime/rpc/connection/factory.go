@@ -33,7 +33,6 @@ func NewConnectionManager(parentLogger logger.Logger, runtimeConfiguration runti
 	case ConnectionAllocatorManagerKind:
 		return NewConnectionAllocator(abstractConnectionManager), nil
 	default:
-		// TODO: when support ConnectionPool, add option to return ConnectionPool object
 		return nil, nuclio.ErrNotImplemented
 	}
 }

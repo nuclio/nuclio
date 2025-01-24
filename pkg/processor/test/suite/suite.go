@@ -426,7 +426,8 @@ func (suite *TestSuite) GetTestHost() string {
 }
 
 // GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path
-func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string, triggerMode functionconfig.TriggerWorkMode) *platform.CreateFunctionOptions {
+// function uses sync trigger mode
+func (suite *TestSuite) GetDeployOptions(functionName, functionPath string) *platform.CreateFunctionOptions {
 	functionConfig := *functionconfig.NewConfig()
 	functionConfig.Spec.ReadinessTimeoutSeconds = 60
 
@@ -438,13 +439,23 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"http-trigger": {
-		Kind: "http",
-		Mode: triggerMode,
-	}}
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http-trigger": {
+			Kind: "http",
+		}}
 
 	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.CreateTempDir()
 
+	return createFunctionOptions
+}
+
+// GetDeployOptionsAsync GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path
+// function uses async trigger mode
+func (suite *TestSuite) GetDeployOptionsAsync(functionName, functionPath string) *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
+	trigger, found := createFunctionOptions.FunctionConfig.Spec.Triggers["http-trigger"]
+	suite.Require().True(found)
+	trigger.Mode = functionconfig.AsyncTriggerWorkMode
 	return createFunctionOptions
 }
 
@@ -508,10 +519,7 @@ func (suite *TestSuite) CreateTempDir() string {
 func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.CreateFunctionOptions, error) {
 
 	// Set createFunctionOptions of example function "outputter"
-	createFunctionOptions := suite.GetDeployOptions(
-		request.FunctionName,
-		suite.GetFunctionPath(request.FunctionPath),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions(request.FunctionName, suite.GetFunctionPath(request.FunctionPath))
 
 	// Configure deployOptions properties, number of NumWorkers like in the default stress request
 	createFunctionOptions.FunctionConfig.Meta.Name =

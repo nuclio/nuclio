@@ -75,10 +75,7 @@ func (suite *testSuite) TestPostEvent() {
 }
 
 func (suite *testSuite) getDeployOptions() *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions(
-		"event_recorder",
-		"",
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", "")
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Meta.Name = "nats-test"

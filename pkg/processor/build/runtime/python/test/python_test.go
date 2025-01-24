@@ -26,7 +26,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtimeconfig"
@@ -53,10 +52,8 @@ func (suite *TestSuite) SetupSuite() {
 }
 
 func (suite *TestSuite) TestBuildWithBuildArgs() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"func-with-build-args",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("func-with-build-args",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 
 	// Configure custom pypi repository
@@ -96,10 +93,8 @@ func (suite *TestSuite) TestBuildWithBuildArgs() {
 }
 
 func (suite *TestSuite) TestBuildWithBuildArgsExtended() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"func-with-build-args-extended",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("func-with-build-args-extended",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install adbuzdugan"}
 
@@ -173,10 +168,8 @@ X4XSQRjbgbMEHMUfppIBvFSDJ3gyICh3WZlXi/EjJKSZp4A==
 	defer os.Remove(validCAFile.Name())
 	defer os.Remove(invalidCAFile.Name())
 
-	createFunctionOptions := suite.GetDeployOptions(
-		"pio-ca-file",
-		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("pio-ca-file",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{"pip install linkchecker"}
 

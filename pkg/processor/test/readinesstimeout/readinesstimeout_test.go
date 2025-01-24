@@ -55,10 +55,8 @@ func (suite *readinessTimeoutTestSuite) TestPythonSpecifiedReadinessTimeout() {
 }
 
 func (suite *readinessTimeoutTestSuite) deployFailingPythonFunction(readinessTimeoutSeconds int) {
-	createFunctionOptions := suite.GetDeployOptions(
-		"reverser",
-		path.Join(suite.GetTestFunctionsDir(), "common", "reverser", "python"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("reverser",
+		path.Join(suite.GetTestFunctionsDir(), "common", "reverser", "python"))
 
 	// configure the function to connect to some invalid kafka - it will fail after coming up and never
 	// reach healthy

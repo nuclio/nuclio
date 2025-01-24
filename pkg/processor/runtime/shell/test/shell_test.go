@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -53,10 +52,8 @@ func (suite *TestSuite) TestOutputs() {
 		"header1":      "value1",
 	}
 
-	createFunctionOptions := suite.GetDeployOptions(
-		"outputter",
-		suite.GetFunctionPath("outputter"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("outputter",
+		suite.GetFunctionPath("outputter"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter.sh:main"
 	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{

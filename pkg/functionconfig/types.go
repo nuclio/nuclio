@@ -102,11 +102,11 @@ type Trigger struct {
 	MaxWorkers int `json:"maxWorkers,omitempty"`
 }
 
-type TriggerWorkMode int
+type TriggerWorkMode string
 
 const (
-	SyncTriggerWorkMode TriggerWorkMode = iota
-	AsyncTriggerWorkMode
+	SyncTriggerWorkMode  TriggerWorkMode = "sync"
+	AsyncTriggerWorkMode TriggerWorkMode = "async"
 )
 
 func (m TriggerWorkMode) String() string {
@@ -316,6 +316,7 @@ func GetDefaultHTTPTrigger() Trigger {
 		Kind:       "http",
 		Name:       "default-http",
 		NumWorkers: 1,
+		Mode:       SyncTriggerWorkMode,
 	}
 }
 

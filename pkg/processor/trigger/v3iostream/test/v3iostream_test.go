@@ -130,10 +130,7 @@ func (suite *testSuite) TestAckWindowSize() {
 	})
 	suite.Require().NoError(err, "Failed to create v3io sync stream")
 
-	createFunctionOptions := suite.GetDeployOptions(
-		"event_recorder",
-		suite.FunctionPaths["python"],
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"test-nuclio-v3io": {
 			Kind:     "v3ioStream",
@@ -274,10 +271,7 @@ func (suite *testSuite) TestReceiveRecords() {
 	})
 	suite.Require().NoError(err, "Failed to create v3io sync stream")
 
-	createFunctionOptions := suite.GetDeployOptions(
-		"event_recorder",
-		suite.FunctionPaths["python"],
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"test-nuclio-v3io": {
 			Kind:     "v3ioStream",
@@ -536,10 +530,7 @@ func (suite *testSuite) TestExplicitAck() {
 	suite.Require().NoError(err, "Failed to create v3io sync stream")
 
 	// create explicit ack function
-	createFunctionOptions := suite.GetDeployOptions(
-		functionName,
-		functionPath,
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
 
 	// configure v3io stream trigger with explicit ack enabled
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{

@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -54,10 +53,7 @@ func (suite *timeoutSuite) SetupTest() {
 }
 
 func (suite *timeoutSuite) TestTimeout() {
-	createFunctionOptions := suite.GetDeployOptions(
-		"timeout",
-		path.Join(suite.GetTestFunctionsDir(), "python", "timeout"),
-		functionconfig.SyncTriggerWorkMode)
+	createFunctionOptions := suite.GetDeployOptions("timeout", path.Join(suite.GetTestFunctionsDir(), "python", "timeout"))
 
 	timeout := 500 * time.Millisecond
 	createFunctionOptions.FunctionConfig.Spec.EventTimeout = timeout.String()
