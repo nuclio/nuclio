@@ -3656,6 +3656,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                     "default-http": {
                         "class": "",
                         "kind": "http",
+                        "mode": "sync",
                         "name": "default-http",
                         "numWorkers": 1,
                         "workerAvailabilityTimeoutMilliseconds": 10000,
