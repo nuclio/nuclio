@@ -28,11 +28,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/kafka/scram"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/kafka/tokenprovider/oauth"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/Shopify/sarama"
 	"github.com/mitchellh/mapstructure"
@@ -44,7 +44,7 @@ import (
 
 type submittedEvent struct {
 	event  Event
-	worker *worker.Worker
+	worker eventprocessor.EventProcessor
 	done   chan error
 }
 
@@ -60,7 +60,7 @@ type kafka struct {
 }
 
 func newTrigger(parentLogger logger.Logger,
-	workerAllocator worker.Allocator,
+	workerAllocator eventprocessor.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	var err error
@@ -255,7 +255,7 @@ consumptionLoop:
 			if err != nil {
 				// If all workers are terminated, we don't want to stop consumption to avoid Kafka reconnection
 				// and give some time to the explicitAckHandler to process the last control messages.
-				if errors.Is(err, worker.ErrAllWorkersAreTerminated) {
+				if errors.Is(err, eventprocessor.ErrAllWorkersAreTerminated) {
 					continue
 				}
 				return errors.Wrap(err, "Failed to allocate worker")
@@ -331,7 +331,7 @@ consumptionLoop:
 
 func (k *kafka) drainOnRebalance(session sarama.ConsumerGroupSession,
 	claim sarama.ConsumerGroupClaim,
-	workerInstance *worker.Worker,
+	workerInstance eventprocessor.EventProcessor,
 	submittedEventInstance *submittedEvent,
 	message *sarama.ConsumerMessage,
 	waitForHandler bool) {
@@ -469,7 +469,7 @@ func (k *kafka) eventSubmitter(claim sarama.ConsumerGroupClaim, submittedEventCh
 		"partition", claim.Partition())
 }
 
-func (k *kafka) cancelEventHandling(workerInstance *worker.Worker,
+func (k *kafka) cancelEventHandling(workerInstance eventprocessor.EventProcessor,
 	claim sarama.ConsumerGroupClaim) error {
 	if workerInstance.SupportsRestart() {
 		k.Logger.WarnWith("Cancelling event handling",

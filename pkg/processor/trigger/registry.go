@@ -20,8 +20,8 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/nuclio/errors"
@@ -32,7 +32,7 @@ import (
 type Creator interface {
 
 	// Create creates a trigger instance
-	Create(logger.Logger, string, *functionconfig.Trigger, *runtime.Configuration, *worker.AllocatorSyncMap, chan Trigger) (Trigger, error)
+	Create(logger.Logger, string, *functionconfig.Trigger, *runtime.Configuration, *eventprocessor.AllocatorSyncMap, chan Trigger) (Trigger, error)
 }
 
 type Registry struct {
@@ -49,7 +49,7 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 	name string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
-	namedWorkerAllocators *worker.AllocatorSyncMap,
+	namedWorkerAllocators *eventprocessor.AllocatorSyncMap,
 	restartTriggerChan chan Trigger) (Trigger, error) {
 
 	registree, err := r.Get(kind)

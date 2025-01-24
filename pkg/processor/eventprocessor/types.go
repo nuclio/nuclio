@@ -1,96 +1,90 @@
 package eventprocessor
 
 import (
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
+	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"sync/atomic"
-	"time"
 )
 
 var ErrNoAvailableWorkers = errors.New("No available workers")
+var ErrAllWorkersAreTerminated = errors.New("All workers are terminated")
 
 type Allocator interface {
-	Allocate(timeout time.Duration) (*EventProcessor, error)
+	Allocate(timeout time.Duration) (EventProcessor, error)
 
-	Release() error
+	Release(processor EventProcessor)
+	// Shareable returns true if the several go routines can share this allocator
+	Shareable() bool
+
+	// GetObjects gets direct access to all workers for things like management / housekeeping
+	GetObjects() []EventProcessor
+
+	SetObjects([]EventProcessor) error
+
+	// GetNumWorkersAvailable gets number of workers available in the allocator
+	GetNumWorkersAvailable() int
+
+	// GetStatistics returns worker allocator statistics
+	GetStatistics() *AllocatorStatistics
+
+	// SignalDraining signals all workers to drain events
+	SignalDraining() error
+
+	// SignalContinue signals all workers to continue event processing
+	SignalContinue() error
+
+	// SignalTermination signals all workers to terminate
+	SignalTermination() error
+
+	// IsTerminated returns true if all workers are terminated
+	IsTerminated() bool
 }
 
 type EventProcessor interface {
 	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error)
-}
 
-type NonBlockingPoolAllocator struct {
-	logger      logger.Logger
-	objectsChan chan *EventProcessor
-	objects     []*EventProcessor
-	statistics  AllocatorStatistics
-}
+	ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error)
 
-func (nba *NonBlockingPoolAllocator) Allocate(timeout time.Duration) (*EventProcessor, error) {
-	select {
-	case obj := <-nba.objectsChan:
-		defer func() {
-			nba.objectsChan <- obj
-		}()
-		return obj, nil
-	default:
-		return nil, errors.New("No event processors found")
-	}
-}
+	Terminate() error
 
-// Release does nothing in non-blocking allocator
-func (nba *NonBlockingPoolAllocator) Release() error {
-	return nil
-}
+	Drain() error
 
-type BlockingPoolAllocator struct {
-	logger      logger.Logger
-	objectsChan chan *EventProcessor
-	objects     []*EventProcessor
-	statistics  AllocatorStatistics
-}
+	Continue() error
 
-func (ba *BlockingPoolAllocator) Allocate(timeout time.Duration) (*EventProcessor, error) {
+	GetIndex() int
 
-	// we don't want to completely lock here, but we'll use atomic to inc counters where possible
-	atomic.AddUint64(&ba.statistics.WorkerAllocationCount, 1)
+	GetRuntime() runtime.Runtime
 
-	// get total number of workers
-	totalNumberWorkers := len(ba.objects)
-	currentNumberOfAvailableWorkers := len(ba.objectsChan)
-	percentageOfAvailableWorkers := float64(currentNumberOfAvailableWorkers*100.0) / float64(totalNumberWorkers)
+	GetStatus() status.Status
 
-	// measure how many workers are available in the queue while we're allocating
-	atomic.AddUint64(&ba.statistics.WorkerAllocationWorkersAvailablePercentage, uint64(percentageOfAvailableWorkers))
+	Stop() error
 
-	// try to allocate a worker and fall back to default immediately if there's none available
-	select {
-	case workerInstance := <-ba.objectsChan:
-		atomic.AddUint64(&ba.statistics.WorkerAllocationSuccessImmediateTotal, 1)
+	GetStatistics() *Statistics
 
-		return workerInstance, nil
-	default:
+	GetStructuredCloudEvent() *cloudevent.Structured
 
-		// if there's no timeout, return now
-		if timeout == 0 {
-			atomic.AddUint64(&ba.statistics.WorkerAllocationTimeoutTotal, 1)
-			return nil, ErrNoAvailableWorkers
-		}
+	GetBinaryCloudEvent() *cloudevent.Binary
 
-		waitStartAt := time.Now()
+	GetEventTime() *time.Time
 
-		// if there is a timeout, try to allocate while waiting for the time
-		// to pass
-		select {
-		case workerInstance := <-ba.objectsChan:
-			atomic.AddUint64(&ba.statistics.WorkerAllocationSuccessAfterWaitTotal, 1)
-			atomic.AddUint64(&ba.statistics.WorkerAllocationWaitDurationMilliSecondsSum,
-				uint64(time.Since(waitStartAt).Nanoseconds()/1e6))
-			return workerInstance, nil
-		case <-time.After(timeout):
-			atomic.AddUint64(&ba.statistics.WorkerAllocationTimeoutTotal, 1)
-			return nil, ErrNoAvailableWorkers
-		}
-	}
+	ResetEventTime()
+
+	Restart() error
+
+	SupportsRestart() bool
+
+	Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error
+
+	Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error
+
+	WaitForStart()
+
+	RunHandler()
 }

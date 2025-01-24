@@ -17,7 +17,7 @@ limitations under the License.
 package partitioned
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -32,7 +32,7 @@ type Partition interface {
 type AbstractPartition struct {
 	Logger logger.Logger
 	Stream *AbstractStream
-	Worker *worker.Worker
+	Worker eventprocessor.EventProcessor
 }
 
 func NewAbstractPartition(logger logger.Logger, stream *AbstractStream) (*AbstractPartition, error) {

@@ -24,9 +24,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
@@ -39,7 +39,7 @@ import (
 
 type submittedEvent struct {
 	event  Event
-	worker *worker.Worker
+	worker eventprocessor.EventProcessor
 	done   chan error
 }
 
@@ -55,7 +55,7 @@ type v3iostream struct {
 }
 
 func newTrigger(parentLogger logger.Logger,
-	workerAllocator worker.Allocator,
+	workerAllocator eventprocessor.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	var err error

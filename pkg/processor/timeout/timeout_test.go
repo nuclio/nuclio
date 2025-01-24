@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
@@ -33,11 +33,11 @@ import (
 
 type mockTestTrigger struct {
 	trigger.AbstractTrigger
-	workers []*worker.Worker
+	workers []eventprocessor.EventProcessor
 	mock.Mock
 }
 
-func (t *mockTestTrigger) GetWorkers() []*worker.Worker {
+func (t *mockTestTrigger) GetWorkers() []eventprocessor.EventProcessor {
 	t.Called()
 	return t.workers
 }
@@ -76,10 +76,10 @@ func (suite *eventTimeoutSuite) TestWatcher() {
 	suite.Require().NoError(err, "Can't create logger")
 
 	mockTrigger := &mockTestTrigger{
-		workers: []*worker.Worker{{}},
+		workers: []eventprocessor.EventProcessor{},
 	}
 
-	mockTrigger.On("GetWorkers").Return(mockTrigger.GetWorkers())
+	mockTrigger.On("GetObjects").Return(mockTrigger.GetWorkers())
 
 	mockProcessor := &mockTestProcessor{
 		triggers: []trigger.Trigger{

@@ -21,6 +21,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
+
 	"github.com/nuclio/errors"
 )
 
@@ -29,8 +31,7 @@ type ConnectionAllocator struct {
 
 	serverAddress string
 
-	// should be a buffered chan when support multiple
-	eventConnections []*Connection
+	allocator eventprocessor.Allocator
 }
 
 func NewConnectionAllocator(abstractConnectionManager *AbstractConnectionManager) *ConnectionAllocator {
@@ -39,7 +40,6 @@ func NewConnectionAllocator(abstractConnectionManager *AbstractConnectionManager
 		serverAddress: fmt.Sprintf("%s:%d",
 			abstractConnectionManager.Configuration.host,
 			abstractConnectionManager.Configuration.port),
-		eventConnections: make([]*Connection, 0),
 	}
 }
 
@@ -51,6 +51,7 @@ func (ca *ConnectionAllocator) Prepare() error {
 }
 
 func (ca *ConnectionAllocator) Start() error {
+	eventConnections := make([]*Connection, 0)
 	if ca.MinConnectionsNum != 0 {
 		for i := 0; i < ca.MinConnectionsNum; i++ {
 			var conn net.Conn
@@ -66,11 +67,11 @@ func (ca *ConnectionAllocator) Start() error {
 			if err != nil {
 				return errors.Wrap(err, "Failed to establish connection")
 			}
-			ca.eventConnections = append(ca.eventConnections, NewConnection(ca.Logger, conn, ca))
+			eventConnections = append(eventConnections, NewConnection(ca.Logger, conn, ca))
 		}
 	}
 	// start event processing
-	for _, eventConnection := range ca.eventConnections {
+	for _, eventConnection := range eventConnections {
 		eventConnection.SetEncoder(ca.Configuration.GetEventEncoderFunc(eventConnection.Conn))
 		go eventConnection.AbstractEventConnection.RunHandler()
 	}
@@ -82,9 +83,16 @@ func (ca *ConnectionAllocator) Start() error {
 	// wait for start if required to
 	if ca.Configuration.WaitForStart {
 		ca.Logger.Debug("Waiting for start")
-		for _, eventConnection := range ca.eventConnections {
+		for _, eventConnection := range eventConnections {
 			eventConnection.WaitForStart()
 		}
+	}
+	eventProcessors := make([]eventprocessor.EventProcessor, len(eventConnections))
+	for i, eventConnection := range eventConnections {
+		eventProcessors[i] = eventConnection
+	}
+	if err := ca.allocator.SetObjects(eventProcessors); err != nil {
+		return errors.Wrap(err, "Failed to set objects in allocator")
 	}
 
 	ca.Logger.Debug("Connection allocator started")
@@ -93,8 +101,8 @@ func (ca *ConnectionAllocator) Start() error {
 }
 
 func (ca *ConnectionAllocator) Stop() error {
-	for _, eventConnection := range ca.eventConnections {
-		connection := eventConnection
+	for _, eventConnection := range ca.allocator.GetObjects() {
+		connection := eventConnection.(Connection)
 		go func() {
 			if err := connection.Conn.Close(); err != nil {
 				ca.Logger.WarnWith("Failed to close connection",
@@ -106,9 +114,9 @@ func (ca *ConnectionAllocator) Stop() error {
 	return nil
 }
 
-func (ca *ConnectionAllocator) Allocate() (EventConnection, error) {
+func (ca *ConnectionAllocator) Allocate(duration time.Duration) (eventprocessor.EventProcessor, error) {
 	// TODO: support multiple connections
-	return ca.eventConnections[0], nil
+	return ca.allocator.Allocate(duration)
 }
 
 func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) {

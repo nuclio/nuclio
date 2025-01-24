@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
+
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -39,8 +41,7 @@ func (suite *AllocatorTestSuite) SetupSuite() {
 func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	worker1 := &Worker{}
 
-	sa, err := NewSingletonWorkerAllocator(suite.logger, worker1)
-	suite.Require().NoError(err)
+	sa := eventprocessor.NewSingletonAllocator(suite.logger, worker1)
 	suite.Require().NotNil(sa)
 
 	// allocate once, time should be ignored
@@ -64,8 +65,12 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 	worker2 := &Worker{index: 1}
 	workers := []*Worker{worker1, worker2}
 
-	fpa, err := NewFixedPoolWorkerAllocator(suite.logger, workers)
-	suite.Require().NoError(err)
+	eventProcessors := make([]eventprocessor.EventProcessor, 2)
+	for i, worker := range workers {
+		eventProcessors[i] = worker
+	}
+
+	fpa := eventprocessor.NewSyncPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NotNil(fpa)
 
 	// allocate once - should allocate

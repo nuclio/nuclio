@@ -39,6 +39,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -47,7 +48,6 @@ import (
 	httpnuclio "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -86,7 +86,7 @@ type Processor struct {
 	webAdminServer            *webadmin.Server
 	healthCheckServer         commonhealthcheck.Server
 	metricSinks               []metricsink.MetricSink
-	namedWorkerAllocators     *worker.AllocatorSyncMap
+	namedWorkerAllocators     *eventprocessor.AllocatorSyncMap
 	eventTimeoutWatcher       *timeout.EventTimeoutWatcher
 	startComplete             bool
 	stop                      chan bool
@@ -99,7 +99,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	var err error
 
 	newProcessor := &Processor{
-		namedWorkerAllocators:     worker.NewAllocatorSyncMap(),
+		namedWorkerAllocators:     eventprocessor.NewAllocatorSyncMap(),
 		stop:                      make(chan bool, 1),
 		stopRestartTriggerRoutine: make(chan bool, 1),
 		restartTriggerChan:        make(chan trigger.Trigger, 1),
@@ -257,8 +257,8 @@ func (p *Processor) GetTriggers() []trigger.Trigger {
 }
 
 // GetWorkers returns workers
-func (p *Processor) GetWorkers() []*worker.Worker {
-	var workers []*worker.Worker
+func (p *Processor) GetWorkers() []eventprocessor.EventProcessor {
+	var workers []eventprocessor.EventProcessor
 
 	// iterate over the processor's triggers
 	for _, triggerInstance := range p.triggers {
