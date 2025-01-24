@@ -114,7 +114,7 @@ func (sa *SocketAllocator) GetAddressesForWrapperStart() ([]string, string) {
 	eventAddresses := make([]string, 0)
 	eventSockets := sa.allocator.GetObjects()
 	for _, socket := range eventSockets {
-		eventAddresses = append(eventAddresses, socket.(EventSocket).Address)
+		eventAddresses = append(eventAddresses, socket.(*EventSocket).Address)
 	}
 
 	controlAddress := ""

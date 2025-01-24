@@ -72,13 +72,7 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 		abstractConnectionManager.allocator = eventprocessor.NewSyncPoolAllocator(abstractConnectionManager.Logger, nil)
 	}
 
-	return &AbstractConnectionManager{
-		Logger:               parentLogger.GetChild("connection-manager"),
-		MinConnectionsNum:    1,
-		MaxConnectionsNum:    1,
-		RuntimeConfiguration: runtimeConfiguration,
-		Configuration:        configuration,
-	}
+	return abstractConnectionManager
 }
 
 func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {

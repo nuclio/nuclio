@@ -28,11 +28,6 @@ func (s *asyncSingletonAllocator) Allocate(time.Duration) (EventProcessor, error
 	return s.object, nil
 }
 
-func (s *asyncSingletonAllocator) SetObject(object EventProcessor) error {
-	s.object = object
-	return nil
-}
-
 func (s *asyncSingletonAllocator) SetObjects(objects []EventProcessor) error {
 	if len(objects) == 0 {
 		return errors.New("Length of setting objects is zero")
