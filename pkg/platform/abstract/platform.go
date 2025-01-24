@@ -1790,6 +1790,10 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 			triggerInstance.Name = triggerName
 		}
 
+		if triggerInstance.Mode == "" {
+			triggerInstance.Mode = functionconfig.SyncTriggerWorkMode
+		}
+
 		// replace deprecated MaxWorkers with NumWorkers
 		// TODO: remove in 1.15.x
 		// nolint: staticcheck

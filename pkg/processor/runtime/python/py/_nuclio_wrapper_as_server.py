@@ -73,7 +73,7 @@ class Wrapper(AbstractWrapper):
         self.tasks = {}  # Track active asyncio tasks
         self.shutdown_event = asyncio.Event()
 
-    async def start(self, num_requests=None):
+    async def start(self):
         """Start the server."""
         # Create server socket
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -171,7 +171,7 @@ class Wrapper(AbstractWrapper):
             await self._on_serving_error(exc, sock)
 
         except asyncio.CancelledError:
-            self._logger.debug('Waiting for event message was interrupted by a signal')
+            self._logger.debug('Connection processing was cancelled by a signal')
         except Exception as exc:
             await self._on_serving_error(exc, sock)
         finally:
@@ -184,7 +184,7 @@ class Wrapper(AbstractWrapper):
                 result = self._call_termination_handler()
                 if asyncio.iscoroutine(result):
                     await result
-            self._cleanup_connection(sock)
+            self._cleanup_connection(sock, cancel_task=False)
 
     async def _handle_event(self, event, sock):
         # take call time
@@ -204,7 +204,7 @@ class Wrapper(AbstractWrapper):
         # write response to the socket
         await self._write_packet_to_processor(sock, 'r' + encoded_response)
 
-    def _cleanup_connection(self, sock):
+    def _cleanup_connection(self, sock, cancel_task=True):
         """Cleanup resources for a disconnected client."""
         fileno = sock.fileno()
         if fileno in self.connections:
@@ -213,7 +213,8 @@ class Wrapper(AbstractWrapper):
         sock.close()
 
         # Cancel and remove the associated task
-        if fileno in self.tasks:
+        # do not cancel if calling from the task itself
+        if cancel_task and fileno in self.tasks:
             task = self.tasks.pop(fileno)
             if not task.done():
                 task.cancel()

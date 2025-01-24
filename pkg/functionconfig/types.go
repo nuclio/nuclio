@@ -102,11 +102,11 @@ type Trigger struct {
 	MaxWorkers int `json:"maxWorkers,omitempty"`
 }
 
-type TriggerWorkMode int
+type TriggerWorkMode string
 
 const (
-	SyncTriggerWorkMode TriggerWorkMode = iota
-	AsyncTriggerWorkMode
+	SyncTriggerWorkMode  TriggerWorkMode = "sync"
+	AsyncTriggerWorkMode                 = "async"
 )
 
 func (m TriggerWorkMode) String() string {
