@@ -16,9 +16,6 @@ name: CI
 
 on:
   pull_request:
-    branches:
-      - development
-      - "[0-9]+.[0-9]+.x"
     paths-ignore:
       - 'docs/**'
       - '.github/styles/**'
