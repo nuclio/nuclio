@@ -109,15 +109,6 @@ const (
 	AsyncTriggerWorkMode TriggerWorkMode = "async"
 )
 
-func (m TriggerWorkMode) String() string {
-	switch m {
-	case AsyncTriggerWorkMode:
-		return "async"
-	default:
-		return "sync"
-	}
-}
-
 type BatchConfiguration struct {
 	Mode      BatchMode `json:"mode,omitempty"`
 	BatchSize int       `json:"batchSize,omitempty"`

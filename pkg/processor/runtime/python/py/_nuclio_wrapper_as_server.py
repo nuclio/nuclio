@@ -77,7 +77,14 @@ class Wrapper(AbstractWrapper):
         """Start the server."""
         # Create server socket
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_sock.setsockopt(
+            # Level: Applies the option at the socket level
+            socket.SOL_SOCKET,
+            # Option: Allows reuse of the address/port
+            socket.SO_REUSEADDR,
+            # Value: Enables the option (0 would disable it)
+            1,
+        )
         server_sock.bind((self._host, self._port))
         server_sock.listen(self._max_connections)
         server_sock.setblocking(False)
