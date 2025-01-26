@@ -494,7 +494,7 @@ func TestIntegrationSuite(t *testing.T) {
 
 	for _, runtime := range runtimes {
 		for _, mode := range modes {
-			t.Run(runtime+"_"+mode.String(), func(t *testing.T) {
+			t.Run(runtime+"_"+mode, func(t *testing.T) {
 				testSuite := new(TestSuite)
 				testSuite.runtime = runtime
 				testSuite.mode = mode // Set the mode for the test
