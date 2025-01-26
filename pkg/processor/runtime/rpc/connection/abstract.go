@@ -242,7 +242,7 @@ func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogg
 		return nil, err
 	}
 	// this is a single event processing flow, so we only take the first item from the result
-	return &nuclio.Response{
+	return nuclio.Response{
 		Body:        processingResult.Results[0].DecodedBody,
 		ContentType: processingResult.Results[0].ContentType,
 		Headers:     processingResult.Results[0].Headers,
