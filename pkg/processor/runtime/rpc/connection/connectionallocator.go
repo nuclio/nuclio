@@ -129,7 +129,6 @@ func retryableDial(address string, maxRetries int, retryInterval time.Duration) 
 			return conn, nil
 		}
 
-		// Log the retry attempt if necessary (optional)
 		if attempt < maxRetries {
 			time.Sleep(retryInterval)
 		}

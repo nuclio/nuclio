@@ -28,7 +28,7 @@ import collections
 
 import pytest
 
-import _nuclio_wrapper_as_server as wrapper
+import _nuclio_async_wrapper as wrapper
 from test_base import BaseTestSubmitEvents
 from wrapper_common import WrapperFatalException
 
@@ -66,7 +66,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         self._host = "0.0.0.0"
         self._port = 1337
 
-        self._wrapper = wrapper.Wrapper(
+        self._wrapper = wrapper.AsyncWrapper(
             logger=self._logger,
             loop=self._loop,
             handler=self._default_test_handler,
@@ -131,6 +131,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
                 collections.Counter(map(frozenset, actual_events)),
                 "Recorded events do not match the expected events"
             )
+
     async def _send_events(self, events, single_connection=True):
         if single_connection:
             client_socket = self._create_client_socket()
@@ -208,7 +209,7 @@ class TestWrapperValidation(unittest.TestCase):
 
     def test_invalid_handler(self):
         with pytest.raises(WrapperFatalException):
-            wrapper.Wrapper(
+            wrapper.AsyncWrapper(
                 logger=self._logger,
                 loop=self._loop,
                 handler="test_server_wrapper:sync_handler",

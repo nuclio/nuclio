@@ -32,7 +32,7 @@ from wrapper_common import (
     get_parser_with_common_args)
 
 
-class Wrapper(AbstractWrapper):
+class AsyncWrapper(AbstractWrapper):
     def __init__(self,
                  logger,
                  loop,
@@ -140,9 +140,9 @@ class Wrapper(AbstractWrapper):
     async def _process_connection(self, sock):
         """Process all events for a single connection."""
         # signal start
-        self._logger.info("Signalling connection processing start")
+        self._logger.debug("Signalling connection processing start")
         await self._write_packet_to_processor(sock, 's')
-        self._logger.info(f"Event processing started for socket")
+        self._logger.debug(f"Event processing started for socket")
         try:
             while True:
                 # resolve event message length
@@ -273,18 +273,18 @@ def run_wrapper():
     try:
 
         # create a new wrapper
-        wrapper_instance = Wrapper(root_logger,
-                                   loop,
-                                   args.handler,
-                                   # TODO: rename it to serving_address or smth like it
-                                   args.event_socket_path,
-                                   args.control_socket_path,
-                                   args.platform_kind,
-                                   args.namespace,
-                                   args.worker_id,
-                                   args.trigger_kind,
-                                   args.trigger_name,
-                                   args.decode_event_strings)
+        wrapper_instance = AsyncWrapper(root_logger,
+                                        loop,
+                                        args.handler,
+                                        # TODO: rename it to serving_address or smth like it
+                                        args.event_socket_path,
+                                        args.control_socket_path,
+                                        args.platform_kind,
+                                        args.namespace,
+                                        args.worker_id,
+                                        args.trigger_kind,
+                                        args.trigger_name,
+                                        args.decode_event_strings)
 
     except BaseException as exc:
         root_logger.error_with('Caught unhandled exception while initializing',

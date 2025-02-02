@@ -18,8 +18,6 @@ import os
 
 import unittest.mock
 
-import _nuclio_wrapper_as_server as wrapper
-
 
 class BaseTestSubmitEvents(unittest.TestCase):
     @classmethod
