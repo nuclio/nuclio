@@ -104,7 +104,7 @@ class AsyncWrapper(AbstractWrapper):
                     if sock == server_sock:
                         # Accept new connection
                         client_sock, addr = server_sock.accept()
-                        self._logger.info(f"Accepted connection from {addr}")
+                        self._logger.debug(f"Accepted connection from {addr}")
                         client_sock.setblocking(False)
                         self.connections[client_sock.fileno()] = client_sock
                         task = self._loop.create_task(self._process_connection(client_sock))
