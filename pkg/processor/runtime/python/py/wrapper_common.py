@@ -84,6 +84,8 @@ class AbstractWrapper(object):
         if self._control_socket_path:
             self._control_sock = self._connect_to_processor(self._control_socket_path)
 
+            self._control_sock_wfile = self._control_sock.makefile('w')
+
             # set socket to nonblocking to allow the asyncio event loop to run while we're waiting on a socket, and so
             # that we are able to cancel the wait if needed
             self._control_sock.setblocking(False)
