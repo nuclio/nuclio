@@ -17,6 +17,7 @@ limitations under the License.
 package golang
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -33,6 +34,9 @@ type golang struct {
 	*runtime.AbstractRuntime
 	configuration *runtime.Configuration
 	entrypoint    entrypoint
+
+	// TODO: support multiple cancels when implementing async
+	cancelEventHandlingChan chan context.CancelFunc
 }
 
 // NewRuntime returns a new golang runtime
@@ -70,7 +74,7 @@ func NewRuntime(parentLogger logger.Logger,
 			return nil, errors.Wrap(err, "Failed to initialize context")
 		}
 	}
-
+	newGoRuntime.cancelEventHandlingChan = make(chan context.CancelFunc, 1)
 	newGoRuntime.SetStatus(status.Ready)
 
 	return newGoRuntime, nil
@@ -100,7 +104,35 @@ func (g *golang) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger
 	return nil, nuclio.ErrNotImplemented
 }
 
-func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (response interface{}, responseErr error) {
+func (g *golang) Restart() error {
+	if err := g.Stop(); err != nil {
+		return errors.Wrap(err, "Failed to stop golang runtime")
+	}
+	g.SetStatus(status.Ready)
+	return nil
+}
+
+func (g *golang) Stop() error {
+	g.SetStatus(status.Stopped)
+
+	select {
+	case cancelEventHandling := <-g.cancelEventHandlingChan:
+		cancelEventHandling()
+	default:
+	}
+
+	return nil
+}
+
+// SupportsRestart returns true if the runtime supports restart
+func (g *golang) SupportsRestart() bool {
+	return true
+}
+
+func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+	if currentStatus := g.GetStatus(); currentStatus != status.Ready {
+		return nil, errors.Errorf("Runtime not ready (current status: %s)", currentStatus)
+	}
 	defer func() {
 		if err := recover(); err != nil {
 			callStack := debug.Stack()
@@ -110,26 +142,74 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 			}
 
 			functionLogger.ErrorWith("Panic caught in event handler",
-				"err",
-				err,
-				"stack",
-				string(callStack))
-
-			responseErr = fmt.Errorf("Caught panic: %s", err)
+				"err", err,
+				"stack", string(callStack))
 		}
 	}()
 
-	// before we call, save timestamp
-	startTime := time.Now()
+	ctx, cancel := context.WithCancel(context.Background())
+	g.cancelEventHandlingChan <- cancel
+	responseChan := make(chan *processingResponse)
 
-	response, responseErr = g.entrypoint(g.Context, event)
+	// Run the function in a goroutine
+	go func() {
+		processingResult := &processingResponse{}
+		defer close(responseChan)
+		defer func() {
+			if err := recover(); err != nil {
+				callStack := debug.Stack()
 
-	// calculate how long it took to invoke the function
-	callDuration := time.Since(startTime)
+				if functionLogger == nil {
+					functionLogger = g.FunctionLogger
+				}
 
-	// add duration to sum
-	g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
-	g.Statistics.DurationMilliSecondsCount++
+				functionLogger.ErrorWith("Panic caught in event handler",
+					"err", err,
+					"stack", string(callStack))
 
-	return
+				processingResult.responseErr = fmt.Errorf("Caught panic: %s", err)
+				// try to write response to the channel if it wasn't yet
+				select {
+				// if the reader is waiting, then it means that runtime wasn't stopped and waits for a response
+				case responseChan <- processingResult:
+				default:
+				}
+			}
+		}()
+		// before we call, save timestamp
+		startTime := time.Now()
+
+		// call entrypoint
+		processingResult.response, processingResult.responseErr = g.entrypoint(g.Context, event)
+
+		// calculate how long it took to invoke the function
+		callDuration := time.Since(startTime)
+
+		select {
+		// if the reader is waiting, then it means that runtime wasn't stopped and waits for a response
+		case responseChan <- processingResult:
+			// add duration to sum
+			g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
+			g.Statistics.DurationMilliSecondsCount++
+		default:
+		}
+	}()
+
+	select {
+	case result := <-responseChan:
+		select {
+		case cancelEventHandling := <-g.cancelEventHandlingChan:
+			// cancelling cancel-context
+			defer cancelEventHandling()
+		default:
+		}
+		return result.response, result.responseErr
+	case <-ctx.Done():
+		return nil, errors.New("Event processing was cancelled")
+	}
+}
+
+type processingResponse struct {
+	response    interface{}
+	responseErr error
 }
