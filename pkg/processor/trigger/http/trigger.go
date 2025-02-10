@@ -51,7 +51,7 @@ type http struct {
 	configuration      *Configuration
 	events             []Event
 	bufferLoggerPool   *nucliozap.BufferLoggerPool
-	status             status.Status
+	status             *status.SafeStatus
 	activeContexts     []*fasthttp.RequestCtx
 	timeouts           []uint64 // flag of worker is in timeout
 	answering          []uint64 // flag the worker is answering
@@ -95,7 +95,7 @@ func newTrigger(logger logger.Logger,
 		AbstractTrigger:    abstractTrigger,
 		configuration:      configuration,
 		bufferLoggerPool:   bufferLoggerPool,
-		status:             status.Initializing,
+		status:             status.NewSafeStatus(status.Initializing),
 		activeContexts:     make([]*fasthttp.RequestCtx, numWorkers),
 		timeouts:           make([]uint64, numWorkers),
 		answering:          make([]uint64, numWorkers),
@@ -137,14 +137,14 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 	// start listening
 	go h.server.ListenAndServe(h.configuration.URL) // nolint: errcheck
 
-	h.status = status.Ready
+	h.status.SetStatus(status.Ready)
 	return nil
 }
 
 func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
-	h.Logger.Debug("Shutting down")
+	h.Logger.Debug("Stopping HTTP trigger")
 
-	h.status = status.Stopped
+	h.status.SetStatus(status.Stopped)
 
 	if h.server != nil {
 		err := h.server.Shutdown()
@@ -377,7 +377,7 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 
 	// ensure server is running
-	if h.status != status.Ready {
+	if h.status.GetStatus() != status.Ready {
 		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 		msg := map[string]interface{}{
 			"error":  "Server not ready",
@@ -552,11 +552,14 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 		// no available workers
 		case worker.ErrNoAvailableWorkers, worker.ErrAllWorkersAreTerminated:
+			h.Logger.WarnWith("No workers available",
+				"err", submitError.Error())
 			ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 
 			// something else - most likely a bug
 		default:
-			h.Logger.WarnWith("Failed to submit event", "err", submitError)
+			h.Logger.WarnWith("Failed to submit event",
+				"err", submitError.Error())
 			ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
 		}
 

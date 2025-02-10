@@ -696,6 +696,6 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialDefault
 	suite.Require().Empty(resources.Limits["memory"])
 }
 
-func TestRegistryTestSuite(t *testing.T) {
+func TestPlatformConfigTestSuite(t *testing.T) {
 	suite.Run(t, new(PlatformConfigTestSuite))
 }

@@ -470,7 +470,7 @@ func (suite *DeployFunctionTestSuite) TestSecurityContext() {
 			runAsGroupID,
 			fsGroup),
 			strings.TrimSpace(results.Output))
-		suite.InvokeFunction("GET", deployResult.Port, "", nil)
+		suite.InvokeFunction("GET", deployResult.Port, "", nil, true)
 		return true
 	})
 }
@@ -1849,6 +1849,7 @@ func (suite *DeployFunctionTestSuite) TestProcessorShutdown() {
 	// change source code
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(`
 terminated = False
+
 def handler(context, event):
     if terminated:
         context.logger.info("Got event after termination")
@@ -1880,7 +1881,7 @@ def init_context(context):
 			for {
 				select {
 				case <-ticker.C:
-					suite.InvokeFunction("GET", deployResult.Port, "", nil)
+					suite.InvokeFunction("GET", deployResult.Port, "", nil, false)
 				case <-ctx.Done():
 					return
 				}
@@ -1893,12 +1894,13 @@ def init_context(context):
 		err = suite.KubeClientSet.CoreV1().Pods(firstPod.Namespace).Delete(suite.Ctx, firstPod.Name, metav1.DeleteOptions{})
 		suite.Require().NoError(err)
 
-		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "All triggers are terminated", &v1.PodLogOptions{}, 30*time.Second)
-		suite.Require().NoError(err, "triggers were not terminated")
 		cancel()
 
-		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Got event after termination", &v1.PodLogOptions{}, 20*time.Second)
-		suite.Require().NotNil(err)
+		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "Stopping HTTP trigger", &v1.PodLogOptions{}, 20*time.Second)
+		suite.Require().NoError(err)
+
+		err = suite.WaitMessageInPodLog(firstPod.Namespace, firstPod.Name, "All triggers are terminated", &v1.PodLogOptions{}, 30*time.Second)
+		suite.Require().NoError(err, "triggers were not terminated")
 		return true
 	})
 }
