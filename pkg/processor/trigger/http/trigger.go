@@ -145,6 +145,11 @@ func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 
+func (h *http) SignalWorkersToTerminate() error {
+	h.status.SetStatus(status.Stopping)
+	return h.AbstractTrigger.SignalWorkersToTerminate()
+}
+
 func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
 }
@@ -339,7 +344,11 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 
 	// ensure server is running
-	if h.status.GetStatus() != status.Ready {
+	if triggerStatus := h.status.GetStatus(); triggerStatus != status.Ready {
+		h.Logger.DebugWith("Pre-handle validation failed because trigger is not ready",
+			"triggerName", h.Name,
+			"triggerKind", h.Kind,
+			"triggerStatus", triggerStatus)
 		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
 		msg := map[string]interface{}{
 			"error":  "Server not ready",

@@ -37,6 +37,7 @@ const (
 	Ready
 	Error
 	Stopped
+	Stopping
 )
 
 func (s Status) String() string {
