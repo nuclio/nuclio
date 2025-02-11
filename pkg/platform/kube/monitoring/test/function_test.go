@@ -378,8 +378,9 @@ func (suite *FunctionMonitoringTestSuite) TestPausedFunctionShouldRemainInReadyS
 func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() {
 	functionName := "terminating-function"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	two := 2
+	createFunctionOptions.FunctionConfig.Spec.Replicas = &two
 
-	*createFunctionOptions.FunctionConfig.Spec.Replicas = 2
 	waitForFunctionStart := make(chan *platform.CreateFunctionResult)
 	ctx, cancel := context.WithCancel(suite.Ctx)
 	go func() {
