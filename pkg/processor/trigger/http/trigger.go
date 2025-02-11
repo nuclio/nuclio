@@ -387,7 +387,6 @@ func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 }
 
 func (h *http) preHandleStatusValidation(ctx *fasthttp.RequestCtx, expectedStatuses ...status.Status) bool {
-	// ensure server is running
 	if triggerStatus := h.status.GetStatus(); !triggerStatus.OneOf(expectedStatuses...) {
 		h.Logger.DebugWith("Pre-handle validation failed because trigger is not ready",
 			"triggerName", h.Name,
