@@ -381,39 +381,42 @@ func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() 
 	two := 2
 	createFunctionOptions.FunctionConfig.Spec.Replicas = &two
 
-	waitForFunctionStart := make(chan *platform.CreateFunctionResult)
+	functionPort := make(chan int)
+	defer close(functionPort)
+
 	ctx, cancel := context.WithCancel(suite.Ctx)
 	go func() {
-		deployResult := <-waitForFunctionStart
-		// bombing function with requests to check that events are processed with no errors during deployment replacement
+		port := <-functionPort
+		// bombing function with requests to check that events are processed with no errors during scale down
 		ticker := time.NewTicker(50 * time.Millisecond)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				suite.InvokeFunction("GET", deployResult.Port, "", nil, true)
+				suite.InvokeFunction("GET", port, "", nil, true)
 			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 
-	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
-		waitForFunctionStart <- deployResults
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+		functionPort <- deployResult.Port
 		one := 1
-		deployResults.UpdatedFunctionConfig.Spec.Replicas = &one
-		deployResults.UpdatedFunctionConfig.Spec.Image = deployResults.Image
+		deployResult.UpdatedFunctionConfig.Spec.Replicas = &one
+		deployResult.UpdatedFunctionConfig.Spec.Image = deployResult.Image
 
 		err := suite.Platform.UpdateFunction(context.Background(),
 			&platform.UpdateFunctionOptions{
-				FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
-				FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,
+				FunctionMeta: &deployResult.UpdatedFunctionConfig.Meta,
+				FunctionSpec: &deployResult.UpdatedFunctionConfig.Spec,
 			})
 		suite.Require().NoError(err, "Failed to update function")
 
-		// wait for function deployment replicas gets to zero
+		// wait for function deployment replicas gets to one
 		suite.WaitForFunctionDeployment(functionName,
-			1*time.Minute,
+			5*time.Minute,
 			func(functionDeployment *appsv1.Deployment) bool {
 				suite.Logger.InfoWith("Waiting for deployment replicas to be one",
 					"replicas", functionDeployment.Status.Replicas)

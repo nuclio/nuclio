@@ -342,8 +342,6 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 }
 
 func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
-
-	// Ensure the server is running
 	// Here, we want to allow not only the 'ready' status but also the 'stopping' status,
 	// as it indicates that the HTTP service is about to stop. This allows it to process
 	// requests during this time while also informing the readiness probe that the service
@@ -387,6 +385,7 @@ func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 }
 
 func (h *http) preHandleStatusValidation(ctx *fasthttp.RequestCtx, expectedStatuses ...status.Status) bool {
+	// Ensure the server is running
 	if triggerStatus := h.status.GetStatus(); !triggerStatus.OneOf(expectedStatuses...) {
 		h.Logger.DebugWith("Pre-handle validation failed because trigger is not ready",
 			"triggerName", h.Name,
