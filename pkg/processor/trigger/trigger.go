@@ -383,6 +383,7 @@ func (at *AbstractTrigger) SignalWorkersToContinue() error {
 }
 
 func (at *AbstractTrigger) SignalWorkersToTerminate() error {
+	time.Sleep(1 * time.Second)
 	if err := at.WorkerAllocator.SignalTermination(); err != nil {
 		return errors.Wrap(err, "Failed to signal all workers to terminate")
 	}
