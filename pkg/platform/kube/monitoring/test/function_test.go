@@ -375,6 +375,54 @@ func (suite *FunctionMonitoringTestSuite) TestPausedFunctionShouldRemainInReadyS
 	})
 }
 
+func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() {
+	functionName := "terminating-function"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	*createFunctionOptions.FunctionConfig.Spec.Replicas = 2
+	waitForFunctionStart := make(chan *platform.CreateFunctionResult)
+	ctx, cancel := context.WithCancel(suite.Ctx)
+	go func() {
+		deployResult := <-waitForFunctionStart
+		// bombing function with requests to check that events are processed with no errors during deployment replacement
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				suite.InvokeFunction("GET", deployResult.Port, "", nil, true)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+		waitForFunctionStart <- deployResults
+		one := 1
+		deployResults.UpdatedFunctionConfig.Spec.Replicas = &one
+		deployResults.UpdatedFunctionConfig.Spec.Image = deployResults.Image
+
+		err := suite.Platform.UpdateFunction(context.Background(),
+			&platform.UpdateFunctionOptions{
+				FunctionMeta: &deployResults.UpdatedFunctionConfig.Meta,
+				FunctionSpec: &deployResults.UpdatedFunctionConfig.Spec,
+			})
+		suite.Require().NoError(err, "Failed to update function")
+
+		// wait for function deployment replicas gets to zero
+		suite.WaitForFunctionDeployment(functionName,
+			1*time.Minute,
+			func(functionDeployment *appsv1.Deployment) bool {
+				suite.Logger.InfoWith("Waiting for deployment replicas to be one",
+					"replicas", functionDeployment.Status.Replicas)
+				return functionDeployment.Status.Replicas == 1
+			})
+		cancel()
+		return true
+	})
+}
+
 func TestFunctionMonitoringTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
