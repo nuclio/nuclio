@@ -1600,7 +1600,9 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesAllow
 	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().Empty(functionConfig.Spec.Tolerations) // no toleration were given on config, that's intentional
-	suite.Require().Nil(functionConfig.Spec.Affinity)
+	suite.Require().Empty(cmp.Diff(
+		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+		preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes()))
 
 	// preserve custom affinity
 	functionConfig.Spec.PreemptionMode = functionconfig.RunOnPreemptibleNodesPrevent
@@ -1621,8 +1623,9 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 	suite.platform.enrichFunctionPreemptionSpec(suite.ctx, preemptibleNodes, functionConfig)
 	suite.Require().NotNil(functionConfig.Spec.Affinity.PodAffinity)
 	suite.Require().NotNil(functionConfig.Spec.Affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution)
+	index := len(functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) - 1
 	suite.Require().Equal("dummy",
-		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields[0].Key)
+		functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[index].MatchFields[0].Key)
 
 	// reset specs, constrain -> prevent (for tolerations + node selector)
 	preemptibleNodes = &platformconfig.PreemptibleNodes{
