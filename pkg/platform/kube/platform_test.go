@@ -1658,6 +1658,137 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 
 }
 
+func (suite *FunctionKubePlatformTestSuite) TestEnrichPreemptionMode() {
+	defaultPreemptibleNodes := &platformconfig.PreemptibleNodes{
+		NodeSelector: map[string]string{"node-label-key": "node-label-value"},
+		Tolerations: []v1.Toleration{
+			{
+				Key:   "toleration-key",
+				Value: "toleration-value",
+			},
+		},
+	}
+	defaultCustomAffinity := &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key:      "node-label-key",
+								Operator: v1.NodeSelectorOpNotIn,
+								Values:   []string{"node-label-value"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	defaultCustomAntiAffinity := &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key:      "node-label-key",
+								Operator: v1.NodeSelectorOpNotIn,
+								Values:   []string{"node-label-value"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	defaultCustomNodeSelector := map[string]string{
+		"node-label-key": "node-label-value",
+		"custom-ns":      "custom-ns-value",
+	}
+	for _, testCase := range []struct {
+		name               string
+		preemptionMode     functionconfig.RunOnPreemptibleNodeMode
+		preemptibleNodes   *platformconfig.PreemptibleNodes
+		customNodeSelector map[string]string
+		customAffinity     *v1.Affinity
+	}{
+		{
+			name:               "allow-affinity",
+			preemptionMode:     functionconfig.RunOnPreemptibleNodesAllow,
+			preemptibleNodes:   defaultPreemptibleNodes,
+			customNodeSelector: defaultCustomNodeSelector,
+			customAffinity:     defaultCustomAffinity,
+		},
+		{
+			name:               "allow-anti-affinity",
+			preemptionMode:     functionconfig.RunOnPreemptibleNodesAllow,
+			preemptibleNodes:   defaultPreemptibleNodes,
+			customNodeSelector: defaultCustomNodeSelector,
+			customAffinity:     defaultCustomAntiAffinity,
+		},
+		{
+			name:               "constrain",
+			preemptionMode:     functionconfig.RunOnPreemptibleNodesConstrain,
+			preemptibleNodes:   defaultPreemptibleNodes,
+			customNodeSelector: defaultCustomNodeSelector,
+		},
+		{
+			name:               "prevent-no-affinity",
+			preemptionMode:     functionconfig.RunOnPreemptibleNodesPrevent,
+			preemptibleNodes:   defaultPreemptibleNodes,
+			customNodeSelector: defaultCustomNodeSelector,
+		},
+		{
+			name:               "prevent-with-affinity",
+			preemptionMode:     functionconfig.RunOnPreemptibleNodesPrevent,
+			preemptibleNodes:   defaultPreemptibleNodes,
+			customNodeSelector: defaultCustomNodeSelector,
+			customAffinity:     defaultCustomAntiAffinity,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.platform.Config.Kube.PreemptibleNodes = testCase.preemptibleNodes
+			functionName := "some-func"
+
+			functionConfig := functionconfig.NewConfig()
+			functionConfig.Meta.Name = functionName
+			functionConfig.Spec.PreemptionMode = testCase.preemptionMode
+			functionConfig.Spec.NodeSelector = testCase.customNodeSelector
+			functionConfig.Spec.Affinity = testCase.customAffinity.DeepCopy()
+
+			for i := 0; i < 2; i++ {
+				// make sure that nothing was added twice
+				suite.platform.enrichFunctionPreemptionSpec(suite.ctx, testCase.preemptibleNodes, functionConfig)
+
+				switch testCase.preemptionMode {
+				case functionconfig.RunOnPreemptibleNodesAllow:
+					suite.Require().Equal(testCase.preemptibleNodes.Tolerations, functionConfig.Spec.Tolerations)
+					suite.Require().Equal(testCase.customNodeSelector, functionConfig.Spec.NodeSelector)
+					suite.Require().Equal(testCase.customAffinity, functionConfig.Spec.Affinity)
+				case functionconfig.RunOnPreemptibleNodesConstrain:
+					suite.Require().Equal(testCase.preemptibleNodes.Tolerations, functionConfig.Spec.Tolerations)
+					suite.Require().Equal(
+						functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+						testCase.preemptibleNodes.CompileAffinityByLabelSelectorScheduleOnOneOfMatchingNodes())
+					suite.Require().Equal(testCase.customNodeSelector, functionConfig.Spec.NodeSelector)
+				case functionconfig.RunOnPreemptibleNodesPrevent:
+					suite.Require().Empty(functionConfig.Spec.Tolerations)
+					suite.Require().Equal(testCase.customNodeSelector, functionConfig.Spec.NodeSelector)
+					// affinity is pruned (prevention is done using taints)
+					if testCase.customAffinity == nil {
+						suite.Require().Empty(functionConfig.Spec.Affinity)
+					} else {
+						suite.Require().Empty(cmp.Diff(
+							functionConfig.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+							testCase.preemptibleNodes.CompileAntiAffinityByLabelSelectorNoScheduleOnMatchingNodes()))
+					}
+				}
+			}
+		})
+	}
+}
+
 func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel() {
 
 	functionName := "some-func"

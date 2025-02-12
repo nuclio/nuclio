@@ -1583,20 +1583,6 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 
 	case functionconfig.RunOnPreemptibleNodesAllow:
 
-		// purges any `affinity` / `anti-affinity` preemption related configuration
-		// remove anti-affinity
-		functionConfig.
-			PruneAffinityNodeSelectorRequirement(
-				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpNotIn), "matchAll")
-
-		// remove affinity
-		functionConfig.
-			PruneAffinityNodeSelectorRequirement(
-				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn), "oneOf")
-
-		// remove preemptible nodes constrain
-		functionConfig.PruneNodeSelector(preemptibleNodes.NodeSelector)
-
 		// enrich with tolerations
 		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)
 
