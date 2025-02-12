@@ -407,6 +407,8 @@ func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() 
 		one := 1
 		deployResult.UpdatedFunctionConfig.Spec.Replicas = &one
 		deployResult.UpdatedFunctionConfig.Spec.MaxReplicas = &one
+		deployResult.UpdatedFunctionConfig.Spec.MinReplicas = &one
+
 		deployResult.UpdatedFunctionConfig.Spec.Image = deployResult.Image
 
 		err := suite.Platform.UpdateFunction(context.Background(),
