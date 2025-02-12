@@ -17,8 +17,10 @@ limitations under the License.
 package connection
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
@@ -26,6 +28,16 @@ import (
 	"github.com/nuclio/errors"
 )
 
+// ConnectionAllocator implements AbstractConnectionManager and is responsible for managing connections
+// between the processor and a runtime wrapper.
+//
+// The connection allocation flow is as follows:
+//   - Prepare(): Prepares everything needed before the runtime starts.
+//   - After the runtime process has started, Start() should be called to establish all connections
+//     between the processor and the runtime.
+//   - Only after Start() has completed, Allocate() can be called.
+//   - At the end of the flow, before stopping the runtime process, Stop() should be called
+//     to close all connections.
 type ConnectionAllocator struct {
 	*AbstractConnectionManager
 
@@ -59,7 +71,7 @@ func (ca *ConnectionAllocator) Start() error {
 
 			// Use retryable dial for the first connection
 			if i == 0 {
-				conn, err = retryableDial(ca.serverAddress, 30, 1*time.Second)
+				conn, err = retryableDial(ca.serverAddress, 30, 1*time.Second, 1*time.Minute)
 			} else {
 				conn, err = net.Dial("tcp", ca.serverAddress)
 			}
@@ -101,15 +113,21 @@ func (ca *ConnectionAllocator) Start() error {
 }
 
 func (ca *ConnectionAllocator) Stop() error {
+	var wg sync.WaitGroup
+
 	for _, eventConnection := range ca.allocator.GetObjects() {
 		connection := eventConnection.(Connection)
+		wg.Add(1)
+
 		go func() {
+			defer wg.Done()
 			if err := connection.Conn.Close(); err != nil {
-				ca.Logger.WarnWith("Failed to close connection",
-					"error", err)
+				ca.Logger.WarnWith("Failed to close connection", "error", err)
 			}
 		}()
 	}
+
+	wg.Wait()
 	ca.stopControlMessageSocket()
 	return nil
 }
@@ -126,21 +144,26 @@ func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) 
 	}
 	return []string{ca.serverAddress}, controlAddress
 }
-
-func retryableDial(address string, maxRetries int, retryInterval time.Duration) (net.Conn, error) {
+func retryableDial(address string, maxRetries int, retryInterval, dialTimeout time.Duration) (net.Conn, error) {
 	var conn net.Conn
 	var err error
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		conn, err = net.Dial("tcp", address)
+		// Create a context with a timeout for each dial attempt
+		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+
+		dialer := net.Dialer{}
+		conn, err = dialer.DialContext(ctx, "tcp", address)
 		if err == nil {
+			cancel()
 			return conn, nil
 		}
 
-		// Log the retry attempt if necessary (optional)
+		// If max retries are not reached, wait before retrying
 		if attempt < maxRetries {
 			time.Sleep(retryInterval)
 		}
+		cancel()
 	}
 
 	return nil, errors.Wrap(err, "Failed to establish connection after retries")

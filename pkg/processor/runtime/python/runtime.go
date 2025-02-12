@@ -188,7 +188,7 @@ func (py *python) getWrapperScriptPath() string {
 	scriptPath := os.Getenv("NUCLIO_PYTHON_WRAPPER_PATH")
 	if len(scriptPath) == 0 {
 		if py.configuration.Mode == functionconfig.AsyncTriggerWorkMode {
-			return "/opt/nuclio/_nuclio_wrapper_as_server.py"
+			return "/opt/nuclio/_nuclio_async_wrapper.py"
 		}
 		return "/opt/nuclio/_nuclio_wrapper.py"
 	}

@@ -107,10 +107,14 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Logger.System = platformConfigurationReader.GetDefaultConfiguration().Logger.System
 	}
 
-	// default cron trigger creation mode to processor
-	// TODO: move under `config.Kube`
+	// resolve cron trigger creation mode according to platform
 	if config.CronTriggerCreationMode == "" {
-		config.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
+		switch config.Kind {
+		case common.KubePlatformName:
+			config.CronTriggerCreationMode = KubeCronTriggerCreationMode
+		default:
+			config.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
+		}
 	}
 
 	if config.Kube.DefaultServiceType == "" {

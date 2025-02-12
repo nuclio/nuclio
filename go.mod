@@ -47,10 +47,10 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tsenart/vegeta/v12 v12.11.1
 	github.com/v3io/scaler v0.8.0
-	github.com/v3io/v3io-go v0.3.10
+	github.com/v3io/v3io-go v0.3.12
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
-	github.com/valyala/fasthttp v1.51.0
+	github.com/valyala/fasthttp v1.58.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.1.2
 	golang.org/x/image v0.18.0
@@ -76,7 +76,7 @@ require (
 	code.cloudfoundry.org/clock v1.1.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v1.1.3 // indirect
-	github.com/andybalholm/brotli v1.0.5 // indirect
+	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bodgit/plumbing v1.2.0 // indirect
@@ -129,7 +129,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.17.0 // indirect
+	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/logrusorgru/aurora/v4 v4.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
