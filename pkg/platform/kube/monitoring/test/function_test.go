@@ -405,6 +405,7 @@ func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() 
 		functionPort <- deployResult.Port
 		one := 1
 		deployResult.UpdatedFunctionConfig.Spec.Replicas = &one
+		deployResult.UpdatedFunctionConfig.Spec.MaxReplicas = &one
 		deployResult.UpdatedFunctionConfig.Spec.Image = deployResult.Image
 
 		err := suite.Platform.UpdateFunction(context.Background(),
