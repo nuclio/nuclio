@@ -401,6 +401,7 @@ func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() 
 	}()
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		defer cancel()
 		suite.Require().NotNil(deployResult)
 		functionPort <- deployResult.Port
 		one := 1
@@ -423,7 +424,6 @@ func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() 
 					"replicas", functionDeployment.Status.Replicas)
 				return functionDeployment.Status.Replicas == 1
 			})
-		cancel()
 		return true
 	})
 }
