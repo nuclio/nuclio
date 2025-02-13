@@ -400,6 +400,11 @@ func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() 
 		}
 	}()
 
+	getFunctionOptions := &platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		defer cancel()
 		suite.Require().NotNil(deployResult)
@@ -409,7 +414,8 @@ func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() 
 		deployResult.UpdatedFunctionConfig.Spec.MaxReplicas = &one
 		deployResult.UpdatedFunctionConfig.Spec.MinReplicas = &one
 
-		deployResult.UpdatedFunctionConfig.Spec.Image = deployResult.Image
+		function := suite.GetFunction(getFunctionOptions)
+		deployResult.UpdatedFunctionConfig.Spec.Image = function.GetStatus().ContainerImage
 
 		err := suite.Platform.UpdateFunction(context.Background(),
 			&platform.UpdateFunctionOptions{
@@ -420,7 +426,7 @@ func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() 
 
 		// wait for function deployment replicas gets to one
 		suite.WaitForFunctionDeployment(functionName,
-			5*time.Minute,
+			1*time.Minute,
 			func(functionDeployment *appsv1.Deployment) bool {
 				suite.Logger.InfoWith("Waiting for deployment replicas to be one",
 					"replicas", functionDeployment.Status.Replicas)
