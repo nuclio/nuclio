@@ -1458,7 +1458,6 @@ func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions
 // configuration is given, do nothing.
 //
 //		`Allow` 	- Adds Tolerations / GPU Tolerations if taints were given. otherwise, assume pods can be scheduled on preemptible nodes.
-//	               > Purges any `affinity` / `anti-affinity` preemption related configuration
 //		`Constrain` - Uses node-affinity to make sure pods are assigned using OR on the given node label selectors.
 //	               > Uses `Allow` configuration as well.
 //	               > Purges any `anti-affinity` preemption related configuration
