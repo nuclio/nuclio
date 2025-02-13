@@ -124,7 +124,7 @@ jobs:
 
     - name: Install QEMU
       if: matrix.arch != 'amd64'
-      uses: docker/setup-qemu-action@v2
+      uses: docker/setup-qemu-action@v3
       with:
         platforms: ${{ matrix.arch }}
 
