@@ -216,7 +216,7 @@ func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, fun
 
 func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, error) {
 	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
-		return nil, nil
+		return nil, errors.Errorf("Runtime is not ready. Status: %s", currentStatus.String())
 	}
 
 	return r.connectionManager.Allocate(0)

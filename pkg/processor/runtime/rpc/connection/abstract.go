@@ -393,9 +393,9 @@ func (be *AbstractEventConnection) GetStatus() status.Status {
 	return status.Ready
 }
 
-// Stop stops the worker and associated runtime
+// Stop stops the connection
 func (be *AbstractEventConnection) Stop() error {
-	return nuclio.ErrNotImplemented
+	return be.Conn.Close()
 }
 
 // GetStructuredCloudEvent return a structued clould event
