@@ -380,25 +380,15 @@ func (h *http) handlePreflightRequest(ctx *fasthttp.RequestCtx) {
 }
 
 func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
-
-	// ensure server is running
-	if triggerStatus := h.status.GetStatus(); triggerStatus != status.Ready {
-		h.Logger.DebugWith("Pre-handle validation failed because trigger is not ready",
-			"triggerName", h.Name,
-			"triggerKind", h.Kind,
-			"triggerStatus", triggerStatus)
-		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
-		msg := map[string]interface{}{
-			"error":  "Server not ready",
-			"status": h.status.String(),
-		}
-
-		if err := json.NewEncoder(ctx).Encode(msg); err != nil {
-			h.Logger.WarnWith("Can't encode error message", "error", err)
-		}
+	// Here, we want to allow not only the 'ready' status but also the 'stopping' status,
+	// as it indicates that the HTTP service is about to stop. This allows it to process
+	// requests during this time while also informing the readiness probe that the service
+	// is no longer ready, preventing Kubernetes from sending further traffic to the pod.
+	if ok := h.preHandleStatusValidation(ctx,
+		status.Ready,
+		status.Stopping); !ok {
 		return false
 	}
-
 	// if cors is enabled, ensure request is valid
 	if h.configuration.corsEnabled() {
 
@@ -432,6 +422,27 @@ func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 	return true
 }
 
+func (h *http) preHandleStatusValidation(ctx *fasthttp.RequestCtx, expectedStatuses ...status.Status) bool {
+	// Ensure the server is running
+	if triggerStatus := h.status.GetStatus(); !triggerStatus.OneOf(expectedStatuses...) {
+		h.Logger.DebugWith("Pre-handle validation failed because trigger is not ready",
+			"triggerName", h.Name,
+			"triggerKind", h.Kind,
+			"triggerStatus", triggerStatus)
+		ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)
+		msg := map[string]interface{}{
+			"error":  "Server not ready",
+			"status": h.status.String(),
+		}
+
+		if err := json.NewEncoder(ctx).Encode(msg); err != nil {
+			h.Logger.WarnWith("Can't encode error message", "error", err)
+		}
+		return false
+	}
+	return true
+}
+
 func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
@@ -439,6 +450,14 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	// internal endpoint to allow clients the information whether the http server is taking requests in
 	// this is an internal endpoint, we do not want to update statistics here
 	if bytes.HasPrefix(ctx.URI().Path(), h.internalHealthPath) {
+		// here we want to allow only ready status
+		// because as soon as status has become non-ready,
+		// we want k8s to stop sending traffic to this pod
+		if ok := h.preHandleStatusValidation(
+			ctx,
+			status.Ready); !ok {
+			return
+		}
 		ctx.Response.SetStatusCode(nethttp.StatusOK)
 		return
 	}

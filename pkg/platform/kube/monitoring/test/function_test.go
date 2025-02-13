@@ -393,6 +393,67 @@ func (suite *FunctionMonitoringTestSuite) TestPausedFunctionShouldRemainInReadyS
 	})
 }
 
+func (suite *FunctionMonitoringTestSuite) TestTerminatingFunctionAvailability() {
+	functionName := "terminating-function"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	two := 2
+	createFunctionOptions.FunctionConfig.Spec.Replicas = &two
+
+	functionPort := make(chan int)
+	defer close(functionPort)
+
+	ctx, cancel := context.WithCancel(suite.Ctx)
+	go func() {
+		port := <-functionPort
+		// bombing function with requests to check that events are processed with no errors during scale down
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				suite.InvokeFunction("GET", port, "", nil, true)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	getFunctionOptions := &platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		defer cancel()
+		suite.Require().NotNil(deployResult)
+		functionPort <- deployResult.Port
+		one := 1
+		deployResult.UpdatedFunctionConfig.Spec.Replicas = &one
+		deployResult.UpdatedFunctionConfig.Spec.MaxReplicas = &one
+		deployResult.UpdatedFunctionConfig.Spec.MinReplicas = &one
+
+		function := suite.GetFunction(getFunctionOptions)
+		deployResult.UpdatedFunctionConfig.Spec.Image = function.GetStatus().ContainerImage
+
+		err := suite.Platform.UpdateFunction(context.Background(),
+			&platform.UpdateFunctionOptions{
+				FunctionMeta: &deployResult.UpdatedFunctionConfig.Meta,
+				FunctionSpec: &deployResult.UpdatedFunctionConfig.Spec,
+			})
+		suite.Require().NoError(err, "Failed to update function")
+
+		// wait for function deployment replicas gets to one
+		suite.WaitForFunctionDeployment(functionName,
+			1*time.Minute,
+			func(functionDeployment *appsv1.Deployment) bool {
+				suite.Logger.InfoWith("Waiting for deployment replicas to be one",
+					"replicas", functionDeployment.Status.Replicas)
+				return functionDeployment.Status.Replicas == 1
+			})
+		return true
+	})
+}
+
 func TestFunctionMonitoringTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
