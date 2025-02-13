@@ -439,10 +439,7 @@ func (suite *TestSuite) GetDeployOptions(functionName, functionPath string) *pla
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"http-trigger": {
-			Kind: "http",
-		}}
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 
 	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.CreateTempDir()
 
@@ -453,9 +450,11 @@ func (suite *TestSuite) GetDeployOptions(functionName, functionPath string) *pla
 // function uses async trigger mode
 func (suite *TestSuite) GetDeployOptionsAsync(functionName, functionPath string) *platform.CreateFunctionOptions {
 	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
-	trigger, found := createFunctionOptions.FunctionConfig.Spec.Triggers["http-trigger"]
-	suite.Require().True(found)
-	trigger.Mode = functionconfig.AsyncTriggerWorkMode
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http-trigger": {
+			Kind: "http",
+			Mode: functionconfig.AsyncTriggerWorkMode,
+		}}
 	return createFunctionOptions
 }
 
