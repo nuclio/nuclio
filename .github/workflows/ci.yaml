@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
@@ -69,7 +69,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
@@ -135,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
@@ -150,7 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
@@ -183,7 +183,7 @@ jobs:
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
@@ -223,7 +223,7 @@ jobs:
         with:
           version: "v3.6.3"
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
@@ -319,7 +319,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
@@ -354,7 +354,7 @@ jobs:
         with:
           version: "v3.6.3"
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod

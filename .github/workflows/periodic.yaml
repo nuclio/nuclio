@@ -40,7 +40,7 @@ jobs:
     - name: Freeing up disk space
       run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-    - uses: actions/setup-go@v3
+    - uses: actions/setup-go@v5
       with:
         cache: true
         go-version-file: go.mod

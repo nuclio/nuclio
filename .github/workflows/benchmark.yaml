@@ -80,7 +80,7 @@ jobs:
         with:
           python-version: '3.9'
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
