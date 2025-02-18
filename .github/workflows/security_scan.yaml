@@ -63,11 +63,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # checkout from development
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -99,11 +99,11 @@ jobs:
     steps:
 
       # checkout from development
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
@@ -162,11 +162,11 @@ jobs:
     steps:
 
       # checkout from development
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0

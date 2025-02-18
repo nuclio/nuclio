@@ -47,7 +47,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v3
         with:
@@ -66,7 +66,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -98,7 +98,7 @@ jobs:
     name: Check copyright and license
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v1.x
@@ -133,7 +133,7 @@ jobs:
     name: Test short
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v3
         with:
@@ -148,7 +148,7 @@ jobs:
     name: Build nuctl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v3
         with:
@@ -171,7 +171,7 @@ jobs:
     name: Build docker images
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -214,7 +214,7 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
@@ -317,7 +317,7 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v3
         with:
@@ -348,7 +348,7 @@ jobs:
         test-target: [test-functions-k8s-undockerized, test-k8s-undockerized]
     name: ${{ matrix.test-target == 'test-functions-k8s-undockerized' && 'Test Functions Kubernetes' || 'Test Kubernetes' }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: azure/setup-helm@v3
         with:
@@ -413,7 +413,7 @@ jobs:
     name: Test python
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Run python test
         run: |
@@ -423,7 +423,7 @@ jobs:
     name: Test NodeJS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Run NodeJS test
         run: |

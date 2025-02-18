@@ -54,7 +54,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: define targets
         id: set-matrix
@@ -115,7 +115,7 @@ jobs:
       if: github.event_name == 'release'
       run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - uses: actions/setup-go@v3
       with:
@@ -204,7 +204,7 @@ jobs:
       if: github.event_name == 'release'
       run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - uses: actions/setup-go@v3
       with:

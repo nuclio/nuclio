@@ -35,7 +35,7 @@ jobs:
     if: github.repository == 'nuclio/nuclio'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Freeing up disk space
       run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
