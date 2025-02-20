@@ -14,10 +14,7 @@
 #
 name: "Label PRs"
 
-# TODO: revert once CI passes, before merging (so the CI will use the updated action)
-#on: pull_request_target
-on:
-  - pull_request
+on: pull_request_target
 
 jobs:
   label:
