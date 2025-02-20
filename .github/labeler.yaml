@@ -1,0 +1,159 @@
+# Copyright 2023 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+area/ui:
+- changed-files:
+  - any-glob-to-any-file: pkg/dashboard/ui/**/*
+
+# platforms
+platform:
+- changed-files:
+  - any-glob-to-any-file: pkg/platform/**/*
+
+platform/kube:
+- changed-files:
+  - any-glob-to-any-file: pkg/platform/kube/**/*
+
+platform/local:
+- changed-files:
+  - any-glob-to-any-file: pkg/platform/local/**/*
+
+configuration:
+- changed-files:
+  - any-glob-to-any-file:
+    - pkg/processor/config/**/*
+    - pkg/functionconfig/**/*
+    - pkg/platformconfig/**/*
+    - pkg/runtimeconfig/**/*
+
+dashboard/resources:
+- changed-files:
+  - any-glob-to-any-file: pkg/dashboard/resource/**/*
+
+# triggers
+trigger/cron:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/cron/**/*
+
+trigger/http:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/http/**/*
+
+trigger/kafka:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/kafka/**/*
+
+trigger/kickstart:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/kickstart/**/*
+
+trigger/kinesis:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/kinesis/**/*
+
+trigger/mqtt:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/mqtt/**/*
+
+trigger/nats:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/nats/**/*
+
+trigger/partitioned:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/partitioned/**/*
+
+trigger/poller:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/poller/**/*
+
+trigger/pubsub:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/pubsub/**/*
+
+trigger/rabbitmq:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/rabbitmq/**/*
+
+trigger/v3iostream:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/trigger/v3iostream/**/*
+
+# runtimes
+runtime/python:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/**/runtime/python/**/*
+
+runtime/golang:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/**/runtime/golang/**/*
+
+runtime/dotnetcore:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/**/runtime/dotnetcore/**/*
+
+runtime/java:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/**/runtime/java/**/*
+
+runtime/nodejs:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/**/runtime/nodejs/**/*
+
+runtime/ruby:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/**/runtime/ruby/**/*
+
+runtime/shell:
+- changed-files:
+  - any-glob-to-any-file: pkg/processor/**/runtime/shell/**/*
+
+# nuctl
+nuctl:
+- changed-files:
+  - any-glob-to-any-file: pkg/nuctl/command/**/*
+
+# releaser
+releaser:
+- changed-files:
+  - any-glob-to-any-file: hack/scripts/releaser/**/*
+
+go/modules:
+- changed-files:
+  - any-glob-to-any-file:
+    - go.sum
+    - go.mod
+
+ci:
+- changed-files:
+  - any-glob-to-any-file:
+    - .github/**/*
+    - hack/scripts/ci/**/*
+
+docs:
+- changed-files:
+  - any-glob-to-any-file: docs/**/*
+
+kubernetes/helm:
+- changed-files:
+  - any-glob-to-any-file: hack/k8s/helm/**/*
+
+kubernetes/resources:
+- changed-files:
+  - any-glob-to-any-file: hack/k8s/resources/**/*
+
+feature:
+- head-branch:
+  - '^feature'
+  - 'feature'
