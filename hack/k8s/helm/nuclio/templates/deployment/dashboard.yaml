@@ -251,7 +251,7 @@ spec:
         hostPath:
           path: /var/run/docker.sock
       {{- end }}
-      {{- if (include "nuclio.registry.credentialsSecretName" .) }}
+      {{- if ne (include "nuclio.registry.credentialsSecretName" .) "" }}
       - name: registry-credentials
         secret:
           secretName: {{ template "nuclio.registry.credentialsSecretName" . }}
