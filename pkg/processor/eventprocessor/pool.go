@@ -45,7 +45,7 @@ func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) 
 		statistics:  AllocatorStatistics{},
 	}
 
-	// iterate over workers, shove to pool
+	// iterate over objects, shove to pool
 	for _, object := range objects {
 		newFixedPool.objectsChan <- object
 	}
@@ -56,28 +56,28 @@ func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) 
 func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
 	// TODO: think about reworking of atomic operations logic as it might affect performance
 	// we don't want to completely lock here, but we'll use atomic to inc counters where possible
-	atomic.AddUint64(&sa.statistics.WorkerAllocationCount, 1)
+	atomic.AddUint64(&sa.statistics.AllocationCount, 1)
 
-	// get total number of workers
-	totalNumberWorkers := len(sa.objects)
-	currentNumberOfAvailableWorkers := len(sa.objectsChan)
-	percentageOfAvailableWorkers := float64(currentNumberOfAvailableWorkers*100.0) / float64(totalNumberWorkers)
+	// get total number of objects
+	totalNumberObjects := len(sa.objects)
+	currentNumberOfAvailableObjects := len(sa.objectsChan)
+	percentageOfAvailableObjects := float64(currentNumberOfAvailableObjects*100.0) / float64(totalNumberObjects)
 
-	// measure how many workers are available in the queue while we're allocating
-	atomic.AddUint64(&sa.statistics.WorkerAllocationWorkersAvailablePercentage, uint64(percentageOfAvailableWorkers))
+	// measure how many objects are available in the queue while we're allocating
+	atomic.AddUint64(&sa.statistics.AllocationObjectsAvailablePercentage, uint64(percentageOfAvailableObjects))
 
 	// try to allocate a worker and fall back to default immediately if there's none available
 	select {
 	case workerInstance := <-sa.objectsChan:
-		atomic.AddUint64(&sa.statistics.WorkerAllocationSuccessImmediateTotal, 1)
+		atomic.AddUint64(&sa.statistics.AllocationSuccessImmediateTotal, 1)
 
 		return workerInstance, nil
 	default:
 
 		// if there's no timeout, return now
 		if timeout == 0 {
-			atomic.AddUint64(&sa.statistics.WorkerAllocationTimeoutTotal, 1)
-			return nil, ErrNoAvailableWorkers
+			atomic.AddUint64(&sa.statistics.AllocationTimeoutTotal, 1)
+			return nil, ErrNoAvailableObjects
 		}
 
 		waitStartAt := time.Now()
@@ -86,13 +86,13 @@ func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, er
 		// to pass
 		select {
 		case workerInstance := <-sa.objectsChan:
-			atomic.AddUint64(&sa.statistics.WorkerAllocationSuccessAfterWaitTotal, 1)
-			atomic.AddUint64(&sa.statistics.WorkerAllocationWaitDurationMilliSecondsSum,
+			atomic.AddUint64(&sa.statistics.AllocationSuccessAfterWaitTotal, 1)
+			atomic.AddUint64(&sa.statistics.AllocationWaitDurationMilliSecondsSum,
 				uint64(time.Since(waitStartAt).Nanoseconds()/1e6))
 			return workerInstance, nil
 		case <-time.After(timeout):
-			atomic.AddUint64(&sa.statistics.WorkerAllocationTimeoutTotal, 1)
-			return nil, ErrNoAvailableWorkers
+			atomic.AddUint64(&sa.statistics.AllocationTimeoutTotal, 1)
+			return nil, ErrNoAvailableObjects
 		}
 	}
 }
@@ -109,7 +109,7 @@ func (sa *syncPoolAllocator) GetObjects() []EventProcessor {
 	return sa.objects
 }
 
-func (sa *syncPoolAllocator) GetNumWorkersAvailable() int {
+func (sa *syncPoolAllocator) GetNumObjectsAvailable() int {
 	return len(sa.objectsChan)
 }
 
@@ -118,7 +118,7 @@ func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
 	return nil
 }
 
-// GetStatistics returns worker allocator statistics
+// GetStatistics returns object allocator statistics
 func (sa *syncPoolAllocator) GetStatistics() *AllocatorStatistics {
 	return &sa.statistics
 }
@@ -129,8 +129,8 @@ func (sa *syncPoolAllocator) SignalDraining() error {
 	for _, objectInstance := range sa.GetObjects() {
 		objectInstance := objectInstance
 
-		errGroup.Go(fmt.Sprintf("Drain worker %d", objectInstance.GetIndex()), func() error {
-			// if worker is not already drained, signal it to drain events
+		errGroup.Go(fmt.Sprintf("Drain object %d", objectInstance.GetIndex()), func() error {
+			// if object is not already drained, signal it to drain events
 			if err := objectInstance.Drain(); err != nil {
 				return errors.Wrapf(err, "Failed to signal object %d to drain events", objectInstance.GetIndex())
 			}
@@ -139,7 +139,7 @@ func (sa *syncPoolAllocator) SignalDraining() error {
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "At least one worker failed to drain")
+		return errors.Wrap(err, "At least one object failed to drain")
 	}
 
 	return nil
@@ -160,7 +160,7 @@ func (sa *syncPoolAllocator) SignalContinue() error {
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "At least one worker failed to continue")
+		return errors.Wrap(err, "At least one object failed to continue")
 	}
 
 	return nil
@@ -182,7 +182,7 @@ func (sa *syncPoolAllocator) SignalTermination() error {
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "At least one worker failed to terminate")
+		return errors.Wrap(err, "At least one object failed to terminate")
 	}
 
 	return nil

@@ -122,23 +122,23 @@ func (tg *TriggerGatherer) Gather() error {
 	}).Add(float64(diffStatistics.EventsHandledFailureTotal))
 
 	tg.workerAllocationCount.Add(
-		float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationCount))
+		float64(diffStatistics.WorkerAllocatorStatistics.AllocationCount))
 	tg.workerAllocationWaitDurationMilliSecondsSum.Add(
-		float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWaitDurationMilliSecondsSum))
+		float64(diffStatistics.WorkerAllocatorStatistics.AllocationWaitDurationMilliSecondsSum))
 	tg.workerAllocationWorkersAvailablePercentage.Add(
-		float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationWorkersAvailablePercentage))
+		float64(diffStatistics.WorkerAllocatorStatistics.AllocationObjectsAvailablePercentage))
 
 	tg.workerAllocationTotal.With(prometheus.Labels{
 		"result": "success_immediate",
-	}).Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationSuccessImmediateTotal))
+	}).Add(float64(diffStatistics.WorkerAllocatorStatistics.AllocationSuccessImmediateTotal))
 
 	tg.workerAllocationTotal.With(prometheus.Labels{
 		"result": "success_after_wait",
-	}).Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationSuccessAfterWaitTotal))
+	}).Add(float64(diffStatistics.WorkerAllocatorStatistics.AllocationSuccessAfterWaitTotal))
 
 	tg.workerAllocationTotal.With(prometheus.Labels{
 		"result": "error_timeout",
-	}).Add(float64(diffStatistics.WorkerAllocatorStatistics.WorkerAllocationTimeoutTotal))
+	}).Add(float64(diffStatistics.WorkerAllocatorStatistics.AllocationTimeoutTotal))
 
 	tg.prevStatistics = currentStatistics
 

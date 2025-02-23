@@ -144,7 +144,7 @@ func (vs *v3iostream) Setup(session streamconsumergroup.Session) error {
 	vs.Logger.InfoWith("Starting consumer session",
 		"shardIDs", shardIDs,
 		"memberID", session.GetMemberID(),
-		"workersAvailable", vs.WorkerAllocator.GetNumWorkersAvailable())
+		"workersAvailable", vs.WorkerAllocator.GetNumObjectsAvailable())
 
 	vs.partitionWorkerAllocator, err = vs.createPartitionWorkerAllocator(session)
 	if err != nil {
@@ -162,7 +162,7 @@ func (vs *v3iostream) Cleanup(session streamconsumergroup.Session) error {
 	vs.Logger.InfoWith("Ending consumer session",
 		"claims", session.GetClaims(),
 		"memberID", session.GetMemberID(),
-		"workersAvailable", vs.WorkerAllocator.GetNumWorkersAvailable())
+		"workersAvailable", vs.WorkerAllocator.GetNumObjectsAvailable())
 
 	return nil
 }

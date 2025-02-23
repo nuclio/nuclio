@@ -185,7 +185,7 @@ func (k *kafka) Setup(session sarama.ConsumerGroupSession) error {
 	k.Logger.InfoWith("Starting consumer session",
 		"claims", session.Claims(),
 		"memberID", session.MemberID(),
-		"workersAvailable", k.WorkerAllocator.GetNumWorkersAvailable())
+		"workersAvailable", k.WorkerAllocator.GetNumObjectsAvailable())
 
 	k.partitionWorkerAllocator, err = k.createPartitionWorkerAllocator(session)
 	if err != nil {
@@ -203,7 +203,7 @@ func (k *kafka) Cleanup(session sarama.ConsumerGroupSession) error {
 	k.Logger.InfoWith("Ending consumer session",
 		"claims", session.Claims(),
 		"memberID", session.MemberID(),
-		"workersAvailable", k.WorkerAllocator.GetNumWorkersAvailable())
+		"workersAvailable", k.WorkerAllocator.GetNumObjectsAvailable())
 
 	return nil
 }
@@ -255,7 +255,7 @@ consumptionLoop:
 			if err != nil {
 				// If all workers are terminated, we don't want to stop consumption to avoid Kafka reconnection
 				// and give some time to the explicitAckHandler to process the last control messages.
-				if errors.Is(err, eventprocessor.ErrAllWorkersAreTerminated) {
+				if errors.Is(err, eventprocessor.ErrAllObjectsAreTerminated) {
 					continue
 				}
 				return errors.Wrap(err, "Failed to allocate worker")

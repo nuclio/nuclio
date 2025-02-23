@@ -121,7 +121,7 @@ func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 	timeout *time.Duration) (eventprocessor.EventProcessor, interface{}, error) {
 
 	if wa.workerAllocator.IsTerminated() {
-		return nil, nil, eventprocessor.ErrAllWorkersAreTerminated
+		return nil, nil, eventprocessor.ErrAllObjectsAreTerminated
 	}
 
 	// get the channel from which we need to allocate
@@ -145,7 +145,7 @@ func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 
 			// if there's no timeout, return now
 			if *timeout == 0 {
-				return nil, nil, eventprocessor.ErrNoAvailableWorkers
+				return nil, nil, eventprocessor.ErrNoAvailableObjects
 			}
 
 			// if there is a timeout, try to allocate while waiting for the time
@@ -153,7 +153,7 @@ func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 			select {
 			case workerInstance = <-workerChan:
 			case <-time.After(*timeout):
-				return nil, nil, eventprocessor.ErrNoAvailableWorkers
+				return nil, nil, eventprocessor.ErrNoAvailableObjects
 			}
 		}
 	}
@@ -204,7 +204,7 @@ func (wa *StaticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator eve
 	// can only contain one item and add that to a slice
 	for {
 		workerInstance, err := workerAllocator.Allocate(0)
-		if errors.Is(err, eventprocessor.ErrNoAvailableWorkers) {
+		if errors.Is(err, eventprocessor.ErrNoAvailableObjects) {
 			break
 		}
 

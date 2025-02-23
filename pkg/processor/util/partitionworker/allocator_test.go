@@ -65,14 +65,14 @@ func (suite *partitionWorkerAllocatorTestSuite) TestAllocationBlocking() {
 	// allocate a worker for the same partition with no timeout - should fail immediately
 	noTimeout := time.Duration(0)
 	failedWorkerInstance, failedCookie, err := partitionWorkerAllocator.AllocateWorker("t1", 0, &noTimeout)
-	suite.Require().Equal(err, eventprocessor.ErrNoAvailableWorkers)
+	suite.Require().Equal(err, eventprocessor.ErrNoAvailableObjects)
 	suite.Require().Nil(failedCookie)
 	suite.Require().Nil(failedWorkerInstance)
 
 	// allocate a worker for the same partition with a timeout - should fail after a while
 	smallTimeout := 2 * time.Second
 	failedWorkerInstance, failedCookie, err = partitionWorkerAllocator.AllocateWorker("t1", 0, &smallTimeout)
-	suite.Require().Equal(err, eventprocessor.ErrNoAvailableWorkers)
+	suite.Require().Equal(err, eventprocessor.ErrNoAvailableObjects)
 	suite.Require().Nil(failedCookie)
 	suite.Require().Nil(failedWorkerInstance)
 

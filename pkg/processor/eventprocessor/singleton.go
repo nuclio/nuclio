@@ -39,7 +39,7 @@ func NewSingletonAllocator(parentLogger logger.Logger, eventProcessor EventProce
 
 func (s *asyncSingletonAllocator) Allocate(time.Duration) (EventProcessor, error) {
 	if s.isTerminated {
-		return nil, ErrAllWorkersAreTerminated
+		return nil, ErrAllObjectsAreTerminated
 	}
 	return s.object, nil
 }
@@ -63,11 +63,11 @@ func (s *asyncSingletonAllocator) GetObjects() []EventProcessor {
 	return []EventProcessor{s.object}
 }
 
-func (s *asyncSingletonAllocator) GetNumWorkersAvailable() int {
+func (s *asyncSingletonAllocator) GetNumObjectsAvailable() int {
 	return 1
 }
 
-// GetStatistics returns worker allocator statistics
+// GetStatistics returns allocator statistics
 func (s *asyncSingletonAllocator) GetStatistics() *AllocatorStatistics {
 	return nil
 }
