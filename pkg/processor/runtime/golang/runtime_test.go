@@ -114,7 +114,6 @@ func (suite *runtimeTestSuite) TestProcessEvent() {
 	suite.Require().NoError(err)
 
 	for i := 0; i < 10000; i++ {
-		suite.logger.DebugWith("start", "iter", i)
 		res, err := golangRuntime.ProcessEvent(nil, suite.logger)
 		suite.Require().NoError(err)
 		suite.Require().Equal("success", res)
