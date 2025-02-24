@@ -19,7 +19,7 @@ package kafka
 import (
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
