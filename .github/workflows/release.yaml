@@ -84,17 +84,12 @@ jobs:
           make get-release-info BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
         # Go script will set the environment variable RELEASE_VERSION
 
-      - name: Use the Release Version
-        run: |
-          echo "Release version is $RELEASE_VERSION"
       - name: Resolve inputs
         id: resolve
         run: |
-          VERSION_INPUT=$(grep "^TARGET_VERSION:" .release-info.txt | cut -d' ' -f2)
+          VERSION_INPUT=$(make get-target-version RELEASE_INFO_PATH=.release-info.txt)
+          echo "VERSION_INPUT=${VERSION_INPUT}"
           echo "VERSION_INPUT=${VERSION_INPUT}" >> $GITHUB_ENV
-        env:
-          VERSION_INPUT: ${{ github.event.inputs.version }}
-          BUMP_VERSION_MODE:  ${{ github.event.inputs.bump_version_mode }}
 
   image_matrix_prep:
     name: Prepare image list
