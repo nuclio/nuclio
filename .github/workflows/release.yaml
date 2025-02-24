@@ -47,7 +47,7 @@ on:
       target_version:
         description: 'Target version. Optional'
         required: false
-        default:
+        default: ''
       skip_create_tag_release:
         description: 'Whether to skip creating tag & release in Github (Auto skip for feature branch)'
         required: false
@@ -81,7 +81,7 @@ jobs:
 
       - name: Run Go script
         run: |
-          make get-release-info BUMP_VERSION_MODE=bump_version_mode TARGET_VERSION=
+          make get-release-info BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
         # Go script will set the environment variable RELEASE_VERSION
 
       - name: Use the Release Version
@@ -95,6 +95,7 @@ jobs:
         env:
           VERSION_INPUT: ${{ github.event.inputs.version }}
           BUMP_VERSION_MODE:  ${{ github.event.inputs.bump_version_mode }}
+
   image_matrix_prep:
     name: Prepare image list
     outputs:
