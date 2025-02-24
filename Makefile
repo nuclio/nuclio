@@ -151,6 +151,11 @@ get-release-info:
 		go run hack/scripts/releaser/releaser.go --$(BUMP_VERSION_MODE) --release-info-path=$(RELEASE_INFO_PATH) --skip-bump-helm-chart; \
 	fi
 
+.PHONY: get-target-version
+get-target-version:
+	@grep "^TARGET_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
+
+
 .PHONY: release-helm-charts
 release-helm-charts:
 	@if [ -n "$(TARGET_VERSION)" ]; then \
