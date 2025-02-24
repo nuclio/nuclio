@@ -20,7 +20,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/nuclio/errors"
 	"github.com/xdg-go/scram"
 )

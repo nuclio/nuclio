@@ -34,7 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
