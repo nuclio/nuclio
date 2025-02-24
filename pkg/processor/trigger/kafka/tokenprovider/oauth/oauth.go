@@ -19,7 +19,7 @@ package oauth
 import (
 	"context"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/nuclio/errors"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
