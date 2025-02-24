@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.resolve.outputs.version }}
-      previous_version: ${{ steps.resolve.outputs.previous_version }}
+      helm_version: ${{ steps.resolve.outputs.helm_version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,195 +87,13 @@ jobs:
       - name: Resolve inputs
         id: resolve
         run: |
-          VERSION_INPUT=$(make get-target-version RELEASE_INFO_PATH=.release-info.txt)
+          VERSION_INPUT=$(make get-target-version)
           echo "VERSION_INPUT=${VERSION_INPUT}"
-          echo "VERSION_INPUT=${VERSION_INPUT}" >> $GITHUB_ENV
+          echo "version=${VERSION_INPUT}" >> $GITHUB_ENV
+          HELM_VERSION_INPUT=$(make get-helm-target-version)
+          echo "HELM_VERSION_INPUT=${HELM_VERSION_INPUT}"
+          echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_ENV
 
-  image_matrix_prep:
-    name: Prepare image list
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: define targets
-        id: set-matrix
-        run: |
-
-          # if custom image is given, use it
-          if [[ -n "${{ github.event.inputs.docker_image_rule }}" ]]; then \
-            export DOCKER_IMAGES_RULES="${{ github.event.inputs.docker_image_rule }}"; \
-          fi;
-
-          docker_image_rules_json=$(make print-docker-image-rules-json)
-          
-          # if "handler-builder-golang-onbuild" is in the matrix
-          # then ensure "handler-builder-golang-onbuild-alpine" is there too.
-          docker_image_rules_json=$(echo $docker_image_rules_json | \
-            jq -c 'select(.[].image_rule=="handler-builder-golang-onbuild") += [{"image_rule":"handler-builder-golang-onbuild-alpine"}]')
-          
-          echo $docker_image_rules_json
-          echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
-  
-
-  release:
-    if: github.repository == 'nuclio/nuclio' || github.event_name == 'workflow_dispatch'
-    name: Release image (${{ matrix.docker_image_rule }}-${{ matrix.arch }})
-    runs-on: ubuntu-latest
-    needs: image_matrix_prep
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - arm64
-          - amd64
-        docker_image_rule: ${{ fromJson(needs.image_matrix_prep.outputs.matrix) }}
-        exclude:
-
-
-          # issues with building on qemu
-          - arch: arm64
-            docker_image_rule: handler-builder-dotnetcore-onbuild
-    steps:
-      - name: Prepare envs
-        run: |
-          echo "NUCLIO_DOCKER_REPO=${{ env.REPO }}/${{ env.REPO_NAME }}" >> $GITHUB_ENV
-          echo "NUCLIO_CACHE_REPO=${{ env.CACHE_REPO }}/${{ env.CACHE_REPO_NAME }}" >> $GITHUB_ENV
-          echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
-
-      - name: Prepare outputs
-        id: release_info
-        run: |
-          echo "REF_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-          echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Set NUCLIO_LABEL to unstable
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
-
-      - name: Set NUCLIO_LABEL to release tag
-        if: github.event_name == 'release'
-        run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
-
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          cache: true
-          go-version-file: go.mod
-
-      - name: Install QEMU
-        if: matrix.arch != 'amd64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: ${{ matrix.arch }}
-
-      - name: Login to registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REPO }}
-          username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
-          password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
-
-      - name: Login to cache registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.CACHE_REPO }}
-          username: ${{ env.CACHE_REPO_NAME }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build ${{ matrix.docker_image_rule }} image
-        run: |
-          make pull-docker-images-cache || true
-          make docker-images
-        env:
-          DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
-          DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
-
-          # this only applies when target is `handler-builder-golang-onbuild`
-          # not applied when target is `handler-builder-golang-onbuild-alpine`
-          SKIP_BUILD_GOLANG_ONBUILD_ALPINE: true
-
-      - name: Push cache images
-        if: env.NUCLIO_LABEL == 'unstable'
-        run: make push-docker-images-cache
-        env:
-          DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
-          SKIP_BUILD_GOLANG_ONBUILD_ALPINE: true
-
-      - name: Push images
-        run: make push-docker-images
-        env:
-          DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
-          SKIP_BUILD_GOLANG_ONBUILD_ALPINE: true
-
-      - name: Tag and push stable images
-        if: env.NUCLIO_LABEL != 'unstable' && github.event.release.target_commitish == 'master' && contains(matrix.docker_image_rule, 'dashboard')
-        run: |
-          docker tag "$NUCLIO_DOCKER_REPO/dashboard:$NUCLIO_LABEL-$NUCLIO_ARCH" "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
-          docker push "$NUCLIO_DOCKER_REPO/dashboard:stable-$NUCLIO_ARCH"
-        env:
-          DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
-
-  release_binary:
-    if: github.event_name == 'release'
-    name: Release Binary ${{ matrix.arch }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - arm64
-          - amd64
-    steps:
-      - name: Prepare envs
-        run: |
-          echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
-
-      - name: Prepare outputs
-        id: release_info
-        run: |
-          echo "REF_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-          echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Set NUCLIO_LABEL to unstable
-        if: github.event_name == 'push'
-        run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
-
-      - name: Set NUCLIO_LABEL to release tag
-        if: github.event_name == 'release'
-        run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
-
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          cache: true
-
-      - name: Install QEMU
-        if: matrix.arch != 'amd64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: ${{ matrix.arch }}
-
-      - name: Build binaries
-        run: |
-          NUCLIO_OS=linux make tools
-          NUCLIO_OS=darwin make tools
-          if [ $NUCLIO_ARCH == "amd64" ]; then \
-            NUCLIO_OS=windows make tools; \
-          fi;
-        env:
-          NUCLIO_NUCTL_CREATE_SYMLINK: false
-          GOPATH: /home/runner/go
-          DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
-
-      - name: Upload binaries
-        uses: AButler/upload-release-assets@v2.0.2
-        with:
-          files: '/home/runner/go/bin/nuctl-*'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
   create-tag:
     name: Create tag v${{ needs.prepare-inputs.outputs.version }}
     runs-on: ubuntu-latest
@@ -300,7 +118,7 @@ jobs:
     name: Update release notes
     runs-on: ubuntu-latest
     if: github.event.inputs.skip_create_tag_release != 'true'
-    needs: [ prepare-inputs]
+    needs: [prepare-inputs]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -324,3 +142,49 @@ jobs:
           gh release create ${{ github.ref }} --title "Release ${{ github.ref }}" --notes "$(git log $(git describe --tags --abbrev=0)..${GITHUB_REF} --pretty=format:'%s')"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  helm-publish-create-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+
+          # Fetch all history for all tags and branches
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'  # Set Go version as needed
+
+      - name: Make changes to files
+        run: |
+          make release-helm-charts BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
+
+      - name: Create new branch
+        run: |
+          HELM_VERSION_INPUT=$(make get-helm-target-version)
+          echo "HELM_VERSION_INPUT=${HELM_VERSION_INPUT}"
+          git checkout -b update-helm-charts-${HELM_VERSION_INPUT}
+
+      - name: Commit changes
+        run: |
+          git add .
+          git commit -m "Automated changes from GitHub Action"
+
+      - name: Push changes to new branch
+        run: |
+          git push --set-upstream origin update-helm-charts-${HELM_VERSION_INPUT}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "[Helm] Bump helm charts"
+          body: "This PR contains changes automatically generated by the CI `release` pipeline."
+          head: update-files-branch
+          base: ${{ github.ref_name }}
