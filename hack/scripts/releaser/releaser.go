@@ -141,66 +141,6 @@ func (r *Release) compileRepositoryURL(scheme string) string {
 	return fmt.Sprintf("%s://github.com/%s/nuclio", scheme, r.repositoryOwnerName)
 }
 
-func (r *Release) prepareRepository() error {
-	if r.repositoryDirPath == "" {
-		r.logger.Debug("Creating a temp dir")
-
-		// create a temp dir & clone to it
-		workDir, err := os.MkdirTemp("", "nuclio-releaser-*")
-		if err != nil {
-			return errors.Wrap(err, "Failed to create work dir")
-		}
-
-		repositoryURL := r.compileRepositoryURL(r.repositoryScheme)
-
-		r.logger.DebugWith("Work dir created, cloning...",
-			"workDir", workDir,
-			"repositoryOwnerName", r.repositoryOwnerName,
-			"repositoryURL", repositoryURL)
-
-		if _, err = r.cmdRunner.Run(&cmdrunner.RunOptions{
-			WorkingDir: &workDir,
-		},
-			`git clone %s.git .`,
-			repositoryURL); err != nil {
-			return errors.Wrap(err, "Failed to clone repository")
-		}
-
-		r.repositoryDirPath = workDir
-		r.logger.DebugWith("Successfully cloned repository",
-			"workDir", workDir,
-			"repositoryOwnerName", r.repositoryOwnerName,
-			"repositoryURL", repositoryURL)
-	}
-
-	if !common.IsDir(r.repositoryDirPath) {
-		return errors.Errorf("Repository dir path %s is not a directory", r.repositoryDirPath)
-	}
-
-	runOptions := &cmdrunner.RunOptions{
-		WorkingDir: &r.repositoryDirPath,
-	}
-
-	// ensure both development and release branches exists
-	for _, branchName := range []string{
-		r.developmentBranch,
-
-		// should be last, we release the version from it
-		r.releaseBranch,
-	} {
-		if _, err := r.cmdRunner.Run(runOptions, `git checkout %s`, branchName); err != nil {
-			return errors.Wrap(err, "Failed to ensure branch exists")
-		}
-	}
-
-	// get all tags
-	if _, err := r.cmdRunner.Run(runOptions, `git fetch --tags`); err != nil {
-		return errors.Wrap(err, "Failed to fetch tags")
-	}
-
-	return nil
-}
-
 func (r *Release) populateHelmChartConfig() error {
 
 	// read
@@ -217,7 +157,7 @@ func (r *Release) populateHelmChartConfig() error {
 }
 
 func (r *Release) resolveHelmChartFullPath() string {
-	return r.repositoryDirPath + "/" + helmChartFilePath
+	return helmChartFilePath
 }
 
 func (r *Release) populateCurrentAndTargetVersions() error {
