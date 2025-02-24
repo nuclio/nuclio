@@ -114,6 +114,7 @@ func (g *golang) Restart() error {
 
 func (g *golang) Stop() error {
 	g.SetStatus(status.Stopped)
+	g.Logger.Info("Stopping golang runtime")
 
 	select {
 	case cancelEventHandling := <-g.cancelEventHandlingChan:
@@ -184,15 +185,10 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 
 		// calculate how long it took to invoke the function
 		callDuration := time.Since(startTime)
+		responseChan <- processingResult
 
-		select {
-		// if the reader is waiting, then it means that runtime wasn't stopped and waits for a response
-		case responseChan <- processingResult:
-			// add duration to sum
-			g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
-			g.Statistics.DurationMilliSecondsCount++
-		default:
-		}
+		g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
+		g.Statistics.DurationMilliSecondsCount++
 	}()
 
 	select {
