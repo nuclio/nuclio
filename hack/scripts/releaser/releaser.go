@@ -217,7 +217,7 @@ func (r *Release) populateHelmChartConfig() error {
 }
 
 func (r *Release) resolveHelmChartFullPath() string {
-	return "/Users/Ekaterina_Molchanova/iguazio/misc_workspace/nuclio/hack/k8s/helm/nuclio/Chart.yaml"
+	return r.repositoryDirPath + "/" + helmChartFilePath
 }
 
 func (r *Release) populateCurrentAndTargetVersions() error {
