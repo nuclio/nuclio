@@ -101,7 +101,7 @@ jobs:
     # run this specific job for feature branch only as we wont have a github release for it
     # the tag would be useful to track feature branch released versions
     if: needs.prepare-inputs.outputs.is_feature_branch == 'true'
-    needs: [ prepare-inputs, release_binary, release ]
+    needs: [ prepare-inputs]
     steps:
       - name: Create feature branch tag
         uses: actions/github-script@v7
