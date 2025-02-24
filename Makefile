@@ -155,6 +155,10 @@ get-release-info:
 get-target-version:
 	@grep "^TARGET_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
 
+.PHONY: get-helm-target-version
+get-helm-target-version:
+	@grep "^HELM_CHARTS_TARGET_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
+
 
 .PHONY: release-helm-charts
 release-helm-charts:
