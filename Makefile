@@ -151,6 +151,14 @@ get-release-info:
 		go run hack/scripts/releaser/releaser.go --$(BUMP_VERSION_MODE) --release-info-path=$(RELEASE_INFO_PATH) --skip-bump-helm-chart; \
 	fi
 
+.PHONY: release-helm-charts
+release-helm-charts:
+	@if [ -n "$(TARGET_VERSION)" ]; then \
+		go run hack/scripts/releaser/releaser.go --target-version=$(TARGET_VERSION);\
+	else \
+		go run hack/scripts/releaser/releaser.go --$(BUMP_VERSION_MODE); \
+	fi
+
 
 #
 # Build helpers

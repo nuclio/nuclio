@@ -71,10 +71,12 @@ type Release struct {
 
 func (r *Release) SaveReleaseInfo() error {
 	// Define the file where the release info will be saved
-	filePath := ".release_info.txt"
+	if r.releaseInfoPath == "" {
+		return nil
+	}
 
 	// Create or open the file for writing
-	file, err := os.Create(filePath)
+	file, err := os.Create(r.releaseInfoPath)
 	if err != nil {
 		return errors.Errorf("Failed to create file: %w", err)
 	}
@@ -488,7 +490,7 @@ func run() error {
 	flag.Var(release.targetVersion, "target-version", "Release target version")
 	flag.Var(release.currentVersion, "current-version", "Current version")
 	flag.Var(release.helmChartsTargetVersion, "helm-charts-release-version", "Helm charts release target version")
-	flag.StringVar(&release.releaseInfoPath, "release-info-path", ".release-info", "Path to save release info")
+	flag.StringVar(&release.releaseInfoPath, "release-info-path", "", "Path to save release info")
 	flag.BoolVar(&release.skipBumpHelmChart, "skip-bump-helm-chart", false, "Skip bump helm chart")
 	flag.BoolVar(&release.skipPublishHelmCharts, "skip-publish-helm-charts", false, "Whether to skip publishing helm charts")
 	flag.BoolVar(&release.bumpPatch, "bump-patch", false, "Resolve chart version and bump both Nuclio and Chart patch version")

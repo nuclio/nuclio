@@ -90,7 +90,7 @@ jobs:
       - name: Resolve inputs
         id: resolve
         run: |
-          VERSION_INPUT=$(grep "VERSION_INPUT:" .release-info | cut -d' ' -f2)
+          VERSION_INPUT=$(grep "VERSION_INPUT:" .release-info.txt | cut -d' ' -f2)
           echo "VERSION_INPUT=${VERSION_INPUT}" >> $GITHUB_ENV
         env:
           VERSION_INPUT: ${{ github.event.inputs.version }}
