@@ -113,6 +113,7 @@ func (suite *runtimeTestSuite) TestProcessEvent() {
 	})
 	suite.Require().NoError(err)
 
+	// many iterations to ensure stability
 	for i := 0; i < 10000; i++ {
 		res, err := golangRuntime.ProcessEvent(nil, suite.logger)
 		suite.Require().NoError(err)
