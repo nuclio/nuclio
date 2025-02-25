@@ -142,7 +142,7 @@ jobs:
           gh release create ${{ github.ref }} --title "Release ${{ github.ref }}" --notes "$(git log $(git describe --tags --abbrev=0)..${GITHUB_REF} --pretty=format:'%s')"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  helm-publish-create-pr:
+  helm-bump-create-pr:
     runs-on: ubuntu-latest
 
     steps:
@@ -158,7 +158,7 @@ jobs:
 
       - name: Make changes to files
         run: |
-          make release-helm-charts BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
+          make bump-helm-charts BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
 
       - name: Set up Git
         run: |
