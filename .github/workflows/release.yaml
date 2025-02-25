@@ -165,20 +165,22 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
 
+      - name: Define branch name
+        run: |
+          echo "HELM_BRANCH_NAME=update-helm-charts-${{ steps.resolve.outputs.helm_version }}" >> $GITHUB_ENV
+
       - name: Create new branch
         run: |
-          HELM_VERSION_INPUT=$(make get-helm-target-version)
-          echo "HELM_VERSION_INPUT=${HELM_VERSION_INPUT}"
-          git checkout -b update-helm-charts-${HELM_VERSION_INPUT}
+          git checkout -b $HELM_BRANCH_NAME
 
       - name: Commit changes
         run: |
           git add .
-          git commit -m "Automated changes from GitHub Action"
+          git commit -m "Bump to ${{ steps.resolve.outputs.version }}"
 
       - name: Push changes to new branch
         run: |
-          git push --set-upstream origin update-helm-charts-${HELM_VERSION_INPUT}
+          git push --set-upstream origin $HELM_BRANCH_NAME
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v3
