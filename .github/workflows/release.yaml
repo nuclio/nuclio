@@ -96,7 +96,7 @@ jobs:
           echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_ENV
 
   create-tag:
-    name: Create tag v${{ needs.prepare-inputs.outputs.version }}
+    name: Create tag v${{ steps.resolve.outputs.version }}
     runs-on: ubuntu-latest
     needs: [ prepare-inputs]
     steps:
