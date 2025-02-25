@@ -49,12 +49,13 @@ on:
         required: false
         default: ''
       skip_create_tag_release:
-        description: 'Whether to skip creating tag & release in Github (Auto skip for feature branch)'
+        description: 'Whether to skip creating tag & release in Github'
         required: false
         default: 'false'
         type: choice
         options:
           - 'true'
+          - 'false'
       docker_image_rule:
         description: 'Docker image rule to build and release (space separated)'
         required: false
@@ -95,12 +96,8 @@ jobs:
           echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_ENV
 
   create-tag:
-    name: Create tag v${{ needs.prepare-inputs.outputs.version }}
+    name: Create tag v${{ steps.resolve.outputs.version }}
     runs-on: ubuntu-latest
-
-    # run this specific job for feature branch only as we wont have a github release for it
-    # the tag would be useful to track feature branch released versions
-    if: needs.prepare-inputs.outputs.is_feature_branch == 'true'
     needs: [ prepare-inputs]
     steps:
       - name: Create feature branch tag
