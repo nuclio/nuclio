@@ -35,8 +35,8 @@ func NewAllocatorSyncMap() *AllocatorSyncMap {
 }
 
 // Load returns the allocator stored in the map for a key
-func (w *AllocatorSyncMap) Load(key string) (Allocator, bool) {
-	load, found := w.syncMap.Load(key)
+func (a *AllocatorSyncMap) Load(key string) (Allocator, bool) {
+	load, found := a.syncMap.Load(key)
 	if found {
 		return load.(Allocator), found
 	}
@@ -44,14 +44,14 @@ func (w *AllocatorSyncMap) Load(key string) (Allocator, bool) {
 }
 
 // Store sets the allocator per key
-func (w *AllocatorSyncMap) Store(key string, value Allocator) {
-	w.syncMap.Store(key, value)
+func (a *AllocatorSyncMap) Store(key string, value Allocator) {
+	a.syncMap.Store(key, value)
 }
 
 // Keys returns all allocator keys
-func (w *AllocatorSyncMap) Keys() []string {
+func (a *AllocatorSyncMap) Keys() []string {
 	var keys []string
-	w.Range(func(s string, allocator Allocator) bool {
+	a.Range(func(s string, allocator Allocator) bool {
 		keys = append(keys, s)
 		return true
 	})
@@ -60,18 +60,18 @@ func (w *AllocatorSyncMap) Keys() []string {
 
 // LoadOrStore tries to load exiting object by key, if not existing - creates one and returns it
 // if key is empty - always create and return a new object allocator
-func (w *AllocatorSyncMap) LoadOrStore(key string,
+func (a *AllocatorSyncMap) LoadOrStore(key string,
 	allocatorCreator func() (Allocator, error)) (Allocator, error) {
 
 	if key == "" {
 		return allocatorCreator()
 	}
 
-	w.lock.Lock()
-	defer w.lock.Unlock()
+	a.lock.Lock()
+	defer a.lock.Unlock()
 
 	// try to find an allocator
-	objectAllocator, loaded := w.Load(key)
+	objectAllocator, loaded := a.Load(key)
 
 	// if it already exists, just use it
 	if loaded {
@@ -84,19 +84,19 @@ func (w *AllocatorSyncMap) LoadOrStore(key string,
 		return nil, errors.Wrap(err, "Failed to create allocator")
 	}
 
-	w.syncMap.Store(key, objectAllocator)
+	a.syncMap.Store(key, objectAllocator)
 	return objectAllocator, nil
 }
 
 // Delete deletes allocator
-func (w *AllocatorSyncMap) Delete(key string) {
-	w.syncMap.Delete(key)
+func (a *AllocatorSyncMap) Delete(key string) {
+	a.syncMap.Delete(key)
 }
 
 // Range calls handler for each allocator in map
 // if handler returns false, iteration is stopped
-func (w *AllocatorSyncMap) Range(handler func(string, Allocator) bool) {
-	w.syncMap.Range(func(key, value interface{}) bool {
+func (a *AllocatorSyncMap) Range(handler func(string, Allocator) bool) {
+	a.syncMap.Range(func(key, value interface{}) bool {
 		return handler(key.(string), value.(Allocator))
 	})
 }
