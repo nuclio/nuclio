@@ -160,12 +160,12 @@ get-helm-target-version:
 	@grep "^HELM_CHARTS_TARGET_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
 
 
-.PHONY: release-helm-charts
-release-helm-charts:
+.PHONY: bump-helm-charts
+bump-helm-charts:
 	@if [ -n "$(TARGET_VERSION)" ]; then \
-		go run hack/scripts/releaser/releaser.go --target-version=$(TARGET_VERSION);\
+		go run hack/scripts/releaser/releaser.go --target-version=$(TARGET_VERSION) --skip-publish-helm-charts ;\
 	else \
-		go run hack/scripts/releaser/releaser.go --$(BUMP_VERSION_MODE); \
+		go run hack/scripts/releaser/releaser.go --$(BUMP_VERSION_MODE) --skip-publish-helm-charts; \
 	fi
 
 
