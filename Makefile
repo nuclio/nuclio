@@ -159,6 +159,10 @@ get-target-version:
 get-helm-target-version:
 	@grep "^HELM_CHARTS_TARGET_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
 
+.PHONY: get-current-version
+get-current-version:
+	@grep "^CURRENT_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
+
 
 .PHONY: bump-helm-charts
 bump-helm-charts:
