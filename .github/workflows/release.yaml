@@ -229,7 +229,7 @@ jobs:
         DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
 
     - name: Upload binaries
-      uses: AButler/upload-release-assets@v2.0.2
+      uses: AButler/upload-release-assets@v3.0
       with:
         files: '/home/runner/go/bin/nuctl-*'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
