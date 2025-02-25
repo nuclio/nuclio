@@ -219,7 +219,7 @@ jobs:
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-      - uses: azure/setup-helm@v3
+      - uses: azure/setup-helm@v4
         with:
           version: "v3.6.3"
 
@@ -350,7 +350,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: azure/setup-helm@v3
+      - uses: azure/setup-helm@v4
         with:
           version: "v3.6.3"
 
