@@ -250,31 +250,6 @@ func (r *Release) compileReleaseNotes() (string, error) {
 	return strings.TrimSpace(results.Output), nil
 }
 
-func (r *Release) mergeAndPush(branch string, branchToMerge string) error {
-	if branch == branchToMerge {
-		r.logger.InfoWith("Nothing to merge and push when branches are equal",
-			"branchToMerge", branchToMerge,
-			"branch", branch)
-		return nil
-	}
-	runOptions := &cmdrunner.RunOptions{
-		WorkingDir: &r.repositoryDirPath,
-	}
-	if _, err := r.cmdRunner.Run(runOptions, `git checkout %s`, branch); err != nil {
-		return errors.Wrapf(err, "Failed to checkout to branch %s", branch)
-	}
-
-	if _, err := r.cmdRunner.Run(runOptions, `git merge %s`, branchToMerge); err != nil {
-		return errors.Wrapf(err, "Failed to merge branch %s", branchToMerge)
-	}
-
-	if _, err := r.cmdRunner.Run(runOptions, `git push`); err != nil {
-		return errors.Wrapf(err, "Failed to push")
-	}
-
-	return nil
-}
-
 func (r *Release) bumpHelmChartVersion() error {
 	r.logger.DebugWith("Bumping helm chart version",
 		"targetVersion", r.targetVersion,
@@ -291,7 +266,7 @@ func (r *Release) bumpHelmChartVersion() error {
 		return errors.Wrap(err, "Failed to checkout to release branch")
 	}
 	if _, err := r.cmdRunner.Run(runOptions,
-		`git grep -lF "%s" %s | grep yaml | xargs sed -i '' -e "s/%s/%s/g"`,
+		`git grep -lF "%s" %s | grep yaml | xargs sed -i -e "s/%s/%s/g"`,
 		r.helmChartConfig.AppVersion,
 		path.Join("hack", "k8s"),
 		r.helmChartConfig.AppVersion,
@@ -315,30 +290,7 @@ func (r *Release) bumpHelmChartVersion() error {
 	}
 
 	// commit & push changes
-	commitMessage := fmt.Sprintf("Bump to %s", r.targetVersion)
-
-	gitStatusResponse, err := r.cmdRunner.Run(runOptions, `git status --short`)
-	if err != nil {
-		return errors.Wrap(err, "Failed to determine whether working dir is dirty")
-	}
-	if gitStatusResponse.Output != "" {
-		r.logger.InfoWith("Working dir is dirty, committing changes",
-			"changes", gitStatusResponse.Output)
-		if _, err := r.cmdRunner.Run(runOptions, `git commit -am "%s"`, commitMessage); err != nil {
-			return errors.Wrap(err, "Failed to commit changes")
-		}
-		if _, err := r.cmdRunner.Run(runOptions, `git push`); err != nil {
-			return errors.Wrap(err, "Failed to checkout to release branch")
-		}
-	} else {
-		r.logger.WarnWith("No changes were made")
-	}
-
-	if r.releaseBranch != r.developmentBranch {
-		if err := r.mergeAndPush(r.developmentBranch, r.releaseBranch); err != nil {
-			return errors.Wrap(err, "Failed to sync development and release branches")
-		}
-	}
+	//commitMessage := fmt.Sprintf("Bump to %s", r.targetVersion)
 
 	if !r.skipPublishHelmCharts {
 		r.logger.Debug("Publishing helm charts")
