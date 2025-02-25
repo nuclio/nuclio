@@ -61,9 +61,10 @@ Nuclio enforces this with a sync pool allocator that ensures that each event pro
 
 For asynchronous processing, a worker can be allocated for multiple events simultaneously.
 In this case, we use a singleton async allocator, which allows multiple events to share the same event processor without blocking further allocations.
-However, as the event moves further through the processing flow, we still need to allocate an event processor at the runtime level. While an event is being processed, we must ensure that no other events are processed through the same event processor to maintain correct behaviour.
+However, as the event moves further through the processing flow, we still need to allocate an event processor at the runtime level.
+While an event is being processed, we must ensure that no other events are processed through the same event processor to maintain correct behaviour.
 
-### Synchronous vs. Asynchronous Allocator in Our Case
+### Synchronous vs. Asynchronous Allocator
 In our system, an event processor allocator is responsible for assigning event processors to handle incoming events.
 The way this allocation happens depends on whether the processing mode is synchronous or asynchronous.
 
