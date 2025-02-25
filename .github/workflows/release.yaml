@@ -116,7 +116,7 @@ jobs:
       - name: Generate Structured Release Notes
         run: |
           LATEST_TAG=${{ needs.prepare-inputs.outputs.prev_version }}
-          RELEASE_NOTES=$(git log $LATEST_TAG..${GITHUB_SHA} --pretty=format:'- [%h] %s by @%an in #%d' --abbrev-commit | sed 's/(.*)//')
+          RELEASE_NOTES=$(git log $LATEST_TAG..${GITHUB_SHA} --pretty=format:'- [%h] %s by @%aN in #%d' --abbrev-commit | sed 's/(.*)//')
           echo "$RELEASE_NOTES" > release_notes.md
 
       - name: Create Release
