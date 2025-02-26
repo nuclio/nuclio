@@ -1,4 +1,4 @@
-# Copyright 2025 The Nuclio Authors.
+# Copyright 2023 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+name: Release images
 
-name: Release
+on:
+  release:
+    types:
+      - created
 
-run-name: Releasing ${{ inputs.target_version }} ${{ github.event.inputs.branch }}
+  # Run Release on push to development for unstable
+  push:
+    branches:
+      - development
+
+  workflow_dispatch:
+    inputs:
+      docker_image_rule:
+        description: 'Docker image rule to build and release (space separated)'
+        required: false
+        default: ''
+
 env:
   REPO: quay.io
   REPO_NAME: nuclio
@@ -24,158 +39,15 @@ env:
   DOCKER_BUILDKIT: 1
 
 permissions:
+
+  # Allow the action to upload artifact to releases
   contents: write
+
+  # Allow the action to upload cache images
   packages: write
 
-on:
-  push:
-    branches:
-      - development
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'The version to release. If not provided, will be calculated.'
-        default: ''
-        type: string
-      bump_version_mode:
-        description: 'Version bump mode'
-        default: 'bump-minor'
-        type: choice
-        options: ['bump-minor', 'bump-major', 'bump-patch']
-      target_version:
-        description: 'Target version (Optional)'
-        required: false
-        default: ''
-      skip_create_tag_release:
-        description: 'Skip creating GitHub tag & release'
-        required: false
-        default: 'false'
-        type: choice
-        options: ['true', 'false']
-      docker_image_rule:
-        description: 'Docker image rule to build and release (space separated)'
-        required: false
-        default: ''
-      branch:
-        description: 'The branch to which the release will be merged (default is development).'
-        required: false
-        default: 'development'
-        type: string
 
 jobs:
-  prepare-inputs:
-    name: Prepare inputs
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      prev_version: ${{ steps.resolve.outputs.prev_version }}
-      version: ${{ steps.resolve.outputs.version }}
-      helm_version: ${{ steps.resolve.outputs.helm_version }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          # Fetch all history for all tags and branches
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-
-      - name: Run Go script
-        run: |
-          make get-release-info BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
-
-      - name: Resolve inputs
-        id: resolve
-        run: |
-          CURRENT_VERSION_INPUT=$(make get-current-version)
-          TARGET_VERSION_INPUT=$(make get-target-version)
-          HELM_VERSION_INPUT=$(make get-helm-target-version)
-          
-          echo "CURRENT_VERSION_INPUT=${CURRENT_VERSION_INPUT}"
-          echo "TARGET_VERSION_INPUT=${TARGET_VERSION_INPUT}"
-          echo "HELM_VERSION_INPUT=${HELM_VERSION_INPUT}"
-
-          echo "prev_version=${CURRENT_VERSION_INPUT}" >> $GITHUB_OUTPUT
-          echo "version=${TARGET_VERSION_INPUT}" >> $GITHUB_OUTPUT
-          echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_OUTPUT
-
-  release:
-    name: Generate Changelog & Create Release
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    needs: [ prepare-inputs ]
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: 0
-
-      - name: Generate Changelog with git-cliff
-        uses: orhun/git-cliff-action@v4
-        id: git-cliff
-        with:
-          config: cliff.toml
-          args: ${{ needs.prepare-inputs.outputs.prev_version }}..HEAD --tag ${{ needs.prepare-inputs.outputs.version }}
-        env:
-          OUTPUT: CHANGELOG.md
-
-      - name: Print the Changelog
-        run: cat "${{ steps.git-cliff.outputs.changelog }}"
-
-      - name: Create GitHub Release
-        run: |
-          gh release create ${{ needs.prepare-inputs.outputs.version }} \
-            --title "${{ needs.prepare-inputs.outputs.version }}" \
-            --notes-file CHANGELOG.md \
-            --target ${{ github.event.inputs.branch }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  helm-bump-create-pr:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    needs: [ prepare-inputs ]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-
-      - name: Set up Git
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
-
-      - name: Make changes to files
-        run: |
-          make bump-helm-charts BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
-
-      - name: Commit and push changes
-        run: |
-          git commit -am "Bump to ${{ needs.prepare-inputs.outputs.version }}"
-          git pull --rebase origin development
-          git push origin development
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          title: "[Helm] Bump Helm charts"
-          body: "This PR contains changes automatically generated by the CI `release` pipeline."
-          team-reviewers: |
-            maintainers
-          repository: ${{ github.repository }}
-          head: ${{ env.HELM_BRANCH_NAME }}
-          base: ${{ github.event.inputs.branch }}
   image_matrix_prep:
     name: Prepare image list
     outputs:
@@ -183,9 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: 0
+
       - name: define targets
         id: set-matrix
         run: |
@@ -196,14 +66,15 @@ jobs:
           fi;
 
           docker_image_rules_json=$(make print-docker-image-rules-json)
-
+          
           # if "handler-builder-golang-onbuild" is in the matrix
           # then ensure "handler-builder-golang-onbuild-alpine" is there too.
           docker_image_rules_json=$(echo $docker_image_rules_json | \
             jq -c 'select(.[].image_rule=="handler-builder-golang-onbuild") += [{"image_rule":"handler-builder-golang-onbuild-alpine"}]')
-
+          
           echo $docker_image_rules_json
           echo "matrix=$(echo $docker_image_rules_json | jq -c '[.[].image_rule]')" >> $GITHUB_OUTPUT
+  
 
   release-images:
     if: github.repository == 'nuclio/nuclio' || github.event_name == 'workflow_dispatch'
@@ -218,6 +89,8 @@ jobs:
           - amd64
         docker_image_rule: ${{ fromJson(needs.image_matrix_prep.outputs.matrix) }}
         exclude:
+
+
           # issues with building on qemu
           - arch: arm64
             docker_image_rule: handler-builder-dotnetcore-onbuild
@@ -303,7 +176,7 @@ jobs:
           DOCKER_IMAGES_RULES: ${{ matrix.docker_image_rule }}
 
   release_binary:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'release'
     name: Release Binary ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
@@ -362,20 +235,14 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
   helm-publish:
     name: Publish helm charts
-    if: github.event_name == 'workflow_dispatch'
-    needs: [ release-images ]
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-         ref: ${{ github.event.inputs.branch }}
-
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: nuclio-helm
+          #  Checkout the branch from which the release was triggered
+          ref: ${{ github.event.release.target_commitish }}
 
       - name: Set up Helm
         uses: azure/setup-helm@v3
@@ -388,25 +255,30 @@ jobs:
       - name: Set commit message
         id: set_commit_message
         run: |
-          HELM_PUBLISH_COMMIT_MESSAGE="Releasing chart ${{ needs.prepare-inputs.outputs.helm_version }}"
+          HELM_PUBLISH_COMMIT_MESSAGE="Releasing chart $(helm inspect chart hack/k8s/helm/nuclio | yq eval '.version' -)"
           echo "HELM_PUBLISH_COMMIT_MESSAGE=$HELM_PUBLISH_COMMIT_MESSAGE" >> $GITHUB_ENV
+
+      - name: Fetch branch and prepare directories
+        run: |
+          echo "Fetching branch"
+          rm -rf /tmp/nuclio-helm
+          git clone -b gh-pages --single-branch git@github.com:nuclio/nuclio.git /tmp/nuclio-helm
 
       - name: Create package and update index
         run: |
-            echo "Creating package and updating index"
-            helm package -d nuclio-helm/charts hack/k8s/helm/nuclio
-            cd nuclio-helm/charts
-            helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
-          # Step 7: Publish charts
+          echo "Creating package and updating index"
+          helm package -d /tmp/nuclio-helm/charts hack/k8s/helm/nuclio
+          cd /tmp/nuclio-helm/charts && helm repo index --merge index.yaml --url https://nuclio.github.io/nuclio/charts/ .
+
       - name: Publish charts
         run: |
-          echo "Publishing charts"
-          cd nuclio-helm
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
+          echo "Publishing"
+          cd /tmp/nuclio-helm/charts
           git add --all
           git commit -m "$HELM_PUBLISH_COMMIT_MESSAGE"
           git push origin gh-pages
           echo "Done"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+

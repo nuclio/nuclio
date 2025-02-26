@@ -22,17 +22,12 @@ import (
 	"bytes"
 	"io"
 	"net/http"
-	"runtime"
-	"strings"
 	"testing"
-
-	"github.com/nuclio/nuclio/pkg/cmdrunner"
-	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	nucliozap "github.com/nuclio/zap"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -65,127 +60,6 @@ func (suite *ReleaserTestSuite) SetupTest() {
 	suite.releaser = NewRelease(suite.cmdRunner, suite.logger)
 	suite.releaser.targetVersion = &semver.Version{}
 	suite.releaser.helmChartsTargetVersion = &semver.Version{}
-}
-
-func (suite *ReleaserTestSuite) TestCreateReleaseCopyToClipboard() {
-	if runtime.GOOS != "darwin" {
-		suite.Suite.T().Skipf("This test uses macOS 'pbcopy' command. %s != darwin", runtime.GOOS)
-	}
-	randomReleaseNotes := common.GenerateRandomString(5000, common.LettersAndNumbers)
-
-	// get release notes
-	suite.cmdRunner.
-		On("Run",
-			mock.Anything,
-			mock.Anything,
-			mock.Anything).
-		Return(cmdrunner.RunResult{
-			Output: randomReleaseNotes,
-		}, nil).
-		Once()
-
-	// open window
-	suite.cmdRunner.
-		On("Run",
-			mock.Anything,
-			mock.Anything,
-			mock.Anything).
-		Return(cmdrunner.RunResult{}, nil).
-		Once()
-
-	suite.mockHTTPClientResponses([]string{
-
-		// get workflows
-		`{"workflows": [{"id": 123, "name": "Release"}]}`,
-
-		// get workflow first status
-		`{"workflow_runs": [{"status": "completed", "conclusion": "success"}]}`,
-	})
-
-	err := suite.releaser.createRelease()
-	suite.Require().NoError(err)
-}
-
-func (suite *ReleaserTestSuite) TestBumpHelmChartVersion() {
-	suite.releaser.releaseBranch = "x.y.z"
-	suite.releaser.developmentBranch = "x.y.z"
-	suite.releaser.skipPublishHelmCharts = true
-
-	// checkout to release branch
-	suite.cmdRunner.On("Run",
-		mock.Anything,
-		mock.MatchedBy(func(cmd string) bool {
-			return strings.HasPrefix(cmd, `git checkout`)
-		}),
-		mock.Anything).
-		Return(cmdrunner.RunResult{}, nil).
-		Once()
-
-	// replace image tag versions
-	suite.cmdRunner.On("Run",
-		mock.Anything,
-		mock.MatchedBy(func(cmd string) bool {
-			return strings.HasPrefix(cmd, "git grep -lF")
-		}),
-		mock.Anything).
-		Return(cmdrunner.RunResult{}, nil)
-
-	// replace app version
-	suite.cmdRunner.On("Run",
-		mock.Anything,
-		mock.MatchedBy(func(cmd string) bool {
-			return strings.Contains(cmd, `\(appVersion: \)`)
-		}),
-		mock.Anything).
-		Return(cmdrunner.RunResult{}, nil).
-		Once()
-
-	// replace chart version
-	suite.cmdRunner.On("Run",
-		mock.Anything,
-		mock.MatchedBy(func(cmd string) bool {
-			return strings.Contains(cmd, `\(version: \)`)
-		}),
-		mock.Anything).
-		Return(cmdrunner.RunResult{}, nil).
-		Once()
-
-	// status
-	suite.cmdRunner.On("Run",
-		mock.Anything,
-		mock.MatchedBy(func(cmd string) bool {
-			return strings.HasPrefix(cmd, `git status`)
-		}),
-		mock.Anything).
-		Return(cmdrunner.RunResult{
-			Output: "M helm/Chart.yaml\nM helm/values.yaml",
-		}, nil).
-		Once()
-
-	// commit
-	suite.cmdRunner.On("Run",
-		mock.Anything,
-		mock.MatchedBy(func(cmd string) bool {
-			return strings.HasPrefix(cmd, `git commit`)
-		}),
-		mock.Anything).
-		Return(cmdrunner.RunResult{}, nil).
-		Once()
-
-	// push
-	suite.cmdRunner.On("Run",
-		mock.Anything,
-		mock.MatchedBy(func(cmd string) bool {
-			return strings.HasPrefix(cmd, `git push`)
-		}),
-		mock.Anything).
-		Return(cmdrunner.RunResult{}, nil).
-		Once()
-
-	err := suite.releaser.bumpHelmChartVersion()
-	suite.Require().NoError(err)
-
-	suite.cmdRunner.AssertExpectations(suite.T())
 }
 
 func (suite *ReleaserTestSuite) TestResolveDesiredPatchVersions() {

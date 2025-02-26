@@ -1,0 +1,80 @@
+# git-cliff ~ default configuration file
+# https://git-cliff.org/docs/configuration
+#
+# Lines starting with "#" are comments.
+# Configuration options are organized into tables and keys.
+# See documentation for more information on available options.
+
+[changelog]
+# template for the changelog header
+header = """
+# Changelog\n
+"""
+# template for the changelog body
+# https://keats.github.io/tera/docs/#introduction
+body = """
+{% if version %}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}
+## [Unreleased]
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | split(pat="\n") | first }}{% if commit.github.username %} by @{{ commit.github.username }}{% endif %}{% if commit.github.pr_number %} in #{{ commit.github.pr_number }}{% endif %}
+{% endfor %}
+{% endfor %}
+"""
+# template for the changelog footer
+footer = """
+"""
+# remove the leading and trailing s
+trim = true
+# postprocessors
+postprocessors = [
+  # { pattern = '<REPO>', replace = "https://github.com/rokatyy/nuclio" }, # replace repository URL
+]
+# render body even when there are no releases to process
+# render_always = true
+# output file path
+# output = "CHANGELOG.md"
+
+[git]
+# parse the commits based on https://www.conventionalcommits.org
+conventional_commits = false
+# filter out the commits that are not conventional
+filter_unconventional = true
+# process each line of a commit as an individual commit
+split_commits = false
+# regex for preprocessing the commit messages
+commit_preprocessors = [
+  # Replace issue numbers
+  #{ pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](<REPO>/issues/${2}))"},
+  # Check spelling of the commit with https://github.com/crate-ci/typos
+  # If the spelling is incorrect, it will be automatically fixed.
+  #{ pattern = '.*', replace_command = 'typos --write-changes -' },
+]
+# regex for parsing and grouping commits
+commit_parsers = [
+  { message = "^\\[.*\\].*fix", group = "<!-- 1 -->🐛 Bug Fixes" },
+  { message = "^\\[.*\\].*Fix", group = "<!-- 1 -->🐛 Bug Fixes" },
+  { message = "^\\[Docs\\]", group = "<!-- 3 -->📚 Documentation" },
+  { message = "^\\[Performance\\]", group = "<!-- 4 -->⚡ Performance" },
+  { message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
+  { message = "^style", group = "<!-- 5 -->🎨 Styling" },
+  { message = "^\\[Test\\]", group = "<!-- 6 -->🧪 Testing" },
+  { message = "^\\[Dependencies\\]", group = "<!-- 6 -->🧪 Dependencies" },
+  { message = "^\\[Dependabot\\]", group = "<!-- 6 -->🧪 Dependencies" },
+  { message = "^Bump to", skip = true },
+  { message = "^\\[CI\\]", group = "<!-- 7 -->⚙️ Miscellaneous Tasks" },
+  { body = ".*security", group = "<!-- 8 -->🛡️ Security" },
+  { message = "^Revert", group = "<!-- 9 -->◀️ Revert" },
+  { message = "^\\[.*\\]", group = "<!-- 0 -->🚀 Features / Enhancements" },
+  { message = ".*", group = "<!-- 10 -->💼 Other" },
+]
+# filter out the commits that are not matched by commit parsers
+filter_commits = false
+# sort the tags topologically
+topo_order = false
+# sort the commits inside sections by oldest/newest order
+sort_commits = "oldest"

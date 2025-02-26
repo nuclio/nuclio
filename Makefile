@@ -115,6 +115,9 @@ NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.23-alpine
 DEFAULT_NUCTL_DOCUMENTATION_PATH := docs/reference/nuctl/cli
 NUCTL_DOCUMENTATION_PATH := $(if $(NUCTL_DOCUMENTATION_PATH),$(NUCTL_DOCUMENTATION_PATH),$(DEFAULT_NUCTL_DOCUMENTATION_PATH))
 
+DEFAULT_RELEASE_INFO_PATH = ".release-info.txt"
+RELEASE_INFO_PATH := $(if $(RELEASE_INFO_PATH),$(RELEASE_INFO_PATH),$(DEFAULT_RELEASE_INFO_PATH))
+
 #
 #  Must be first target
 #
@@ -137,6 +140,38 @@ helm-publish:
 	@echo Publishing
 	@cd /tmp/nuclio-helm/charts && git add --all && git commit -m $(HELM_PUBLISH_COMMIT_MESSAGE) && git push origin
 	@echo Done
+
+
+#
+.PHONY: get-release-info
+get-release-info:
+	@if [ -n "$(TARGET_VERSION)" ]; then \
+		go run hack/scripts/releaser/releaser.go --target-version=$(TARGET_VERSION) --release-info-path $(RELEASE_INFO_PATH) --skip-bump-helm-chart; \
+	else \
+		go run hack/scripts/releaser/releaser.go --$(BUMP_VERSION_MODE) --release-info-path=$(RELEASE_INFO_PATH) --skip-bump-helm-chart; \
+	fi
+
+.PHONY: get-target-version
+get-target-version:
+	@grep "^TARGET_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
+
+.PHONY: get-helm-target-version
+get-helm-target-version:
+	@grep "^HELM_CHARTS_TARGET_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
+
+.PHONY: get-current-version
+get-current-version:
+	@grep "^CURRENT_VERSION:" $(RELEASE_INFO_PATH) | cut -d' ' -f2
+
+
+.PHONY: bump-helm-charts
+bump-helm-charts:
+	@if [ -n "$(TARGET_VERSION)" ]; then \
+		go run hack/scripts/releaser/releaser.go --target-version=$(TARGET_VERSION) --skip-publish-helm-charts ;\
+	else \
+		go run hack/scripts/releaser/releaser.go --$(BUMP_VERSION_MODE) --skip-publish-helm-charts; \
+	fi
+
 
 #
 # Build helpers
