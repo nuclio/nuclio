@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
@@ -37,6 +38,8 @@ type golang struct {
 
 	// TODO: support multiple cancels when implementing async
 	cancelEventHandlingChan chan context.CancelFunc
+	// TODO: remove when implement full safe statistics for async processing
+	statisticsMutex sync.RWMutex
 }
 
 // NewRuntime returns a new golang runtime
@@ -63,6 +66,7 @@ func NewRuntime(parentLogger logger.Logger,
 		AbstractRuntime: abstractRuntime,
 		configuration:   configuration,
 		entrypoint:      handler.getEntrypoint(),
+		statisticsMutex: sync.RWMutex{},
 	}
 
 	// try to initialize the context, if applicable
@@ -114,6 +118,7 @@ func (g *golang) Restart() error {
 
 func (g *golang) Stop() error {
 	g.SetStatus(status.Stopped)
+	g.Logger.Info("Stopping golang runtime")
 
 	select {
 	case cancelEventHandling := <-g.cancelEventHandlingChan:
@@ -184,15 +189,9 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 
 		// calculate how long it took to invoke the function
 		callDuration := time.Since(startTime)
+		responseChan <- processingResult
 
-		select {
-		// if the reader is waiting, then it means that runtime wasn't stopped and waits for a response
-		case responseChan <- processingResult:
-			// add duration to sum
-			g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
-			g.Statistics.DurationMilliSecondsCount++
-		default:
-		}
+		g.AddStatistics(callDuration)
 	}()
 
 	select {
@@ -207,6 +206,14 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 	case <-ctx.Done():
 		return nil, errors.New("Event processing was cancelled")
 	}
+}
+
+func (g *golang) AddStatistics(callDuration time.Duration) {
+	g.statisticsMutex.Lock()
+	defer g.statisticsMutex.Unlock()
+
+	g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
+	g.Statistics.DurationMilliSecondsCount++
 }
 
 type processingResponse struct {
