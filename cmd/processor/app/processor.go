@@ -657,12 +657,24 @@ func (p *Processor) terminateAllTriggers(signal os.Signal) {
 		// drains all workers in trigger (for each trigger in parallel)
 		go func(triggerInstance trigger.Trigger, wg *sync.WaitGroup) {
 			defer wg.Done()
+
+			// invoke termination callbacks for all workers
 			if err := triggerInstance.SignalWorkersToTerminate(); err != nil {
 				p.logger.WarnWith("Failed to signal worker termination",
 					"triggerKind", triggerInstance.GetKind(),
 					"triggerName", triggerInstance.GetName(),
 					"err", err.Error())
 			}
+
+			// stop trigger, do it after sending sigterm
+			// to allow responding on the last event
+			if _, err := triggerInstance.Stop(false); err != nil {
+				p.logger.WarnWith("Failed to stop trigger",
+					"triggerKind", triggerInstance.GetKind(),
+					"triggerName", triggerInstance.GetName(),
+					"err", err.Error())
+			}
+
 		}(triggerInstance, wg)
 	}
 	wg.Wait()

@@ -1458,7 +1458,6 @@ func (p *Platform) enrichFunctionsWithAPIGateways(ctx context.Context, functions
 // configuration is given, do nothing.
 //
 //		`Allow` 	- Adds Tolerations / GPU Tolerations if taints were given. otherwise, assume pods can be scheduled on preemptible nodes.
-//	               > Purges any `affinity` / `anti-affinity` preemption related configuration
 //		`Constrain` - Uses node-affinity to make sure pods are assigned using OR on the given node label selectors.
 //	               > Uses `Allow` configuration as well.
 //	               > Purges any `anti-affinity` preemption related configuration
@@ -1582,20 +1581,6 @@ func (p *Platform) enrichFunctionPreemptionSpec(ctx context.Context,
 		}
 
 	case functionconfig.RunOnPreemptibleNodesAllow:
-
-		// purges any `affinity` / `anti-affinity` preemption related configuration
-		// remove anti-affinity
-		functionConfig.
-			PruneAffinityNodeSelectorRequirement(
-				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpNotIn), "matchAll")
-
-		// remove affinity
-		functionConfig.
-			PruneAffinityNodeSelectorRequirement(
-				preemptibleNodes.CompileAffinityByLabelSelector(v1.NodeSelectorOpIn), "oneOf")
-
-		// remove preemptible nodes constrain
-		functionConfig.PruneNodeSelector(preemptibleNodes.NodeSelector)
 
 		// enrich with tolerations
 		functionConfig.EnrichWithTolerations(preemptibleNodes.Tolerations)

@@ -109,7 +109,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 
 	buildArgs := ""
 	for buildFlag := range buildOptions.BuildFlags {
-		buildArgs += fmt.Sprintf(buildFlag + " ")
+		buildArgs += buildFlag + " "
 	}
 	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
 		buildArgs += fmt.Sprintf("--build-arg %s=%s ", buildArgName, buildArgValue)
@@ -976,7 +976,7 @@ func (c *ShellClient) build(buildOptions *BuildOptions, buildArgs string) error 
 		c.buildRetryInterval,
 		retryOnErrorMessages,
 		func(int) (string, error) {
-			runResults, err := c.runCommand(runOptions, buildCommand)
+			runResults, err := c.runCommand(runOptions, "%s", buildCommand)
 
 			// preserve error
 			lastBuildErr = err

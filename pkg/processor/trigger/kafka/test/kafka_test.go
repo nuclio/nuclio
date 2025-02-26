@@ -35,7 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )

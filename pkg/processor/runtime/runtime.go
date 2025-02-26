@@ -84,7 +84,7 @@ type AbstractRuntime struct {
 	ControlMessageBroker controlcommunication.ControlMessageBroker
 	databindings         map[string]databinding.DataBinding
 	configuration        *Configuration
-	status               status.Status
+	status               *status.SafeStatus
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -115,9 +115,8 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create context")
 	}
-
 	// set the initial status
-	newAbstractRuntime.status = status.Initializing
+	newAbstractRuntime.status = status.NewSafeStatus(status.Initializing)
 
 	return &newAbstractRuntime, nil
 }
@@ -139,12 +138,12 @@ func (ar *AbstractRuntime) GetStatistics() *Statistics {
 
 // SetStatus sets the runtime's reported status
 func (ar *AbstractRuntime) SetStatus(newStatus status.Status) {
-	ar.status = newStatus
+	ar.status.SetStatus(newStatus)
 }
 
 // GetStatus returns the runtime's reported status
 func (ar *AbstractRuntime) GetStatus() status.Status {
-	return ar.status
+	return ar.status.GetStatus()
 }
 
 // Start starts the runtime, or does nothing if the runtime does not require starting (e.g. Go and shell runtimes)

@@ -29,7 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -184,7 +184,9 @@ func NewConfiguration(id string,
 		return nil, errors.Wrap(err, "Failed to populate configuration from secrets")
 	}
 
-	if err := newConfiguration.PopulateExplicitAckMode(explicitAckModeValue,
+	if err := newConfiguration.PopulateExplicitAckMode(
+		logger,
+		explicitAckModeValue,
 		triggerConfiguration.ExplicitAckMode); err != nil {
 		return nil, errors.Wrap(err, "Failed to populate explicit ack mode")
 	}
@@ -371,15 +373,15 @@ func (c *Configuration) resolveInitialOffset(initialOffset string) (int64, error
 
 func (c *Configuration) resolveBalanceStrategy(balanceStrategy string) (sarama.BalanceStrategy, error) {
 	if balanceStrategy == "" {
-		return sarama.BalanceStrategyRange, nil
+		return sarama.NewBalanceStrategyRange(), nil
 	}
 	switch lower := strings.ToLower(balanceStrategy); lower {
 	case "range":
-		return sarama.BalanceStrategyRange, nil
+		return sarama.NewBalanceStrategyRange(), nil
 	case "roundrobin":
-		return sarama.BalanceStrategyRoundRobin, nil
+		return sarama.NewBalanceStrategyRoundRobin(), nil
 	case "sticky":
-		return sarama.BalanceStrategySticky, nil
+		return sarama.NewBalanceStrategySticky(), nil
 	default:
 		return nil, errors.Errorf("BalanceStrategy must be either 'range', 'roundrobin' or 'sticky', not '%s'", balanceStrategy)
 	}

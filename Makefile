@@ -94,22 +94,24 @@ endif
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm32v7/alpine:3.20
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm32v7/golang
-	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-slim
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-slim-buster
 	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm32v7/node:14.21
 else ifeq ($(NUCLIO_ARCH), arm64)
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/arm64v8/alpine:3.20
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/arm64v8/golang
-	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-slim
+	NUCLIO_DOCKER_JAVA_OPENJDK 		?= gcr.io/iguazio/arm64v8/openjdk:11-slim-buster
 	NODE_IMAGE_NAME 				?= gcr.io/iguazio/arm64v8/node:14.21
 else
 	NUCLIO_DOCKER_ALPINE_IMAGE 		?= gcr.io/iguazio/alpine:3.20
 	NUCLIO_BASE_IMAGE_NAME 			?= gcr.io/iguazio/golang
-	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-slim
+	NUCLIO_DOCKER_JAVA_OPENJDK		?= gcr.io/iguazio/openjdk:11-slim-buster
 	NODE_IMAGE_NAME 				?= gcr.io/iguazio/node:14.21
 endif
 
-NUCLIO_BASE_IMAGE_TAG ?= 1.21
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.21-alpine
+NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
+
+NUCLIO_BASE_IMAGE_TAG ?= 1.23
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.23-alpine
 
 #
 #  Must be first target
@@ -329,6 +331,7 @@ endif
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME    		= $(NUCLIO_DOCKER_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME_CACHE    = $(NUCLIO_CACHE_REPO)/dashboard:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  		?= $(NUCLIO_ARCH)
+NUCLIO_DOCKER_DASHBOARD_UHTTPC_IMAGE   		?= gcr.io/iguazio/uhttpc:0.0.1
 
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.27-alpine
@@ -346,6 +349,7 @@ dashboard: build-builder
 		--build-arg NGINX_IMAGE=$(NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE) \
 		--build-arg NUCLIO_DOCKER_ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--build-arg NUCLIO_GO_LINK_FLAGS_INJECT_VERSION="$(GO_LINK_FLAGS_INJECT_VERSION)" \
+		--build-arg UHTTPC_IMAGE="$(NUCLIO_DOCKER_DASHBOARD_UHTTPC_IMAGE)" \
 		--build-arg UHTTPC_ARCH="$(NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH)" \
 		--build-arg NODE_IMAGE_NAME=$(NODE_IMAGE_NAME) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
@@ -426,6 +430,7 @@ handler-builder-python-onbuild: processor
 	docker build \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
+		--build-arg NUCLIO_PYTHON_BASE_IMAGE_NAME=$(NUCLIO_PYTHON_BASE_IMAGE_NAME) \
 		--cache-from $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME_CACHE) \
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) \
@@ -614,19 +619,24 @@ $(eval DOCKER_IMAGES_CACHE += $(filter-out $(DOCKER_IMAGES_CACHE),$(NUCLIO_DOCKE
 #
 
 .PHONY: fmt
-fmt:
+fmt: ensure-golangci-linter
 	gofmt -s -w .
-	golangci-lint run --fix
+	$(GOPATH)/bin/golangci-lint run --fix
 
 .PHONY: lint
-lint: modules ensure-test-files-annotated
-	@echo Installing linters...
-	@test -e $(GOPATH)/bin/golangci-lint || \
-	  	(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.54.2)
-
+lint: modules ensure-test-files-annotated ensure-golangci-linter
 	@echo Linting...
 	$(GOPATH)/bin/golangci-lint run -v
 	@echo Done.
+
+.PHONY: lint-docs
+lint-docs:
+	vale docs
+	@sort .github/styles/Nuclio/ignore.txt -o .github/styles/Nuclio/ignore.txt
+
+.PHONY: linkcheck
+linkcheck:
+	make -C docs/ linkcheck
 
 .PHONY: ensure-test-files-annotated
 ensure-test-files-annotated:
@@ -639,6 +649,12 @@ ensure-test-files-annotated:
 	fi
 	@echo "All go test files have //go:build test_X annotation"
 	@exit $(.SHELLSTATUS)
+
+.PHONY: ensure-golangci-linter
+ensure-golangci-linter:
+	@echo Ensuring linters...
+	@test -e $(GOPATH)/bin/golangci-lint || \
+		(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v1.63.4)
 
 #
 # Testing
@@ -704,6 +720,16 @@ test-k8s-undockerized: ensure-gopath
  		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
  		$(shell go list -tags="test_integration,test_kube" ./cmd/... ./pkg/... | grep -v nuctl)
 
+.PHONY: test-functions-k8s-undockerized
+test-functions-k8s-undockerized: ensure-gopath
+	@# nuctl is running by "test-k8s-nuctl" target and requires specific set of env
+	go test \
+		-tags="test_integration,test_functions_kube" \
+ 		-v \
+ 		-p 1 \
+ 		--timeout $(NUCLIO_GO_TEST_TIMEOUT) \
+ 		$(shell go list -tags="test_integration,test_functions_kube" ./cmd/... ./pkg/... | grep -v nuctl)
+
 .PHONY: test-broken-undockerized
 test-broken-undockerized: ensure-gopath
 	${eval LIST=${shell make --no-print-directory $(LIST_TESTS_MAKE_COMMAND)}}
@@ -734,6 +760,7 @@ test: build-test
 		--env NUCLIO_CI_SKIP_STRESS_TEST \
 		$(NUCLIO_DOCKER_TEST_TAG) \
 		/bin/bash -c "git config --global --add safe.directory /nuclio && LIST_TESTS_MAKE_COMMAND=${LIST_TESTS_MAKE_COMMAND} make ${NUCLIO_TEST_MAKE_TARGET}"
+
 .PHONY: test-k8s
 test-k8s: build-test
 	NUCLIO_TEST_KUBECONFIG=$(if $(NUCLIO_TEST_KUBECONFIG),$(NUCLIO_TEST_KUBECONFIG),$(KUBECONFIG)) \
@@ -758,7 +785,7 @@ test-k8s: build-test
 		--env KUBECONFIG=/kubeconfig \
 		--env NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST=$(NUCLIO_TEST_KUBE_DEFAULT_INGRESS_HOST) \
 		$(NUCLIO_DOCKER_TEST_TAG) \
-		/bin/bash -c "git config --global --add safe.directory /nuclio && make test-k8s-undockerized"
+    	/bin/bash -c "git config --global --add safe.directory /nuclio && make $(NUCLIO_K8S_TEST_MAKE_TARGET)"
 
 # Runs from host to allow full control over Kubernetes cluster
 .PHONY: test-k8s-functional

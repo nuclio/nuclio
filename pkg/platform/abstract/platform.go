@@ -1788,6 +1788,16 @@ func (ap *Platform) enrichExplicitAckParams(ctx context.Context, functionConfig 
 			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
 
+		if triggerInstance.ExplicitAckMode != functionconfig.ExplicitAckModeDisable &&
+			!functionconfig.RuntimeSupportExplicitAck(functionConfig.Spec.Runtime) {
+			ap.Logger.WarnWith("Explicit Ack is not supported for the configured runtime. "+
+				"Setting explicitAck mode to `disable`",
+				"functionName", functionConfig.Meta.Name,
+				"runtime", functionConfig.Spec.Runtime,
+				"trigger", triggerName)
+			triggerInstance.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
+		}
+
 		if triggerInstance.WorkerTerminationTimeout == "" {
 			triggerInstance.WorkerTerminationTimeout = functionconfig.DefaultWorkerTerminationTimeout
 		}
@@ -1929,7 +1939,7 @@ func (ap *Platform) enrichEnvVars(config *functionconfig.Config) {
 			}
 			// If EnvFrom is set in the platform config, add the EnvFrom object at the beginning of the list of EnvFrom in the function config.
 			// We add it at the beginning so that the values in the function config take priority over those in the platform config.
-			if ap.Config.Runtime.Common.EnvFrom != nil && len(ap.Config.Runtime.Common.EnvFrom) > 0 {
+			if len(ap.Config.Runtime.Common.EnvFrom) > 0 {
 				config.Spec.EnvFrom = append(ap.Config.Runtime.Common.EnvFrom, config.Spec.EnvFrom...)
 			}
 		}

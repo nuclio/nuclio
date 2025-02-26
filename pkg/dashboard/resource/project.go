@@ -703,7 +703,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	ctx := request.Context()
-	pr.Logger.WarnWithCtx(ctx, "Updating api gateways via /api/projects has been deprecated. "+
+	pr.Logger.WarnWithCtx(ctx, "Updating a project via /api/projects has been deprecated. "+
 		"Please use /api/projects/<project-name>")
 
 	// get project id from body
