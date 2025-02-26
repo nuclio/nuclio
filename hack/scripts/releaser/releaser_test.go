@@ -19,14 +19,13 @@ limitations under the License.
 package main
 
 import (
-	"bytes"
-	"io"
 	"net/http"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
+
 	"github.com/coreos/go-semver/semver"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
@@ -80,20 +79,6 @@ func (suite *ReleaserTestSuite) TestResolveDesiredPatchVersions() {
 	suite.Require().Equal(suite.releaser.helmChartConfig.Version.Patch+1,
 		suite.releaser.helmChartsTargetVersion.Patch)
 
-}
-
-func (suite *ReleaserTestSuite) mockHTTPClientResponses(responses []string) {
-	http.DefaultClient = NewTestClient(func(req *http.Request) *http.Response {
-		return &http.Response{
-			StatusCode: 200,
-			Body: func() io.ReadCloser {
-				responseBody := responses[0]
-				responses = responses[1:]
-				return io.NopCloser(bytes.NewBufferString(responseBody))
-			}(),
-			Header: make(http.Header),
-		}
-	})
 }
 
 func TestReleaserTestSuite(t *testing.T) {

@@ -20,11 +20,12 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/cmdrunner"
-	"github.com/nuclio/nuclio/pkg/common"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/coreos/go-semver/semver"
 	"github.com/nuclio/errors"
@@ -64,8 +65,7 @@ type Release struct {
 	logger    logger.Logger
 	cmdRunner cmdrunner.CmdRunner
 
-	githubWorkflowID string
-	helmChartConfig  helmChart
+	helmChartConfig helmChart
 }
 
 func (r *Release) SaveReleaseInfo() error {
@@ -133,13 +133,6 @@ func (r *Release) Run() error {
 		r.logger.Info("Skipping bump helm chart")
 	}
 	return nil
-}
-
-func (r *Release) compileRepositoryURL(scheme string) string {
-	if scheme == "git" {
-		return fmt.Sprintf("git@github.com:%s/nuclio", r.repositoryOwnerName)
-	}
-	return fmt.Sprintf("%s://github.com/%s/nuclio", scheme, r.repositoryOwnerName)
 }
 
 func (r *Release) populateHelmChartConfig() error {
@@ -234,19 +227,6 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 		"targetVersion", r.targetVersion,
 		"helmChartsTargetVersion", r.helmChartsTargetVersion)
 	return nil
-}
-
-func (r *Release) compileReleaseNotes() (string, error) {
-	results, err := r.cmdRunner.Run(&cmdrunner.RunOptions{
-		WorkingDir: &r.repositoryDirPath,
-	},
-		`git log --pretty=format:'%%h %%s' %s...%s`,
-		r.releaseBranch,
-		r.currentVersion)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to describe tags")
-	}
-	return strings.TrimSpace(results.Output), nil
 }
 
 func (r *Release) bumpHelmChartVersion() error {
