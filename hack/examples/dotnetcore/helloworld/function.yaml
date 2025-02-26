@@ -14,8 +14,6 @@
 
 apiVersion: "nuclio.io/v1beta1"
 kind: "NuclioFunction"
-metadata:
-  name: "s"
 spec:
   description: Showcases unstructured logging and a structured response.
   runtime: "dotnetcore"
