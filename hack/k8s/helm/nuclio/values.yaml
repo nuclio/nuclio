@@ -498,7 +498,7 @@ platform: {}
 #
 #    # set to 10 for extra verbosity on top of nuclio logger
 #    logLevel: 0
-#    address: http://1.14.1.0.1.14.11
+#    address: http://127.0.0.1:8081
 #    clientKind: nop
 #    requestTimeout: 10
 #    permissionQueryPath: /v1/data/somewhere/authz/allow
