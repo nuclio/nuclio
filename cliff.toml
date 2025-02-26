@@ -71,7 +71,7 @@ commit_parsers = [
   { message = "^\\[Docs\\]", group = "<!-- 3 -->📚 Documentation" },
   { message = "^\\[Performance\\]", group = "<!-- 4 -->⚡ Performance" },
   { message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
-  { message = "^style", group = "<!-- 5 -->🎨 Styling" },
+  { message = "^\\[UI\\]", group = "<!-- 5 -->🎨 UI" },
   { message = "^\\[Test\\]", group = "<!-- 6 -->🧪 Testing" },
   { message = "^\\[Dependencies\\]", group = "<!-- 6 -->🧪 Dependencies" },
   { message = "^\\[Dependabot\\]", group = "<!-- 6 -->🧪 Dependencies" },
