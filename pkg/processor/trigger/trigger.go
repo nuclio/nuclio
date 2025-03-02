@@ -399,7 +399,7 @@ func (at *AbstractTrigger) SignalWorkersToTerminate() error {
 	// DO NOT REMOVE
 	// this sleep is needed to give k8s some time to stop sending traffic to the service
 	// before we shut worker down
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	if err := at.WorkerAllocator.SignalTermination(); err != nil {
 		return errors.Wrap(err, "Failed to signal all workers to terminate")
