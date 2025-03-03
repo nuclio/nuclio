@@ -68,10 +68,10 @@ func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, er
 
 	// try to allocate a worker and fall back to default immediately if there's none available
 	select {
-	case workerInstance := <-sa.objectsChan:
+	case objectInstance := <-sa.objectsChan:
 		atomic.AddUint64(&sa.statistics.AllocationSuccessImmediateTotal, 1)
 
-		return workerInstance, nil
+		return objectInstance, nil
 	default:
 
 		// if there's no timeout, return now

@@ -51,7 +51,7 @@ type Allocator interface {
 	// GetNumObjectsAvailable gets number of event processors available in the allocator
 	GetNumObjectsAvailable() int
 
-	// GetStatistics returns worker allocator statistics
+	// GetStatistics returns allocator statistics
 	GetStatistics() *AllocatorStatistics
 
 	// SignalDraining signals all event processors to drain events

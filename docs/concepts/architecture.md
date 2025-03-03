@@ -53,7 +53,7 @@ The event processor allocation logic varies based on the expected behavior. Nucl
 - Synchronous (default) – Events within a single worker are processed sequentially (FIFO).
 - Asynchronous – Events within a single worker are processed concurrently.
 
-Depending on the configured mode, Nuclio users different event processor allocators at different levels.
+Depending on the configured mode, Nuclio uses different event processor allocators at different levels.
 
 For instance, to support synchronous processing, Nuclio allocates a worker (event processor at the trigger level).
 While the allocated worker is waiting for a response, it cannot be allocated again.

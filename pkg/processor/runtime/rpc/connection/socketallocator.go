@@ -79,7 +79,6 @@ func (sa *SocketAllocator) Start() error {
 	// wait for start if required to
 	if sa.Configuration.WaitForStart {
 		sa.Logger.Debug("Waiting for start")
-		eventSockets := eventSockets
 		for _, socket := range eventSockets {
 			socket.WaitForStart()
 		}
