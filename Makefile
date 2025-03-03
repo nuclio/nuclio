@@ -630,6 +630,10 @@ lint: modules ensure-test-files-annotated ensure-golangci-linter
 	$(GOPATH)/bin/golangci-lint run -v
 	@echo Done.
 
+.PHONY: test-coverage
+test-coverage:
+	go test -tags=test_unit -coverprofile=coverage.out ./pkg/... || go tool cover -html=coverage.out
+
 .PHONY: lint-docs
 lint-docs:
 	vale docs
