@@ -101,12 +101,24 @@ func (suite *runtimeTestSuite) TestRestartRuntime() {
 }
 
 func (suite *runtimeTestSuite) TestProcessEvent() {
-	golangRuntime, err := NewRuntime(suite.logger, suite.runtimeConfiguration, suite.handler)
+
+	abstractHandler := abstractHandler{
+		logger: suite.logger,
+		entrypoint: func(*nuclio.Context, nuclio.Event) (interface{}, error) {
+			return "success", nil
+		},
+	}
+	golangRuntime, err := NewRuntime(suite.logger, suite.runtimeConfiguration, &pluginHandlerLoader{
+		abstractHandler,
+	})
 	suite.Require().NoError(err)
 
-	res, err := golangRuntime.ProcessEvent(nil, suite.logger)
-	suite.Require().NoError(err)
-	suite.Require().Equal(res, "success")
+	// many iterations to ensure stability
+	for i := 0; i < 10000; i++ {
+		res, err := golangRuntime.ProcessEvent(nil, suite.logger)
+		suite.Require().NoError(err)
+		suite.Require().Equal("success", res)
+	}
 }
 
 func (suite *runtimeTestSuite) TestPanicHandler() {
