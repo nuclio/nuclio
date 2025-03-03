@@ -81,11 +81,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          cache: true
+          go-version-file: go.mod
 
-      - name: Run Go script
+      - name: Get release info
         run: |
-          make get-release-info BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
+          make get-release-info
+        env:
+          BUMP_VERSION_MODE: ${{ inputs.bump_version_mode }}
+          TARGET_VERSION: ${{ inputs.target_version }}
 
       - name: Resolve inputs
         id: resolve
@@ -104,7 +108,7 @@ jobs:
 
   release:
     name: Generate Changelog & Create Release
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event.inputs.skip_create_tag_release != 'true'
     runs-on: ubuntu-latest
     needs: [ prepare-inputs ]
     steps:
@@ -135,7 +139,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  helm-bump-create-pr:
+  bump-helm-charts:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     needs: [ prepare-inputs ]
@@ -148,20 +152,24 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          cache: true
+          go-version-file: go.mod
 
       - name: Set up Git
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions@github.com"
 
-      - name: Make changes to files
+      - name: Bump chart versions
         run: |
-          make bump-helm-charts BUMP_VERSION_MODE=${{ inputs.bump_version_mode }} TARGET_VERSION=${{ inputs.target_version }}
+          make bump-helm-charts 
+        env:
+          BUMP_VERSION_MODE: ${{ inputs.bump_version_mode }}
+          TARGET_VERSION: ${{ inputs.target_version }}
 
       - name: Commit and push changes
         run: |
-          git commit -am "Bump to ${{ needs.prepare-inputs.outputs.version }}"
+          git commit -am "[Chart] Bump to ${{ needs.prepare-inputs.outputs.version }}"
           git pull --rebase origin development
           git push origin development
 
@@ -224,11 +232,11 @@ jobs:
           echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Set NUCLIO_LABEL to unstable
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'push'
         run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
 
       - name: Set NUCLIO_LABEL to release tag
-        if: github.event_name == 'release'
+        if: github.event_name == 'workflow_dispatch'
         run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
@@ -307,7 +315,7 @@ jobs:
           echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
 
       - name: Prepare outputs
-        id: release_info
+        id:  prepare_outputs
         run: |
           echo "REF_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
           echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
@@ -317,7 +325,7 @@ jobs:
         run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
 
       - name: Set NUCLIO_LABEL to release tag
-        if: github.event_name == 'release'
+        if: github.event_name == 'workflow_dispatch'
         run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
@@ -325,6 +333,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           cache: true
+          go-version-file: go.mod
 
       - name: Install QEMU
         if: matrix.arch != 'amd64'
@@ -349,6 +358,7 @@ jobs:
         with:
           files: '/home/runner/go/bin/nuctl-*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+
   helm-publish:
     name: Publish helm charts
     if: github.event_name == 'workflow_dispatch'
