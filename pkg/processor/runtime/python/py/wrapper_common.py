@@ -49,7 +49,7 @@ class WrapperFatalException(Exception):
 # more information @ pkg/processor/runtime/rpc/abstract.go / eventWrapperOutputHandler
 class JSONFormatterOverSocket(nuclio_sdk.logger.JSONFormatter):
     def format(self, record):
-        return 'l' + super(JSONFormatterOverSocket, self).format(record)
+        return super(JSONFormatterOverSocket, self).format_to_log_control_message(record)
 
 
 class AbstractWrapper(object):
@@ -114,6 +114,9 @@ class AbstractWrapper(object):
         self._discard_events = False
 
         self._event_message_length_task = None
+
+        # replace the default output with the control message socket
+        self._logger.set_handler('default', self._control_sock_wfile, JSONFormatterOverSocket())
 
     def _load_entrypoint_from_handler(self, handler):
         """
