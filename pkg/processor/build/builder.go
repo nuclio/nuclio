@@ -1897,9 +1897,8 @@ func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, e
 
 }
 
-// resolveResources creates new limits containing the GPU-related limits from the function's limits,
+// resolveResources creates new limits containing the GPU-related limits from the function's limits, mapping each to zero.
 //
-//	mapping each to zero.
 //	By setting these limits to zero, the pods receive the necessary tolerations from the cloud provider for scheduling,
 //	without actually consuming GPU resources.
 func (b *Builder) resolveResources() v1.ResourceRequirements {
