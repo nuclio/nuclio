@@ -41,6 +41,8 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -952,6 +954,63 @@ func (suite *testSuite) TestExtractOrgAndRepoFromGithubURL() {
 				suite.Require().Equal(testCase.org, org)
 				suite.Require().Equal(testCase.repo, repo)
 			}
+		})
+	}
+}
+
+func (suite *testSuite) TestResolveResources() {
+	testCases := []struct {
+		name           string
+		inputLimits    v1.ResourceList
+		expectedLimits v1.ResourceList
+	}{
+		{
+			name: "gpu-and-cpu-limits",
+			inputLimits: v1.ResourceList{
+				"nvidia.com/gpu": resource.MustParse("2"),
+				"cpu":            resource.MustParse("1000m"),
+			},
+			expectedLimits: v1.ResourceList{
+				"nvidia.com/gpu": resource.MustParse("0"),
+			},
+		},
+		{
+			name: "no-gpu-limits",
+			inputLimits: v1.ResourceList{
+				"cpu":    resource.MustParse("1000m"),
+				"memory": resource.MustParse("1Gi"),
+			},
+			expectedLimits: v1.ResourceList{},
+		},
+		{
+			name: "multiple-gpu-limits",
+			inputLimits: v1.ResourceList{
+				"nvidia.com/gpu": resource.MustParse("1"),
+				"amd.com/gpu":    resource.MustParse("1"),
+			},
+			expectedLimits: v1.ResourceList{
+				"nvidia.com/gpu": resource.MustParse("0"),
+				"amd.com/gpu":    resource.MustParse("0"),
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			builder := &Builder{
+				options: &platform.CreateFunctionBuildOptions{
+					FunctionConfig: functionconfig.Config{
+						Spec: functionconfig.Spec{
+							Resources: v1.ResourceRequirements{
+								Limits: testCase.inputLimits,
+							},
+						},
+					},
+				},
+			}
+
+			result := builder.resolveResources()
+			suite.Require().Equal(testCase.expectedLimits, result.Limits)
 		})
 	}
 }
