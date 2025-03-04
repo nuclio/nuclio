@@ -79,7 +79,7 @@ For more information on Nuclio function configuration, see the [function-configu
   **Type:** `[]string`
 
 - <a id="version"></a>**`version`** - The version of Kafka that Sarama will assume it is running against(by default 0.11.0).
-  Version string should be in the formats `0.11.0.3` for pre-1.0.0 versions and `1.0.0` for 1.0.0 and above.
+  Version string should be in the formats `0.11.0.3` for pre-1.0.0 versions and `1.0.0` for 1.0.0 and above. Minimal supported version is 0.11.0.
   <br/>
   **Type:** `string`
 
