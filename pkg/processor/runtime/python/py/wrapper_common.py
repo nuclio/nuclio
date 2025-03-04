@@ -90,6 +90,9 @@ class AbstractWrapper(object):
             # that we are able to cancel the wait if needed
             self._control_sock.setblocking(False)
 
+            # replace the default output with the control message socket
+            self._logger.set_handler('default', self._control_sock_wfile, JSONFormatterOverSocket())
+
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
 
@@ -114,9 +117,6 @@ class AbstractWrapper(object):
         self._discard_events = False
 
         self._event_message_length_task = None
-
-        # replace the default output with the control message socket
-        self._logger.set_handler('default', self._control_sock_wfile, JSONFormatterOverSocket())
 
     def _load_entrypoint_from_handler(self, handler):
         """
