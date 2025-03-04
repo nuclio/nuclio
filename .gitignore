@@ -359,3 +359,4 @@ pkg/temp/
 debug.test
 
 nuclio-docker-images-*.tar.gz
+.release-info.txt

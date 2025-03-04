@@ -66,21 +66,20 @@ commit_preprocessors = [
 ]
 # regex for parsing and grouping commits
 commit_parsers = [
-  { message = "^\\[.*\\].*fix", group = "<!-- 1 -->🐛 Bug Fixes" },
-  { message = "^\\[.*\\].*Fix", group = "<!-- 1 -->🐛 Bug Fixes" },
+  { message = "(?i)^\\[.*\\].*fix", group = "<!-- 1 -->🐛 Bug Fixes" },
   { message = "^\\[Docs\\]", group = "<!-- 3 -->📚 Documentation" },
   { message = "^\\[Performance\\]", group = "<!-- 4 -->⚡ Performance" },
-  { message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
+  { message = "(?i)^\\[.*\\].*refactor", group = "<!-- 2 -->🚜 Refactor" },
   { message = "^\\[UI\\]", group = "<!-- 5 -->🎨 UI" },
-  { message = "^\\[Test\\]", group = "<!-- 6 -->🧪 Testing" },
-  { message = "^\\[Dependencies\\]", group = "<!-- 6 -->🧪 Dependencies" },
-  { message = "^\\[Dependabot\\]", group = "<!-- 6 -->🧪 Dependencies" },
+  { message = "^\\[Test\\]", group = "<!-- 6 -->🔬 Testing" },
+  { message = "^\\[Dependencies\\]", group = "<!-- 7 -->🧪 Dependencies" },
+  { message = "^\\[Dependabot\\]", group = "<!-- 7 -->🧪 Dependencies" },
   { message = "^Bump to", skip = true },
-  { message = "^\\[CI\\]", group = "<!-- 7 -->⚙️ Miscellaneous Tasks" },
-  { body = ".*security", group = "<!-- 8 -->🛡️ Security" },
-  { message = "^Revert", group = "<!-- 9 -->◀️ Revert" },
+  { message = "^\\[CI\\]", group = "<!-- 8 -->⚙️ CI" },
+  { body = ".*security", group = "<!-- 9 -->🛡️ Security" },
+  { message = "^Revert", group = "<!-- 10 -->◀️ Reverted Changes" },
   { message = "^\\[.*\\]", group = "<!-- 0 -->🚀 Features / Enhancements" },
-  { message = ".*", group = "<!-- 10 -->💼 Other" },
+  { message = ".*", group = "<!-- 11 -->💼 Other" },
 ]
 # filter out the commits that are not matched by commit parsers
 filter_commits = false

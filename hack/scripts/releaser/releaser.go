@@ -68,37 +68,6 @@ type Release struct {
 	helmChartConfig helmChart
 }
 
-func (r *Release) SaveReleaseInfo() error {
-	// Define the file where the release info will be saved
-	if r.releaseInfoPath == "" {
-		return nil
-	}
-
-	// Create or open the file for writing
-	file, err := os.Create(r.releaseInfoPath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create file")
-	}
-	defer file.Close()
-
-	// Write the version information with specific labels to the file
-	_, err = file.WriteString(fmt.Sprintf("CURRENT_VERSION: %s\n", r.currentVersion.String()))
-	if err != nil {
-		return errors.Wrap(err, "Failed to write current version")
-	}
-
-	_, err = file.WriteString(fmt.Sprintf("TARGET_VERSION: %s\n", r.targetVersion.String()))
-	if err != nil {
-		return errors.Wrap(err, "Failed to write target version")
-	}
-
-	_, err = file.WriteString(fmt.Sprintf("HELM_CHARTS_TARGET_VERSION: %s\n", r.helmChartsTargetVersion.String()))
-	if err != nil {
-		return errors.Wrap(err, "Failed to write helm charts target version")
-	}
-
-	return nil
-}
 func NewRelease(cmdRunner cmdrunner.CmdRunner, logger logger.Logger) *Release {
 	return &Release{
 		logger:    logger,
@@ -113,7 +82,6 @@ func NewRelease(cmdRunner cmdrunner.CmdRunner, logger logger.Logger) *Release {
 
 func (r *Release) Run() error {
 
-	// helm chart r
 	// read the helm chart and populate its values for target version determination
 	if err := r.populateHelmChartConfig(); err != nil {
 		return errors.Wrap(err, "Failed to populate helm chart config")
@@ -218,7 +186,7 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 		}
 	}
 
-	if err := r.SaveReleaseInfo(); err != nil {
+	if err := r.saveReleaseInfo(); err != nil {
 		return errors.Wrap(err, "Failed to save release info")
 	}
 
@@ -226,6 +194,38 @@ func (r *Release) populateCurrentAndTargetVersions() error {
 		"currentVersion", r.currentVersion,
 		"targetVersion", r.targetVersion,
 		"helmChartsTargetVersion", r.helmChartsTargetVersion)
+	return nil
+}
+
+func (r *Release) saveReleaseInfo() error {
+	// Define the file where the release info will be saved
+	if r.releaseInfoPath == "" {
+		return nil
+	}
+
+	// Create or open the file for writing
+	file, err := os.Create(r.releaseInfoPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create file")
+	}
+	defer file.Close()
+
+	// Write the version information with specific labels to the file
+	_, err = file.WriteString(fmt.Sprintf("CURRENT_VERSION: %s\n", r.currentVersion.String()))
+	if err != nil {
+		return errors.Wrap(err, "Failed to write current version")
+	}
+
+	_, err = file.WriteString(fmt.Sprintf("TARGET_VERSION: %s\n", r.targetVersion.String()))
+	if err != nil {
+		return errors.Wrap(err, "Failed to write target version")
+	}
+
+	_, err = file.WriteString(fmt.Sprintf("HELM_CHARTS_TARGET_VERSION: %s\n", r.helmChartsTargetVersion.String()))
+	if err != nil {
+		return errors.Wrap(err, "Failed to write helm charts target version")
+	}
+
 	return nil
 }
 
