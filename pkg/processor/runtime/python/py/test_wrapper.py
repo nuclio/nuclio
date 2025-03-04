@@ -18,8 +18,6 @@ import json
 import logging
 import operator
 import os
-import socket
-import socketserver
 import struct
 import sys
 import tempfile
@@ -171,7 +169,10 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         # function response
         expected_messages = 7
 
-        self._wait_until_received_messages(expected_messages)
+        self._wait_until_received_messages(
+            minimum_messages_length=expected_messages,
+            messages=self._unix_stream_server._messages,
+        )
 
         malformed_response = self._unix_stream_server._messages[-3]['body']
 
@@ -200,7 +201,10 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         asyncio.get_event_loop().run_until_complete(self._wrapper.serve_requests(num_requests=1))
 
         # processor start, function log line, response body
-        self._wait_until_received_messages(3)
+        self._wait_until_received_messages(
+            minimum_messages_length=1,
+            messages=self._unix_stream_server._messages,
+        )
 
         # extract the response
         response = next(message['body']
@@ -235,7 +239,10 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         t.join()
 
         # processor start, function log line, response body, duration messages
-        self._wait_until_received_messages(4)
+        self._wait_until_received_messages(
+            minimum_messages_length=1,
+            messages=self._unix_stream_server._messages,
+        )
 
         # extract the response
         response = next(message['body']
@@ -367,72 +374,12 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             time.sleep(interval)
             timeout -= interval
 
-    def _wait_until_received_messages(self, minimum_messages_length, timeout=10, interval=1):
-        while timeout > 0:
-            time.sleep(interval)
-            current_messages_length = len(self._unix_stream_server._messages)
-            if current_messages_length >= minimum_messages_length:
-                return
-            self._logger.debug_with('Waiting for messages to arrive',
-                                    current_messages_length=current_messages_length,
-                                    minimum_messages_length=minimum_messages_length)
-            timeout -= interval
-        raise RuntimeError('Failed waiting for messages')
-
-    def _create_unix_stream_server(self, socket_path):
-        unix_stream_server = _SingleConnectionUnixStreamServer(socket_path, _Connection)
-
-        # create a thread and listen forever on server
-        unix_stream_server_thread = threading.Thread(target=unix_stream_server.serve_forever)
-        unix_stream_server_thread.daemon = True
-        unix_stream_server_thread.start()
-        return unix_stream_server, unix_stream_server_thread
-
 
 class TestSubmitEventsDecoded(TestSubmitEvents):
     @classmethod
     def setUpClass(cls):
         super(TestSubmitEventsDecoded, cls).setUpClass()
         cls._decode_incoming_event_messages = True
-
-
-class _SingleConnectionUnixStreamServer(socketserver.UnixStreamServer):
-
-    def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
-        socketserver.UnixStreamServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate)
-
-        self._connection_socket = None  # type: socket.socket
-        self._messages = []
-
-
-class _Connection(socketserver.BaseRequestHandler):
-
-    def handle(self):
-        self.request.settimeout(1)
-
-        # make a file from the socket so we can readln
-        socket_file = self.request.makefile('r')
-
-        # save the connection socket
-        self.server._connection_socket = self.request
-
-        # while the server isn't shut down
-        while not self.server._BaseServer__shutdown_request:
-
-            try:
-                line = socket_file.readline()
-                if not line:
-                    continue
-
-                message = {
-                    'type': line[0],
-                    'body': json.loads(line[1:]) if line[0] != 's' else ''
-                }
-
-                self.server._messages.append(message)
-
-            except:
-                pass
 
 
 class TestCallFunction(unittest.TestCase):

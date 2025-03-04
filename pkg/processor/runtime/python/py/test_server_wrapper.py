@@ -20,6 +20,7 @@ import sys
 import tempfile
 import random
 import unittest
+import os
 
 import msgpack
 import nuclio_sdk
@@ -38,8 +39,10 @@ async def random_sleep(context, event):
     await asyncio.sleep(random.uniform(0.1, 1))
     return 'ok'
 
+
 def sync_handler():
     return "wrong handler"
+
 
 class TestSubmitEvents(BaseTestSubmitEvents):
 
@@ -59,25 +62,41 @@ class TestSubmitEvents(BaseTestSubmitEvents):
 
         # create logger
         self._logger = nuclio_sdk.Logger(logging.DEBUG)
-        self._logger.set_handler('test-default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
-
         self._platform_kind = 'test'
         self._default_test_handler = 'test_server_wrapper:random_sleep'
         self._host = "0.0.0.0"
         self._port = 1337
+
+        self._control_message_socket_path = os.path.join(self._temp_path, 'nuclio.control')
+
+        self._unix_stream_server, self._unix_stream_server_thread = \
+            self._create_unix_stream_server(self._control_message_socket_path)
 
         self._wrapper = wrapper.AsyncWrapper(
             logger=self._logger,
             loop=self._loop,
             handler=self._default_test_handler,
             serving_address=f"{self._host}:{self._port}",
-            control_socket_path=None,
+            control_socket_path=self._control_message_socket_path,
             platform_kind=self._platform_kind,
             decode_event_strings=self._decode_event_strings)
         self._loop.run_until_complete(self._wrapper.initialize())
         self._wrapper_run_task = self._loop.create_task(self._wrapper.start())
 
     def tearDown(self):
+
+        self._wrapper._control_sock.close()
+
+        for unix_stream_server, unix_stream_server_thread in [
+            (self._unix_stream_server, self._unix_stream_server_thread),
+
+            # before uncommenting, see self._control_socket_path assignment
+            # (self._unix_control_stream_server, self._control_unix_stream_server_thread),
+        ]:
+            unix_stream_server.server_close()
+            unix_stream_server.shutdown()
+            unix_stream_server_thread.join()
+
         sys.path.remove(self._temp_path)
         asyncio.run(self._wrapper._stop_processing())
         self._wrapper_run_task.cancel()
@@ -131,6 +150,11 @@ class TestSubmitEvents(BaseTestSubmitEvents):
                 collections.Counter(map(frozenset, actual_events)),
                 "Recorded events do not match the expected events"
             )
+        # check that logs are sent to the control message socket
+        self._wait_until_received_messages(
+            minimum_messages_length=num_of_events,
+            messages=self._unix_stream_server._messages,
+        )
 
     async def _send_events(self, events, single_connection=True):
         if single_connection:
