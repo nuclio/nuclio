@@ -17,7 +17,7 @@ limitations under the License.
 module.exports = async ({github, context, prNumber, labelsToAdd, labelsToRemove}) => {
 
     console.log(`Adding labels ${labelsToAdd} to PR #${prNumber}`)
-    await github.issues.addLabels({
+    await github.rest.issues.addLabels({
         issue_number: prNumber,
         owner: context.repo.owner,
         repo: context.repo.repo,
@@ -25,7 +25,7 @@ module.exports = async ({github, context, prNumber, labelsToAdd, labelsToRemove}
     })
 
     console.log(`Removing labels ${labelsToRemove} from PR #${prNumber}`)
-    await Promise.all(labelsToRemove.map(labelName => github.issues.removeLabel({
+    await Promise.all(labelsToRemove.map(labelName => github.rest.issues.removeLabel({
         issue_number: prNumber,
         owner: context.repo.owner,
         repo: context.repo.repo,
