@@ -11,3 +11,4 @@ User guide
    deploy-functions-from-dockerfile
    exporting-and-importing
    benchmarking
+   known-issues
