@@ -985,12 +985,14 @@ func (suite *testSuite) TestResolveResources() {
 		{
 			name: "multiple-gpu-limits",
 			inputLimits: v1.ResourceList{
-				"nvidia.com/gpu": resource.MustParse("1"),
-				"amd.com/gpu":    resource.MustParse("1"),
+				"nvidia.com/gpu":                 resource.MustParse("1"),
+				"amd.com/gpu":                    resource.MustParse("1"),
+				"alpha.kubernetes.io/nvidia-gpu": resource.MustParse("1"),
 			},
 			expectedLimits: v1.ResourceList{
-				"nvidia.com/gpu": resource.MustParse("0"),
-				"amd.com/gpu":    resource.MustParse("0"),
+				"nvidia.com/gpu":                 resource.MustParse("0"),
+				"amd.com/gpu":                    resource.MustParse("0"),
+				"alpha.kubernetes.io/nvidia-gpu": resource.MustParse("0"),
 			},
 		},
 	}

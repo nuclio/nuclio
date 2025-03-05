@@ -1906,7 +1906,7 @@ func (b *Builder) resolveResources() v1.ResourceRequirements {
 		Limits: v1.ResourceList{},
 	}
 	for name := range b.options.FunctionConfig.Spec.Resources.Limits {
-		if strings.Contains(name.String(), "/gpu") {
+		if strings.Contains(name.String(), "/gpu") || strings.Contains(name.String(), "-gpu") {
 			resources.Limits[name] = resource.MustParse("0")
 		}
 	}
