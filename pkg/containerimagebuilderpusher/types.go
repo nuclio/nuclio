@@ -53,6 +53,7 @@ type BuildOptions struct {
 	FunctionServiceAccount  string
 	BuilderServiceAccount   string
 	SecurityContext         *v1.PodSecurityContext
+	Resources               v1.ResourceRequirements
 
 	BuildLogger logger.Logger
 }
