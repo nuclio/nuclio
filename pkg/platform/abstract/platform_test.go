@@ -2063,6 +2063,267 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 	}
 }
 
+func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
+	testCases := []struct {
+		name           string
+		functionConfig *functionconfig.Config
+		expectedConfig *functionconfig.Config
+	}{
+		{
+			name: "sync-trigger-mode-by-default",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+						},
+					},
+				},
+			},
+			expectedConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.SyncTriggerWorkMode,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "async-trigger-with-defaults",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+						},
+					},
+				},
+			},
+			expectedConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
+								MaxConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
+								MinConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "async-trigger-enrich-min-connection",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
+								MaxConnectionsNumber:   10,
+								MinConnectionsNumber:   5,
+							},
+						},
+					},
+				},
+			},
+			expectedConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
+								MaxConnectionsNumber:   10,
+								MinConnectionsNumber:   10,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "async-trigger-with-custom-config",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionCreationMode: functionconfig.ConnectionCreationModeDynamic,
+								MaxConnectionsNumber:   10,
+								MinConnectionsNumber:   5,
+							},
+						},
+					},
+				},
+			},
+			expectedConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionCreationMode: functionconfig.ConnectionCreationModeDynamic,
+								MaxConnectionsNumber:   10,
+								MinConnectionsNumber:   5,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			err := suite.Platform.enrichProcessingMode(context.Background(), testCase.functionConfig)
+
+			suite.Require().NoError(err)
+
+			suite.Equal(testCase.expectedConfig, testCase.functionConfig)
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
+	testCases := []struct {
+		name           string
+		functionConfig *functionconfig.Config
+		expectedError  string
+	}{
+		{
+			name: "sync trigger, no async config -> no error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.SyncTriggerWorkMode,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "sync trigger, has async config -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind:        "http",
+							Mode:        functionconfig.SyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{MaxConnectionsNumber: 10},
+						},
+					},
+				},
+			},
+			expectedError: "AsyncConfig should be empty when working in `sync` trigger mode",
+		},
+		{
+			name: "async kind not supported -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"cron-trigger": {
+							Kind: "cron",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 10,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "Async processing mode is not supported for cron trigger kind",
+		},
+		{
+			name: "async runtime not supported -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "java",
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 10,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "Async processing mode is not supported for java runtime",
+		},
+		{
+			name: "max < min -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 1,
+								MinConnectionsNumber: 2,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "Maximum connection number configuration can't be smaller than minimal",
+		},
+		{
+			name: "valid async config -> no error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"http-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 10,
+								MinConnectionsNumber: 5,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			err := suite.Platform.validateProcessingMode(testCase.functionConfig)
+
+			if testCase.expectedError == "" {
+				suite.Require().NoError(err)
+			} else {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), testCase.expectedError)
+			}
+		})
+	}
+}
+
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage
 // Expects 3 files inside functionLogsFilePath: (kept in these constants)
 // - FunctionLogsFile

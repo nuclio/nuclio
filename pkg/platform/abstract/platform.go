@@ -1630,6 +1630,10 @@ func (ap *Platform) validateTriggers(functionConfig *functionconfig.Config) erro
 		return nuclio.WrapErrBadRequest(err)
 	}
 
+	if err := ap.validateProcessingMode(functionConfig); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
+
 	for triggerKey, triggerInstance := range functionConfig.Spec.Triggers {
 
 		// do not allow trigger with empty name
@@ -1730,6 +1734,40 @@ func (ap *Platform) validateBatchConfiguration(functionConfig *functionconfig.Co
 	return nil
 }
 
+func (ap *Platform) validateProcessingMode(functionConfig *functionconfig.Config) error {
+	for _, triggerInstance := range functionConfig.Spec.Triggers {
+
+		if triggerInstance.Mode == functionconfig.SyncTriggerWorkMode {
+
+			if triggerInstance.AsyncConfig != nil {
+				return nuclio.NewErrBadRequest("AsyncConfig should be empty when working in `sync` trigger mode")
+			}
+			continue
+		}
+		if !functionconfig.TriggerKindSupportsAsync(triggerInstance.Kind) {
+			return nuclio.NewErrBadRequest(fmt.Sprintf(
+				"Async processing mode is not supported for %s trigger kind",
+				triggerInstance.Kind))
+		}
+
+		if !functionconfig.RuntimeSupportsAsync(functionConfig.Spec.Runtime) {
+			return nuclio.NewErrBadRequest(fmt.Sprintf(
+				"Async processing mode is not supported for %s runtime",
+				functionConfig.Spec.Runtime))
+		}
+
+		if triggerInstance.AsyncConfig.MaxConnectionsNumber < triggerInstance.AsyncConfig.MinConnectionsNumber {
+			return nuclio.NewErrBadRequest(fmt.Sprintf(
+				"Maximum connection number configuration can't be smaller than minimal. "+
+					"MaxConnectionsNumber: %d, MinConnectionsNumber: %d", triggerInstance.AsyncConfig.MaxConnectionsNumber,
+				triggerInstance.AsyncConfig.MaxConnectionsNumber,
+			))
+		}
+
+	}
+	return nil
+}
+
 func (ap *Platform) validateIngresses(triggers map[string]functionconfig.Trigger) error {
 	for triggerName, triggerInstance := range functionconfig.GetTriggersByKind(triggers, "http") {
 
@@ -1783,15 +1821,15 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 		return errors.Wrap(err, "Failed to enrich batch params")
 	}
 
+	if err := ap.enrichProcessingMode(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Failed to enrich processing mode")
+	}
+
 	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
 
 		// if name was not given, inherit its key
 		if triggerInstance.Name == "" {
 			triggerInstance.Name = triggerName
-		}
-
-		if triggerInstance.Mode == "" {
-			triggerInstance.Mode = functionconfig.SyncTriggerWorkMode
 		}
 
 		// replace deprecated MaxWorkers with NumWorkers
@@ -1877,6 +1915,73 @@ func (ap *Platform) enrichBatchParams(ctx context.Context, functionConfig *funct
 			}
 		}
 	}
+	return nil
+}
+
+// enrichProcessingMode sets default processing modes and configurations
+// for each trigger in the function configuration.
+// If a trigger mode is empty or "sync", it is forced to "sync".
+// Otherwise, it ensures that AsyncConfig is properly populated.
+func (ap *Platform) enrichProcessingMode(ctx context.Context, functionConfig *functionconfig.Config) error {
+
+	for triggerName, triggerInstance := range functionConfig.Spec.Triggers {
+
+		// if trigger mode is empty or already "sync", set it to sync and continue
+		if triggerInstance.Mode == "" || triggerInstance.Mode == functionconfig.SyncTriggerWorkMode {
+			triggerInstance.Mode = functionconfig.SyncTriggerWorkMode
+			functionConfig.Spec.Triggers[triggerName] = triggerInstance
+			continue
+		}
+
+		// otherwise, this trigger is async
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching async config for function trigger",
+			"functionName", functionConfig.Meta.Name,
+			"trigger", triggerName,
+		)
+
+		// if no async config is defined, create a new one
+		if triggerInstance.AsyncConfig == nil {
+			triggerInstance.AsyncConfig = &functionconfig.AsyncConfig{}
+		}
+
+		// if ConnectionCreationMode is not set, default to Static
+		if triggerInstance.AsyncConfig.ConnectionCreationMode == "" {
+			ap.Logger.DebugWithCtx(ctx,
+				"Enriching ConnectionCreationMode for function trigger",
+				"functionName", functionConfig.Meta.Name,
+				"trigger", triggerName,
+				"connectionCreationMode", functionconfig.ConnectionCreationModeStatic,
+			)
+			triggerInstance.AsyncConfig.ConnectionCreationMode = functionconfig.ConnectionCreationModeStatic
+		}
+
+		// if MaxConnectionsNumber is 0, set it to the default max
+		if triggerInstance.AsyncConfig.MaxConnectionsNumber == 0 {
+			ap.Logger.DebugWithCtx(ctx,
+				"Enriching MaxConnectionsNumber for function trigger",
+				"functionName", functionConfig.Meta.Name,
+				"trigger", triggerName,
+				"maxConnectionsNumber", functionconfig.DefaultMaxConnectionsNumber,
+			)
+			triggerInstance.AsyncConfig.MaxConnectionsNumber = functionconfig.DefaultMaxConnectionsNumber
+		}
+
+		// if the connection creation mode is Static, ensure MinConnectionsNumber matches MaxConnectionsNumber
+		if triggerInstance.AsyncConfig.ConnectionCreationMode == functionconfig.ConnectionCreationModeStatic &&
+			triggerInstance.AsyncConfig.MinConnectionsNumber != triggerInstance.AsyncConfig.MaxConnectionsNumber {
+
+			ap.Logger.DebugWithCtx(ctx,
+				"Enriching MinConnectionsNumber for function trigger",
+				"functionName", functionConfig.Meta.Name,
+				"trigger", triggerName,
+				"minConnectionsNumber", triggerInstance.AsyncConfig.MaxConnectionsNumber,
+			)
+			triggerInstance.AsyncConfig.MinConnectionsNumber = triggerInstance.AsyncConfig.MaxConnectionsNumber
+		}
+		functionConfig.Spec.Triggers[triggerName] = triggerInstance
+	}
+
 	return nil
 }
 
