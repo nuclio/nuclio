@@ -18,6 +18,7 @@ package http
 
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -34,7 +35,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
-	namedWorkerAllocators *worker.AllocatorSyncMap,
+	namedWorkerAllocators *eventprocessor.AllocatorSyncMap,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	// create logger parent
@@ -48,7 +49,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	// get or create worker allocator
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
-		func() (worker.Allocator, error) {
+		func() (eventprocessor.Allocator, error) {
 			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,
 				configuration.NumWorkers,
 				runtimeConfiguration)

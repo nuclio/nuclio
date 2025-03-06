@@ -28,8 +28,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -56,7 +56,7 @@ func (suite *TriggerTestSuite) TestCreateManyTriggersWithSameWorkerAllocatorName
 	processorInstance := Processor{
 		logger:                suite.logger,
 		functionLogger:        suite.logger.GetChild("some-function-logger"),
-		namedWorkerAllocators: worker.NewAllocatorSyncMap(),
+		namedWorkerAllocators: eventprocessor.NewAllocatorSyncMap(),
 	}
 	totalTriggers := 1000
 	triggerSpecs := map[string]functionconfig.Trigger{}
@@ -97,7 +97,7 @@ func (suite *TriggerTestSuite) TestRestartTriggers() {
 	processorInstance := Processor{
 		logger:                    suite.logger,
 		functionLogger:            suite.logger.GetChild("some-function-logger"),
-		namedWorkerAllocators:     worker.NewAllocatorSyncMap(),
+		namedWorkerAllocators:     eventprocessor.NewAllocatorSyncMap(),
 		restartTriggerChan:        restartChannel,
 		stopRestartTriggerRoutine: stopRestart,
 	}
@@ -208,7 +208,7 @@ func (t *testTrigger) GetStatistics() *trigger.Statistics {
 	return nil
 }
 
-func (t *testTrigger) GetWorkers() []*worker.Worker {
+func (t *testTrigger) GetWorkers() []eventprocessor.EventProcessor {
 	t.Called()
 	return nil
 }
@@ -228,7 +228,7 @@ func (t *testTrigger) GetProjectName() string {
 	return ""
 }
 
-func (t *testTrigger) TimeoutWorker(worker *worker.Worker) error {
+func (t *testTrigger) TimeoutWorker(worker eventprocessor.EventProcessor) error {
 	t.Called(worker)
 	return nil
 }
@@ -248,11 +248,11 @@ func (t *testTrigger) SignalWorkersToContinue() error {
 	return nil
 }
 
-func (t *testTrigger) PreBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker) {
+func (t *testTrigger) PreBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
 	t.Called(batch, workerInstance)
 }
 
-func (t *testTrigger) PostBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker) {
+func (t *testTrigger) PostBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
 	t.Called(batch, workerInstance)
 }
 

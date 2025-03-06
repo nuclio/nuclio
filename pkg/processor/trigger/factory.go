@@ -17,14 +17,14 @@ limitations under the License.
 package trigger
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 )
 
 type Factory struct{}
 
 func (f *Factory) GetWorkerAllocator(workerAllocatorName string,
-	namedWorkerAllocators *worker.AllocatorSyncMap,
-	workerAllocatorCreator func() (worker.Allocator, error)) (worker.Allocator, error) {
+	namedWorkerAllocators *eventprocessor.AllocatorSyncMap,
+	workerAllocatorCreator func() (eventprocessor.Allocator, error)) (eventprocessor.Allocator, error) {
 
 	return namedWorkerAllocators.LoadOrStore(workerAllocatorName, workerAllocatorCreator)
 }

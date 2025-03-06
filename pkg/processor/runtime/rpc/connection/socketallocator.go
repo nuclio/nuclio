@@ -19,6 +19,8 @@ package connection
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
+
 	"github.com/nuclio/errors"
 )
 
@@ -29,14 +31,11 @@ const (
 
 type SocketAllocator struct {
 	*AbstractConnectionManager
-
-	eventSockets []*EventSocket
 }
 
 func NewSocketAllocator(abstractConnectionManager *AbstractConnectionManager) *SocketAllocator {
 	return &SocketAllocator{
 		AbstractConnectionManager: abstractConnectionManager,
-		eventSockets:              make([]*EventSocket, 0),
 	}
 }
 
@@ -51,26 +50,36 @@ func (sa *SocketAllocator) Prepare() error {
 	if err := sa.prepareControlMessageSocket(); err != nil {
 		return errors.Wrap(err, "Failed to prepare control message socket")
 	}
+	eventSockets := make([]*EventSocket, 0)
 	for i := 0; i < sa.MinConnectionsNum; i++ {
 		eventConnection, err := sa.createSocketConnection()
 		if err != nil {
 			return errors.Wrap(err, "Failed to create event socket connection")
 		}
-		sa.eventSockets = append(sa.eventSockets,
+		eventSockets = append(eventSockets,
 			NewEventSocket(sa.Logger, eventConnection, sa))
+	}
+	// set objects in allocator
+	eventProcessors := make([]eventprocessor.EventProcessor, len(eventSockets))
+	for i, eventConnection := range eventSockets {
+		eventProcessors[i] = eventConnection
+	}
+	if err := sa.allocator.SetObjects(eventProcessors); err != nil {
+		return errors.Wrap(err, "Failed to set objects in allocator")
 	}
 	return nil
 }
 
 func (sa *SocketAllocator) Start() error {
-	if err := sa.startSockets(); err != nil {
+	eventSockets := sa.allocator.GetObjects()
+	if err := sa.startSockets(eventSockets); err != nil {
 		return errors.Wrap(err, "Failed to start socket allocator")
 	}
 
 	// wait for start if required to
 	if sa.Configuration.WaitForStart {
 		sa.Logger.Debug("Waiting for start")
-		for _, socket := range sa.eventSockets {
+		for _, socket := range eventSockets {
 			socket.WaitForStart()
 		}
 	}
@@ -80,26 +89,31 @@ func (sa *SocketAllocator) Start() error {
 }
 
 func (sa *SocketAllocator) Stop() error {
-	for _, eventSocket := range sa.eventSockets {
+	eventSockets := sa.allocator.GetObjects()
+	for _, eventSocket := range eventSockets {
 		socket := eventSocket
 		go func() {
-			socket.Stop()
+			err := socket.Stop()
+			if err != nil {
+				sa.Logger.WarnWith("Failed to close socket",
+					"error", err.Error())
+			}
 		}()
 	}
 	sa.stopControlMessageSocket()
 	return nil
 }
 
-func (sa *SocketAllocator) Allocate() (EventConnection, error) {
+func (sa *SocketAllocator) Allocate(duration time.Duration) (eventprocessor.EventProcessor, error) {
 	// TODO: implement allocation logic when support multiple sockets
-	return sa.eventSockets[0], nil
+	return sa.allocator.Allocate(duration)
 }
 
 func (sa *SocketAllocator) GetAddressesForWrapperStart() ([]string, string) {
 	eventAddresses := make([]string, 0)
-
-	for _, socket := range sa.eventSockets {
-		eventAddresses = append(eventAddresses, socket.Address)
+	eventSockets := sa.allocator.GetObjects()
+	for _, socket := range eventSockets {
+		eventAddresses = append(eventAddresses, socket.(*EventSocket).Address)
 	}
 
 	controlAddress := ""
@@ -112,15 +126,16 @@ func (sa *SocketAllocator) GetAddressesForWrapperStart() ([]string, string) {
 	return eventAddresses, controlAddress
 }
 
-func (sa *SocketAllocator) startSockets() error {
+func (sa *SocketAllocator) startSockets(eventSockets []eventprocessor.EventProcessor) error {
 	var err error
-	for _, socket := range sa.eventSockets {
+	for _, socket := range eventSockets {
+		eventSocketInstance := socket.(*EventSocket)
 		// TODO: when having multiple sockets supported, we might want to reconsider failing here
-		if socket.Conn, err = socket.listener.Accept(); err != nil {
+		if eventSocketInstance.Conn, err = eventSocketInstance.listener.Accept(); err != nil {
 			return errors.Wrap(err, "Can't get connection from wrapper")
 		}
-		socket.SetEncoder(sa.Configuration.GetEventEncoderFunc(socket.Conn))
-		go socket.AbstractEventConnection.RunHandler()
+		eventSocketInstance.SetEncoder(sa.Configuration.GetEventEncoderFunc(eventSocketInstance.Conn))
+		go eventSocketInstance.AbstractEventConnection.RunHandler()
 	}
 	sa.Logger.Debug("Successfully established connection for event sockets")
 

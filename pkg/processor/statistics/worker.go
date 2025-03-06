@@ -20,16 +20,16 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 type workerGatherer struct {
-	worker                                 *worker.Worker
+	worker                                 eventprocessor.EventProcessor
 	prevRuntimeStatistics                  runtime.Statistics
 	handledEventsDurationMillisecondsSum   prometheus.Counter
 	handledEventsDurationMillisecondsCount prometheus.Counter
@@ -37,7 +37,7 @@ type workerGatherer struct {
 
 func newWorkerGatherer(instanceName string,
 	trigger trigger.Trigger,
-	worker *worker.Worker,
+	worker eventprocessor.EventProcessor,
 	metricRegistry *prometheus.Registry) (*workerGatherer, error) {
 
 	newWorkerGatherer := &workerGatherer{

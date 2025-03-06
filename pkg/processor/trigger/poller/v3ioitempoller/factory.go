@@ -18,6 +18,7 @@ package v3ioitempoller
 
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -32,7 +33,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	id string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration,
-	namedWorkerAllocators *worker.AllocatorSyncMap,
+	namedWorkerAllocators *eventprocessor.AllocatorSyncMap,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
 	// create logger parent

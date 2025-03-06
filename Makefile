@@ -202,9 +202,9 @@ load-docker-images: print-docker-images
 	@echo "Load Nuclio docker images"
 	docker load -i nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
 
-.PHONY: print-docker-images
+.PHONY: pull-docker-images
 pull-docker-images: print-docker-images
-	@echo "Pull Nuclio docker images"
+	@echo "Pulling Nuclio docker images"
 	@echo $(IMAGES_TO_PUSH) | xargs -n 1 -P 5 docker pull
 
 .PHONY: retag-docker-images
@@ -630,6 +630,10 @@ lint: modules ensure-test-files-annotated ensure-golangci-linter
 	$(GOPATH)/bin/golangci-lint run -v
 	@echo Done.
 
+.PHONY: test-coverage
+test-coverage:
+	go test -tags=test_unit -coverprofile=coverage.out ./pkg/... || go tool cover -html=coverage.out
+
 .PHONY: lint-docs
 lint-docs:
 	vale docs
@@ -811,6 +815,7 @@ build-test: build-builder
 		--build-arg NUCLIO_DOCKER_REPO=$(NUCLIO_DOCKER_REPO) \
 		--build-arg KUBECTL_CLI_ARCH=$(NUCLIO_TEST_KUBECTL_CLI_ARCH) \
 		--build-arg KUBECTL_CLI_VERSION=$(NUCLIO_TEST_KUBECTL_CLI_VERSION) \
+		--build-arg ALPINE_IMAGE=$(NUCLIO_DOCKER_ALPINE_IMAGE) \
 		--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 		--tag $(NUCLIO_DOCKER_TEST_TAG) .
 

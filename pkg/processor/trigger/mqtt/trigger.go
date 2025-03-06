@@ -21,8 +21,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	mqttclient "github.com/eclipse/paho.mqtt.golang"
 	"github.com/nuclio/errors"
@@ -38,11 +38,11 @@ type AbstractTrigger struct {
 	// - in-order handling of a topic messages (unique worker allocator with 1 worker for a topic)
 	// - disallowing parallel handling of topics (e.g. topic1, topic2 share worker allocator so that only one handler
 	//   is called at any given time
-	perTopicWorkerAllocator map[string]worker.Allocator
+	perTopicWorkerAllocator map[string]eventprocessor.Allocator
 }
 
 func NewAbstractTrigger(parentLogger logger.Logger,
-	workerAllocator worker.Allocator,
+	workerAllocator eventprocessor.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (*AbstractTrigger, error) {
 	instanceLogger := parentLogger.GetChild(configuration.ID)
@@ -178,8 +178,8 @@ func (t *AbstractTrigger) handleMessage(client mqttclient.Client, message mqttcl
 	workerAllocator.Release(workerInstance)
 }
 
-func (t *AbstractTrigger) allocateWorker(message mqttclient.Message) (*worker.Worker, worker.Allocator, error) {
-	var workerAllocator worker.Allocator
+func (t *AbstractTrigger) allocateWorker(message mqttclient.Message) (eventprocessor.EventProcessor, eventprocessor.Allocator, error) {
+	var workerAllocator eventprocessor.Allocator
 
 	// if there's a per-topic worker allocator, first get worker allocator
 	if t.perTopicWorkerAllocator != nil {

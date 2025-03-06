@@ -18,9 +18,11 @@ package connection
 
 import (
 	"io"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
@@ -40,7 +42,7 @@ type ConnectionManager interface {
 	Stop() error
 
 	// Allocate provides an instance of EventConnection for handling event
-	Allocate() (EventConnection, error)
+	Allocate(duration time.Duration) (eventprocessor.EventProcessor, error)
 
 	// GetAddressesForWrapperStart returns a list of addresses as required for starting a wrapper
 	GetAddressesForWrapperStart() ([]string, string)
