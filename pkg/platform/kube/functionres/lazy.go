@@ -2388,7 +2388,7 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		InitialDelaySeconds: 5,
 		TimeoutSeconds:      1,
 		PeriodSeconds:       1,
-		FailureThreshold:    10,
+		FailureThreshold:    3,
 	}
 
 	container.LivenessProbe = &v1.Probe{
