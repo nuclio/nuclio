@@ -108,7 +108,7 @@ jobs:
 
   release:
     name: Generate Changelog & Create Release
-    if: github.event_name == 'workflow_dispatch' || github.event.inputs.skip_create_tag_release != 'true'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_create_tag_release != 'true'
     runs-on: ubuntu-latest
     needs: [ prepare-inputs ]
     steps:
@@ -225,19 +225,13 @@ jobs:
           echo "NUCLIO_CACHE_REPO=${{ env.CACHE_REPO }}/${{ env.CACHE_REPO_NAME }}" >> $GITHUB_ENV
           echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
 
-      - name: Prepare outputs
-        id: release_info
-        run: |
-          echo "REF_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-          echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
       - name: Set NUCLIO_LABEL to unstable
         if: github.event_name == 'push'
         run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
 
       - name: Set NUCLIO_LABEL to release tag
         if: github.event_name == 'workflow_dispatch'
-        run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
+        run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
 
@@ -314,19 +308,13 @@ jobs:
         run: |
           echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
 
-      - name: Prepare outputs
-        id:  prepare_outputs
-        run: |
-          echo "REF_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-          echo "REF_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
       - name: Set NUCLIO_LABEL to unstable
         if: github.event_name == 'push'
         run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
 
       - name: Set NUCLIO_LABEL to release tag
         if: github.event_name == 'workflow_dispatch'
-        run: echo "NUCLIO_LABEL=${{ steps.release_info.outputs.REF_TAG }}" >> $GITHUB_ENV
+        run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
 
@@ -396,7 +384,6 @@ jobs:
             helm package -d nuclio-helm/charts hack/k8s/helm/nuclio
             cd nuclio-helm/charts
             helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
-          # Step 7: Publish charts
       - name: Publish charts
         run: |
           echo "Publishing charts"

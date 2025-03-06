@@ -74,7 +74,7 @@ commit_parsers = [
   { message = "^\\[Test\\]", group = "<!-- 6 -->🔬 Testing" },
   { message = "^\\[Dependencies\\]", group = "<!-- 7 -->🧪 Dependencies" },
   { message = "^\\[Dependabot\\]", group = "<!-- 7 -->🧪 Dependencies" },
-  { message = "^Bump to", skip = true },
+  { message = "^\\[Chart\\] Bump to", skip = true },
   { message = "^\\[CI\\]", group = "<!-- 8 -->⚙️ CI" },
   { body = ".*security", group = "<!-- 9 -->🛡️ Security" },
   { message = "^Revert", group = "<!-- 10 -->◀️ Reverted Changes" },
