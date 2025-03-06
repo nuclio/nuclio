@@ -24,8 +24,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	natsio "github.com/nats-io/nats.go"
 	"github.com/nuclio/errors"
@@ -40,7 +40,7 @@ type nats struct {
 }
 
 func newTrigger(parentLogger logger.Logger,
-	workerAllocator worker.Allocator,
+	workerAllocator eventprocessor.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),

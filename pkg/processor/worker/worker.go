@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 
@@ -35,7 +36,7 @@ import (
 type Worker struct {
 
 	// accessed atomically, keep as first field for alignment
-	statistics Statistics
+	statistics eventprocessor.Statistics
 
 	logger               logger.Logger
 	index                int
@@ -48,7 +49,7 @@ type Worker struct {
 // NewWorker creates a new worker
 func NewWorker(parentLogger logger.Logger,
 	index int,
-	runtime runtime.Runtime) (*Worker, error) {
+	runtime runtime.Runtime) (eventprocessor.EventProcessor, error) {
 
 	newWorker := Worker{
 		logger:  parentLogger,
@@ -91,12 +92,12 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	return response, err
 }
 
-func (w *Worker) ProcessEventBatch(batch []nuclio.Event) ([]*runtime.ResponseWithErrors, error) {
+func (w *Worker) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	return w.runtime.ProcessBatch(batch, w.logger)
 }
 
 // GetStatistics returns a pointer to the statistics object. This must not be modified by the reader
-func (w *Worker) GetStatistics() *Statistics {
+func (w *Worker) GetStatistics() *eventprocessor.Statistics {
 	return &w.statistics
 }
 
@@ -183,4 +184,10 @@ func (w *Worker) Subscribe(kind controlcommunication.ControlMessageKind, channel
 // Unsubscribe unsubscribes from a control message kind
 func (w *Worker) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
 	return w.runtime.GetControlMessageBroker().Unsubscribe(kind, channel)
+}
+
+func (w *Worker) WaitForStart() {
+}
+
+func (w *Worker) RunHandler() {
 }

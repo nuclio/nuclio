@@ -20,15 +20,15 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
 type Allocator interface {
-	AllocateWorker(string, int, *time.Duration) (*worker.Worker, interface{}, error)
-	ReleaseWorker(interface{}, *worker.Worker) error
+	AllocateWorker(string, int, *time.Duration) (eventprocessor.EventProcessor, interface{}, error)
+	ReleaseWorker(interface{}, eventprocessor.EventProcessor) error
 	Stop() error
 }
 
@@ -37,11 +37,11 @@ type Allocator interface {
 // share the same pool of workers
 type PooledWorkerAllocator struct {
 	logger          logger.Logger
-	workerAllocator worker.Allocator
+	workerAllocator eventprocessor.Allocator
 }
 
 func NewPooledWorkerAllocator(parentLogger logger.Logger,
-	workerAllocator worker.Allocator) (*PooledWorkerAllocator, error) {
+	workerAllocator eventprocessor.Allocator) (*PooledWorkerAllocator, error) {
 
 	newPooledWorkerAllocator := PooledWorkerAllocator{
 		logger:          parentLogger.GetChild("pooled"),
@@ -55,7 +55,7 @@ func NewPooledWorkerAllocator(parentLogger logger.Logger,
 
 func (wa *PooledWorkerAllocator) AllocateWorker(topic string,
 	partitionID int,
-	timeout *time.Duration) (*worker.Worker, interface{}, error) {
+	timeout *time.Duration) (eventprocessor.EventProcessor, interface{}, error) {
 
 	// regardless of partition, just use the pool
 	workerInstance, err := wa.workerAllocator.Allocate(common.GetDurationOrInfinite(timeout))
@@ -63,7 +63,7 @@ func (wa *PooledWorkerAllocator) AllocateWorker(topic string,
 	return workerInstance, nil, err
 }
 
-func (wa *PooledWorkerAllocator) ReleaseWorker(cookie interface{}, workerInstance *worker.Worker) error {
+func (wa *PooledWorkerAllocator) ReleaseWorker(cookie interface{}, workerInstance eventprocessor.EventProcessor) error {
 	wa.workerAllocator.Release(workerInstance)
 
 	return nil
@@ -81,17 +81,17 @@ func (wa *PooledWorkerAllocator) Stop() error {
 // are mapped to other partitions)
 type StaticWorkerAllocator struct {
 	logger          logger.Logger
-	workerAllocator worker.Allocator
-	workerChans     []chan *worker.Worker
+	workerAllocator eventprocessor.Allocator
+	workerChans     []chan eventprocessor.EventProcessor
 
 	// for a given topic and partition ID, holds the channel from which the worker that is assigned to this
 	// specific topic/partition can be taken. TODO: the partition map *may* be an array for O(1) goodness...
 	// but that assumes that partitionID cannot be very high - something I don't know if is true in the real world
-	topicPartitionWorkers map[string]map[int]chan *worker.Worker
+	topicPartitionWorkers map[string]map[int]chan eventprocessor.EventProcessor
 }
 
 func NewStaticWorkerAllocator(parentLogger logger.Logger,
-	workerAllocator worker.Allocator,
+	workerAllocator eventprocessor.Allocator,
 	topicPartitionIDs map[string][]int) (*StaticWorkerAllocator, error) {
 	var err error
 
@@ -118,10 +118,10 @@ func NewStaticWorkerAllocator(parentLogger logger.Logger,
 
 func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 	partitionID int,
-	timeout *time.Duration) (*worker.Worker, interface{}, error) {
+	timeout *time.Duration) (eventprocessor.EventProcessor, interface{}, error) {
 
 	if wa.workerAllocator.IsTerminated() {
-		return nil, nil, worker.ErrAllWorkersAreTerminated
+		return nil, nil, eventprocessor.ErrAllObjectsAreTerminated
 	}
 
 	// get the channel from which we need to allocate
@@ -130,7 +130,7 @@ func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 		return nil, nil, errors.Errorf("No worker assigned to this topic/partition (%s/%d)", topic, partitionID)
 	}
 
-	var workerInstance *worker.Worker
+	var workerInstance eventprocessor.EventProcessor
 
 	if timeout == nil {
 
@@ -145,7 +145,7 @@ func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 
 			// if there's no timeout, return now
 			if *timeout == 0 {
-				return nil, nil, worker.ErrNoAvailableWorkers
+				return nil, nil, eventprocessor.ErrNoAvailableObjects
 			}
 
 			// if there is a timeout, try to allocate while waiting for the time
@@ -153,7 +153,7 @@ func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 			select {
 			case workerInstance = <-workerChan:
 			case <-time.After(*timeout):
-				return nil, nil, worker.ErrNoAvailableWorkers
+				return nil, nil, eventprocessor.ErrNoAvailableObjects
 			}
 		}
 	}
@@ -162,10 +162,10 @@ func (wa *StaticWorkerAllocator) AllocateWorker(topic string,
 	return workerInstance, workerChan, nil
 }
 
-func (wa *StaticWorkerAllocator) ReleaseWorker(cookie interface{}, workerInstance *worker.Worker) error {
+func (wa *StaticWorkerAllocator) ReleaseWorker(cookie interface{}, workerInstance eventprocessor.EventProcessor) error {
 
 	// try to get the worker chan
-	workerChan, cookieIsWorkerChan := cookie.(chan *worker.Worker)
+	workerChan, cookieIsWorkerChan := cookie.(chan eventprocessor.EventProcessor)
 	if !cookieIsWorkerChan {
 		return errors.New("Expected cookie to be a worker channel")
 	}
@@ -191,11 +191,11 @@ func (wa *StaticWorkerAllocator) Stop() error {
 	return nil
 }
 
-func (wa *StaticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator worker.Allocator,
-	topicPartitionIDs map[string][]int) ([]chan *worker.Worker, map[string]map[int]chan *worker.Worker, error) {
+func (wa *StaticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator eventprocessor.Allocator,
+	topicPartitionIDs map[string][]int) ([]chan eventprocessor.EventProcessor, map[string]map[int]chan eventprocessor.EventProcessor, error) {
 
-	var workerChans []chan *worker.Worker
-	topicPartitionWorkers := map[string]map[int]chan *worker.Worker{}
+	var workerChans []chan eventprocessor.EventProcessor
+	topicPartitionWorkers := map[string]map[int]chan eventprocessor.EventProcessor{}
 
 	wa.logger.DebugWith("Assigning topic partition workers",
 		"topicPartitionIDs", topicPartitionIDs)
@@ -204,11 +204,11 @@ func (wa *StaticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator wor
 	// can only contain one item and add that to a slice
 	for {
 		workerInstance, err := workerAllocator.Allocate(0)
-		if errors.Is(err, worker.ErrNoAvailableWorkers) {
+		if errors.Is(err, eventprocessor.ErrNoAvailableObjects) {
 			break
 		}
 
-		workerChan := make(chan *worker.Worker, 1)
+		workerChan := make(chan eventprocessor.EventProcessor, 1)
 		workerChan <- workerInstance
 
 		workerChans = append(workerChans, workerChan)
@@ -224,7 +224,7 @@ func (wa *StaticWorkerAllocator) assignTopicPartitionWorkers(workerAllocator wor
 		"topicPartitionIDs", topicPartitionIDs)
 
 	for topic, topicPartitionIDs := range topicPartitionIDs {
-		topicPartitionWorkers[topic] = map[int]chan *worker.Worker{}
+		topicPartitionWorkers[topic] = map[int]chan eventprocessor.EventProcessor{}
 
 		for partitionIdx, topicPartitionID := range topicPartitionIDs {
 

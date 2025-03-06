@@ -19,21 +19,21 @@ package appinsights
 import (
 	"strconv"
 
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/microsoft/ApplicationInsights-Go/appinsights"
 )
 
 type WorkerGatherer struct {
-	worker                *worker.Worker
+	worker                eventprocessor.EventProcessor
 	prevRuntimeStatistics runtime.Statistics
 	client                appinsights.TelemetryClient
 }
 
 func newWorkerGatherer(trigger trigger.Trigger,
-	worker *worker.Worker,
+	worker eventprocessor.EventProcessor,
 	client appinsights.TelemetryClient) (*WorkerGatherer, error) {
 
 	newWorkerGatherer := &WorkerGatherer{

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -34,7 +34,7 @@ type shard struct {
 	logger         logger.Logger
 	kinesisTrigger *kinesis
 	shardID        string
-	worker         *worker.Worker
+	worker         eventprocessor.EventProcessor
 }
 
 func newShard(parentLogger logger.Logger, kinesisTrigger *kinesis, shardID string) (*shard, error) {

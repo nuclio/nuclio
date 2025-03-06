@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errgroup"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/errors"
@@ -35,7 +36,7 @@ var WorkerFactorySingleton = Factory{}
 
 func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	numWorkers int,
-	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
+	runtimeConfiguration *runtime.Configuration) (eventprocessor.Allocator, error) {
 
 	logger.DebugWith("Creating worker pool", "num", numWorkers)
 
@@ -46,7 +47,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	}
 
 	// create an allocator
-	workerAllocator, err := NewFixedPoolWorkerAllocator(logger, workers)
+	workerAllocator := eventprocessor.NewSyncPoolAllocator(logger, workers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
@@ -55,7 +56,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 }
 
 func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
-	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
+	runtimeConfiguration *runtime.Configuration) (eventprocessor.Allocator, error) {
 
 	// create the workers
 	workerInstance, err := waf.createWorker(logger, 0, runtimeConfiguration)
@@ -64,7 +65,7 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
 	}
 
 	// create an allocator
-	workerAllocator, err := NewSingletonWorkerAllocator(logger, workerInstance)
+	workerAllocator := eventprocessor.NewSingletonAllocator(logger, workerInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
@@ -74,7 +75,7 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
 
 func (waf *Factory) createWorker(parentLogger logger.Logger,
 	workerIndex int,
-	runtimeConfiguration *runtime.Configuration) (*Worker, error) {
+	runtimeConfiguration *runtime.Configuration) (eventprocessor.EventProcessor, error) {
 
 	// copy the runtime configuration since we need to specialize it for this specific runtime
 	runtimeConfigurationCopy := *runtimeConfiguration
@@ -105,8 +106,8 @@ func (waf *Factory) createWorker(parentLogger logger.Logger,
 
 func (waf *Factory) createWorkers(logger logger.Logger,
 	numWorkers int,
-	runtimeConfiguration *runtime.Configuration) ([]*Worker, error) {
-	workers := make([]*Worker, numWorkers)
+	runtimeConfiguration *runtime.Configuration) ([]eventprocessor.EventProcessor, error) {
+	workers := make([]eventprocessor.EventProcessor, numWorkers)
 
 	errGroup, _ := errgroup.WithContext(context.Background(), logger)
 

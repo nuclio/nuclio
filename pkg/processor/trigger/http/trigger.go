@@ -31,9 +31,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -60,7 +60,7 @@ type http struct {
 }
 
 func newTrigger(logger logger.Logger,
-	workerAllocator worker.Allocator,
+	workerAllocator eventprocessor.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 
@@ -78,7 +78,7 @@ func newTrigger(logger logger.Logger,
 		return nil, errors.New("HTTP trigger requires a shareable worker allocator")
 	}
 
-	numWorkers := len(workerAllocator.GetWorkers())
+	numWorkers := len(workerAllocator.GetObjects())
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
 		workerAllocator,
@@ -162,13 +162,13 @@ func (h *http) SignalWorkersToTerminate() error {
 	return h.AbstractTrigger.SignalWorkersToTerminate()
 }
 
-func (h *http) PreBatchHook(batch []nuclio.Event, workerInstance *worker.Worker) {
+func (h *http) PreBatchHook(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
 	// mark worker as busy
 	h.timeouts[workerInstance.GetIndex()] = 0
 	h.answering[workerInstance.GetIndex()] = 0
 }
 
-func (h *http) PostBatchHook(batch []nuclio.Event, workerInstance *worker.Worker) {
+func (h *http) PostBatchHook(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
 	// mark worker as available
 	h.answering[workerInstance.GetIndex()] = 1
 }
@@ -177,7 +177,7 @@ func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
 }
 
-func (h *http) TimeoutWorker(worker *worker.Worker) error {
+func (h *http) TimeoutWorker(worker eventprocessor.EventProcessor) error {
 	workerIndex := worker.GetIndex()
 	if workerIndex < 0 || workerIndex >= len(h.activeContexts) {
 		return errors.Errorf("Worker %d out of range", workerIndex)
@@ -218,7 +218,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	functionLogger logger.Logger,
 	timeout time.Duration) (response interface{}, timedOut bool, submitError error, processError error) {
 
-	var workerInstance *worker.Worker
+	var workerInstance eventprocessor.EventProcessor
 
 	defer h.HandleSubmitPanic(workerInstance, &submitError)
 
@@ -250,7 +250,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	return response, false, nil, processError
 }
 
-func (h *http) allocateWorker(timeout time.Duration) (*worker.Worker, int, error) {
+func (h *http) allocateWorker(timeout time.Duration) (eventprocessor.EventProcessor, int, error) {
 	// allocate a worker
 	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
 	if err != nil {
@@ -579,7 +579,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		switch errors.Cause(submitError) {
 
 		// no available workers
-		case worker.ErrNoAvailableWorkers, worker.ErrAllWorkersAreTerminated:
+		case eventprocessor.ErrNoAvailableObjects, eventprocessor.ErrAllObjectsAreTerminated:
 			h.Logger.WarnWith("No workers available",
 				"err", submitError.Error())
 			ctx.Response.SetStatusCode(nethttp.StatusServiceUnavailable)

@@ -26,8 +26,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/google/uuid"
 	"github.com/nuclio/errors"
@@ -72,7 +72,7 @@ type Trigger interface {
 
 	// GetWorkers gets direct access to workers for things like housekeeping / management
 	// TODO: locks and such when relevant
-	GetWorkers() []*worker.Worker
+	GetWorkers() []eventprocessor.EventProcessor
 
 	// GetNamespace returns namespace
 	GetNamespace() string
@@ -84,7 +84,7 @@ type Trigger interface {
 	GetProjectName() string
 
 	// TimeoutWorker times out a worker
-	TimeoutWorker(worker *worker.Worker) error
+	TimeoutWorker(worker eventprocessor.EventProcessor) error
 
 	// SignalWorkersToDrain drains all workers
 	SignalWorkersToDrain() error
@@ -96,10 +96,10 @@ type Trigger interface {
 	SignalWorkersToTerminate() error
 
 	// PreBatchHooks does trigger-specific actions before sending a batch
-	PreBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker)
+	PreBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor)
 
 	// PostBatchHooks does trigger-specific actions after sending a batch
-	PostBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker)
+	PostBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor)
 }
 
 // AbstractTrigger implements common trigger operations
@@ -111,7 +111,7 @@ type AbstractTrigger struct {
 
 	ID              string
 	Logger          logger.Logger
-	WorkerAllocator worker.Allocator
+	WorkerAllocator eventprocessor.Allocator
 	Class           string
 	Kind            string
 	Name            string
@@ -123,7 +123,7 @@ type AbstractTrigger struct {
 }
 
 func NewAbstractTrigger(logger logger.Logger,
-	allocator worker.Allocator,
+	allocator eventprocessor.Allocator,
 	configuration *Configuration,
 	class string,
 	kind string,
@@ -183,7 +183,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	functionLogger logger.Logger,
 	timeout time.Duration) (response interface{}, submitError error, processError error) {
 
-	var workerInstance *worker.Worker
+	var workerInstance eventprocessor.EventProcessor
 
 	defer at.HandleSubmitPanic(workerInstance, &submitError)
 
@@ -207,7 +207,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	functionLogger logger.Logger,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
-	var workerInstance *worker.Worker
+	var workerInstance eventprocessor.EventProcessor
 
 	defer at.HandleSubmitPanic(workerInstance, &submitError)
 
@@ -240,8 +240,8 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 }
 
 // GetWorkers returns the list of workers
-func (at *AbstractTrigger) GetWorkers() []*worker.Worker {
-	return at.WorkerAllocator.GetWorkers()
+func (at *AbstractTrigger) GetWorkers() []eventprocessor.EventProcessor {
+	return at.WorkerAllocator.GetObjects()
 }
 
 // GetStatistics returns trigger statistics
@@ -274,7 +274,7 @@ func (at *AbstractTrigger) GetProjectName() string {
 }
 
 // HandleSubmitPanic handles a panic when submitting to worker
-func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
+func (at *AbstractTrigger) HandleSubmitPanic(workerInstance eventprocessor.EventProcessor,
 	submitError *error) {
 
 	if err := recover(); err != nil {
@@ -299,7 +299,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 
 // SubmitEventToWorker submits events to worker and returns response
 func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
-	workerInstance *worker.Worker,
+	workerInstance eventprocessor.EventProcessor,
 	event nuclio.Event) (response interface{}, processError error) {
 
 	event, err := at.prepareEvent(event, workerInstance)
@@ -315,7 +315,7 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 }
 
 // TimeoutWorker times out a worker
-func (at *AbstractTrigger) TimeoutWorker(worker *worker.Worker) error {
+func (at *AbstractTrigger) TimeoutWorker(worker eventprocessor.EventProcessor) error {
 	return nil
 }
 
@@ -344,9 +344,9 @@ func (at *AbstractTrigger) SubscribeToControlMessageKind(kind controlcommunicati
 
 	at.Logger.DebugWith("Subscribing to control message kind",
 		"kind", kind,
-		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
+		"numWorkers", len(at.WorkerAllocator.GetObjects()))
 
-	for _, workerInstance := range at.WorkerAllocator.GetWorkers() {
+	for _, workerInstance := range at.WorkerAllocator.GetObjects() {
 		if err := workerInstance.Subscribe(kind, controlMessageChan); err != nil {
 			return errors.Wrapf(err,
 				"Failed to subscribe to control message kind %s in worker %d",
@@ -364,9 +364,9 @@ func (at *AbstractTrigger) UnsubscribeFromControlMessageKind(kind controlcommuni
 
 	at.Logger.DebugWith("Unsubscribing channel from control message kind",
 		"kind", kind,
-		"numWorkers", len(at.WorkerAllocator.GetWorkers()))
+		"numWorkers", len(at.WorkerAllocator.GetObjects()))
 
-	for _, workerInstance := range at.WorkerAllocator.GetWorkers() {
+	for _, workerInstance := range at.WorkerAllocator.GetObjects() {
 		if err := workerInstance.Unsubscribe(kind, controlMessageChan); err != nil {
 			return errors.Wrapf(err,
 				"Failed to unsubscribe channel from control message kind %s in worker %d",
@@ -407,7 +407,7 @@ func (at *AbstractTrigger) SignalWorkersToTerminate() error {
 	return nil
 }
 
-func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {
+func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance eventprocessor.EventProcessor) (nuclio.Event, error) {
 
 	// if the content type starts with application/cloudevents, the body
 	// contains a structured cloud event (a JSON encoded structure)
@@ -479,10 +479,10 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 	}
 }
 
-func (at *AbstractTrigger) PreBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker) {
+func (at *AbstractTrigger) PreBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
 }
 
-func (at *AbstractTrigger) PostBatchHooks(batch []nuclio.Event, workerInstance *worker.Worker) {
+func (at *AbstractTrigger) PostBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
 }
 
 func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event) (chan interface{}, context.CancelFunc) {
@@ -495,7 +495,7 @@ func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event) (chan interfac
 	return responseChan, cancelProcessing
 }
 
-func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChans map[string]*common.ChannelWithRecover, workerInstance *worker.Worker) {
+func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, responseChans map[string]*common.ChannelWithRecover, workerInstance eventprocessor.EventProcessor) {
 	// prepare batch
 	preparedBatch := make([]nuclio.Event, 0)
 	for _, event := range batch {
@@ -518,7 +518,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 	}
 
 	// sending batch to the runtime
-	responses, err := workerInstance.ProcessEventBatch(preparedBatch)
+	responses, err := workerInstance.ProcessEventBatch(preparedBatch, nil)
 	if err != nil {
 		for _, channel := range responseChans {
 			go channel.Write(at.Logger, &runtime.ResponseWithErrors{ProcessError: err})

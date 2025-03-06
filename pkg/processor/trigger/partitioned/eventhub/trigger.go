@@ -17,10 +17,10 @@ limitations under the License.
 package eventhub
 
 import (
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	eventhubclient "github.com/Azure/go-amqp"
 	"github.com/nuclio/errors"
@@ -34,7 +34,7 @@ type eventhub struct {
 }
 
 func newTrigger(parentLogger logger.Logger,
-	workerAllocator worker.Allocator,
+	workerAllocator eventprocessor.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 	var err error

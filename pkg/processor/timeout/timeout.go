@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errgroup"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -128,7 +128,7 @@ func (w EventTimeoutWatcher) watch() {
 	}
 }
 
-func (w EventTimeoutWatcher) gracefulShutdown(ctx context.Context, timedoutWorker *worker.Worker) {
+func (w EventTimeoutWatcher) gracefulShutdown(ctx context.Context, timedoutWorker eventprocessor.EventProcessor) {
 	w.logger.WarnWithCtx(ctx, "Staring graceful shutdown")
 
 	w.shuttingDown = true
@@ -145,8 +145,8 @@ func (w EventTimeoutWatcher) gracefulShutdown(ctx context.Context, timedoutWorke
 	w.logger.WarnWithCtx(ctx, "Graceful shutdown completed")
 }
 
-func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker *worker.Worker) map[string]*worker.Worker {
-	runningWorkers := make(map[string]*worker.Worker)
+func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker eventprocessor.EventProcessor) map[string]eventprocessor.EventProcessor {
+	runningWorkers := make(map[string]eventprocessor.EventProcessor)
 
 	// create error group
 	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx, w.logger)
@@ -198,7 +198,7 @@ func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker *w
 	return runningWorkers
 }
 
-func (w EventTimeoutWatcher) waitForWorkers(ctx context.Context, runningWorkers map[string]*worker.Worker) {
+func (w EventTimeoutWatcher) waitForWorkers(ctx context.Context, runningWorkers map[string]eventprocessor.EventProcessor) {
 	// TODO: Find a better deadline
 	shutdownDuration := 10 * w.timeout
 	deadline := time.Now().Add(shutdownDuration)

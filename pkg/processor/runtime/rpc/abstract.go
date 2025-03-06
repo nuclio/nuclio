@@ -24,9 +24,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/connection"
-	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
 	"github.com/nuclio/errors"
@@ -78,45 +78,12 @@ func (r *AbstractRuntime) Start() error {
 
 // ProcessEvent processes an event
 func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	processingResult, err := r.processItemAndWaitForResult(event, functionLogger)
-	if err != nil {
-		return nil, err
-	}
-	// this is a single event processing flow, so we only take the first item from the result
-	return nuclio.Response{
-		Body:        processingResult.Results[0].DecodedBody,
-		ContentType: processingResult.Results[0].ContentType,
-		Headers:     processingResult.Results[0].Headers,
-		StatusCode:  processingResult.Results[0].StatusCode,
-	}, processingResult.Results[0].Err
+	return r.processEventAndWaitForResult(event, functionLogger)
 }
 
 // ProcessBatch processes a batch of events
 func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
-	processingResults, err := r.processItemAndWaitForResult(batch, functionLogger)
-	if err != nil {
-		return nil, err
-	}
-	responsesWithErrors := make([]*runtime.ResponseWithErrors, len(processingResults.Results))
-
-	for index, processingResult := range processingResults.Results {
-		if processingResult.EventId == "" {
-			functionLogger.WarnWith("Received response with empty event_id, response won't be returned")
-			continue
-		}
-		responsesWithErrors[index] = &runtime.ResponseWithErrors{
-			Response: nuclio.Response{
-				Body:        processingResult.DecodedBody,
-				ContentType: processingResult.ContentType,
-				Headers:     processingResult.Headers,
-				StatusCode:  processingResult.StatusCode,
-			},
-			EventId:      processingResult.EventId,
-			ProcessError: processingResult.Err,
-		}
-	}
-
-	return responsesWithErrors, nil
+	return r.processBatchAndWaitForResult(batch, functionLogger)
 }
 
 // Stop stops the runtime
@@ -231,19 +198,28 @@ func (r *AbstractRuntime) WaitForProcessTermination(timeout time.Duration) {
 	}
 }
 
-func (r *AbstractRuntime) processItemAndWaitForResult(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
-
-	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
-		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
-	}
-
-	connectionInstance, err := r.connectionManager.Allocate()
+func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+	connectionInstance, err := r.allocateConnection()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to allocate connection")
+		return nil, errors.Wrap(err, "Failed to allocate connection for processing event")
 	}
-	processingResult, err := connectionInstance.ProcessEvent(item, functionLogger)
+	return connectionInstance.ProcessEvent(event, functionLogger)
+}
 
-	return processingResult, err
+func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+	connectionInstance, err := r.allocateConnection()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to allocate connection for processing batch")
+	}
+	return connectionInstance.ProcessEventBatch(batch, nil)
+}
+
+func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, error) {
+	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
+		return nil, errors.Errorf("Runtime is not ready. Status: %s", currentStatus.String())
+	}
+
+	return r.connectionManager.Allocate(0)
 }
 
 func (r *AbstractRuntime) startWrapper() error {

@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/nuclio/errors"
@@ -36,7 +36,7 @@ type iotcoremqtt struct {
 }
 
 func newTrigger(parentLogger logger.Logger,
-	workerAllocator worker.Allocator,
+	workerAllocator eventprocessor.Allocator,
 	configuration *Configuration,
 	restartTriggerChan chan trigger.Trigger) (trigger.Trigger, error) {
 

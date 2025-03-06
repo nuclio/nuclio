@@ -29,7 +29,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
+	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/controlmessagebroker"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
@@ -37,6 +39,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 )
 
@@ -50,17 +53,26 @@ type AbstractConnectionManager struct {
 	Configuration        *ManagerConfigration
 
 	controlMessageSocket *ControlMessageSocket
+	allocator            eventprocessor.Allocator
 }
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) *AbstractConnectionManager {
 	// TODO: make MinConnectionsNum and MaxConnectionsNum configurable when support multiple event connections
-	return &AbstractConnectionManager{
+	abstractConnectionManager := &AbstractConnectionManager{
 		Logger:               parentLogger.GetChild("connection-manager"),
 		MinConnectionsNum:    1,
 		MaxConnectionsNum:    1,
 		RuntimeConfiguration: runtimeConfiguration,
 		Configuration:        configuration,
 	}
+	if abstractConnectionManager.MinConnectionsNum == 1 && abstractConnectionManager.MaxConnectionsNum == 1 {
+		// TODO: add support sync singleton
+		abstractConnectionManager.allocator = eventprocessor.NewSingletonAllocator(abstractConnectionManager.Logger, nil)
+	} else {
+		abstractConnectionManager.allocator = eventprocessor.NewSyncPoolAllocator(abstractConnectionManager.Logger, nil)
+	}
+
+	return abstractConnectionManager
 }
 
 func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {
@@ -224,7 +236,44 @@ func (be *AbstractEventConnection) WaitForStart() {
 	<-be.startChan
 }
 
-func (be *AbstractEventConnection) ProcessEvent(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
+func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+	processingResult, err := be.processItem(event, functionLogger)
+	if err != nil {
+		return nil, err
+	}
+	// this is a single event processing flow, so we only take the first item from the result
+	return nuclio.Response{
+		Body:        processingResult.Results[0].DecodedBody,
+		ContentType: processingResult.Results[0].ContentType,
+		Headers:     processingResult.Results[0].Headers,
+		StatusCode:  processingResult.Results[0].StatusCode,
+	}, processingResult.Results[0].Err
+}
+
+func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+	processingResults, err := be.processItem(batch, functionLogger)
+	responsesWithErrors := make([]*runtime.ResponseWithErrors, len(processingResults.Results))
+
+	for index, processingResult := range processingResults.Results {
+		if processingResult.EventId == "" {
+			functionLogger.WarnWith("Received response with empty event_id, response won't be returned")
+			continue
+		}
+		responsesWithErrors[index] = &runtime.ResponseWithErrors{
+			Response: nuclio.Response{
+				Body:        processingResult.DecodedBody,
+				ContentType: processingResult.ContentType,
+				Headers:     processingResult.Headers,
+				StatusCode:  processingResult.StatusCode,
+			},
+			EventId:      processingResult.EventId,
+			ProcessError: processingResult.Err,
+		}
+	}
+	return responsesWithErrors, err
+}
+
+func (be *AbstractEventConnection) processItem(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	be.functionLogger = functionLogger
 	if err := be.encoder.Encode(item); err != nil {
 		be.functionLogger = nil
@@ -321,6 +370,83 @@ func (be *AbstractEventConnection) RunHandler() {
 			}
 		}
 	}
+}
+
+// GetStatistics returns a pointer to the statistics object. This must not be modified by the reader
+func (be *AbstractEventConnection) GetStatistics() *eventprocessor.Statistics {
+	return nil
+}
+
+// GetIndex returns the index of the worker, as specified during creation
+func (be *AbstractEventConnection) GetIndex() int {
+	return -1
+}
+
+// GetRuntime returns the runtime of the worker, as specified during creation
+func (be *AbstractEventConnection) GetRuntime() runtime.Runtime {
+	return nil
+}
+
+// GetStatus returns the status of the worker, as updated by the runtime
+func (be *AbstractEventConnection) GetStatus() status.Status {
+	// TODO: implement status
+	return status.Ready
+}
+
+// Stop stops the connection
+func (be *AbstractEventConnection) Stop() error {
+	return be.Conn.Close()
+}
+
+// GetStructuredCloudEvent return a structued clould event
+func (be *AbstractEventConnection) GetStructuredCloudEvent() *cloudevent.Structured {
+	return nil
+}
+
+// GetBinaryCloudEvent return a binary cloud event
+func (be *AbstractEventConnection) GetBinaryCloudEvent() *cloudevent.Binary {
+	return nil
+}
+
+// GetEventTime return current event time, nil if we're not handling event
+func (be *AbstractEventConnection) GetEventTime() *time.Time {
+	return nil
+}
+
+// ResetEventTime resets the event time
+func (be *AbstractEventConnection) ResetEventTime() {
+}
+
+// Restart restarts the worker
+func (be *AbstractEventConnection) Restart() error {
+	return nuclio.ErrNotImplemented
+}
+
+// SupportsRestart returns true if the underlying runtime supports restart
+func (be *AbstractEventConnection) SupportsRestart() bool {
+	return false
+}
+
+func (be *AbstractEventConnection) Terminate() error {
+	return nuclio.ErrNotImplemented
+}
+
+func (be *AbstractEventConnection) Drain() error {
+	return nuclio.ErrNotImplemented
+}
+
+func (be *AbstractEventConnection) Continue() error {
+	return nuclio.ErrNotImplemented
+}
+
+// Subscribe subscribes to a control message kind
+func (be *AbstractEventConnection) Subscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
+	return nuclio.ErrNotImplemented
+}
+
+// Unsubscribe unsubscribes from a control message kind
+func (be *AbstractEventConnection) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
+	return nuclio.ErrNotImplemented
 }
 
 func (be *AbstractEventConnection) handleResponseMetric(response []byte) {
