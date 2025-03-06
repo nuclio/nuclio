@@ -202,9 +202,9 @@ load-docker-images: print-docker-images
 	@echo "Load Nuclio docker images"
 	docker load -i nuclio-docker-images-$(NUCLIO_LABEL)-$(NUCLIO_ARCH).tar.gz
 
-.PHONY: print-docker-images
+.PHONY: pull-docker-images
 pull-docker-images: print-docker-images
-	@echo "Pull Nuclio docker images"
+	@echo "Pulling Nuclio docker images"
 	@echo $(IMAGES_TO_PUSH) | xargs -n 1 -P 5 docker pull
 
 .PHONY: retag-docker-images
