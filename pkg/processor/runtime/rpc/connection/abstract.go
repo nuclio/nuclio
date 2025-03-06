@@ -204,7 +204,7 @@ func (b *AbstractConnection) SetEncoder(encoderInstance encoder.EventEncoder) {
 func (b *AbstractConnection) handleResponseLog(logRecord interface{}) {
 	var rpcLogRecord result.RpcLogRecord
 
-	switch logRecord.(type) {
+	switch logRecord := logRecord.(type) {
 	case map[string]interface{}:
 		if err := mapstructure.Decode(logRecord, &rpcLogRecord); err != nil {
 			b.Logger.ErrorWith("Failed to decode log",
@@ -213,7 +213,7 @@ func (b *AbstractConnection) handleResponseLog(logRecord interface{}) {
 			return
 		}
 	case []byte:
-		if err := json.Unmarshal(logRecord.([]byte), &rpcLogRecord); err != nil {
+		if err := json.Unmarshal(logRecord, &rpcLogRecord); err != nil {
 			b.Logger.ErrorWith("Can't decode log", "error", err)
 			return
 		}
