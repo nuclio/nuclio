@@ -283,6 +283,10 @@ func (d *Deployer) getFunctionPodWarningEvents(ctx context.Context, namespace st
 		}
 	}
 
+	if len(podWarningEvents) == 0 {
+		return "", nil
+	}
+
 	return fmt.Sprintf("%s\n", strings.Join(podWarningEvents, "\n")), nil
 }
 
