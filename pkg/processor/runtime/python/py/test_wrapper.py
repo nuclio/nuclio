@@ -202,7 +202,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
 
         # processor start, function log line, response body
         self._wait_until_received_messages(
-            minimum_messages_length=1,
+            minimum_messages_length=2,
             messages=self._unix_stream_server._messages,
         )
 
@@ -240,7 +240,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
 
         # processor start, function log line, response body, duration messages
         self._wait_until_received_messages(
-            minimum_messages_length=1,
+            minimum_messages_length=4,
             messages=self._unix_stream_server._messages,
         )
 

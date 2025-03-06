@@ -23,6 +23,7 @@ import nuclio_sdk.logger
 from wrapper_common import (
     WrapperFatalException,
     EventSocketDisconnected,
+    JSONFormatterOverEventSocket,
     AbstractWrapper,
     create_logger,
     get_parser_with_common_args,
@@ -66,6 +67,13 @@ class Wrapper(AbstractWrapper):
         # set socket to nonblocking to allow the asyncio event loop to run while we're waiting on a socket, and so
         # that we are able to cancel the wait if needed
         self._event_sock.setblocking(False)
+
+        # we use two different loggers
+        # one for event processing logs
+        # another one for general logs in the wrapper
+        event_processing_logger = nuclio_sdk.Logger(self._logger._logger.level, "event-logger")
+        event_processing_logger.set_handler('default', self._event_sock_wfile, JSONFormatterOverEventSocket())
+        self._context.logger = event_processing_logger
 
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""

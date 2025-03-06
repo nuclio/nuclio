@@ -514,7 +514,7 @@ type AbstractControlMessageConnection struct {
 func NewAbstractControlMessageConnection(parentLogger logger.Logger, broker controlcommunication.ControlMessageBroker) *AbstractControlMessageConnection {
 
 	abstractConnection := &AbstractConnection{
-		Logger:     parentLogger.GetChild("control-connection"),
+		Logger:     parentLogger.GetChild("control connection"),
 		cancelChan: make(chan struct{}, 1),
 	}
 	return &AbstractControlMessageConnection{

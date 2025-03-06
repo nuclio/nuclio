@@ -52,11 +52,17 @@ class EventSocketDisconnected(Exception):
     pass
 
 
+# Formats logs into control message format
+class JSONFormatterOverControlSocket(nuclio_sdk.logger.JSONFormatter):
+    def format(self, record):
+        return super(JSONFormatterOverControlSocket, self).format_to_log_control_message(record)
+
+
 # Appends `l` character to follow the processor conventions for "log"
 # more information @ pkg/processor/runtime/rpc/abstract.go / eventWrapperOutputHandler
-class JSONFormatterOverSocket(nuclio_sdk.logger.JSONFormatter):
+class JSONFormatterOverEventSocket(nuclio_sdk.logger.JSONFormatter):
     def format(self, record):
-        return super(JSONFormatterOverSocket, self).format_to_log_control_message(record)
+        return 'l' + super(JSONFormatterOverEventSocket, self).format(record)
 
 
 class AbstractWrapper(object):
@@ -99,7 +105,7 @@ class AbstractWrapper(object):
             self._control_sock.setblocking(False)
 
             # replace the default output with the control message socket
-            #self._logger.set_handler('default', self._control_sock_wfile, JSONFormatterOverSocket())
+            self._logger.set_handler('default', self._control_sock_wfile, JSONFormatterOverControlSocket())
 
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()

@@ -27,14 +27,10 @@ import selectors
 
 from wrapper_common import (
     WrapperFatalException,
+    JSONFormatterOverEventSocket,
     AbstractWrapper,
     create_logger,
     get_parser_with_common_args)
-
-
-class JSONFormatterOverSocket(nuclio_sdk.logger.JSONFormatter):
-    def format(self, record):
-        return 'l' + super(JSONFormatterOverSocket, self).format(record)
 
 
 class AsyncWrapper(AbstractWrapper):
@@ -148,7 +144,7 @@ class AsyncWrapper(AbstractWrapper):
         # signal start
         connection_logger = nuclio_sdk.Logger(self._logger._logger.level, str(sock.fileno()))
         sock_wfile = sock.makefile('w')
-        connection_logger.set_handler('default', sock_wfile, JSONFormatterOverSocket())
+        connection_logger.set_handler('default', sock_wfile, JSONFormatterOverEventSocket())
         self._context.logger = connection_logger
 
         self._logger.debug("Signalling connection processing start")
