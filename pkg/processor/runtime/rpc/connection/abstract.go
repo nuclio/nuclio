@@ -201,13 +201,22 @@ func (b *AbstractConnection) SetEncoder(encoderInstance encoder.EventEncoder) {
 	b.encoder = encoderInstance
 }
 
-func (b *AbstractConnection) handleResponseLog(logRecord map[string]interface{}) {
+func (b *AbstractConnection) handleResponseLog(logRecord interface{}) {
 	var rpcLogRecord result.RpcLogRecord
-	if err := mapstructure.Decode(logRecord, &rpcLogRecord); err != nil {
-		b.Logger.ErrorWith("Failed to decode log",
-			"error", err.Error(),
-			"record", logRecord)
-		return
+
+	switch logRecord.(type) {
+	case map[string]interface{}:
+		if err := mapstructure.Decode(logRecord, &rpcLogRecord); err != nil {
+			b.Logger.ErrorWith("Failed to decode log",
+				"error", err.Error(),
+				"record", logRecord)
+			return
+		}
+	case []byte:
+		if err := json.Unmarshal(logRecord.([]byte), &rpcLogRecord); err != nil {
+			b.Logger.ErrorWith("Can't decode log", "error", err)
+			return
+		}
 	}
 
 	loggerInstance := b.resolveFunctionLogger()
@@ -339,6 +348,8 @@ func (be *AbstractEventConnection) RunHandler() {
 				be.resultChan <- unmarshalledResults
 			case 'm':
 				be.handleResponseMetric(data[1:])
+			case 'l':
+				be.handleResponseLog(data[1:])
 			case 's':
 				be.handleStart()
 			}
@@ -377,7 +388,7 @@ type AbstractControlMessageConnection struct {
 func NewAbstractControlMessageConnection(parentLogger logger.Logger, broker controlcommunication.ControlMessageBroker) *AbstractControlMessageConnection {
 
 	abstractConnection := &AbstractConnection{
-		Logger:     parentLogger.GetChild("event-connection"),
+		Logger:     parentLogger.GetChild("control-connection"),
 		cancelChan: make(chan struct{}, 1),
 	}
 	return &AbstractControlMessageConnection{

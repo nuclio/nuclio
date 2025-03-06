@@ -126,10 +126,33 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             for i in range(num_of_events)
         )
         self._wrapper._entrypoint = event_recorder
-        self._loop.run_until_complete(self._send_events(events, single_connection=single_connection))
+        data = self._loop.run_until_complete(self._send_events(events, single_connection=single_connection))
+
+        # validate data in event socket
+        # we expect 3/4 messages for each event
+        # 's' (1 per socket) - signals that connection established
+        # 'l' (1 per event) - log
+        # 'm' (1 per event) - processing duration metric
+        # 'r' (1 per event) - processing response
+        responses_number = logs_number = starts_number = metrics_number = 0
+        for messages in data:
+            for message in messages.split("\n"):
+                if message[0] == "s":
+                    starts_number += 1
+                elif message[0] == "l":
+                    logs_number += 1
+                elif message[0] == "m":
+                    metrics_number += 1
+                elif message[0] == "r":
+                    responses_number += 1
+
+        self.assertEqual(num_of_events, responses_number)
+        self.assertEqual(num_of_events, metrics_number)
+        self.assertEqual(num_of_events, logs_number)
 
         self.assertEqual(num_of_events, len(recorded_events), 'wrong number of events')
         if single_connection:
+            self.assertEqual(1, starts_number)
             # we expect the event to be ordered since though the function is "asynchronous", it is blocked
             # by the processor until it gets response.
             for recorded_event_index, recorded_event in enumerate(
@@ -137,6 +160,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
                 self.assertEqual(recorded_event_index, recorded_event.id)
                 self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
         else:
+            self.assertEqual(num_of_events, starts_number)
             expected_events = [
                 {'id': i, 'body': f'e{i}'}
                 for i in range(num_of_events)
@@ -150,23 +174,25 @@ class TestSubmitEvents(BaseTestSubmitEvents):
                 collections.Counter(map(frozenset, actual_events)),
                 "Recorded events do not match the expected events"
             )
-        # check that logs are sent to the control message socket
+        # check that general logs are sent to the control message socket
         self._wait_until_received_messages(
-            minimum_messages_length=num_of_events,
+            minimum_messages_length=3,
             messages=self._unix_stream_server._messages,
         )
 
     async def _send_events(self, events, single_connection=True):
+        data = []
         if single_connection:
             client_socket = self._create_client_socket()
             for event in events:
-                await self._send_event(event, client_socket)
+                data.append(await self._send_event(event, client_socket))
             client_socket.close()
         else:
             tasks = []
             for event in events:
                 tasks.append(asyncio.create_task(self._send_event(event)))
-            await asyncio.gather(*tasks)
+            data = await asyncio.gather(*tasks)
+        return data
 
     async def _send_event(self, event, client_socket=None):
         close_socket_needed = False
@@ -188,30 +214,40 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         # then write body content
         await self._loop.sock_sendall(client_socket, body)
 
-        await self.read_until_delimiter(client_socket)
-        await self.read_until_delimiter(client_socket)
+        data = await self.wait_for_response(client_socket)
 
         if close_socket_needed:
             client_socket.close()
 
-    async def read_until_delimiter(self, client_socket, delimiter=b'\n', buffer_size=128):
-        """Read data from a socket until the specified delimiter is encountered."""
+        return data
+
+    async def wait_for_response(self, client_socket, delimiter=b'\n', buffer_size=128):
+        """Read data from a socket until a full message starting with 'r' and ending with '\n' is encountered."""
         data = bytearray()
+        messages = []
+
         while True:
             chunk = await self._loop.sock_recv(client_socket, buffer_size)
             if not chunk:
-                raise ConnectionError("Socket closed before receiving a complete message.")
+                break
 
             data.extend(chunk)
 
             # Search for the delimiter in the received data
-            delimiter_index = data.find(delimiter)
-            if delimiter_index != -1:
-                # Extract the message up to the delimiter
-                message = data[:delimiter_index]
-                # Save the remaining data for future reads
-                self._remaining_data = data[delimiter_index + len(delimiter):]
-                return message.decode('utf-8')
+            split_data = data.split(delimiter)
+            for message in split_data[:-1]:
+                messages.append(message)
+                if message.startswith(b'r'):
+                    return b'\n'.join(messages).decode('utf-8')
+
+            # Keep the remaining part if the last chunk does not end with the delimiter
+            data = split_data[-1]
+
+        # Add the last part if it is not empty
+        if data:
+            messages.append(data)
+
+        return b'\n'.join(messages).decode('utf-8')
 
     def _create_client_socket(self):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
