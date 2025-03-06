@@ -48,6 +48,8 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/version-go"
 	"gopkg.in/yaml.v3"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
@@ -1123,6 +1125,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 				b.options.FunctionConfig.Spec.ReadinessTimeoutSeconds),
 			SecurityContext: b.options.FunctionConfig.Spec.SecurityContext,
 			BuildLogger:     b.logger,
+			Resources:       b.resolveResources(),
 		})
 
 	return taggedImageName, err
@@ -1894,4 +1897,20 @@ func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, e
 
 	return builderNodeSelector, nil
 
+}
+
+// resolveResources creates new limits containing the GPU-related limits from the function's limits, mapping each to zero.
+//
+//	By setting these limits to zero, the pods receive the necessary tolerations from the cloud provider for scheduling,
+//	without actually consuming GPU resources.
+func (b *Builder) resolveResources() v1.ResourceRequirements {
+	resources := v1.ResourceRequirements{
+		Limits: v1.ResourceList{},
+	}
+	for name := range b.options.FunctionConfig.Spec.Resources.Limits {
+		if strings.Contains(name.String(), "/gpu") || strings.Contains(name.String(), "-gpu") {
+			resources.Limits[name] = resource.MustParse("0")
+		}
+	}
+	return resources
 }
