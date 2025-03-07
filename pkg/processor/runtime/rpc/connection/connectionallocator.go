@@ -42,8 +42,6 @@ type ConnectionAllocator struct {
 	*AbstractConnectionManager
 
 	serverAddress string
-
-	allocator eventprocessor.Allocator
 }
 
 func NewConnectionAllocator(abstractConnectionManager *AbstractConnectionManager) *ConnectionAllocator {
@@ -63,6 +61,7 @@ func (ca *ConnectionAllocator) Prepare() error {
 }
 
 func (ca *ConnectionAllocator) Start() error {
+	ca.Logger.DebugWith("Starting connection allocator")
 	eventConnections := make([]*Connection, 0)
 	if ca.MinConnectionsNum != 0 {
 		for i := 0; i < ca.MinConnectionsNum; i++ {

@@ -47,7 +47,6 @@ type TestSuite struct {
 	CallFunctionTestSuite callfunction.TestSuite
 	OfflineTestSuite      offline.TestSuite
 	runtime               string
-	mode                  functionconfig.TriggerWorkMode
 }
 
 func (suite *TestSuite) SetupTest() {
@@ -70,37 +69,54 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestAsyncHandler() {
-	statusOK := http.StatusOK
 
-	createFunctionOptions := suite.GetDeployOptions("asyncer",
-		suite.GetFunctionPath("outputter"))
+	for _, testCase := range []struct {
+		name string
+		mode functionconfig.TriggerWorkMode
+	}{
+		{
+			name: "sync",
+			mode: functionconfig.SyncTriggerWorkMode,
+		},
+		{
+			name: "async",
+			mode: functionconfig.AsyncTriggerWorkMode,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			statusOK := http.StatusOK
 
-	createFunctionOptions.FunctionConfig.Spec.Handler = "async_outputter:handler"
-	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
-		"python -m pip install aiofile==3.5.0",
+			createFunctionOptions := suite.getDeployOptions("asyncer",
+				suite.GetFunctionPath("outputter"), testCase.mode)
+
+			createFunctionOptions.FunctionConfig.Spec.Handler = "async_outputter:handler"
+			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+				"python -m pip install aiofile==3.5.0",
+			}
+
+			suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+				{
+					Name:                       "async sleep",
+					RequestBody:                "sleep",
+					ExpectedResponseBody:       "slept",
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					Name:                       "async write",
+					RequestMethod:              http.MethodDelete,
+					RequestBody:                "async_write",
+					ExpectedResponseBody:       "written",
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					Name:                       "async read",
+					RequestBody:                "read_async_write",
+					ExpectedResponseBody:       http.MethodDelete, // "async_write" above ensure requestMethod is returned
+					ExpectedResponseStatusCode: &statusOK,
+				},
+			})
+		})
 	}
-
-	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
-		{
-			Name:                       "async sleep",
-			RequestBody:                "sleep",
-			ExpectedResponseBody:       "slept",
-			ExpectedResponseStatusCode: &statusOK,
-		},
-		{
-			Name:                       "async write",
-			RequestMethod:              http.MethodDelete,
-			RequestBody:                "async_write",
-			ExpectedResponseBody:       "written",
-			ExpectedResponseStatusCode: &statusOK,
-		},
-		{
-			Name:                       "async read",
-			RequestBody:                "read_async_write",
-			ExpectedResponseBody:       http.MethodDelete, // "async_write" above ensure requestMethod is returned
-			ExpectedResponseStatusCode: &statusOK,
-		},
-	})
 }
 
 func (suite *TestSuite) TestStress() {
@@ -461,7 +477,7 @@ func (suite *TestSuite) TestStableSDKThroughput() {
 
 func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
 	numWorkers int) *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.getDeployOptions(
+	createFunctionOptions := suite.GetDeployOptions(
 		functionName,
 		path.Join(suite.GetTestFunctionsDir(), "common", "empty", "python"))
 	createFunctionOptions.FunctionConfig.Spec.Handler = "empty:handler"
@@ -476,8 +492,8 @@ func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
 	return createFunctionOptions
 }
 
-func (suite *TestSuite) getDeployOptions(functionName, functionPath string) *platform.CreateFunctionOptions {
-	if suite.mode == functionconfig.AsyncTriggerWorkMode {
+func (suite *TestSuite) getDeployOptions(functionName, functionPath string, mode functionconfig.TriggerWorkMode) *platform.CreateFunctionOptions {
+	if mode == functionconfig.AsyncTriggerWorkMode {
 		return suite.GetDeployOptionsAsync(functionName, functionPath)
 	}
 	return suite.GetDeployOptions(functionName, functionPath)
@@ -489,17 +505,17 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	runtimes := []string{"python:3.9", "python:3.10", "python:3.11"}
-	modes := []functionconfig.TriggerWorkMode{functionconfig.AsyncTriggerWorkMode, functionconfig.SyncTriggerWorkMode}
-
-	for _, runtime := range runtimes {
-		for _, mode := range modes {
-			t.Run(runtime+"_"+string(mode), func(t *testing.T) {
-				testSuite := new(TestSuite)
-				testSuite.runtime = runtime
-				testSuite.mode = mode // Set the mode for the test
-				suite.Run(t, testSuite)
-			})
-		}
+	for _, testCase := range []struct {
+		runtimeName string
+	}{
+		{runtimeName: "python:3.9"},
+		{runtimeName: "python:3.10"},
+		{runtimeName: "python:3.11"},
+	} {
+		t.Run(testCase.runtimeName, func(t *testing.T) {
+			testSuite := new(TestSuite)
+			testSuite.runtime = testCase.runtimeName
+			suite.Run(t, testSuite)
+		})
 	}
 }

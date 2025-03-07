@@ -111,7 +111,6 @@ class AsyncWrapper(AbstractWrapper):
                         self.tasks[client_sock.fileno()] = task
                     else:
                         self._logger.error(f"Unexpected event: {event}")
-                await asyncio.sleep(0.2)
         except KeyboardInterrupt:
             self._logger.info("Shutting down server")
         finally:
