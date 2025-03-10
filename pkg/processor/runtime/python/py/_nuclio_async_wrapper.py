@@ -141,12 +141,12 @@ class AsyncWrapper(AbstractWrapper):
 
     async def _process_connection(self, sock):
         """Process all events for a single connection."""
-        # signal start
         connection_logger = nuclio_sdk.Logger(self._logger._logger.level, str(sock.fileno()))
         sock_wfile = sock.makefile('w')
         connection_logger.set_handler('default', sock_wfile, JSONFormatterOverEventSocket())
         self._context.logger = connection_logger
 
+        # signal start
         self._logger.debug("Signalling connection processing start")
         await self._write_packet_to_processor(sock, 's')
         self._logger.debug(f"Event processing started for socket")

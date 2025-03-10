@@ -235,7 +235,6 @@ class AbstractWrapper(object):
         Determines the message body size
         """
         int_buf = await self._loop.sock_recv(sock, Constants.msgpack_message_length_bytes)
-        print("x", int_buf)
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
