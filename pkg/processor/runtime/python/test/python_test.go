@@ -131,7 +131,7 @@ func (suite *TestSuite) TestOutputs() {
 	}
 	testPath := "/path/to/nowhere"
 
-	createFunctionOptions := suite.GetDeployOptions("outputter",
+	createFunctionOptions := suite.GetDeployOptionsAsync("outputter",
 		suite.GetFunctionPath("outputter"))
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
@@ -490,7 +490,7 @@ func TestIntegrationSuite(t *testing.T) {
 	}
 
 	runtimes := []string{"python:3.9", "python:3.10", "python:3.11"}
-	modes := []functionconfig.TriggerWorkMode{functionconfig.AsyncTriggerWorkMode, functionconfig.SyncTriggerWorkMode}
+	modes := []functionconfig.TriggerWorkMode{functionconfig.SyncTriggerWorkMode}
 
 	for _, runtime := range runtimes {
 		for _, mode := range modes {

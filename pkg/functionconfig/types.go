@@ -96,7 +96,7 @@ type Trigger struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 
 	Mode        TriggerWorkMode `json:"mode,omitempty"`
-	AsyncConfig *AsyncConfig
+	AsyncConfig *AsyncConfig    `json:"asyncConfig,omitempty"`
 
 	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
 	// TODO: remove in 1.15.x
@@ -117,9 +117,9 @@ type BatchConfiguration struct {
 }
 
 type AsyncConfig struct {
-	MinConnectionsNumber   int
-	MaxConnectionsNumber   int
-	ConnectionCreationMode ConnectionCreationMode
+	MinConnectionsNumber   int                    `json:"minConnectionsNumber,omitempty"`
+	MaxConnectionsNumber   int                    `json:"maxConnectionsNumber,omitempty"`
+	ConnectionCreationMode ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
 }
 
 type ConnectionCreationMode string

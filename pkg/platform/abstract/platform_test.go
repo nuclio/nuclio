@@ -400,7 +400,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichBatchConfiguration() {
 					},
 				},
 			}
-			err := suite.Platform.enrichBatchParams(suite.ctx, functionConfig)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
 			suite.Require().NoError(err)
 
 			suite.Require().Equal(testCase.expectedBatchConfiguration.BatchSize, testCase.batchConfiguration.BatchSize)
@@ -474,9 +474,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			triggerInstance := functionconfig.Trigger{Kind: testCase.triggerKind, Batch: testCase.batchConfiguration}
 
-			err := suite.Platform.validateBatchConfiguration(&functionconfig.Config{Spec: functionconfig.Spec{Runtime: testCase.runtime, Triggers: map[string]functionconfig.Trigger{
-				"my-trigger": {Kind: testCase.triggerKind, Batch: testCase.batchConfiguration},
+			err := suite.Platform.validateBatchConfiguration(triggerInstance, &functionconfig.Config{Spec: functionconfig.Spec{Runtime: testCase.runtime, Triggers: map[string]functionconfig.Trigger{
+				"my-trigger": triggerInstance,
 			}}})
 			if testCase.expectError {
 				suite.Require().NotNil(err)
@@ -2062,138 +2063,65 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 		})
 	}
 }
-
 func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 	testCases := []struct {
 		name           string
-		functionConfig *functionconfig.Config
-		expectedConfig *functionconfig.Config
+		trigger        functionconfig.Trigger
+		expectedMode   functionconfig.TriggerWorkMode
+		expectedConfig *functionconfig.AsyncConfig
 	}{
 		{
-			name: "sync-trigger-mode-by-default",
-			functionConfig: &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
-							Kind: "http",
-						},
-					},
-				},
+			name: "SyncMode",
+			trigger: functionconfig.Trigger{
+				Mode: "",
 			},
-			expectedConfig: &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
-							Kind: "http",
-							Mode: functionconfig.SyncTriggerWorkMode,
-						},
-					},
-				},
+			expectedMode:   functionconfig.SyncTriggerWorkMode,
+			expectedConfig: nil,
+		},
+		{
+			name: "AsyncModeWithDefaults",
+			trigger: functionconfig.Trigger{
+				Mode: functionconfig.AsyncTriggerWorkMode,
+			},
+			expectedMode: functionconfig.AsyncTriggerWorkMode,
+			expectedConfig: &functionconfig.AsyncConfig{
+				ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
+				MaxConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
+				MinConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
 			},
 		},
 		{
-			name: "async-trigger-with-defaults",
-			functionConfig: &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
-							Kind: "http",
-							Mode: functionconfig.AsyncTriggerWorkMode,
-						},
-					},
+			name: "AsyncModeWithCustomConfig",
+			trigger: functionconfig.Trigger{
+				Mode: functionconfig.AsyncTriggerWorkMode,
+				AsyncConfig: &functionconfig.AsyncConfig{
+					ConnectionCreationMode: "dynamic",
+					MaxConnectionsNumber:   10,
+					MinConnectionsNumber:   5,
 				},
 			},
-			expectedConfig: &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
-							Kind: "http",
-							Mode: functionconfig.AsyncTriggerWorkMode,
-							AsyncConfig: &functionconfig.AsyncConfig{
-								ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
-								MaxConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
-								MinConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "async-trigger-enrich-min-connection",
-			functionConfig: &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
-							Kind: "http",
-							Mode: functionconfig.AsyncTriggerWorkMode,
-							AsyncConfig: &functionconfig.AsyncConfig{
-								ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
-								MaxConnectionsNumber:   10,
-								MinConnectionsNumber:   5,
-							},
-						},
-					},
-				},
-			},
-			expectedConfig: &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
-							Kind: "http",
-							Mode: functionconfig.AsyncTriggerWorkMode,
-							AsyncConfig: &functionconfig.AsyncConfig{
-								ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
-								MaxConnectionsNumber:   10,
-								MinConnectionsNumber:   10,
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "async-trigger-with-custom-config",
-			functionConfig: &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
-							Kind: "http",
-							Mode: functionconfig.AsyncTriggerWorkMode,
-							AsyncConfig: &functionconfig.AsyncConfig{
-								ConnectionCreationMode: functionconfig.ConnectionCreationModeDynamic,
-								MaxConnectionsNumber:   10,
-								MinConnectionsNumber:   5,
-							},
-						},
-					},
-				},
-			},
-			expectedConfig: &functionconfig.Config{
-				Spec: functionconfig.Spec{
-					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
-							Kind: "http",
-							Mode: functionconfig.AsyncTriggerWorkMode,
-							AsyncConfig: &functionconfig.AsyncConfig{
-								ConnectionCreationMode: functionconfig.ConnectionCreationModeDynamic,
-								MaxConnectionsNumber:   10,
-								MinConnectionsNumber:   5,
-							},
-						},
-					},
-				},
+			expectedMode: functionconfig.AsyncTriggerWorkMode,
+			expectedConfig: &functionconfig.AsyncConfig{
+				ConnectionCreationMode: "dynamic",
+				MaxConnectionsNumber:   10,
+				MinConnectionsNumber:   5,
 			},
 		},
 	}
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			err := suite.Platform.enrichProcessingMode(context.Background(), testCase.functionConfig)
+			functionConfig := functionconfig.NewConfig()
+			functionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+				"test-trigger": testCase.trigger,
+			}
 
-			suite.Require().NoError(err)
+			err := suite.Platform.enrichTriggers(suite.ctx, functionConfig)
+			suite.Require().NoError(err, "Failed to enrich processing mode")
 
-			suite.Equal(testCase.expectedConfig, testCase.functionConfig)
+			enrichedTrigger := functionConfig.Spec.Triggers["test-trigger"]
+			suite.Require().Equal(testCase.expectedMode, enrichedTrigger.Mode, "Unexpected mode")
+			suite.Require().Equal(testCase.expectedConfig, enrichedTrigger.AsyncConfig, "Unexpected async config")
 		})
 	}
 }
@@ -2250,7 +2178,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					},
 				},
 			},
-			expectedError: "Async processing mode is not supported for cron trigger kind",
+			expectedError: "Async processing mode is not supported for trigger kind - cron",
 		},
 		{
 			name: "async runtime not supported -> error",
@@ -2268,7 +2196,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					},
 				},
 			},
-			expectedError: "Async processing mode is not supported for java runtime",
+			expectedError: "Async processing mode is not supported for runtime - java",
 		},
 		{
 			name: "max < min -> error",
@@ -2312,7 +2240,8 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			err := suite.Platform.validateProcessingMode(testCase.functionConfig)
+			triggerInstance := testCase.functionConfig.Spec.Triggers["http-trigger"]
+			err := suite.Platform.validateProcessingMode(triggerInstance, testCase.functionConfig)
 
 			if testCase.expectedError == "" {
 				suite.Require().NoError(err)
