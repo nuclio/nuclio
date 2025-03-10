@@ -33,7 +33,7 @@ on:
       - development
   workflow_dispatch:
     inputs:
-      version:
+      target_version:
         description: 'The version to release. If not provided, will be calculated.'
         default: ''
         type: string
@@ -42,10 +42,6 @@ on:
         default: 'bump-minor'
         type: choice
         options: ['bump-minor', 'bump-major', 'bump-patch']
-      target_version:
-        description: 'Target version (Optional)'
-        required: false
-        default: ''
       helm_chart_target_version:
         description: 'Helm chart target version (Optional)'
         required: false
@@ -223,7 +219,7 @@ jobs:
     if: (github.repository == 'nuclio/nuclio' || github.event_name == 'workflow_dispatch')  && github.event.inputs.bump_helm_charts_only != 'true'
     name: Release image (${{ matrix.docker_image_rule }}-${{ matrix.arch }})
     runs-on: ubuntu-latest
-    needs: image_matrix_prep
+    needs: [prepare-inputs , image_matrix_prep ]
     strategy:
       fail-fast: false
       matrix:
@@ -314,6 +310,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.bump_helm_charts_only != 'true'
     name: Release Binary ${{ matrix.arch }}
     runs-on: ubuntu-latest
+    needs: [ prepare-inputs ]
     strategy:
       fail-fast: false
       matrix:
@@ -366,7 +363,7 @@ jobs:
 
   helm-publish:
     name: Publish helm charts
-    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.skip_bump_helm_charts != 'true' || github.event.inputs.bump_helm_charts_only != 'true')
+    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.skip_bump_helm_charts != 'true' || github.event.inputs.bump_helm_charts_only == 'true')
     needs: [ release-images ]
     runs-on: ubuntu-latest
     steps:
@@ -397,10 +394,10 @@ jobs:
 
       - name: Create package and update index
         run: |
-            echo "Creating package and updating index"
-            helm package -d nuclio-helm/charts hack/k8s/helm/nuclio
-            cd nuclio-helm/charts
-            helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
+          echo "Creating package and updating index"
+          helm package -d nuclio-helm/charts hack/k8s/helm/nuclio
+          cd nuclio-helm/charts
+          helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
       - name: Publish charts
         run: |
           echo "Publishing charts"

@@ -262,14 +262,11 @@ func (r *Release) bumpHelmChartVersion() error {
 	}
 
 	if _, err := r.cmdRunner.Run(runOptions,
-		`sed -i  -e "s/^\(version: \).*$/\1%s/g" %s`,
+		`sed -i -e "s/^\(version: \).*$/\1%s/g" %s`,
 		r.helmChartsTargetVersion,
 		r.resolveHelmChartFullPath()); err != nil {
 		return errors.Wrap(err, "Failed to write helm chart target version")
 	}
-
-	// commit & push changes
-	//commitMessage := fmt.Sprintf("Bump to %s", r.targetVersion)
 
 	if !r.skipPublishHelmCharts {
 		r.logger.Debug("Publishing helm charts")
