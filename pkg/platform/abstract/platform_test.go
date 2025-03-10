@@ -2138,7 +2138,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 				Spec: functionconfig.Spec{
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
+						"test-trigger": {
 							Kind: "http",
 							Mode: functionconfig.SyncTriggerWorkMode,
 						},
@@ -2152,7 +2152,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 				Spec: functionconfig.Spec{
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
+						"test-trigger": {
 							Kind:        "http",
 							Mode:        functionconfig.SyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{MaxConnectionsNumber: 10},
@@ -2168,7 +2168,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 				Spec: functionconfig.Spec{
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
-						"cron-trigger": {
+						"test-trigger": {
 							Kind: "cron",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2186,7 +2186,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 				Spec: functionconfig.Spec{
 					Runtime: "java",
 					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
+						"test-trigger": {
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2204,7 +2204,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 				Spec: functionconfig.Spec{
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
+						"test-trigger": {
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2223,7 +2223,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 				Spec: functionconfig.Spec{
 					Runtime: "python",
 					Triggers: map[string]functionconfig.Trigger{
-						"http-trigger": {
+						"test-trigger": {
 							Kind: "http",
 							Mode: functionconfig.AsyncTriggerWorkMode,
 							AsyncConfig: &functionconfig.AsyncConfig{
@@ -2240,7 +2240,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			triggerInstance := testCase.functionConfig.Spec.Triggers["http-trigger"]
+			triggerInstance := testCase.functionConfig.Spec.Triggers["test-trigger"]
 			err := suite.Platform.validateProcessingMode(triggerInstance, testCase.functionConfig)
 
 			if testCase.expectedError == "" {
