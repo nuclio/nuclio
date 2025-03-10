@@ -20,6 +20,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -79,6 +80,33 @@ func (suite *ReleaserTestSuite) TestResolveDesiredPatchVersions() {
 	suite.Require().Equal(suite.releaser.helmChartConfig.Version.Patch+1,
 		suite.releaser.helmChartsTargetVersion.Patch)
 
+}
+
+func (suite *ReleaserTestSuite) TestSaveReleaseInfo() {
+	// Create a temporary file to save the release info
+	tempFile, err := os.CreateTemp("", "release_info_*.txt")
+	suite.Require().NoError(err)
+	defer os.Remove(tempFile.Name())
+
+	// Set the release info path to the temporary file
+	suite.releaser.releaseInfoPath = tempFile.Name()
+
+	// Set the versions to be saved
+	suite.releaser.currentVersion = semver.New("1.0.0")
+	suite.releaser.targetVersion = semver.New("1.1.0")
+	suite.releaser.helmChartsTargetVersion = semver.New("1.1.0")
+
+	// Call the saveReleaseInfo method
+	err = suite.releaser.saveReleaseInfo()
+	suite.Require().NoError(err)
+
+	// Read the contents of the temporary file
+	content, err := os.ReadFile(tempFile.Name())
+	suite.Require().NoError(err)
+
+	// Verify the contents of the file
+	expectedContent := "CURRENT_VERSION: 1.0.0\nTARGET_VERSION: 1.1.0\nHELM_CHARTS_TARGET_VERSION: 1.1.0\n"
+	suite.Require().Equal(expectedContent, string(content))
 }
 
 func TestReleaserTestSuite(t *testing.T) {
