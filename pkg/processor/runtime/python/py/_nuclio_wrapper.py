@@ -71,7 +71,7 @@ class Wrapper(AbstractWrapper):
         # we use two different loggers
         # one for event processing logs
         # another one for general logs in the wrapper
-        event_processing_logger = nuclio_sdk.Logger(self._logger._logger.level, "event-logger")
+        event_processing_logger = nuclio_sdk.Logger(self._logger._logger.level, "event")
         event_processing_logger.set_handler('default', self._event_sock_wfile, JSONFormatterOverEventSocket())
         self._context.logger = event_processing_logger
 

@@ -89,9 +89,6 @@ class TestSubmitEvents(BaseTestSubmitEvents):
 
         for unix_stream_server, unix_stream_server_thread in [
             (self._unix_stream_server, self._unix_stream_server_thread),
-
-            # before uncommenting, see self._control_socket_path assignment
-            # (self._unix_control_stream_server, self._control_unix_stream_server_thread),
         ]:
             unix_stream_server.server_close()
             unix_stream_server.shutdown()
