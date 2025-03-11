@@ -96,7 +96,7 @@ type Trigger struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 
 	Mode        TriggerWorkMode `json:"mode,omitempty"`
-	AsyncConfig *AsyncConfig    `json:"asyncConfig,omitempty"`
+	AsyncConfig *AsyncConfig    `json:"async,omitempty"`
 
 	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
 	// TODO: remove in 1.15.x
