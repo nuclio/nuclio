@@ -1,0 +1,89 @@
+# Copyright 2025 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# git-cliff ~ default configuration file
+# https://git-cliff.org/docs/configuration
+[changelog]
+# template for the changelog header
+header = """
+# Changelog\n
+"""
+# template for the changelog body
+# https://keats.github.io/tera/docs/#introduction
+body = """
+{% if version %}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}
+## [Unreleased]
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | split(pat="\n") | first }}{% if commit.github.username %} by @{{ commit.github.username }}{% endif %}{% if commit.github.pr_number %} in #{{ commit.github.pr_number }}{% endif %}
+{% endfor %}
+{% endfor %}
+"""
+# template for the changelog footer
+footer = """
+"""
+# remove the leading and trailing s
+trim = true
+# postprocessors
+postprocessors = [
+  # { pattern = '<REPO>', replace = "https://github.com/rokatyy/nuclio" }, # replace repository URL
+]
+# render body even when there are no releases to process
+# render_always = true
+# output file path
+# output = "CHANGELOG.md"
+
+[git]
+# parse the commits based on https://www.conventionalcommits.org
+conventional_commits = false
+# filter out the commits that are not conventional
+filter_unconventional = true
+# process each line of a commit as an individual commit
+split_commits = false
+# regex for preprocessing the commit messages
+commit_preprocessors = [
+  # Replace issue numbers
+  #{ pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](<REPO>/issues/${2}))"},
+  # Check spelling of the commit with https://github.com/crate-ci/typos
+  # If the spelling is incorrect, it will be automatically fixed.
+  #{ pattern = '.*', replace_command = 'typos --write-changes -' },
+]
+# regex for parsing and grouping commits
+commit_parsers = [
+  { message = "(?i)^\\[.*\\].*fix", group = "<!-- 1 -->🐛 Bug Fixes" },
+  { message = "^\\[Docs\\]", group = "<!-- 3 -->📚 Documentation" },
+  { message = "^\\[Performance\\]", group = "<!-- 4 -->⚡ Performance" },
+  { message = "(?i)^\\[.*\\].*refactor", group = "<!-- 2 -->🚜 Refactor" },
+  { message = "^\\[UI\\]", group = "<!-- 5 -->🎨 UI" },
+  { message = "^\\[Test\\]", group = "<!-- 6 -->🔬 Testing" },
+  { message = "^\\[Dependencies\\]", group = "<!-- 7 -->🧪 Dependencies" },
+  { message = "^\\[Dependabot\\]", group = "<!-- 7 -->🧪 Dependencies" },
+  { message = "^\\[Chart\\].*Bump", skip = true },
+  { message = "^\\[CI\\]", group = "<!-- 8 -->⚙️ CI" },
+  { body = ".*security", group = "<!-- 9 -->🛡️ Security" },
+  { message = "^Revert", group = "<!-- 10 -->◀️ Reverted Changes" },
+  { message = "^\\[.*\\]", group = "<!-- 0 -->🚀 Features / Enhancements" },
+  { message = ".*", group = "<!-- 11 -->💼 Other" },
+]
+# filter out the commits that are not matched by commit parsers
+filter_commits = false
+# sort the tags topologically
+topo_order = false
+# sort the commits inside sections by oldest/newest order
+sort_commits = "oldest"
