@@ -120,6 +120,7 @@ jobs:
           echo "prev_version=${CURRENT_VERSION_INPUT}" >> $GITHUB_OUTPUT
           echo "version=${TARGET_VERSION_INPUT}" >> $GITHUB_OUTPUT
           echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_OUTPUT
+          
       - name: Set version to unstable
         if: github.event_name != 'workflow_dispatch'
         run: |
