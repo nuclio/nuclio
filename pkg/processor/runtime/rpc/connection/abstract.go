@@ -263,7 +263,7 @@ type AbstractEventConnection struct {
 
 func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager ConnectionManager) *AbstractEventConnection {
 	abstractConnection := &AbstractConnection{
-		Logger:     parentLogger.GetChild("event connection"),
+		Logger:     parentLogger.GetChild("event"),
 		cancelChan: make(chan struct{}, 1),
 	}
 	return &AbstractEventConnection{
@@ -514,7 +514,7 @@ type AbstractControlMessageConnection struct {
 func NewAbstractControlMessageConnection(parentLogger logger.Logger, broker controlcommunication.ControlMessageBroker) *AbstractControlMessageConnection {
 
 	abstractConnection := &AbstractConnection{
-		Logger:     parentLogger.GetChild("control connection"),
+		Logger:     parentLogger.GetChild("control"),
 		cancelChan: make(chan struct{}, 1),
 	}
 	return &AbstractControlMessageConnection{
