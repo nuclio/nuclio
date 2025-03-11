@@ -115,6 +115,11 @@ func (sa *syncPoolAllocator) GetNumObjectsAvailable() int {
 
 func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
 	sa.objects = objects
+	sa.objectsChan = make(chan EventProcessor, len(objects))
+	for _, object := range objects {
+		sa.objectsChan <- object
+	}
+	sa.logger.DebugWith("Allocator objects updated", "size", len(objects))
 	return nil
 }
 
