@@ -211,7 +211,7 @@ func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, fun
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing batch")
 	}
-	return connectionInstance.ProcessEventBatch(batch, nil)
+	return connectionInstance.ProcessEventBatch(batch, functionLogger)
 }
 
 func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, error) {

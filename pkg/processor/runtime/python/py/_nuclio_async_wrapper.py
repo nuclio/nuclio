@@ -27,6 +27,7 @@ import selectors
 
 from wrapper_common import (
     WrapperFatalException,
+    JSONFormatterOverEventSocket,
     AbstractWrapper,
     create_logger,
     get_parser_with_common_args)
@@ -57,6 +58,7 @@ class AsyncWrapper(AbstractWrapper):
             trigger_kind,
             trigger_name,
             decode_event_strings,
+            logger_per_async_task=True,
         )
         # Validate that the handler is an async function
         if not asyncio.iscoroutinefunction(self._entrypoint):
@@ -138,6 +140,11 @@ class AsyncWrapper(AbstractWrapper):
 
     async def _process_connection(self, sock):
         """Process all events for a single connection."""
+        connection_logger = nuclio_sdk.Logger(self._logger._logger.level, str(sock.fileno()))
+        sock_wfile = sock.makefile('w')
+        connection_logger.set_handler('default', sock_wfile, JSONFormatterOverEventSocket())
+        self._context.logger = connection_logger
+
         # signal start
         self._logger.debug("Signalling connection processing start")
         await self._write_packet_to_processor(sock, 's')
@@ -165,10 +172,6 @@ class AsyncWrapper(AbstractWrapper):
             self._logger.info("Client disconnected")
         except WrapperFatalException as exc:
             await self._on_serving_error(exc, sock)
-
-            # explode, unrecoverable exception
-            await self._shutdown(error_code=1)
-
         except UnicodeDecodeError as exc:
 
             # reset unpacker to avoid consecutive errors
