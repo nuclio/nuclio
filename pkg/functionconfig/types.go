@@ -95,7 +95,8 @@ type Trigger struct {
 	// General attributes
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 
-	Mode TriggerWorkMode `json:"mode,omitempty"`
+	Mode        TriggerWorkMode `json:"mode,omitempty"`
+	AsyncConfig *AsyncConfig    `json:"async,omitempty"`
 
 	// Deprecated: MaxWorkers is replaced by NumWorkers, and will be removed in 1.15.x
 	// TODO: remove in 1.15.x
@@ -114,6 +115,21 @@ type BatchConfiguration struct {
 	BatchSize int       `json:"batchSize,omitempty"`
 	Timeout   string    `json:"timeout,omitempty"`
 }
+
+type AsyncConfig struct {
+	MinConnectionsNumber   int                    `json:"minConnectionsNumber,omitempty"`
+	MaxConnectionsNumber   int                    `json:"maxConnectionsNumber,omitempty"`
+	ConnectionCreationMode ConnectionCreationMode `json:"connectionCreationMode,omitempty"`
+}
+
+type ConnectionCreationMode string
+
+const (
+	ConnectionCreationModeStatic  ConnectionCreationMode = "static"
+	ConnectionCreationModeDynamic ConnectionCreationMode = "dynamic"
+
+	DefaultMaxConnectionsNumber = 1000
+)
 
 type BatchMode string
 
@@ -140,6 +156,13 @@ var runtimesSupportBatching = []string{
 	"python",
 }
 
+var triggerKindsSupportAsync = []string{
+	"http",
+}
+var runtimesSupportAsync = []string{
+	"python",
+}
+
 func TriggerKindSupportsBatching(triggerKind string) bool {
 	for _, supportedKind := range triggerKindsSupportBatching {
 		if triggerKind == supportedKind {
@@ -151,6 +174,24 @@ func TriggerKindSupportsBatching(triggerKind string) bool {
 
 func RuntimeSupportsBatching(runtime string) bool {
 	for _, supportedRuntime := range runtimesSupportBatching {
+		if strings.Contains(runtime, supportedRuntime) {
+			return true
+		}
+	}
+	return false
+}
+
+func TriggerKindSupportsAsync(triggerKind string) bool {
+	for _, supportedKind := range triggerKindsSupportAsync {
+		if triggerKind == supportedKind {
+			return true
+		}
+	}
+	return false
+}
+
+func RuntimeSupportsAsync(runtime string) bool {
+	for _, supportedRuntime := range runtimesSupportAsync {
 		if strings.Contains(runtime, supportedRuntime) {
 			return true
 		}

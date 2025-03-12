@@ -400,7 +400,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichBatchConfiguration() {
 					},
 				},
 			}
-			err := suite.Platform.enrichBatchParams(suite.ctx, functionConfig)
+			err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
 			suite.Require().NoError(err)
 
 			suite.Require().Equal(testCase.expectedBatchConfiguration.BatchSize, testCase.batchConfiguration.BatchSize)
@@ -474,9 +474,10 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
+			triggerInstance := functionconfig.Trigger{Kind: testCase.triggerKind, Batch: testCase.batchConfiguration}
 
-			err := suite.Platform.validateBatchConfiguration(&functionconfig.Config{Spec: functionconfig.Spec{Runtime: testCase.runtime, Triggers: map[string]functionconfig.Trigger{
-				"my-trigger": {Kind: testCase.triggerKind, Batch: testCase.batchConfiguration},
+			err := suite.Platform.validateBatchConfiguration(triggerInstance, &functionconfig.Config{Spec: functionconfig.Spec{Runtime: testCase.runtime, Triggers: map[string]functionconfig.Trigger{
+				"my-trigger": triggerInstance,
 			}}})
 			if testCase.expectError {
 				suite.Require().NotNil(err)
@@ -2058,6 +2059,195 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
 				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
+	testCases := []struct {
+		name           string
+		trigger        functionconfig.Trigger
+		expectedMode   functionconfig.TriggerWorkMode
+		expectedConfig *functionconfig.AsyncConfig
+	}{
+		{
+			name: "SyncMode",
+			trigger: functionconfig.Trigger{
+				Mode: "",
+			},
+			expectedMode:   functionconfig.SyncTriggerWorkMode,
+			expectedConfig: nil,
+		},
+		{
+			name: "AsyncModeWithDefaults",
+			trigger: functionconfig.Trigger{
+				Mode: functionconfig.AsyncTriggerWorkMode,
+			},
+			expectedMode: functionconfig.AsyncTriggerWorkMode,
+			expectedConfig: &functionconfig.AsyncConfig{
+				ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
+				MaxConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
+				MinConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
+			},
+		},
+		{
+			name: "AsyncModeWithCustomConfig",
+			trigger: functionconfig.Trigger{
+				Mode: functionconfig.AsyncTriggerWorkMode,
+				AsyncConfig: &functionconfig.AsyncConfig{
+					ConnectionCreationMode: "dynamic",
+					MaxConnectionsNumber:   10,
+					MinConnectionsNumber:   5,
+				},
+			},
+			expectedMode: functionconfig.AsyncTriggerWorkMode,
+			expectedConfig: &functionconfig.AsyncConfig{
+				ConnectionCreationMode: "dynamic",
+				MaxConnectionsNumber:   10,
+				MinConnectionsNumber:   5,
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			functionConfig := functionconfig.NewConfig()
+			functionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+				"test-trigger": testCase.trigger,
+			}
+
+			err := suite.Platform.enrichTriggers(suite.ctx, functionConfig)
+			suite.Require().NoError(err, "Failed to enrich processing mode")
+
+			enrichedTrigger := functionConfig.Spec.Triggers["test-trigger"]
+			suite.Require().Equal(testCase.expectedMode, enrichedTrigger.Mode, "Unexpected mode")
+			suite.Require().Equal(testCase.expectedConfig, enrichedTrigger.AsyncConfig, "Unexpected async config")
+		})
+	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
+	testCases := []struct {
+		name           string
+		functionConfig *functionconfig.Config
+		expectedError  string
+	}{
+		{
+			name: "sync trigger, no async config -> no error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "http",
+							Mode: functionconfig.SyncTriggerWorkMode,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "sync trigger, has async config -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind:        "http",
+							Mode:        functionconfig.SyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{MaxConnectionsNumber: 10},
+						},
+					},
+				},
+			},
+			expectedError: "AsyncConfig should be empty when working in `sync` trigger mode",
+		},
+		{
+			name: "async kind not supported -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "cron",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 10,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "Async processing mode is not supported for trigger kind - cron",
+		},
+		{
+			name: "async runtime not supported -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "java",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 10,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "Async processing mode is not supported for runtime - java",
+		},
+		{
+			name: "max < min -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 1,
+								MinConnectionsNumber: 2,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "Maximum connection number configuration can't be smaller than minimal",
+		},
+		{
+			name: "valid async config -> no error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								MaxConnectionsNumber: 10,
+								MinConnectionsNumber: 5,
+							},
+						},
+					},
+				},
+			},
+			expectedError: "",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			triggerInstance := testCase.functionConfig.Spec.Triggers["test-trigger"]
+			err := suite.Platform.validateProcessingMode(triggerInstance, testCase.functionConfig)
+
+			if testCase.expectedError == "" {
+				suite.Require().NoError(err)
+			} else {
+				suite.Require().Error(err)
+				suite.Contains(err.Error(), testCase.expectedError)
 			}
 		})
 	}
