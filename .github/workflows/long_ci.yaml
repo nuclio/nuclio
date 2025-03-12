@@ -84,7 +84,14 @@ jobs:
         env:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
-      - name: Test
+      - name: Test (Scheduled)
+        if: github.event_name == 'schedule'
+        run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
+        env:
+          NUCLIO_CI_SKIP_STRESS_TEST: true
+
+      - name: Test (Non-Scheduled)
+        if: github.event_name != 'schedule'
         run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
 
       - name: System stats on failure
