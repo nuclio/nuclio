@@ -77,7 +77,6 @@ on:
 jobs:
   prepare-inputs:
     name: Prepare inputs
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       prev_version: ${{ steps.resolve.outputs.prev_version }}
@@ -91,12 +90,14 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/setup-go@v5
         with:
           cache: true
           go-version-file: go.mod
 
       - name: Get release info
+        if: github.event_name == 'workflow_dispatch'
         run: |
           make get-release-info
         env:
@@ -104,8 +105,9 @@ jobs:
           TARGET_VERSION: ${{ inputs.target_version }}
           HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
-      - name: Resolve inputs
+      - name: Resolve inputs for release
         id: resolve
+        if: github.event_name == 'workflow_dispatch'
         run: |
           CURRENT_VERSION_INPUT=$(make get-current-version)
           TARGET_VERSION_INPUT=$(make get-target-version)
@@ -118,6 +120,14 @@ jobs:
           echo "prev_version=${CURRENT_VERSION_INPUT}" >> $GITHUB_OUTPUT
           echo "version=${TARGET_VERSION_INPUT}" >> $GITHUB_OUTPUT
           echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_OUTPUT
+          
+      - name: Set version to unstable
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          echo "prev_version=" >> $GITHUB_OUTPUT
+          echo "helm_version=" >> $GITHUB_OUTPUT
+          echo "version=unstable" >> $GITHUB_OUTPUT
+
 
   release:
     name: Generate Changelog & Create Release
@@ -238,12 +248,7 @@ jobs:
           echo "NUCLIO_CACHE_REPO=${{ env.CACHE_REPO }}/${{ env.CACHE_REPO_NAME }}" >> $GITHUB_ENV
           echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
 
-      - name: Set NUCLIO_LABEL to unstable
-        if: github.event_name == 'push'
-        run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
-
       - name: Set NUCLIO_LABEL to release tag
-        if: github.event_name == 'workflow_dispatch'
         run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
@@ -322,12 +327,7 @@ jobs:
         run: |
           echo "NUCLIO_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
 
-      - name: Set NUCLIO_LABEL to unstable
-        if: github.event_name == 'push'
-        run: echo "NUCLIO_LABEL=unstable" >> $GITHUB_ENV
-
       - name: Set NUCLIO_LABEL to release tag
-        if: github.event_name == 'workflow_dispatch'
         run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
