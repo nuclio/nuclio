@@ -174,7 +174,7 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 		totalTime := time.Since(start)
 		suite.Logger.InfoWith("Total time for 100 requests", "duration", totalTime)
 
-		// Ensure total time is much smaller than 100 * single request time // 2
+		// Ensure total time is much smaller than 100 * single request time (use 20 is more than enough)
 		suite.Require().Less(totalTime, 20*singleRequestTime)
 
 		return true
