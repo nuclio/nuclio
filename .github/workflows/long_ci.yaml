@@ -21,6 +21,8 @@ on:
         description: 'PR number'
         required: false
         default: ''
+  schedule:
+    - cron: '0 */12 * * *'
 
 env:
   START_LABEL: long-ci-started
@@ -34,6 +36,11 @@ jobs:
   long_ci:
     name: Long CI
     runs-on: ubuntu-latest
+    if: ( github.repository == 'nuclio/nuclio' && github.event_name != 'workflow_dispatch' ) || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        command: [ nuctl-tests,dotnet-tests,golang-tests,java-tests,python-tests,python-runtime-tests,fast-tests ]
     steps:
       # checkout from development
       - uses: actions/checkout@v4
@@ -78,7 +85,7 @@ jobs:
           NUCLIO_NUCTL_CREATE_SYMLINK: false
 
       - name: Test
-        run: make test
+        run: LIST_TESTS_MAKE_COMMAND=${{ matrix.command }} make test
 
       - name: System stats on failure
         if: ${{ failure() }}
@@ -106,3 +113,18 @@ jobs:
             const labelsToRemove = [ process.env.START_LABEL ]
             const script = require(`${ process.env.GITHUB_WORKSPACE }/${ process.env.ADD_REMOVE_LABELS_SCRIPT_PATH }`)
             await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
+
+      - name: Report Status
+        if: github.event_name == 'schedule' && always()
+        uses: ravsamhq/notify-slack-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: ${{ job.status }}
+          notify_when: "failure"
+          notification_title: "{workflow} has failed"
+          message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
+          footer: "<{repo_url}|{repo}> | <{run_url}|View Run>"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+
