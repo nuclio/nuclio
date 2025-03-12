@@ -27,7 +27,9 @@ import (
 	"regexp"
 	"runtime"
 	"testing"
+	"time"
 
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/callfunction/python"
@@ -117,6 +119,66 @@ func (suite *TestSuite) TestAsyncHandler() {
 			})
 		})
 	}
+}
+
+func (suite *TestSuite) TestAsyncHandlerManyRequests() {
+	createFunctionOptions := suite.GetDeployOptionsAsync("asyncer",
+		suite.GetFunctionPath("outputter"))
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "async_outputter:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"python -m pip install aiofile==3.5.0",
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+		statusOK := http.StatusOK
+
+		request := &httpsuite.Request{
+			Name:                       "async write",
+			RequestMethod:              http.MethodPost,
+			RequestBody:                "async_write",
+			ExpectedResponseBody:       "written",
+			ExpectedResponseStatusCode: &statusOK,
+		}
+		request.Enrich(deployResults)
+
+		// Anonymous function to send a request and measure time
+		sendRequest := func() (time.Duration, error) {
+			start := time.Now()
+			if !suite.SendRequestVerifyResponse(request) {
+				return 0, fmt.Errorf("failed to send request")
+			}
+			return time.Since(start), nil
+		}
+
+		// Measure time for a single request
+		singleRequestTime, err := sendRequest()
+		suite.Require().NoError(err)
+		suite.Logger.InfoWith("Single request time", "duration", singleRequestTime)
+
+		// Send 100 requests in parallel and measure total time
+		numRequests := 100
+		errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
+		start := time.Now()
+
+		for i := 0; i < numRequests; i++ {
+			errGroup.Go("request", func() error {
+				_, err := sendRequest()
+				return err
+			})
+		}
+
+		err = errGroup.Wait()
+		suite.Require().NoError(err)
+
+		totalTime := time.Since(start)
+		suite.Logger.InfoWith("Total time for 100 requests", "duration", totalTime)
+
+		// Ensure total time is much smaller than 100 * single request time // 2
+		suite.Require().Less(totalTime, 20*singleRequestTime)
+
+		return true
+	})
 }
 
 func (suite *TestSuite) TestStress() {

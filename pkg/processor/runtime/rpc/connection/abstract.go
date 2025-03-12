@@ -65,6 +65,11 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 		RuntimeConfiguration: runtimeConfiguration,
 		Configuration:        configuration,
 	}
+	if runtimeConfiguration.AsyncConfig != nil {
+		abstractConnectionManager.MinConnectionsNum = runtimeConfiguration.AsyncConfig.MinConnectionsNumber
+		abstractConnectionManager.MaxConnectionsNum = runtimeConfiguration.AsyncConfig.MaxConnectionsNumber
+	}
+
 	if abstractConnectionManager.MinConnectionsNum == 1 && abstractConnectionManager.MaxConnectionsNum == 1 {
 		// TODO: add support sync singleton
 		abstractConnectionManager.allocator = eventprocessor.NewSingletonAllocator(abstractConnectionManager.Logger, nil)

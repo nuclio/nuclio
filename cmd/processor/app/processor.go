@@ -420,6 +420,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 					FunctionLogger:       p.functionLogger,
 					ControlMessageBroker: abstractControlMessageBroker,
 					Mode:                 triggerConfiguration.Mode,
+					AsyncConfig:          triggerConfiguration.AsyncConfig,
 				},
 				p.namedWorkerAllocators,
 				p.restartTriggerChan)
