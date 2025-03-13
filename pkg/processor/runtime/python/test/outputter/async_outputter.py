@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import asyncio
+import json
 import os
 
 import aiofile
@@ -36,6 +37,14 @@ async def handler(context, event):
         asyncio.get_event_loop().create_task(write_async())
         return 'written'
 
+    if body_str == 'async_write_to_context':
+        context.contents.append(event.path)
+        await asyncio.sleep(0.01)
+        return 'written'
+
+    if body_str == 'read_context_len':
+        return len(context.contents)
+
     if body_str == 'read_async_write':
         async def ensure_file_exists():
             while not os.path.exists(async_write_tmp_file):
@@ -54,3 +63,6 @@ async def handler(context, event):
         return await asyncio.wait_for(ensure_file_has_data(), timeout=5)
 
     raise RuntimeError('Unknown return mode: {0}'.format(body_str))
+
+def init_context(context):
+    context.contents = []

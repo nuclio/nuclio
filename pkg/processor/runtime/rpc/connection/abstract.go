@@ -57,7 +57,6 @@ type AbstractConnectionManager struct {
 }
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) *AbstractConnectionManager {
-	// TODO: make MinConnectionsNum and MaxConnectionsNum configurable when support multiple event connections
 	abstractConnectionManager := &AbstractConnectionManager{
 		Logger:               parentLogger.GetChild("connection-manager"),
 		MinConnectionsNum:    1,

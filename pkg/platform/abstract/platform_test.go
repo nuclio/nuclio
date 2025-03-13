@@ -2129,7 +2129,6 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 			suite.Require().Equal(testCase.expectedMode, enrichedTrigger.Mode, "Unexpected mode")
 			suite.Require().Equal(testCase.expectedConfig, enrichedTrigger.AsyncConfig, "Unexpected async config")
 
-			// Should always be equal to 1
 			suite.Require().Equal(testCase.expectedNumWorkers, enrichedTrigger.NumWorkers, "Unexpected num workers")
 		})
 	}

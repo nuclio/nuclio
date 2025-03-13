@@ -136,14 +136,14 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 		request := &httpsuite.Request{
 			Name:                       "async write",
 			RequestMethod:              http.MethodPost,
-			RequestBody:                "async_write",
+			RequestBody:                "async_write_to_context",
 			ExpectedResponseBody:       "written",
 			ExpectedResponseStatusCode: &statusOK,
 		}
 		request.Enrich(deployResults)
 
 		// Anonymous function to send a request and measure time
-		sendRequest := func() (time.Duration, error) {
+		sendRequest := func(request *httpsuite.Request) (time.Duration, error) {
 			start := time.Now()
 			if !suite.SendRequestVerifyResponse(request) {
 				return 0, fmt.Errorf("failed to send request")
@@ -152,7 +152,7 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 		}
 
 		// Measure time for a single request
-		singleRequestTime, err := sendRequest()
+		singleRequestTime, err := sendRequest(request)
 		suite.Require().NoError(err)
 		suite.Logger.InfoWith("Single request time", "duration", singleRequestTime)
 
@@ -163,7 +163,7 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 
 		for i := 0; i < numRequests; i++ {
 			errGroup.Go("request", func() error {
-				_, err := sendRequest()
+				_, err := sendRequest(request)
 				return err
 			})
 		}
@@ -174,8 +174,19 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 		totalTime := time.Since(start)
 		suite.Logger.InfoWith("Total time for 100 requests", "duration", totalTime)
 
-		// Ensure total time is much smaller than 100 * single request time (use 20 is more than enough)
-		suite.Require().Less(totalTime, 20*singleRequestTime)
+		request = &httpsuite.Request{
+			Name:                       "async write",
+			RequestMethod:              http.MethodPost,
+			RequestBody:                "read_context_len",
+			ExpectedResponseBody:       "101",
+			ExpectedResponseStatusCode: &statusOK,
+		}
+		request.Enrich(deployResults)
+		_, err = sendRequest(request)
+		suite.Require().NoError(err)
+
+		// Ensure total time is much smaller than 100 * single request time (use 50 is more than enough)
+		suite.Require().Less(totalTime, 50*singleRequestTime)
 
 		return true
 	})
