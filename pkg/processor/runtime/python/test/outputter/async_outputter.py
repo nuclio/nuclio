@@ -64,5 +64,6 @@ async def handler(context, event):
 
     raise RuntimeError('Unknown return mode: {0}'.format(body_str))
 
+
 def init_context(context):
     context.contents = []
