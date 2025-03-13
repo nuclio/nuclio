@@ -38,12 +38,15 @@ async def handler(context, event):
         return 'written'
 
     if body_str == 'async_write_to_context':
-        context.contents.append(event.path)
         await asyncio.sleep(0.01)
+        context.contents.append(event.path)
         return 'written'
 
     if body_str == 'read_context_len':
         return len(context.contents)
+
+    if body_str == 'read_context':
+        return json.dumps(context.contents)
 
     if body_str == 'read_async_write':
         async def ensure_file_exists():

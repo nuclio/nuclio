@@ -21,11 +21,13 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
 	"regexp"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -143,16 +145,17 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 		request.Enrich(deployResults)
 
 		// Anonymous function to send a request and measure time
-		sendRequest := func(request *httpsuite.Request) (time.Duration, error) {
+		sendRequest := func(request httpsuite.Request, path string) (time.Duration, error) {
 			start := time.Now()
-			if !suite.SendRequestVerifyResponse(request) {
+			request.RequestPath = path
+			if !suite.SendRequestVerifyResponse(&request) {
 				return 0, fmt.Errorf("failed to send request")
 			}
 			return time.Since(start), nil
 		}
 
 		// Measure time for a single request
-		singleRequestTime, err := sendRequest(request)
+		singleRequestTime, err := sendRequest(*request, "/")
 		suite.Require().NoError(err)
 		suite.Logger.InfoWith("Single request time", "duration", singleRequestTime)
 
@@ -162,18 +165,22 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 		start := time.Now()
 
 		for i := 0; i < numRequests; i++ {
+			index := i
 			errGroup.Go("request", func() error {
-				_, err := sendRequest(request)
+				_, err := sendRequest(*request, "/"+strconv.Itoa(index))
 				return err
 			})
 		}
 
+		// Wait for all requests to complete
 		err = errGroup.Wait()
 		suite.Require().NoError(err)
 
+		// Log the total time taken for 100 requests
 		totalTime := time.Since(start)
 		suite.Logger.InfoWith("Total time for 100 requests", "duration", totalTime)
 
+		// Verify the context length after all requests
 		request = &httpsuite.Request{
 			Name:                       "async write",
 			RequestMethod:              http.MethodPost,
@@ -182,11 +189,40 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 			ExpectedResponseStatusCode: &statusOK,
 		}
 		request.Enrich(deployResults)
-		_, err = sendRequest(request)
+		_, err = sendRequest(*request, "/")
 		suite.Require().NoError(err)
 
-		// Ensure total time is much smaller than 100 * single request time (use 50 is more than enough)
-		suite.Require().Less(totalTime, 50*singleRequestTime)
+		// Verify the context content after all requests
+		request = &httpsuite.Request{
+			Name:                       "async write",
+			RequestMethod:              http.MethodPost,
+			RequestBody:                "read_context",
+			ExpectedResponseStatusCode: &statusOK,
+		}
+		request.Enrich(deployResults)
+		response, err := suite.SendRequest(request)
+		suite.Require().NoError(err)
+
+		body, err := io.ReadAll(response.Body)
+		suite.Require().NoError(err)
+
+		var allIndexes []string
+		err = json.Unmarshal(body, &allIndexes)
+		suite.Require().NoError(err)
+		// first request was with "/" path
+		suite.Require().Equal(allIndexes[0], "/")
+
+		// check that all other request paths are not sorted
+
+		// Generate list of strings from /0 to /100
+		expectedPaths := make([]string, 100)
+		for i := 0; i < 100; i++ {
+			expectedPaths[i] = fmt.Sprintf("/%d", i)
+		}
+
+		// Check that indexes in the returned body are not sorted
+		// Or, in other words, that requests were processed asynchronously and not in the order they were sent
+		suite.Require().NotEqual(expectedPaths, allIndexes[1:], "The paths are sorted in ascending order")
 
 		return true
 	})

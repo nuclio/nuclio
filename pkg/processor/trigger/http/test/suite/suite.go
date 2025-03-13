@@ -173,7 +173,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		err = common.RetryUntilSuccessful(request.RetryUntilSuccessfulDuration,
 			request.RetryUntilSuccessfulInterval,
 			func() bool {
-				httpResponse, err = suite.sendRequest(request)
+				httpResponse, err = suite.SendRequest(request)
 				if err != nil {
 					return false
 				}
@@ -181,7 +181,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 			})
 
 	} else {
-		httpResponse, err = suite.sendRequest(request)
+		httpResponse, err = suite.SendRequest(request)
 	}
 
 	// if we fail to connect, fail, so callee might retry
@@ -317,7 +317,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	return true
 }
 
-func (suite *TestSuite) sendRequest(request *Request) (*http.Response, error) {
+func (suite *TestSuite) SendRequest(request *Request) (*http.Response, error) {
 	suite.Logger.DebugWith("Sending request",
 		"requestPort", request.RequestPort,
 		"requestPath", request.RequestPath,
