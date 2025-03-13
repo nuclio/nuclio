@@ -133,6 +133,8 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 	}
 
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResults)
+		suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
 		statusOK := http.StatusOK
 
 		request := &httpsuite.Request{
