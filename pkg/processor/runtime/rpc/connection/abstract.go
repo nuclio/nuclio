@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -205,6 +206,7 @@ type AbstractConnection struct {
 
 	// TODO: implement status attribute logic when support multiple conn
 	//status     status.Status
+	functionLogger logger.Logger
 }
 
 func (b *AbstractConnection) Stop() {
@@ -215,18 +217,57 @@ func (b *AbstractConnection) SetEncoder(encoderInstance encoder.EventEncoder) {
 	b.encoder = encoderInstance
 }
 
+func (b *AbstractConnection) handleResponseLog(logRecord interface{}) {
+	var rpcLogRecord result.RpcLogRecord
+
+	switch logRecord := logRecord.(type) {
+	case map[string]interface{}:
+		if err := mapstructure.Decode(logRecord, &rpcLogRecord); err != nil {
+			b.Logger.ErrorWith("Failed to decode log",
+				"error", err.Error(),
+				"record", logRecord)
+			return
+		}
+	case []byte:
+		if err := json.Unmarshal(logRecord, &rpcLogRecord); err != nil {
+			b.Logger.ErrorWith("Can't decode log", "error", err)
+			return
+		}
+	}
+
+	loggerInstance := b.resolveFunctionLogger()
+	logFunc := loggerInstance.DebugWith
+	switch rpcLogRecord.Level {
+	case "error", "critical", "fatal":
+		logFunc = loggerInstance.ErrorWith
+	case "warning":
+		logFunc = loggerInstance.WarnWith
+	case "info":
+		logFunc = loggerInstance.InfoWith
+	}
+
+	vars := common.MapToSlice(rpcLogRecord.With)
+	logFunc(rpcLogRecord.Message, vars...)
+}
+
+func (b *AbstractConnection) resolveFunctionLogger() logger.Logger {
+	if b.functionLogger == nil {
+		return b.Logger
+	}
+	return b.functionLogger
+}
+
 type AbstractEventConnection struct {
 	*AbstractConnection
 	resultChan chan *result.BatchedResults
 	startChan  chan struct{}
 
 	connectionManager ConnectionManager
-	functionLogger    logger.Logger
 }
 
 func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager ConnectionManager) *AbstractEventConnection {
 	abstractConnection := &AbstractConnection{
-		Logger:     parentLogger.GetChild("event connection"),
+		Logger:     parentLogger.GetChild("event"),
 		cancelChan: make(chan struct{}, 1),
 	}
 	return &AbstractEventConnection{
@@ -301,13 +342,6 @@ func (be *AbstractEventConnection) processItem(item interface{}, functionLogger 
 		return nil, processingResults.Err
 	}
 	return processingResults, nil
-}
-
-func (be *AbstractEventConnection) resolveFunctionLogger() logger.Logger {
-	if be.functionLogger == nil {
-		return be.Logger
-	}
-	return be.functionLogger
 }
 
 func (be *AbstractEventConnection) RunHandler() {
@@ -399,6 +433,7 @@ func (be *AbstractEventConnection) GetStatus() status.Status {
 
 // Stop stops the connection
 func (be *AbstractEventConnection) Stop() error {
+	be.AbstractConnection.Stop()
 	return be.Conn.Close()
 }
 
@@ -471,30 +506,6 @@ func (be *AbstractEventConnection) handleResponseMetric(response []byte) {
 	be.connectionManager.UpdateStatistics(metrics.DurationSec)
 }
 
-func (be *AbstractEventConnection) handleResponseLog(response []byte) {
-	var logRecord result.RpcLogRecord
-
-	if err := json.Unmarshal(response, &logRecord); err != nil {
-		be.Logger.ErrorWith("Can't decode log", "error", err)
-		return
-	}
-
-	loggerInstance := be.resolveFunctionLogger()
-	logFunc := loggerInstance.DebugWith
-
-	switch logRecord.Level {
-	case "error", "critical", "fatal":
-		logFunc = loggerInstance.ErrorWith
-	case "warning":
-		logFunc = loggerInstance.WarnWith
-	case "info":
-		logFunc = loggerInstance.InfoWith
-	}
-
-	vars := common.MapToSlice(logRecord.With)
-	logFunc(logRecord.Message, vars...)
-}
-
 func (be *AbstractEventConnection) handleStart() {
 	be.startChan <- struct{}{}
 }
@@ -508,7 +519,7 @@ type AbstractControlMessageConnection struct {
 func NewAbstractControlMessageConnection(parentLogger logger.Logger, broker controlcommunication.ControlMessageBroker) *AbstractControlMessageConnection {
 
 	abstractConnection := &AbstractConnection{
-		Logger:     parentLogger.GetChild("event-connection"),
+		Logger:     parentLogger.GetChild("control"),
 		cancelChan: make(chan struct{}, 1),
 	}
 	return &AbstractControlMessageConnection{
@@ -582,6 +593,12 @@ func (bc *AbstractControlMessageConnection) RunHandler() {
 				continue
 			} else {
 				errLogCounter = 0
+			}
+
+			// if the message is of `log` kind, then we just want to log it without sending to consumer
+			if controlMessage.Kind == controlcommunication.LogMessageKind {
+				bc.handleResponseLog(controlMessage.Attributes)
+				continue
 			}
 
 			bc.Logger.DebugWith("Received control message", "messageKind", controlMessage.Kind)

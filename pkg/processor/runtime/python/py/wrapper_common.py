@@ -45,11 +45,24 @@ class WrapperFatalException(Exception):
     pass
 
 
+class EventSocketDisconnected(Exception):
+    """
+    Signals about Event Socket disconnect (fatal for sync wrapper, ok for async)
+    """
+    pass
+
+
+# Formats logs into control message format
+class JSONFormatterOverControlSocket(nuclio_sdk.logger.JSONFormatter):
+    def format(self, record):
+        return super(JSONFormatterOverControlSocket, self).format_to_log_control_message(record)
+
+
 # Appends `l` character to follow the processor conventions for "log"
 # more information @ pkg/processor/runtime/rpc/abstract.go / eventWrapperOutputHandler
-class JSONFormatterOverSocket(nuclio_sdk.logger.JSONFormatter):
+class JSONFormatterOverEventSocket(nuclio_sdk.logger.JSONFormatter):
     def format(self, record):
-        return 'l' + super(JSONFormatterOverSocket, self).format(record)
+        return 'l' + super(JSONFormatterOverEventSocket, self).format(record)
 
 
 class AbstractWrapper(object):
@@ -63,7 +76,8 @@ class AbstractWrapper(object):
                  worker_id=None,
                  trigger_kind=None,
                  trigger_name=None,
-                 decode_event_strings=True):
+                 decode_event_strings=True,
+                 logger_per_async_task=False):
         self._logger = logger
         self._control_socket_path = control_socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
@@ -90,6 +104,9 @@ class AbstractWrapper(object):
             # that we are able to cancel the wait if needed
             self._control_sock.setblocking(False)
 
+            # replace the default output with the control message socket
+            self._logger.set_handler('default', self._control_sock_wfile, JSONFormatterOverControlSocket())
+
         # create msgpack unpacker
         self._unpacker = self._resolve_unpacker()
 
@@ -106,7 +123,8 @@ class AbstractWrapper(object):
         self._context = nuclio_sdk.Context(self._logger,
                                            self._platform,
                                            worker_id,
-                                           nuclio_sdk.TriggerInfo(trigger_kind, trigger_name))
+                                           nuclio_sdk.TriggerInfo(trigger_kind, trigger_name),
+                                           logger_per_async_task=logger_per_async_task)
 
         # initialize flags
         self._is_drain_needed = False
@@ -220,7 +238,7 @@ class AbstractWrapper(object):
 
         # not reading 4 bytes meaning client has disconnected while sending the packet. bail
         if len(int_buf) != 4:
-            raise WrapperFatalException('Client disconnected')
+            raise EventSocketDisconnected('Client disconnected')
 
         # big-endian, compute event bytes length to read
         bytes_to_read = int(int_buf[3])
