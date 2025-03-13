@@ -429,6 +429,7 @@ func (be *AbstractEventConnection) GetStatus() status.Status {
 
 // Stop stops the connection
 func (be *AbstractEventConnection) Stop() error {
+	be.AbstractConnection.Stop()
 	return be.Conn.Close()
 }
 
