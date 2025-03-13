@@ -22,7 +22,8 @@ import nuclio_sdk.json_encoder
 import nuclio_sdk.logger
 from wrapper_common import (
     WrapperFatalException,
-    JSONFormatterOverSocket,
+    EventSocketDisconnected,
+    JSONFormatterOverEventSocket,
     AbstractWrapper,
     create_logger,
     get_parser_with_common_args,
@@ -67,8 +68,12 @@ class Wrapper(AbstractWrapper):
         # that we are able to cancel the wait if needed
         self._event_sock.setblocking(False)
 
-        # replace the default output with the process socket
-        self._logger.set_handler('default', self._event_sock_wfile, JSONFormatterOverSocket())
+        # we use two different loggers
+        # one for event processing logs
+        # another one for general logs in the wrapper
+        event_processing_logger = nuclio_sdk.Logger(self._logger._logger.level, "event")
+        event_processing_logger.set_handler('default', self._event_sock_wfile, JSONFormatterOverEventSocket())
+        self._context.logger = event_processing_logger
 
     async def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
@@ -99,7 +104,7 @@ class Wrapper(AbstractWrapper):
                 # allow event to be garbage collected by deleting the reference
                 del event
 
-            except WrapperFatalException as exc:
+            except (WrapperFatalException, EventSocketDisconnected) as exc:
                 await self._on_serving_error(exc, self._event_sock)
 
                 # explode, unrecoverable exception

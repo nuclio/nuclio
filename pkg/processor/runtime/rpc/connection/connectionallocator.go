@@ -120,7 +120,7 @@ func (ca *ConnectionAllocator) Stop() error {
 
 		go func() {
 			defer wg.Done()
-			if err := connection.Conn.Close(); err != nil {
+			if err := connection.Stop(); err != nil {
 				ca.Logger.WarnWith("Failed to close connection", "error", err)
 			}
 		}()
