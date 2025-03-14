@@ -29,7 +29,7 @@ type asyncSingletonAllocator struct {
 	isTerminated bool
 }
 
-func NewSingletonAllocator(parentLogger logger.Logger, eventProcessor EventProcessor) Allocator {
+func NewAsyncSingletonAllocator(parentLogger logger.Logger, eventProcessor EventProcessor) Allocator {
 
 	return &asyncSingletonAllocator{
 		logger: parentLogger.GetChild("singelton_allocator"),
@@ -53,10 +53,6 @@ func (s *asyncSingletonAllocator) SetObjects(objects []EventProcessor) error {
 }
 
 func (s *asyncSingletonAllocator) Release(processor EventProcessor) {
-}
-
-func (s *asyncSingletonAllocator) Shareable() bool {
-	return false
 }
 
 func (s *asyncSingletonAllocator) GetObjects() []EventProcessor {

@@ -39,9 +39,6 @@ type Allocator interface {
 	// Release releases event processor instance
 	Release(processor EventProcessor)
 
-	// Shareable returns true if the several go routines can share this allocator
-	Shareable() bool
-
 	// GetObjects gets direct access to all event processors for things like management / housekeeping
 	GetObjects() []EventProcessor
 

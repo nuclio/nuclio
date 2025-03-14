@@ -133,6 +133,8 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 	}
 
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResults)
+		suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
 		statusOK := http.StatusOK
 
 		request := &httpsuite.Request{
@@ -179,6 +181,9 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 		// Log the total time taken for 100 requests
 		totalTime := time.Since(start)
 		suite.Logger.InfoWith("Total time for 100 requests", "duration", totalTime)
+
+		// Ensure total time is much smaller than 100 * single request time // 2
+		suite.Require().Less(totalTime, 50*singleRequestTime)
 
 		// Verify the context length after all requests
 		request = &httpsuite.Request{

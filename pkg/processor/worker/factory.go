@@ -55,7 +55,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	return workerAllocator, nil
 }
 
-func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
+func (waf *Factory) CreateAsyncSingletonPoolWorkerAllocator(logger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) (eventprocessor.Allocator, error) {
 
 	// create the workers
@@ -65,7 +65,7 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
 	}
 
 	// create an allocator
-	workerAllocator := eventprocessor.NewSingletonAllocator(logger, workerInstance)
+	workerAllocator := eventprocessor.NewAsyncSingletonAllocator(logger, workerInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
