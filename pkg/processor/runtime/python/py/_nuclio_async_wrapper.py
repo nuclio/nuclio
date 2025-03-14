@@ -68,8 +68,8 @@ class AsyncWrapper(AbstractWrapper):
         self._host = split_address[0]
         self._port = int(split_address[1])
 
-        # Max file descriptors allowed by the OS
-        self._max_connections = max_connections if max_connections else os.sysconf("SC_OPEN_MAX")
+        # 80 percent of Max file descriptors allowed by the OS
+        self._max_connections = max_connections if max_connections else int(os.sysconf("SC_OPEN_MAX") * 0.8)
         self.selector = selectors.DefaultSelector()
         self.connections = {}  # Track active sockets
         self.tasks = {}  # Track active asyncio tasks
