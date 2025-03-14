@@ -19,7 +19,6 @@ package eventprocessor
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -32,51 +31,42 @@ type syncPoolAllocator struct {
 	logger      logger.Logger
 	objectsChan chan EventProcessor
 	objects     []EventProcessor
-	statistics  AllocatorStatistics
+	statistics  safeAllocatorStatistics
 
 	isTerminated bool
 }
 
 func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) Allocator {
 	newFixedPool := &syncPoolAllocator{
-		logger:      parentLogger.GetChild("sync_pool_allocator"),
-		objectsChan: make(chan EventProcessor, len(objects)),
-		objects:     objects,
-		statistics:  AllocatorStatistics{},
+		logger:     parentLogger.GetChild("sync_pool_allocator"),
+		statistics: safeAllocatorStatistics{},
 	}
-
-	// iterate over objects, shove to pool
-	for _, object := range objects {
-		newFixedPool.objectsChan <- object
+	if err := newFixedPool.SetObjects(objects); err != nil {
+		return nil
 	}
-
 	return newFixedPool
 }
 
 func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
-	// TODO: think about reworking of atomic operations logic as it might affect performance
-	// we don't want to completely lock here, but we'll use atomic to inc counters where possible
-	atomic.AddUint64(&sa.statistics.AllocationCount, 1)
-
+	sa.statistics.AllocationCount.Add(1)
 	// get total number of objects
 	totalNumberObjects := len(sa.objects)
 	currentNumberOfAvailableObjects := len(sa.objectsChan)
 	percentageOfAvailableObjects := float64(currentNumberOfAvailableObjects*100.0) / float64(totalNumberObjects)
 
 	// measure how many objects are available in the queue while we're allocating
-	atomic.AddUint64(&sa.statistics.AllocationObjectsAvailablePercentage, uint64(percentageOfAvailableObjects))
+	sa.statistics.AllocationObjectsAvailablePercentage.Add(uint64(percentageOfAvailableObjects))
 
 	// try to allocate a worker and fall back to default immediately if there's none available
 	select {
 	case objectInstance := <-sa.objectsChan:
-		atomic.AddUint64(&sa.statistics.AllocationSuccessImmediateTotal, 1)
-
+		sa.statistics.AllocationSuccessImmediateTotal.Add(1)
 		return objectInstance, nil
 	default:
 
 		// if there's no timeout, return now
 		if timeout == 0 {
-			atomic.AddUint64(&sa.statistics.AllocationTimeoutTotal, 1)
+			sa.statistics.AllocationSuccessAfterWaitTotal.Add(1)
 			return nil, ErrNoAvailableObjects
 		}
 
@@ -86,14 +76,27 @@ func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, er
 		// to pass
 		select {
 		case workerInstance := <-sa.objectsChan:
-			atomic.AddUint64(&sa.statistics.AllocationSuccessAfterWaitTotal, 1)
-			atomic.AddUint64(&sa.statistics.AllocationWaitDurationMilliSecondsSum,
-				uint64(time.Since(waitStartAt).Nanoseconds()/1e6))
+			sa.statistics.AllocationSuccessAfterWaitTotal.Add(1)
+			sa.statistics.AllocationWaitDurationMilliSecondsSum.Add(uint64(time.Since(waitStartAt).Nanoseconds() / 1e6))
 			return workerInstance, nil
 		case <-time.After(timeout):
-			atomic.AddUint64(&sa.statistics.AllocationTimeoutTotal, 1)
+			sa.statistics.AllocationTimeoutTotal.Add(1)
 			return nil, ErrNoAvailableObjects
 		}
+	}
+}
+
+func (sa *syncPoolAllocator) Stop() {
+	// Stop the old objects that are being cleaned up
+	for _, object := range sa.objects {
+		if err := object.Stop(); err != nil {
+			sa.logger.WarnWith("Failed to stop object",
+				"error", err)
+		}
+	}
+
+	if sa.objectsChan != nil {
+		close(sa.objectsChan)
 	}
 }
 
@@ -114,18 +117,34 @@ func (sa *syncPoolAllocator) GetNumObjectsAvailable() int {
 }
 
 func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
+	// Clean ups if there are any objects already
+	sa.Stop()
+
+	// Set new objects and initialize channels with the length of new objects
 	sa.objects = objects
 	sa.objectsChan = make(chan EventProcessor, len(objects))
+
+	// Populate the objects channel with the new objects
 	for _, object := range objects {
 		sa.objectsChan <- object
 	}
+
+	// Log the update of allocator objects
 	sa.logger.DebugWith("Allocator objects updated", "size", len(objects))
 	return nil
 }
 
 // GetStatistics returns object allocator statistics
 func (sa *syncPoolAllocator) GetStatistics() *AllocatorStatistics {
-	return &sa.statistics
+	statistics := &AllocatorStatistics{
+		AllocationCount:                       sa.statistics.AllocationCount.Load(),
+		AllocationSuccessImmediateTotal:       sa.statistics.AllocationSuccessImmediateTotal.Load(),
+		AllocationSuccessAfterWaitTotal:       sa.statistics.AllocationSuccessAfterWaitTotal.Load(),
+		AllocationTimeoutTotal:                sa.statistics.AllocationTimeoutTotal.Load(),
+		AllocationWaitDurationMilliSecondsSum: sa.statistics.AllocationWaitDurationMilliSecondsSum.Load(),
+		AllocationObjectsAvailablePercentage:  sa.statistics.AllocationObjectsAvailablePercentage.Load(),
+	}
+	return statistics
 }
 
 func (sa *syncPoolAllocator) SignalDraining() error {

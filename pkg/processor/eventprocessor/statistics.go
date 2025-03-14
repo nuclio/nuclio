@@ -32,29 +32,23 @@ type AllocatorStatistics struct {
 	AllocationObjectsAvailablePercentage  uint64
 }
 
+type safeAllocatorStatistics struct {
+	AllocationCount                       atomic.Uint64
+	AllocationSuccessImmediateTotal       atomic.Uint64
+	AllocationSuccessAfterWaitTotal       atomic.Uint64
+	AllocationTimeoutTotal                atomic.Uint64
+	AllocationWaitDurationMilliSecondsSum atomic.Uint64
+	AllocationObjectsAvailablePercentage  atomic.Uint64
+}
+
 func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStatistics {
 
-	// atomically load the counters
-	currAllocationCount := atomic.LoadUint64(&s.AllocationCount)
-	currAllocationSuccessImmediateTotal := atomic.LoadUint64(&s.AllocationSuccessImmediateTotal)
-	currAllocationSuccessAfterWaitTotal := atomic.LoadUint64(&s.AllocationSuccessAfterWaitTotal)
-	currAllocationTimeoutTotal := atomic.LoadUint64(&s.AllocationTimeoutTotal)
-	currAllocationWaitDurationMilliSecondsSum := atomic.LoadUint64(&s.AllocationWaitDurationMilliSecondsSum)
-	currAllocationObjectsAvailablePercentage := atomic.LoadUint64(&s.AllocationObjectsAvailablePercentage)
-
-	prevAllocationCount := atomic.LoadUint64(&prev.AllocationCount)
-	prevAllocationSuccessImmediateTotal := atomic.LoadUint64(&prev.AllocationSuccessImmediateTotal)
-	prevAllocationSuccessAfterWaitTotal := atomic.LoadUint64(&prev.AllocationSuccessAfterWaitTotal)
-	prevAllocationTimeoutTotal := atomic.LoadUint64(&prev.AllocationTimeoutTotal)
-	prevAllocationWaitDurationMilliSecondsSum := atomic.LoadUint64(&prev.AllocationWaitDurationMilliSecondsSum)
-	prevAllocationObjectsAvailablePercentage := atomic.LoadUint64(&prev.AllocationObjectsAvailablePercentage)
-
 	return AllocatorStatistics{
-		AllocationCount:                       currAllocationCount - prevAllocationCount,
-		AllocationSuccessImmediateTotal:       currAllocationSuccessImmediateTotal - prevAllocationSuccessImmediateTotal,
-		AllocationSuccessAfterWaitTotal:       currAllocationSuccessAfterWaitTotal - prevAllocationSuccessAfterWaitTotal,
-		AllocationTimeoutTotal:                currAllocationTimeoutTotal - prevAllocationTimeoutTotal,
-		AllocationWaitDurationMilliSecondsSum: currAllocationWaitDurationMilliSecondsSum - prevAllocationWaitDurationMilliSecondsSum,
-		AllocationObjectsAvailablePercentage:  currAllocationObjectsAvailablePercentage - prevAllocationObjectsAvailablePercentage,
+		AllocationCount:                       s.AllocationCount - prev.AllocationCount,
+		AllocationSuccessImmediateTotal:       s.AllocationSuccessImmediateTotal - prev.AllocationSuccessImmediateTotal,
+		AllocationSuccessAfterWaitTotal:       s.AllocationSuccessAfterWaitTotal - prev.AllocationSuccessAfterWaitTotal,
+		AllocationTimeoutTotal:                s.AllocationTimeoutTotal - prev.AllocationTimeoutTotal,
+		AllocationWaitDurationMilliSecondsSum: s.AllocationWaitDurationMilliSecondsSum - prev.AllocationWaitDurationMilliSecondsSum,
+		AllocationObjectsAvailablePercentage:  s.AllocationObjectsAvailablePercentage - prev.AllocationObjectsAvailablePercentage,
 	}
 }
