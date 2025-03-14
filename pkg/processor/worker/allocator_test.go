@@ -140,18 +140,18 @@ func BenchmarkParallelAllocation100(b *testing.B) {
 	benchmarkParallelAllocation(b, 100)
 }
 
-func benchmarkParallelAllocation(b *testing.B, N int) {
+func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int) {
 	// Initialize logger
 	logger, _ := nucliozap.NewNuclioZapTest("benchmark")
 
-	// Create N workers
-	workers := make([]*Worker, N)
-	for i := 0; i < N; i++ {
+	// Create numberOfWorkers workers
+	workers := make([]*Worker, numberOfWorkers)
+	for i := 0; i < numberOfWorkers; i++ {
 		workers[i] = &Worker{index: i, runtime: &MockRuntime{}}
 	}
 
 	// Convert workers to EventProcessors
-	eventProcessors := make([]eventprocessor.EventProcessor, N)
+	eventProcessors := make([]eventprocessor.EventProcessor, numberOfWorkers)
 	for i, worker := range workers {
 		eventProcessors[i] = worker
 	}
