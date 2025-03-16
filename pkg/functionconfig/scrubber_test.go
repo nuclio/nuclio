@@ -51,6 +51,11 @@ func (suite *ScrubberTestSuite) SetupTest() {
 
 func (suite *ScrubberTestSuite) TestScrubBasics() {
 	functionConfig := &Config{
+		Meta: Meta{
+			Annotations: map[string]string{
+				"nuclio.io/kafka-ca-cert": "some-ca-cert",
+			},
+		},
 		Spec: Spec{
 			Build: Build{
 				CodeEntryAttributes: map[string]interface{}{
@@ -127,6 +132,8 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 		scrubbedFunctionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"])
 	suite.Require().NotEqual(functionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"],
 		scrubbedFunctionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"])
+	suite.Require().NotEqual(functionConfig.Meta.Annotations["nuclio.io/kafka-ca-cert"],
+		scrubbedFunctionConfig.Meta.Annotations["nuclio.io/kafka-ca-cert"])
 
 	restoredFunctionConfig, err := suite.scrubber.Restore(scrubbedFunctionConfig, secretMap)
 	suite.Require().NoError(err)
@@ -383,6 +390,9 @@ func (suite *ScrubberTestSuite) getSensitiveFieldsPathsRegex() []*regexp.Regexp 
 		"^/Spec/Triggers/.+/Password$",
 		// Nested path in any map element
 		"^/Spec/Triggers/.+/Attributes/password$",
+
+		// Annotations
+		"^/metadata/annotations/nuclio\\.io/kafka-ca-cert$",
 	} {
 		regexpList = append(regexpList, regexp.MustCompile("(?i)"+sensitiveFieldPath))
 	}
