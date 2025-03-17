@@ -71,7 +71,7 @@ const (
 	// TODO: Remove in 1.16.0
 	GithubEntryType = "github"
 
-	GithubURLRegexPattern = "^.*://.*github.com(?:/repos)?/(?P<org>[^/]+)/(?P<repo>[^/]+)/?$"
+	GithubURLRegexPattern = "^.*://.*github\\.com(?:/repos)?/(?P<org>[^/]+)/(?P<repo>[^/]+)/?$"
 )
 
 // githubURLRegex complies the GitHub URL regex once instead of every function build, to improve performance
@@ -1594,7 +1594,7 @@ func (b *Builder) getSourceCodeFromFilePath() (string, error) {
 
 	// if user supplied a file containing printable only characters (i.e. not a zip, jar, etc) - copy the contents
 	// to functionSourceCode so that the dashboard may display it
-	functionContents, err := os.ReadFile(b.options.FunctionConfig.Spec.Build.Path)
+	functionContents, err := os.ReadFile(filepath.Clean(b.options.FunctionConfig.Spec.Build.Path))
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to read file contents to source code")
 	}
@@ -1800,7 +1800,7 @@ func (b *Builder) getFunctionTempFile(tempDir string,
 	codeEntryType string) (*os.File, error) {
 	var err error
 
-	functionPathBase := path.Base(functionPath)
+	functionPathBase := path.Base(filepath.Clean(functionPath))
 
 	// if the codeEntryType of the function is s3 - set its itemKey as the function path
 	// (so the file extension will be parsed correctly)

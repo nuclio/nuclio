@@ -292,8 +292,8 @@ func (s *Server) resolveDockerCredentialsRegistryURL(credentials dockercreds.Cre
 	// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
 	// to generate a valid URL
 	if common.MatchStringPatterns([]string{
-		`\.docker\.com`,
-		`\.docker\.io`,
+		`^.*\.docker\.com.*$`,
+		`^.*\.docker\.io.*$`,
 	}, registryURL) {
 		registryURL = common.StripSuffixes(registryURL, []string{
 
