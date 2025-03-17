@@ -131,6 +131,8 @@ func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
 }
 
 // GetStatistics returns object allocator statistics
+// return unsafe copy of the statistics to avoid any unnecessary blocking of the actual statistics object
+// used in gatherers which are thread-safe
 func (sa *syncPoolAllocator) GetStatistics() *AllocatorStatistics {
 	statistics := &AllocatorStatistics{
 		AllocationCount:                       sa.statistics.AllocationCount.Load(),

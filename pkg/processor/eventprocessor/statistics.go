@@ -23,6 +23,8 @@ type Statistics struct {
 	EventsHandledError   uint64
 }
 
+// AllocatorStatistics is not a safe statistics object and should be used only to copy safe object to it and return to outside
+// so it can later be taken by metric gatherers
 type AllocatorStatistics struct {
 	AllocationCount                       uint64
 	AllocationSuccessImmediateTotal       uint64
@@ -30,15 +32,6 @@ type AllocatorStatistics struct {
 	AllocationTimeoutTotal                uint64
 	AllocationWaitDurationMilliSecondsSum uint64
 	AllocationObjectsAvailablePercentage  uint64
-}
-
-type safeAllocatorStatistics struct {
-	AllocationCount                       atomic.Uint64
-	AllocationSuccessImmediateTotal       atomic.Uint64
-	AllocationSuccessAfterWaitTotal       atomic.Uint64
-	AllocationTimeoutTotal                atomic.Uint64
-	AllocationWaitDurationMilliSecondsSum atomic.Uint64
-	AllocationObjectsAvailablePercentage  atomic.Uint64
 }
 
 func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStatistics {
@@ -51,4 +44,14 @@ func (s *AllocatorStatistics) DiffFrom(prev *AllocatorStatistics) AllocatorStati
 		AllocationWaitDurationMilliSecondsSum: s.AllocationWaitDurationMilliSecondsSum - prev.AllocationWaitDurationMilliSecondsSum,
 		AllocationObjectsAvailablePercentage:  s.AllocationObjectsAvailablePercentage - prev.AllocationObjectsAvailablePercentage,
 	}
+}
+
+// safeAllocatorStatistics is a safe statistics object, for outside usages use AllocatorStatistics
+type safeAllocatorStatistics struct {
+	AllocationCount                       atomic.Uint64
+	AllocationSuccessImmediateTotal       atomic.Uint64
+	AllocationSuccessAfterWaitTotal       atomic.Uint64
+	AllocationTimeoutTotal                atomic.Uint64
+	AllocationWaitDurationMilliSecondsSum atomic.Uint64
+	AllocationObjectsAvailablePercentage  atomic.Uint64
 }
