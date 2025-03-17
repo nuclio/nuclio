@@ -17,9 +17,9 @@ limitations under the License.
 package connection
 
 import (
-	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
