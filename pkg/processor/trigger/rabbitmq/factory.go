@@ -50,7 +50,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
 		namedWorkerAllocators,
 		func() (eventprocessor.Allocator, error) {
-			return worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(triggerLogger,
+			return worker.WorkerFactorySingleton.CreateAsyncSingletonPoolWorkerAllocator(triggerLogger,
 				runtimeConfiguration)
 		})
 

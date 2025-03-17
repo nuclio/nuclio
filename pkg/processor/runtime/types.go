@@ -58,6 +58,7 @@ type Configuration struct {
 	WorkerTerminationTimeout time.Duration
 	ControlMessageBroker     *controlcommunication.AbstractControlMessageBroker
 	Mode                     functionconfig.TriggerWorkMode
+	AsyncConfig              *functionconfig.AsyncConfig
 }
 
 type ResponseWithErrors struct {

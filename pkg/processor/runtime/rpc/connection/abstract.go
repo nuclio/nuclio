@@ -58,7 +58,6 @@ type AbstractConnectionManager struct {
 }
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (*AbstractConnectionManager, error) {
-	// TODO: make MinConnectionsNum and MaxConnectionsNum configurable when support multiple event connections
 	abstractConnectionManager := &AbstractConnectionManager{
 		Logger:               parentLogger.GetChild("connection-manager"),
 		MinConnectionsNum:    1,
@@ -67,9 +66,14 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 		Configuration:        configuration,
 	}
 	var err error
+	if runtimeConfiguration.AsyncConfig != nil {
+		abstractConnectionManager.MinConnectionsNum = runtimeConfiguration.AsyncConfig.MinConnectionsNumber
+		abstractConnectionManager.MaxConnectionsNum = runtimeConfiguration.AsyncConfig.MaxConnectionsNumber
+	}
+
 	if abstractConnectionManager.MinConnectionsNum == 1 && abstractConnectionManager.MaxConnectionsNum == 1 {
 		// TODO: add support sync singleton
-		abstractConnectionManager.allocator = eventprocessor.NewSingletonAllocator(abstractConnectionManager.Logger, nil)
+		abstractConnectionManager.allocator = eventprocessor.NewAsyncSingletonAllocator(abstractConnectionManager.Logger, nil)
 	} else {
 		if abstractConnectionManager.allocator, err = eventprocessor.NewSyncPoolAllocator(abstractConnectionManager.Logger, nil); err != nil {
 			return nil, err

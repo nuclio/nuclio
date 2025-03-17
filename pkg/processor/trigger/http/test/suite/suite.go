@@ -32,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
+	httpnuclio "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	"github.com/nuclio/nuclio/test/compare"
 
 	"github.com/nuclio/nuclio-sdk-go"
@@ -163,6 +164,25 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 	})
 }
 
+func (suite *TestSuite) WaitForFunctionReadinessProbe(
+	deployResult *platform.CreateFunctionResult,
+	interval,
+	duration time.Duration) {
+	statusOK := http.StatusOK
+	code200 := 200
+	request := &Request{
+		RequestMethod:                  http.MethodPost,
+		RequestPath:                    httpnuclio.InternalHealthPath,
+		ExpectedResponseStatusCode:     &statusOK,
+		RetryUntilSuccessfulInterval:   interval,
+		RetryUntilSuccessfulDuration:   duration,
+		RetryUntilSuccessfulStatusCode: &code200,
+	}
+	request.Enrich(deployResult)
+	inTime := suite.SendRequestVerifyResponse(request)
+	suite.Require().Equal(true, inTime, "Function readiness probe failed")
+}
+
 // SendRequestVerifyResponse sends a request and verifies we got expected response
 func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	var httpResponse *http.Response
@@ -173,7 +193,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		err = common.RetryUntilSuccessful(request.RetryUntilSuccessfulDuration,
 			request.RetryUntilSuccessfulInterval,
 			func() bool {
-				httpResponse, err = suite.sendRequest(request)
+				httpResponse, err = suite.SendRequest(request)
 				if err != nil {
 					return false
 				}
@@ -181,7 +201,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 			})
 
 	} else {
-		httpResponse, err = suite.sendRequest(request)
+		httpResponse, err = suite.SendRequest(request)
 	}
 
 	// if we fail to connect, fail, so callee might retry
@@ -317,7 +337,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	return true
 }
 
-func (suite *TestSuite) sendRequest(request *Request) (*http.Response, error) {
+func (suite *TestSuite) SendRequest(request *Request) (*http.Response, error) {
 	suite.Logger.DebugWith("Sending request",
 		"requestPort", request.RequestPort,
 		"requestPath", request.RequestPath,
