@@ -187,7 +187,7 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 
 		// Verify the context length after all requests
 		request = &httpsuite.Request{
-			Name:                       "async write",
+			Name:                       "read len",
 			RequestMethod:              http.MethodPost,
 			RequestBody:                "read_context_len",
 			ExpectedResponseBody:       "101",
@@ -199,7 +199,7 @@ func (suite *TestSuite) TestAsyncHandlerManyRequests() {
 
 		// Verify the context content after all requests
 		request = &httpsuite.Request{
-			Name:                       "async write",
+			Name:                       "read context",
 			RequestMethod:              http.MethodPost,
 			RequestBody:                "read_context",
 			ExpectedResponseStatusCode: &statusOK,
