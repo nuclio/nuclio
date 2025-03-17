@@ -71,7 +71,8 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 		eventProcessors[i] = worker
 	}
 
-	fpa := eventprocessor.NewSyncPoolAllocator(suite.logger, eventProcessors)
+	fpa, err := eventprocessor.NewSyncPoolAllocator(suite.logger, eventProcessors)
+	suite.Require().NoError(err)
 	suite.Require().NotNil(fpa)
 
 	// allocate once - should allocate
@@ -157,7 +158,7 @@ func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int) {
 	}
 
 	// Create a new SyncPoolAllocator
-	fpa := eventprocessor.NewSyncPoolAllocator(logger, eventProcessors)
+	fpa, _ := eventprocessor.NewSyncPoolAllocator(logger, eventProcessors)
 
 	// Reset the timer to exclude setup time
 	b.ResetTimer()

@@ -48,7 +48,8 @@ func (suite *partitionWorkerAllocatorTestSuite) SetupSuite() {
 }
 
 func (suite *partitionWorkerAllocatorTestSuite) TestAllocationBlocking() {
-	workerAllocator := eventprocessor.NewSyncPoolAllocator(suite.logger, suite.createWorkers(2))
+	workerAllocator, err := eventprocessor.NewSyncPoolAllocator(suite.logger, suite.createWorkers(2))
+	suite.Require().NoError(err)
 
 	partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger,
 		workerAllocator,
@@ -142,9 +143,9 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorAllocations()
 	} {
 		suite.Run(testCase.name, func() {
 			suite.T().Parallel()
-			workerAllocator := eventprocessor.NewSyncPoolAllocator(suite.logger,
+			workerAllocator, err := eventprocessor.NewSyncPoolAllocator(suite.logger,
 				suite.createWorkers(testCase.numWorkers))
-
+			suite.Require().NoError(err)
 			partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger,
 				workerAllocator,
 				testCase.topicPartitionIDs)
@@ -192,7 +193,8 @@ func (suite *partitionWorkerAllocatorTestSuite) TestStaticAllocatorStress() {
 	}
 
 	// create a worker allocator with a small number of workers
-	workerAllocator := eventprocessor.NewSyncPoolAllocator(suite.logger, suite.createWorkers(numWorkers))
+	workerAllocator, err := eventprocessor.NewSyncPoolAllocator(suite.logger, suite.createWorkers(numWorkers))
+	suite.Require().NoError(err)
 
 	// create a static worker allocator
 	partitionWorkerAllocator, err := NewStaticWorkerAllocator(suite.logger,

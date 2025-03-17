@@ -36,15 +36,15 @@ type syncPoolAllocator struct {
 	isTerminated bool
 }
 
-func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) Allocator {
+func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) (Allocator, error) {
 	newFixedPool := &syncPoolAllocator{
 		logger:     parentLogger.GetChild("sync_pool_allocator"),
 		statistics: safeAllocatorStatistics{},
 	}
 	if err := newFixedPool.SetObjects(objects); err != nil {
-		return nil
+		return nil, errors.Wrap(err, "Failed to create sync pool allocator")
 	}
-	return newFixedPool
+	return newFixedPool, nil
 }
 
 func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
