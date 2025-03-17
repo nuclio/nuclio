@@ -379,7 +379,7 @@ jobs:
           path: nuclio-helm
 
       - name: Set up Helm
-        uses: azure/setup-helm@v3
+        uses: azure/setup-helm@v4
 
       - name: Set up yq
         run: |
