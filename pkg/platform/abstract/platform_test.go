@@ -2065,18 +2065,21 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 }
 func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 	testCases := []struct {
-		name           string
-		trigger        functionconfig.Trigger
-		expectedMode   functionconfig.TriggerWorkMode
-		expectedConfig *functionconfig.AsyncConfig
+		name               string
+		trigger            functionconfig.Trigger
+		expectedMode       functionconfig.TriggerWorkMode
+		expectedConfig     *functionconfig.AsyncConfig
+		expectedNumWorkers int
 	}{
 		{
 			name: "SyncMode",
 			trigger: functionconfig.Trigger{
-				Mode: "",
+				Mode:       "",
+				NumWorkers: 10,
 			},
-			expectedMode:   functionconfig.SyncTriggerWorkMode,
-			expectedConfig: nil,
+			expectedMode:       functionconfig.SyncTriggerWorkMode,
+			expectedConfig:     nil,
+			expectedNumWorkers: 10,
 		},
 		{
 			name: "AsyncModeWithDefaults",
@@ -2089,11 +2092,13 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				MaxConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
 				MinConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
 			},
+			expectedNumWorkers: 1,
 		},
 		{
 			name: "AsyncModeWithCustomConfig",
 			trigger: functionconfig.Trigger{
-				Mode: functionconfig.AsyncTriggerWorkMode,
+				NumWorkers: 10,
+				Mode:       functionconfig.AsyncTriggerWorkMode,
 				AsyncConfig: &functionconfig.AsyncConfig{
 					ConnectionCreationMode: "dynamic",
 					MaxConnectionsNumber:   10,
@@ -2106,6 +2111,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				MaxConnectionsNumber:   10,
 				MinConnectionsNumber:   5,
 			},
+			expectedNumWorkers: 1,
 		},
 	}
 
@@ -2122,6 +2128,8 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 			enrichedTrigger := functionConfig.Spec.Triggers["test-trigger"]
 			suite.Require().Equal(testCase.expectedMode, enrichedTrigger.Mode, "Unexpected mode")
 			suite.Require().Equal(testCase.expectedConfig, enrichedTrigger.AsyncConfig, "Unexpected async config")
+
+			suite.Require().Equal(testCase.expectedNumWorkers, enrichedTrigger.NumWorkers, "Unexpected num workers")
 		})
 	}
 }

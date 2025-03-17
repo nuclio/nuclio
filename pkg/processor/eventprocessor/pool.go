@@ -101,10 +101,6 @@ func (sa *syncPoolAllocator) Release(object EventProcessor) {
 	sa.objectsChan <- object
 }
 
-func (sa *syncPoolAllocator) Shareable() bool {
-	return true
-}
-
 func (sa *syncPoolAllocator) GetObjects() []EventProcessor {
 	return sa.objects
 }

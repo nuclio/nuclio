@@ -41,7 +41,7 @@ func (suite *AllocatorTestSuite) SetupSuite() {
 func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	worker1 := &Worker{}
 
-	sa := eventprocessor.NewSingletonAllocator(suite.logger, worker1)
+	sa := eventprocessor.NewAsyncSingletonAllocator(suite.logger, worker1)
 	suite.Require().NotNil(sa)
 
 	// allocate once, time should be ignored
@@ -56,8 +56,6 @@ func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 
 	// release shouldn't do anything
 	suite.Require().NotPanics(func() { sa.Release(worker1) })
-
-	suite.Require().False(sa.Shareable())
 }
 
 func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
@@ -96,8 +94,6 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 	thirdAllocatedWorker, err := fpa.Allocate(time.Hour)
 	suite.Require().NoError(err)
 	suite.Require().Equal(worker2, thirdAllocatedWorker)
-
-	suite.Require().True(fpa.Shareable())
 }
 
 func TestAllocatorTestSuite(t *testing.T) {

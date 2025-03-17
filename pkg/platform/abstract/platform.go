@@ -1830,7 +1830,7 @@ func (ap *Platform) enrichTriggers(ctx context.Context, functionConfig *function
 			triggerInstance.NumWorkers = triggerInstance.MaxWorkers
 		}
 
-		// ensure having max workers
+		// ensure having num workers
 		if common.StringInSlice(triggerInstance.Kind, []string{"http", "v3ioStream"}) {
 			if triggerInstance.NumWorkers == 0 {
 				triggerInstance.NumWorkers = 1
@@ -1943,6 +1943,15 @@ func (ap *Platform) enrichProcessingMode(
 		"functionName", functionConfig.Meta.Name,
 		"trigger", triggerName,
 	)
+
+	if triggerInstance.NumWorkers != 1 {
+		ap.Logger.WarnWithCtx(ctx,
+			"NumWorkers should always be equal to 1 for async triggers. Setting to 1",
+			"functionName", functionConfig.Meta.Name,
+			"trigger", triggerName,
+		)
+		triggerInstance.NumWorkers = 1
+	}
 
 	// if no async config is defined, create a new one
 	if triggerInstance.AsyncConfig == nil {

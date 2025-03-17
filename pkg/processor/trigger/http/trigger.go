@@ -72,12 +72,6 @@ func newTrigger(logger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create buffer loggers")
 	}
 
-	// we need a shareable allocator to support multiple go-routines. check that we were provided
-	// with a valid allocator
-	if !workerAllocator.Shareable() {
-		return nil, errors.New("HTTP trigger requires a shareable worker allocator")
-	}
-
 	numWorkers := len(workerAllocator.GetObjects())
 
 	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
