@@ -44,6 +44,9 @@ func NewUnarchiver(parentLogger logger.Logger) (*Unarchiver, error) {
 
 // Extract extracts the source archive to the target path
 func (d *Unarchiver) Extract(ctx context.Context, sourcePath string, targetPath string) error {
+	// sanitize input
+	sourcePath = filepath.Clean(sourcePath)
+
 	file, err := os.Open(sourcePath)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to open archive file: %s", sourcePath))
@@ -146,6 +149,8 @@ func (d *Unarchiver) filterFile(file archiver.File, targetPath string) (bool, er
 
 // IsArchive checks if the file is an archive
 func IsArchive(source string) bool {
+	// sanitize input
+	source = filepath.Clean(source)
 
 	// Jars are special case
 	if IsJar(source) {
