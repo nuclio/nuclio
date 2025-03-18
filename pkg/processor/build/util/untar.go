@@ -21,6 +21,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/nuclio/errors"
 )
 
 func UnTar(reader io.Reader, target string) error {
@@ -34,7 +37,14 @@ func UnTar(reader io.Reader, target string) error {
 			return err
 		}
 
-		path := filepath.Join(target, header.Name)
+		// Clean the header name to prevent directory traversal attacks
+		cleanedName := filepath.Clean(header.Name)
+		if strings.Contains(cleanedName, "..") {
+			return errors.Errorf("Invalid file path: %s", header.Name)
+		}
+
+		// Construct the full path for the file or directory
+		path := filepath.Join(target, cleanedName)
 		info := header.FileInfo()
 		if info.IsDir() {
 			if err = os.MkdirAll(path, info.Mode()); err != nil {
@@ -43,7 +53,7 @@ func UnTar(reader io.Reader, target string) error {
 			continue
 		}
 
-		file, err := os.OpenFile(filepath.Clean(path), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode())
 		if err != nil {
 			return err
 		}
