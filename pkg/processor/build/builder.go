@@ -1776,8 +1776,7 @@ func (b *Builder) downloadFunctionFromURL(tempFile *os.File,
 
 	b.logger.DebugWith("Downloading function",
 		"url", functionPath,
-		"target", tempFile.Name(),
-		"headers", headers)
+		"target", tempFile.Name())
 
 	return common.DownloadFile(functionPath, tempFile, headers)
 }
