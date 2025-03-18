@@ -1,4 +1,4 @@
-[![Long CI](https://github.com/nuclio/nuclio/actions/workflows/periodic.yaml/badge.svg?branch=development)](https://github.com/nuclio/nuclio/actions/workflows/long_ci.yaml?query=event%3Aschedule)
+[![Long CI](https://github.com/nuclio/nuclio/actions/workflows/long_ci.yaml/badge.svg?branch=development)](https://github.com/nuclio/nuclio/actions/workflows/long_ci.yaml?query=event%3Aschedule)
 [![Documentation Status](https://readthedocs.org/projects/nuclio/badge/?version=latest)](https://nuclio.readthedocs.io/en/latest/?badge=latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 [![Slack](https://img.shields.io/badge/slack-chat-blueviolet.svg?label=Slack&logo=slack)](https://nuclio-io.slack.com)
