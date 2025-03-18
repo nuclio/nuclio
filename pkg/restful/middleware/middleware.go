@@ -111,8 +111,8 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 
 			// when request processing is done, log the request / response
 			defer func() {
-				logger.DebugWithCtx(request.Context(), 
-				    "Handled request",
+				logger.DebugWithCtx(request.Context(),
+					"Handled request",
 					"requestMethod", request.Method,
 					"requestPath", request.URL,
 					"requestBodyLen", len(requestBody),
