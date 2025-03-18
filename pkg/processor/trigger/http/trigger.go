@@ -313,7 +313,6 @@ func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx) bool {
 	corsConfiguration := h.configuration.CORS
 	if !corsConfiguration.OriginAllowed(origin) {
 		h.Logger.DebugWith("Origin is not allowed",
-			"origin", origin,
 			"allowOrigins", h.configuration.CORS.AllowOrigins)
 		return false
 	}
@@ -321,7 +320,6 @@ func (h *http) preflightRequestValidation(ctx *fasthttp.RequestCtx) bool {
 	// request is outside the scope of CORS specifications
 	if !corsConfiguration.MethodAllowed(accessControlRequestMethod) {
 		h.Logger.DebugWith("Request method is not allowed",
-			"accessControlRequestMethod", accessControlRequestMethod,
 			"allowMethods", h.configuration.CORS.AllowMethods)
 		return false
 	}
@@ -399,7 +397,6 @@ func (h *http) preHandleRequestValidation(ctx *fasthttp.RequestCtx) bool {
 		origin := common.ByteSliceToString(ctx.Request.Header.Peek("Origin"))
 		if !h.configuration.CORS.OriginAllowed(origin) {
 			h.Logger.DebugWith("Origin is not allowed",
-				"origin", origin,
 				"allowOrigins", h.configuration.CORS.AllowOrigins)
 			return false
 		}

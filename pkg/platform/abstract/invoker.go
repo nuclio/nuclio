@@ -115,8 +115,7 @@ func (i *invoker) invoke(ctx context.Context,
 		"Executing function",
 		"method", createFunctionInvocationOptions.Method,
 		"url", fullpath,
-		"bodyLength", len(createFunctionInvocationOptions.Body),
-		"headers", req.Header)
+		"bodyLength", len(createFunctionInvocationOptions.Body))
 
 	response, err := client.Do(req.WithContext(ctx))
 	if err != nil {
