@@ -44,6 +44,9 @@ type ConnectionManager interface {
 	// Allocate provides an instance of EventConnection for handling event
 	Allocate(duration time.Duration) (eventprocessor.EventProcessor, error)
 
+	// Release releases an instance of EventConnection
+	Release(eventprocessor.EventProcessor)
+
 	// GetAddressesForWrapperStart returns a list of addresses as required for starting a wrapper
 	GetAddressesForWrapperStart() ([]string, string)
 
@@ -53,6 +56,12 @@ type ConnectionManager interface {
 
 	// SetStatus updates the operational status of the ConnectionManager
 	SetStatus(status.Status)
+
+	// GetStatus returns the operational status of the ConnectionManager
+	GetStatus() status.Status
+
+	// GetConfig returns the configuration of the ConnectionManager
+	GetConfig() ManagerConfigration
 }
 
 type EventConnection interface {
@@ -77,12 +86,22 @@ type ManagerConfigration struct {
 	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
 	Statistics                  runtime.Statistics
 
+	eventTimeout time.Duration
+
 	host     string
 	port     int
 	workerId int
 }
 
-func NewManagerConfigration(supportControlCommunication bool, waitForStart bool, socketType SocketType, getEventEncoderFunc func(writer io.Writer) encoder.EventEncoder, statistics runtime.Statistics, workerId int, mode functionconfig.TriggerWorkMode) *ManagerConfigration {
+func NewManagerConfigration(
+	supportControlCommunication bool,
+	waitForStart bool,
+	socketType SocketType,
+	getEventEncoderFunc func(writer io.Writer) encoder.EventEncoder,
+	statistics runtime.Statistics,
+	workerId int,
+	mode functionconfig.TriggerWorkMode,
+	timeout time.Duration) *ManagerConfigration {
 	manager := &ManagerConfigration{
 		SupportControlCommunication: supportControlCommunication,
 		WaitForStart:                waitForStart,
@@ -90,6 +109,7 @@ func NewManagerConfigration(supportControlCommunication bool, waitForStart bool,
 		GetEventEncoderFunc:         getEventEncoderFunc,
 		Statistics:                  statistics,
 		workerId:                    workerId,
+		eventTimeout:                timeout,
 	}
 	switch mode {
 	case functionconfig.AsyncTriggerWorkMode:

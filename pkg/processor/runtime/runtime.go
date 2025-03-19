@@ -62,6 +62,9 @@ type Runtime interface {
 	// Restart restarts the runtime
 	Restart() error
 
+	// RestartRequired returns whether restart is required
+	RestartRequired() bool
+
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
 

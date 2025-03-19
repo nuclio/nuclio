@@ -38,6 +38,7 @@ const (
 	Error
 	Stopped
 	Stopping
+	RestartRequired
 )
 
 func (s Status) String() string {

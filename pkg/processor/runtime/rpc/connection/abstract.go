@@ -55,6 +55,8 @@ type AbstractConnectionManager struct {
 
 	controlMessageSocket *ControlMessageSocket
 	allocator            eventprocessor.Allocator
+
+	status *status.SafeStatus
 }
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (*AbstractConnectionManager, error) {
@@ -64,13 +66,15 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 		MaxConnectionsNum:    1,
 		RuntimeConfiguration: runtimeConfiguration,
 		Configuration:        configuration,
+
+		// by default status is ready
+		status: status.NewSafeStatus(status.Ready),
 	}
 	var err error
 	if runtimeConfiguration.AsyncConfig != nil {
 		abstractConnectionManager.MinConnectionsNum = runtimeConfiguration.AsyncConfig.MinConnectionsNumber
 		abstractConnectionManager.MaxConnectionsNum = runtimeConfiguration.AsyncConfig.MaxConnectionsNumber
 	}
-
 	if abstractConnectionManager.MinConnectionsNum == 1 && abstractConnectionManager.MaxConnectionsNum == 1 {
 		// TODO: add support sync singleton
 		abstractConnectionManager.allocator = eventprocessor.NewAsyncSingletonAllocator(abstractConnectionManager.Logger, nil)
@@ -88,8 +92,16 @@ func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {
 	bc.Configuration.Statistics.DurationMilliSecondsSum += uint64(durationSec * 1000)
 }
 
+func (bc *AbstractConnectionManager) GetConfig() ManagerConfigration {
+	return *bc.Configuration
+}
+
 func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
-	//bc.abstractRuntime.SetStatus(newStatus)
+	bc.status.SetStatus(newStatus)
+}
+
+func (bc *AbstractConnectionManager) GetStatus() status.Status {
+	return bc.status.GetStatus()
 }
 
 // PrepareControlMessageSocket prepares control message socket for processing
@@ -208,7 +220,7 @@ type AbstractConnection struct {
 	Address string
 
 	// TODO: implement status attribute logic when support multiple conn
-	//status     status.Status
+	status         *status.SafeStatus
 	functionLogger logger.Logger
 }
 
@@ -272,6 +284,7 @@ func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager Co
 	abstractConnection := &AbstractConnection{
 		Logger:     parentLogger.GetChild("event"),
 		cancelChan: make(chan struct{}, 1),
+		status:     status.NewSafeStatus(status.Initializing),
 	}
 	return &AbstractEventConnection{
 		AbstractConnection: abstractConnection,
@@ -327,27 +340,68 @@ func (be *AbstractEventConnection) processItem(item interface{}, functionLogger 
 		be.functionLogger = nil
 		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
 	}
-	processingResults, ok := <-be.resultChan
 
-	// We don't use defer to reset be.functionLogger since it decreases performance
-	be.functionLogger = nil
+	// if eventTimeout is 0, we wait for response without timeout
+	// if it is set, we wait either for response or the timeout
+	if be.connectionManager.GetConfig().eventTimeout == 0 {
+		processingResults, ok := <-be.resultChan
+		// We don't use defer to reset be.functionLogger since it decreases performance
+		be.functionLogger = nil
 
-	if !ok {
-		msg := "Client disconnected"
-		be.Logger.Error(msg)
+		if !ok {
+			msg := "Client disconnected"
+			be.Logger.Error(msg)
 
-		// TODO: support status for socket separately when implementing multiple socket support
-		be.connectionManager.SetStatus(status.Error)
-		return nil, errors.New(msg)
+			// TODO: support status for socket separately when implementing multiple socket support
+			be.connectionManager.SetStatus(status.RestartRequired)
+			return nil, errors.New(msg)
+		}
+		// if processingResults.err is not nil, it means that whole batch processing was failed
+		if processingResults.Err != nil {
+			return nil, processingResults.Err
+		}
+		return processingResults, nil
+	} else {
+		return be.waitForResponseWithTimeout()
 	}
-	// if processingResults.err is not nil, it means that whole batch processing was failed
-	if processingResults.Err != nil {
-		return nil, processingResults.Err
+}
+
+func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.BatchedResults, error) {
+	ticker := time.NewTicker(be.connectionManager.GetConfig().eventTimeout)
+	defer ticker.Stop()
+
+	select {
+	case processingResults, ok := <-be.resultChan:
+		// We don't use defer to reset be.functionLogger since it decreases performance
+		be.functionLogger = nil
+
+		if !ok {
+			msg := "Client disconnected"
+			be.Logger.Error(msg)
+
+			// TODO: support status for socket separately when implementing multiple socket support
+			be.connectionManager.SetStatus(status.RestartRequired)
+			return nil, errors.New(msg)
+		}
+		// if processingResults.err is not nil, it means that whole batch processing was failed
+		if processingResults.Err != nil {
+			return nil, processingResults.Err
+		}
+		return processingResults, nil
+	case <-ticker.C:
+		be.Logger.WarnWith("Event processing timeout, connection should be restarted")
+		be.status.SetStatus(status.RestartRequired)
+		return &result.BatchedResults{
+			Results: []*result.Result{{
+				StatusCode: http.StatusRequestTimeout,
+				Err:        errors.New("Connection closed"),
+			}},
+		}, nil
 	}
-	return processingResults, nil
 }
 
 func (be *AbstractEventConnection) RunHandler() {
+	defer close(be.cancelChan)
 
 	// Reset might close outChan, which will cause panic when sending
 	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
@@ -430,8 +484,7 @@ func (be *AbstractEventConnection) GetRuntime() runtime.Runtime {
 
 // GetStatus returns the status of the worker, as updated by the runtime
 func (be *AbstractEventConnection) GetStatus() status.Status {
-	// TODO: implement status
-	return status.Ready
+	return be.status.GetStatus()
 }
 
 // Stop stops the connection
@@ -457,6 +510,10 @@ func (be *AbstractEventConnection) GetEventTime() *time.Time {
 
 // ResetEventTime resets the event time
 func (be *AbstractEventConnection) ResetEventTime() {
+}
+
+func (be *AbstractEventConnection) RestartRequired(*time.Duration) bool {
+	return false
 }
 
 // Restart restarts the worker
@@ -552,9 +609,7 @@ func (bc *AbstractControlMessageConnection) RunHandler() {
 			Args:          nil,
 			CustomHandler: nil,
 		})
-	defer func() {
-		bc.cancelChan <- struct{}{}
-	}()
+	defer close(bc.cancelChan)
 
 	outReader := bufio.NewReader(bc.Conn)
 

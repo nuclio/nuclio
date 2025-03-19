@@ -287,6 +287,10 @@ func (s *shell) SupportsRestart() bool {
 	return true
 }
 
+func (s *shell) RestartRequired() bool {
+	return false
+}
+
 func (s *shell) commandIsInPath() (bool, error) {
 
 	// Checks if the command is in path, or it's file exists locally

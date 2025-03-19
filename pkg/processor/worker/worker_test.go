@@ -80,6 +80,10 @@ func (mr *MockRuntime) SupportsRestart() bool {
 	return true
 }
 
+func (mr *MockRuntime) RestartRequired() bool {
+	return false
+}
+
 func (mr *MockRuntime) Drain() error {
 	args := mr.Called()
 	return args.Error(0)

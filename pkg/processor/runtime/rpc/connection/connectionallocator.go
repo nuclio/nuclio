@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 
 	"github.com/nuclio/errors"
@@ -61,54 +62,26 @@ func (ca *ConnectionAllocator) Prepare() error {
 }
 
 func (ca *ConnectionAllocator) Start() error {
+
 	ca.Logger.DebugWith("Starting connection allocator")
-	eventConnections := make([]*Connection, 0)
-	if ca.MinConnectionsNum != 0 {
-		for i := 0; i < ca.MinConnectionsNum; i++ {
-			var conn net.Conn
-			var err error
-
-			// Use retryable dial for the first connection
-			if i == 0 {
-				conn, err = retryableDial(ca.serverAddress, 30, 1*time.Second, 1*time.Minute)
-			} else {
-				conn, err = net.Dial("tcp", ca.serverAddress)
-			}
-
-			if err != nil {
-				return errors.Wrap(err, "Failed to establish connection")
-			}
-			eventConnections = append(eventConnections, NewConnection(ca.Logger, conn, ca))
-		}
-	}
-	// start event processing
-	for _, eventConnection := range eventConnections {
-		eventConnection.SetEncoder(ca.Configuration.GetEventEncoderFunc(eventConnection.Conn))
-		go eventConnection.AbstractEventConnection.RunHandler()
-	}
-
+	// starts control message socket
 	if err := ca.startControlMessageSocket(); err != nil {
 		return errors.Wrap(err, "Failed to start control message socket")
 	}
 
-	// wait for start if required to
-	if ca.Configuration.WaitForStart {
-		ca.Logger.Debug("Waiting for start")
-		for _, eventConnection := range eventConnections {
-			eventConnection.WaitForStart()
-		}
+	// create event connections
+	eventProcessors, err := ca.createConnections(ca.MinConnectionsNum)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create connections")
 	}
-	eventProcessors := make([]eventprocessor.EventProcessor, len(eventConnections))
-	for i, eventConnection := range eventConnections {
-		eventProcessors[i] = eventConnection
-	}
+
+	// set objects in allocator, which is the only object that holds connections
 	if err := ca.allocator.SetObjects(eventProcessors); err != nil {
 		return errors.Wrap(err, "Failed to set objects in allocator")
 	}
 
 	ca.Logger.Debug("Connection allocator started")
 	return nil
-
 }
 
 func (ca *ConnectionAllocator) Stop() error {
@@ -132,8 +105,37 @@ func (ca *ConnectionAllocator) Stop() error {
 }
 
 func (ca *ConnectionAllocator) Allocate(duration time.Duration) (eventprocessor.EventProcessor, error) {
-	// TODO: support multiple connections
 	return ca.allocator.Allocate(duration)
+}
+
+func (ca *ConnectionAllocator) Release(processor eventprocessor.EventProcessor) {
+	// if when releasing processor requires restart, recreate the connection
+	if processor.GetStatus() == status.RestartRequired {
+		var newProcessor []eventprocessor.EventProcessor
+		var err error
+
+		// Retry connection creation up to 3 times
+		for i := 0; i < 3; i++ {
+			newProcessor, err = ca.createConnections(1)
+			if err == nil {
+				break
+			}
+			ca.Logger.WarnWith("Failed to recreate connection, retrying", "attempt", i+1, "error", err)
+		}
+
+		// If still failing after retries, log the error and set status to not ready (it will signal to wrapper that restart is needed)
+		if err != nil {
+			ca.Logger.WarnWith("Failed to recreate connection after retries", "error", err)
+
+			// TODO: add a background check which checks connection manager status and restarts wrapper if needed
+			// it's only added to timeout.go which checks for event timeouts
+			// for now it's fine, however if we want to add more cases when restart is needed, then it should be done separately
+			ca.SetStatus(status.RestartRequired)
+		} else {
+			processor = newProcessor[0]
+		}
+	}
+	ca.allocator.Release(processor)
 }
 
 func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) {
@@ -143,6 +145,57 @@ func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) 
 	}
 	return []string{ca.serverAddress}, controlAddress
 }
+
+// ConnectionMonitor checks that all connections in allocator are healthy
+// if some are not, it will re-establish them
+func (ca *ConnectionAllocator) ConnectionMonitor() {
+	// by default, wait for 5 seconds before the next check
+	timeout := 5 * time.Second
+	if ca.GetConfig().eventTimeout != 0 {
+		// if event timeout is set, then use it (because we want to find out about termination of a socket as soon as possible)
+		timeout = ca.GetConfig().eventTimeout
+	}
+	for {
+		ca.Logger.DebugWith("ConnectionsMonitor", "numObjectsAvailable", ca.allocator.GetNumObjectsAvailable())
+		time.Sleep(timeout)
+
+	}
+}
+
+func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]eventprocessor.EventProcessor, error) {
+	eventConnections := make([]*Connection, 0)
+	for i := 0; i < connectionsNumber; i++ {
+		conn, err := retryableDial(ca.serverAddress, 30, 1*time.Second, 1*time.Minute)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to establish connection")
+		}
+		eventConnections = append(eventConnections, NewConnection(ca.Logger, conn, ca))
+	}
+
+	// start event processing
+	for _, eventConnection := range eventConnections {
+		eventConnection.SetEncoder(ca.Configuration.GetEventEncoderFunc(eventConnection.Conn))
+		go eventConnection.AbstractEventConnection.RunHandler()
+	}
+
+	// wait for start if required to
+	if ca.Configuration.WaitForStart {
+		ca.Logger.Debug("Waiting for start")
+		for _, eventConnection := range eventConnections {
+			eventConnection.WaitForStart()
+		}
+	}
+	for _, eventConnection := range eventConnections {
+		eventConnection.status.SetStatus(status.Ready)
+	}
+
+	eventProcessors := make([]eventprocessor.EventProcessor, len(eventConnections))
+	for i, eventConnection := range eventConnections {
+		eventProcessors[i] = eventConnection
+	}
+	return eventProcessors, nil
+}
+
 func retryableDial(address string, maxRetries int, retryInterval, dialTimeout time.Duration) (net.Conn, error) {
 	var conn net.Conn
 	var err error

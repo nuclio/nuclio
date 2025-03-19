@@ -105,8 +105,12 @@ func (sa *SocketAllocator) Stop() error {
 }
 
 func (sa *SocketAllocator) Allocate(duration time.Duration) (eventprocessor.EventProcessor, error) {
-	// TODO: implement allocation logic when support multiple sockets
 	return sa.allocator.Allocate(duration)
+}
+
+// Release releases an instance of EventConnection
+func (sa *SocketAllocator) Release(processor eventprocessor.EventProcessor) {
+	sa.allocator.Release(processor)
 }
 
 func (sa *SocketAllocator) GetAddressesForWrapperStart() ([]string, string) {

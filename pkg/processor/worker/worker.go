@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
@@ -150,6 +151,30 @@ func (w *Worker) Restart() error {
 // SupportsRestart returns true if the underlying runtime supports restart
 func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
+}
+
+// RestartRequired returns whether the worker requires a restart
+func (w *Worker) RestartRequired(timeout *time.Duration) bool {
+	// Check if the worker requires restart due to timeout
+	// If the worker is in sync mode, it means that the worker is allocated per event
+	if w.runtime.GetConfiguration().Mode == functionconfig.SyncTriggerWorkMode && timeout != nil {
+
+		eventTime := w.GetEventTime()
+		if eventTime == nil {
+			return false
+		}
+
+		now := time.Now()
+		elapsedTime := now.Sub(*eventTime)
+		if elapsedTime <= *timeout {
+			return false
+		}
+		w.logger.WarnWith("Worker requires restart due to timeout",
+			"workerIndex", w.index,
+			"elapsedTime", elapsedTime)
+	}
+	// if timeout is not passed, just check whether the runtime requires restart
+	return w.runtime.RestartRequired()
 }
 
 func (w *Worker) Terminate() error {

@@ -107,6 +107,9 @@ type EventProcessor interface {
 	// ResetEventTime resets the stored event timestamp to an initial state
 	ResetEventTime()
 
+	// RestartRequired returns whether the event processor requires a restart
+	RestartRequired(timeout *time.Duration) bool
+
 	// Restart restarts the event processor, if supported
 	Restart() error
 

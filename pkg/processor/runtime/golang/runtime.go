@@ -134,6 +134,10 @@ func (g *golang) SupportsRestart() bool {
 	return true
 }
 
+func (g *golang) RestartRequired() bool {
+	return false
+}
+
 func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 	if currentStatus := g.GetStatus(); currentStatus != status.Ready {
 		return nil, errors.Errorf("Runtime not ready (current status: %s)", currentStatus)

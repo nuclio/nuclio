@@ -63,7 +63,6 @@ func NewEventTimeoutWatcher(parentLogger logger.Logger, timeout time.Duration, p
 func (w EventTimeoutWatcher) watch() {
 	for !w.shuttingDown {
 		time.Sleep(w.timeout)
-		now := time.Now()
 
 		// create error group
 		triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(context.Background(), w.logger)
@@ -81,20 +80,14 @@ func (w EventTimeoutWatcher) watch() {
 					workerInstance := workerInstance
 
 					workerErrGroup.Go("Watch Event Timeout", func() error {
-						eventTime := workerInstance.GetEventTime()
-						if eventTime == nil {
-							return nil
-						}
-
-						elapsedTime := now.Sub(*eventTime)
-						if elapsedTime <= w.timeout {
+						restartRequired := workerInstance.RestartRequired(&w.timeout)
+						if !restartRequired {
 							return nil
 						}
 
 						with := []interface{}{
 							"trigger", triggerName,
 							"worker", workerInstance.GetIndex(),
-							"elapsed", elapsedTime,
 						}
 
 						if err := triggerInstance.TimeoutWorker(workerInstance); err != nil {

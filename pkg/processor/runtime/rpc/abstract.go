@@ -141,6 +141,11 @@ func (r *AbstractRuntime) GetSocketType() connection.SocketType {
 	return connection.UnixSocket
 }
 
+// RestartRequired returns whether the runtime requires a restart
+func (r *AbstractRuntime) RestartRequired() bool {
+	return r.connectionManager.GetStatus() == status.RestartRequired
+}
+
 // WaitForStart returns whether the runtime supports sending an indication that it started
 func (r *AbstractRuntime) WaitForStart() bool {
 	return false
@@ -203,7 +208,13 @@ func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, funct
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing event")
 	}
-	return connectionInstance.ProcessEvent(event, functionLogger)
+	result, err := connectionInstance.ProcessEvent(event, functionLogger)
+	go func() {
+		// release connection after processing batch
+		// in goroutine to avoid blocking the processing
+		r.connectionManager.Release(connectionInstance)
+	}()
+	return result, err
 }
 
 func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
@@ -211,7 +222,13 @@ func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, fun
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing batch")
 	}
-	return connectionInstance.ProcessEventBatch(batch, functionLogger)
+	result, err := connectionInstance.ProcessEventBatch(batch, functionLogger)
+	go func() {
+		// release connection after processing batch
+		// in goroutine to avoid blocking the processing
+		r.connectionManager.Release(connectionInstance)
+	}()
+	return result, err
 }
 
 func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, error) {
@@ -223,6 +240,12 @@ func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, e
 }
 
 func (r *AbstractRuntime) startWrapper() error {
+	// it is already checked on the processor start, but just in case
+	timeout, err := r.configuration.Spec.GetEventTimeout()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get event timeout")
+	}
+
 	connectionManagerConfiguration := connection.NewManagerConfigration(
 		r.runtime.SupportsControlCommunication(),
 		r.runtime.WaitForStart(),
@@ -231,9 +254,12 @@ func (r *AbstractRuntime) startWrapper() error {
 		r.Statistics,
 		r.configuration.WorkerID,
 		r.configuration.Mode,
+		timeout,
 	)
 
-	var err error
+	if err != nil {
+		return errors.Wrap(err, "Failed to create connection manager configuration")
+	}
 	r.connectionManager, err = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create connection manager")
