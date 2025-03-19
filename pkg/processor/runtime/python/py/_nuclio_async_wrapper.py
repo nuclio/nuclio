@@ -147,9 +147,8 @@ class AsyncWrapper(AbstractWrapper):
         self._context.logger = connection_logger
 
         # signal start
-        self._logger.debug("Signalling connection processing start")
         await self._write_packet_to_processor(sock, 's')
-        self._logger.debug(f"Event processing started for socket")
+
         try:
             while True:
                 # resolve event message length
