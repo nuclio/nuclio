@@ -27,7 +27,6 @@ import (
 // NewConnectionManager is a Factory function that returns a ConnectionManager based on the configuration
 func NewConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (ConnectionManager, error) {
 	abstractConnectionManager, err := NewAbstractConnectionManager(parentLogger, runtimeConfiguration, configuration)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create connection manager")
 	}
