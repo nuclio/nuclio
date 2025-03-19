@@ -31,10 +31,8 @@ func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, e
 		"Source", event.GetTriggerInfo().GetKind(),
 		"ID", event.GetID(),
 		"Time", event.GetTimestamp().String(),
-		"Headers", event.GetHeaders(),
 		"ContentType", event.GetContentType(),
-		"ShardID", event.GetShardID(),
-		"Body", string(event.GetBody()))
+		"ShardID", event.GetShardID())
 
 	return "Built in handler called", nil
 }
