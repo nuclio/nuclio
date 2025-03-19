@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -112,26 +111,13 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 
 			// when request processing is done, log the request / response
 			defer func() {
-				logVars := []interface{}{
+				logger.DebugWithCtx(request.Context(),
+					"Handled request",
 					"requestMethod", request.Method,
 					"requestPath", request.URL,
-					"requestHeaders", requestHeaders,
-					"requestBody", string(requestBody),
+					"requestBodyLen", len(requestBody),
 					"responseStatus", responseWrapper.Status(),
-					"responseTime", time.Since(requestStartTime).String(),
-				}
-
-				// response body is too spammy
-				if !common.StringSliceContainsStringPrefix([]string{
-					"/api/functions",
-					"/api/function_templates",
-					"/api/v3io_streams",
-					"/kaniko",
-				}, strings.TrimSuffix(request.URL.Path, "/")) {
-					logVars = append(logVars, "responseBody", responseBodyBuffer.String())
-				}
-
-				logger.DebugWithCtx(request.Context(), "Handled request", logVars...)
+					"responseTime", time.Since(requestStartTime).String())
 			}()
 
 			// call next middleware

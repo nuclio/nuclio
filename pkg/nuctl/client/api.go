@@ -214,8 +214,7 @@ func (c *NuclioAPIClient) sendRequest(ctx context.Context,
 		"Sending API request",
 		"method", method,
 		"url", url,
-		"headers", requestHeaders,
-		"body", string(requestBody))
+		"bodyLen", len(requestBody))
 
 	// create authorization headers
 	authHeaders, err := c.createAuthorizationHeaders(ctx)
