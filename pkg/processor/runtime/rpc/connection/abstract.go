@@ -57,7 +57,7 @@ type AbstractConnectionManager struct {
 	allocator            eventprocessor.Allocator
 }
 
-func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) *AbstractConnectionManager {
+func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (*AbstractConnectionManager, error) {
 	abstractConnectionManager := &AbstractConnectionManager{
 		Logger:               parentLogger.GetChild("connection-manager"),
 		MinConnectionsNum:    1,
@@ -65,6 +65,7 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 		RuntimeConfiguration: runtimeConfiguration,
 		Configuration:        configuration,
 	}
+	var err error
 	if runtimeConfiguration.AsyncConfig != nil {
 		abstractConnectionManager.MinConnectionsNum = runtimeConfiguration.AsyncConfig.MinConnectionsNumber
 		abstractConnectionManager.MaxConnectionsNum = runtimeConfiguration.AsyncConfig.MaxConnectionsNumber
@@ -74,10 +75,12 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 		// TODO: add support sync singleton
 		abstractConnectionManager.allocator = eventprocessor.NewAsyncSingletonAllocator(abstractConnectionManager.Logger, nil)
 	} else {
-		abstractConnectionManager.allocator = eventprocessor.NewSyncPoolAllocator(abstractConnectionManager.Logger, nil)
+		if abstractConnectionManager.allocator, err = eventprocessor.NewSyncPoolAllocator(abstractConnectionManager.Logger, nil); err != nil {
+			return nil, err
+		}
 	}
 
-	return abstractConnectionManager
+	return abstractConnectionManager, nil
 }
 
 func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {

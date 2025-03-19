@@ -19,13 +19,17 @@ package connection
 import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // NewConnectionManager is a Factory function that returns a ConnectionManager based on the configuration
 func NewConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (ConnectionManager, error) {
-	abstractConnectionManager := NewAbstractConnectionManager(parentLogger, runtimeConfiguration, configuration)
+	abstractConnectionManager, err := NewAbstractConnectionManager(parentLogger, runtimeConfiguration, configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create connection manager")
+	}
 
 	switch configuration.Kind {
 	case SocketAllocatorManagerKind:

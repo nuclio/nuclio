@@ -47,7 +47,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	}
 
 	// create an allocator
-	workerAllocator := eventprocessor.NewSyncPoolAllocator(logger, workers)
+	workerAllocator, err := eventprocessor.NewSyncPoolAllocator(logger, workers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
