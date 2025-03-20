@@ -256,7 +256,7 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 			"runtime", configuration.Spec.Runtime)
 		functionTemplates = append(functionTemplates, functionTemplate)
 
-		// HACK: allow python 3.7, 3.8, 3.9, 3.10, 3.11, 3.12 share the same functions to avoid specific examples per runtime version
+		// HACK: allow different python versions to share the same functions to avoid specific examples per runtime version
 		runtimeName, runtimeVersion := common.GetRuntimeNameAndVersion(configuration.Spec.Runtime)
 		if runtimeName == "python" &&
 			runtimeVersion == "3.9" &&
