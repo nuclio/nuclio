@@ -1012,6 +1012,72 @@ func (suite *testSuite) TestResolveResources() {
 	}
 }
 
+func (suite *testSuite) TestCreateTempDir() {
+	tests := []struct {
+		name        string
+		tempDir     string
+		expectError bool
+		expectedDir string
+	}{
+		{
+			name:        "Valid temp dir under /tmp",
+			tempDir:     "/tmp/test-dir",
+			expectError: false,
+			expectedDir: "/tmp/test-dir",
+		},
+		{
+			name:        "Invalid traversal path",
+			tempDir:     "/tmp/../etc/passwd",
+			expectError: true,
+		},
+		{
+			name:        "Injection attempt with multiple traversal sequences",
+			tempDir:     "../..//..//etc",
+			expectError: true,
+		},
+		{
+			name:        "Temp dir outside /tmp",
+			tempDir:     "custom-dir",
+			expectError: false,
+			expectedDir: "/tmp/custom-dir",
+		},
+		{
+			name:        "No temp dir provided",
+			tempDir:     "",
+			expectError: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		suite.Run(testCase.name, func() {
+			tempDir := suite.builder.options.FunctionConfig.Spec.Build.TempDir
+			suite.builder.options.FunctionConfig.Spec.Build.TempDir = testCase.tempDir
+
+			// revert changes
+			defer func() {
+				suite.builder.options.FunctionConfig.Spec.Build.TempDir = tempDir
+			}()
+
+			err := suite.builder.createTempDir()
+			defer os.RemoveAll(suite.builder.tempDir) // nolint: errcheck
+
+			if testCase.expectError {
+				suite.Require().Error(err, "Expected an error for tempDir: %s", testCase.tempDir)
+			} else {
+				suite.Require().NoError(err, "Did not expect an error for tempDir: %s", testCase.tempDir)
+
+				if testCase.tempDir != "" {
+					suite.Require().Equal(testCase.expectedDir, suite.builder.tempDir)
+				} else {
+					// Verify temp dir is created in the system's temporary directory
+					suite.Require().Contains(suite.builder.tempDir, os.TempDir())
+				}
+
+			}
+		})
+	}
+}
+
 func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension string) {
 
 	// mock http response
