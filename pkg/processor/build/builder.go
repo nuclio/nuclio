@@ -924,10 +924,20 @@ func (b *Builder) createTempDir() error {
 
 	// either use injected temporary dir or generate a new one
 	if b.options.FunctionConfig.Spec.Build.TempDir != "" {
-		b.tempDir = b.options.FunctionConfig.Spec.Build.TempDir
+
+		// Validate the user-provided temporary directory to ensure it does not contain directory traversal sequences
+		if strings.Contains(b.options.FunctionConfig.Spec.Build.TempDir, "..") {
+			return errors.New("Invalid temporary directory path: contains '..'")
+		}
+
+		// if the user-provided temp directory is not under /tmp, create it under /tmp
+		if !strings.HasPrefix(b.options.FunctionConfig.Spec.Build.TempDir, "/tmp") {
+			b.tempDir = filepath.Join("/tmp", b.options.FunctionConfig.Spec.Build.TempDir)
+		} else {
+			b.tempDir = b.options.FunctionConfig.Spec.Build.TempDir
+		}
 
 		err = os.MkdirAll(b.tempDir, 0744)
-
 	} else {
 		b.tempDir, err = os.MkdirTemp("", "nuclio-build-")
 	}
