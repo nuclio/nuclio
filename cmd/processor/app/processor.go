@@ -69,6 +69,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/mqtt/basic"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/mqtt/iotcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/natsjetstream"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/pubsub"
