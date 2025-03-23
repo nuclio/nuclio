@@ -94,6 +94,7 @@ CMD [ "processor" ]
 * Python 3.9
 * Python 3.10
 * Python 3.11
+* Python 3.12
 
 These versions are no longer supported: [EOL versions](#python-versions-eol)
 
