@@ -441,6 +441,7 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo["python:3.9"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.10"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.11"] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo["python:3.12"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
 	b.runtimeInfo["java"] = runtimeInfo{"java", slashSlashParser, 0}
 	b.runtimeInfo["ruby"] = runtimeInfo{"rb", poundParser, 0}

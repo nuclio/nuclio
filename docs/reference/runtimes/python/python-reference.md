@@ -88,12 +88,13 @@ COPY . /opt/nuclio
 CMD [ "processor" ]
 ```
 
-## Supported versions:
+## Supported versions
 * [Python 3.7](#python-runtimes-37-38) - will be fully deprecated soon
 * [Python 3.8](#python-runtimes-37-38) - will be fully deprecated soon
-* Python 3.9 - recommended to use
-
-These versions are no longer supported: [python 2.7](#python-runtime-27-eol) and [python3.6](#python-runtime-36-eol).
+* Python 3.9
+* Python 3.10
+* Python 3.11
+* Python 3.12
 
 Nuclio officially supports python 3.9 (along with good-old python 3.7 and 3.8) as stand-alone runtimes.
 Along with simply bumping the python versions, some changes to the internal function processor were made, to take advantage of
@@ -147,7 +148,7 @@ code to the newer [Python 3.7, 3.8 and 3.9 runtimes](#introducing-python-runtime
 <a id="python-runtime-36-eol"></a>
 ### Python runtime 3.6 EOL
 
-As of Dec 2021, Python 3.6 is no longer being maintained, and it has now also reached its End Of Life in Nuclio as well, 
+As of Dec 2021, Python 3.6 is no longer being maintained, and it has now also reached its End Of Life in Nuclio as well,
 and thus removed as a supported runtime from the mainline Nuclio releases.
 
 To keep using latest Nuclio, and reach better performance and message throughput, we strongly suggest migrating your

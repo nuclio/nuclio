@@ -71,6 +71,17 @@ RUN pip download \
         --exists-action i \
         --requirement /requirements/python3_11.txt
 
+# Supplies python 3.12 & common wheels
+FROM $NUCLIO_PYTHON_BASE_IMAGE_NAME:3.12 as python312-builder
+
+COPY pkg/processor/runtime/python/py/requirements /requirements
+
+# Python 3.12 wheels
+RUN pip download \
+        --dest /whl \
+        --exists-action i \
+        --requirement /requirements/python3_12.txt
+
 # Supplies processor
 FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
@@ -88,3 +99,4 @@ COPY --from=python38-builder /whl /home/nuclio/bin/py3.8-whl
 COPY --from=python39-builder /whl /home/nuclio/bin/py3.9-whl
 COPY --from=python310-builder /whl /home/nuclio/bin/py3.10-whl
 COPY --from=python311-builder /whl /home/nuclio/bin/py3.11-whl
+COPY --from=python312-builder /whl /home/nuclio/bin/py3.12-whl
