@@ -346,22 +346,7 @@ func (be *AbstractEventConnection) processItem(item interface{}, functionLogger 
 	// if it is set, we wait either for response or the timeout
 	if be.connectionManager.GetConfig().eventTimeout == 0 {
 		processingResults, ok := <-be.resultChan
-		// We don't use defer to reset be.functionLogger since it decreases performance
-		be.functionLogger = nil
-
-		if !ok {
-			msg := "Client disconnected"
-			be.Logger.Error(msg)
-
-			// TODO: support status for socket separately when implementing multiple socket support
-			be.connectionManager.SetStatus(status.RestartRequired)
-			return nil, errors.New(msg)
-		}
-		// if processingResults.err is not nil, it means that whole batch processing was failed
-		if processingResults.Err != nil {
-			return nil, processingResults.Err
-		}
-		return processingResults, nil
+		return be.postProcessEventRegularFlow(processingResults, ok)
 	} else {
 		return be.waitForResponseWithTimeout()
 	}
@@ -373,32 +358,41 @@ func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.Batched
 
 	select {
 	case processingResults, ok := <-be.resultChan:
-		// We don't use defer to reset be.functionLogger since it decreases performance
-		be.functionLogger = nil
-
-		if !ok {
-			msg := "Client disconnected"
-			be.Logger.Error(msg)
-
-			// TODO: support status for socket separately when implementing multiple socket support
-			be.connectionManager.SetStatus(status.RestartRequired)
-			return nil, errors.New(msg)
-		}
-		// if processingResults.err is not nil, it means that whole batch processing was failed
-		if processingResults.Err != nil {
-			return nil, processingResults.Err
-		}
-		return processingResults, nil
+		return be.postProcessEventRegularFlow(processingResults, ok)
 	case <-ticker.C:
-		be.Logger.WarnWith("Event processing timed out, connection should be restarted")
-		be.status.SetStatus(status.RestartRequired)
-		return &result.BatchedResults{
-			Results: []*result.Result{{
-				StatusCode: http.StatusRequestTimeout,
-				Err:        errors.New("Connection closed"),
-			}},
-		}, nil
+		return be.postProcessEventOnTimeout()
 	}
+}
+
+func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults *result.BatchedResults, ok bool) (*result.BatchedResults, error) {
+	// We don't use defer to reset be.functionLogger since it decreases performance
+	be.functionLogger = nil
+
+	if !ok {
+		msg := "Client disconnected"
+		be.Logger.Error(msg)
+
+		// TODO: support status for socket separately when implementing multiple socket support
+		be.connectionManager.SetStatus(status.RestartRequired)
+		return nil, errors.New(msg)
+	}
+	// if processingResults.err is not nil, it means that whole batch processing was failed
+	if processingResults.Err != nil {
+		return nil, processingResults.Err
+	}
+	return processingResults, nil
+}
+
+func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedResults, error) {
+	be.functionLogger = nil
+	be.Logger.WarnWith("Event processing timed out, connection should be restarted")
+	be.status.SetStatus(status.RestartRequired)
+	return &result.BatchedResults{
+		Results: []*result.Result{{
+			StatusCode: http.StatusRequestTimeout,
+			Err:        errors.New("Connection closed"),
+		}},
+	}, nil
 }
 
 func (be *AbstractEventConnection) RunHandler() {
