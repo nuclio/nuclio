@@ -166,7 +166,7 @@ func (ca *ConnectionAllocator) startEventConnections() error {
 func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Connection, error) {
 	eventConnections := make([]*Connection, 0)
 	for i := 0; i < connectionsNumber; i++ {
-		conn, err := ca.retryableDial(ca.serverAddress, 30, 1*time.Second, 1*time.Minute)
+		conn, err := retryableDial(ca.serverAddress, 30, 1*time.Second, 1*time.Minute)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to establish connection")
 		}
@@ -193,7 +193,7 @@ func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Conn
 	return eventConnections, nil
 }
 
-func (ca *ConnectionAllocator) retryableDial(address string,
+func retryableDial(address string,
 	maxRetries int,
 	retryInterval,
 	dialTimeout time.Duration) (net.Conn, error) {
