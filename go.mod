@@ -50,7 +50,7 @@ require (
 	github.com/v3io/v3io-go v0.3.12
 	github.com/v3io/v3io-go-http v0.0.1
 	github.com/v3io/version-go v0.0.2
-	github.com/valyala/fasthttp v1.58.0
+	github.com/valyala/fasthttp v1.59.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.1.2
 	golang.org/x/image v0.18.0
