@@ -224,7 +224,7 @@ func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, fun
 	}
 	result, err := connectionInstance.ProcessEventBatch(batch, functionLogger)
 	go func() {
-		// release connection after processing batch
+		// release connection after processing event
 		// in goroutine to avoid blocking the processing
 		r.connectionManager.Release(connectionInstance)
 	}()
@@ -257,9 +257,6 @@ func (r *AbstractRuntime) startWrapper() error {
 		timeout,
 	)
 
-	if err != nil {
-		return errors.Wrap(err, "Failed to create connection manager configuration")
-	}
 	r.connectionManager, err = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create connection manager")

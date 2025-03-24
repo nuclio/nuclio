@@ -117,6 +117,11 @@ func (w *Worker) GetStatus() status.Status {
 	return w.runtime.GetStatus()
 }
 
+// SetStatus sets worker status
+func (w *Worker) SetStatus(newStatus status.Status) {
+	w.runtime.SetStatus(newStatus)
+}
+
 // Stop stops the worker and associated runtime
 func (w *Worker) Stop() error {
 	return w.runtime.Stop()
@@ -156,7 +161,7 @@ func (w *Worker) SupportsRestart() bool {
 // RestartRequired returns whether the worker requires a restart
 func (w *Worker) RestartRequired(timeout *time.Duration) bool {
 	// Check if the worker requires restart due to timeout
-	// If the worker is in sync mode, it means that the worker is allocated per event
+	// If the worker is in sync mode, it means that the worker is allocated per a single event
 	if w.runtime.GetConfiguration().Mode == functionconfig.SyncTriggerWorkMode && timeout != nil {
 
 		eventTime := w.GetEventTime()

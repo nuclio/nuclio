@@ -221,7 +221,6 @@ type AbstractConnection struct {
 	Conn    net.Conn
 	Address string
 
-	// TODO: implement status attribute logic when support multiple conn
 	status         *status.SafeStatus
 	functionLogger logger.Logger
 }
@@ -391,7 +390,7 @@ func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.Batched
 		}
 		return processingResults, nil
 	case <-ticker.C:
-		be.Logger.WarnWith("Event processing timeout, connection should be restarted")
+		be.Logger.WarnWith("Event processing timed out, connection should be restarted")
 		be.status.SetStatus(status.RestartRequired)
 		return &result.BatchedResults{
 			Results: []*result.Result{{
@@ -489,6 +488,11 @@ func (be *AbstractEventConnection) GetStatus() status.Status {
 	return be.status.GetStatus()
 }
 
+// SetStatus sets event connection status
+func (be *AbstractEventConnection) SetStatus(newStatus status.Status) {
+	be.status.SetStatus(newStatus)
+}
+
 // Stop stops the connection
 func (be *AbstractEventConnection) Stop() error {
 	be.AbstractConnection.Stop()
@@ -516,6 +520,20 @@ func (be *AbstractEventConnection) ResetEventTime() {
 
 func (be *AbstractEventConnection) RestartRequired(*time.Duration) bool {
 	return false
+}
+
+func (be *AbstractEventConnection) Replace(newConnection *AbstractEventConnection) {
+	// old channels placeholder
+	oldResultChan := be.resultChan
+	oldStartChan := be.startChan
+	// replace all entities with new connection
+	be.AbstractConnection = newConnection.AbstractConnection
+	be.resultChan = newConnection.resultChan
+	be.startChan = newConnection.startChan
+
+	// close old channels
+	close(oldResultChan)
+	close(oldStartChan)
 }
 
 // Restart restarts the worker

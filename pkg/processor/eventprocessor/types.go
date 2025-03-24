@@ -89,6 +89,9 @@ type EventProcessor interface {
 	// GetStatus returns event processor status
 	GetStatus() status.Status
 
+	// SetStatus sets event processor status
+	SetStatus(status.Status)
+
 	// Stop stops event processor
 	Stop() error
 
