@@ -241,10 +241,7 @@ func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, e
 
 func (r *AbstractRuntime) startWrapper() error {
 	// it is already checked on the processor start, but just in case
-	timeout, err := r.configuration.Spec.GetEventTimeout()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get event timeout")
-	}
+	timeout, _ := r.configuration.Spec.GetEventTimeout()
 
 	connectionManagerConfiguration := connection.NewManagerConfigration(
 		r.runtime.SupportsControlCommunication(),
@@ -256,6 +253,7 @@ func (r *AbstractRuntime) startWrapper() error {
 		r.configuration.Mode,
 		timeout,
 	)
+	var err error
 
 	r.connectionManager, err = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
 	if err != nil {
