@@ -369,24 +369,31 @@ func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults
 	be.functionLogger = nil
 
 	if !ok {
-		msg := "Client disconnected"
-		be.Logger.Error(msg)
-
-		// TODO: support status for socket separately when implementing multiple socket support
-		be.connectionManager.SetStatus(status.RestartRequired)
-		return nil, errors.New(msg)
+		return be.postProcessClientDisconnected()
 	}
 	// if processingResults.err is not nil, it means that whole batch processing was failed
+	// or that connection was closed (EOF)
 	if processingResults.Err != nil {
+		// if a client disconnected, we should restart the connection
+		if errors.RootCause(processingResults.Err) == io.EOF {
+			return be.postProcessClientDisconnected()
+		}
 		return nil, processingResults.Err
 	}
 	return processingResults, nil
 }
 
+func (be *AbstractEventConnection) postProcessClientDisconnected() (*result.BatchedResults, error) {
+	msg := "Client disconnected"
+	be.Logger.Error(msg)
+	be.SetStatus(status.RestartRequired)
+	return nil, errors.New(msg)
+}
+
 func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedResults, error) {
 	be.functionLogger = nil
 	be.Logger.WarnWith("Event processing timed out, connection should be restarted")
-	be.status.SetStatus(status.RestartRequired)
+	be.SetStatus(status.RestartRequired)
 	return &result.BatchedResults{
 		Results: []*result.Result{{
 			StatusCode: http.StatusRequestTimeout,
@@ -396,6 +403,7 @@ func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedR
 }
 
 func (be *AbstractEventConnection) RunHandler() {
+	// this is the only channel that should be closed here; all other channels are closed in Stop()
 	defer close(be.cancelChan)
 
 	// Reset might close outChan, which will cause panic when sending
@@ -416,9 +424,8 @@ func (be *AbstractEventConnection) RunHandler() {
 		}:
 
 		default:
-			be.Logger.Warn("Nothing waiting on result channel during restart. Continuing")
+			be.Logger.Warn("Nothing waiting on result channel during connection restart. Continuing")
 		}
-
 	}()
 
 	outReader := bufio.NewReader(be.Conn)
@@ -488,9 +495,18 @@ func (be *AbstractEventConnection) SetStatus(newStatus status.Status) {
 }
 
 // Stop stops the connection
+// This is the only place where the connection object should be properly stopped
+// meaning closing all channels and connection
 func (be *AbstractEventConnection) Stop() error {
 	be.AbstractConnection.Stop()
-	return be.Conn.Close()
+
+	// close all channels
+	close(be.resultChan)
+	close(be.startChan)
+
+	err := be.Conn.Close()
+	be.Logger.Debug("Connection stopped successfully")
+	return err
 }
 
 // GetStructuredCloudEvent return a structued clould event
@@ -517,17 +533,15 @@ func (be *AbstractEventConnection) RestartRequired(*time.Duration) bool {
 }
 
 func (be *AbstractEventConnection) Replace(newConnection *AbstractEventConnection) {
-	// old channels placeholder
-	oldResultChan := be.resultChan
-	oldStartChan := be.startChan
+	// stop current connection
+	if err := be.Stop(); err != nil {
+		be.Logger.WarnWith("Failed to stop connection",
+			"error", err)
+	}
 	// replace all entities with new connection
 	be.AbstractConnection = newConnection.AbstractConnection
 	be.resultChan = newConnection.resultChan
 	be.startChan = newConnection.startChan
-
-	// close old channels
-	close(oldResultChan)
-	close(oldStartChan)
 }
 
 // Restart restarts the worker

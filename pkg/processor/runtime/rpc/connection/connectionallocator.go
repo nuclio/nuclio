@@ -68,22 +68,7 @@ func (ca *ConnectionAllocator) Start() error {
 	if err := ca.startControlMessageSocket(); err != nil {
 		return errors.Wrap(err, "Failed to start control message socket")
 	}
-
-	// create event connections
-	eventConnections, err := ca.createConnections(ca.MinConnectionsNum)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create connections")
-	}
-
-	eventProcessors := connectionsToEventProcessors(eventConnections)
-
-	// set objects in allocator, which is the only object that holds connections
-	if err := ca.allocator.SetObjects(eventProcessors); err != nil {
-		return errors.Wrap(err, "Failed to set objects in allocator")
-	}
-
-	ca.Logger.Debug("Connection allocator started")
-	return nil
+	return ca.startEventConnections()
 }
 
 func (ca *ConnectionAllocator) Stop() error {
@@ -160,10 +145,28 @@ func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) 
 	return []string{ca.serverAddress}, controlAddress
 }
 
+func (ca *ConnectionAllocator) startEventConnections() error {
+	// create event connections
+	eventConnections, err := ca.createConnections(ca.MinConnectionsNum)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create connections")
+	}
+
+	eventProcessors := connectionsToEventProcessors(eventConnections)
+
+	// set objects in allocator, which is the only object that holds connections
+	if err := ca.allocator.SetObjects(eventProcessors); err != nil {
+		return errors.Wrap(err, "Failed to set objects in allocator")
+	}
+
+	ca.Logger.Debug("Connection allocator started")
+	return nil
+}
+
 func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Connection, error) {
 	eventConnections := make([]*Connection, 0)
 	for i := 0; i < connectionsNumber; i++ {
-		conn, err := retryableDial(ca.serverAddress, 30, 1*time.Second, 1*time.Minute)
+		conn, err := ca.retryableDial(ca.serverAddress, 30, 1*time.Second, 1*time.Minute)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to establish connection")
 		}
@@ -190,7 +193,10 @@ func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Conn
 	return eventConnections, nil
 }
 
-func retryableDial(address string, maxRetries int, retryInterval, dialTimeout time.Duration) (net.Conn, error) {
+func (ca *ConnectionAllocator) retryableDial(address string,
+	maxRetries int,
+	retryInterval,
+	dialTimeout time.Duration) (net.Conn, error) {
 	var conn net.Conn
 	var err error
 
