@@ -210,7 +210,7 @@ func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, funct
 	}
 	result, err := connectionInstance.ProcessEvent(event, functionLogger)
 	go func() {
-		// release connection after processing batch
+		// release connection after processing event
 		// in goroutine to avoid blocking the processing
 		r.connectionManager.Release(connectionInstance)
 	}()
@@ -224,7 +224,7 @@ func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, fun
 	}
 	result, err := connectionInstance.ProcessEventBatch(batch, functionLogger)
 	go func() {
-		// release connection after processing event
+		// release connection after processing batch
 		// in goroutine to avoid blocking the processing
 		r.connectionManager.Release(connectionInstance)
 	}()
