@@ -1799,7 +1799,7 @@ func (b *Builder) populateFunctionSourceCodeFromFilePath() {
 	} else {
 
 		// set into source code
-		b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
+		b.logger.DebugWith("Populating functionSourceCode from file path", "contentsLen", len(functionSourceCode))
 		b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 	}
 }
