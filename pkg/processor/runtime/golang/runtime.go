@@ -142,7 +142,7 @@ func (g *golang) SupportsRestart() bool {
 }
 
 func (g *golang) RestartRequired() bool {
-	return false
+	return g.GetStatus() == status.RestartRequired
 }
 
 func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {

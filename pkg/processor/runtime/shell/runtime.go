@@ -328,7 +328,7 @@ func (s *shell) SupportsRestart() bool {
 }
 
 func (s *shell) RestartRequired() bool {
-	return false
+	return s.GetStatus() == status.RestartRequired
 }
 
 func (s *shell) commandIsInPath() (bool, error) {
