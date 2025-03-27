@@ -1,6 +1,6 @@
 module github.com/nuclio/nuclio
 
-go 1.23
+go 1.23.0
 
 require (
 	cloud.google.com/go/pubsub v1.33.0
@@ -17,7 +17,7 @@ require (
 	github.com/go-chi/cors v1.2.1
 	github.com/go-git/go-git/v5 v5.13.1
 	github.com/gobuffalo/flect v1.0.2
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.3.1
 	github.com/heptiolabs/healthcheck v0.0.0-20211123025425-613501dd5deb
@@ -54,10 +54,10 @@ require (
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	github.com/xdg-go/scram v1.1.2
 	golang.org/x/image v0.18.0
-	golang.org/x/net v0.34.0
+	golang.org/x/net v0.36.0
 	golang.org/x/oauth2 v0.11.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/text v0.21.0
+	golang.org/x/sync v0.11.0
+	golang.org/x/text v0.22.0
 	google.golang.org/api v0.138.0
 	google.golang.org/grpc v1.57.2
 	gopkg.in/yaml.v3 v3.0.1
@@ -170,11 +170,11 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.25.0 // indirect
 	go4.org v0.0.0-20200411211856-f5505b9728dd // indirect
-	golang.org/x/crypto v0.32.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.19.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/term v0.28.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/term v0.29.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
