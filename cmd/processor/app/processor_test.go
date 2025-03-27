@@ -228,11 +228,6 @@ func (t *testTrigger) GetProjectName() string {
 	return ""
 }
 
-func (t *testTrigger) TimeoutWorker(worker eventprocessor.EventProcessor) error {
-	t.Called(worker)
-	return nil
-}
-
 func (t *testTrigger) SignalWorkersToDrain() error {
 	t.Called()
 	return nil

@@ -45,6 +45,10 @@ type shell struct {
 	commandInPath  bool
 	ctx            context.Context
 	restartChannel chan struct{}
+
+	// timeout for event handling
+	// if 0, then no timeout
+	timeout time.Duration
 }
 
 // NewRuntime returns a new shell runtime
@@ -56,12 +60,14 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
+	timeout, _ := configuration.Configuration.Spec.GetEventTimeout()
 
 	// create the command string
 	newShellRuntime := &shell{
 		AbstractRuntime: abstractRuntime,
 		ctx:             context.Background(),
 		configuration:   configuration,
+		timeout:         timeout,
 	}
 
 	// update it with some stuff so that we don't have to do this each invocation
@@ -109,6 +115,15 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	go s.processEvent(ctx, command, event, responseChan)
 
 	// wait for event response, return once it is done (or errored)
+	return s.waitForResponse(ctx, responseChan, cancel)
+}
+
+func (s *shell) waitForResponse(ctx context.Context, responseChan chan nuclio.Response, cancel func()) (interface{}, error) {
+	if s.timeout > 0 {
+		return s.waitForResponseWithTimeout(ctx, responseChan, cancel)
+	}
+
+	// wait for event response, return once it is done (or errored)
 	for {
 		select {
 		case response := <-responseChan:
@@ -120,6 +135,31 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 		case <-s.restartChannel:
 			s.Logger.Warn("Cancelling execution due to an ongoing restart")
 			cancel()
+		}
+	}
+}
+
+func (s *shell) waitForResponseWithTimeout(ctx context.Context, responseChan chan nuclio.Response, cancel func()) (interface{}, error) {
+	ticker := time.NewTicker(s.timeout)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case response := <-responseChan:
+			return response, nil
+
+		case <-ctx.Done():
+			return nil, nuclio.NewErrRequestTimeout("Failed waiting for function execution")
+
+		case <-s.restartChannel:
+			s.Logger.Warn("Cancelling execution due to an ongoing restart")
+			cancel()
+
+		case <-ticker.C:
+			s.SetStatus(status.RestartRequired)
+			s.Logger.WarnWith("Timeout waiting for event processing to finish, restart required",
+				"timeout", s.timeout.String())
+			return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 		}
 	}
 }

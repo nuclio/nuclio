@@ -83,9 +83,6 @@ type Trigger interface {
 	// GetProjectName returns project name
 	GetProjectName() string
 
-	// TimeoutWorker times out a worker
-	TimeoutWorker(worker eventprocessor.EventProcessor) error
-
 	// SignalWorkersToDrain drains all workers
 	SignalWorkersToDrain() error
 
@@ -312,11 +309,6 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	// increment statistics based on results. if process error is nil, we successfully handled
 	at.UpdateStatistics(processError == nil, 1)
 	return
-}
-
-// TimeoutWorker times out a worker
-func (at *AbstractTrigger) TimeoutWorker(worker eventprocessor.EventProcessor) error {
-	return nil
 }
 
 // UpdateStatistics updates the trigger statistics

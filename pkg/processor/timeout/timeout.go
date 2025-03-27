@@ -90,12 +90,6 @@ func (w EventTimeoutWatcher) watch() {
 							"worker", workerInstance.GetIndex(),
 						}
 
-						if err := triggerInstance.TimeoutWorker(workerInstance); err != nil {
-							w.logger.WarnWithCtx(workerErrGroupCtx,
-								"Error timing out a worker",
-								with...)
-						}
-
 						// if the worker can be restarted, restart it. otherwise shut it completely
 						if workerInstance.SupportsRestart() {
 							w.logger.InfoWithCtx(workerErrGroupCtx, "Restarting worker due to timeout", with...)

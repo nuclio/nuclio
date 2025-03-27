@@ -40,6 +40,10 @@ type golang struct {
 	cancelEventHandlingChan chan context.CancelFunc
 	// TODO: remove when implement full safe statistics for async processing
 	statisticsMutex sync.RWMutex
+
+	// timeout for event handling
+	// if 0, then no timeout
+	timeout time.Duration
 }
 
 // NewRuntime returns a new golang runtime
@@ -61,12 +65,15 @@ func NewRuntime(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to load handler")
 	}
 
+	timeout, _ := configuration.Configuration.Spec.GetEventTimeout()
+
 	// create the runtime
 	newGoRuntime := &golang{
 		AbstractRuntime: abstractRuntime,
 		configuration:   configuration,
 		entrypoint:      handler.getEntrypoint(),
 		statisticsMutex: sync.RWMutex{},
+		timeout:         timeout,
 	}
 
 	// try to initialize the context, if applicable
@@ -198,6 +205,14 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 		g.AddStatistics(callDuration)
 	}()
 
+	return g.waitForResponse(ctx, responseChan)
+}
+
+func (g *golang) waitForResponse(ctx context.Context, responseChan chan *processingResponse) (interface{}, error) {
+	if g.timeout > 0 {
+		return g.waitForResponseWithTimeout(ctx, responseChan)
+	}
+
 	select {
 	case result := <-responseChan:
 		select {
@@ -209,6 +224,29 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 		return result.response, result.responseErr
 	case <-ctx.Done():
 		return nil, errors.New("Event processing was cancelled")
+	}
+}
+
+func (g *golang) waitForResponseWithTimeout(ctx context.Context, responseChan chan *processingResponse) (interface{}, error) {
+	ticker := time.NewTicker(g.timeout)
+	defer ticker.Stop()
+
+	select {
+	case result := <-responseChan:
+		select {
+		case cancelEventHandling := <-g.cancelEventHandlingChan:
+			// cancelling cancel-context
+			defer cancelEventHandling()
+		default:
+		}
+		return result.response, result.responseErr
+	case <-ctx.Done():
+		return nil, errors.New("Event processing was cancelled")
+	case <-ticker.C:
+		g.SetStatus(status.RestartRequired)
+		g.Logger.WarnWith("Timeout waiting for event processing to finish, restart required",
+			"timeout", g.timeout.String())
+		return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 	}
 }
 

@@ -394,12 +394,7 @@ func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedR
 	be.functionLogger = nil
 	be.Logger.WarnWith("Event processing timed out, connection should be restarted")
 	be.SetStatus(status.RestartRequired)
-	return &result.BatchedResults{
-		Results: []*result.Result{{
-			StatusCode: http.StatusRequestTimeout,
-			Err:        errors.New("Connection closed"),
-		}},
-	}, nil
+	return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 }
 
 func (be *AbstractEventConnection) RunHandler() {
