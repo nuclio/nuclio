@@ -2,8 +2,6 @@ module github.com/nuclio/nuclio
 
 go 1.23.0
 
-toolchain go1.23.4
-
 require (
 	cloud.google.com/go/pubsub v1.33.0
 	dario.cat/mergo v1.0.0
