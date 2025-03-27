@@ -111,6 +111,10 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	return response, err
 }
 
+func (g *golang) IsBusy() bool {
+	return len(g.cancelEventHandlingChan) > 0
+}
+
 func (g *golang) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	return nil, nuclio.ErrNotImplemented
 }

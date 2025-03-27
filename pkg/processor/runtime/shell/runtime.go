@@ -118,6 +118,13 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	return s.waitForResponse(ctx, responseChan, cancel)
 }
 
+func (s *shell) IsBusy() bool {
+	// there is no way to identify it properly
+	// but since shell runtime doesn't support async processing,
+	// worker should be busy and we won't get to this point
+	return false
+}
+
 func (s *shell) waitForResponse(ctx context.Context, responseChan chan nuclio.Response, cancel func()) (interface{}, error) {
 	if s.timeout > 0 {
 		return s.waitForResponseWithTimeout(ctx, responseChan, cancel)

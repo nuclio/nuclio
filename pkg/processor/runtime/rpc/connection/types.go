@@ -62,6 +62,9 @@ type ConnectionManager interface {
 
 	// GetConfig returns the configuration of the ConnectionManager
 	GetConfig() ManagerConfigration
+
+	// IsBusy return true if any of the connections in manager is in use
+	IsBusy() bool
 }
 
 type EventConnection interface {

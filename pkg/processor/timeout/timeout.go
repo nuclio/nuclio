@@ -18,7 +18,6 @@ package timeout
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -80,7 +79,7 @@ func (w EventTimeoutWatcher) watch() {
 					workerInstance := workerInstance
 
 					workerErrGroup.Go("Watch Event Timeout", func() error {
-						restartRequired := workerInstance.RestartRequired(&w.timeout)
+						restartRequired := workerInstance.RestartRequired()
 						if !restartRequired {
 							return nil
 						}
@@ -121,10 +120,10 @@ func (w EventTimeoutWatcher) gracefulShutdown(ctx context.Context, timedoutWorke
 	w.shuttingDown = true
 
 	w.logger.WarnWithCtx(ctx, "Stopping triggers")
-	runningWorkers := w.stopTriggers(ctx, timedoutWorker)
+	busyTriggers := w.stopTriggers(ctx, timedoutWorker)
 
 	w.logger.WarnWithCtx(ctx, "Waiting for workers termination")
-	w.waitForWorkers(ctx, runningWorkers)
+	w.waitForTriggers(ctx, busyTriggers)
 
 	w.logger.WarnWithCtx(ctx, "Stopping processor")
 	w.processor.Stop()
@@ -132,8 +131,8 @@ func (w EventTimeoutWatcher) gracefulShutdown(ctx context.Context, timedoutWorke
 	w.logger.WarnWithCtx(ctx, "Graceful shutdown completed")
 }
 
-func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker eventprocessor.EventProcessor) map[string]eventprocessor.EventProcessor {
-	runningWorkers := make(map[string]eventprocessor.EventProcessor)
+func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker eventprocessor.EventProcessor) map[int]trigger.Trigger {
+	busyTriggers := make(map[int]trigger.Trigger)
 
 	// create error group
 	triggerErrGroup, triggerErrGroupCtx := errgroup.WithContext(ctx, w.logger)
@@ -158,20 +157,9 @@ func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker ev
 					"triggerIdx", triggerIdx,
 					"checkpoint", checkpointValue)
 			}
-
-			for _, workerInstance := range triggerInstance.GetWorkers() {
-				if workerInstance == timedoutWorker {
-					continue
-				}
-
-				if workerInstance.GetEventTime() == nil {
-					continue
-				}
-
-				key := fmt.Sprintf("%d:%d", triggerIdx, workerInstance.GetIndex())
-				runningWorkers[key] = workerInstance
+			if triggerInstance.IsBusy() {
+				busyTriggers[triggerIdx] = triggerInstance
 			}
-
 			return nil
 		})
 	}
@@ -182,18 +170,18 @@ func (w EventTimeoutWatcher) stopTriggers(ctx context.Context, timedoutWorker ev
 			"err", errors.GetErrorStackString(err, 10))
 	}
 
-	return runningWorkers
+	return busyTriggers
 }
 
-func (w EventTimeoutWatcher) waitForWorkers(ctx context.Context, runningWorkers map[string]eventprocessor.EventProcessor) {
+func (w EventTimeoutWatcher) waitForTriggers(ctx context.Context, busyTriggers map[int]trigger.Trigger) {
 	// TODO: Find a better deadline
 	shutdownDuration := 10 * w.timeout
 	deadline := time.Now().Add(shutdownDuration)
 
 	for {
 
-		// we're done
-		if len(runningWorkers) == 0 {
+		// exit when there are no busy triggers
+		if len(busyTriggers) == 0 {
 			return
 		}
 
@@ -205,18 +193,11 @@ func (w EventTimeoutWatcher) waitForWorkers(ctx context.Context, runningWorkers 
 			return
 		}
 
-		for key, workerInstance := range runningWorkers {
-			eventTime := workerInstance.GetEventTime()
-			if eventTime == nil {
-				delete(runningWorkers, key)
-				continue
-			}
-
-			if now.Sub(*eventTime) > w.timeout {
-				w.logger.WarnWithCtx(ctx,
-					"Worker timed out",
-					"worker", key)
-				delete(runningWorkers, key)
+		// go though the busy triggers and check if they are still busy
+		// if they are not, remove them from the busy triggers
+		for triggerIdx, triggerInstance := range busyTriggers {
+			if !triggerInstance.IsBusy() {
+				delete(busyTriggers, triggerIdx)
 				continue
 			}
 		}

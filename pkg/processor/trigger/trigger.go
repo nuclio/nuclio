@@ -91,6 +91,9 @@ type Trigger interface {
 
 	// SignalWorkersToTerminate signal to all workers that the processor is about to stop working
 	SignalWorkersToTerminate() error
+
+	// IsBusy returns true if the trigger is busy processing events
+	IsBusy() bool
 }
 
 // AbstractTrigger implements common trigger operations
@@ -280,7 +283,6 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance eventprocessor.Event
 		*submitError = errors.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
-			workerInstance.ResetEventTime()
 			at.WorkerAllocator.Release(workerInstance)
 		}
 
@@ -391,6 +393,30 @@ func (at *AbstractTrigger) SignalWorkersToTerminate() error {
 		return errors.Wrap(err, "Failed to signal all workers to terminate")
 	}
 	return nil
+}
+
+func (at *AbstractTrigger) IsBusy() bool {
+	workers := at.Trigger.GetWorkers()
+
+	// should not happen, but just in case
+	if len(workers) == 0 {
+		return false
+	}
+
+	// enough to check only one
+	if !workers[0].IsAsync() {
+		// if the worker is not async, we can check if the number of workers is equal to the number of available objects
+		return len(workers) == at.WorkerAllocator.GetNumObjectsAvailable()
+	}
+
+	// if the worker is async, we need to check connection allocators availability
+	for _, worker := range workers {
+		if worker.IsBusy() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance eventprocessor.EventProcessor) (nuclio.Event, error) {

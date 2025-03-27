@@ -207,6 +207,11 @@ func (t *testTrigger) GetStatistics() *trigger.Statistics {
 	return nil
 }
 
+func (t *testTrigger) IsBusy() bool {
+	args := t.Called()
+	return args.Bool(0)
+}
+
 func (t *testTrigger) GetWorkers() []eventprocessor.EventProcessor {
 	t.Called()
 	return nil

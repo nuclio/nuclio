@@ -79,6 +79,9 @@ type Runtime interface {
 
 	// GetControlMessageBroker returns the control message broker
 	GetControlMessageBroker() controlcommunication.ControlMessageBroker
+
+	// IsBusy returns true if the runtime is busy processing events
+	IsBusy() bool
 }
 
 // AbstractRuntime is the base for all runtimes

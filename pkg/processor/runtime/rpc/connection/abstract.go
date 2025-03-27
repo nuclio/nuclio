@@ -98,6 +98,10 @@ func (bc *AbstractConnectionManager) GetConfig() ManagerConfigration {
 	return *bc.Configuration
 }
 
+func (bc *AbstractConnectionManager) IsBusy() bool {
+	return len(bc.allocator.GetObjects()) == bc.allocator.GetNumObjectsAvailable()
+}
+
 func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
 	bc.status.SetStatus(newStatus)
 }
@@ -514,16 +518,7 @@ func (be *AbstractEventConnection) GetBinaryCloudEvent() *cloudevent.Binary {
 	return nil
 }
 
-// GetEventTime return current event time, nil if we're not handling event
-func (be *AbstractEventConnection) GetEventTime() *time.Time {
-	return nil
-}
-
-// ResetEventTime resets the event time
-func (be *AbstractEventConnection) ResetEventTime() {
-}
-
-func (be *AbstractEventConnection) RestartRequired(*time.Duration) bool {
+func (be *AbstractEventConnection) RestartRequired() bool {
 	return false
 }
 
@@ -555,6 +550,17 @@ func (be *AbstractEventConnection) Terminate() error {
 
 func (be *AbstractEventConnection) Drain() error {
 	return nuclio.ErrNotImplemented
+}
+
+func (be *AbstractEventConnection) IsAsync() bool {
+	// TODO: if socketAllocator will support async, we should improve it
+	return be.connectionManager.GetConfig().Kind == ConnectionAllocatorManagerKind
+}
+
+func (be *AbstractEventConnection) IsBusy() bool {
+	// aligns eventProcessor interfaces
+	// should not be used
+	return false
 }
 
 func (be *AbstractEventConnection) Continue() error {

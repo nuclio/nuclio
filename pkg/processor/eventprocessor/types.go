@@ -104,14 +104,8 @@ type EventProcessor interface {
 	// GetBinaryCloudEvent retrieves the last processed binary CloudEvent
 	GetBinaryCloudEvent() *cloudevent.Binary
 
-	// GetEventTime returns the timestamp of the last processed event
-	GetEventTime() *time.Time
-
-	// ResetEventTime resets the stored event timestamp to an initial state
-	ResetEventTime()
-
 	// RestartRequired returns whether the event processor requires a restart
-	RestartRequired(timeout *time.Duration) bool
+	RestartRequired() bool
 
 	// Restart restarts the event processor, if supported
 	Restart() error
@@ -130,4 +124,10 @@ type EventProcessor interface {
 
 	// RunHandler starts the event processing loop, handling incoming events
 	RunHandler()
+
+	// IsAsync checks if the event processor is asynchronous
+	IsAsync() bool
+
+	// IsBusy checks if the event processor is busy processing events
+	IsBusy() bool
 }

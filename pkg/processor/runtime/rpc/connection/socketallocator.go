@@ -19,6 +19,7 @@ package connection
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 
 	"github.com/nuclio/errors"
@@ -109,8 +110,11 @@ func (sa *SocketAllocator) Allocate(duration time.Duration) (eventprocessor.Even
 }
 
 // Release releases an instance of EventConnection
-func (sa *SocketAllocator) Release(processor eventprocessor.EventProcessor) {
-	sa.allocator.Release(processor)
+func (sa *SocketAllocator) Release(connection eventprocessor.EventProcessor) {
+	if connection.GetStatus() == status.RestartRequired {
+		sa.SetStatus(status.RestartRequired)
+	}
+	sa.allocator.Release(connection)
 }
 
 func (sa *SocketAllocator) GetAddressesForWrapperStart() ([]string, string) {

@@ -19,7 +19,6 @@ package worker
 import (
 	"net/http"
 	"sync/atomic"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -27,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -44,7 +42,6 @@ type Worker struct {
 	runtime              runtime.Runtime
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
-	eventTime            *time.Time
 }
 
 // NewWorker creates a new worker
@@ -64,11 +61,8 @@ func NewWorker(parentLogger logger.Logger,
 
 // ProcessEvent sends the event to the associated runtime
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	w.eventTime = clock.Now()
-
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
-	w.eventTime = nil
 
 	// check if there was a processing error. if so, log it
 	if err != nil {
@@ -137,19 +131,8 @@ func (w *Worker) GetBinaryCloudEvent() *cloudevent.Binary {
 	return &w.binaryCloudEvent
 }
 
-// GetEventTime return current event time, nil if we're not handling event
-func (w *Worker) GetEventTime() *time.Time {
-	return w.eventTime
-}
-
-// ResetEventTime resets the event time
-func (w *Worker) ResetEventTime() {
-	w.eventTime = nil
-}
-
 // Restart restarts the worker
 func (w *Worker) Restart() error {
-	w.eventTime = nil
 	return w.runtime.Restart()
 }
 
@@ -159,26 +142,7 @@ func (w *Worker) SupportsRestart() bool {
 }
 
 // RestartRequired returns whether the worker requires a restart
-func (w *Worker) RestartRequired(timeout *time.Duration) bool {
-	// Check if the worker requires restart due to timeout
-	// If the worker is in sync mode, it means that the worker is allocated per a single event
-	if w.runtime.GetConfiguration().Mode == functionconfig.SyncTriggerWorkMode && timeout != nil {
-
-		eventTime := w.GetEventTime()
-		if eventTime == nil {
-			return false
-		}
-
-		now := time.Now()
-		elapsedTime := now.Sub(*eventTime)
-		if elapsedTime <= *timeout {
-			return false
-		}
-		w.logger.WarnWith("Worker requires restart due to timeout",
-			"workerIndex", w.index,
-			"elapsedTime", elapsedTime)
-	}
-	// if timeout is not passed, just check whether the runtime requires restart
+func (w *Worker) RestartRequired() bool {
 	return w.runtime.RestartRequired()
 }
 
@@ -220,4 +184,12 @@ func (w *Worker) WaitForStart() {
 }
 
 func (w *Worker) RunHandler() {
+}
+
+func (w *Worker) IsAsync() bool {
+	return w.runtime.GetConfiguration().Mode == functionconfig.AsyncTriggerWorkMode
+}
+
+func (w *Worker) IsBusy() bool {
+	return w.runtime.IsBusy()
 }

@@ -81,6 +81,10 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 	return r.processEventAndWaitForResult(event, functionLogger)
 }
 
+func (r *AbstractRuntime) IsBusy() bool {
+	return r.connectionManager.IsBusy()
+}
+
 // ProcessBatch processes a batch of events
 func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	return r.processBatchAndWaitForResult(batch, functionLogger)
