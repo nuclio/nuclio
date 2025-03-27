@@ -244,7 +244,6 @@ func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, e
 }
 
 func (r *AbstractRuntime) startWrapper() error {
-	// it is already checked on the processor start, but just in case
 	timeout, _ := r.configuration.Spec.GetEventTimeout()
 
 	connectionManagerConfiguration := connection.NewManagerConfigration(

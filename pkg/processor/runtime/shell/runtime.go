@@ -164,7 +164,8 @@ func (s *shell) waitForResponseWithTimeout(ctx context.Context, responseChan cha
 
 		case <-ticker.C:
 			s.SetStatus(status.RestartRequired)
-			s.Logger.WarnWith("Timeout waiting for event processing to finish, restart required",
+			s.Logger.WarnWithCtx(ctx,
+				"Timeout waiting for event processing to finish, restart required",
 				"timeout", s.timeout.String())
 			return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 		}

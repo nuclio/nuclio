@@ -29,6 +29,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
@@ -96,6 +97,10 @@ func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {
 
 func (bc *AbstractConnectionManager) GetConfig() ManagerConfigration {
 	return *bc.Configuration
+}
+
+func (bc *AbstractConnectionManager) IsAsync() bool {
+	return bc.RuntimeConfiguration.Mode == functionconfig.AsyncTriggerWorkMode
 }
 
 func (bc *AbstractConnectionManager) IsBusy() bool {
@@ -361,18 +366,18 @@ func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.Batched
 	defer ticker.Stop()
 
 	select {
-	case processingResults, ok := <-be.resultChan:
-		return be.postProcessEventRegularFlow(processingResults, ok)
+	case processingResults, isClientDisconnected := <-be.resultChan:
+		return be.postProcessEventRegularFlow(processingResults, isClientDisconnected)
 	case <-ticker.C:
 		return be.postProcessEventOnTimeout()
 	}
 }
 
-func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults *result.BatchedResults, ok bool) (*result.BatchedResults, error) {
+func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults *result.BatchedResults, isClientDisconnected bool) (*result.BatchedResults, error) {
 	// We don't use defer to reset be.functionLogger since it decreases performance
 	be.functionLogger = nil
 
-	if !ok {
+	if !isClientDisconnected {
 		return be.postProcessClientDisconnected()
 	}
 	// if processingResults.err is not nil, it means that whole batch processing was failed
@@ -553,8 +558,7 @@ func (be *AbstractEventConnection) Drain() error {
 }
 
 func (be *AbstractEventConnection) IsAsync() bool {
-	// TODO: if socketAllocator will support async, we should improve it
-	return be.connectionManager.GetConfig().Kind == ConnectionAllocatorManagerKind
+	return be.connectionManager.IsAsync()
 }
 
 func (be *AbstractEventConnection) IsBusy() bool {

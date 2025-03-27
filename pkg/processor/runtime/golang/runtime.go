@@ -248,7 +248,8 @@ func (g *golang) waitForResponseWithTimeout(ctx context.Context, responseChan ch
 		return nil, errors.New("Event processing was cancelled")
 	case <-ticker.C:
 		g.SetStatus(status.RestartRequired)
-		g.Logger.WarnWith("Timeout waiting for event processing to finish, restart required",
+		g.Logger.WarnWithCtx(ctx,
+			"Timeout waiting for event processing to finish, restart required",
 			"timeout", g.timeout.String())
 		return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 	}

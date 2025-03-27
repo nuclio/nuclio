@@ -63,6 +63,9 @@ type ConnectionManager interface {
 	// GetConfig returns the configuration of the ConnectionManager
 	GetConfig() ManagerConfigration
 
+	// IsAsync returns true if the ConnectionManager is in async mode
+	IsAsync() bool
+
 	// IsBusy return true if any of the connections in manager is in use
 	IsBusy() bool
 }
