@@ -797,7 +797,7 @@ func (suite *testSuite) TestGenerateKanikoProcessorDockerfile() {
 			},
 			{
 				Name:  "uhttpc-1",
-				Image: "quay.io/nuclio/uhttpc:0.0.1-amd64",
+				Image: "quay.io/nuclio/uhttpc:0.0.2-amd64",
 				Paths: map[string]string{
 					"/home/nuclio/bin/uhttpc": "/usr/local/bin/uhttpc",
 				},
@@ -834,7 +834,7 @@ preCopyKind2 preCopyValue2
 # Copy required objects from the suppliers
 COPY --from=onbuild-1 onbuildLocal1 onbuildImage1
 COPY --from=onbuild-1 onbuildLocal2 onbuildImage2
-COPY --from=quay.io/nuclio/uhttpc:0.0.1-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+COPY --from=quay.io/nuclio/uhttpc:0.0.2-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 COPY imageLocal1 imageImage1
 COPY imageLocal2 imageImage2
 # Readiness probe
