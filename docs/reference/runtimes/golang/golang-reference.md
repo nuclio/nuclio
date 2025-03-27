@@ -34,7 +34,7 @@ ARG NUCLIO_BASE_IMAGE=alpine:3.20
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
 
 # Supplies processor uhttpc, used for healthcheck
-FROM nuclio/uhttpc:0.0.2-amd64 as uhttpc
+FROM gcr.io/iguazio/uhttpc:0.0.2-amd64 as uhttpc
 
 # Builds source, supplies processor binary and handler plugin
 FROM ${NUCLIO_ONBUILD_IMAGE} as builder
