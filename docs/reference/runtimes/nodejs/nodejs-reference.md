@@ -29,7 +29,7 @@ ARG NUCLIO_BASE_IMAGE=node:10.20-alpine
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-nodejs-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
-FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+FROM gcr.io/iguazio/uhttpc:0.0.2-amd64 as uhttpc
 
 # Supplies processor binary, wrapper
 FROM ${NUCLIO_ONBUILD_IMAGE} as processor
