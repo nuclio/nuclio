@@ -27,12 +27,32 @@ on:
 env:
   START_LABEL: long-ci-started
   SUCCESS_LABEL: long-ci-succeeded
-  CANCELL_LABEL: long-ci-cancelled
+  CANCEL_LABEL: long-ci-cancelled
   FAILURE_LABEL: long-ci-failed
   ADD_REMOVE_LABELS_SCRIPT_PATH: hack/scripts/ci/add-remove-labels.js
   DOCKER_BUILDKIT: 1
 
 jobs:
+  set_start_label:
+    name: Set Start Label
+    runs-on: ubuntu-latest
+    if: github.event.inputs.pr_number != ''
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set 'long-ci-started' Label
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = process.env.PR_NUMBER;
+            const labelsToAdd = [process.env.START_LABEL];
+            const labelsToRemove = [process.env.SUCCESS_LABEL, process.env.CANCEL_LABEL, process.env.FAILURE_LABEL];
+            const script = require(`${process.env.GITHUB_WORKSPACE}/${process.env.ADD_REMOVE_LABELS_SCRIPT_PATH}`);
+            await script({ github, context, prNumber, labelsToAdd, labelsToRemove });
   long_ci:
     name: Long CI
     runs-on: ubuntu-latest
@@ -65,20 +85,6 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - name: Set labels
-        uses: actions/github-script@v7
-        if: github.event.inputs.pr_number != ''
-        env:
-          PR_NUMBER: ${{ github.event.inputs.pr_number }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const prNumber = process.env.PR_NUMBER
-            const labelsToAdd = [ process.env.START_LABEL ]
-            const labelsToRemove = [ process.env.SUCCESS_LABEL, process.env.CANCELL_LABEL, process.env.FAILURE_LABEL ]
-            const script = require(`${ process.env.GITHUB_WORKSPACE }/${ process.env.ADD_REMOVE_LABELS_SCRIPT_PATH }`)
-            await script({ github, context, prNumber, labelsToAdd, labelsToRemove })
-
       - name: Build
         run: make build
         env:
@@ -98,14 +104,25 @@ jobs:
         if: ${{ failure() }}
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/system-stats.sh"
 
-      - if: ${{ success() }}
-        run: echo "LONG_CI_FINISH_LABEL=${{ env.SUCCESS_LABEL }}" >> $GITHUB_ENV
+  long_ci_results:
+    name: Analyze Long CI Results
+    runs-on: ubuntu-latest
+    needs: long_ci
+    if: always()
+    steps:
+      - name: Determine Final Status
+        id: determine_status
+        run: |
+          if [ "${{ needs.long_ci.result }}" == "success" ]; then
+            echo "LONG_CI_FINISH_LABEL=${{ env.SUCCESS_LABEL }}" >> $GITHUB_ENV
+          elif [ "${{ needs.long_ci.result }}" == "failure" ]; then
+            echo "LONG_CI_FINISH_LABEL=${{ env.FAILURE_LABEL }}" >> $GITHUB_ENV
+          elif [ "${{ needs.long_ci.result }}" == "cancelled" ]; then
+            echo "LONG_CI_FINISH_LABEL=${{ env.CANCEL_LABEL }}" >> $GITHUB_ENV
+          fi
 
-      - if: ${{ failure() }}
-        run: echo "LONG_CI_FINISH_LABEL=${{ env.FAILURE_LABEL }}" >> $GITHUB_ENV
-
-      - if: ${{ cancelled() }}
-        run: echo "LONG_CI_FINISH_LABEL=${{ env.CANCELL_LABEL }}" >> $GITHUB_ENV
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set labels
         if: github.event.inputs.pr_number != ''
@@ -126,7 +143,7 @@ jobs:
         uses: ravsamhq/notify-slack-action@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          status: ${{ job.status }}
+          status: ${{ needs.long_ci.result }}
           notify_when: "failure"
           notification_title: "{workflow} has failed"
           message_format: "{emoji} *{workflow}* {status_message} in <{repo_url}|{repo}>"
