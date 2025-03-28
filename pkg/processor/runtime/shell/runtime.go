@@ -77,7 +77,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	}
 
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
-	newShellRuntime.restartChannel = make(chan struct{}, 1)
+	newShellRuntime.restartChannel = make(chan struct{})
 
 	newShellRuntime.commandInPath, err = newShellRuntime.commandIsInPath()
 	if err != nil {
@@ -318,16 +318,22 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 }
 
 func (s *shell) Restart() error {
+	s.Logger.Warn("Shell runtime is restarting")
 	if err := s.Stop(); err != nil {
 		return errors.Wrap(err, "Failed to stop runtime")
 	}
-	s.Logger.Warn("Restarting")
-	s.restartChannel <- struct{}{}
+	select {
+
+	// send to the channel only if receiver is ready
+	case s.restartChannel <- struct{}{}:
+	default:
+	}
 	return s.Start()
 }
 
 func (s *shell) Start() error {
 	s.SetStatus(status.Ready)
+	s.Logger.DebugWith("Shell runtime started")
 	return nil
 }
 

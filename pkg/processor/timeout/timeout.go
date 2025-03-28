@@ -122,8 +122,10 @@ func (w EventTimeoutWatcher) gracefulShutdown(ctx context.Context, timedoutWorke
 	w.logger.WarnWithCtx(ctx, "Stopping triggers")
 	busyTriggers := w.stopTriggers(ctx, timedoutWorker)
 
-	w.logger.WarnWithCtx(ctx, "Waiting for workers termination")
-	w.waitForTriggers(ctx, busyTriggers)
+	if len(busyTriggers) > 0 {
+		w.logger.WarnWithCtx(ctx, "Waiting for workers termination")
+		w.waitForTriggers(ctx, busyTriggers)
+	}
 
 	w.logger.WarnWithCtx(ctx, "Stopping processor")
 	w.processor.Stop()
