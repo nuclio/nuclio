@@ -19,6 +19,7 @@ package worker
 import (
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -180,7 +181,8 @@ func (w *Worker) Unsubscribe(kind controlcommunication.ControlMessageKind, chann
 	return w.runtime.GetControlMessageBroker().Unsubscribe(kind, channel)
 }
 
-func (w *Worker) WaitForStart() {
+func (w *Worker) WaitForStart(time.Duration) error {
+	return nil
 }
 
 func (w *Worker) RunHandler() {

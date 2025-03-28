@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"os"
 	"time"
 
@@ -58,6 +57,8 @@ type AbstractConnectionManager struct {
 	allocator            eventprocessor.Allocator
 
 	status *status.SafeStatus
+	// wrapper PID, used to identify connection allocator
+	pid int
 }
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (*AbstractConnectionManager, error) {
@@ -67,24 +68,15 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 		MaxConnectionsNum:    1,
 		RuntimeConfiguration: runtimeConfiguration,
 		Configuration:        configuration,
-
-		// by default status is ready
-		status: status.NewSafeStatus(status.Ready),
+		status:               status.NewSafeStatus(status.Initializing),
 	}
 	var err error
 	if runtimeConfiguration.AsyncConfig != nil {
 		abstractConnectionManager.MinConnectionsNum = runtimeConfiguration.AsyncConfig.MinConnectionsNumber
 		abstractConnectionManager.MaxConnectionsNum = runtimeConfiguration.AsyncConfig.MaxConnectionsNumber
 	}
-	if abstractConnectionManager.MinConnectionsNum == 1 && abstractConnectionManager.MaxConnectionsNum == 1 {
-		// TODO: add support sync singleton
-		abstractConnectionManager.allocator = eventprocessor.NewAsyncSingletonAllocator(
-			abstractConnectionManager.Logger,
-			nil)
-	} else if abstractConnectionManager.allocator, err = eventprocessor.NewSyncPoolAllocator(
-		abstractConnectionManager.Logger,
-		nil); err != nil {
-		return nil, err
+	if err = abstractConnectionManager.createAllocator(); err != nil {
+		return nil, errors.Wrap(err, "Failed to create allocator")
 	}
 
 	return abstractConnectionManager, nil
@@ -109,6 +101,21 @@ func (bc *AbstractConnectionManager) IsBusy() bool {
 
 func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
 	bc.status.SetStatus(newStatus)
+}
+
+func (bc *AbstractConnectionManager) createAllocator() error {
+	var err error
+	if bc.MinConnectionsNum == 1 && bc.MaxConnectionsNum == 1 {
+		// TODO: add support sync singleton
+		bc.allocator = eventprocessor.NewAsyncSingletonAllocator(
+			bc.Logger,
+			nil)
+	} else if bc.allocator, err = eventprocessor.NewSyncPoolAllocator(
+		bc.Logger,
+		nil); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (bc *AbstractConnectionManager) GetStatus() status.Status {
@@ -147,14 +154,6 @@ func (bc *AbstractConnectionManager) startControlMessageSocket() error {
 		bc.Logger.Debug("Successfully established connection for control socket")
 	}
 	return nil
-}
-
-func (bc *AbstractConnectionManager) stopControlMessageSocket() {
-	if bc.controlMessageSocket != nil {
-		go func() {
-			bc.controlMessageSocket.Stop()
-		}()
-	}
 }
 
 // Create a listener on unix domain docker, return listener, path to socket and error
@@ -220,6 +219,23 @@ func (bc *AbstractConnectionManager) createTCPListener() (net.Listener, string, 
 	port := listener.Addr().(*net.TCPAddr).Port
 
 	return listener, fmt.Sprintf("%d", port), nil
+}
+
+func (bc *AbstractConnectionManager) stopAllocator() error {
+	// stop allocator
+	if err := bc.allocator.Stop(); err != nil {
+		bc.Logger.WarnWith("Failed to stop allocator",
+			"error", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (bc *AbstractConnectionManager) stopControlMessageSocket() {
+	if bc.controlMessageSocket != nil {
+		bc.controlMessageSocket.Stop()
+	}
+	bc.controlMessageSocket = nil
 }
 
 type AbstractConnection struct {
@@ -303,8 +319,27 @@ func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager Co
 		connectionManager:  connectionManager,
 	}
 }
-func (be *AbstractEventConnection) WaitForStart() {
-	<-be.startChan
+func (be *AbstractEventConnection) WaitForStart(timeout time.Duration) error {
+	var ok bool
+	if timeout <= 0 {
+		_, ok = <-be.startChan
+	} else {
+		ticker := time.NewTicker(timeout)
+		defer ticker.Stop()
+
+		// wait for start signal or timeout
+		select {
+		case _, ok = <-be.startChan:
+		case <-ticker.C:
+			return errors.Errorf("Timeout waiting for start signal, timeout: %s", timeout.String())
+		}
+	}
+
+	// for the case when wrapper is restarting when connection was just created
+	if !ok {
+		return errors.New("Failed to get start signal, channel is closed")
+	}
+	return nil
 }
 
 func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
@@ -407,10 +442,8 @@ func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedR
 }
 
 func (be *AbstractEventConnection) RunHandler() {
-	// this is the only channel that should be closed here; all other channels are closed in Stop()
-	defer close(be.cancelChan)
-
-	// Reset might close outChan, which will cause panic when sending
+	// don't really need this recover here, but just in case
+	// part of legacy code
 	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
 		be.Logger,
 		"handling event wrapper output (Restart called?)",
@@ -418,21 +451,14 @@ func (be *AbstractEventConnection) RunHandler() {
 			Args:          nil,
 			CustomHandler: nil,
 		})
-	defer func() {
-		select {
-		case be.resultChan <- &result.BatchedResults{
-			Results: []*result.Result{{
-				StatusCode: http.StatusRequestTimeout,
-				Err:        errors.New("Runtime restarted"),
-			}},
-		}:
-
-		default:
-			be.Logger.Warn("Nothing waiting on result channel during connection restart. Continuing")
-		}
-	}()
 
 	outReader := bufio.NewReader(be.Conn)
+
+	defer close(be.cancelChan)
+
+	// closing chan result here to avoid unnecessary panic on writing to the channel below
+	// if the channel is closed while waiting for response in it, this will be handled in processItem() with no issues
+	defer close(be.resultChan)
 
 	// Read logs & output
 	for {
@@ -502,14 +528,19 @@ func (be *AbstractEventConnection) SetStatus(newStatus status.Status) {
 // This is the only place where the connection object should be properly stopped
 // meaning closing all channels and connection
 func (be *AbstractEventConnection) Stop() error {
+	if be.GetStatus() == status.Stopped {
+		// already stopped
+		return nil
+	}
+	be.SetStatus(status.Stopping)
 	be.AbstractConnection.Stop()
 
-	// close all channels
-	close(be.resultChan)
+	// close start chan
+	// other two channels (result and cancel chan) are closed in the run handler
 	close(be.startChan)
 
 	err := be.Conn.Close()
-	be.Logger.Debug("Connection stopped successfully")
+	be.SetStatus(status.Stopped)
 	return err
 }
 
@@ -550,7 +581,8 @@ func (be *AbstractEventConnection) SupportsRestart() bool {
 }
 
 func (be *AbstractEventConnection) Terminate() error {
-	return nuclio.ErrNotImplemented
+	// same as stop
+	return be.Stop()
 }
 
 func (be *AbstractEventConnection) Drain() error {

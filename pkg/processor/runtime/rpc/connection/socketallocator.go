@@ -48,6 +48,7 @@ func NewSocketAllocator(abstractConnectionManager *AbstractConnectionManager) *S
 //
 // Creates a minimum number of event sockets (MinConnectionsNum).
 func (sa *SocketAllocator) Prepare() error {
+	sa.SetStatus(status.Initializing)
 	if err := sa.prepareControlMessageSocket(); err != nil {
 		return errors.Wrap(err, "Failed to prepare control message socket")
 	}
@@ -71,7 +72,8 @@ func (sa *SocketAllocator) Prepare() error {
 	return nil
 }
 
-func (sa *SocketAllocator) Start() error {
+func (sa *SocketAllocator) Start(pid int) error {
+	sa.pid = pid
 	eventSockets := sa.allocator.GetObjects()
 	if err := sa.startSockets(eventSockets); err != nil {
 		return errors.Wrap(err, "Failed to start socket allocator")
@@ -81,15 +83,20 @@ func (sa *SocketAllocator) Start() error {
 	if sa.Configuration.WaitForStart {
 		sa.Logger.Debug("Waiting for start")
 		for _, socket := range eventSockets {
-			socket.WaitForStart()
+			err := socket.WaitForStart(0)
+			if err != nil {
+				return errors.Wrap(err, "Failed to wait for socket start")
+			}
 		}
 	}
 
+	sa.SetStatus(status.Ready)
 	sa.Logger.Debug("Socker allocator started")
 	return nil
 }
 
 func (sa *SocketAllocator) Stop() error {
+	sa.SetStatus(status.Stopping)
 	eventSockets := sa.allocator.GetObjects()
 	for _, eventSocket := range eventSockets {
 		socket := eventSocket
@@ -102,6 +109,7 @@ func (sa *SocketAllocator) Stop() error {
 		}()
 	}
 	sa.stopControlMessageSocket()
+	sa.SetStatus(status.Stopped)
 	return nil
 }
 

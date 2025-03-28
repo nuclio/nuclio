@@ -36,7 +36,7 @@ type ConnectionManager interface {
 	Prepare() error
 
 	// Start begins the operations required for the ConnectionManager to accept and manage connections
-	Start() error
+	Start(pid int) error
 
 	// Stop halts the operations of the ConnectionManager
 	Stop() error

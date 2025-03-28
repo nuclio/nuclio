@@ -60,6 +60,9 @@ type Allocator interface {
 	// SignalTermination signals all event processors to terminate
 	SignalTermination() error
 
+	// Stop stops all event processors and allocator
+	Stop() error
+
 	// IsTerminated returns true if all event processors are terminated
 	IsTerminated() bool
 }
@@ -120,7 +123,7 @@ type EventProcessor interface {
 	Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error
 
 	// WaitForStart blocks until the event processor has fully started
-	WaitForStart()
+	WaitForStart(timeout time.Duration) (err error)
 
 	// RunHandler starts the event processing loop, handling incoming events
 	RunHandler()

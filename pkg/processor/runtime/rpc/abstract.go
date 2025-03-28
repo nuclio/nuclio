@@ -244,6 +244,36 @@ func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, e
 }
 
 func (r *AbstractRuntime) startWrapper() error {
+	err := r.createConnectionManager()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create connection manager")
+	}
+
+	if err = r.connectionManager.Prepare(); err != nil {
+		return errors.Wrap(err, "Failed to prepare connections")
+	}
+
+	if r.processWaiter, err = processwaiter.NewProcessWaiter(); err != nil {
+		return errors.Wrap(err, "Failed to create process waiter")
+	}
+
+	wrapperProcess, err := r.runtime.RunWrapper(r.connectionManager.GetAddressesForWrapperStart())
+	if err != nil {
+		return errors.Wrap(err, "Can't run wrapper")
+	}
+
+	r.wrapperProcess = wrapperProcess
+
+	go r.watchWrapperProcess()
+
+	if err := r.connectionManager.Start(wrapperProcess.Pid); err != nil {
+		return errors.Wrap(err, "Failed to start connection manager")
+	}
+
+	return nil
+}
+
+func (r *AbstractRuntime) createConnectionManager() error {
 	timeout, _ := r.configuration.Spec.GetEventTimeout()
 
 	connectionManagerConfiguration := connection.NewManagerConfigration(
@@ -262,27 +292,6 @@ func (r *AbstractRuntime) startWrapper() error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to create connection manager")
 	}
-	if err = r.connectionManager.Prepare(); err != nil {
-		return errors.Wrap(err, "Failed to prepare connections")
-	}
-
-	if r.processWaiter, err = processwaiter.NewProcessWaiter(); err != nil {
-		return errors.Wrap(err, "Failed to create process waiter")
-	}
-
-	wrapperProcess, err := r.runtime.RunWrapper(r.connectionManager.GetAddressesForWrapperStart())
-	if err != nil {
-		return errors.Wrap(err, "Can't run wrapper")
-	}
-
-	r.wrapperProcess = wrapperProcess
-
-	go r.watchWrapperProcess()
-
-	if err := r.connectionManager.Start(); err != nil {
-		return errors.Wrap(err, "Failed to start connection manager")
-	}
-
 	return nil
 }
 

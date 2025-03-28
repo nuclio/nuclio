@@ -260,7 +260,7 @@ class AbstractWrapper(object):
             bytes_read = await self._loop.sock_recv(sock, bytes_to_read_now)
 
             if not bytes_read:
-                raise WrapperFatalException('Client disconnected')
+                raise EventSocketDisconnected('Client disconnected')
 
             self._unpacker.feed(bytes_read)
             cumulative_bytes_read += len(bytes_read)

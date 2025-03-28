@@ -84,3 +84,7 @@ func (s *asyncSingletonAllocator) SignalTermination() error {
 func (s *asyncSingletonAllocator) IsTerminated() bool {
 	return s.isTerminated
 }
+
+func (s *asyncSingletonAllocator) Stop() error {
+	return s.SignalTermination()
+}
