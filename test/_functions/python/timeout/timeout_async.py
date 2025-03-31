@@ -50,7 +50,7 @@ async def handler(context, event):
     if isinstance(body, bytes):
         body = json.loads(body)
 
-    timeout = parse_duration(body['timeout'])
+    timeout = parse_duration(body.get('timeout'))
     blocking_sleep = body.get("blocking_sleep")
     if timeout is None:
         context.logger.error('bad timeout: %r', event.body)

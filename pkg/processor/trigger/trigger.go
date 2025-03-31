@@ -405,11 +405,11 @@ func (at *AbstractTrigger) IsBusy() bool {
 
 	// enough to check only one
 	if !workers[0].IsAsync() {
-		// if the worker is not async, we can check if the number of workers is not equal to the number of available objects
+		// if the worker is not async, it is enough to check that some workers are handling events
 		return len(workers) != at.WorkerAllocator.GetNumObjectsAvailable()
 	}
 
-	// if the worker is async, we need to check connection allocators availability
+	// if the worker is async, we need to check each worker's connection allocator availability
 	for _, worker := range workers {
 		if worker.IsBusy() {
 			return true

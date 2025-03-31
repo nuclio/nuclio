@@ -213,11 +213,11 @@ func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, funct
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing event")
 	}
 	result, err := connectionInstance.ProcessEvent(event, functionLogger)
-	go func() {
-		// release connection after processing event
-		// in goroutine to avoid blocking the processing
-		r.connectionManager.Release(connectionInstance)
-	}()
+
+	// release connection after processing event
+	// in goroutine to avoid blocking the processing
+	go r.connectionManager.Release(connectionInstance)
+
 	return result, err
 }
 
@@ -227,11 +227,10 @@ func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, fun
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing batch")
 	}
 	result, err := connectionInstance.ProcessEventBatch(batch, functionLogger)
-	go func() {
-		// release connection after processing batch
-		// in goroutine to avoid blocking the processing
-		r.connectionManager.Release(connectionInstance)
-	}()
+
+	// release connection after processing event
+	// in goroutine to avoid blocking the processing
+	go r.connectionManager.Release(connectionInstance)
 	return result, err
 }
 

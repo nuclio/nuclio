@@ -96,7 +96,7 @@ func (bc *AbstractConnectionManager) IsAsync() bool {
 }
 
 func (bc *AbstractConnectionManager) IsBusy() bool {
-	return len(bc.allocator.GetObjects()) == bc.allocator.GetNumObjectsAvailable()
+	return len(bc.allocator.GetObjects()) != bc.allocator.GetNumObjectsAvailable()
 }
 
 func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
@@ -379,68 +379,6 @@ func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, funct
 	return responsesWithErrors, err
 }
 
-func (be *AbstractEventConnection) processItem(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
-	be.functionLogger = functionLogger
-	if err := be.encoder.Encode(item); err != nil {
-		be.functionLogger = nil
-		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
-	}
-
-	// if eventTimeout is 0, we wait for response without timeout
-	// if it is set, we wait either for response or the timeout
-	if be.connectionManager.GetConfig().eventTimeout == 0 {
-		processingResults, ok := <-be.resultChan
-		return be.postProcessEventRegularFlow(processingResults, ok)
-	} else {
-		return be.waitForResponseWithTimeout()
-	}
-}
-
-func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.BatchedResults, error) {
-	ticker := time.NewTicker(be.connectionManager.GetConfig().eventTimeout)
-	defer ticker.Stop()
-
-	select {
-	case processingResults, isClientDisconnected := <-be.resultChan:
-		return be.postProcessEventRegularFlow(processingResults, isClientDisconnected)
-	case <-ticker.C:
-		return be.postProcessEventOnTimeout()
-	}
-}
-
-func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults *result.BatchedResults, isClientDisconnected bool) (*result.BatchedResults, error) {
-	// We don't use defer to reset be.functionLogger since it decreases performance
-	be.functionLogger = nil
-
-	if !isClientDisconnected {
-		return be.postProcessClientDisconnected()
-	}
-	// if processingResults.err is not nil, it means that whole batch processing was failed
-	// or that connection was closed (EOF)
-	if processingResults.Err != nil {
-		// if a client disconnected, we should restart the connection
-		if errors.RootCause(processingResults.Err) == io.EOF {
-			return be.postProcessClientDisconnected()
-		}
-		return nil, processingResults.Err
-	}
-	return processingResults, nil
-}
-
-func (be *AbstractEventConnection) postProcessClientDisconnected() (*result.BatchedResults, error) {
-	msg := "Client disconnected"
-	be.Logger.Error(msg)
-	be.SetStatus(status.RestartRequired)
-	return nil, errors.New(msg)
-}
-
-func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedResults, error) {
-	be.functionLogger = nil
-	be.Logger.WarnWith("Event processing timed out, connection should be restarted")
-	be.SetStatus(status.RestartRequired)
-	return nil, nuclio.NewErrRequestTimeout("Execution timed out")
-}
-
 func (be *AbstractEventConnection) RunHandler() {
 	// don't really need this recover here, but just in case
 	// part of legacy code
@@ -611,6 +549,68 @@ func (be *AbstractEventConnection) Subscribe(kind controlcommunication.ControlMe
 // Unsubscribe unsubscribes from a control message kind
 func (be *AbstractEventConnection) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
 	return nuclio.ErrNotImplemented
+}
+
+func (be *AbstractEventConnection) processItem(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
+	be.functionLogger = functionLogger
+	if err := be.encoder.Encode(item); err != nil {
+		be.functionLogger = nil
+		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
+	}
+
+	// if eventTimeout is 0, we wait for response without timeout
+	// if it is set, we wait either for response or the timeout
+	if be.connectionManager.GetConfig().eventTimeout == 0 {
+		processingResults, ok := <-be.resultChan
+		return be.postProcessEventRegularFlow(processingResults, ok)
+	} else {
+		return be.waitForResponseWithTimeout()
+	}
+}
+
+func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.BatchedResults, error) {
+	ticker := time.NewTicker(be.connectionManager.GetConfig().eventTimeout)
+	defer ticker.Stop()
+
+	select {
+	case processingResults, isClientDisconnected := <-be.resultChan:
+		return be.postProcessEventRegularFlow(processingResults, isClientDisconnected)
+	case <-ticker.C:
+		return be.postProcessEventOnTimeout()
+	}
+}
+
+func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults *result.BatchedResults, isClientDisconnected bool) (*result.BatchedResults, error) {
+	// We don't use defer to reset be.functionLogger since it decreases performance
+	be.functionLogger = nil
+
+	if !isClientDisconnected {
+		return be.postProcessClientDisconnected()
+	}
+	// if processingResults.err is not nil, it means that whole batch processing was failed
+	// or that connection was closed (EOF)
+	if processingResults.Err != nil {
+		// if a client disconnected, we should restart the connection
+		if errors.RootCause(processingResults.Err) == io.EOF {
+			return be.postProcessClientDisconnected()
+		}
+		return nil, processingResults.Err
+	}
+	return processingResults, nil
+}
+
+func (be *AbstractEventConnection) postProcessClientDisconnected() (*result.BatchedResults, error) {
+	msg := "Client disconnected"
+	be.Logger.Error(msg)
+	be.SetStatus(status.RestartRequired)
+	return nil, errors.New(msg)
+}
+
+func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedResults, error) {
+	be.functionLogger = nil
+	be.Logger.WarnWith("Event processing timed out, connection should be restarted")
+	be.SetStatus(status.RestartRequired)
+	return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 }
 
 func (be *AbstractEventConnection) handleResponseMetric(response []byte) {
