@@ -60,8 +60,8 @@ func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 }
 
 func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
-	worker1 := &Worker{index: 0, runtime: &MockRuntime{}}
-	worker2 := &Worker{index: 1, runtime: &MockRuntime{}}
+	worker1 := &Worker{index: 0, runtime: &MockRuntime{}, logger: suite.logger}
+	worker2 := &Worker{index: 1, runtime: &MockRuntime{}, logger: suite.logger}
 	workers := []*Worker{worker1, worker2}
 
 	eventProcessors := make([]eventprocessor.EventProcessor, 2)

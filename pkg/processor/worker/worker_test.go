@@ -90,8 +90,7 @@ func (mr *MockRuntime) Drain() error {
 }
 
 func (mr *MockRuntime) Terminate() error {
-	args := mr.Called()
-	return args.Error(0)
+	return nil
 }
 
 func (mr *MockRuntime) IsBusy() bool {
