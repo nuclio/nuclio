@@ -45,7 +45,14 @@ class WrapperFatalException(Exception):
     pass
 
 
-class EventSocketDisconnected(Exception):
+class EventSocketException(Exception):
+    """
+    Signals about Event Socket disconnect (fatal for sync wrapper, ok for async)
+    """
+    pass
+
+
+class EventSocketDisconnected(EventSocketException):
     """
     Signals about Event Socket disconnect (fatal for sync wrapper, ok for async)
     """
@@ -246,7 +253,7 @@ class AbstractWrapper(object):
         bytes_to_read += int_buf[1] << 16
         bytes_to_read += int_buf[0] << 24
         if bytes_to_read <= 0:
-            raise WrapperFatalException('Illegal message size: {0}'.format(bytes_to_read))
+            raise EventSocketException('Illegal message size: {0}'.format(bytes_to_read))
 
         return bytes_to_read
 

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 
 	"github.com/nuclio/errors"
@@ -80,6 +81,8 @@ func (ca *ConnectionAllocator) Start(pid int) error {
 
 func (ca *ConnectionAllocator) Stop() error {
 	ca.SetStatus(status.Stopping)
+	ca.Logger.DebugWith("Stopping connection allocator",
+		"wrapperPID", ca.pid)
 
 	err := ca.stopAllocator()
 	ca.stopControlMessageSocket()
@@ -96,7 +99,13 @@ func (ca *ConnectionAllocator) Allocate(duration time.Duration) (eventprocessor.
 
 func (ca *ConnectionAllocator) Release(connection eventprocessor.EventProcessor) {
 	// if the processor requires restart, recreate the connection
-	if connection.GetStatus() == status.RestartRequired {
+	currentStatus := connection.GetStatus()
+	switch currentStatus {
+	case status.Stopping, status.Stopped:
+		// if stopped or stopping, do not release the connection
+		// it means that allocator is stopping
+		return
+	case status.RestartRequired:
 		var err error
 		var newConnection []*Connection
 		// Retry connection creation up to 3 times
@@ -143,6 +152,11 @@ func (ca *ConnectionAllocator) Release(connection eventprocessor.EventProcessor)
 				}
 			}
 			// no need to release the connection as it is dead, whole allocator will be restarted
+			// close the connection, if it is in restart required it can never be used
+			if err = connection.Stop(); err != nil {
+				ca.Logger.DebugWith("Failed to stop connection",
+					"err", errors.RootCause(err).Error())
+			}
 			return
 		} else {
 			switch typedConnection := connection.(type) {
@@ -152,10 +166,23 @@ func (ca *ConnectionAllocator) Release(connection eventprocessor.EventProcessor)
 				ca.Logger.WarnWith("Failed to cast connection to *Connection",
 					"connection", connection)
 				ca.SetStatus(status.RestartRequired)
+
+				// close new connection if it isn't castable
+				if err = newConnection[0].Stop(); err != nil {
+					ca.Logger.DebugWith("Failed to stop connection",
+						"err", errors.RootCause(err).Error())
+				}
+				// close the connection, if it is in restart required it can never be used
+				if err = connection.Stop(); err != nil {
+					ca.Logger.DebugWith("Failed to stop connection",
+						"err", errors.RootCause(err).Error())
+				}
+				return
 			}
 		}
+	default:
+		ca.allocator.Release(connection)
 	}
-	ca.allocator.Release(connection)
 }
 
 func (ca *ConnectionAllocator) GetAddressesForWrapperStart() ([]string, string) {
@@ -204,18 +231,33 @@ func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Conn
 
 	// wait for start if required to
 	if ca.Configuration.WaitForStart {
-		ca.Logger.DebugWith("Waiting for start",
-			"connectionsNumber", connectionsNumber,
-			"timeout", timeout.String())
-		for _, eventConnection := range eventConnections {
-			if err := eventConnection.WaitForStart(timeout); err != nil {
-				return nil, errors.Wrap(err,
-					fmt.Sprintf("Failed to wait for connection start, remoteAddr: %s, localAddr: %s",
-						eventConnection.Conn.RemoteAddr().String(), eventConnection.Conn.LocalAddr().String()))
-			}
+		// explicit logs only when there are multiple connections
+		if connectionsNumber > 1 {
+			ca.Logger.DebugWith("Waiting for start",
+				"connectionsNumber", connectionsNumber,
+				"timeout", timeout.String())
 		}
-		ca.Logger.DebugWith("Started successfully",
-			"connectionsNumber", connectionsNumber)
+		errGroup, _ := errgroup.WithContext(context.Background(), ca.Logger)
+		for _, eventConnection := range eventConnections {
+			errGroup.Go(fmt.Sprintf("Wait for connection start %s", eventConnection.Conn.LocalAddr().String()), func() error {
+
+				if err := eventConnection.WaitForStart(timeout); err != nil {
+					// if the connection is not started, close it
+					go eventConnection.Stop() //nolint: errcheck
+					return errors.Wrap(err,
+						fmt.Sprintf("Failed to wait for connection start, remoteAddr: %s, localAddr: %s",
+							eventConnection.Conn.RemoteAddr().String(), eventConnection.Conn.LocalAddr().String()))
+				}
+				return nil
+			})
+		}
+		if err := errGroup.Wait(); err != nil {
+			return nil, errors.Wrap(err, "At least one connection failed to start")
+		}
+		if connectionsNumber > 1 {
+			ca.Logger.DebugWith("Started successfully",
+				"connectionsNumber", connectionsNumber)
+		}
 	}
 	for _, eventConnection := range eventConnections {
 		eventConnection.status.SetStatus(status.Ready)

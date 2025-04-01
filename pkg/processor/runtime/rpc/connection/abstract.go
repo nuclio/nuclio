@@ -24,6 +24,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -242,6 +243,8 @@ type AbstractConnection struct {
 	Logger     logger.Logger
 	encoder    encoder.EventEncoder
 	cancelChan chan struct{}
+	// ensure stopping only once
+	stopOnce sync.Once
 
 	Conn    net.Conn
 	Address string
@@ -251,7 +254,11 @@ type AbstractConnection struct {
 }
 
 func (b *AbstractConnection) Stop() {
-	b.cancelChan <- struct{}{}
+	select {
+	// try to send a signal to stop the connection (send only if the channel is not full)
+	case b.cancelChan <- struct{}{}:
+	default:
+	}
 }
 
 func (b *AbstractConnection) SetEncoder(encoderInstance encoder.EventEncoder) {
@@ -311,6 +318,7 @@ func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager Co
 		Logger:     parentLogger.GetChild("event"),
 		cancelChan: make(chan struct{}, 1),
 		status:     status.NewSafeStatus(status.Initializing),
+		stopOnce:   sync.Once{},
 	}
 	return &AbstractEventConnection{
 		AbstractConnection: abstractConnection,
@@ -379,24 +387,30 @@ func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, funct
 	return responsesWithErrors, err
 }
 
+// RunHandler runs the event connection handler.
+// This is the main loop that reads from the connection
+// and sends the results to the result channel.
+// It also handles the cancel signal.
+// However, since the operation of waiting for data in the channel is blocking, there might be a chance
+// that it gets stuck either on reading from a connection or writing to the channel, and isn't fast enough to handle
+// the cancel signal. In that case, the Stop() flow will close the channel and the goroutine will panic.
+// This is handled by the recover() function in the defer statement.
 func (be *AbstractEventConnection) RunHandler() {
-	// don't really need this recover here, but just in case
-	// part of legacy code
-	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
-		be.Logger,
-		"handling event wrapper output (Restart called?)",
-		&common.CatchAndLogPanicOptions{
-			Args:          nil,
-			CustomHandler: nil,
-		})
+	defer func() {
+		if r := recover(); r != nil {
+			// if channel is closed
+			// it means resultChan was closed in stop - it is expected flow, no need to log anything here
+			if err, ok := r.(error); ok && err.Error() == "send on closed channel" {
+				return
+			}
+			be.Logger.WarnWith("Received unexpected panic in RunHandler",
+				"error", r)
+		}
+	}()
 
 	outReader := bufio.NewReader(be.Conn)
 
 	defer close(be.cancelChan)
-
-	// closing chan result here to avoid unnecessary panic on writing to the channel below
-	// if the channel is closed while waiting for response in it, this will be handled in processItem() with no issues
-	defer close(be.resultChan)
 
 	// Read logs & output
 	for {
@@ -404,7 +418,7 @@ func (be *AbstractEventConnection) RunHandler() {
 
 		// TODO: sync between event and control output handlers using a shared context
 		case <-be.cancelChan:
-			be.Logger.Warn("Event output handler was canceled (Restart called?)")
+			//be.Logger.Warn("Event output handler was canceled (Restart called?)")
 			return
 
 		default:
@@ -414,9 +428,23 @@ func (be *AbstractEventConnection) RunHandler() {
 			data, unmarshalledResults.Err = outReader.ReadBytes('\n')
 
 			if unmarshalledResults.Err != nil {
-				be.Logger.WarnWith(string(common.FailedReadFromEventConnection),
-					"err", unmarshalledResults.Err.Error())
-				be.resultChan <- unmarshalledResults
+				// if matches one of the errors, no need to log it, expected during restart/stop
+				if !common.MatchStringPatterns([]string{
+					"EOF",
+					"connection reset by peer",
+					"use of closed network connection",
+				}, unmarshalledResults.Err.Error()) {
+					be.Logger.WarnWith(string(common.FailedReadFromEventConnection),
+						"err", unmarshalledResults.Err.Error())
+				}
+
+				select {
+				// if no receiver is waiting for the result, we should not send it
+				// otherwise it may get stuck here and block select
+				case be.resultChan <- unmarshalledResults:
+				default:
+				}
+
 				continue
 			}
 
@@ -465,17 +493,23 @@ func (be *AbstractEventConnection) SetStatus(newStatus status.Status) {
 // Stop stops the connection
 // This is the only place where the connection object should be properly stopped
 // meaning closing all channels and connection
-func (be *AbstractEventConnection) Stop() error {
-	if be.GetStatus() == status.Stopped {
-		// already stopped
-		return nil
-	}
+func (be *AbstractEventConnection) Stop() (err error) {
+	be.stopOnce.Do(func() {
+		err = be.stop()
+	})
+	return err
+}
+
+func (be *AbstractEventConnection) stop() error {
 	be.SetStatus(status.Stopping)
 	be.AbstractConnection.Stop()
 
 	// close start chan
 	// other two channels (result and cancel chan) are closed in the run handler
 	close(be.startChan)
+
+	// if the channel is closed while waiting for response in it, this will be handled in processItem() with no issues
+	close(be.resultChan)
 
 	err := be.Conn.Close()
 	be.SetStatus(status.Stopped)
@@ -502,6 +536,9 @@ func (be *AbstractEventConnection) Replace(newConnection *AbstractEventConnectio
 		be.Logger.WarnWith("Failed to stop connection",
 			"error", err)
 	}
+	// reset stopOnce to allow stop() to be called again
+	be.stopOnce = sync.Once{}
+
 	// replace all entities with new connection
 	be.AbstractConnection = newConnection.AbstractConnection
 	be.resultChan = newConnection.resultChan
@@ -608,7 +645,8 @@ func (be *AbstractEventConnection) postProcessClientDisconnected() (*result.Batc
 
 func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedResults, error) {
 	be.functionLogger = nil
-	be.Logger.WarnWith("Event processing timed out, connection should be restarted")
+	be.Logger.WarnWith("Event processing timed out, connection should be restarted",
+		"localAddress", be.Conn.LocalAddr().String())
 	be.SetStatus(status.RestartRequired)
 	return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 }
@@ -658,6 +696,12 @@ func (bc *AbstractControlMessageConnection) SetBroker(abstractBroker *controlcom
 		bc.encoder,
 		bc.Logger,
 		abstractBroker)
+}
+
+func (bc *AbstractControlMessageConnection) Stop() {
+	bc.stopOnce.Do(func() {
+		bc.AbstractConnection.Stop()
+	})
 }
 
 func (bc *AbstractControlMessageConnection) GetBroker() controlcommunication.ControlMessageBroker {
