@@ -429,7 +429,7 @@ func (be *AbstractEventConnection) RunHandler() {
 
 			if unmarshalledResults.Err != nil {
 				// if matches one of the errors, no need to log it, expected during restart/stop
-				if !common.MatchStringPatterns([]string{
+				if !common.StringSliceContainsString([]string{
 					"EOF",
 					"connection reset by peer",
 					"use of closed network connection",
@@ -497,22 +497,6 @@ func (be *AbstractEventConnection) Stop() (err error) {
 	be.stopOnce.Do(func() {
 		err = be.stop()
 	})
-	return err
-}
-
-func (be *AbstractEventConnection) stop() error {
-	be.SetStatus(status.Stopping)
-	be.AbstractConnection.Stop()
-
-	// close start chan
-	// other two channels (result and cancel chan) are closed in the run handler
-	close(be.startChan)
-
-	// if the channel is closed while waiting for response in it, this will be handled in processItem() with no issues
-	close(be.resultChan)
-
-	err := be.Conn.Close()
-	be.SetStatus(status.Stopped)
 	return err
 }
 
@@ -603,6 +587,22 @@ func (be *AbstractEventConnection) processItem(item interface{}, functionLogger 
 	} else {
 		return be.waitForResponseWithTimeout()
 	}
+}
+
+func (be *AbstractEventConnection) stop() error {
+	be.SetStatus(status.Stopping)
+	be.AbstractConnection.Stop()
+
+	// close start chan
+	// other two channels (result and cancel chan) are closed in the run handler
+	close(be.startChan)
+
+	// if the channel is closed while waiting for response in it, this will be handled in processItem() with no issues
+	close(be.resultChan)
+
+	err := be.Conn.Close()
+	be.SetStatus(status.Stopped)
+	return err
 }
 
 func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.BatchedResults, error) {
