@@ -428,14 +428,15 @@ func (be *AbstractEventConnection) RunHandler() {
 			data, unmarshalledResults.Err = outReader.ReadBytes('\n')
 
 			if unmarshalledResults.Err != nil {
-				// if matches one of the errors, no need to log it, expected during restart/stop
-				if !common.StringSliceContainsString([]string{
+				// if matches one of the errors and status is not ready, no need to log it, expected during restart/stop
+				// if status is ready, we should always log the error
+				if be.GetStatus() == status.Ready || !common.StringSliceContainsStringSuffix([]string{
 					"EOF",
 					"connection reset by peer",
 					"use of closed network connection",
 				}, unmarshalledResults.Err.Error()) {
 					be.Logger.WarnWith(string(common.FailedReadFromEventConnection),
-						"err", unmarshalledResults.Err.Error())
+						"err", errors.RootCause(unmarshalledResults.Err).Error())
 				}
 
 				select {

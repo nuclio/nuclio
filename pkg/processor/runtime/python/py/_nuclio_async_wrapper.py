@@ -168,11 +168,13 @@ class AsyncWrapper(AbstractWrapper):
                 # Release event reference
                 del event
 
-        except (ConnectionResetError,
-                asyncio.IncompleteReadError,
-                BrokenPipeError,
-                EventSocketDisconnected,
-                EventSocketException):
+        except (
+            ConnectionResetError,
+            asyncio.IncompleteReadError,
+            BrokenPipeError,
+            EventSocketDisconnected,
+            EventSocketException,
+        ):
             self._logger.info("Client disconnected")
         except WrapperFatalException as exc:
             await self._on_serving_error(exc, sock)

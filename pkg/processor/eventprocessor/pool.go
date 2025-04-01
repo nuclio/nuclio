@@ -131,10 +131,9 @@ func (sa *syncPoolAllocator) GetNumObjectsAvailable() int {
 }
 
 func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
-	// Clean up if there are any objects already
-	// sa.Stop() does clean up of sa.objects and close the channel
-	// if `objects` and `sa.objects` are the same reference, objects will be cleaned up as well,
-	// to avoid this, create a copy of the `objects` slice
+	// Stop() cleans up sa.objects, so if `objects` and `sa.objects` are the same reference,
+	// the new objects will be cleaned up as well.
+	// To avoid this, we create a copy of the `objects` slice
 	objects = append([]EventProcessor(nil), objects...)
 
 	if err := sa.Stop(); err != nil {
@@ -142,7 +141,7 @@ func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
 			"error", err.Error())
 	}
 
-	// Stop marks the allocator as terminated and closes the channel
+	// Stop() marks the allocator as terminated and closes the channel,
 	// so we can safely set new objects
 	sa.isTerminated.Store(false)
 

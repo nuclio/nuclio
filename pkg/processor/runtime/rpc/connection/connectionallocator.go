@@ -98,7 +98,7 @@ func (ca *ConnectionAllocator) Allocate(duration time.Duration) (eventprocessor.
 }
 
 func (ca *ConnectionAllocator) Release(connection eventprocessor.EventProcessor) {
-	// if the processor requires restart, recreate the connection
+	// if the connection requires restart, recreate the connection
 	currentStatus := connection.GetStatus()
 	switch currentStatus {
 	case status.Stopping, status.Stopped:
@@ -200,7 +200,7 @@ func (ca *ConnectionAllocator) startEventConnections() error {
 		return errors.Wrap(err, "Failed to create connections")
 	}
 
-	eventProcessors := connectionsToEventProcessors(eventConnections)
+	eventProcessors := ca.connectionsToEventProcessors(eventConnections)
 
 	// set objects in allocator, which is the only object that holds connections
 	if err := ca.allocator.SetObjects(eventProcessors); err != nil {
@@ -216,7 +216,7 @@ func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Conn
 	timeout := 30 * time.Second
 
 	for i := 0; i < connectionsNumber; i++ {
-		conn, err := retryableDial(ca.serverAddress, 30, 1*time.Second, timeout)
+		conn, err := ca.retryableDial(ca.serverAddress, 30, 1*time.Second, timeout)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to establish connection")
 		}
@@ -266,7 +266,7 @@ func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Conn
 	return eventConnections, nil
 }
 
-func retryableDial(address string,
+func (ca *ConnectionAllocator) retryableDial(address string,
 	maxRetries int,
 	retryInterval,
 	dialTimeout time.Duration) (net.Conn, error) {
@@ -294,7 +294,7 @@ func retryableDial(address string,
 	return nil, errors.Wrap(err, "Failed to establish connection after retries")
 }
 
-func connectionsToEventProcessors(eventConnections []*Connection) []eventprocessor.EventProcessor {
+func (ca *ConnectionAllocator) connectionsToEventProcessors(eventConnections []*Connection) []eventprocessor.EventProcessor {
 	eventProcessors := make([]eventprocessor.EventProcessor, len(eventConnections))
 	for i, eventConnection := range eventConnections {
 		eventProcessors[i] = eventConnection
