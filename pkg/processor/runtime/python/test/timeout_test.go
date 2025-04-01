@@ -82,7 +82,6 @@ func (suite *timeoutSuite) TestTimeout() {
 
 			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
-
 		// retry until runtime is back
 		{
 			RequestBody:    suite.genTimeoutRequest(0, true),
@@ -119,8 +118,8 @@ func (suite *timeoutSuite) TestTimeoutAsync() {
 	sleepTime := 5 * time.Second
 
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		// sending regular request, 200 code expected
 		{
-			// sending regular request, 200 code expected
 			RequestBody:    suite.genTimeoutRequest(time.Millisecond, false),
 			RequestHeaders: requestHeaders,
 
@@ -132,14 +131,13 @@ func (suite *timeoutSuite) TestTimeoutAsync() {
 			},
 			ExpectedResponseStatusCode: &okStatusCode,
 		},
+		// sending request with non-blocking sleep, timeout expected
 		{
-			// sending request with non-blocking sleep, timeout expected
 			RequestBody:    suite.genTimeoutRequest(sleepTime, false),
 			RequestHeaders: requestHeaders,
 
 			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
-
 		// sending another request, 200 code expected (should be processed by another connection)
 		{
 			RequestBody:    suite.genTimeoutRequest(0, false),
@@ -156,7 +154,6 @@ func (suite *timeoutSuite) TestTimeoutAsync() {
 			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
 		// retry until runtime is back
-
 		{
 			RequestBody:    suite.genTimeoutRequest(0, true),
 			RequestHeaders: requestHeaders,
@@ -165,6 +162,7 @@ func (suite *timeoutSuite) TestTimeoutAsync() {
 			RetryUntilSuccessfulInterval:   100 * time.Millisecond,
 			RetryUntilSuccessfulDuration:   2 * time.Minute,
 		},
+		// sending another request, 200 code expected, verify that wrapper PID changed
 		{
 			RequestBody:    suite.genTimeoutRequest(time.Millisecond, true),
 			RequestHeaders: requestHeaders,
