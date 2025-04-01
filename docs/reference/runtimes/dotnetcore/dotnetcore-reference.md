@@ -71,7 +71,7 @@ ARG NUCLIO_BASE_IMAGE=mcr.microsoft.com/dotnet/sdk:7.0
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
-FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+FROM gcr.io/iguazio/uhttpc:0.0.2-amd64 as uhttpc
 
 # Builds source, supplies processor binary and handler plugin
 FROM ${NUCLIO_ONBUILD_IMAGE} as builder
