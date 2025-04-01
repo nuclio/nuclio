@@ -83,8 +83,7 @@ func (sa *SocketAllocator) Start(pid int) error {
 	if sa.Configuration.WaitForStart {
 		sa.Logger.Debug("Waiting for start")
 		for _, socket := range eventSockets {
-			err := socket.WaitForStart(0)
-			if err != nil {
+			if err := socket.WaitForStart(0); err != nil {
 				return errors.Wrap(err, "Failed to wait for socket start")
 			}
 		}

@@ -98,7 +98,6 @@ func (ca *ConnectionAllocator) Allocate(duration time.Duration) (eventprocessor.
 }
 
 func (ca *ConnectionAllocator) Release(connection eventprocessor.EventProcessor) {
-	// if the connection requires restart, recreate the connection
 	currentStatus := connection.GetStatus()
 	switch currentStatus {
 	case status.Stopping, status.Stopped:

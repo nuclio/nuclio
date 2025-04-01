@@ -327,6 +327,7 @@ func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager Co
 		connectionManager:  connectionManager,
 	}
 }
+
 func (be *AbstractEventConnection) WaitForStart(timeout time.Duration) error {
 	var ok bool
 	if timeout <= 0 {
