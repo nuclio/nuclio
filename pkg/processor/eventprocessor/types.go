@@ -60,6 +60,9 @@ type Allocator interface {
 	// SignalTermination signals all event processors to terminate
 	SignalTermination() error
 
+	// Stop stops all event processors and allocator
+	Stop() error
+
 	// IsTerminated returns true if all event processors are terminated
 	IsTerminated() bool
 }
@@ -89,6 +92,9 @@ type EventProcessor interface {
 	// GetStatus returns event processor status
 	GetStatus() status.Status
 
+	// SetStatus sets event processor status
+	SetStatus(status.Status)
+
 	// Stop stops event processor
 	Stop() error
 
@@ -101,11 +107,8 @@ type EventProcessor interface {
 	// GetBinaryCloudEvent retrieves the last processed binary CloudEvent
 	GetBinaryCloudEvent() *cloudevent.Binary
 
-	// GetEventTime returns the timestamp of the last processed event
-	GetEventTime() *time.Time
-
-	// ResetEventTime resets the stored event timestamp to an initial state
-	ResetEventTime()
+	// RestartRequired returns whether the event processor requires a restart
+	RestartRequired() bool
 
 	// Restart restarts the event processor, if supported
 	Restart() error
@@ -120,8 +123,14 @@ type EventProcessor interface {
 	Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error
 
 	// WaitForStart blocks until the event processor has fully started
-	WaitForStart()
+	WaitForStart(timeout time.Duration) (err error)
 
 	// RunHandler starts the event processing loop, handling incoming events
 	RunHandler()
+
+	// IsAsync checks if the event processor is asynchronous
+	IsAsync() bool
+
+	// IsBusy checks if the event processor is busy processing events
+	IsBusy() bool
 }

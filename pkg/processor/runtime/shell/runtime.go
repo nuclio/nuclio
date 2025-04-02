@@ -45,6 +45,10 @@ type shell struct {
 	commandInPath  bool
 	ctx            context.Context
 	restartChannel chan struct{}
+
+	// timeout for event handling
+	// if 0, then no timeout
+	timeout time.Duration
 }
 
 // NewRuntime returns a new shell runtime
@@ -56,12 +60,14 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
+	timeout, _ := configuration.Configuration.Spec.GetEventTimeout()
 
 	// create the command string
 	newShellRuntime := &shell{
 		AbstractRuntime: abstractRuntime,
 		ctx:             context.Background(),
 		configuration:   configuration,
+		timeout:         timeout,
 	}
 
 	// update it with some stuff so that we don't have to do this each invocation
@@ -71,7 +77,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	}
 
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
-	newShellRuntime.restartChannel = make(chan struct{}, 1)
+	newShellRuntime.restartChannel = make(chan struct{})
 
 	newShellRuntime.commandInPath, err = newShellRuntime.commandIsInPath()
 	if err != nil {
@@ -109,6 +115,22 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	go s.processEvent(ctx, command, event, responseChan)
 
 	// wait for event response, return once it is done (or errored)
+	return s.waitForResponse(ctx, responseChan, cancel)
+}
+
+func (s *shell) IsBusy() bool {
+	// there is no way to identify it properly
+	// but since shell runtime doesn't support async processing,
+	// worker should be busy and we won't get to this point
+	return false
+}
+
+func (s *shell) waitForResponse(ctx context.Context, responseChan chan nuclio.Response, cancel func()) (interface{}, error) {
+	if s.timeout > 0 {
+		return s.waitForResponseWithTimeout(ctx, responseChan, cancel)
+	}
+
+	// wait for event response, return once it is done (or errored)
 	for {
 		select {
 		case response := <-responseChan:
@@ -120,6 +142,32 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 		case <-s.restartChannel:
 			s.Logger.Warn("Cancelling execution due to an ongoing restart")
 			cancel()
+		}
+	}
+}
+
+func (s *shell) waitForResponseWithTimeout(ctx context.Context, responseChan chan nuclio.Response, cancel func()) (interface{}, error) {
+	ticker := time.NewTicker(s.timeout)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case response := <-responseChan:
+			return response, nil
+
+		case <-ctx.Done():
+			return nil, nuclio.NewErrRequestTimeout("Failed waiting for function execution")
+
+		case <-s.restartChannel:
+			s.Logger.Warn("Cancelling execution due to an ongoing restart")
+			cancel()
+
+		case <-ticker.C:
+			s.SetStatus(status.RestartRequired)
+			s.Logger.WarnWithCtx(ctx,
+				"Timeout waiting for event processing to finish, restart required",
+				"timeout", s.timeout.String())
+			return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 		}
 	}
 }
@@ -270,21 +318,31 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 }
 
 func (s *shell) Restart() error {
+	s.Logger.Warn("Shell runtime is restarting")
 	if err := s.Stop(); err != nil {
 		return errors.Wrap(err, "Failed to stop runtime")
 	}
-	s.Logger.Warn("Restarting")
-	s.restartChannel <- struct{}{}
+	select {
+
+	// send to the channel only if receiver is ready
+	case s.restartChannel <- struct{}{}:
+	default:
+	}
 	return s.Start()
 }
 
 func (s *shell) Start() error {
 	s.SetStatus(status.Ready)
+	s.Logger.DebugWith("Shell runtime started")
 	return nil
 }
 
 func (s *shell) SupportsRestart() bool {
 	return true
+}
+
+func (s *shell) RestartRequired() bool {
+	return s.GetStatus() == status.RestartRequired
 }
 
 func (s *shell) commandIsInPath() (bool, error) {

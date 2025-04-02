@@ -81,6 +81,10 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 	return r.processEventAndWaitForResult(event, functionLogger)
 }
 
+func (r *AbstractRuntime) IsBusy() bool {
+	return r.connectionManager.IsBusy()
+}
+
 // ProcessBatch processes a batch of events
 func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	return r.processBatchAndWaitForResult(batch, functionLogger)
@@ -139,6 +143,11 @@ func (r *AbstractRuntime) Restart() error {
 // GetSocketType returns the type of socket the runtime works with (unix/tcp)
 func (r *AbstractRuntime) GetSocketType() connection.SocketType {
 	return connection.UnixSocket
+}
+
+// RestartRequired returns whether the runtime requires a restart
+func (r *AbstractRuntime) RestartRequired() bool {
+	return r.connectionManager.GetStatus() == status.RestartRequired
 }
 
 // WaitForStart returns whether the runtime supports sending an indication that it started
@@ -203,7 +212,13 @@ func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, funct
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing event")
 	}
-	return connectionInstance.ProcessEvent(event, functionLogger)
+	result, err := connectionInstance.ProcessEvent(event, functionLogger)
+
+	// release connection after processing event
+	// in goroutine to avoid blocking the processing
+	go r.connectionManager.Release(connectionInstance)
+
+	return result, err
 }
 
 func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
@@ -211,7 +226,12 @@ func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, fun
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing batch")
 	}
-	return connectionInstance.ProcessEventBatch(batch, functionLogger)
+	result, err := connectionInstance.ProcessEventBatch(batch, functionLogger)
+
+	// release connection after processing event
+	// in goroutine to avoid blocking the processing
+	go r.connectionManager.Release(connectionInstance)
+	return result, err
 }
 
 func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, error) {
@@ -223,21 +243,11 @@ func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, e
 }
 
 func (r *AbstractRuntime) startWrapper() error {
-	connectionManagerConfiguration := connection.NewManagerConfigration(
-		r.runtime.SupportsControlCommunication(),
-		r.runtime.WaitForStart(),
-		r.runtime.GetSocketType(),
-		r.runtime.GetEventEncoder,
-		r.Statistics,
-		r.configuration.WorkerID,
-		r.configuration.Mode,
-	)
-
-	var err error
-	r.connectionManager, err = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
+	err := r.createConnectionManager()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create connection manager")
 	}
+
 	if err = r.connectionManager.Prepare(); err != nil {
 		return errors.Wrap(err, "Failed to prepare connections")
 	}
@@ -255,10 +265,32 @@ func (r *AbstractRuntime) startWrapper() error {
 
 	go r.watchWrapperProcess()
 
-	if err := r.connectionManager.Start(); err != nil {
+	if err := r.connectionManager.Start(wrapperProcess.Pid); err != nil {
 		return errors.Wrap(err, "Failed to start connection manager")
 	}
 
+	return nil
+}
+
+func (r *AbstractRuntime) createConnectionManager() error {
+	timeout, _ := r.configuration.Spec.GetEventTimeout()
+
+	connectionManagerConfiguration := connection.NewManagerConfigration(
+		r.runtime.SupportsControlCommunication(),
+		r.runtime.WaitForStart(),
+		r.runtime.GetSocketType(),
+		r.runtime.GetEventEncoder,
+		r.Statistics,
+		r.configuration.WorkerID,
+		r.configuration.Mode,
+		timeout,
+	)
+	var err error
+
+	r.connectionManager, err = connection.NewConnectionManager(r.Logger, *r.configuration, connectionManagerConfiguration)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create connection manager")
+	}
 	return nil
 }
 

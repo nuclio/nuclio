@@ -23,6 +23,7 @@ import nuclio_sdk.logger
 from wrapper_common import (
     WrapperFatalException,
     EventSocketDisconnected,
+    EventSocketException,
     JSONFormatterOverEventSocket,
     AbstractWrapper,
     create_logger,
@@ -104,7 +105,7 @@ class Wrapper(AbstractWrapper):
                 # allow event to be garbage collected by deleting the reference
                 del event
 
-            except (WrapperFatalException, EventSocketDisconnected) as exc:
+            except (WrapperFatalException, EventSocketDisconnected, EventSocketException) as exc:
                 await self._on_serving_error(exc, self._event_sock)
 
                 # explode, unrecoverable exception

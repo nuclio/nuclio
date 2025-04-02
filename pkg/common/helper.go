@@ -131,6 +131,16 @@ func StringSliceContainsStringPrefix(prefixes []string, str string) bool {
 	return false
 }
 
+// StringSliceContainsStringSuffix returns whether the input str has suffix
+func StringSliceContainsStringSuffix(prefixes []string, str string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasSuffix(str, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // StringSliceContainsStringCaseInsensitive returns whether the input str is in the slice case-insensitive
 func StringSliceContainsStringCaseInsensitive(slice []string, str string) bool {
 	for _, stringInSlice := range slice {

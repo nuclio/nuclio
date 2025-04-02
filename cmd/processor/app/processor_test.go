@@ -32,7 +32,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -208,6 +207,11 @@ func (t *testTrigger) GetStatistics() *trigger.Statistics {
 	return nil
 }
 
+func (t *testTrigger) IsBusy() bool {
+	args := t.Called()
+	return args.Bool(0)
+}
+
 func (t *testTrigger) GetWorkers() []eventprocessor.EventProcessor {
 	t.Called()
 	return nil
@@ -228,11 +232,6 @@ func (t *testTrigger) GetProjectName() string {
 	return ""
 }
 
-func (t *testTrigger) TimeoutWorker(worker eventprocessor.EventProcessor) error {
-	t.Called(worker)
-	return nil
-}
-
 func (t *testTrigger) SignalWorkersToDrain() error {
 	t.Called()
 	return nil
@@ -246,14 +245,6 @@ func (t *testTrigger) SignalWorkersToTerminate() error {
 func (t *testTrigger) SignalWorkersToContinue() error {
 	t.Called()
 	return nil
-}
-
-func (t *testTrigger) PreBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
-	t.Called(batch, workerInstance)
-}
-
-func (t *testTrigger) PostBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
-	t.Called(batch, workerInstance)
 }
 
 func TestTriggerTestSuite(t *testing.T) {

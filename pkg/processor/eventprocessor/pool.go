@@ -19,8 +19,10 @@ package eventprocessor
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 
 	"github.com/nuclio/errors"
@@ -33,14 +35,16 @@ type syncPoolAllocator struct {
 	objects     []EventProcessor
 	statistics  safeAllocatorStatistics
 
-	isTerminated bool
+	isTerminated atomic.Bool
 }
 
 func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) (Allocator, error) {
 	newFixedPool := &syncPoolAllocator{
-		logger:     parentLogger.GetChild("sync_pool_allocator"),
-		statistics: safeAllocatorStatistics{},
+		logger:       parentLogger.GetChild("sync_pool_allocator"),
+		statistics:   safeAllocatorStatistics{},
+		isTerminated: atomic.Bool{},
 	}
+
 	if err := newFixedPool.SetObjects(objects); err != nil {
 		return nil, errors.Wrap(err, "Failed to create sync pool allocator")
 	}
@@ -86,21 +90,35 @@ func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, er
 	}
 }
 
-func (sa *syncPoolAllocator) Stop() {
+func (sa *syncPoolAllocator) Stop() error {
 	// Stop the old objects that are being cleaned up
-	for _, object := range sa.objects {
-		if err := object.Stop(); err != nil {
-			sa.logger.WarnWith("Failed to stop object",
-				"error", err)
-		}
+	if err := sa.SignalTermination(); err != nil {
+		sa.logger.DebugWith("Failed to stop objects in allocator",
+			"error", err.Error())
 	}
 
+	// close channel
 	if sa.objectsChan != nil {
 		close(sa.objectsChan)
 	}
+	// clean up objects
+	clear(sa.objects)
+	return nil
 }
 
 func (sa *syncPoolAllocator) Release(object EventProcessor) {
+	if sa.IsTerminated() {
+		sa.logger.DebugWith("Allocator is terminated, not releasing object",
+			"object", object.GetIndex())
+		return
+	}
+	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
+		sa.logger,
+		"Release object (Allocator restarted ?)",
+		&common.CatchAndLogPanicOptions{
+			Args:          nil,
+			CustomHandler: nil,
+		})
 	sa.objectsChan <- object
 }
 
@@ -113,8 +131,19 @@ func (sa *syncPoolAllocator) GetNumObjectsAvailable() int {
 }
 
 func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
-	// Clean ups if there are any objects already
-	sa.Stop()
+	// Stop() cleans up sa.objects, so if `objects` and `sa.objects` are the same reference,
+	// the new objects will be cleaned up as well.
+	// To avoid this, we create a copy of the `objects` slice
+	objects = append([]EventProcessor(nil), objects...)
+
+	if err := sa.Stop(); err != nil {
+		sa.logger.WarnWith("Failed to stop objects in allocator",
+			"error", err.Error())
+	}
+
+	// Stop() marks the allocator as terminated and closes the channel,
+	// so we can safely set new objects
+	sa.isTerminated.Store(false)
 
 	// Set new objects and initialize channels with the length of new objects
 	sa.objects = objects
@@ -190,11 +219,11 @@ func (sa *syncPoolAllocator) SignalContinue() error {
 
 func (sa *syncPoolAllocator) SignalTermination() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), sa.logger)
-	sa.isTerminated = true
+	sa.isTerminated.Store(true)
 	for _, objectInstance := range sa.GetObjects() {
 		objectInstance := objectInstance
 
-		errGroup.Go(fmt.Sprintf("Terminate worker %d", objectInstance.GetIndex()), func() error {
+		errGroup.Go(fmt.Sprintf("Terminate object %d", objectInstance.GetIndex()), func() error {
 
 			if err := objectInstance.Terminate(); err != nil {
 				return errors.Wrapf(err, "Failed to signal object %d to terminate", objectInstance.GetIndex())
@@ -211,5 +240,5 @@ func (sa *syncPoolAllocator) SignalTermination() error {
 }
 
 func (sa *syncPoolAllocator) IsTerminated() bool {
-	return sa.isTerminated
+	return sa.isTerminated.Load()
 }

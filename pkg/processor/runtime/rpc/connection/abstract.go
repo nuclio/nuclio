@@ -23,12 +23,13 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
@@ -55,6 +56,10 @@ type AbstractConnectionManager struct {
 
 	controlMessageSocket *ControlMessageSocket
 	allocator            eventprocessor.Allocator
+
+	status *status.SafeStatus
+	// wrapper PID, used to identify connection allocator
+	pid int
 }
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (*AbstractConnectionManager, error) {
@@ -64,20 +69,15 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 		MaxConnectionsNum:    1,
 		RuntimeConfiguration: runtimeConfiguration,
 		Configuration:        configuration,
+		status:               status.NewSafeStatus(status.Initializing),
 	}
 	var err error
 	if runtimeConfiguration.AsyncConfig != nil {
 		abstractConnectionManager.MinConnectionsNum = runtimeConfiguration.AsyncConfig.MinConnectionsNumber
 		abstractConnectionManager.MaxConnectionsNum = runtimeConfiguration.AsyncConfig.MaxConnectionsNumber
 	}
-
-	if abstractConnectionManager.MinConnectionsNum == 1 && abstractConnectionManager.MaxConnectionsNum == 1 {
-		// TODO: add support sync singleton
-		abstractConnectionManager.allocator = eventprocessor.NewAsyncSingletonAllocator(abstractConnectionManager.Logger, nil)
-	} else {
-		if abstractConnectionManager.allocator, err = eventprocessor.NewSyncPoolAllocator(abstractConnectionManager.Logger, nil); err != nil {
-			return nil, err
-		}
+	if err = abstractConnectionManager.createAllocator(); err != nil {
+		return nil, errors.Wrap(err, "Failed to create allocator")
 	}
 
 	return abstractConnectionManager, nil
@@ -88,8 +88,39 @@ func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {
 	bc.Configuration.Statistics.DurationMilliSecondsSum += uint64(durationSec * 1000)
 }
 
+func (bc *AbstractConnectionManager) GetConfig() ManagerConfigration {
+	return *bc.Configuration
+}
+
+func (bc *AbstractConnectionManager) IsAsync() bool {
+	return bc.RuntimeConfiguration.Mode == functionconfig.AsyncTriggerWorkMode
+}
+
+func (bc *AbstractConnectionManager) IsBusy() bool {
+	return len(bc.allocator.GetObjects()) != bc.allocator.GetNumObjectsAvailable()
+}
+
 func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
-	//bc.abstractRuntime.SetStatus(newStatus)
+	bc.status.SetStatus(newStatus)
+}
+
+func (bc *AbstractConnectionManager) createAllocator() error {
+	var err error
+	if bc.MinConnectionsNum == 1 && bc.MaxConnectionsNum == 1 {
+		// TODO: add support sync singleton
+		bc.allocator = eventprocessor.NewAsyncSingletonAllocator(
+			bc.Logger,
+			nil)
+	} else if bc.allocator, err = eventprocessor.NewSyncPoolAllocator(
+		bc.Logger,
+		nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (bc *AbstractConnectionManager) GetStatus() status.Status {
+	return bc.status.GetStatus()
 }
 
 // PrepareControlMessageSocket prepares control message socket for processing
@@ -124,14 +155,6 @@ func (bc *AbstractConnectionManager) startControlMessageSocket() error {
 		bc.Logger.Debug("Successfully established connection for control socket")
 	}
 	return nil
-}
-
-func (bc *AbstractConnectionManager) stopControlMessageSocket() {
-	if bc.controlMessageSocket != nil {
-		go func() {
-			bc.controlMessageSocket.Stop()
-		}()
-	}
 }
 
 // Create a listener on unix domain docker, return listener, path to socket and error
@@ -199,21 +222,43 @@ func (bc *AbstractConnectionManager) createTCPListener() (net.Listener, string, 
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
+func (bc *AbstractConnectionManager) stopAllocator() error {
+	// stop allocator
+	if err := bc.allocator.Stop(); err != nil {
+		bc.Logger.WarnWith("Failed to stop allocator",
+			"error", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (bc *AbstractConnectionManager) stopControlMessageSocket() {
+	if bc.controlMessageSocket != nil {
+		bc.controlMessageSocket.Stop()
+	}
+	bc.controlMessageSocket = nil
+}
+
 type AbstractConnection struct {
 	Logger     logger.Logger
 	encoder    encoder.EventEncoder
 	cancelChan chan struct{}
+	// ensure stopping only once
+	stopOnce sync.Once
 
 	Conn    net.Conn
 	Address string
 
-	// TODO: implement status attribute logic when support multiple conn
-	//status     status.Status
+	status         *status.SafeStatus
 	functionLogger logger.Logger
 }
 
 func (b *AbstractConnection) Stop() {
-	b.cancelChan <- struct{}{}
+	select {
+	// try to send a signal to stop the connection (send only if the channel is not full)
+	case b.cancelChan <- struct{}{}:
+	default:
+	}
 }
 
 func (b *AbstractConnection) SetEncoder(encoderInstance encoder.EventEncoder) {
@@ -272,6 +317,8 @@ func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager Co
 	abstractConnection := &AbstractConnection{
 		Logger:     parentLogger.GetChild("event"),
 		cancelChan: make(chan struct{}, 1),
+		status:     status.NewSafeStatus(status.Initializing),
+		stopOnce:   sync.Once{},
 	}
 	return &AbstractEventConnection{
 		AbstractConnection: abstractConnection,
@@ -280,8 +327,28 @@ func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager Co
 		connectionManager:  connectionManager,
 	}
 }
-func (be *AbstractEventConnection) WaitForStart() {
-	<-be.startChan
+
+func (be *AbstractEventConnection) WaitForStart(timeout time.Duration) error {
+	var ok bool
+	if timeout <= 0 {
+		_, ok = <-be.startChan
+	} else {
+		ticker := time.NewTicker(timeout)
+		defer ticker.Stop()
+
+		// wait for start signal or timeout
+		select {
+		case _, ok = <-be.startChan:
+		case <-ticker.C:
+			return errors.Errorf("Timeout waiting for start signal, timeout: %s", timeout.String())
+		}
+	}
+
+	// for the case when wrapper is restarting when connection was just created
+	if !ok {
+		return errors.New("Failed to get start signal, channel is closed")
+	}
+	return nil
 }
 
 func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
@@ -321,58 +388,30 @@ func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, funct
 	return responsesWithErrors, err
 }
 
-func (be *AbstractEventConnection) processItem(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
-	be.functionLogger = functionLogger
-	if err := be.encoder.Encode(item); err != nil {
-		be.functionLogger = nil
-		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
-	}
-	processingResults, ok := <-be.resultChan
-
-	// We don't use defer to reset be.functionLogger since it decreases performance
-	be.functionLogger = nil
-
-	if !ok {
-		msg := "Client disconnected"
-		be.Logger.Error(msg)
-
-		// TODO: support status for socket separately when implementing multiple socket support
-		be.connectionManager.SetStatus(status.Error)
-		return nil, errors.New(msg)
-	}
-	// if processingResults.err is not nil, it means that whole batch processing was failed
-	if processingResults.Err != nil {
-		return nil, processingResults.Err
-	}
-	return processingResults, nil
-}
-
+// RunHandler runs the event connection handler.
+// This is the main loop that reads from the connection
+// and sends the results to the result channel.
+// It also handles the cancel signal.
+// However, since the operation of waiting for data in the channel is blocking, there might be a chance
+// that it gets stuck either on reading from a connection or writing to the channel, and isn't fast enough to handle
+// the cancel signal. In that case, the Stop() flow will close the channel and the goroutine will panic.
+// This is handled by the recover() function in the defer statement.
 func (be *AbstractEventConnection) RunHandler() {
-
-	// Reset might close outChan, which will cause panic when sending
-	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
-		be.Logger,
-		"handling event wrapper output (Restart called?)",
-		&common.CatchAndLogPanicOptions{
-			Args:          nil,
-			CustomHandler: nil,
-		})
 	defer func() {
-		select {
-		case be.resultChan <- &result.BatchedResults{
-			Results: []*result.Result{{
-				StatusCode: http.StatusRequestTimeout,
-				Err:        errors.New("Runtime restarted"),
-			}},
-		}:
-
-		default:
-			be.Logger.Warn("Nothing waiting on result channel during restart. Continuing")
+		if r := recover(); r != nil {
+			// if channel is closed
+			// it means resultChan was closed in stop - it is expected flow, no need to log anything here
+			if err, ok := r.(error); ok && err.Error() == "send on closed channel" {
+				return
+			}
+			be.Logger.WarnWith("Received unexpected panic in RunHandler",
+				"error", r)
 		}
-
 	}()
 
 	outReader := bufio.NewReader(be.Conn)
+
+	defer close(be.cancelChan)
 
 	// Read logs & output
 	for {
@@ -380,7 +419,7 @@ func (be *AbstractEventConnection) RunHandler() {
 
 		// TODO: sync between event and control output handlers using a shared context
 		case <-be.cancelChan:
-			be.Logger.Warn("Event output handler was canceled (Restart called?)")
+			//be.Logger.Warn("Event output handler was canceled (Restart called?)")
 			return
 
 		default:
@@ -390,9 +429,24 @@ func (be *AbstractEventConnection) RunHandler() {
 			data, unmarshalledResults.Err = outReader.ReadBytes('\n')
 
 			if unmarshalledResults.Err != nil {
-				be.Logger.WarnWith(string(common.FailedReadFromEventConnection),
-					"err", unmarshalledResults.Err.Error())
-				be.resultChan <- unmarshalledResults
+				// if matches one of the errors and status is not ready, no need to log it, expected during restart/stop
+				// if status is ready, we should always log the error
+				if be.GetStatus() == status.Ready || !common.StringSliceContainsStringSuffix([]string{
+					"EOF",
+					"connection reset by peer",
+					"use of closed network connection",
+				}, unmarshalledResults.Err.Error()) {
+					be.Logger.WarnWith(string(common.FailedReadFromEventConnection),
+						"err", errors.RootCause(unmarshalledResults.Err).Error())
+				}
+
+				select {
+				// if no receiver is waiting for the result, we should not send it
+				// otherwise it may get stuck here and block select
+				case be.resultChan <- unmarshalledResults:
+				default:
+				}
+
 				continue
 			}
 
@@ -430,14 +484,22 @@ func (be *AbstractEventConnection) GetRuntime() runtime.Runtime {
 
 // GetStatus returns the status of the worker, as updated by the runtime
 func (be *AbstractEventConnection) GetStatus() status.Status {
-	// TODO: implement status
-	return status.Ready
+	return be.status.GetStatus()
+}
+
+// SetStatus sets event connection status
+func (be *AbstractEventConnection) SetStatus(newStatus status.Status) {
+	be.status.SetStatus(newStatus)
 }
 
 // Stop stops the connection
-func (be *AbstractEventConnection) Stop() error {
-	be.AbstractConnection.Stop()
-	return be.Conn.Close()
+// This is the only place where the connection object should be properly stopped
+// meaning closing all channels and connection
+func (be *AbstractEventConnection) Stop() (err error) {
+	be.stopOnce.Do(func() {
+		err = be.stop()
+	})
+	return err
 }
 
 // GetStructuredCloudEvent return a structued clould event
@@ -450,13 +512,23 @@ func (be *AbstractEventConnection) GetBinaryCloudEvent() *cloudevent.Binary {
 	return nil
 }
 
-// GetEventTime return current event time, nil if we're not handling event
-func (be *AbstractEventConnection) GetEventTime() *time.Time {
-	return nil
+func (be *AbstractEventConnection) RestartRequired() bool {
+	return false
 }
 
-// ResetEventTime resets the event time
-func (be *AbstractEventConnection) ResetEventTime() {
+func (be *AbstractEventConnection) Replace(newConnection *AbstractEventConnection) {
+	// stop current connection
+	if err := be.Stop(); err != nil {
+		be.Logger.WarnWith("Failed to stop connection",
+			"error", err)
+	}
+	// reset stopOnce to allow stop() to be called again
+	be.stopOnce = sync.Once{}
+
+	// replace all entities with new connection
+	be.AbstractConnection = newConnection.AbstractConnection
+	be.resultChan = newConnection.resultChan
+	be.startChan = newConnection.startChan
 }
 
 // Restart restarts the worker
@@ -470,11 +542,22 @@ func (be *AbstractEventConnection) SupportsRestart() bool {
 }
 
 func (be *AbstractEventConnection) Terminate() error {
-	return nuclio.ErrNotImplemented
+	// same as stop
+	return be.Stop()
 }
 
 func (be *AbstractEventConnection) Drain() error {
 	return nuclio.ErrNotImplemented
+}
+
+func (be *AbstractEventConnection) IsAsync() bool {
+	return be.connectionManager.IsAsync()
+}
+
+func (be *AbstractEventConnection) IsBusy() bool {
+	// aligns eventProcessor interfaces
+	// should not be used
+	return false
 }
 
 func (be *AbstractEventConnection) Continue() error {
@@ -489,6 +572,85 @@ func (be *AbstractEventConnection) Subscribe(kind controlcommunication.ControlMe
 // Unsubscribe unsubscribes from a control message kind
 func (be *AbstractEventConnection) Unsubscribe(kind controlcommunication.ControlMessageKind, channel chan *controlcommunication.ControlMessage) error {
 	return nuclio.ErrNotImplemented
+}
+
+func (be *AbstractEventConnection) processItem(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
+	be.functionLogger = functionLogger
+	if err := be.encoder.Encode(item); err != nil {
+		be.functionLogger = nil
+		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
+	}
+
+	// if eventTimeout is 0, we wait for response without timeout
+	// if it is set, we wait either for response or the timeout
+	if be.connectionManager.GetConfig().eventTimeout == 0 {
+		processingResults, ok := <-be.resultChan
+		return be.postProcessEventRegularFlow(processingResults, ok)
+	} else {
+		return be.waitForResponseWithTimeout()
+	}
+}
+
+func (be *AbstractEventConnection) stop() error {
+	be.SetStatus(status.Stopping)
+	be.AbstractConnection.Stop()
+
+	// close start chan
+	// other two channels (result and cancel chan) are closed in the run handler
+	close(be.startChan)
+
+	// if the channel is closed while waiting for response in it, this will be handled in processItem() with no issues
+	close(be.resultChan)
+
+	err := be.Conn.Close()
+	be.SetStatus(status.Stopped)
+	return err
+}
+
+func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.BatchedResults, error) {
+	ticker := time.NewTicker(be.connectionManager.GetConfig().eventTimeout)
+	defer ticker.Stop()
+
+	select {
+	case processingResults, isClientDisconnected := <-be.resultChan:
+		return be.postProcessEventRegularFlow(processingResults, isClientDisconnected)
+	case <-ticker.C:
+		return be.postProcessEventOnTimeout()
+	}
+}
+
+func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults *result.BatchedResults, isClientDisconnected bool) (*result.BatchedResults, error) {
+	// We don't use defer to reset be.functionLogger since it decreases performance
+	be.functionLogger = nil
+
+	if !isClientDisconnected {
+		return be.postProcessClientDisconnected()
+	}
+	// if processingResults.err is not nil, it means that whole batch processing was failed
+	// or that connection was closed (EOF)
+	if processingResults.Err != nil {
+		// if a client disconnected, we should restart the connection
+		if errors.RootCause(processingResults.Err) == io.EOF {
+			return be.postProcessClientDisconnected()
+		}
+		return nil, processingResults.Err
+	}
+	return processingResults, nil
+}
+
+func (be *AbstractEventConnection) postProcessClientDisconnected() (*result.BatchedResults, error) {
+	msg := "Client disconnected"
+	be.Logger.Error(msg)
+	be.SetStatus(status.RestartRequired)
+	return nil, errors.New(msg)
+}
+
+func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedResults, error) {
+	be.functionLogger = nil
+	be.Logger.WarnWith("Event processing timed out, connection should be restarted",
+		"localAddress", be.Conn.LocalAddr().String())
+	be.SetStatus(status.RestartRequired)
+	return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 }
 
 func (be *AbstractEventConnection) handleResponseMetric(response []byte) {
@@ -538,6 +700,12 @@ func (bc *AbstractControlMessageConnection) SetBroker(abstractBroker *controlcom
 		abstractBroker)
 }
 
+func (bc *AbstractControlMessageConnection) Stop() {
+	bc.stopOnce.Do(func() {
+		bc.AbstractConnection.Stop()
+	})
+}
+
 func (bc *AbstractControlMessageConnection) GetBroker() controlcommunication.ControlMessageBroker {
 	return bc.broker
 }
@@ -552,9 +720,7 @@ func (bc *AbstractControlMessageConnection) RunHandler() {
 			Args:          nil,
 			CustomHandler: nil,
 		})
-	defer func() {
-		bc.cancelChan <- struct{}{}
-	}()
+	defer close(bc.cancelChan)
 
 	outReader := bufio.NewReader(bc.Conn)
 
