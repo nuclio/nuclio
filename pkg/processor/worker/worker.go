@@ -28,7 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
-	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
