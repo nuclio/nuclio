@@ -59,10 +59,15 @@ func (suite *TimeoutTestSuite) TestTimeout() {
 			ExpectedResponseBody:       `{"error": "handler timed out"}`,
 			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
+		// since event timeout is 1s and watcher() checks if restart required once in a timeout periodic
+		// it's possible that the function will be restarting when we send this request
+		// so wait until the request is successful
 		{
-			Name:                       "do not timeout",
-			RequestBody:                fmt.Sprintf("sleep %f", (eventTimeout / 2).Seconds()),
-			ExpectedResponseStatusCode: &okStatusCode,
+			Name:                           "do not timeout",
+			RequestBody:                    fmt.Sprintf("sleep %f", (eventTimeout / 2).Seconds()),
+			RetryUntilSuccessfulStatusCode: &okStatusCode,
+			RetryUntilSuccessfulDuration:   eventTimeout,
+			RetryUntilSuccessfulInterval:   200 * time.Millisecond,
 		},
 	})
 }

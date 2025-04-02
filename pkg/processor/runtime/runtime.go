@@ -67,6 +67,9 @@ type Runtime interface {
 	// Restart restarts the runtime
 	Restart() error
 
+	// RestartRequired returns whether restart is required
+	RestartRequired() bool
+
 	// SupportsRestart return true if the runtime supports restart
 	SupportsRestart() bool
 
@@ -81,6 +84,9 @@ type Runtime interface {
 
 	// GetControlMessageBroker returns the control message broker
 	GetControlMessageBroker() controlcommunication.ControlMessageBroker
+
+	// IsBusy returns true if the runtime is busy processing events
+	IsBusy() bool
 }
 
 // AbstractRuntime is the base for all runtimes

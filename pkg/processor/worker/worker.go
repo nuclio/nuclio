@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common/status"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
@@ -44,7 +45,6 @@ type Worker struct {
 	runtime              runtime.Runtime
 	structuredCloudEvent cloudevent.Structured
 	binaryCloudEvent     cloudevent.Binary
-	eventTime            *time.Time
 }
 
 // NewWorker creates a new worker
@@ -64,11 +64,8 @@ func NewWorker(parentLogger logger.Logger,
 
 // ProcessEvent sends the event to the associated runtime
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	w.eventTime = clock.Now()
-
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
-	w.eventTime = nil
 
 	// check if there was a processing error. if so, log it
 	if err != nil {
@@ -121,6 +118,11 @@ func (w *Worker) GetStatus() status.Status {
 	return w.runtime.GetStatus()
 }
 
+// SetStatus sets worker status
+func (w *Worker) SetStatus(newStatus status.Status) {
+	w.runtime.SetStatus(newStatus)
+}
+
 // Stop stops the worker and associated runtime
 func (w *Worker) Stop() error {
 	return w.runtime.Stop()
@@ -136,25 +138,19 @@ func (w *Worker) GetBinaryCloudEvent() *cloudevent.Binary {
 	return &w.binaryCloudEvent
 }
 
-// GetEventTime return current event time, nil if we're not handling event
-func (w *Worker) GetEventTime() *time.Time {
-	return w.eventTime
-}
-
-// ResetEventTime resets the event time
-func (w *Worker) ResetEventTime() {
-	w.eventTime = nil
-}
-
 // Restart restarts the worker
 func (w *Worker) Restart() error {
-	w.eventTime = nil
 	return w.runtime.Restart()
 }
 
 // SupportsRestart returns true if the underlying runtime supports restart
 func (w *Worker) SupportsRestart() bool {
 	return w.runtime.SupportsRestart()
+}
+
+// RestartRequired returns whether the worker requires a restart
+func (w *Worker) RestartRequired() bool {
+	return w.runtime.RestartRequired()
 }
 
 func (w *Worker) Terminate() error {
@@ -191,8 +187,17 @@ func (w *Worker) Unsubscribe(kind controlcommunication.ControlMessageKind, chann
 	return w.runtime.GetControlMessageBroker().Unsubscribe(kind, channel)
 }
 
-func (w *Worker) WaitForStart() {
+func (w *Worker) WaitForStart(time.Duration) error {
+	return nil
 }
 
 func (w *Worker) RunHandler() {
+}
+
+func (w *Worker) IsAsync() bool {
+	return w.runtime.GetConfiguration().Mode == functionconfig.AsyncTriggerWorkMode
+}
+
+func (w *Worker) IsBusy() bool {
+	return w.runtime.IsBusy()
 }

@@ -83,9 +83,6 @@ type Trigger interface {
 	// GetProjectName returns project name
 	GetProjectName() string
 
-	// TimeoutWorker times out a worker
-	TimeoutWorker(worker eventprocessor.EventProcessor) error
-
 	// SignalWorkersToDrain drains all workers
 	SignalWorkersToDrain() error
 
@@ -95,11 +92,8 @@ type Trigger interface {
 	// SignalWorkersToTerminate signal to all workers that the processor is about to stop working
 	SignalWorkersToTerminate() error
 
-	// PreBatchHooks does trigger-specific actions before sending a batch
-	PreBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor)
-
-	// PostBatchHooks does trigger-specific actions after sending a batch
-	PostBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor)
+	// IsBusy returns true if the trigger is busy processing events
+	IsBusy() bool
 }
 
 // AbstractTrigger implements common trigger operations
@@ -289,7 +283,6 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance eventprocessor.Event
 		*submitError = errors.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
-			workerInstance.ResetEventTime()
 			at.WorkerAllocator.Release(workerInstance)
 		}
 
@@ -312,11 +305,6 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	// increment statistics based on results. if process error is nil, we successfully handled
 	at.UpdateStatistics(processError == nil, 1)
 	return
-}
-
-// TimeoutWorker times out a worker
-func (at *AbstractTrigger) TimeoutWorker(worker eventprocessor.EventProcessor) error {
-	return nil
 }
 
 // UpdateStatistics updates the trigger statistics
@@ -407,6 +395,30 @@ func (at *AbstractTrigger) SignalWorkersToTerminate() error {
 	return nil
 }
 
+func (at *AbstractTrigger) IsBusy() bool {
+	workers := at.Trigger.GetWorkers()
+
+	// should not happen, but just in case
+	if len(workers) == 0 {
+		return false
+	}
+
+	// enough to check only one
+	if !workers[0].IsAsync() {
+		// if the worker is not async, it is enough to check that some workers are handling events
+		return len(workers) != at.WorkerAllocator.GetNumObjectsAvailable()
+	}
+
+	// if the worker is async, we need to check each worker's connection allocator availability
+	for _, worker := range workers {
+		if worker.IsBusy() {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance eventprocessor.EventProcessor) (nuclio.Event, error) {
 
 	// if the content type starts with application/cloudevents, the body
@@ -465,24 +477,13 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 			}
 			return
 		}
-
-		at.Trigger.PreBatchHooks(batch, workerInstance)
-
 		// submit batch to the worker
 		at.SubmitBatchAndSendResponses(batch, responseChans, workerInstance)
-
-		at.Trigger.PostBatchHooks(batch, workerInstance)
 
 		// release worker when we're done
 		at.WorkerAllocator.Release(workerInstance)
 		at.Logger.Debug("Batch processing finished")
 	}
-}
-
-func (at *AbstractTrigger) PreBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
-}
-
-func (at *AbstractTrigger) PostBatchHooks(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
 }
 
 func (at *AbstractTrigger) SubmitEventToBatch(event nuclio.Event) (chan interface{}, context.CancelFunc) {

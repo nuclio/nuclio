@@ -26,6 +26,7 @@ import asyncio
 import selectors
 
 from wrapper_common import (
+    EventSocketDisconnected,
     WrapperFatalException,
     JSONFormatterOverEventSocket,
     AbstractWrapper,
@@ -107,7 +108,6 @@ class AsyncWrapper(AbstractWrapper):
                     if sock == server_sock:
                         # Accept new connection
                         client_sock, addr = server_sock.accept()
-                        self._logger.debug(f"Accepted connection from {addr}")
                         client_sock.setblocking(False)
                         self.connections[client_sock.fileno()] = client_sock
                         task = self._loop.create_task(self._process_connection(client_sock))
@@ -168,7 +168,13 @@ class AsyncWrapper(AbstractWrapper):
                 # Release event reference
                 del event
 
-        except (ConnectionResetError, asyncio.IncompleteReadError):
+        except (
+            ConnectionResetError,
+            asyncio.IncompleteReadError,
+            BrokenPipeError,
+            EventSocketDisconnected,
+            EventSocketException,
+        ):
             self._logger.info("Client disconnected")
         except WrapperFatalException as exc:
             await self._on_serving_error(exc, sock)

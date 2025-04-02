@@ -65,7 +65,7 @@ func (suite *timeoutSuite) TestTimeout() {
 
 	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
 		{
-			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
+			RequestBody:    suite.genTimeoutRequest(time.Millisecond, true),
 			RequestHeaders: requestHeaders,
 
 			ExpectedResponseBody: func(body []byte) {
@@ -77,15 +77,14 @@ func (suite *timeoutSuite) TestTimeout() {
 			ExpectedResponseStatusCode: &okStatusCode,
 		},
 		{
-			RequestBody:    suite.genTimeoutRequest(sleepTime),
+			RequestBody:    suite.genTimeoutRequest(sleepTime, true),
 			RequestHeaders: requestHeaders,
 
 			ExpectedResponseStatusCode: &timeoutStatusCode,
 		},
-
 		// retry until runtime is back
 		{
-			RequestBody:    suite.genTimeoutRequest(0),
+			RequestBody:    suite.genTimeoutRequest(0, true),
 			RequestHeaders: requestHeaders,
 
 			RetryUntilSuccessfulStatusCode: &okStatusCode,
@@ -93,7 +92,7 @@ func (suite *timeoutSuite) TestTimeout() {
 			RetryUntilSuccessfulDuration:   2 * sleepTime,
 		},
 		{
-			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
+			RequestBody:    suite.genTimeoutRequest(time.Millisecond, true),
 			RequestHeaders: requestHeaders,
 
 			ExpectedResponseBody: func(body []byte) {
@@ -107,9 +106,85 @@ func (suite *timeoutSuite) TestTimeout() {
 	})
 }
 
-func (suite *timeoutSuite) genTimeoutRequest(timeout time.Duration) string {
+func (suite *timeoutSuite) TestTimeoutAsync() {
+	createFunctionOptions := suite.GetDeployOptionsAsync("timeout", path.Join(suite.GetTestFunctionsDir(), "python", "timeout"))
+
+	timeout := 500 * time.Millisecond
+	createFunctionOptions.FunctionConfig.Spec.EventTimeout = timeout.String()
+	createFunctionOptions.FunctionConfig.Spec.Handler = "timeout_async:handler"
+	var oldPID int
+	okStatusCode := http.StatusOK
+	timeoutStatusCode := http.StatusRequestTimeout
+	sleepTime := 5 * time.Second
+
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		// sending regular request, 200 code expected
+		{
+			RequestBody:    suite.genTimeoutRequest(time.Millisecond, false),
+			RequestHeaders: requestHeaders,
+
+			ExpectedResponseBody: func(body []byte) {
+				response := &timeoutResponse{}
+				err := json.Unmarshal(body, response)
+				suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
+				oldPID = response.PID
+			},
+			ExpectedResponseStatusCode: &okStatusCode,
+		},
+		// sending request with non-blocking sleep, timeout expected
+		{
+			RequestBody:    suite.genTimeoutRequest(sleepTime, false),
+			RequestHeaders: requestHeaders,
+
+			ExpectedResponseStatusCode: &timeoutStatusCode,
+		},
+		// sending another request, 200 code expected (should be processed by another connection)
+		{
+			RequestBody:    suite.genTimeoutRequest(0, false),
+			RequestHeaders: requestHeaders,
+
+			ExpectedResponseStatusCode: &okStatusCode,
+		},
+		// sending another request with blocking sleep to timeout not only on waiting on response
+		// but also on waiting for the connection to be re-established
+		{
+			RequestBody:    suite.genTimeoutRequest(time.Minute*2, true),
+			RequestHeaders: requestHeaders,
+
+			ExpectedResponseStatusCode: &timeoutStatusCode,
+		},
+		// retry until runtime is back
+		{
+			RequestBody:    suite.genTimeoutRequest(0, true),
+			RequestHeaders: requestHeaders,
+
+			RetryUntilSuccessfulStatusCode: &okStatusCode,
+			RetryUntilSuccessfulInterval:   100 * time.Millisecond,
+			RetryUntilSuccessfulDuration:   2 * time.Minute,
+		},
+		// sending another request, 200 code expected, verify that wrapper PID changed
+		{
+			RequestBody:    suite.genTimeoutRequest(time.Millisecond, true),
+			RequestHeaders: requestHeaders,
+
+			ExpectedResponseBody: func(body []byte) {
+				response := &timeoutResponse{}
+				err := json.Unmarshal(body, response)
+				suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
+				suite.Require().NotEqual(oldPID, response.PID, "Wrapper PID didn't change")
+			},
+			ExpectedResponseStatusCode: &okStatusCode,
+		},
+	})
+}
+
+func (suite *timeoutSuite) genTimeoutRequest(timeout time.Duration, blocking bool) string {
 	request := map[string]interface{}{
 		"timeout": timeout.String(),
+	}
+	// only relevant for async processing
+	if blocking {
+		request["blocking_sleep"] = true
 	}
 	data, err := json.Marshal(request)
 	suite.Require().NoErrorf(err, "Can't encode request - %#v", request)

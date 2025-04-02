@@ -52,9 +52,6 @@ type http struct {
 	events             []Event
 	bufferLoggerPool   *nucliozap.BufferLoggerPool
 	status             *status.SafeStatus
-	activeContexts     []*fasthttp.RequestCtx
-	timeouts           []uint64 // flag of worker is in timeout
-	answering          []uint64 // flag the worker is answering
 	server             *fasthttp.Server
 	internalHealthPath []byte
 }
@@ -90,9 +87,6 @@ func newTrigger(logger logger.Logger,
 		configuration:      configuration,
 		bufferLoggerPool:   bufferLoggerPool,
 		status:             status.NewSafeStatus(status.Initializing),
-		activeContexts:     make([]*fasthttp.RequestCtx, numWorkers),
-		timeouts:           make([]uint64, numWorkers),
-		answering:          make([]uint64, numWorkers),
 		internalHealthPath: []byte(InternalHealthPath),
 	}
 
@@ -156,50 +150,8 @@ func (h *http) SignalWorkersToTerminate() error {
 	return h.AbstractTrigger.SignalWorkersToTerminate()
 }
 
-func (h *http) PreBatchHook(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
-	// mark worker as busy
-	h.timeouts[workerInstance.GetIndex()] = 0
-	h.answering[workerInstance.GetIndex()] = 0
-}
-
-func (h *http) PostBatchHook(batch []nuclio.Event, workerInstance eventprocessor.EventProcessor) {
-	// mark worker as available
-	h.answering[workerInstance.GetIndex()] = 1
-}
-
 func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
-}
-
-func (h *http) TimeoutWorker(worker eventprocessor.EventProcessor) error {
-	workerIndex := worker.GetIndex()
-	if workerIndex < 0 || workerIndex >= len(h.activeContexts) {
-		return errors.Errorf("Worker %d out of range", workerIndex)
-	}
-
-	h.timeouts[workerIndex] = 1
-	time.Sleep(time.Millisecond) // Let worker do it's thing
-	if h.answering[workerIndex] == 1 {
-		return errors.Errorf("Worker %d answered the request", workerIndex)
-	}
-
-	ctx := h.activeContexts[workerIndex]
-	if ctx == nil {
-		return errors.Errorf("Worker %d answered the request", workerIndex)
-	}
-
-	h.activeContexts[workerIndex] = nil
-
-	ctx.SetStatusCode(nethttp.StatusRequestTimeout)
-	bodyWrite := func(w *bufio.Writer) {
-		w.Write(timeoutResponse) // nolint: errcheck
-		w.Flush()                // nolint: errcheck
-	}
-
-	// This doesn't flush automatically, you still need to give fasthttp some
-	// time to process
-	ctx.SetBodyStreamWriter(bodyWrite)
-	return nil
 }
 
 func (h *http) PrepareEventAndSubmitToBatch(ctx *fasthttp.RequestCtx) (chan interface{}, context.CancelFunc) {
@@ -217,29 +169,34 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	defer h.HandleSubmitPanic(workerInstance, &submitError)
 
 	// allocate a worker
-	workerInstance, workerIndex, err := h.allocateWorker(timeout)
+	workerInstance, _, err := h.allocateWorker(timeout)
 	if err != nil {
 		return nil, false, err, nil
 	}
 
-	h.activeContexts[workerIndex] = ctx
-	h.timeouts[workerIndex] = 0
-	h.answering[workerIndex] = 0
-	event := &h.events[workerIndex]
-	event.ctx = ctx
-
 	// submit to worker
-	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, event)
+	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, &Event{ctx: ctx})
 
 	// release worker when we're done
 	h.WorkerAllocator.Release(workerInstance)
 
-	if h.timeouts[workerIndex] == 1 {
-		return nil, true, nil, nil
-	}
+	if processError != nil {
+		if typedError, ok := processError.(nuclio.WithStatusCode); ok {
+			if typedError.StatusCode() == nethttp.StatusRequestTimeout {
+				// time out context
+				ctx.SetStatusCode(nethttp.StatusRequestTimeout)
+				bodyWrite := func(w *bufio.Writer) {
+					w.Write(timeoutResponse) // nolint: errcheck
+					w.Flush()                // nolint: errcheck
+				}
 
-	h.answering[workerIndex] = 1
-	h.activeContexts[workerIndex] = nil
+				// This doesn't flush automatically, you still need to give fasthttp some
+				// time to process
+				ctx.SetBodyStreamWriter(bodyWrite)
+				return nil, true, nil, nil
+			}
+		}
+	}
 
 	return response, false, nil, processError
 }
@@ -530,16 +487,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// Clear active context in case of error
-	if submitError != nil || processError != nil {
-		for i, activeCtx := range h.activeContexts {
-			if activeCtx == ctx {
-				h.activeContexts[i] = nil
-				break
-			}
-		}
-	}
-
 	if responseLogLevel != nil {
 
 		// remove trailing comma
@@ -590,12 +537,9 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 		// check if the user returned an error with a status code
 		switch typedError := processError.(type) {
-		case nuclio.ErrorWithStatusCode:
-			statusCode = typedError.StatusCode()
-		case *nuclio.ErrorWithStatusCode:
+		case nuclio.WithStatusCode:
 			statusCode = typedError.StatusCode()
 		default:
-
 			// if the user didn't use one of the errors with status code, return internal error
 			statusCode = nethttp.StatusInternalServerError
 		}

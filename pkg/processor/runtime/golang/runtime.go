@@ -41,6 +41,10 @@ type golang struct {
 	cancelEventHandlingChan chan context.CancelFunc
 	// TODO: remove when implement full safe statistics for async processing
 	statisticsMutex sync.RWMutex
+
+	// timeout for event handling
+	// if 0, then no timeout
+	timeout time.Duration
 }
 
 // NewRuntime returns a new golang runtime
@@ -62,12 +66,15 @@ func NewRuntime(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to load handler")
 	}
 
+	timeout, _ := configuration.Configuration.Spec.GetEventTimeout()
+
 	// create the runtime
 	newGoRuntime := &golang{
 		AbstractRuntime: abstractRuntime,
 		configuration:   configuration,
 		entrypoint:      handler.getEntrypoint(),
 		statisticsMutex: sync.RWMutex{},
+		timeout:         timeout,
 	}
 
 	// try to initialize the context, if applicable
@@ -105,6 +112,10 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	return response, err
 }
 
+func (g *golang) IsBusy() bool {
+	return len(g.cancelEventHandlingChan) > 0
+}
+
 func (g *golang) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	return nil, nuclio.ErrNotImplemented
 }
@@ -139,6 +150,10 @@ func (g *golang) Stop() error {
 // SupportsRestart returns true if the runtime supports restart
 func (g *golang) SupportsRestart() bool {
 	return true
+}
+
+func (g *golang) RestartRequired() bool {
+	return g.GetStatus() == status.RestartRequired
 }
 
 func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
@@ -201,6 +216,14 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 		g.AddStatistics(callDuration)
 	}()
 
+	return g.waitForResponse(ctx, responseChan)
+}
+
+func (g *golang) waitForResponse(ctx context.Context, responseChan chan *processingResponse) (interface{}, error) {
+	if g.timeout > 0 {
+		return g.waitForResponseWithTimeout(ctx, responseChan)
+	}
+
 	select {
 	case result := <-responseChan:
 		select {
@@ -212,6 +235,30 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 		return result.response, result.responseErr
 	case <-ctx.Done():
 		return nil, errors.New("Event processing was cancelled")
+	}
+}
+
+func (g *golang) waitForResponseWithTimeout(ctx context.Context, responseChan chan *processingResponse) (interface{}, error) {
+	ticker := time.NewTicker(g.timeout)
+	defer ticker.Stop()
+
+	select {
+	case result := <-responseChan:
+		select {
+		case cancelEventHandling := <-g.cancelEventHandlingChan:
+			// cancelling cancel-context
+			defer cancelEventHandling()
+		default:
+		}
+		return result.response, result.responseErr
+	case <-ctx.Done():
+		return nil, errors.New("Event processing was cancelled")
+	case <-ticker.C:
+		g.SetStatus(status.RestartRequired)
+		g.Logger.WarnWithCtx(ctx,
+			"Timeout waiting for event processing to finish, restart required",
+			"timeout", g.timeout.String())
+		return nil, nuclio.NewErrRequestTimeout("Execution timed out")
 	}
 }
 
