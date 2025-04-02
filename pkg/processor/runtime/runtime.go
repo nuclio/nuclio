@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
+	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -43,6 +44,10 @@ type Runtime interface {
 
 	// GetStatistics returns statistics gathered by the runtime
 	GetStatistics() *Statistics
+
+	// GetAllocationStatistics returns statistics gathered by the allocator
+	// if there is any in the runtime, otherwise returns nil
+	GetAllocationStatistics() *metrics.AllocatorStatistics
 
 	// GetConfiguration returns the runtime configuration
 	GetConfiguration() *Configuration

@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -106,6 +107,12 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 
 func (g *golang) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	return nil, nuclio.ErrNotImplemented
+}
+
+// GetAllocationStatistics returns the statistics of the allocator if there is any in the runtime
+// go runtime doesn't have any allocator in it, so return nil
+func (g *golang) GetAllocationStatistics() *metrics.AllocatorStatistics {
+	return nil
 }
 
 func (g *golang) Restart() error {

@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -126,6 +127,12 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 
 func (s *shell) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	return nil, nuclio.ErrNotImplemented
+}
+
+// GetAllocationStatistics returns the statistics of the allocator if there is any in the runtime
+// shell runtime doesn't have any allocator in it, so return nil
+func (s *shell) GetAllocationStatistics() *metrics.AllocatorStatistics {
+	return nil
 }
 
 func (s *shell) processEvent(context context.Context,

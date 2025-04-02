@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/connection"
+	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
 	"github.com/nuclio/errors"
@@ -84,6 +85,10 @@ func (r *AbstractRuntime) ProcessEvent(event nuclio.Event, functionLogger logger
 // ProcessBatch processes a batch of events
 func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
 	return r.processBatchAndWaitForResult(batch, functionLogger)
+}
+
+func (r *AbstractRuntime) GetAllocationStatistics() *metrics.AllocatorStatistics {
+	return r.connectionManager.GetAllocationStatistics()
 }
 
 // Stop stops the runtime

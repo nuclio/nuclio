@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
 	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 
 	"github.com/nuclio/logger"
@@ -36,7 +37,7 @@ import (
 type Worker struct {
 
 	// accessed atomically, keep as first field for alignment
-	statistics eventprocessor.Statistics
+	statistics metrics.EventProcessingStatistics
 
 	logger               logger.Logger
 	index                int
@@ -97,8 +98,12 @@ func (w *Worker) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.L
 }
 
 // GetStatistics returns a pointer to the statistics object. This must not be modified by the reader
-func (w *Worker) GetStatistics() *eventprocessor.Statistics {
+func (w *Worker) GetStatistics() *metrics.EventProcessingStatistics {
 	return &w.statistics
+}
+
+func (w *Worker) GetAllocationStatistics() *metrics.AllocatorStatistics {
+	return w.runtime.GetAllocationStatistics()
 }
 
 // GetIndex returns the index of the worker, as specified during creation

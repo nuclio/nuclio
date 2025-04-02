@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statistics
+package gatherer
 
 // a reflection of an object in the processor (e.g. trigger, runtime, worker) that holds prometheus
 // metrics. when Gather() is called, the resource is queried for its primitive statistics. this way we decouple

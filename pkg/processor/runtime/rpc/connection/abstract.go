@@ -36,6 +36,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/controlmessagebroker"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
+	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/errors"
@@ -86,6 +87,10 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 func (bc *AbstractConnectionManager) UpdateStatistics(durationSec float64) {
 	bc.Configuration.Statistics.DurationMilliSecondsCount++
 	bc.Configuration.Statistics.DurationMilliSecondsSum += uint64(durationSec * 1000)
+}
+
+func (bc *AbstractConnectionManager) GetAllocationStatistics() *metrics.AllocatorStatistics {
+	return bc.allocator.GetStatistics()
 }
 
 func (bc *AbstractConnectionManager) SetStatus(newStatus status.Status) {
@@ -414,7 +419,13 @@ func (be *AbstractEventConnection) RunHandler() {
 }
 
 // GetStatistics returns a pointer to the statistics object. This must not be modified by the reader
-func (be *AbstractEventConnection) GetStatistics() *eventprocessor.Statistics {
+func (be *AbstractEventConnection) GetStatistics() *metrics.EventProcessingStatistics {
+	return nil
+}
+
+// GetAllocationStatistics returns the statistics of the allocator if there is any in the runtime
+// AbstractEventConnection runtime doesn't have any allocator in it, so return nil
+func (be *AbstractEventConnection) GetAllocationStatistics() *metrics.AllocatorStatistics {
 	return nil
 }
 
