@@ -343,10 +343,10 @@ limitations under the License.
                 '<div class="nuclio-alert-icon"></div>' + '<div class="notification-text title">' + confirmMessage +
                 '</div>' + '<div class="buttons" >'  +
                 '<button class="igz-button-just-text" tabindex="0"  data-ng-click="closeThisDialog(0)" >' +
-                $i18next.t('common:CANCEL', { lng: i18next.language }) +
+                $i18next.t('common:CANCEL', { lng: i18next.language }) + '</button>' +
                 '<button class="igz-button-primary" tabindex="0" data-ng-click="confirm(1)">' +
                 $i18next.t('common:DELETE', { lng: i18next.language }) +
-                '</button>' + '</button>' + '</div>';
+                '</button>' + '</div>';
 
             return ngDialog.openConfirm({
                 template: template,
