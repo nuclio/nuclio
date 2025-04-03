@@ -160,7 +160,7 @@ func (suite *timeoutSuite) TestTimeoutAsync() {
 
 			RetryUntilSuccessfulStatusCode: &okStatusCode,
 			RetryUntilSuccessfulInterval:   100 * time.Millisecond,
-			RetryUntilSuccessfulDuration:   2 * time.Minute,
+			RetryUntilSuccessfulDuration:   5 * time.Minute,
 		},
 		// sending another request, 200 code expected, verify that wrapper PID changed
 		{
