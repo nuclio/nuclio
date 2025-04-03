@@ -27,7 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/connection"
-	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
 	"github.com/nuclio/errors"
@@ -91,7 +91,7 @@ func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logg
 	return r.processBatchAndWaitForResult(batch, functionLogger)
 }
 
-func (r *AbstractRuntime) GetAllocationStatistics() *metrics.AllocatorStatistics {
+func (r *AbstractRuntime) GetAllocationStatistics() *statistics.AllocatorStatistics {
 	return r.connectionManager.GetAllocationStatistics()
 }
 

@@ -20,7 +20,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/logger"
 )
@@ -66,7 +66,7 @@ func (s *asyncSingletonAllocator) GetNumObjectsAvailable() int {
 }
 
 // GetStatistics returns allocator statistics
-func (s *asyncSingletonAllocator) GetStatistics() *metrics.AllocatorStatistics {
+func (s *asyncSingletonAllocator) GetStatistics() *statistics.AllocatorStatistics {
 	return s.object.GetAllocationStatistics()
 }
 

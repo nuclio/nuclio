@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/statistics/metrics"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -54,7 +54,7 @@ func (mr *MockRuntime) GetStatistics() *runtime.Statistics {
 	return nil
 }
 
-func (mr *MockRuntime) GetAllocationStatistics() *metrics.AllocatorStatistics {
+func (mr *MockRuntime) GetAllocationStatistics() *statistics.AllocatorStatistics {
 	return nil
 }
 
