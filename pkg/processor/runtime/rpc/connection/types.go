@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/encoder"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/logger"
 )
@@ -53,6 +54,9 @@ type ConnectionManager interface {
 	// UpdateStatistics records performance or usage statistics based on the
 	// duration of an event or process, specified in seconds
 	UpdateStatistics(durationSec float64)
+
+	// GetAllocationStatistics retrieves the current statistics of the ConnectionManager allocator
+	GetAllocationStatistics() *statistics.AllocatorStatistics
 
 	// SetStatus updates the operational status of the ConnectionManager
 	SetStatus(status.Status)

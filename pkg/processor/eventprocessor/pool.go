@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -162,8 +163,8 @@ func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
 // GetStatistics returns object allocator statistics
 // return unsafe copy of the statistics to avoid any unnecessary blocking of the actual statistics object
 // used in gatherers which are thread-safe
-func (sa *syncPoolAllocator) GetStatistics() *AllocatorStatistics {
-	statistics := &AllocatorStatistics{
+func (sa *syncPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
+	allocatorStatistics := &statistics.AllocatorStatistics{
 		AllocationCount:                       sa.statistics.AllocationCount.Load(),
 		AllocationSuccessImmediateTotal:       sa.statistics.AllocationSuccessImmediateTotal.Load(),
 		AllocationSuccessAfterWaitTotal:       sa.statistics.AllocationSuccessAfterWaitTotal.Load(),
@@ -171,7 +172,7 @@ func (sa *syncPoolAllocator) GetStatistics() *AllocatorStatistics {
 		AllocationWaitDurationMilliSecondsSum: sa.statistics.AllocationWaitDurationMilliSecondsSum.Load(),
 		AllocationObjectsAvailablePercentage:  sa.statistics.AllocationObjectsAvailablePercentage.Load(),
 	}
-	return statistics
+	return allocatorStatistics
 }
 
 func (sa *syncPoolAllocator) SignalDraining() error {

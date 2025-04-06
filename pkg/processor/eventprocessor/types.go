@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -49,7 +50,7 @@ type Allocator interface {
 	GetNumObjectsAvailable() int
 
 	// GetStatistics returns allocator statistics
-	GetStatistics() *AllocatorStatistics
+	GetStatistics() *statistics.AllocatorStatistics
 
 	// SignalDraining signals all event processors to drain events
 	SignalDraining() error
@@ -99,7 +100,10 @@ type EventProcessor interface {
 	Stop() error
 
 	// GetStatistics returns event processing statistics, such as counts and latencies
-	GetStatistics() *Statistics
+	GetStatistics() *statistics.EventProcessingStatistics
+
+	// GetAllocationStatistics returns allocation statistics, such as allocation time and number of allocations
+	GetAllocationStatistics() *statistics.AllocatorStatistics
 
 	// GetStructuredCloudEvent retrieves the last processed structured CloudEvent
 	GetStructuredCloudEvent() *cloudevent.Structured

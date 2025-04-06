@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/nuclio/errors"
@@ -183,7 +183,7 @@ func (c *Configuration) ResolveWorkerAllocationMode(modeFromAttributes, modeFrom
 type Statistics struct {
 	EventsHandledSuccessTotal uint64
 	EventsHandledFailureTotal uint64
-	WorkerAllocatorStatistics eventprocessor.AllocatorStatistics
+	WorkerAllocatorStatistics statistics.AllocatorStatistics
 }
 
 func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
