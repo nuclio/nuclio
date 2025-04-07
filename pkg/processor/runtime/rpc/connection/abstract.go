@@ -424,34 +424,37 @@ func (be *AbstractEventConnection) RunHandler() {
 
 		default:
 
-			unmarshalledResults := result.NewBatchedResults()
 			var data []byte
-			data, unmarshalledResults.Err = outReader.ReadBytes('\n')
+			var err error
+			data, err = outReader.ReadBytes('\n')
 
-			if unmarshalledResults.Err != nil {
+			if err != nil {
 				// if matches one of the errors and status is not ready, no need to log it, expected during restart/stop
 				// if status is ready, we should always log the error
 				if be.GetStatus() == status.Ready || !common.StringSliceContainsStringSuffix([]string{
 					"EOF",
 					"connection reset by peer",
 					"use of closed network connection",
-				}, unmarshalledResults.Err.Error()) {
+				}, errors.RootCause(err).Error()) {
 					be.Logger.WarnWith(string(common.FailedReadFromEventConnection),
-						"err", errors.RootCause(unmarshalledResults.Err).Error())
+						"err", errors.RootCause(err).Error())
 				}
 
+				batchedResultsWithError := result.NewBatchedResultsWithError(err)
 				select {
 				// if no receiver is waiting for the result, we should not send it
 				// otherwise it may get stuck here and block select
-				case be.resultChan <- unmarshalledResults:
+				case be.resultChan <- batchedResultsWithError:
 				default:
+					// if no receiver is waiting for the result, we should not send it
+					batchedResultsWithError = nil
 				}
-
 				continue
 			}
 
 			switch data[0] {
 			case 'r':
+				unmarshalledResults := result.NewBatchedResults()
 				unmarshalledResults.UnmarshalResponseData(be.Logger, data[1:])
 
 				// write back to result channel
