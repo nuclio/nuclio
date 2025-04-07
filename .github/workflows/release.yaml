@@ -358,6 +358,7 @@ jobs:
       - name: Upload binaries
         uses: AButler/upload-release-assets@v3.0
         with:
+          release-tag: ${{ needs.prepare-inputs.outputs.version }}
           files: '/home/runner/go/bin/nuctl-*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
