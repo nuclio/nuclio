@@ -315,7 +315,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.bump_helm_charts_only != 'true'
     name: Release Binary ${{ matrix.arch }}
     runs-on: ubuntu-latest
-    needs: [ prepare-inputs ]
+    needs: [ prepare-inputs , release ]
     strategy:
       fail-fast: false
       matrix:
