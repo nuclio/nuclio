@@ -52,6 +52,10 @@ func NewBatchedResults() *BatchedResults {
 	return &BatchedResults{Results: make([]*Result, 0)}
 }
 
+func NewBatchedResultsWithError(err error) *BatchedResults {
+	return &BatchedResults{Err: err}
+}
+
 func (br *BatchedResults) UnmarshalResponseData(logger logger.Logger, data []byte) {
 	var results []*Result
 
