@@ -446,8 +446,12 @@ func (be *AbstractEventConnection) RunHandler() {
 				// otherwise it may get stuck here and block select
 				case be.resultChan <- batchedResultsWithError:
 				default:
-					// if no receiver is waiting for the result, we should not send it
+					// Explicitly clear batchedResultsWithError to release memory and indicate it's no longer needed.
+					// Although the variable isn't used afterward, we assign nil here intentionally to help the
+					// garbage collector reclaim memory early, especially if it held a large data structure.
 					batchedResultsWithError = nil
+					_ = batchedResultsWithError // suppress 'ineffassign' linter warning about unused assignment
+
 				}
 				continue
 			}
