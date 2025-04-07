@@ -146,7 +146,7 @@ helm-publish:
 .PHONY: get-release-info
 get-release-info:
 	@go run hack/scripts/releaser/releaser.go \
-		$(if $(TARGET_VERSION),--target-version=$(TARGET_VERSION)) \
+		$(if $(TARGET_VERSION),--target-version=$(TARGET_VERSION),--$(BUMP_VERSION_MODE)) \
 		--release-info-path=$(RELEASE_INFO_PATH) \
 		--skip-bump-helm-chart \
 		$(if $(HELM_TARGET_VERSION),--helm-charts-release-version=$(HELM_TARGET_VERSION))
