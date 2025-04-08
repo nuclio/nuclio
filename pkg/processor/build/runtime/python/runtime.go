@@ -49,8 +49,8 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 
 	destOnbuildWheelsPath := "/opt/nuclio/whl"
 	pythonCommonModules := []string{
-		"nuclio-sdk",
-		"msgpack",
+		"nuclio-sdk==0.5.15",
+		"msgpack==1.1.0",
 	}
 
 	pipInstallArgs := []string{
