@@ -19,10 +19,11 @@ package python
 
 import (
 	"bufio"
-	"github.com/stretchr/testify/suite"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
