@@ -105,7 +105,10 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 }
 
 func (r *Reader) ReadFunctionConfigFile(functionConfigPath string, config *Config) error {
-
+	functionConfigPath, err := common.SanitizePath(functionConfigPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to sanitize path")
+	}
 	functionConfigFile, err := os.Open(functionConfigPath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to open function configuration file: %s", functionConfigPath)
