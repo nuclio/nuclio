@@ -70,6 +70,22 @@ func IsDir(path string) bool {
 	return info.IsDir()
 }
 
+// SanitizePath cleans and resolves the given file path to an absolute path.
+// This prevents path traversal and ensures consistency in file handling.
+func SanitizePath(path string) (string, error) {
+	// Clean the input path to eliminate any redundant or unsafe elements.
+	// Example: "/foo/../bar" becomes "/bar"
+	cleanPath := filepath.Clean(path)
+
+	// Convert to absolute path to avoid ambiguity and ensure safe file access.
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get absolute path")
+	}
+
+	return absPath, nil
+}
+
 // FileExists returns true if the file @ path exists
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
