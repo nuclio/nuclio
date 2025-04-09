@@ -31,6 +31,8 @@ import (
 )
 
 const pipCAFileLocation = "/etc/ssl/certs/nuclio/pip-ca-certificates.crt"
+const nuclioSDKRequirement = "nuclio-sdk==0.5.15"
+const msgPackRequirement = "msgpack==1.1.0"
 
 type python struct {
 	*runtime.AbstractRuntime
@@ -49,8 +51,8 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 
 	destOnbuildWheelsPath := "/opt/nuclio/whl"
 	pythonCommonModules := []string{
-		"nuclio-sdk",
-		"msgpack",
+		nuclioSDKRequirement,
+		msgPackRequirement,
 	}
 
 	pipInstallArgs := []string{
