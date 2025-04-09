@@ -81,7 +81,7 @@ func SanitizePath(path string) (string, error) {
 	// Convert to absolute path to avoid ambiguity and ensure safe file access.
 	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "Failed to get absolute path")
 	}
 
 	return absPath, nil
