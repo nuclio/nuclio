@@ -1,6 +1,6 @@
 module my-awesome-test-function
 
-go 1.23
+go 1.23.8
 
 require (
 	github.com/aidarkhanov/nanoid v1.0.8

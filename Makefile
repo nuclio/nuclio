@@ -110,8 +110,8 @@ endif
 
 NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
 
-NUCLIO_BASE_IMAGE_TAG ?= 1.23
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.23-alpine
+NUCLIO_BASE_IMAGE_TAG ?= 1.23.8
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.23.8-alpine
 
 #
 #  Must be first target
