@@ -22,6 +22,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"gopkg.in/yaml.v3"
@@ -74,6 +76,10 @@ func NewParser(parentLogger logger.Logger, commentChar string) *InlineParser {
 //	        numWorkers: 8
 //	        kind: http
 func (p *InlineParser) Parse(path string) (map[string]Block, error) {
+	path, err := common.SanitizePath(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to sanitize path")
+	}
 	reader, err := os.OpenFile(path, os.O_RDONLY, os.FileMode(0644))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to open function file")
