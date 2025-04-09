@@ -1,6 +1,6 @@
 module github.com/nuclio/nuclio
 
-go 1.23.0
+go 1.23.8
 
 require (
 	cloud.google.com/go/pubsub v1.33.0
