@@ -38,7 +38,7 @@ func (s *shell) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "alpine:3.20"
+	processorDockerfileInfo.BaseImage = "alpine:3.21"
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
