@@ -71,7 +71,7 @@ func (suite *testSuite) SetupSuite() {
 	time.Sleep(10 * time.Second)
 
 	// local address, insecure
-	conn, err := grpc.Dial(suite.brokerURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(suite.brokerURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	suite.Require().NoError(err)
 
 	// pubsub client
