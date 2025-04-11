@@ -62,7 +62,7 @@ import (
 )
 
 const (
-	uhttpcImage         = "gcr.io/iguazio/uhttpc:0.0.2-%s"
+	uhttpcImage         = "gcr.io/iguazio/uhttpc:0.0.3-%s"
 	GitEntryType        = "git"
 	ArchiveEntryType    = "archive"
 	S3EntryType         = "s3"
