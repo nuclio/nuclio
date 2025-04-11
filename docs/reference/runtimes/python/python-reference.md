@@ -58,7 +58,7 @@ ARG NUCLIO_BASE_IMAGE=python:3.8
 ARG NUCLIO_ONBUILD_IMAGE=quay.io/nuclio/handler-builder-python-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
-FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+FROM nuclio/uhttpc:0.0.3-amd64 as uhttpc
 
 # Supplies processor binary, wrapper
 FROM ${NUCLIO_ONBUILD_IMAGE} as processor
