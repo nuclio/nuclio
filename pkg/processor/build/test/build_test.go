@@ -835,7 +835,6 @@ preCopyKind2 preCopyValue2
 COPY --from=gcr.io/iguazio/uhttpc:0.0.3-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 COPY --from=onbuild-1 onbuildLocal1 onbuildImage1
 COPY --from=onbuild-1 onbuildLocal2 onbuildImage2
-COPY --from=gcr.io/iguazio/uhttpc:0.0.2-amd64 /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 COPY imageLocal1 imageImage1
 COPY imageLocal2 imageImage2
 # Readiness probe
