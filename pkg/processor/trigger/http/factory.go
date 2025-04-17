@@ -52,7 +52,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 		func() (eventprocessor.Allocator, error) {
 			switch triggerConfiguration.Mode {
 			case functionconfig.AsyncTriggerWorkMode:
-				return worker.WorkerFactorySingleton.CreateAsyncSingletonPoolWorkerAllocator(triggerLogger,
+				return worker.WorkerFactorySingleton.CreateNonBlockingSingletonPoolWorkerAllocator(triggerLogger,
 					runtimeConfiguration)
 			default:
 				return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(triggerLogger,

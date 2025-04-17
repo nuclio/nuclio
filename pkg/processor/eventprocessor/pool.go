@@ -30,7 +30,9 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type syncPoolAllocator struct {
+// blockingPoolAllocator is a thread-safe object allocator that uses a channel to manage
+// `blocking` means that if an object is allocated, it will be unavailable for allocation until the object is released
+type blockingPoolAllocator struct {
 	logger      logger.Logger
 	objectsChan chan EventProcessor
 	objects     []EventProcessor
@@ -39,8 +41,8 @@ type syncPoolAllocator struct {
 	isTerminated atomic.Bool
 }
 
-func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) (Allocator, error) {
-	newFixedPool := &syncPoolAllocator{
+func NewBlockingPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) (Allocator, error) {
+	newFixedPool := &blockingPoolAllocator{
 		logger:       parentLogger.GetChild("sync_pool_allocator"),
 		statistics:   safeAllocatorStatistics{},
 		isTerminated: atomic.Bool{},
@@ -52,7 +54,7 @@ func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) 
 	return newFixedPool, nil
 }
 
-func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
+func (sa *blockingPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
 	sa.statistics.AllocationCount.Add(1)
 	// get total number of objects
 	totalNumberObjects := len(sa.objects)
@@ -91,7 +93,7 @@ func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, er
 	}
 }
 
-func (sa *syncPoolAllocator) Stop() error {
+func (sa *blockingPoolAllocator) Stop() error {
 	// Stop the old objects that are being cleaned up
 	if err := sa.SignalTermination(); err != nil {
 		sa.logger.DebugWith("Failed to stop objects in allocator",
@@ -107,7 +109,7 @@ func (sa *syncPoolAllocator) Stop() error {
 	return nil
 }
 
-func (sa *syncPoolAllocator) Release(object EventProcessor) {
+func (sa *blockingPoolAllocator) Release(object EventProcessor) {
 	if sa.IsTerminated() {
 		sa.logger.DebugWith("Allocator is terminated, not releasing object",
 			"object", object.GetIndex())
@@ -123,15 +125,15 @@ func (sa *syncPoolAllocator) Release(object EventProcessor) {
 	sa.objectsChan <- object
 }
 
-func (sa *syncPoolAllocator) GetObjects() []EventProcessor {
+func (sa *blockingPoolAllocator) GetObjects() []EventProcessor {
 	return sa.objects
 }
 
-func (sa *syncPoolAllocator) GetNumObjectsAvailable() int {
+func (sa *blockingPoolAllocator) GetNumObjectsAvailable() int {
 	return len(sa.objectsChan)
 }
 
-func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
+func (sa *blockingPoolAllocator) SetObjects(objects []EventProcessor) error {
 	// Stop() cleans up sa.objects, so if `objects` and `sa.objects` are the same reference,
 	// the new objects will be cleaned up as well.
 	// To avoid this, we create a copy of the `objects` slice
@@ -163,7 +165,7 @@ func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
 // GetStatistics returns object allocator statistics
 // return unsafe copy of the statistics to avoid any unnecessary blocking of the actual statistics object
 // used in gatherers which are thread-safe
-func (sa *syncPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
+func (sa *blockingPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
 	allocatorStatistics := &statistics.AllocatorStatistics{
 		AllocationCount:                       sa.statistics.AllocationCount.Load(),
 		AllocationSuccessImmediateTotal:       sa.statistics.AllocationSuccessImmediateTotal.Load(),
@@ -175,7 +177,7 @@ func (sa *syncPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
 	return allocatorStatistics
 }
 
-func (sa *syncPoolAllocator) SignalDraining() error {
+func (sa *blockingPoolAllocator) SignalDraining() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), sa.logger)
 
 	for _, objectInstance := range sa.GetObjects() {
@@ -197,7 +199,7 @@ func (sa *syncPoolAllocator) SignalDraining() error {
 	return nil
 }
 
-func (sa *syncPoolAllocator) SignalContinue() error {
+func (sa *blockingPoolAllocator) SignalContinue() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), sa.logger)
 
 	for _, objectInstance := range sa.GetObjects() {
@@ -218,7 +220,7 @@ func (sa *syncPoolAllocator) SignalContinue() error {
 	return nil
 }
 
-func (sa *syncPoolAllocator) SignalTermination() error {
+func (sa *blockingPoolAllocator) SignalTermination() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), sa.logger)
 	sa.isTerminated.Store(true)
 	for _, objectInstance := range sa.GetObjects() {
@@ -240,6 +242,6 @@ func (sa *syncPoolAllocator) SignalTermination() error {
 	return nil
 }
 
-func (sa *syncPoolAllocator) IsTerminated() bool {
+func (sa *blockingPoolAllocator) IsTerminated() bool {
 	return sa.isTerminated.Load()
 }

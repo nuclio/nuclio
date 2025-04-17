@@ -57,30 +57,30 @@ Depending on the configured mode, Nuclio uses different event processor allocato
 
 For instance, to support synchronous processing, Nuclio allocates a worker (event processor at the trigger level).
 While the allocated worker is waiting for a response, it cannot be allocated again.
-Nuclio enforces this with a sync pool allocator that ensures that each event processor is assigned to only one event at a time.
+Nuclio enforces this with a blocking pool allocator that ensures that each event processor is assigned to only one event at a time.
 
 For asynchronous processing, a worker can be allocated for multiple events simultaneously.
-In this case, we use a singleton async allocator, which allows multiple events to share the same event processor without blocking further allocations.
+In this case, we use a singleton non-blocking allocator, which allows multiple events to share the same event processor without blocking further allocations.
 However, as the event moves further through the processing flow, we still need to allocate an event processor at the runtime level.
 While an event is being processed, we must ensure that no other events are processed through the same event processor to maintain correct behaviour.
 
-### Synchronous vs. Asynchronous Allocator
+### Blocking vs. Blocking Allocator
 In our system, an event processor allocator is responsible for assigning event processors to handle incoming events.
 The way this allocation happens depends on whether the processing mode is synchronous or asynchronous.
 
-🔹 Synchronous Allocator (Sync Allocator)
+🔹 Blocking Allocator
 Ensures that each worker processes events one at a time, in a sequential (FIFO) order.
 When an event processor is allocated to an event, it remains blocked until the event is fully processed.
 Once the processing is completed, the event processor is released back for new events.
 
-🔹 Asynchronous Allocator (Async Allocator)
+🔹 Blocking Allocator
 Allows a single worker to process multiple events concurrently without waiting for previous ones to finish.
 When an event processor is allocated, it does not block itself from handling other events at the same time.
 
 | Allocator Type    | Processing Order  | Handles Multiple Events? | Blocks While Processing? | Used In Flow                      |
 |-------------------|------------------|--------------------------|--------------------------|-----------------------------------|
-| **Sync Allocator**  | Sequential (FIFO) | ❌ No                     | ✅ Yes                   | Sync processing flow for worker allocation; async processing flow for connection allocation     |
-| **Async Allocator** | Parallel         | ✅ Yes                    | ❌ No                    | Async processing flow for worker allocation|
+| **Blocking Allocator**  | Sequential (FIFO) | ❌ No                     | ✅ Yes                   | Sync processing flow for worker allocation; async processing flow for connection allocation     |
+| **Non-blocking Allocator** | Parallel         | ✅ Yes                    | ❌ No                    | Async processing flow for worker allocation|
 
 #### Data bindings
 
