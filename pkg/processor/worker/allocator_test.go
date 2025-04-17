@@ -19,6 +19,7 @@ limitations under the License.
 package worker
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -59,15 +60,45 @@ func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	suite.Require().NotPanics(func() { sa.Release(worker1) })
 }
 
-func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
-	worker1 := &Worker{index: 0, runtime: &MockRuntime{}, logger: suite.logger}
-	worker2 := &Worker{index: 1, runtime: &MockRuntime{}, logger: suite.logger}
-	workers := []*Worker{worker1, worker2}
+func (suite *AllocatorTestSuite) TestNonPoolAllocator() {
+	eventProcessors := suite.createEventProcessors(2)
 
-	eventProcessors := make([]eventprocessor.EventProcessor, 2)
-	for i, worker := range workers {
-		eventProcessors[i] = worker
-	}
+	worker1 := eventProcessors[1]
+	worker2 := eventProcessors[0]
+
+	fpa, err := eventprocessor.NewNonBlockingPoolAllocator(suite.logger, eventProcessors)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(fpa)
+
+	// allocate and not release
+	firstAllocatedWorker, err := fpa.Allocate(time.Second)
+	suite.Require().NoError(err)
+	suite.Require().Equal(worker1, firstAllocatedWorker)
+
+	// ensure round robin allocation
+	nextAllocatedWorker, err := fpa.Allocate(time.Second)
+	suite.Require().NoError(err)
+	suite.Require().Equal(worker2, nextAllocatedWorker)
+
+	// allocate 1st again (check round robin + allocation of already allocated worker)
+	nextAllocatedWorker, err = fpa.Allocate(time.Second)
+	suite.Require().NoError(err)
+	suite.Require().Equal(firstAllocatedWorker, nextAllocatedWorker)
+
+	// release the first worker
+	fpa.Release(worker1)
+
+	// ensure that fpa allocates the seocnd worker anyway
+	nextAllocatedWorker, err = fpa.Allocate(time.Second)
+	suite.Require().NoError(err)
+	suite.Require().Equal(worker2, nextAllocatedWorker)
+
+	fpa.Release(worker2)
+}
+
+func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
+	eventProcessors := suite.createEventProcessors(2)
+	worker2 := eventProcessors[1]
 
 	fpa, err := eventprocessor.NewSyncPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NoError(err)
@@ -76,12 +107,12 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 	// allocate once - should allocate
 	firstAllocatedWorker, err := fpa.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Contains(workers, firstAllocatedWorker)
+	suite.Require().Contains(eventProcessors, firstAllocatedWorker)
 
 	// allocate again - should allocate other worker
 	secondAllocatedWorker, err := fpa.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Contains(workers, secondAllocatedWorker)
+	suite.Require().Contains(eventProcessors, secondAllocatedWorker)
 	suite.NotEqual(firstAllocatedWorker, secondAllocatedWorker)
 
 	// allocate yet again - should time out
@@ -115,7 +146,7 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 	// check allocation
 	workerInstance, err := fpa.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Contains(workers, workerInstance)
+	suite.Require().Contains(eventProcessors, workerInstance)
 
 	// check that statistics wasn't reset
 	err = common.RetryUntilSuccessful(3*time.Second,
@@ -129,15 +160,63 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 	suite.Require().NoError(err)
 }
 
+func (suite *AllocatorTestSuite) createEventProcessors(numEventProcessors int) []eventprocessor.EventProcessor {
+	workers := suite.createWorkers(numEventProcessors)
+	eventProcessors := make([]eventprocessor.EventProcessor, numEventProcessors)
+	for i, worker := range workers {
+		eventProcessors[i] = worker
+	}
+	return eventProcessors
+}
+
+func (suite *AllocatorTestSuite) createWorkers(numWorkers int) []*Worker {
+	workers := make([]*Worker, numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		workers[i] = suite.createWorker(i)
+	}
+	return workers
+}
+
+func (suite *AllocatorTestSuite) createWorker(index int) *Worker {
+	worker := &Worker{
+		index:   index,
+		runtime: &MockRuntime{},
+		logger:  suite.logger,
+	}
+
+	return worker
+}
+
 func TestAllocatorTestSuite(t *testing.T) {
 	suite.Run(t, new(AllocatorTestSuite))
 }
 
-func BenchmarkParallelAllocation100(b *testing.B) {
-	benchmarkParallelAllocation(b, 100)
+func BenchmarkParallelAllocation(b *testing.B) {
+	workerCounts := []int{10, 100, 1000}
+	allocatorTypes := []struct {
+		name        string
+		constructor func(logger logger.Logger, eps []eventprocessor.EventProcessor) (eventprocessor.Allocator, error)
+	}{
+		{
+			name:        "Sync",
+			constructor: eventprocessor.NewSyncPoolAllocator,
+		},
+		{
+			name:        "NonBlocking",
+			constructor: eventprocessor.NewNonBlockingPoolAllocator,
+		},
+	}
+
+	for _, count := range workerCounts {
+		for _, allocator := range allocatorTypes {
+			b.Run(fmt.Sprintf("%s_%dWorkers", allocator.name, count), func(b *testing.B) {
+				benchmarkParallelAllocation(b, count, allocator.constructor)
+			})
+		}
+	}
 }
 
-func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int) {
+func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int, allocatorConstructor func(logger.Logger, []eventprocessor.EventProcessor) (eventprocessor.Allocator, error)) {
 	// Initialize logger
 	logger, _ := nucliozap.NewNuclioZapTest("benchmark")
 
@@ -154,7 +233,7 @@ func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int) {
 	}
 
 	// Create a new SyncPoolAllocator
-	fpa, _ := eventprocessor.NewSyncPoolAllocator(logger, eventProcessors)
+	fpa, _ := allocatorConstructor(logger, eventProcessors)
 
 	// Reset the timer to exclude setup time
 	b.ResetTimer()
