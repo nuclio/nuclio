@@ -45,7 +45,7 @@ func (r *Reader) ReadFileOrDefault(configurationPath string) (*Config, error) {
 	// if there's no configuration file, return a default configuration. otherwise try to parse it
 	platformConfigurationFile, err := os.Open(configurationPath)
 	if err != nil {
-		return r.GetDefaultConfiguration(), nil
+		return GetDefaultConfiguration(), nil
 	}
 
 	// close after
@@ -56,35 +56,4 @@ func (r *Reader) ReadFileOrDefault(configurationPath string) (*Config, error) {
 	}
 
 	return &platformConfiguration, nil
-}
-
-func (r *Reader) GetDefaultConfiguration() *Config {
-	trueValue := true
-	defaultSinkName := "stdout"
-
-	return &Config{
-		WebAdmin: WebServer{
-			Enabled:       &trueValue,
-			ListenAddress: ":8081",
-		},
-		HealthCheck: WebServer{
-			Enabled:       &trueValue,
-			ListenAddress: ":8082",
-		},
-		Logger: Logger{
-
-			// create an STDOUT sink and bind everything to it @ debug level
-			Sinks: map[string]LoggerSink{
-				defaultSinkName: {Kind: LoggerSinkKindStdout},
-			},
-
-			System: []LoggerSinkBinding{
-				{Level: "debug", Sink: defaultSinkName},
-			},
-
-			Functions: []LoggerSinkBinding{
-				{Level: "debug", Sink: defaultSinkName},
-			},
-		},
-	}
 }
