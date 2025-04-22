@@ -113,10 +113,10 @@ func (bc *AbstractConnectionManager) createAllocator() error {
 	var err error
 	if bc.MinConnectionsNum == 1 && bc.MaxConnectionsNum == 1 {
 		// TODO: add support sync singleton
-		bc.allocator = eventprocessor.NewAsyncSingletonAllocator(
+		bc.allocator = eventprocessor.NewNonBlockingSingletonAllocator(
 			bc.Logger,
 			nil)
-	} else if bc.allocator, err = eventprocessor.NewSyncPoolAllocator(
+	} else if bc.allocator, err = eventprocessor.NewBlockingPoolAllocator(
 		bc.Logger,
 		nil); err != nil {
 		return err
