@@ -41,54 +41,54 @@ func NewNonBlockingSingletonAllocator(parentLogger logger.Logger, eventProcessor
 	}
 }
 
-func (s *nonBlockingSingletonAllocator) Allocate(time.Duration) (EventProcessor, error) {
-	if s.isTerminated {
+func (a *nonBlockingSingletonAllocator) Allocate(time.Duration) (EventProcessor, error) {
+	if a.isTerminated {
 		return nil, ErrAllObjectsAreTerminated
 	}
-	return s.object, nil
+	return a.object, nil
 }
 
-func (s *nonBlockingSingletonAllocator) SetObjects(objects []EventProcessor) error {
+func (a *nonBlockingSingletonAllocator) SetObjects(objects []EventProcessor) error {
 	if len(objects) == 0 {
 		return errors.New("Length of setting objects is zero")
 	}
-	s.object = objects[0]
+	a.object = objects[0]
 	return nil
 }
 
-func (s *nonBlockingSingletonAllocator) Release(processor EventProcessor) {
+func (a *nonBlockingSingletonAllocator) Release(processor EventProcessor) {
 }
 
-func (s *nonBlockingSingletonAllocator) GetObjects() []EventProcessor {
-	return []EventProcessor{s.object}
+func (a *nonBlockingSingletonAllocator) GetObjects() []EventProcessor {
+	return []EventProcessor{a.object}
 }
 
-func (s *nonBlockingSingletonAllocator) GetNumObjectsAvailable() int {
+func (a *nonBlockingSingletonAllocator) GetNumObjectsAvailable() int {
 	return 1
 }
 
 // GetStatistics returns allocator statistics
-func (s *nonBlockingSingletonAllocator) GetStatistics() *statistics.AllocatorStatistics {
-	return s.object.GetAllocationStatistics()
+func (a *nonBlockingSingletonAllocator) GetStatistics() *statistics.AllocatorStatistics {
+	return a.object.GetAllocationStatistics()
 }
 
-func (s *nonBlockingSingletonAllocator) SignalDraining() error {
-	return s.object.Drain()
+func (a *nonBlockingSingletonAllocator) SignalDraining() error {
+	return a.object.Drain()
 }
 
-func (s *nonBlockingSingletonAllocator) SignalContinue() error {
-	return s.object.Continue()
+func (a *nonBlockingSingletonAllocator) SignalContinue() error {
+	return a.object.Continue()
 }
 
-func (s *nonBlockingSingletonAllocator) SignalTermination() error {
-	s.isTerminated = true
-	return s.object.Terminate()
+func (a *nonBlockingSingletonAllocator) SignalTermination() error {
+	a.isTerminated = true
+	return a.object.Terminate()
 }
 
-func (s *nonBlockingSingletonAllocator) IsTerminated() bool {
-	return s.isTerminated
+func (a *nonBlockingSingletonAllocator) IsTerminated() bool {
+	return a.isTerminated
 }
 
-func (s *nonBlockingSingletonAllocator) Stop() error {
-	return s.SignalTermination()
+func (a *nonBlockingSingletonAllocator) Stop() error {
+	return a.SignalTermination()
 }
