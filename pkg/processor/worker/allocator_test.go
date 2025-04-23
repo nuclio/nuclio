@@ -100,38 +100,38 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	eventProcessors := suite.createEventProcessors(2)
 	worker2 := eventProcessors[1]
 
-	fpa, err := eventprocessor.NewSyncPoolAllocator(suite.logger, eventProcessors)
+	allocator, err := eventprocessor.NewSyncPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NoError(err)
-	suite.Require().NotNil(fpa)
+	suite.Require().NotNil(allocator)
 
 	// allocate once - should allocate
-	firstAllocatedWorker, err := fpa.Allocate(time.Hour)
+	firstAllocatedWorker, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
 	suite.Require().Contains(eventProcessors, firstAllocatedWorker)
 
 	// allocate again - should allocate other worker
-	secondAllocatedWorker, err := fpa.Allocate(time.Hour)
+	secondAllocatedWorker, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
 	suite.Require().Contains(eventProcessors, secondAllocatedWorker)
 	suite.NotEqual(firstAllocatedWorker, secondAllocatedWorker)
 
 	// allocate yet again - should time out
-	failedAllocationWorker, err := fpa.Allocate(50 * time.Millisecond)
+	failedAllocationWorker, err := allocator.Allocate(50 * time.Millisecond)
 	suite.Require().Error(err)
 	suite.Require().Nil(failedAllocationWorker)
 
 	// release the second worker
-	suite.Require().NotPanics(func() { fpa.Release(worker2) })
+	suite.Require().NotPanics(func() { allocator.Release(worker2) })
 
 	// allocate again - should allocate second worker
-	thirdAllocatedWorker, err := fpa.Allocate(time.Hour)
+	thirdAllocatedWorker, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
 	suite.Require().Equal(worker2, thirdAllocatedWorker)
 
 	err = common.RetryUntilSuccessful(3*time.Second,
 		1*time.Second,
 		func() bool {
-			statistics := fpa.GetStatistics()
+			statistics := allocator.GetStatistics()
 			return statistics.AllocationCount == uint64(4) &&
 				statistics.AllocationSuccessImmediateTotal == uint64(3) &&
 				statistics.AllocationTimeoutTotal == uint64(1)
@@ -140,11 +140,11 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	suite.Require().NoError(err)
 
 	// reset objects in allocator (both should become available)
-	err = fpa.SetObjects(eventProcessors)
+	err = allocator.SetObjects(eventProcessors)
 	suite.Require().NoError(err)
 
 	// check allocation
-	workerInstance, err := fpa.Allocate(time.Hour)
+	workerInstance, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
 	suite.Require().Contains(eventProcessors, workerInstance)
 
@@ -152,7 +152,7 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	err = common.RetryUntilSuccessful(3*time.Second,
 		1*time.Second,
 		func() bool {
-			statistics := fpa.GetStatistics()
+			statistics := allocator.GetStatistics()
 			return statistics.AllocationCount == uint64(5) &&
 				statistics.AllocationSuccessImmediateTotal == uint64(4) &&
 				statistics.AllocationTimeoutTotal == uint64(1)
@@ -232,8 +232,8 @@ func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int, allocatorCon
 		eventProcessors[i] = worker
 	}
 
-	// Create a new SyncPoolAllocator
-	fpa, _ := allocatorConstructor(logger, eventProcessors)
+	// Create an allocator
+	allocator, _ := allocatorConstructor(logger, eventProcessors)
 
 	// Reset the timer to exclude setup time
 	b.ResetTimer()
@@ -242,11 +242,11 @@ func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int, allocatorCon
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			// Allocate a worker
-			processor, err := fpa.Allocate(time.Hour)
+			processor, err := allocator.Allocate(time.Hour)
 			if err != nil {
 				b.Error(err)
 			}
-			fpa.Release(processor)
+			allocator.Release(processor)
 		}
 	})
 }
