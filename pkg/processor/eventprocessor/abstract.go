@@ -61,6 +61,7 @@ func (a *abstractPoolAllocator) SignalDraining() error {
 
 	return nil
 }
+
 func (a *abstractPoolAllocator) SignalContinue() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), a.logger)
 
@@ -105,6 +106,7 @@ func (a *abstractPoolAllocator) SignalTermination() error {
 func (a *abstractPoolAllocator) IsTerminated() bool {
 	return a.isTerminated.Load()
 }
+
 func (a *abstractPoolAllocator) GetObjects() []EventProcessor {
 	return a.objects
 }
