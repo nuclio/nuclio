@@ -31,7 +31,7 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | upper_first }}
 {% for commit in commits %}
-- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | split(pat="\n") | first }}{% if commit.github.username %} by @{{ commit.github.username }}{% endif %}{% if commit.github.pr_number %} in #{{ commit.github.pr_number }}{% endif %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | split(pat="\n") | first }}{% if commit.github.username %} by @{{ commit.github.username }}{% endif %}
 {% endfor %}
 {% endfor %}
 """
@@ -66,18 +66,18 @@ commit_preprocessors = [
 ]
 # regex for parsing and grouping commits
 commit_parsers = [
-  { message = "(?i)^\\[.*\\].*fix", group = "<!-- 1 -->🐛 Bug Fixes" },
   { message = "^\\[Docs\\]", group = "<!-- 3 -->📚 Documentation" },
   { message = "^\\[Performance\\]", group = "<!-- 4 -->⚡ Performance" },
-  { message = "(?i)^\\[.*\\].*refactor", group = "<!-- 2 -->🚜 Refactor" },
   { message = "^\\[UI\\]", group = "<!-- 5 -->🎨 UI" },
   { message = "^\\[Test\\]", group = "<!-- 6 -->🔬 Testing" },
   { message = "^\\[Dependencies\\]", group = "<!-- 7 -->🧪 Dependencies" },
   { message = "^\\[Dependabot\\]", group = "<!-- 7 -->🧪 Dependencies" },
   { message = "^\\[Chart\\].*Bump", skip = true },
   { message = "^\\[CI\\]", group = "<!-- 8 -->⚙️ CI" },
-  { body = ".*security", group = "<!-- 9 -->🛡️ Security" },
   { message = "^Revert", group = "<!-- 10 -->◀️ Reverted Changes" },
+  { body = ".*security", group = "<!-- 9 -->🛡️ Security" },
+  { message = "(?i)^\\[.*\\].*refactor", group = "<!-- 2 -->🚜 Refactor" },
+  { message = "(?i)^\\[.*\\].*fix", group = "<!-- 1 -->🐛 Bug Fixes" },
   { message = "^\\[.*\\]", group = "<!-- 0 -->🚀 Features / Enhancements" },
   { message = ".*", group = "<!-- 11 -->💼 Other" },
 ]
