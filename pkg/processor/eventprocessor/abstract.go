@@ -45,7 +45,6 @@ func (a *abstractPoolAllocator) SignalDraining() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), a.logger)
 
 	for _, objectInstance := range a.GetObjects() {
-		objectInstance := objectInstance
 
 		errGroup.Go(fmt.Sprintf("Drain object %d", objectInstance.GetIndex()), func() error {
 			// if object is not already drained, signal it to drain events
@@ -66,7 +65,6 @@ func (a *abstractPoolAllocator) SignalContinue() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), a.logger)
 
 	for _, objectInstance := range a.GetObjects() {
-		objectInstance := objectInstance
 
 		errGroup.Go(fmt.Sprintf("Send continue signal to object %d", objectInstance.GetIndex()), func() error {
 			if err := objectInstance.Continue(); err != nil {
@@ -87,7 +85,6 @@ func (a *abstractPoolAllocator) SignalTermination() error {
 	errGroup, _ := errgroup.WithContext(context.Background(), a.logger)
 	a.isTerminated.Store(true)
 	for _, objectInstance := range a.GetObjects() {
-		objectInstance := objectInstance
 
 		errGroup.Go(fmt.Sprintf("Terminate object %d", objectInstance.GetIndex()), func() error {
 

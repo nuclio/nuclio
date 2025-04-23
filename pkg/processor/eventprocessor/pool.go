@@ -35,7 +35,7 @@ type syncPoolAllocator struct {
 }
 
 func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) (Allocator, error) {
-	abstractPoolAllocatorInstance := newAbstractPoolAllocator(parentLogger.GetChild("sync_pool_allocator"))
+	abstractPoolAllocatorInstance := newAbstractPoolAllocator(parentLogger.GetChild("sync-pool-allocator"))
 	newFixedPool := &syncPoolAllocator{
 		abstractPoolAllocator: abstractPoolAllocatorInstance,
 		statistics:            safeAllocatorStatistics{},
@@ -171,7 +171,7 @@ type nonBlockingPoolAllocator struct {
 
 func NewNonBlockingPoolAllocator(parentLogger logger.Logger, processors []EventProcessor) (Allocator, error) {
 	nonBlockingPoolAllocatorInstance := &nonBlockingPoolAllocator{
-		abstractPoolAllocator: newAbstractPoolAllocator(parentLogger.GetChild("nonblock_pool_allocator")),
+		abstractPoolAllocator: newAbstractPoolAllocator(parentLogger.GetChild("nonblock-pool-allocator")),
 		index:                 atomic.Uint64{},
 	}
 	if err := nonBlockingPoolAllocatorInstance.SetObjects(processors); err != nil {
@@ -186,7 +186,8 @@ func (nba *nonBlockingPoolAllocator) Allocate(timeout time.Duration) (EventProce
 	// Atomically increment and get the index
 	// If idx exceeds math.MaxUint64, it will wrap back to 0, and the subsequent modulo will still yield nba valid slot
 	// For optimal performance, this uses a combined atomic add-and-load operation.
-	// As a result, the first allocated object will have index 1 instead of 0, which is only
+	// As a result, the first allocated object will have index 1 instead of 0, which is only the case if len(object) >=2
+	// If len(object) == 1, the first object will be allocated with index 0
 	idx := nba.index.Add(1)
 
 	// Select the next EventProcessor in nba round-robin manner, wrapping around if needed.
@@ -213,7 +214,7 @@ func (nba *nonBlockingPoolAllocator) Stop() error {
 }
 
 func (nba *nonBlockingPoolAllocator) SetObjects(objects []EventProcessor) error {
-	// Stop() cleans up sa.objects, so if `objects` and `sa.objects` are the same reference,
+	// Stop() cleans up nba.objects, so if `objects` and `nba.objects` are the same reference,
 	// the new objects will be cleaned up as well.
 	// To avoid this, we create nba copy of the `objects` slice
 	objects = append([]EventProcessor(nil), objects...)

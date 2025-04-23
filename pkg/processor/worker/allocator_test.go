@@ -43,21 +43,21 @@ func (suite *AllocatorTestSuite) SetupSuite() {
 func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	worker1 := &Worker{}
 
-	sa := eventprocessor.NewAsyncSingletonAllocator(suite.logger, worker1)
-	suite.Require().NotNil(sa)
+	allocator := eventprocessor.NewAsyncSingletonAllocator(suite.logger, worker1)
+	suite.Require().NotNil(allocator)
 
 	// allocate once, time should be ignored
-	allocatedWorker, err := sa.Allocate(time.Hour)
+	allocatedWorker, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
 	suite.Require().Equal(worker1, allocatedWorker)
 
 	// allocate again, release doesn't need to happen
-	allocatedWorker, err = sa.Allocate(time.Hour)
+	allocatedWorker, err = allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
 	suite.Require().Equal(worker1, allocatedWorker)
 
 	// release shouldn't do anything
-	suite.Require().NotPanics(func() { sa.Release(worker1) })
+	suite.Require().NotPanics(func() { allocator.Release(worker1) })
 }
 
 func (suite *AllocatorTestSuite) TestNonPoolAllocator() {
@@ -66,34 +66,34 @@ func (suite *AllocatorTestSuite) TestNonPoolAllocator() {
 	worker1 := eventProcessors[1]
 	worker2 := eventProcessors[0]
 
-	fpa, err := eventprocessor.NewNonBlockingPoolAllocator(suite.logger, eventProcessors)
+	allocator, err := eventprocessor.NewNonBlockingPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NoError(err)
-	suite.Require().NotNil(fpa)
+	suite.Require().NotNil(allocator)
 
 	// allocate and not release
-	firstAllocatedWorker, err := fpa.Allocate(time.Second)
+	firstAllocatedWorker, err := allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
 	suite.Require().Equal(worker1, firstAllocatedWorker)
 
 	// ensure round robin allocation
-	nextAllocatedWorker, err := fpa.Allocate(time.Second)
+	nextAllocatedWorker, err := allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
 	suite.Require().Equal(worker2, nextAllocatedWorker)
 
 	// allocate 1st again (check round robin + allocation of already allocated worker)
-	nextAllocatedWorker, err = fpa.Allocate(time.Second)
+	nextAllocatedWorker, err = allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
 	suite.Require().Equal(firstAllocatedWorker, nextAllocatedWorker)
 
 	// release the first worker
-	fpa.Release(worker1)
+	allocator.Release(worker1)
 
-	// ensure that fpa allocates the seocnd worker anyway
-	nextAllocatedWorker, err = fpa.Allocate(time.Second)
+	// ensure that allocator allocates the seocnd worker anyway
+	nextAllocatedWorker, err = allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
 	suite.Require().Equal(worker2, nextAllocatedWorker)
 
-	fpa.Release(worker2)
+	allocator.Release(worker2)
 }
 
 func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
