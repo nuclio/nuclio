@@ -182,6 +182,9 @@ func (c *Config) EnrichPlatformConfig() error {
 
 	c.SensitiveFields.CompileSensitiveFieldsRegex()
 
+	common.EnrichReadinessProbe(&c.Kube.DefaultReadinessProbe, platformDefaultConfigurations.Kube.DefaultReadinessProbe)
+	common.EnrichLivenessProbe(&c.Kube.DefaultLivenessProbe, platformDefaultConfigurations.Kube.DefaultLivenessProbe)
+
 	return nil
 }
 
@@ -509,6 +512,10 @@ func GetDefaultConfiguration() *Config {
 			Functions: []LoggerSinkBinding{
 				{Level: "debug", Sink: defaultSinkName},
 			},
+		},
+		Kube: PlatformKubeConfig{
+			DefaultReadinessProbe: DefaultReadinessProbeConfigurations,
+			DefaultLivenessProbe:  DefaultLivenessProbeConfigurations,
 		},
 	}
 }
