@@ -58,3 +58,45 @@ func MergeEnvSlices(primaryEnv []v1.EnvVar, secondaryEnv []v1.EnvVar) []v1.EnvVa
 
 	return mergedEnv
 }
+
+func EnrichReadinessProbe(probe **v1.Probe, defaultProbe *v1.Probe) {
+	enrichProbe(probe, defaultProbe, KubeReadinessProbe)
+}
+
+func EnrichLivenessProbe(probe **v1.Probe, defaultProbe *v1.Probe) {
+	enrichProbe(probe, defaultProbe, KubeLivenessProbe)
+}
+
+/*
+Passing *v1.Probe lets you read/write the object.
+Passing **v1.Probe lets you reassign the pointer itself (i.e., change what the variable points to).
+Hence, probe is being passed with ** lets reassign it to the defaultProbe if it is nil
+*/
+func enrichProbe(probe **v1.Probe, defaultProbe *v1.Probe, probeType string) {
+	if *probe == nil {
+		*probe = defaultProbe
+		return
+	}
+
+	// InitialDelaySecond can be 0, but we enable setting it to greater than 0 by design
+	if (*probe).InitialDelaySeconds == 0 {
+		(*probe).InitialDelaySeconds = defaultProbe.InitialDelaySeconds
+	}
+
+	if (*probe).TimeoutSeconds == 0 {
+		(*probe).TimeoutSeconds = defaultProbe.TimeoutSeconds
+	}
+
+	if (*probe).PeriodSeconds == 0 {
+		(*probe).PeriodSeconds = defaultProbe.PeriodSeconds
+	}
+
+	// probes that relevant only for specific probe type
+	switch probeType {
+	case KubeReadinessProbe:
+		if (*probe).FailureThreshold == 0 {
+			(*probe).FailureThreshold = defaultProbe.FailureThreshold
+		}
+	default:
+	}
+}
