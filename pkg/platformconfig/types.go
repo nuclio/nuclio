@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	DefaultFunctionReadinessTimeoutSeconds  = 120
-	DefaultFunctionInvocationTimeoutSeconds = 60
+	DefaultFunctionReadinessTimeoutSeconds   = 120
+	DefaultFunctionInvocationTimeoutSeconds  = 60
 	DefaultReadinessProbeInitialDelaySeconds = int32(5)
 	DefaultReadinessProbeTimeoutSeconds      = int32(1)
 	DefaultReadinessProbePeriodSeconds       = int32(1)
