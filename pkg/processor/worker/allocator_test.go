@@ -20,6 +20,7 @@ package worker
 
 import (
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"testing"
 	"time"
 
@@ -41,92 +42,136 @@ func (suite *AllocatorTestSuite) SetupSuite() {
 }
 
 func (suite *AllocatorTestSuite) TestSingletonAllocator() {
-	worker1 := &Worker{}
+	eventProcessor1 := &eventprocessor.MockEventProcessor{}
 
-	allocator := eventprocessor.NewNonBlockingSingletonAllocator(suite.logger, worker1)
+	allocator := eventprocessor.NewNonBlockingSingletonAllocator(suite.logger, eventProcessor1)
 	suite.Require().NotNil(allocator)
 
 	// allocate once, time should be ignored
-	allocatedWorker, err := allocator.Allocate(time.Hour)
+	allocatedEventProcessor1, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Equal(worker1, allocatedWorker)
+	suite.Require().Equal(eventProcessor1, allocatedEventProcessor1)
 
 	// allocate again, release doesn't need to happen
-	allocatedWorker, err = allocator.Allocate(time.Hour)
+	allocatedEventProcessor1, err = allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Equal(worker1, allocatedWorker)
+	suite.Require().Equal(eventProcessor1, allocatedEventProcessor1)
 
 	// release shouldn't do anything
-	suite.Require().NotPanics(func() { allocator.Release(worker1) })
+	suite.Require().NotPanics(func() { allocator.Release(eventProcessor1) })
 }
 
-func (suite *AllocatorTestSuite) TestNonPoolAllocator() {
-	eventProcessors := suite.createEventProcessors(2)
+func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocator() {
+	eventProcessors := createEventProcessors(2)
 
-	worker1 := eventProcessors[1]
-	worker2 := eventProcessors[0]
+	eventProcessor1 := eventProcessors[1]
+	eventProcessor2 := eventProcessors[0]
 
 	allocator, err := eventprocessor.NewNonBlockingPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(allocator)
 
 	// allocate and not release
-	firstAllocatedWorker, err := allocator.Allocate(time.Second)
+	firstAllocatedEventProcessor1, err := allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
-	suite.Require().Equal(worker1, firstAllocatedWorker)
+	suite.Require().Equal(eventProcessor1, firstAllocatedEventProcessor1)
 
 	// ensure round robin allocation
-	nextAllocatedWorker, err := allocator.Allocate(time.Second)
+	nextAllocatedEventProcessor1, err := allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
-	suite.Require().Equal(worker2, nextAllocatedWorker)
+	suite.Require().Equal(eventProcessor2, nextAllocatedEventProcessor1)
 
-	// allocate 1st again (check round robin + allocation of already allocated worker)
-	nextAllocatedWorker, err = allocator.Allocate(time.Second)
+	// allocate 1st again (check round robin + allocation of already allocated event processor)
+	nextAllocatedEventProcessor1, err = allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
-	suite.Require().Equal(firstAllocatedWorker, nextAllocatedWorker)
+	suite.Require().Equal(firstAllocatedEventProcessor1, nextAllocatedEventProcessor1)
 
-	// release the first worker
-	allocator.Release(worker1)
+	// release the first event processor
+	allocator.Release(eventProcessor1)
 
-	// ensure that allocator allocates the seocnd worker anyway
-	nextAllocatedWorker, err = allocator.Allocate(time.Second)
+	// ensure that allocator allocates the second event processor anyway
+	nextAllocatedEventProcessor1, err = allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
-	suite.Require().Equal(worker2, nextAllocatedWorker)
+	suite.Require().Equal(eventProcessor2, nextAllocatedEventProcessor1)
 
-	allocator.Release(worker2)
+	allocator.Release(eventProcessor2)
+}
+
+func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocatorStatistics() {
+	eventProcessors := createEventProcessors(2)
+
+	// Create a non-blocking pool allocator using the event processors
+	allocator, err := eventprocessor.NewNonBlockingPoolAllocator(suite.logger, eventProcessors)
+	suite.Require().NoError(err) // Ensure allocator creation did not fail
+
+	// Cast the generic event processor interfaces to mock versions for method mocking
+	mockEventProcessor1 := eventProcessors[1].(*eventprocessor.MockEventProcessor)
+	mockEventProcessor2 := eventProcessors[0].(*eventprocessor.MockEventProcessor)
+
+	// Define the mock allocation statistics to be returned by each processor
+	mockStatistics := &statistics.AllocatorStatistics{
+		AllocationCount:                       20,
+		AllocationSuccessImmediateTotal:       10,
+		AllocationSuccessAfterWaitTotal:       5,
+		AllocationTimeoutTotal:                5,
+		AllocationWaitDurationMilliSecondsSum: 100,
+		AllocationObjectsAvailablePercentage:  50,
+	}
+
+	// Configure the mock processors to return the mock statistics on GetAllocationStatistics call
+	mockEventProcessor1.On("GetAllocationStatistics").Return(mockStatistics)
+	mockEventProcessor2.On("GetAllocationStatistics").Return(mockStatistics)
+
+	// Call GetStatistics on the allocator, which aggregates statistics from all its objects
+	calculatedStatistics := allocator.GetStatistics()
+
+	// Assert that all counters are summed across processors
+	suite.Equal(uint64(40), calculatedStatistics.AllocationCount)
+	suite.Equal(uint64(20), calculatedStatistics.AllocationSuccessImmediateTotal)
+	suite.Equal(uint64(10), calculatedStatistics.AllocationSuccessAfterWaitTotal)
+	suite.Equal(uint64(10), calculatedStatistics.AllocationTimeoutTotal)
+	suite.Equal(uint64(200), calculatedStatistics.AllocationWaitDurationMilliSecondsSum)
+
+	// Assert that the percentage is averaged, not summed
+	// Each processor returned 50%, so average of two is still 50%
+	suite.Equal(uint64(50), calculatedStatistics.AllocationObjectsAvailablePercentage)
+
+	// Ensure that all mocked expectations were met
+	mockEventProcessor1.AssertExpectations(suite.T())
+	mockEventProcessor2.AssertExpectations(suite.T())
 }
 
 func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
-	eventProcessors := suite.createEventProcessors(2)
-	worker2 := eventProcessors[1]
+	eventProcessors := createEventProcessors(2)
+	eventProcessor2 := eventProcessors[1]
 
 	allocator, err := eventprocessor.NewBlockingPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(allocator)
 
 	// allocate once - should allocate
-	firstAllocatedWorker, err := allocator.Allocate(time.Hour)
+	firstAllocatedEventProcessor, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Contains(eventProcessors, firstAllocatedWorker)
+	suite.Require().Contains(eventProcessors, firstAllocatedEventProcessor)
 
-	// allocate again - should allocate other worker
-	secondAllocatedWorker, err := allocator.Allocate(time.Hour)
+	// allocate again - should allocate other event processor
+	secondAllocatedEventProcessor, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Contains(eventProcessors, secondAllocatedWorker)
-	suite.NotEqual(firstAllocatedWorker, secondAllocatedWorker)
+	suite.Require().Contains(eventProcessors, secondAllocatedEventProcessor)
+	suite.NotEqual(firstAllocatedEventProcessor, secondAllocatedEventProcessor)
 
 	// allocate yet again - should time out
-	failedAllocationWorker, err := allocator.Allocate(50 * time.Millisecond)
+	failedAllocationEventProcessor, err := allocator.Allocate(50 * time.Millisecond)
 	suite.Require().Error(err)
-	suite.Require().Nil(failedAllocationWorker)
+	suite.Require().Nil(failedAllocationEventProcessor)
 
-	// release the second worker
-	suite.Require().NotPanics(func() { allocator.Release(worker2) })
+	// release the second event processor
+	suite.Require().NotPanics(func() { allocator.Release(eventProcessor2) })
 
-	// allocate again - should allocate second worker
-	thirdAllocatedWorker, err := allocator.Allocate(time.Hour)
+	// allocate again - should allocate second event processor
+	thirdAllocatedEventProcessor, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Equal(worker2, thirdAllocatedWorker)
+	suite.Require().Equal(eventProcessor2, thirdAllocatedEventProcessor)
 
 	err = common.RetryUntilSuccessful(3*time.Second,
 		1*time.Second,
@@ -144,9 +189,9 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	suite.Require().NoError(err)
 
 	// check allocation
-	workerInstance, err := allocator.Allocate(time.Hour)
+	eventProcessor, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Contains(eventProcessors, workerInstance)
+	suite.Require().Contains(eventProcessors, eventProcessor)
 
 	// check that statistics wasn't reset
 	err = common.RetryUntilSuccessful(3*time.Second,
@@ -160,39 +205,12 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	suite.Require().NoError(err)
 }
 
-func (suite *AllocatorTestSuite) createEventProcessors(numEventProcessors int) []eventprocessor.EventProcessor {
-	workers := suite.createWorkers(numEventProcessors)
-	eventProcessors := make([]eventprocessor.EventProcessor, numEventProcessors)
-	for i, worker := range workers {
-		eventProcessors[i] = worker
-	}
-	return eventProcessors
-}
-
-func (suite *AllocatorTestSuite) createWorkers(numWorkers int) []*Worker {
-	workers := make([]*Worker, numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		workers[i] = suite.createWorker(i)
-	}
-	return workers
-}
-
-func (suite *AllocatorTestSuite) createWorker(index int) *Worker {
-	worker := &Worker{
-		index:   index,
-		runtime: &MockRuntime{},
-		logger:  suite.logger,
-	}
-
-	return worker
-}
-
 func TestAllocatorTestSuite(t *testing.T) {
 	suite.Run(t, new(AllocatorTestSuite))
 }
 
 func BenchmarkParallelAllocation(b *testing.B) {
-	workerCounts := []int{10, 100, 1000}
+	eventProcessorsCount := []int{10, 100, 1000}
 	allocatorTypes := []struct {
 		name        string
 		constructor func(logger logger.Logger, eps []eventprocessor.EventProcessor) (eventprocessor.Allocator, error)
@@ -207,30 +225,21 @@ func BenchmarkParallelAllocation(b *testing.B) {
 		},
 	}
 
-	for _, count := range workerCounts {
+	for _, count := range eventProcessorsCount {
 		for _, allocator := range allocatorTypes {
-			b.Run(fmt.Sprintf("%s_%dWorkers", allocator.name, count), func(b *testing.B) {
+			b.Run(fmt.Sprintf("%s_%dEventProcessorCount", allocator.name, count), func(b *testing.B) {
 				benchmarkParallelAllocation(b, count, allocator.constructor)
 			})
 		}
 	}
 }
 
-func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int, allocatorConstructor func(logger.Logger, []eventprocessor.EventProcessor) (eventprocessor.Allocator, error)) {
+func benchmarkParallelAllocation(b *testing.B, numberOfEventProcessors int, allocatorConstructor func(logger.Logger, []eventprocessor.EventProcessor) (eventprocessor.Allocator, error)) {
 	// Initialize logger
 	logger, _ := nucliozap.NewNuclioZapTest("benchmark")
 
-	// Create numberOfWorkers workers
-	workers := make([]*Worker, numberOfWorkers)
-	for i := 0; i < numberOfWorkers; i++ {
-		workers[i] = &Worker{index: i, runtime: &MockRuntime{}}
-	}
-
-	// Convert workers to EventProcessors
-	eventProcessors := make([]eventprocessor.EventProcessor, numberOfWorkers)
-	for i, worker := range workers {
-		eventProcessors[i] = worker
-	}
+	// Convert eventProcessors to EventProcessors
+	eventProcessors := createEventProcessors(numberOfEventProcessors)
 
 	// Create an allocator
 	allocator, _ := allocatorConstructor(logger, eventProcessors)
@@ -241,7 +250,7 @@ func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int, allocatorCon
 	// Run the benchmark in parallel
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			// Allocate a worker
+			// Allocate an event processor
 			processor, err := allocator.Allocate(time.Hour)
 			if err != nil {
 				b.Error(err)
@@ -249,4 +258,12 @@ func benchmarkParallelAllocation(b *testing.B, numberOfWorkers int, allocatorCon
 			allocator.Release(processor)
 		}
 	})
+}
+
+func createEventProcessors(numEventProcessors int) []eventprocessor.EventProcessor {
+	eventProcessors := make([]eventprocessor.EventProcessor, numEventProcessors)
+	for i := 0; i < numEventProcessors; i++ {
+		eventProcessors[i] = &eventprocessor.MockEventProcessor{}
+	}
+	return eventProcessors
 }

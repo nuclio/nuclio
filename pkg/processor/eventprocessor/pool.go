@@ -237,3 +237,38 @@ func (nba *nonBlockingPoolAllocator) SetObjects(objects []EventProcessor) error 
 	nba.logger.DebugWith("Allocator objects updated", "size", len(objects))
 	return nil
 }
+
+// GetStatistics returns aggregated allocation statistics from all objects in the pool.
+// The non-blocking allocator itself does not maintain internal statistics,
+// as it performs allocations in a non-blocking manner.
+// Therefore, it delegates statistics collection to the individual objects it manages.
+func (nba *nonBlockingPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
+	// Initialize a struct to accumulate total statistics
+	totalStats := &statistics.AllocatorStatistics{}
+	numProcessors := 0
+	var percentageSum uint64
+
+	for _, object := range nba.objects {
+		stats := object.GetAllocationStatistics()
+
+		// Sum counters that are additive by nature
+		totalStats.AllocationCount += stats.AllocationCount
+		totalStats.AllocationSuccessImmediateTotal += stats.AllocationSuccessImmediateTotal
+		totalStats.AllocationSuccessAfterWaitTotal += stats.AllocationSuccessAfterWaitTotal
+		totalStats.AllocationTimeoutTotal += stats.AllocationTimeoutTotal
+		totalStats.AllocationWaitDurationMilliSecondsSum += stats.AllocationWaitDurationMilliSecondsSum
+
+		// For percentage-based metrics, summing doesn't make sense
+		// Instead, accumulate the values and calculate the average later
+		// This avoids misrepresenting the overall availability percentage
+		percentageSum += stats.AllocationObjectsAvailablePercentage
+		numProcessors++
+	}
+
+	// Average percentage metrics to reflect a realistic combined view
+	if numProcessors > 0 {
+		totalStats.AllocationObjectsAvailablePercentage = percentageSum / uint64(numProcessors)
+	}
+
+	return totalStats
+}
