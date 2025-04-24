@@ -322,6 +322,8 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
+			createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfigurations
+			createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultLivenessProbeConfigurations
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
 			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
@@ -606,8 +608,53 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
+			createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfigurations
+			createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultReadinessProbeConfigurations
 
 			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestValidateProbesSpec() {
+	for _, testCase := range []struct {
+		name                 string
+		testFunctionConfig   *functionconfig.Config
+		shouldFailValidation bool
+	}{
+		{
+			name: "valid with defaults",
+			testFunctionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					ReadinessProbe: platformconfig.DefaultReadinessProbeConfigurations,
+					LivenessProbe:  platformconfig.DefaultLivenessProbeConfigurations,
+				},
+			},
+			shouldFailValidation: false,
+		}, {
+			name:                 "nil spec.probes",
+			testFunctionConfig:   &functionconfig.Config{},
+			shouldFailValidation: true,
+		}, {
+			name: "validate empty probe value",
+			testFunctionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					ReadinessProbe: platformconfig.DefaultReadinessProbeConfigurations,
+					LivenessProbe: &v1.Probe{
+						InitialDelaySeconds: platformconfig.DefaultLivenessProbeInitialDelaySeconds,
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			err := suite.platform.validateProbesSpec(testCase.testFunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -737,6 +784,9 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				},
 			},
 			validationError: platform.ErrIngressHostPathInUse.Error(),
+		}, {
+			name:            "FailReadinessProbe",
+			validationError: "readinessProbe must be provided",
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -770,6 +820,13 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
+			switch testCase.name {
+			case "FailReadinessProbe":
+				// This testCase tests the functionConfig.Spec enrichment failure
+			default:
+				createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfigurations
+				createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultLivenessProbeConfigurations
+			}
 			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
 
 			// run enrichment

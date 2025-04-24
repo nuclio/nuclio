@@ -39,6 +39,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	testNum = int32(17)
+)
+
 type PlatformConfigTestSuite struct {
 	suite.Suite
 	logger logger.Logger
@@ -694,6 +698,95 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialDefault
 	suite.Require().Equal(expectedRequestsMemory, resources.Requests["memory"])
 	suite.Require().Equal(expectedLimitsCPU, resources.Limits["cpu"])
 	suite.Require().Empty(resources.Limits["memory"])
+}
+
+var testDefaultLivenessProbeWithInitialDelayConfigured = &corev1.Probe{
+	InitialDelaySeconds: testNum,
+	TimeoutSeconds:      DefaultLivenessProbeTimeoutSeconds,
+	PeriodSeconds:       DefaultLivenessProbePeriodSeconds,
+}
+
+var testDefaultReadinessProbeWithInitialDelayConfigured = &corev1.Probe{
+	InitialDelaySeconds: testNum,
+	TimeoutSeconds:      DefaultReadinessProbeTimeoutSeconds,
+	PeriodSeconds:       DefaultReadinessProbePeriodSeconds,
+	FailureThreshold:    DefaultReadinessProbeFailureThreshold,
+}
+
+var testDefaultLivenessProbeWithAllFieldsConfigured = &corev1.Probe{
+	InitialDelaySeconds: testNum,
+	TimeoutSeconds:      testNum,
+	PeriodSeconds:       testNum,
+}
+
+var testDefaultReadinessProbeWithAllFieldsConfigured = &corev1.Probe{
+	InitialDelaySeconds: testNum,
+	TimeoutSeconds:      testNum,
+	PeriodSeconds:       testNum,
+	FailureThreshold:    testNum,
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichNewPlatformConfig() {
+	testDefaultConfigurations := GetDefaultConfiguration()
+	for _, testCase := range []struct {
+		name                  string
+		platformConfig        *Config
+		defaultPlatformConfig *Config
+		expectedResult        *Config
+	}{
+		{
+			name:                  "enrich all Probes in nil case",
+			platformConfig:        &Config{},
+			defaultPlatformConfig: testDefaultConfigurations,
+			expectedResult: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultReadinessProbe: DefaultReadinessProbeConfigurations,
+					DefaultLivenessProbe:  DefaultLivenessProbeConfigurations,
+				},
+			},
+		}, {
+			name: "enrich defaults besides InitialDelaySeconds",
+			platformConfig: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultLivenessProbe: &corev1.Probe{
+						InitialDelaySeconds: testNum,
+					},
+					DefaultReadinessProbe: &corev1.Probe{
+						InitialDelaySeconds: testNum,
+					},
+				},
+			},
+			defaultPlatformConfig: testDefaultConfigurations,
+			expectedResult: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultReadinessProbe: testDefaultReadinessProbeWithInitialDelayConfigured,
+					DefaultLivenessProbe:  testDefaultLivenessProbeWithInitialDelayConfigured,
+				},
+			},
+		}, {
+			name: "don't enrich probes",
+			platformConfig: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultReadinessProbe: testDefaultReadinessProbeWithAllFieldsConfigured,
+					DefaultLivenessProbe:  testDefaultLivenessProbeWithAllFieldsConfigured,
+				},
+			},
+			defaultPlatformConfig: testDefaultConfigurations,
+			expectedResult: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultReadinessProbe: testDefaultReadinessProbeWithAllFieldsConfigured,
+					DefaultLivenessProbe:  testDefaultLivenessProbeWithAllFieldsConfigured,
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			resultErr := testCase.platformConfig.EnrichPlatformConfig()
+			suite.Require().NoError(resultErr)
+			suite.Require().Equal(testCase.expectedResult.Kube.DefaultReadinessProbe, testCase.platformConfig.Kube.DefaultReadinessProbe)
+			suite.Require().Equal(testCase.expectedResult.Kube.DefaultLivenessProbe, testCase.platformConfig.Kube.DefaultLivenessProbe)
+		})
+	}
 }
 
 func TestPlatformConfigTestSuite(t *testing.T) {
