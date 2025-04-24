@@ -43,7 +43,7 @@ func (suite *AllocatorTestSuite) SetupSuite() {
 func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	worker1 := &Worker{}
 
-	allocator := eventprocessor.NewAsyncSingletonAllocator(suite.logger, worker1)
+	allocator := eventprocessor.NewNonBlockingSingletonAllocator(suite.logger, worker1)
 	suite.Require().NotNil(allocator)
 
 	// allocate once, time should be ignored
@@ -100,7 +100,7 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	eventProcessors := suite.createEventProcessors(2)
 	worker2 := eventProcessors[1]
 
-	allocator, err := eventprocessor.NewSyncPoolAllocator(suite.logger, eventProcessors)
+	allocator, err := eventprocessor.NewBlockingPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(allocator)
 
@@ -199,7 +199,7 @@ func BenchmarkParallelAllocation(b *testing.B) {
 	}{
 		{
 			name:        "Sync",
-			constructor: eventprocessor.NewSyncPoolAllocator,
+			constructor: eventprocessor.NewBlockingPoolAllocator,
 		},
 		{
 			name:        "NonBlocking",

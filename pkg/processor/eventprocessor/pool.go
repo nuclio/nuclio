@@ -28,15 +28,17 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type syncPoolAllocator struct {
+// blockingPoolAllocator is a thread-safe object allocator that uses a channel to manage its objects
+// `blocking` means that if an object is allocated, it will be unavailable for allocation until the object is released
+type blockingPoolAllocator struct {
 	*abstractPoolAllocator
 	objectsChan chan EventProcessor
 	statistics  safeAllocatorStatistics
 }
 
-func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) (Allocator, error) {
+func NewBlockingPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) (Allocator, error) {
 	abstractPoolAllocatorInstance := newAbstractPoolAllocator(parentLogger.GetChild("sync-pool-allocator"))
-	newFixedPool := &syncPoolAllocator{
+	newFixedPool := &blockingPoolAllocator{
 		abstractPoolAllocator: abstractPoolAllocatorInstance,
 		statistics:            safeAllocatorStatistics{},
 	}
@@ -47,26 +49,26 @@ func NewSyncPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) 
 	return newFixedPool, nil
 }
 
-func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
-	sa.statistics.AllocationCount.Add(1)
+func (a *blockingPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
+	a.statistics.AllocationCount.Add(1)
 	// get total number of objects
-	totalNumberObjects := len(sa.objects)
-	currentNumberOfAvailableObjects := len(sa.objectsChan)
+	totalNumberObjects := len(a.objects)
+	currentNumberOfAvailableObjects := len(a.objectsChan)
 	percentageOfAvailableObjects := float64(currentNumberOfAvailableObjects*100.0) / float64(totalNumberObjects)
 
 	// measure how many objects are available in the queue while we're allocating
-	sa.statistics.AllocationObjectsAvailablePercentage.Add(uint64(percentageOfAvailableObjects))
+	a.statistics.AllocationObjectsAvailablePercentage.Add(uint64(percentageOfAvailableObjects))
 
 	// try to allocate a worker and fall back to default immediately if there's none available
 	select {
-	case objectInstance := <-sa.objectsChan:
-		sa.statistics.AllocationSuccessImmediateTotal.Add(1)
+	case objectInstance := <-a.objectsChan:
+		a.statistics.AllocationSuccessImmediateTotal.Add(1)
 		return objectInstance, nil
 	default:
 
 		// if there's no timeout, return now
 		if timeout == 0 {
-			sa.statistics.AllocationSuccessAfterWaitTotal.Add(1)
+			a.statistics.AllocationSuccessAfterWaitTotal.Add(1)
 			return nil, ErrNoAvailableObjects
 		}
 
@@ -75,89 +77,89 @@ func (sa *syncPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, er
 		// if there is a timeout, try to allocate while waiting for the time
 		// to pass
 		select {
-		case workerInstance := <-sa.objectsChan:
-			sa.statistics.AllocationSuccessAfterWaitTotal.Add(1)
-			sa.statistics.AllocationWaitDurationMilliSecondsSum.Add(uint64(time.Since(waitStartAt).Nanoseconds() / 1e6))
+		case workerInstance := <-a.objectsChan:
+			a.statistics.AllocationSuccessAfterWaitTotal.Add(1)
+			a.statistics.AllocationWaitDurationMilliSecondsSum.Add(uint64(time.Since(waitStartAt).Nanoseconds() / 1e6))
 			return workerInstance, nil
 		case <-time.After(timeout):
-			sa.statistics.AllocationTimeoutTotal.Add(1)
+			a.statistics.AllocationTimeoutTotal.Add(1)
 			return nil, ErrNoAvailableObjects
 		}
 	}
 }
 
-func (sa *syncPoolAllocator) Stop() error {
+func (a *blockingPoolAllocator) Stop() error {
 	// Stop the old objects that are being cleaned up
-	if err := sa.SignalTermination(); err != nil {
-		sa.logger.DebugWith("Failed to stop objects in allocator",
+	if err := a.SignalTermination(); err != nil {
+		a.logger.DebugWith("Failed to stop objects in allocator",
 			"error", err.Error())
 	}
 
 	// close channel
-	if sa.objectsChan != nil {
-		close(sa.objectsChan)
+	if a.objectsChan != nil {
+		close(a.objectsChan)
 	}
 	// clean up objects
-	clear(sa.objects)
+	clear(a.objects)
 	return nil
 }
 
-func (sa *syncPoolAllocator) Release(object EventProcessor) {
-	if sa.IsTerminated() {
-		sa.logger.DebugWith("Allocator is terminated, not releasing object",
+func (a *blockingPoolAllocator) Release(object EventProcessor) {
+	if a.IsTerminated() {
+		a.logger.DebugWith("Allocator is terminated, not releasing object",
 			"object", object.GetIndex())
 		return
 	}
 	defer common.CatchAndLogPanicWithOptions(context.Background(), // nolint: errcheck
-		sa.logger,
+		a.logger,
 		"Release object (Allocator restarted ?)",
 		&common.CatchAndLogPanicOptions{
 			Args:          nil,
 			CustomHandler: nil,
 		})
-	sa.objectsChan <- object
+	a.objectsChan <- object
 }
 
-func (sa *syncPoolAllocator) SetObjects(objects []EventProcessor) error {
+func (a *blockingPoolAllocator) SetObjects(objects []EventProcessor) error {
 	// Stop() cleans up sa.objects, so if `objects` and `sa.objects` are the same reference,
 	// the new objects will be cleaned up as well.
 	// To avoid this, we create a copy of the `objects` slice
 	objects = append([]EventProcessor(nil), objects...)
 
-	if err := sa.Stop(); err != nil {
-		sa.logger.WarnWith("Failed to stop objects in allocator",
+	if err := a.Stop(); err != nil {
+		a.logger.WarnWith("Failed to stop objects in allocator",
 			"error", err.Error())
 	}
 
 	// Stop() marks the allocator as terminated and closes the channel,
 	// so we can safely set new objects
-	sa.isTerminated.Store(false)
+	a.isTerminated.Store(false)
 
 	// Set new objects and initialize channels with the length of new objects
-	sa.objects = objects
-	sa.objectsChan = make(chan EventProcessor, len(objects))
+	a.objects = objects
+	a.objectsChan = make(chan EventProcessor, len(objects))
 
 	// Populate the objects channel with the new objects
 	for _, object := range objects {
-		sa.objectsChan <- object
+		a.objectsChan <- object
 	}
 
 	// Log the update of allocator objects
-	sa.logger.DebugWith("Allocator objects updated", "size", len(objects))
+	a.logger.DebugWith("Allocator objects updated", "size", len(objects))
 	return nil
 }
 
 // GetStatistics returns object allocator statistics
 // return unsafe copy of the statistics to avoid any unnecessary blocking of the actual statistics object
 // used in gatherers which are thread-safe
-func (sa *syncPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
+func (a *blockingPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
 	allocatorStatistics := &statistics.AllocatorStatistics{
-		AllocationCount:                       sa.statistics.AllocationCount.Load(),
-		AllocationSuccessImmediateTotal:       sa.statistics.AllocationSuccessImmediateTotal.Load(),
-		AllocationSuccessAfterWaitTotal:       sa.statistics.AllocationSuccessAfterWaitTotal.Load(),
-		AllocationTimeoutTotal:                sa.statistics.AllocationTimeoutTotal.Load(),
-		AllocationWaitDurationMilliSecondsSum: sa.statistics.AllocationWaitDurationMilliSecondsSum.Load(),
-		AllocationObjectsAvailablePercentage:  sa.statistics.AllocationObjectsAvailablePercentage.Load(),
+		AllocationCount:                       a.statistics.AllocationCount.Load(),
+		AllocationSuccessImmediateTotal:       a.statistics.AllocationSuccessImmediateTotal.Load(),
+		AllocationSuccessAfterWaitTotal:       a.statistics.AllocationSuccessAfterWaitTotal.Load(),
+		AllocationTimeoutTotal:                a.statistics.AllocationTimeoutTotal.Load(),
+		AllocationWaitDurationMilliSecondsSum: a.statistics.AllocationWaitDurationMilliSecondsSum.Load(),
+		AllocationObjectsAvailablePercentage:  a.statistics.AllocationObjectsAvailablePercentage.Load(),
 	}
 	return allocatorStatistics
 }

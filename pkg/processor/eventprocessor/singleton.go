@@ -25,68 +25,70 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type asyncSingletonAllocator struct {
+// nonBlockingSingletonAllocator is a singleton object allocator
+// `nonBlocking` means that if an object is allocated, it is available for allocation again
+type nonBlockingSingletonAllocator struct {
 	logger       logger.Logger
 	object       EventProcessor
 	isTerminated bool
 }
 
-func NewAsyncSingletonAllocator(parentLogger logger.Logger, eventProcessor EventProcessor) Allocator {
+func NewNonBlockingSingletonAllocator(parentLogger logger.Logger, eventProcessor EventProcessor) Allocator {
 
-	return &asyncSingletonAllocator{
+	return &nonBlockingSingletonAllocator{
 		logger: parentLogger.GetChild("singelton_allocator"),
 		object: eventProcessor,
 	}
 }
 
-func (s *asyncSingletonAllocator) Allocate(time.Duration) (EventProcessor, error) {
-	if s.isTerminated {
+func (a *nonBlockingSingletonAllocator) Allocate(time.Duration) (EventProcessor, error) {
+	if a.isTerminated {
 		return nil, ErrAllObjectsAreTerminated
 	}
-	return s.object, nil
+	return a.object, nil
 }
 
-func (s *asyncSingletonAllocator) SetObjects(objects []EventProcessor) error {
+func (a *nonBlockingSingletonAllocator) SetObjects(objects []EventProcessor) error {
 	if len(objects) == 0 {
 		return errors.New("Length of setting objects is zero")
 	}
-	s.object = objects[0]
+	a.object = objects[0]
 	return nil
 }
 
-func (s *asyncSingletonAllocator) Release(processor EventProcessor) {
+func (a *nonBlockingSingletonAllocator) Release(processor EventProcessor) {
 }
 
-func (s *asyncSingletonAllocator) GetObjects() []EventProcessor {
-	return []EventProcessor{s.object}
+func (a *nonBlockingSingletonAllocator) GetObjects() []EventProcessor {
+	return []EventProcessor{a.object}
 }
 
-func (s *asyncSingletonAllocator) GetNumObjectsAvailable() int {
+func (a *nonBlockingSingletonAllocator) GetNumObjectsAvailable() int {
 	return 1
 }
 
 // GetStatistics returns allocator statistics
-func (s *asyncSingletonAllocator) GetStatistics() *statistics.AllocatorStatistics {
-	return s.object.GetAllocationStatistics()
+func (a *nonBlockingSingletonAllocator) GetStatistics() *statistics.AllocatorStatistics {
+	return a.object.GetAllocationStatistics()
 }
 
-func (s *asyncSingletonAllocator) SignalDraining() error {
-	return s.object.Drain()
+func (a *nonBlockingSingletonAllocator) SignalDraining() error {
+	return a.object.Drain()
 }
 
-func (s *asyncSingletonAllocator) SignalContinue() error {
-	return s.object.Continue()
+func (a *nonBlockingSingletonAllocator) SignalContinue() error {
+	return a.object.Continue()
 }
 
-func (s *asyncSingletonAllocator) SignalTermination() error {
-	s.isTerminated = true
-	return s.object.Terminate()
+func (a *nonBlockingSingletonAllocator) SignalTermination() error {
+	a.isTerminated = true
+	return a.object.Terminate()
 }
 
-func (s *asyncSingletonAllocator) IsTerminated() bool {
-	return s.isTerminated
+func (a *nonBlockingSingletonAllocator) IsTerminated() bool {
+	return a.isTerminated
 }
 
-func (s *asyncSingletonAllocator) Stop() error {
-	return s.SignalTermination()
+func (a *nonBlockingSingletonAllocator) Stop() error {
+	return a.SignalTermination()
 }
