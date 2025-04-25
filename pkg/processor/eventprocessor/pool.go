@@ -245,7 +245,7 @@ func (nba *nonBlockingPoolAllocator) SetObjects(objects []EventProcessor) error 
 func (nba *nonBlockingPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
 	// Initialize a struct to accumulate total statistics
 	totalStats := &statistics.AllocatorStatistics{}
-	numProcessors := 0
+	numProcessors := len(nba.objects)
 	var percentageSum uint64
 
 	for _, object := range nba.objects {
@@ -262,7 +262,6 @@ func (nba *nonBlockingPoolAllocator) GetStatistics() *statistics.AllocatorStatis
 		// Instead, accumulate the values and calculate the average later
 		// This avoids misrepresenting the overall availability percentage
 		percentageSum += stats.AllocationObjectsAvailablePercentage
-		numProcessors++
 	}
 
 	// Average percentage metrics to reflect a realistic combined view

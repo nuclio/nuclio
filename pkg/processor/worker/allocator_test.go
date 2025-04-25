@@ -102,7 +102,7 @@ func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocatorStatistics() {
 
 	// Create a non-blocking pool allocator using the event processors
 	allocator, err := eventprocessor.NewNonBlockingPoolAllocator(suite.logger, eventProcessors)
-	suite.Require().NoError(err) // Ensure allocator creation did not fail
+	suite.Require().NoError(err)
 
 	// Cast the generic event processor interfaces to mock versions for method mocking
 	mockEventProcessor1 := eventProcessors[1].(*eventprocessor.MockEventProcessor)
