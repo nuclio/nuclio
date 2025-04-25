@@ -122,115 +122,12 @@ func (suite *TestSuite) TestAsyncHandler() {
 		})
 	}
 }
+func (suite *TestSuite) TestAsyncHandlerManyRequestsOneWorker() {
+	suite.testAsyncHandlerManyRequests(1)
+}
 
-func (suite *TestSuite) TestAsyncHandlerManyRequests() {
-	createFunctionOptions := suite.GetDeployOptionsAsync("asyncer",
-		suite.GetFunctionPath("outputter"))
-
-	createFunctionOptions.FunctionConfig.Spec.Handler = "async_outputter:handler"
-	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
-		"python -m pip install aiofile==3.5.0",
-	}
-
-	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
-		suite.Require().NotNil(deployResults)
-		suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
-		statusOK := http.StatusOK
-
-		request := &httpsuite.Request{
-			Name:                       "async write",
-			RequestMethod:              http.MethodPost,
-			RequestBody:                "async_write_to_context",
-			ExpectedResponseBody:       "written",
-			ExpectedResponseStatusCode: &statusOK,
-		}
-		request.Enrich(deployResults)
-
-		// Anonymous function to send a request and measure time
-		sendRequest := func(request httpsuite.Request, path string) (time.Duration, error) {
-			start := time.Now()
-			request.RequestPath = path
-			if !suite.SendRequestVerifyResponse(&request) {
-				return 0, fmt.Errorf("failed to send request")
-			}
-			return time.Since(start), nil
-		}
-
-		// Measure time for a single request
-		singleRequestTime, err := sendRequest(*request, "/")
-		suite.Require().NoError(err)
-		suite.Logger.InfoWith("Single request time", "duration", singleRequestTime)
-
-		// Send 100 requests in parallel and measure total time
-		numRequests := 100
-		errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
-		start := time.Now()
-
-		for i := 0; i < numRequests; i++ {
-			index := i
-			errGroup.Go("request", func() error {
-				_, err := sendRequest(*request, "/"+strconv.Itoa(index))
-				return err
-			})
-		}
-
-		// Wait for all requests to complete
-		err = errGroup.Wait()
-		suite.Require().NoError(err)
-
-		// Log the total time taken for 100 requests
-		totalTime := time.Since(start)
-		suite.Logger.InfoWith("Total time for 100 requests", "duration", totalTime)
-
-		// Ensure total time is much smaller than 100 * single request time // 2
-		suite.Require().Less(totalTime, 50*singleRequestTime)
-
-		// Verify the context length after all requests
-		request = &httpsuite.Request{
-			Name:                       "read len",
-			RequestMethod:              http.MethodPost,
-			RequestBody:                "read_context_len",
-			ExpectedResponseBody:       "101",
-			ExpectedResponseStatusCode: &statusOK,
-		}
-		request.Enrich(deployResults)
-		_, err = sendRequest(*request, "/")
-		suite.Require().NoError(err)
-
-		// Verify the context content after all requests
-		request = &httpsuite.Request{
-			Name:                       "read context",
-			RequestMethod:              http.MethodPost,
-			RequestBody:                "read_context",
-			ExpectedResponseStatusCode: &statusOK,
-		}
-		request.Enrich(deployResults)
-		response, err := suite.SendRequest(request)
-		suite.Require().NoError(err)
-
-		body, err := io.ReadAll(response.Body)
-		suite.Require().NoError(err)
-
-		var allIndexes []string
-		err = json.Unmarshal(body, &allIndexes)
-		suite.Require().NoError(err)
-		// first request was with "/" path
-		suite.Require().Equal(allIndexes[0], "/")
-
-		// check that all other request paths are not sorted
-
-		// Generate list of strings from /0 to /100
-		expectedPaths := make([]string, 100)
-		for i := 0; i < 100; i++ {
-			expectedPaths[i] = fmt.Sprintf("/%d", i)
-		}
-
-		// Check that indexes in the returned body are not sorted
-		// Or, in other words, that requests were processed asynchronously and not in the order they were sent
-		suite.Require().NotEqual(expectedPaths, allIndexes[1:], "The paths are sorted in ascending order")
-
-		return true
-	})
+func (suite *TestSuite) TestAsyncHandlerManyRequestsManyWorkers() {
+	suite.testAsyncHandlerManyRequests(10)
 }
 
 func (suite *TestSuite) TestStress() {
@@ -608,10 +505,123 @@ func (suite *TestSuite) getEmptyFunctionCreateOptions(functionName string,
 
 func (suite *TestSuite) getDeployOptions(functionName, functionPath string, mode functionconfig.TriggerWorkMode) *platform.CreateFunctionOptions {
 	if mode == functionconfig.AsyncTriggerWorkMode {
-		return suite.GetDeployOptionsAsync(functionName, functionPath)
+		return suite.GetDeployOptionsAsync(functionName, functionPath, 1)
 	}
 	return suite.GetDeployOptions(functionName, functionPath)
+}
 
+func (suite *TestSuite) testAsyncHandlerManyRequests(numWorkers int) {
+	createFunctionOptions := suite.GetDeployOptionsAsync("asyncer", suite.GetFunctionPath("outputter"), numWorkers)
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "async_outputter:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"python -m pip install aiofile==3.5.0",
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResults)
+		suite.WaitForFunctionReadinessProbe(deployResults, 5*time.Second, 30*time.Second)
+		statusOK := http.StatusOK
+
+		request := &httpsuite.Request{
+			Name:                       "async write",
+			RequestMethod:              http.MethodPost,
+			RequestBody:                "async_write_to_context",
+			ExpectedResponseBody:       "written",
+			ExpectedResponseStatusCode: &statusOK,
+		}
+		request.Enrich(deployResults)
+
+		// Anonymous function to send a request and measure time
+		sendRequest := func(request httpsuite.Request, path string) (time.Duration, error) {
+			start := time.Now()
+			request.RequestPath = path
+			if !suite.SendRequestVerifyResponse(&request) {
+				return 0, fmt.Errorf("failed to send request")
+			}
+			return time.Since(start), nil
+		}
+
+		// Measure time for a single request
+		singleRequestTime, err := sendRequest(*request, "/0")
+		suite.Require().NoError(err)
+		suite.Logger.InfoWith("Single request time", "duration", singleRequestTime)
+
+		numRequests := 100
+		errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
+		start := time.Now()
+
+		// Send 99 requests in parallel and measure total time (1 is send above, so overall we send 100 requests)
+		for i := 1; i < numRequests; i++ {
+			index := i
+			errGroup.Go("request", func() error {
+				_, err := sendRequest(*request, "/"+strconv.Itoa(index))
+				return err
+			})
+		}
+
+		// Wait for all requests to complete
+		err = errGroup.Wait()
+		suite.Require().NoError(err)
+
+		// Log the total time taken for 100 requests
+		totalTime := time.Since(start)
+		suite.Logger.InfoWith("Total time took for sending requests",
+			"numRequests", numRequests-1,
+			"duration", totalTime)
+
+		// Ensure total time is much smaller than 100 * single request time // 2
+		suite.Require().Less(totalTime, 50*singleRequestTime)
+
+		// Verify the context length after all requests
+		var allIndexes []string
+		for i := 0; i < numWorkers; i++ {
+
+			request = &httpsuite.Request{
+				Name:                       "read len",
+				RequestMethod:              http.MethodPost,
+				RequestBody:                "read_context_len",
+				ExpectedResponseBody:       strconv.Itoa(numRequests / numWorkers),
+				ExpectedResponseStatusCode: &statusOK,
+			}
+			request.Enrich(deployResults)
+			_, err = sendRequest(*request, "/")
+			suite.Require().NoError(err)
+
+			// Verify the context content after all requests
+			request = &httpsuite.Request{
+				Name:                       "read context",
+				RequestMethod:              http.MethodPost,
+				RequestBody:                "read_context",
+				ExpectedResponseStatusCode: &statusOK,
+			}
+			request.Enrich(deployResults)
+			response, err := suite.SendRequest(request)
+			suite.Require().NoError(err)
+
+			body, err := io.ReadAll(response.Body)
+			suite.Require().NoError(err)
+
+			var indexes []string
+			err = json.Unmarshal(body, &indexes)
+			suite.Require().NoError(err)
+
+			allIndexes = append(allIndexes, indexes...)
+		}
+
+		suite.Require().Equal(numRequests, len(allIndexes))
+
+		// Generate list of strings from /0 to /100
+		expectedPaths := make([]string, numRequests)
+		for i := 0; i < 100; i++ {
+			expectedPaths[i] = fmt.Sprintf("/%d", i)
+		}
+
+		// Check that indexes in the returned body are not sorted
+		// Or, in other words, that requests were processed asynchronously and not in the order they were sent
+		suite.Require().NotEqual(expectedPaths, allIndexes, "The paths are sorted in ascending order")
+		return true
+	})
 }
 
 func TestIntegrationSuite(t *testing.T) {
