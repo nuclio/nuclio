@@ -91,15 +91,15 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kind = common.LocalPlatformName
 	}
 
-	if err = config.EnrichPlatformConfig(); err != nil {
-		return nil, errors.Wrap(err, "Failed to enrich platform configurations")
+	if enrichErr := config.EnrichPlatformConfig(); enrichErr != nil {
+		return nil, errors.Wrap(enrichErr, "Failed to enrich platform configurations")
 	}
 
 	return config, nil
 }
 
 func (c *Config) EnrichPlatformConfig() error {
-	platformDefaultConfigurations := GetDefaultConfiguration()
+	defaultPlatformConfiguration := GetDefaultPlatformConfiguration()
 
 	// enrich opa configuration
 	c.enrichOpaConfig()
@@ -108,13 +108,13 @@ func (c *Config) EnrichPlatformConfig() error {
 	c.enrichLocalPlatform()
 
 	if c.Logger.Sinks == nil {
-		c.Logger.Sinks = platformDefaultConfigurations.Logger.Sinks
+		c.Logger.Sinks = defaultPlatformConfiguration.Logger.Sinks
 	}
 	if c.Logger.Functions == nil {
-		c.Logger.Functions = platformDefaultConfigurations.Logger.Functions
+		c.Logger.Functions = defaultPlatformConfiguration.Logger.Functions
 	}
 	if c.Logger.System == nil {
-		c.Logger.System = platformDefaultConfigurations.Logger.System
+		c.Logger.System = defaultPlatformConfiguration.Logger.System
 	}
 
 	// resolve cron trigger creation mode according to platform
@@ -182,8 +182,8 @@ func (c *Config) EnrichPlatformConfig() error {
 
 	c.SensitiveFields.CompileSensitiveFieldsRegex()
 
-	common.EnrichReadinessProbe(&c.Kube.DefaultReadinessProbe, platformDefaultConfigurations.Kube.DefaultReadinessProbe)
-	common.EnrichLivenessProbe(&c.Kube.DefaultLivenessProbe, platformDefaultConfigurations.Kube.DefaultLivenessProbe)
+	common.EnrichProbe(&c.Kube.DefaultReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
+	common.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 
 	return nil
 }
@@ -485,7 +485,7 @@ func (c *Config) DisableSensitiveFieldMasking() {
 	c.SensitiveFields.MaskSensitiveFields = false
 }
 
-func GetDefaultConfiguration() *Config {
+func GetDefaultPlatformConfiguration() *Config {
 	trueValue := true
 	defaultSinkName := "stdout"
 
@@ -514,8 +514,8 @@ func GetDefaultConfiguration() *Config {
 			},
 		},
 		Kube: PlatformKubeConfig{
-			DefaultReadinessProbe: DefaultReadinessProbeConfigurations,
-			DefaultLivenessProbe:  DefaultLivenessProbeConfigurations,
+			DefaultReadinessProbe: DefaultReadinessProbeConfiguration,
+			DefaultLivenessProbe:  DefaultLivenessProbeConfiguration,
 		},
 	}
 }

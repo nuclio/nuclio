@@ -45,7 +45,7 @@ func (r *Reader) ReadFileOrDefault(configurationPath string) (*Config, error) {
 	// if there's no configuration file, return a default configuration. otherwise try to parse it
 	platformConfigurationFile, err := os.Open(configurationPath)
 	if err != nil {
-		return GetDefaultConfiguration(), nil
+		return GetDefaultPlatformConfiguration(), nil
 	}
 
 	// close after

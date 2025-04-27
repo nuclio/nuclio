@@ -32,28 +32,22 @@ import (
 )
 
 const (
-	DefaultFunctionReadinessTimeoutSeconds   = 120
-	DefaultFunctionInvocationTimeoutSeconds  = 60
-	DefaultReadinessProbeInitialDelaySeconds = int32(5)
-	DefaultReadinessProbeTimeoutSeconds      = int32(1)
-	DefaultReadinessProbePeriodSeconds       = int32(1)
-	DefaultReadinessProbeFailureThreshold    = int32(3)
-	DefaultLivenessProbeInitialDelaySeconds  = int32(10)
-	DefaultLivenessProbeTimeoutSeconds       = int32(3)
-	DefaultLivenessProbePeriodSeconds        = int32(5)
+	DefaultFunctionReadinessTimeoutSeconds  = 120
+	DefaultFunctionInvocationTimeoutSeconds = 60
 )
 
-var DefaultReadinessProbeConfigurations = &corev1.Probe{
-	InitialDelaySeconds: DefaultReadinessProbeInitialDelaySeconds,
-	TimeoutSeconds:      DefaultReadinessProbeTimeoutSeconds,
-	PeriodSeconds:       DefaultReadinessProbePeriodSeconds,
-	FailureThreshold:    DefaultReadinessProbeFailureThreshold,
+var DefaultReadinessProbeConfiguration = &corev1.Probe{
+	InitialDelaySeconds: int32(5),
+	TimeoutSeconds:      int32(1),
+	PeriodSeconds:       int32(1),
+	FailureThreshold:    int32(10),
 }
 
-var DefaultLivenessProbeConfigurations = &corev1.Probe{
-	InitialDelaySeconds: DefaultLivenessProbeInitialDelaySeconds,
-	TimeoutSeconds:      DefaultLivenessProbeTimeoutSeconds,
-	PeriodSeconds:       DefaultLivenessProbePeriodSeconds,
+var DefaultLivenessProbeConfiguration = &corev1.Probe{
+	InitialDelaySeconds: int32(10),
+	TimeoutSeconds:      int32(3),
+	PeriodSeconds:       int32(5),
+	FailureThreshold:    int32(3),
 }
 
 type LoggerSinkKind string

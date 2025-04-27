@@ -51,11 +51,9 @@ const NuclioLabelKeyFunctionCronJobPod = "nuclio.io/function-cron-job-pod"
 const KubernetesDomainLevelMaxLength = 63
 
 const (
-	AutoPlatformName   = "auto"
-	KubePlatformName   = "kube"
-	LocalPlatformName  = "local"
-	KubeReadinessProbe = "readinessProbe"
-	KubeLivenessProbe  = "livenessProbe"
+	AutoPlatformName  = "auto"
+	KubePlatformName  = "kube"
+	LocalPlatformName = "local"
 )
 
 const RestoreConfigFromSecretEnvVar = "NUCLIO_RESTORE_FUNCTION_CONFIG_FROM_SECRET"

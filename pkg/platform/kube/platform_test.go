@@ -90,9 +90,11 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 		DefaultServiceType: v1.ServiceTypeClusterIP,
 	}
 	suite.mockedPlatform = &mockplatform.Platform{}
-	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{
-		Kube: *suite.platformKubeConfig,
-	}, "")
+	mockPlatformConfig := &platformconfig.Config{Kube: *suite.platformKubeConfig}
+	enrichErr := mockPlatformConfig.EnrichPlatformConfig()
+	suite.Require().NoError(enrichErr)
+
+	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, mockPlatformConfig, "")
 	suite.Require().NoError(err, "Could not create platform")
 
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
@@ -322,8 +324,8 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
-			createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfigurations
-			createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultLivenessProbeConfigurations
+			createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfiguration
+			createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultLivenessProbeConfiguration
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
 			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
@@ -608,8 +610,8 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
-			createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfigurations
-			createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultReadinessProbeConfigurations
+			createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfiguration
+			createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultReadinessProbeConfiguration
 
 			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
@@ -631,22 +633,22 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateProbesSpec() {
 			name: "valid with defaults",
 			testFunctionConfig: &functionconfig.Config{
 				Spec: functionconfig.Spec{
-					ReadinessProbe: platformconfig.DefaultReadinessProbeConfigurations,
-					LivenessProbe:  platformconfig.DefaultLivenessProbeConfigurations,
+					ReadinessProbe: platformconfig.DefaultReadinessProbeConfiguration,
+					LivenessProbe:  platformconfig.DefaultLivenessProbeConfiguration,
 				},
 			},
 			shouldFailValidation: false,
 		}, {
-			name:                 "nil spec.probes",
+			name:                 "empty probes",
 			testFunctionConfig:   &functionconfig.Config{},
 			shouldFailValidation: true,
 		}, {
-			name: "validate empty probe value",
+			name: "empty probe value",
 			testFunctionConfig: &functionconfig.Config{
 				Spec: functionconfig.Spec{
-					ReadinessProbe: platformconfig.DefaultReadinessProbeConfigurations,
+					ReadinessProbe: platformconfig.DefaultReadinessProbeConfiguration,
 					LivenessProbe: &v1.Probe{
-						InitialDelaySeconds: platformconfig.DefaultLivenessProbeInitialDelaySeconds,
+						InitialDelaySeconds: platformconfig.DefaultLivenessProbeConfiguration.InitialDelaySeconds,
 					},
 				},
 			},
@@ -654,7 +656,14 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateProbesSpec() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			err := suite.platform.validateProbesSpec(testCase.testFunctionConfig)
+			var err error
+			ReadinessErr := suite.platform.validateProbeSpec(testCase.testFunctionConfig.Spec.ReadinessProbe)
+			LivenessErr := suite.platform.validateProbeSpec(testCase.testFunctionConfig.Spec.LivenessProbe)
+			if ReadinessErr != nil {
+				err = ReadinessErr
+			} else {
+				err = LivenessErr
+			}
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -785,8 +794,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			},
 			validationError: platform.ErrIngressHostPathInUse.Error(),
 		}, {
-			name:            "FailReadinessProbe",
-			validationError: "readinessProbe must be provided",
+			name: "emptyReadinessProbe",
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -821,11 +829,11 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			}
 			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 			switch testCase.name {
-			case "FailReadinessProbe":
-				// This testCase tests the functionConfig.Spec enrichment failure
+			case "emptyReadinessProbe":
+				// This testCase tests the functionConfig.Spec probes enrichments
+				createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = nil
+				createFunctionOptions.FunctionConfig.Spec.LivenessProbe = nil
 			default:
-				createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfigurations
-				createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultLivenessProbeConfigurations
 			}
 			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
 

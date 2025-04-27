@@ -487,7 +487,8 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	p.enrichInitContainersSpec(functionConfig)
 	p.enrichSidecarsSpec(functionConfig)
-	p.enrichProbesSpec(functionConfig)
+	common.EnrichProbe(&functionConfig.Spec.ReadinessProbe, p.Config.Kube.DefaultReadinessProbe)
+	common.EnrichProbe(&functionConfig.Spec.LivenessProbe, p.Config.Kube.DefaultLivenessProbe)
 
 	return nil
 }
@@ -1359,8 +1360,12 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Sidecar validation failed")
 	}
 
-	if err := p.validateProbesSpec(functionConfig); err != nil {
-		return errors.Wrap(err, "probes validation failed")
+	if err := p.validateProbeSpec(functionConfig.Spec.ReadinessProbe); err != nil {
+		return errors.Wrap(err, "Readiness probe validation failed")
+	}
+
+	if err := p.validateProbeSpec(functionConfig.Spec.LivenessProbe); err != nil {
+		return errors.Wrap(err, "Liveness probe validation failed")
 	}
 
 	return p.validateFunctionIngresses(ctx, functionConfig)
@@ -1651,11 +1656,6 @@ func (p *Platform) enrichContainerSpec(container *v1.Container, functionConfig *
 	if container.ImagePullPolicy == "" {
 		container.ImagePullPolicy = functionConfig.Spec.ImagePullPolicy
 	}
-}
-
-func (p *Platform) enrichProbesSpec(functionConfig *functionconfig.Config) {
-	common.EnrichReadinessProbe(&functionConfig.Spec.ReadinessProbe, p.Config.Kube.DefaultReadinessProbe)
-	common.EnrichLivenessProbe(&functionConfig.Spec.LivenessProbe, p.Config.Kube.DefaultLivenessProbe)
 }
 
 func (p *Platform) clearCallStack(message string) string {
@@ -1993,18 +1993,6 @@ func (p *Platform) validateSidecarSpec(functionConfig *functionconfig.Config) er
 	return nil
 }
 
-func (p *Platform) validateProbesSpec(functionConfig *functionconfig.Config) error {
-	if err := validateProbeSpec(functionConfig.Spec.ReadinessProbe, common.KubeReadinessProbe); err != nil {
-		return nuclio.WrapErrBadRequest(err)
-	}
-
-	if err := validateProbeSpec(functionConfig.Spec.LivenessProbe, common.KubeLivenessProbe); err != nil {
-		return nuclio.WrapErrBadRequest(err)
-	}
-
-	return nil
-}
-
 func (p *Platform) validateInitContainersSpec(functionConfig *functionconfig.Config) error {
 	for _, initContainer := range functionConfig.Spec.InitContainers {
 		if err := p.validateContainerSpec(initContainer); err != nil {
@@ -2298,41 +2286,33 @@ func (p *Platform) getProjectCacheKey(projectMeta platform.ProjectMeta, owner st
 }
 
 // validateProbeSpec validates the probe spec with the given probe type
-func validateProbeSpec(probe *v1.Probe, probesType string) error {
+func (p *Platform) validateProbeSpec(probe *v1.Probe) error {
 	if probe == nil {
-		return nuclio.NewErrBadRequest(fmt.Sprintf("%s must be provided", probesType))
+		return nuclio.NewErrBadRequest("probe must be provided")
 	}
 
-	/*
-		Although this value can be configured with 0,
-		Reference - https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes
-		We set it to be greater than 0 by design
-	*/
+	formatProbesErr := func(probeField string) string {
+		return fmt.Sprintf("%s must be greater than 0", probeField)
+	}
+
+	//InitialDelaySeconds can technically be 0,
+	//Reference - https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes
+	//But only allow setting it to greater than 0 so that there will always be a delay before the first probe check
 	if probe.InitialDelaySeconds < 1 {
-		return nuclio.NewErrBadRequest(formatProbesErr(probesType, "InitialDelaySeconds"))
+		return nuclio.NewErrBadRequest(formatProbesErr("InitialDelaySeconds"))
 	}
 
 	if probe.TimeoutSeconds < 1 {
-		return nuclio.NewErrBadRequest(formatProbesErr(probesType, "TimeoutSeconds"))
+		return nuclio.NewErrBadRequest(formatProbesErr("TimeoutSeconds"))
 	}
 
 	if probe.PeriodSeconds < 1 {
-		return nuclio.NewErrBadRequest(formatProbesErr(probesType, "PeriodSeconds"))
+		return nuclio.NewErrBadRequest(formatProbesErr("PeriodSeconds"))
 	}
 
-	// probe.FailureThreshold is configurable only for readiness probes by design
-	switch probesType {
-	case common.KubeReadinessProbe:
-		if probe.FailureThreshold < 1 {
-			return nuclio.NewErrBadRequest(formatProbesErr(probesType, "FailureThreshold"))
-		}
-	case common.KubeLivenessProbe:
-	default:
+	if probe.FailureThreshold < 1 {
+		return nuclio.NewErrBadRequest(formatProbesErr("FailureThreshold"))
 	}
 
 	return nil
-}
-
-func formatProbesErr(probesType, probeField string) string {
-	return fmt.Sprintf("%s %s must be greater than 0", probesType, probeField)
 }
