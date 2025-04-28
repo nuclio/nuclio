@@ -20,12 +20,13 @@ package worker
 
 import (
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -50,12 +51,12 @@ func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	// allocate once, time should be ignored
 	allocatedEventProcessor1, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Equal(eventProcessor1, allocatedEventProcessor1)
+	suite.Require().Same(eventProcessor1, allocatedEventProcessor1)
 
 	// allocate again, release doesn't need to happen
 	allocatedEventProcessor1, err = allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Equal(eventProcessor1, allocatedEventProcessor1)
+	suite.Require().Same(eventProcessor1, allocatedEventProcessor1)
 
 	// release shouldn't do anything
 	suite.Require().NotPanics(func() { allocator.Release(eventProcessor1) })
@@ -67,6 +68,14 @@ func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocator() {
 	eventProcessor1 := eventProcessors[1]
 	eventProcessor2 := eventProcessors[0]
 
+	// Cast to mock versions for method mocking
+	mockEventProcessor1 := eventProcessors[1].(*eventprocessor.MockEventProcessor)
+	mockEventProcessor2 := eventProcessors[0].(*eventprocessor.MockEventProcessor)
+
+	// Mock GetStatus to return Ready for both event processors initially
+	mockEventProcessor1.On("GetStatus").Return(status.Ready).Times(4)
+	mockEventProcessor2.On("GetStatus").Return(status.Ready).Twice()
+
 	allocator, err := eventprocessor.NewNonBlockingPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NoError(err)
 	suite.Require().NotNil(allocator)
@@ -74,17 +83,17 @@ func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocator() {
 	// allocate and not release
 	firstAllocatedEventProcessor1, err := allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
-	suite.Require().Equal(eventProcessor1, firstAllocatedEventProcessor1)
+	suite.Require().Same(eventProcessor1, firstAllocatedEventProcessor1)
 
 	// ensure round robin allocation
 	nextAllocatedEventProcessor1, err := allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
-	suite.Require().Equal(eventProcessor2, nextAllocatedEventProcessor1)
+	suite.Require().Same(eventProcessor2, nextAllocatedEventProcessor1)
 
 	// allocate 1st again (check round robin + allocation of already allocated event processor)
 	nextAllocatedEventProcessor1, err = allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
-	suite.Require().Equal(firstAllocatedEventProcessor1, nextAllocatedEventProcessor1)
+	suite.Require().Same(firstAllocatedEventProcessor1, nextAllocatedEventProcessor1)
 
 	// release the first event processor
 	allocator.Release(eventProcessor1)
@@ -92,9 +101,37 @@ func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocator() {
 	// ensure that allocator allocates the second event processor anyway
 	nextAllocatedEventProcessor1, err = allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
-	suite.Require().Equal(eventProcessor2, nextAllocatedEventProcessor1)
+	suite.Require().Same(eventProcessor2, nextAllocatedEventProcessor1)
 
 	allocator.Release(eventProcessor2)
+
+	mockEventProcessor2.On("GetStatus").Return(status.Stopped).Twice()
+
+	// should allocate eventProcessor1 (only one that's ready)
+	// it's turn for the 1st one that's ready anyway
+	allocatedEventProcessor, err := allocator.Allocate(time.Second)
+	suite.Require().NoError(err)
+	suite.Require().Same(eventProcessor1, allocatedEventProcessor)
+
+	// it's turn for the 2nd event processor, however it's not ready
+	// so it should allocate the 1st one again
+	allocatedEventProcessor, err = allocator.Allocate(time.Second)
+	suite.Require().NoError(err)
+	suite.Require().Same(eventProcessor1, allocatedEventProcessor)
+
+	// simulate eventProcessor1 becoming not ready too
+	mockEventProcessor1.On("GetStatus").Return(status.Stopped).Once()
+
+	// both processors are not ready, should fail
+	allocatedEventProcessor, err = allocator.Allocate(100 * time.Millisecond)
+	suite.Require().ErrorIs(err, eventprocessor.ErrNoAvailableObjects)
+	suite.Require().Nil(allocatedEventProcessor)
+
+	allocator.Release(eventProcessor1)
+	allocator.Release(eventProcessor2)
+
+	mockEventProcessor1.AssertExpectations(suite.T())
+	mockEventProcessor2.AssertExpectations(suite.T())
 }
 
 func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocatorStatistics() {
@@ -144,6 +181,7 @@ func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocatorStatistics() {
 func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	eventProcessors := createEventProcessors(2)
 	eventProcessor2 := eventProcessors[1]
+	eventProcessor1 := eventProcessors[0]
 
 	allocator, err := eventprocessor.NewBlockingPoolAllocator(suite.logger, eventProcessors)
 	suite.Require().NoError(err)
@@ -152,13 +190,14 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	// allocate once - should allocate
 	firstAllocatedEventProcessor, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
+	suite.Require().Same(firstAllocatedEventProcessor, eventProcessor1)
 	suite.Require().Contains(eventProcessors, firstAllocatedEventProcessor)
 
 	// allocate again - should allocate other event processor
 	secondAllocatedEventProcessor, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
 	suite.Require().Contains(eventProcessors, secondAllocatedEventProcessor)
-	suite.NotEqual(firstAllocatedEventProcessor, secondAllocatedEventProcessor)
+	suite.NotSame(firstAllocatedEventProcessor, secondAllocatedEventProcessor)
 
 	// allocate yet again - should time out
 	failedAllocationEventProcessor, err := allocator.Allocate(50 * time.Millisecond)
@@ -171,7 +210,7 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	// allocate again - should allocate second event processor
 	thirdAllocatedEventProcessor, err := allocator.Allocate(time.Hour)
 	suite.Require().NoError(err)
-	suite.Require().Equal(eventProcessor2, thirdAllocatedEventProcessor)
+	suite.Require().Same(eventProcessor2, thirdAllocatedEventProcessor)
 
 	err = common.RetryUntilSuccessful(3*time.Second,
 		1*time.Second,
