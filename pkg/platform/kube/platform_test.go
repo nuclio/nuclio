@@ -324,11 +324,9 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
-			createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfiguration
-			createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultLivenessProbeConfiguration
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err := suite.platform.validateServiceType(&createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -610,10 +608,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
-			createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfiguration
-			createFunctionOptions.FunctionConfig.Spec.LivenessProbe = platformconfig.DefaultReadinessProbeConfiguration
-
-			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err := suite.platform.validateSidecarSpec(&createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
