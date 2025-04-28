@@ -91,8 +91,8 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 	}
 	suite.mockedPlatform = &mockplatform.Platform{}
 	mockPlatformConfig := &platformconfig.Config{Kube: *suite.platformKubeConfig}
-	enrichErr := mockPlatformConfig.EnrichPlatformConfig()
-	suite.Require().NoError(enrichErr)
+	err = mockPlatformConfig.EnrichPlatformConfig()
+	suite.Require().NoError(err)
 
 	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, mockPlatformConfig, "")
 	suite.Require().NoError(err, "Could not create platform")

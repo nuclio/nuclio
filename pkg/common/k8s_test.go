@@ -29,11 +29,6 @@ type k8sTestSuite struct {
 	suite.Suite
 }
 
-const (
-	testNum14 = int32(14)
-	testNum17 = int32(17)
-)
-
 func (suite *k8sTestSuite) TestFilterInvalidLabels() {
 	invalidLabels := map[string]string{
 		"my@weird/label":   "value",
@@ -63,6 +58,8 @@ func (suite *k8sTestSuite) TestFilterInvalidLabels() {
 }
 
 func (suite *k8sTestSuite) TestEnrichDefaultReadinessProbe() {
+	testNum14 := int32(14)
+	testNum17 := int32(17)
 	for _, testCase := range []struct {
 		name           string
 		probeConfig    *v1.Probe
@@ -102,6 +99,8 @@ func (suite *k8sTestSuite) TestEnrichDefaultReadinessProbe() {
 }
 
 func (suite *k8sTestSuite) TestEnrichDefaultLivenessProbe() {
+	testNum14 := int32(14)
+	testNum17 := int32(17)
 	for _, testCase := range []struct {
 		name           string
 		probeConfig    *v1.Probe

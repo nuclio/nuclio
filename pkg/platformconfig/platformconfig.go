@@ -91,8 +91,8 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kind = common.LocalPlatformName
 	}
 
-	if enrichErr := config.EnrichPlatformConfig(); enrichErr != nil {
-		return nil, errors.Wrap(enrichErr, "Failed to enrich platform configurations")
+	if err := config.EnrichPlatformConfig(); err != nil {
+		return nil, errors.Wrap(err, "Failed to enrich platform configurations")
 	}
 
 	return config, nil

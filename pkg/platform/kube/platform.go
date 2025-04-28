@@ -2288,7 +2288,7 @@ func (p *Platform) getProjectCacheKey(projectMeta platform.ProjectMeta, owner st
 // validateProbeSpec validates the probe spec with the given probe type
 func (p *Platform) validateProbeSpec(probe *v1.Probe) error {
 	if probe == nil {
-		return nuclio.NewErrBadRequest("probe must be provided")
+		return nuclio.NewErrBadRequest("Probe configuration must be provided")
 	}
 
 	formatProbesErr := func(probeField string) string {
