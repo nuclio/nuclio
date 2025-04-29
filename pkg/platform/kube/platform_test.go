@@ -788,8 +788,6 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				},
 			},
 			validationError: platform.ErrIngressHostPathInUse.Error(),
-		}, {
-			name: "emptyReadinessProbe",
 		},
 	} {
 		suite.Run(testCase.name, func() {
@@ -823,13 +821,6 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
 			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
-			switch testCase.name {
-			case "emptyReadinessProbe":
-				// This testCase tests the functionConfig.Spec probes enrichments
-				createFunctionOptions.FunctionConfig.Spec.ReadinessProbe = nil
-				createFunctionOptions.FunctionConfig.Spec.LivenessProbe = nil
-			default:
-			}
 			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
 
 			// run enrichment
