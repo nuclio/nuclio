@@ -17,15 +17,17 @@ limitations under the License.
 package eventprocessor
 
 import (
-	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio-sdk-go"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
+
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/stretchr/testify/mock"
-	"time"
 )
 
 type MockEventProcessor struct {
@@ -43,7 +45,7 @@ func (m *MockEventProcessor) ProcessEventBatch(batch []nuclio.Event, functionLog
 }
 
 func (m *MockEventProcessor) Terminate() error {
-	return m.Called().Error(0)
+	return nil
 }
 
 func (m *MockEventProcessor) Drain() error {
@@ -55,7 +57,7 @@ func (m *MockEventProcessor) Continue() error {
 }
 
 func (m *MockEventProcessor) GetIndex() int {
-	return m.Called().Int(0)
+	return 0
 }
 
 func (m *MockEventProcessor) GetRuntime() runtime.Runtime {

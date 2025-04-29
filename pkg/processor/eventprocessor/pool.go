@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/errors"
@@ -183,8 +184,44 @@ func NewNonBlockingPoolAllocator(parentLogger logger.Logger, processors []EventP
 	return nonBlockingPoolAllocatorInstance, nil
 }
 
-// Allocate allocates an EventProcessor in a non-blocking manner
+// Allocate attempts to retrieve a ready EventProcessor instance from the pool in a non-blocking manner.
+// If a ready instance is found, it is immediately returned.
+// Otherwise, it retries allocation across available instances up to len(objects) times, respecting an optional timeout constraint.
 func (nba *nonBlockingPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
+	var startTime time.Time
+	// If a timeout is specified, record the start time
+	if timeout > 0 {
+		startTime = time.Now()
+	}
+
+	// Perform up to len(objects) allocation attempts
+	for attempt := 0; attempt < len(nba.objects); attempt++ {
+		eventProcessor := nba.allocate()
+		currentStatus := eventProcessor.GetStatus()
+
+		// If the allocated object is ready, return it immediately
+		if currentStatus == status.Ready {
+			nba.logger.DebugWith("Object is ready, allocated",
+				"id", eventProcessor.GetIndex())
+
+			return eventProcessor, nil
+		}
+
+		nba.logger.DebugWith("Object is not ready, cannot allocate",
+			"status", currentStatus,
+			"objectIndex", eventProcessor.GetIndex(),
+			"attempt", attempt+1)
+
+		// If timeout is set and exceeded, stop trying further
+		if timeout > 0 && time.Since(startTime) >= timeout {
+			break
+		}
+	}
+
+	return nil, ErrNoAvailableObjects
+}
+
+func (nba *nonBlockingPoolAllocator) allocate() EventProcessor {
 	// Atomically increment and get the index
 	// If idx exceeds math.MaxUint64, it will wrap back to 0, and the subsequent modulo will still yield nba valid slot
 	// For optimal performance, this uses a combined atomic add-and-load operation.
@@ -194,9 +231,7 @@ func (nba *nonBlockingPoolAllocator) Allocate(timeout time.Duration) (EventProce
 
 	// Select the next EventProcessor in nba round-robin manner, wrapping around if needed.
 	// This ensures even distribution of allocations across all processors.
-	selected := nba.objects[idx%uint64(len(nba.objects))]
-
-	return selected, nil
+	return nba.objects[idx%uint64(len(nba.objects))]
 }
 
 // Release is a no-op for non-blocking allocators
