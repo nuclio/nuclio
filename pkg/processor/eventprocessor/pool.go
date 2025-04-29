@@ -207,11 +207,12 @@ func (nba *nonBlockingPoolAllocator) Allocate(timeout time.Duration) (EventProce
 			return eventProcessor, nil
 		}
 
-		// If timeout is set and exceeded, stop trying further
 		nba.logger.DebugWith("Object is not ready, cannot allocate",
 			"status", currentStatus,
+			"objectIndex", eventProcessor.GetIndex(),
 			"attempt", attempt+1)
 
+		// If timeout is set and exceeded, stop trying further
 		if timeout > 0 && time.Since(startTime) >= timeout {
 			break
 		}
