@@ -90,9 +90,11 @@ func (suite *KubePlatformTestSuite) SetupSuite() {
 		DefaultServiceType: v1.ServiceTypeClusterIP,
 	}
 	suite.mockedPlatform = &mockplatform.Platform{}
-	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{
-		Kube: *suite.platformKubeConfig,
-	}, "")
+	mockPlatformConfig := &platformconfig.Config{Kube: *suite.platformKubeConfig}
+	err = mockPlatformConfig.EnrichPlatformConfig()
+	suite.Require().NoError(err)
+
+	abstractPlatform, err := abstract.NewPlatform(suite.Logger, suite.mockedPlatform, mockPlatformConfig, "")
 	suite.Require().NoError(err, "Could not create platform")
 
 	abstractPlatform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
@@ -324,7 +326,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
-			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+			err := suite.platform.validateServiceType(&createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {
@@ -606,8 +608,57 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
 				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
 			}
+			err := suite.platform.validateSidecarSpec(&createFunctionOptions.FunctionConfig)
+			if testCase.shouldFailValidation {
+				suite.Require().Error(err, "Validation passed unexpectedly")
+			} else {
+				suite.Require().NoError(err, "Validation failed unexpectedly")
+			}
+		})
+	}
+}
 
-			err := suite.platform.ValidateFunctionConfig(suite.ctx, &createFunctionOptions.FunctionConfig)
+func (suite *FunctionKubePlatformTestSuite) TestValidateProbesSpec() {
+	for _, testCase := range []struct {
+		name                 string
+		testFunctionConfig   *functionconfig.Config
+		shouldFailValidation bool
+	}{
+		{
+			name: "valid with defaults",
+			testFunctionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					ReadinessProbe: platformconfig.DefaultReadinessProbeConfiguration,
+					LivenessProbe:  platformconfig.DefaultLivenessProbeConfiguration,
+				},
+			},
+			shouldFailValidation: false,
+		}, {
+			name:                 "empty probes",
+			testFunctionConfig:   &functionconfig.Config{},
+			shouldFailValidation: true,
+		}, {
+			name: "empty probe value",
+			testFunctionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					ReadinessProbe: platformconfig.DefaultReadinessProbeConfiguration,
+					LivenessProbe: &v1.Probe{
+						InitialDelaySeconds: platformconfig.DefaultLivenessProbeConfiguration.InitialDelaySeconds,
+					},
+				},
+			},
+			shouldFailValidation: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			var err error
+			ReadinessErr := suite.platform.validateProbeSpec(testCase.testFunctionConfig.Spec.ReadinessProbe)
+			LivenessErr := suite.platform.validateProbeSpec(testCase.testFunctionConfig.Spec.LivenessProbe)
+			if ReadinessErr != nil {
+				err = ReadinessErr
+			} else {
+				err = LivenessErr
+			}
 			if testCase.shouldFailValidation {
 				suite.Require().Error(err, "Validation passed unexpectedly")
 			} else {

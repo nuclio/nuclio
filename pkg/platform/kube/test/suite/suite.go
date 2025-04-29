@@ -99,6 +99,9 @@ func (suite *KubeTestSuite) SetupSuite() {
 	// use Kubernetes cron job to invoke nuclio functions with cron triggers
 	suite.PlatformConfiguration.CronTriggerCreationMode = platformconfig.KubeCronTriggerCreationMode
 
+	err = suite.PlatformConfiguration.EnrichPlatformConfig()
+	suite.Require().NoError(err)
+
 	// only set up parent AFTER we set platform's type
 	suite.TestSuite.SetupSuite()
 
@@ -467,6 +470,7 @@ func (suite *KubeTestSuite) CreateImportedFunction(functionName, projectName str
 		functionconfig.FunctionAnnotationSkipDeploy: "true",
 	}
 	createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = projectName
+
 	suite.PopulateDeployOptions(createFunctionOptions)
 	_, err := suite.Platform.CreateFunction(suite.Ctx, createFunctionOptions)
 	suite.Require().NoError(err)

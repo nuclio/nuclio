@@ -231,3 +231,34 @@ Example:
     customSensitiveFields:
     - "^/spec/triggers/.+/url$"
 ```
+
+<a id="liveness-probe"></a>
+### Liveness probe
+Liveness probe is a configuration of [`v1.Probe`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core) type.<br/>
+In general, a Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.<br/>
+In particular, the liveness probe is used to check if the function is alive and should be restarted if it is not.<br/>
+For more information, [check out the Kubernetes docs](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/).<br/>
+Example:
+```yaml
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+```
+
+<a id="readiness-probe"></a>
+### Readiness probe
+Readiness probe is a configuration of [`v1.Probe`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.23/#probe-v1-core) type.<br/>
+In general, a Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.<br/>
+In particular, the readiness probe is used to check if the function is ready to receive traffic.<br/>
+For more information, [check out the Kubernetes docs](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/).<br/>
+Example:
+```yaml
+  readinessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+```
+

@@ -36,6 +36,20 @@ const (
 	DefaultFunctionInvocationTimeoutSeconds = 60
 )
 
+var DefaultReadinessProbeConfiguration = &corev1.Probe{
+	InitialDelaySeconds: int32(5),
+	TimeoutSeconds:      int32(1),
+	PeriodSeconds:       int32(1),
+	FailureThreshold:    int32(10),
+}
+
+var DefaultLivenessProbeConfiguration = &corev1.Probe{
+	InitialDelaySeconds: int32(10),
+	TimeoutSeconds:      int32(3),
+	PeriodSeconds:       int32(5),
+	FailureThreshold:    int32(3),
+}
+
 type LoggerSinkKind string
 
 const (
@@ -182,6 +196,8 @@ type PlatformKubeConfig struct {
 	DefaultSidecarResources          PodResourceRequirements `json:"defaultSidecarResources,omitempty"`
 	DefaultFunctionTolerations       []corev1.Toleration     `json:"defaultFunctionTolerations,omitempty"`
 	PreemptibleNodes                 *PreemptibleNodes       `json:"preemptibleNodes,omitempty"`
+	DefaultReadinessProbe            *corev1.Probe           `json:"readinessProbe,omitempty"`
+	DefaultLivenessProbe             *corev1.Probe           `json:"livenessProbe,omitempty"`
 }
 
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)

@@ -487,6 +487,9 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	p.enrichInitContainersSpec(functionConfig)
 	p.enrichSidecarsSpec(functionConfig)
+	common.EnrichProbe(&functionConfig.Spec.ReadinessProbe, p.Config.Kube.DefaultReadinessProbe)
+	common.EnrichProbe(&functionConfig.Spec.LivenessProbe, p.Config.Kube.DefaultLivenessProbe)
+
 	return nil
 }
 
@@ -1355,6 +1358,14 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 	}
 	if err := p.validateSidecarSpec(functionConfig); err != nil {
 		return errors.Wrap(err, "Sidecar validation failed")
+	}
+
+	if err := p.validateProbeSpec(functionConfig.Spec.ReadinessProbe); err != nil {
+		return errors.Wrap(err, "Readiness probe validation failed")
+	}
+
+	if err := p.validateProbeSpec(functionConfig.Spec.LivenessProbe); err != nil {
+		return errors.Wrap(err, "Liveness probe validation failed")
 	}
 
 	return p.validateFunctionIngresses(ctx, functionConfig)
@@ -2272,4 +2283,36 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 
 func (p *Platform) getProjectCacheKey(projectMeta platform.ProjectMeta, owner string) string {
 	return fmt.Sprintf("%s/%s", projectMeta.Name, owner)
+}
+
+// validateProbeSpec validates the probe spec with the given probe type
+func (p *Platform) validateProbeSpec(probe *v1.Probe) error {
+	if probe == nil {
+		return nuclio.NewErrBadRequest("Probe configuration must be provided")
+	}
+
+	formatProbesErr := func(probeField string) string {
+		return fmt.Sprintf("%s must be greater than 0", probeField)
+	}
+
+	//InitialDelaySeconds can technically be 0,
+	//Reference - https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes
+	//But only allow setting it to greater than 0 so that there will always be a delay before the first probe check
+	if probe.InitialDelaySeconds < 1 {
+		return nuclio.NewErrBadRequest(formatProbesErr("InitialDelaySeconds"))
+	}
+
+	if probe.TimeoutSeconds < 1 {
+		return nuclio.NewErrBadRequest(formatProbesErr("TimeoutSeconds"))
+	}
+
+	if probe.PeriodSeconds < 1 {
+		return nuclio.NewErrBadRequest(formatProbesErr("PeriodSeconds"))
+	}
+
+	if probe.FailureThreshold < 1 {
+		return nuclio.NewErrBadRequest(formatProbesErr("FailureThreshold"))
+	}
+
+	return nil
 }

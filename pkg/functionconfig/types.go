@@ -476,6 +476,8 @@ type Spec struct {
 	SecurityContext         *v1.PodSecurityContext  `json:"securityContext,omitempty"`
 	ServiceAccount          string                  `json:"serviceAccount,omitempty"`
 	ScaleToZero             *ScaleToZeroSpec        `json:"scaleToZero,omitempty"`
+	ReadinessProbe          *v1.Probe               `json:"readinessProbe,omitempty"`
+	LivenessProbe           *v1.Probe               `json:"livenessProbe,omitempty"`
 
 	// If set to nil, the value is taken from the platform configuration. When set explicitly in function config, it has a priority
 	DisableDefaultHTTPTrigger *bool `json:"disableDefaultHTTPTrigger,omitempty"`

@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type k8sTestSuite struct {
@@ -53,6 +54,97 @@ func (suite *k8sTestSuite) TestFilterInvalidLabels() {
 	for key := range invalidLabels {
 		_, ok := filteredLabels[key]
 		suite.Require().False(ok, "invalid label %s should not be in filtered labels", key)
+	}
+}
+
+func (suite *k8sTestSuite) TestEnrichDefaultReadinessProbe() {
+	testNum14 := int32(14)
+	testNum17 := int32(17)
+	for _, testCase := range []struct {
+		name           string
+		probeConfig    *v1.Probe
+		defaultProbe   *v1.Probe
+		expectedResult *v1.Probe
+	}{
+		{
+			name:           "enrich all ReadinessProbe in nil case",
+			probeConfig:    nil,
+			defaultProbe:   suite.newTestProbe(testNum17),
+			expectedResult: suite.newTestProbe(testNum17),
+		}, {
+			name: "enrich defaults besides TimeoutSeconds",
+			probeConfig: &v1.Probe{
+				TimeoutSeconds: testNum14,
+			},
+			defaultProbe: suite.newTestProbe(testNum17),
+			expectedResult: &v1.Probe{
+				InitialDelaySeconds: testNum17,
+				TimeoutSeconds:      testNum14,
+				PeriodSeconds:       testNum17,
+				FailureThreshold:    testNum17,
+			},
+		}, {
+			name:           "don't enrich anything",
+			probeConfig:    suite.newTestProbe(testNum17),
+			defaultProbe:   suite.newTestProbe(testNum14),
+			expectedResult: suite.newTestProbe(testNum17),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			EnrichProbe(&testCase.probeConfig, testCase.defaultProbe)
+			suite.Require().NotEmpty(testCase.probeConfig)
+			suite.Require().Equal(testCase.expectedResult, testCase.probeConfig)
+		})
+	}
+}
+
+func (suite *k8sTestSuite) TestEnrichDefaultLivenessProbe() {
+	testNum14 := int32(14)
+	testNum17 := int32(17)
+	for _, testCase := range []struct {
+		name           string
+		probeConfig    *v1.Probe
+		defaultProbe   *v1.Probe
+		expectedResult *v1.Probe
+	}{
+		{
+			name:           "enrich all LivenessProbe in nil case",
+			probeConfig:    nil,
+			defaultProbe:   suite.newTestProbe(testNum17),
+			expectedResult: suite.newTestProbe(testNum17),
+		}, {
+			name: "enrich defaults besides TimeoutSeconds",
+			probeConfig: &v1.Probe{
+				TimeoutSeconds: testNum14,
+			},
+			defaultProbe: suite.newTestProbe(testNum17),
+			expectedResult: &v1.Probe{
+				InitialDelaySeconds: testNum17,
+				TimeoutSeconds:      testNum14,
+				PeriodSeconds:       testNum17,
+				FailureThreshold:    testNum17,
+			},
+		}, {
+			name:           "don't enrich anything",
+			probeConfig:    suite.newTestProbe(testNum17),
+			defaultProbe:   suite.newTestProbe(testNum14),
+			expectedResult: suite.newTestProbe(testNum17),
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			EnrichProbe(&testCase.probeConfig, testCase.defaultProbe)
+			suite.Require().NotEmpty(testCase.probeConfig)
+			suite.Require().Equal(testCase.expectedResult, testCase.probeConfig)
+		})
+	}
+}
+
+func (suite *k8sTestSuite) newTestProbe(value int32) *v1.Probe {
+	return &v1.Probe{
+		InitialDelaySeconds: value,
+		TimeoutSeconds:      value,
+		PeriodSeconds:       value,
+		FailureThreshold:    value,
 	}
 }
 
