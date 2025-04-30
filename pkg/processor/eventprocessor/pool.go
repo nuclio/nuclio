@@ -18,12 +18,11 @@ package eventprocessor
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errgroup"
+	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/errors"
@@ -33,19 +32,16 @@ import (
 // blockingPoolAllocator is a thread-safe object allocator that uses a channel to manage its objects
 // `blocking` means that if an object is allocated, it will be unavailable for allocation until the object is released
 type blockingPoolAllocator struct {
-	logger      logger.Logger
+	*abstractPoolAllocator
 	objectsChan chan EventProcessor
-	objects     []EventProcessor
 	statistics  safeAllocatorStatistics
-
-	isTerminated atomic.Bool
 }
 
 func NewBlockingPoolAllocator(parentLogger logger.Logger, objects []EventProcessor) (Allocator, error) {
+	abstractPoolAllocatorInstance := newAbstractPoolAllocator(parentLogger.GetChild("sync-pool-allocator"))
 	newFixedPool := &blockingPoolAllocator{
-		logger:       parentLogger.GetChild("sync_pool_allocator"),
-		statistics:   safeAllocatorStatistics{},
-		isTerminated: atomic.Bool{},
+		abstractPoolAllocator: abstractPoolAllocatorInstance,
+		statistics:            safeAllocatorStatistics{},
 	}
 
 	if err := newFixedPool.SetObjects(objects); err != nil {
@@ -125,16 +121,8 @@ func (a *blockingPoolAllocator) Release(object EventProcessor) {
 	a.objectsChan <- object
 }
 
-func (a *blockingPoolAllocator) GetObjects() []EventProcessor {
-	return a.objects
-}
-
-func (a *blockingPoolAllocator) GetNumObjectsAvailable() int {
-	return len(a.objectsChan)
-}
-
 func (a *blockingPoolAllocator) SetObjects(objects []EventProcessor) error {
-	// Stop() cleans up a.objects, so if `objects` and `a.objects` are the same reference,
+	// Stop() cleans up sa.objects, so if `objects` and `sa.objects` are the same reference,
 	// the new objects will be cleaned up as well.
 	// To avoid this, we create a copy of the `objects` slice
 	objects = append([]EventProcessor(nil), objects...)
@@ -177,71 +165,144 @@ func (a *blockingPoolAllocator) GetStatistics() *statistics.AllocatorStatistics 
 	return allocatorStatistics
 }
 
-func (a *blockingPoolAllocator) SignalDraining() error {
-	errGroup, _ := errgroup.WithContext(context.Background(), a.logger)
+type nonBlockingPoolAllocator struct {
+	*abstractPoolAllocator
 
-	for _, objectInstance := range a.GetObjects() {
-		objectInstance := objectInstance
+	// index used for round-robin allocation
+	index atomic.Uint64
+}
 
-		errGroup.Go(fmt.Sprintf("Drain object %d", objectInstance.GetIndex()), func() error {
-			// if object is not already drained, signal it to drain events
-			if err := objectInstance.Drain(); err != nil {
-				return errors.Wrapf(err, "Failed to signal object %d to drain events", objectInstance.GetIndex())
-			}
-			return nil
-		})
+func NewNonBlockingPoolAllocator(parentLogger logger.Logger, processors []EventProcessor) (Allocator, error) {
+	nonBlockingPoolAllocatorInstance := &nonBlockingPoolAllocator{
+		abstractPoolAllocator: newAbstractPoolAllocator(parentLogger.GetChild("nonblock-pool-allocator")),
+		index:                 atomic.Uint64{},
+	}
+	if err := nonBlockingPoolAllocatorInstance.SetObjects(processors); err != nil {
+		return nil, errors.Wrap(err, "Failed to set non blocking pool allocator")
 	}
 
-	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "At least one object failed to drain")
+	return nonBlockingPoolAllocatorInstance, nil
+}
+
+// Allocate attempts to retrieve a ready EventProcessor instance from the pool in a non-blocking manner.
+// If a ready instance is found, it is immediately returned.
+// Otherwise, it retries allocation across available instances up to len(objects) times, respecting an optional timeout constraint.
+func (nba *nonBlockingPoolAllocator) Allocate(timeout time.Duration) (EventProcessor, error) {
+	var startTime time.Time
+	// If a timeout is specified, record the start time
+	if timeout > 0 {
+		startTime = time.Now()
 	}
 
+	// Perform up to len(objects) allocation attempts
+	for attempt := 0; attempt < len(nba.objects); attempt++ {
+		eventProcessor := nba.allocate()
+		currentStatus := eventProcessor.GetStatus()
+
+		// If the allocated object is ready, return it immediately
+		if currentStatus == status.Ready {
+			nba.logger.DebugWith("Object is ready, allocated",
+				"id", eventProcessor.GetIndex())
+
+			return eventProcessor, nil
+		}
+
+		nba.logger.DebugWith("Object is not ready, cannot allocate",
+			"status", currentStatus,
+			"objectIndex", eventProcessor.GetIndex(),
+			"attempt", attempt+1)
+
+		// If timeout is set and exceeded, stop trying further
+		if timeout > 0 && time.Since(startTime) >= timeout {
+			break
+		}
+	}
+
+	return nil, ErrNoAvailableObjects
+}
+
+func (nba *nonBlockingPoolAllocator) allocate() EventProcessor {
+	// Atomically increment and get the index
+	// If idx exceeds math.MaxUint64, it will wrap back to 0, and the subsequent modulo will still yield nba valid slot
+	// For optimal performance, this uses a combined atomic add-and-load operation.
+	// As a result, the first allocated object will have index 1 instead of 0, which is only the case if len(object) >=2
+	// If len(object) == 1, the first object will be allocated with index 0
+	idx := nba.index.Add(1)
+
+	// Select the next EventProcessor in nba round-robin manner, wrapping around if needed.
+	// This ensures even distribution of allocations across all processors.
+	return nba.objects[idx%uint64(len(nba.objects))]
+}
+
+// Release is a no-op for non-blocking allocators
+func (nba *nonBlockingPoolAllocator) Release(object EventProcessor) {
+}
+
+func (nba *nonBlockingPoolAllocator) Stop() error {
+	// Stop the old objects that are being cleaned up
+	if err := nba.SignalTermination(); err != nil {
+		nba.logger.DebugWith("Failed to stop objects in allocator",
+			"error", err.Error())
+	}
+
+	// clean up objects
+	clear(nba.objects)
 	return nil
 }
 
-func (a *blockingPoolAllocator) SignalContinue() error {
-	errGroup, _ := errgroup.WithContext(context.Background(), a.logger)
+func (nba *nonBlockingPoolAllocator) SetObjects(objects []EventProcessor) error {
+	// Stop() cleans up nba.objects, so if `objects` and `nba.objects` are the same reference,
+	// the new objects will be cleaned up as well.
+	// To avoid this, we create nba copy of the `objects` slice
+	objects = append([]EventProcessor(nil), objects...)
 
-	for _, objectInstance := range a.GetObjects() {
-		objectInstance := objectInstance
-
-		errGroup.Go(fmt.Sprintf("Send continue signal to object %d", objectInstance.GetIndex()), func() error {
-			if err := objectInstance.Continue(); err != nil {
-				return errors.Wrapf(err, "Failed to signal object %d to continue event processing", objectInstance.GetIndex())
-			}
-			return nil
-		})
+	if err := nba.Stop(); err != nil {
+		nba.logger.WarnWith("Failed to stop objects in allocator",
+			"error", err.Error())
 	}
 
-	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "At least one object failed to continue")
-	}
+	// Stop() marks the allocator as terminated and closes the channel,
+	// so we can safely set new objects
+	nba.isTerminated.Store(false)
 
+	// Set new objects
+	nba.objects = objects
+
+	// Log the update of allocator objects
+	nba.logger.DebugWith("Allocator objects updated", "size", len(objects))
 	return nil
 }
 
-func (a *blockingPoolAllocator) SignalTermination() error {
-	errGroup, _ := errgroup.WithContext(context.Background(), a.logger)
-	a.isTerminated.Store(true)
-	for _, objectInstance := range a.GetObjects() {
-		objectInstance := objectInstance
+// GetStatistics returns aggregated allocation statistics from all objects in the pool.
+// The non-blocking allocator itself does not maintain internal statistics,
+// as it performs allocations in a non-blocking manner.
+// Therefore, it delegates statistics collection to the individual objects it manages.
+func (nba *nonBlockingPoolAllocator) GetStatistics() *statistics.AllocatorStatistics {
+	// Initialize a struct to accumulate total statistics
+	totalStats := &statistics.AllocatorStatistics{}
+	numProcessors := len(nba.objects)
+	var percentageSum uint64
 
-		errGroup.Go(fmt.Sprintf("Terminate object %d", objectInstance.GetIndex()), func() error {
+	for _, object := range nba.objects {
+		stats := object.GetAllocationStatistics()
 
-			if err := objectInstance.Terminate(); err != nil {
-				return errors.Wrapf(err, "Failed to signal object %d to terminate", objectInstance.GetIndex())
-			}
-			return nil
-		})
+		// Sum counters that are additive by nature
+		totalStats.AllocationCount += stats.AllocationCount
+		totalStats.AllocationSuccessImmediateTotal += stats.AllocationSuccessImmediateTotal
+		totalStats.AllocationSuccessAfterWaitTotal += stats.AllocationSuccessAfterWaitTotal
+		totalStats.AllocationTimeoutTotal += stats.AllocationTimeoutTotal
+		totalStats.AllocationWaitDurationMilliSecondsSum += stats.AllocationWaitDurationMilliSecondsSum
+
+		// For percentage-based metrics, summing doesn't make sense
+		// Instead, accumulate the values and calculate the average later
+		// This avoids misrepresenting the overall availability percentage
+		percentageSum += stats.AllocationObjectsAvailablePercentage
 	}
 
-	if err := errGroup.Wait(); err != nil {
-		return errors.Wrap(err, "At least one object failed to terminate")
+	// Average percentage metrics to reflect a realistic combined view
+	if numProcessors > 0 {
+		totalStats.AllocationObjectsAvailablePercentage = percentageSum / uint64(numProcessors)
 	}
 
-	return nil
-}
-
-func (a *blockingPoolAllocator) IsTerminated() bool {
-	return a.isTerminated.Load()
+	return totalStats
 }

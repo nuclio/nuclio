@@ -2084,7 +2084,8 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 		{
 			name: "AsyncModeWithDefaults",
 			trigger: functionconfig.Trigger{
-				Mode: functionconfig.AsyncTriggerWorkMode,
+				Mode:       functionconfig.AsyncTriggerWorkMode,
+				NumWorkers: 10,
 			},
 			expectedMode: functionconfig.AsyncTriggerWorkMode,
 			expectedConfig: &functionconfig.AsyncConfig{
@@ -2092,7 +2093,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				MaxConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
 				MinConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
 			},
-			expectedNumWorkers: 1,
+			expectedNumWorkers: 10,
 		},
 		{
 			name: "AsyncModeWithCustomConfig",
@@ -2111,7 +2112,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				MaxConnectionsNumber:   10,
 				MinConnectionsNumber:   5,
 			},
-			expectedNumWorkers: 1,
+			expectedNumWorkers: 10,
 		},
 	}
 
