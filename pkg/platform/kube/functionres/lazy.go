@@ -325,7 +325,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				return errors.New(fmt.Sprintf("Init containers are not done yet. Reason: %s. Increasing readiness timeout may help", reasonInitContainersNotDone)),
 					functionconfig.FunctionStateUnhealthy
 			} else {
-				// create a new context with timeout to get the last warning warningEvents
+				// create a new context with timeout to get the last warning events
 				k8sCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				if lastWarningFromIngress := lc.getFunctionIngressLastWarningEvent(k8sCtx, function); lastWarningFromIngress != "" {
 					warningEvents += fmt.Sprintf("Last warning event from ingress: %s \n", lastWarningFromIngress)
@@ -776,7 +776,7 @@ func (lc *lazyClient) getFunctionDeploymentOrPodLastWarningEvent(ctx context.Con
 
 	// If no deployment warning, check pods
 	if podLastEvent := lc.getLastWarningEventForFunctionPods(ctx, function); podLastEvent != "" {
-		return "Last warning event from one of the function's pods: " + podLastEvent
+		return podLastEvent
 	}
 	return ""
 }
