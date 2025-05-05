@@ -2385,10 +2385,10 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 				Path: http.InternalHealthPath,
 			},
 		},
-		InitialDelaySeconds: 5,
-		TimeoutSeconds:      1,
-		PeriodSeconds:       1,
-		FailureThreshold:    10,
+		InitialDelaySeconds: function.Spec.ReadinessProbe.InitialDelaySeconds,
+		TimeoutSeconds:      function.Spec.ReadinessProbe.TimeoutSeconds,
+		PeriodSeconds:       function.Spec.ReadinessProbe.PeriodSeconds,
+		FailureThreshold:    function.Spec.ReadinessProbe.FailureThreshold,
 	}
 
 	container.LivenessProbe = &v1.Probe{
@@ -2398,9 +2398,10 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 				Path: "/live",
 			},
 		},
-		InitialDelaySeconds: 10,
-		TimeoutSeconds:      3,
-		PeriodSeconds:       5,
+		InitialDelaySeconds: function.Spec.LivenessProbe.InitialDelaySeconds,
+		TimeoutSeconds:      function.Spec.LivenessProbe.TimeoutSeconds,
+		PeriodSeconds:       function.Spec.LivenessProbe.PeriodSeconds,
+		FailureThreshold:    function.Spec.LivenessProbe.FailureThreshold,
 	}
 
 	// always pull is the default since each create / update will trigger a rollingupdate including
