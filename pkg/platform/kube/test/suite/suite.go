@@ -238,17 +238,18 @@ def handler(context, event):
 }
 
 // InvokeFunction invokes function via HTTP trigger
-func (suite *KubeTestSuite) InvokeFunction(method string, port int, path string, requestBody []byte, failOnError bool) {
+func (suite *KubeTestSuite) InvokeFunction(method string, port int, path string, requestBody []byte, failOnError bool) *http.Response {
 	url := fmt.Sprintf("http://%s:%d%s", suite.GetNuclioExternalIP(), port, path)
 	request, err := http.NewRequest(method, url, bytes.NewBuffer(requestBody))
 	suite.Require().NoError(err)
 
-	_, err = suite.httpClient.Do(request)
+	response, err := suite.httpClient.Do(request)
 	if failOnError {
 		suite.Require().NoError(err)
 	} else if err != nil {
 		suite.Logger.WarnWith("Failed to invoke function", "err", err)
 	}
+	return response
 }
 
 func (suite *KubeTestSuite) GetNuclioExternalIP() string {
