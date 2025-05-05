@@ -89,8 +89,7 @@ func (suite *lazyTestSuite) SetupTest() {
 }
 
 func (suite *lazyTestSuite) TestNodeConstrains() {
-	functionInstance := &nuclioio.NuclioFunction{}
-	functionInstance.Name = "func-name"
+	functionInstance := suite.getFunctionInstance("func-name")
 	functionInstance.Spec.NodeName = "some-node-name"
 	functionInstance.Spec.NodeSelector = map[string]string{
 		"some-key": "some-value",
@@ -362,6 +361,8 @@ func (suite *lazyTestSuite) TestNoChanges() {
 					},
 				},
 			},
+			LivenessProbe: platformconfig.DefaultLivenessProbeConfiguration,
+			ReadinessProbe: platformconfig.DefaultReadinessProbeConfiguration,
 		},
 	}
 	functionLabels := suite.client.getFunctionLabels(&function)
@@ -751,6 +752,30 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 	suite.Require().True(deployment.Spec.Paused)
 }
 
+func (suite *lazyTestSuite) TestEnrichProbesInPopulateDeploymentContainer() {
+	// Prepare
+	functionInstance := suite.getFunctionInstance("")
+	testCtx := context.Background()
+	testFunctionLabels := suite.client.getFunctionLabels(functionInstance)
+	testContainer := &v1.Container{}
+
+	// Act
+	suite.client.populateDeploymentContainer(testCtx, testFunctionLabels, functionInstance, testContainer)
+
+	// Assert
+	// Assert ReadinessProbe
+	suite.Require().Equal(testContainer.ReadinessProbe.InitialDelaySeconds, platformconfig.DefaultReadinessProbeConfiguration.InitialDelaySeconds)
+	suite.Require().Equal(testContainer.ReadinessProbe.TimeoutSeconds, platformconfig.DefaultReadinessProbeConfiguration.TimeoutSeconds)
+	suite.Require().Equal(testContainer.ReadinessProbe.PeriodSeconds, platformconfig.DefaultReadinessProbeConfiguration.PeriodSeconds)
+	suite.Require().Equal(testContainer.ReadinessProbe.FailureThreshold, platformconfig.DefaultReadinessProbeConfiguration.FailureThreshold)
+
+	// Assert LivenessProbe
+	suite.Require().Equal(testContainer.LivenessProbe.InitialDelaySeconds, platformconfig.DefaultLivenessProbeConfiguration.InitialDelaySeconds)
+	suite.Require().Equal(testContainer.LivenessProbe.TimeoutSeconds, platformconfig.DefaultLivenessProbeConfiguration.TimeoutSeconds)
+	suite.Require().Equal(testContainer.LivenessProbe.PeriodSeconds, platformconfig.DefaultLivenessProbeConfiguration.PeriodSeconds)
+	suite.Require().Equal(testContainer.LivenessProbe.FailureThreshold, platformconfig.DefaultLivenessProbeConfiguration.FailureThreshold)
+}
+
 func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 	namespace := "some-namespace"
 	podName := "my-pod"
@@ -943,6 +968,15 @@ func (suite *lazyTestSuite) getIngressRuleByHost(rules []networkingv1.IngressRul
 
 	suite.Failf("Could not find host in rules: %s", host)
 	return nil
+}
+
+func (suite *lazyTestSuite) getFunctionInstance(funcName string) *nuclioio.NuclioFunction {
+	functionInstance := &nuclioio.NuclioFunction{}
+	functionInstance.Name = funcName
+	functionInstance.Spec.LivenessProbe = platformconfig.DefaultLivenessProbeConfiguration
+	functionInstance.Spec.ReadinessProbe = platformconfig.DefaultReadinessProbeConfiguration
+
+	return functionInstance
 }
 
 func TestLazyTestSuite(t *testing.T) {
