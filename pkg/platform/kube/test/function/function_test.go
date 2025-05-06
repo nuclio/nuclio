@@ -1349,7 +1349,6 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithProbes() {
 		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 	}
 
-	// Act
 	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
 
 		// get the function
@@ -1369,7 +1368,6 @@ func (suite *DeployFunctionTestSuite) TestCreateFunctionWithProbes() {
 			return true
 		})
 
-		// Assert
 		// get the function's deployment and validate it has the probes
 		podsList := suite.GetFunctionPods(functionName)
 		suite.Require().Len(podsList, 1)

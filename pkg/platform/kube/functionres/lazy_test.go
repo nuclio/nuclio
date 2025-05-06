@@ -89,7 +89,7 @@ func (suite *lazyTestSuite) SetupTest() {
 }
 
 func (suite *lazyTestSuite) TestNodeConstrains() {
-	functionInstance := suite.getFunctionInstance("func-name")
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("func-name")
 	functionInstance.Spec.NodeName = "some-node-name"
 	functionInstance.Spec.NodeSelector = map[string]string{
 		"some-key": "some-value",
@@ -754,21 +754,20 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 
 func (suite *lazyTestSuite) TestEnrichProbesInPopulateDeploymentContainer() {
 	// Prepare
-	functionInstance := suite.getFunctionInstance("test-enrich-probes-function")
+	functionInstance := suite.getFunctionInstanceWithDefaultProbes("test-enrich-probes-function")
 	testFunctionLabels := suite.client.getFunctionLabels(functionInstance)
 	testContainer := &v1.Container{}
 
-	// Act
+	// Populate the container with configuration from the function instance
 	suite.client.populateDeploymentContainer(suite.ctx, testFunctionLabels, functionInstance, testContainer)
 
-	// Assert
-	// Assert ReadinessProbe
+	// Verify readinessProbe is populated with default values
 	suite.Require().Equal(testContainer.ReadinessProbe.InitialDelaySeconds, platformconfig.DefaultReadinessProbeConfiguration.InitialDelaySeconds)
 	suite.Require().Equal(testContainer.ReadinessProbe.TimeoutSeconds, platformconfig.DefaultReadinessProbeConfiguration.TimeoutSeconds)
 	suite.Require().Equal(testContainer.ReadinessProbe.PeriodSeconds, platformconfig.DefaultReadinessProbeConfiguration.PeriodSeconds)
 	suite.Require().Equal(testContainer.ReadinessProbe.FailureThreshold, platformconfig.DefaultReadinessProbeConfiguration.FailureThreshold)
 
-	// Assert LivenessProbe
+	// Verify LivenessProbe is populated with default values
 	suite.Require().Equal(testContainer.LivenessProbe.InitialDelaySeconds, platformconfig.DefaultLivenessProbeConfiguration.InitialDelaySeconds)
 	suite.Require().Equal(testContainer.LivenessProbe.TimeoutSeconds, platformconfig.DefaultLivenessProbeConfiguration.TimeoutSeconds)
 	suite.Require().Equal(testContainer.LivenessProbe.PeriodSeconds, platformconfig.DefaultLivenessProbeConfiguration.PeriodSeconds)
@@ -969,7 +968,7 @@ func (suite *lazyTestSuite) getIngressRuleByHost(rules []networkingv1.IngressRul
 	return nil
 }
 
-func (suite *lazyTestSuite) getFunctionInstance(funcName string) *nuclioio.NuclioFunction {
+func (suite *lazyTestSuite) getFunctionInstanceWithDefaultProbes(funcName string) *nuclioio.NuclioFunction {
 	functionInstance := &nuclioio.NuclioFunction{}
 	functionInstance.Name = funcName
 	functionInstance.Spec.LivenessProbe = platformconfig.DefaultLivenessProbeConfiguration
