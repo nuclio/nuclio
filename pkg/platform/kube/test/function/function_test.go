@@ -1333,6 +1333,67 @@ func (suite *DeployFunctionTestSuite) TestDeployImportedFunctionAsScaledToZero()
 	suite.Require().Equal(int(*deployment.Spec.Replicas), 0)
 }
 
+func (suite *DeployFunctionTestSuite) TestCreateFunctionWithProbes() {
+	// This test validates that the liveness and readiness probes are set correctly
+	// when creating a function with custom probes.
+	// The test will create a function with custom liveness.TimeoutSeconds probe.
+	// All the other liveness and readiness probes should be taken from the platform default config.
+
+	// Prepare
+	functionName := "func-hello-world"
+	livenessProbeTimeoutSeconds := int32(14)
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+	createFunctionOptions.FunctionConfig.Spec.LivenessProbe = &v1.Probe{TimeoutSeconds: livenessProbeTimeoutSeconds}
+	getFunctionOptions := &platform.GetFunctionsOptions{
+		Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+		Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResults *platform.CreateFunctionResult) bool {
+
+		// get the function
+		function := suite.GetFunction(getFunctionOptions)
+
+		// ensure function is ready
+		suite.Require().Equal(functionconfig.FunctionStateReady, function.GetStatus().State)
+
+		// ensure function pods are running
+		suite.WaitForFunctionPods(functionName, time.Minute, func(pods []v1.Pod) bool {
+			suite.Logger.DebugWith("Ensure function pods are running", "pods", pods)
+			for _, pod := range pods {
+				if pod.Status.Phase != v1.PodRunning {
+					return false
+				}
+			}
+			return true
+		})
+
+		// get the function's deployment and validate it has the probes
+		podsList := suite.GetFunctionPods(functionName)
+		suite.Require().Len(podsList, 1)
+		suite.Require().Len(podsList[0].Spec.Containers, 1)
+		container := podsList[0].Spec.Containers[0]
+		suite.Require().NotNil(container)
+		suite.Require().NotNil(container.ReadinessProbe)
+		suite.Require().NotNil(container.LivenessProbe)
+
+		// Assert liveness probe - should take all values from the platform default config except timeout
+		liveProbe := container.LivenessProbe
+		suite.Require().Equal(liveProbe.TimeoutSeconds, livenessProbeTimeoutSeconds)
+		suite.Require().Equal(liveProbe.PeriodSeconds, platformconfig.DefaultLivenessProbeConfiguration.PeriodSeconds)
+		suite.Require().Equal(liveProbe.FailureThreshold, platformconfig.DefaultLivenessProbeConfiguration.FailureThreshold)
+		suite.Require().Equal(liveProbe.InitialDelaySeconds, platformconfig.DefaultLivenessProbeConfiguration.InitialDelaySeconds)
+		// Assert readiness probe - should take all values from the platform default config
+		readinessProbe := container.ReadinessProbe
+		suite.Require().Equal(readinessProbe.InitialDelaySeconds, platformconfig.DefaultReadinessProbeConfiguration.InitialDelaySeconds)
+		suite.Require().Equal(readinessProbe.TimeoutSeconds, platformconfig.DefaultReadinessProbeConfiguration.TimeoutSeconds)
+		suite.Require().Equal(readinessProbe.PeriodSeconds, platformconfig.DefaultReadinessProbeConfiguration.PeriodSeconds)
+		suite.Require().Equal(readinessProbe.FailureThreshold, platformconfig.DefaultReadinessProbeConfiguration.FailureThreshold)
+
+		return true
+	})
+}
+
 func (suite *DeployFunctionTestSuite) TestCreateFunctionWithCustomScalingMetrics() {
 	one := 1
 	four := 4
