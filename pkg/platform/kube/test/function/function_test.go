@@ -1687,6 +1687,41 @@ func (suite *DeployFunctionTestSuite) TestDeployFromGitSanity() {
 
 		suite.Require().Empty(deployResult.UpdatedFunctionConfig.Spec.Build.FunctionSourceCode)
 
+		suite.InvokeFunction("GET", deployResult.Port, "", nil, true)
+		return true
+	})
+}
+
+func (suite *DeployFunctionTestSuite) TestDeployFromGitPythonRuntime() {
+	functionName := "func-from-git"
+	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "string-manipulator:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = build.GitEntryType
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = "https://github.com/nuclio/nuclio-templates.git"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"branch":  "master",
+		"workDir": "string-manipulator",
+	}
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{{
+		Name:  "MANIPULATION_KIND",
+		Value: "reverse",
+	}}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult)
+		response := suite.InvokeFunction("GET", deployResult.Port, "", []byte("foo-bar"), true)
+		bodyBytes, err := io.ReadAll(response.Body)
+		suite.Require().NoError(err)
+		err = response.Body.Close()
+		suite.Require().NoError(err)
+
+		bodyString := string(bodyBytes)
+		suite.Require().Equal("rab-oof", bodyString)
+
 		return true
 	})
 }
