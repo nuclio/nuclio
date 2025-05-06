@@ -102,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@909cc5acb0fdd60627fb858598759246509fa755 # 2.0.2
         with:
           deno-version: v1.x
       - name: Check License Lines
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # 3.4.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
@@ -222,7 +222,7 @@ jobs:
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # 4.3.0
         with:
           version: "v3.6.3"
 
@@ -231,7 +231,7 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@v2.13.1
+      - uses: manusa/actions-setup-minikube@b589f2d61bf96695c546929c72b38563e856059d # 2.14.0
         with:
           minikube version: "v1.31.2"
           kubernetes version: "v1.27.5"
@@ -353,7 +353,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # 4.3.0
         with:
           version: "v3.6.3"
 
@@ -362,7 +362,7 @@ jobs:
           cache: true
           go-version-file: go.mod
 
-      - uses: manusa/actions-setup-minikube@v2.13.1
+      - uses: manusa/actions-setup-minikube@b589f2d61bf96695c546929c72b38563e856059d # 2.14.0
         with:
           minikube version: "v1.31.2"
           kubernetes version: "v1.27.5"
