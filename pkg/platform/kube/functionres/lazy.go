@@ -304,6 +304,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 		// check if context is still OK
 		case <-ctx.Done():
 
+			warningEvents := ""
 			// for an edge-case where context exceeded deadline/cancelled right when resources got ready
 			if initContainersDone && deploymentReady && ingressReady {
 
@@ -324,11 +325,29 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				return errors.New(fmt.Sprintf("Init containers are not done yet. Reason: %s. Increasing readiness timeout may help", reasonInitContainersNotDone)),
 					functionconfig.FunctionStateUnhealthy
 			} else {
+				// create a new context with timeout to get the last warning events
+				k8sCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				if lastWarningFromIngress := lc.getFunctionIngressLastWarningEvent(k8sCtx, function); lastWarningFromIngress != "" {
+					warningEvents += fmt.Sprintf("Last warning event from ingress: %s \n", lastWarningFromIngress)
+				}
+				if lastWarningFromDeployment := lc.getFunctionDeploymentOrPodLastWarningEvent(k8sCtx, function); lastWarningFromDeployment != "" {
+					warningEvents += fmt.Sprintf("Last warning event from deployment: %s \n", lastWarningFromDeployment)
+				}
+				cancel()
+
 				lc.logger.WarnWithCtx(ctx,
 					"Function available wait is cancelled due to context timeout",
 					"err", ctx.Err(),
 					"namespace", function.Namespace,
-					"functionName", function.Name)
+					"functionName", function.Name,
+					"warningEvents", warningEvents)
+			}
+			if warningEvents != "" {
+				// return k8s events in the error message
+				// later this error is used as a status.message
+				return errors.Wrap(ctx.Err(),
+						"Function available wait is cancelled due to context timeout when function wasn't ready yet. Last k8s events: "+warningEvents),
+					functionconfig.FunctionStateUnhealthy
 			}
 			return ctx.Err(), functionconfig.FunctionStateUnhealthy
 
@@ -386,8 +405,14 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					"Function deployment is ready while ingress is not yet, stop waiting",
 					"namespace", function.Namespace,
 					"name", function.Name)
-				return errors.New("Function deployment is ready while ingress is not"), functionconfig.FunctionStateUnhealthy
 
+				errMessage := "Function deployment is ready while ingress is not."
+
+				// add last warning event if exists
+				if lastEvent := lc.getFunctionIngressLastWarningEvent(ctx, function); lastEvent != "" {
+					errMessage += " Last warning event:" + lastEvent
+				}
+				return errors.New(errMessage), functionconfig.FunctionStateUnhealthy
 			}
 
 			// check deployment readiness
@@ -411,7 +436,13 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				}
 
 				if err != nil {
-					return errors.Wrap(err, "Failed to wait for function deployment readiness"), functionState
+					errMessage := "Failed to wait for function deployment readiness."
+
+					// add last warning event if exists
+					if lastEvent := lc.getFunctionDeploymentOrPodLastWarningEvent(ctx, function); lastEvent != "" {
+						errMessage += " Last warning event:" + lastEvent
+					}
+					return errors.Wrap(err, errMessage), functionState
 				}
 
 				deploymentReady = true
@@ -730,6 +761,84 @@ func (lc *lazyClient) getFunctionPods(ctx context.Context,
 	} else {
 		return nil, errors.Wrap(err, "Failed to get function deployment's pods")
 	}
+}
+
+// getFunctionDeploymentOrPodLastWarningEvent returns the latest warning event message
+// for the function's associated Deployment object, or its pods if Deployment has none.
+func (lc *lazyClient) getFunctionDeploymentOrPodLastWarningEvent(ctx context.Context, function *nuclioio.NuclioFunction) string {
+	deploymentName := kube.DeploymentNameFromFunctionName(function.Name)
+
+	// Try to get Deployment warning first
+	warning := lc.getLastWarningEventForKindAndName(ctx, function.Namespace, "Deployment", deploymentName)
+	if warning != "" {
+		return warning
+	}
+
+	// If no deployment warning, check pods
+	if podLastEvent := lc.getLastWarningEventForFunctionPods(ctx, function); podLastEvent != "" {
+		return podLastEvent
+	}
+	return ""
+}
+
+// getFunctionIngressLastWarningEvent returns the latest warning event message
+// for the function's associated Ingress object, if any exist.
+func (lc *lazyClient) getFunctionIngressLastWarningEvent(ctx context.Context, function *nuclioio.NuclioFunction) string {
+	return lc.getLastWarningEventForKindAndName(
+		ctx,
+		function.Namespace,
+		"Ingress",
+		kube.IngressNameFromFunctionName(function.Name),
+	)
+}
+
+// getLastWarningEventForFunctionPods returns the latest warning event for any pod
+// belonging to the given function (based on function labels).
+func (lc *lazyClient) getLastWarningEventForFunctionPods(ctx context.Context, function *nuclioio.NuclioFunction) string {
+	pods, err := lc.kubeClientSet.CoreV1().Pods(function.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, function.Name),
+	})
+	if err != nil || len(pods.Items) == 0 {
+		return ""
+	}
+
+	for _, pod := range pods.Items {
+		if event := lc.getLastWarningEventForKindAndName(ctx, function.Namespace, "Pod", pod.Name); event != "" {
+			// We don't have the timestamp here, but since it's one per pod,
+			// returning the first found is sufficient for this use case.
+			return event
+		}
+	}
+	return ""
+}
+
+// getLastWarningEventForKindAndName fetches the latest Kubernetes Warning event message
+// for a specific object (identified by kind and name) within the given namespace.
+func (lc *lazyClient) getLastWarningEventForKindAndName(ctx context.Context, namespace, kind, name string) string {
+	// Build field selector to query only events related to the specific object
+	fieldSelector := fmt.Sprintf("involvedObject.kind=%s,involvedObject.name=%s", kind, name)
+
+	// Retrieve the list of events associated with the object
+	events, err := lc.kubeClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fieldSelector,
+	})
+	if err != nil {
+		lc.logger.WarnWithCtx(ctx, "Failed to list events",
+			"component", strings.ToLower(kind),
+			"name", name,
+			"err", err)
+		return ""
+	}
+
+	// Iterate in reverse to find the most recent Warning event
+	for i := len(events.Items) - 1; i >= 0; i-- {
+		if events.Items[i].Type == v1.EventTypeWarning {
+			return events.Items[i].Message
+		}
+	}
+
+	// No Warning events found
+	return ""
 }
 
 func (lc *lazyClient) createOrUpdateCronJobs(ctx context.Context,
