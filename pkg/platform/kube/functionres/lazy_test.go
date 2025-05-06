@@ -361,7 +361,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 					},
 				},
 			},
-			LivenessProbe: platformconfig.DefaultLivenessProbeConfiguration,
+			LivenessProbe:  platformconfig.DefaultLivenessProbeConfiguration,
 			ReadinessProbe: platformconfig.DefaultReadinessProbeConfiguration,
 		},
 	}
@@ -754,13 +754,12 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 
 func (suite *lazyTestSuite) TestEnrichProbesInPopulateDeploymentContainer() {
 	// Prepare
-	functionInstance := suite.getFunctionInstance("")
-	testCtx := context.Background()
+	functionInstance := suite.getFunctionInstance("test-enrich-probes-function")
 	testFunctionLabels := suite.client.getFunctionLabels(functionInstance)
 	testContainer := &v1.Container{}
 
 	// Act
-	suite.client.populateDeploymentContainer(testCtx, testFunctionLabels, functionInstance, testContainer)
+	suite.client.populateDeploymentContainer(suite.ctx, testFunctionLabels, functionInstance, testContainer)
 
 	// Assert
 	// Assert ReadinessProbe
