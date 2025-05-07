@@ -13,6 +13,11 @@
 # limitations under the License
 
 name: Docs Language Linter
+
+permissions:
+  contents: read
+  pull-requests: write
+
 on:
   pull_request:
     paths:
@@ -28,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: errata-ai/vale-action@reviewdog
+      - uses: errata-ai/vale-action@d89dee975228ae261d22c15adcd03578634d429c # 2.1.1
         with:
           reporter: github-pr-check
 

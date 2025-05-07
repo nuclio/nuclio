@@ -24,6 +24,10 @@ on:
   schedule:
     - cron: '0 */12 * * *'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 env:
   START_LABEL: long-ci-started
   SUCCESS_LABEL: long-ci-succeeded
@@ -140,7 +144,7 @@ jobs:
 
       - name: Report Status
         if: github.event_name == 'schedule' && always()
-        uses: ravsamhq/notify-slack-action@v2
+        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2 # 2.5.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: ${{ needs.long_ci.result }}
