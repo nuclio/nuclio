@@ -15,6 +15,10 @@
 
 name: Security Scan
 
+permissions:
+  contents: read
+  security-events: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -139,7 +143,7 @@ jobs:
           fi
 
       - name: Scan image
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@2c901ab7378897c01b8efaa2d0c9bf519cc64b9e # 6.2.0
         id: scan
         with:
           image: ${{ env.image_name }}
@@ -184,7 +188,7 @@ jobs:
           fi
 
       - name: Scan fs
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@2c901ab7378897c01b8efaa2d0c9bf519cc64b9e # 6.2.0
         id: scan
         with:
           path: "."

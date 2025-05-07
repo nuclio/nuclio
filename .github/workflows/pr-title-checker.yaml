@@ -13,8 +13,11 @@
 # limitations under the License.
 #
 name: "PR Title Checker"
-on:
+permissions:
+  contents: read
+  pull-requests: write
 
+on:
   # when opening PRs from forks
   pull_request_target:
     types:
@@ -28,7 +31,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: thehanimo/pr-title-checker@v1.4.3
+      - uses: thehanimo/pr-title-checker@7fbfe05602bdd86f926d3fb3bccb6f3aed43bc70 # 1.4.3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           configuration_path: .github/pr-title-checker-config.json
