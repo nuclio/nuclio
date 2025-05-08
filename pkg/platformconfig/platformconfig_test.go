@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -602,6 +603,63 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResources() {
 	suite.Require().Equal(expectedResources["requestsMemory"], resources.Requests["memory"])
 	suite.Require().Equal(expectedResources["limitsCPU"], resources.Limits["cpu"])
 	suite.Require().Equal(expectedResources["limitsMemory"], resources.Limits["memory"])
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichElasticSearchConfig() {
+	testCases := []struct {
+		name              string
+		configurationYAML string
+		envPassword       string
+		expectedPassword  string
+	}{
+		{
+			name: "overriddenByEnv",
+			configurationYAML: `
+kube:
+  elasticSearchConfig:
+    password: "preset-password"
+`,
+			envPassword:      "env-password",
+			expectedPassword: "env-password",
+		},
+		{
+			name: "fromEnv",
+			configurationYAML: `
+kube:
+  elasticSearchConfig:
+    password: ""
+`,
+			envPassword:      "env-password",
+			expectedPassword: "env-password",
+		},
+		{
+			name: "fromConfig",
+			configurationYAML: `
+kube:
+  elasticSearchConfig:
+    password: "config-password"
+`,
+			envPassword:      "",
+			expectedPassword: "config-password",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			if tc.envPassword != "" {
+				os.Setenv("ELASTIC_SEARCH_PASSWORD", tc.envPassword)
+				defer os.Unsetenv("ELASTIC_SEARCH_PASSWORD")
+			}
+
+			var readConfiguration Config
+
+			err := suite.reader.Read(bytes.NewBufferString(tc.configurationYAML), "yaml", &readConfiguration)
+			suite.Require().NoError(err)
+
+			readConfiguration.enrichElasticSearchConfig()
+			suite.Equal(tc.expectedPassword, readConfiguration.Kube.ElasticSearchConfig.Password)
+		})
+	}
 }
 
 func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesWithoutDefaults() {
