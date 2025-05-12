@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package logProxier
+package logProxy
 
 import (
 	"context"
@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 )
 
-type LogProxier interface {
+type LogProxy interface {
 	ProxyFunctionLogs(ctx context.Context, options *platform.ProxyFunctionLogsOptions) (io.ReadCloser, error)
 
 	GetFunctionReplicas(ctx context.Context, options *GetFunctionReplicaOptions) ([]string, error)

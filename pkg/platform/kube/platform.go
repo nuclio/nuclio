@@ -40,7 +40,7 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
-	"github.com/nuclio/nuclio/pkg/platform/kube/logProxier"
+	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -67,7 +67,7 @@ type Platform struct {
 	projectsClient      project.Client
 	projectsCache       *cache.Expiring
 	apiGatewayScrubber  *platform.APIGatewayScrubber
-	elasticSearchClient *logProxier.ElasticLogProxier
+	elasticSearchClient *logProxy.ElasticLogProxy
 }
 
 const Mib = 1048576
@@ -146,7 +146,7 @@ func NewPlatform(ctx context.Context,
 
 	if platformConfiguration.Kube.ElasticSearchConfig != nil {
 		// create elastic search client
-		newPlatform.elasticSearchClient, err = logProxier.NewElasticLogProxier(platformConfiguration.Kube.ElasticSearchConfig)
+		newPlatform.elasticSearchClient, err = logProxy.NewElasticLogProxy(platformConfiguration.Kube.ElasticSearchConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create elasticsearch client")
 		}

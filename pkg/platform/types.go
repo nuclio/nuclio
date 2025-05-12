@@ -36,14 +36,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type ProxyLogsSource string
-
-const (
-	ProxyLogsSourceES  ProxyLogsSource = "elasticsearch"
-	ProxyLogsSourceK8s ProxyLogsSource = "kubernetes"
-)
-
+//
 // Auth
+//
+
 type AuthConfig struct {
 	Token string
 }
@@ -135,6 +131,13 @@ type GetFunctionsOptions struct {
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
 }
+
+type ProxyLogsSource string
+
+const (
+	ProxyLogsSourceES  ProxyLogsSource = "elasticsearch"
+	ProxyLogsSourceK8s ProxyLogsSource = "kubernetes"
+)
 
 type ProxyFunctionLogsOptions struct {
 	// filtering options

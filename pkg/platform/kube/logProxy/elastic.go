@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package logProxier
+package logProxy
 
 import (
 	"context"
@@ -25,19 +25,19 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
-	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/nuclio/errors"
 )
 
-type ElasticLogProxier struct {
+type ElasticLogProxy struct {
 	client *elasticsearch.TypedClient
 
 	index            string
 	customQueryParam string
 }
 
-func NewElasticLogProxier(config *platformconfig.ElasticSearchConfig) (*ElasticLogProxier, error) {
-	esClient := &ElasticLogProxier{
+func NewElasticLogProxy(config *platformconfig.ElasticSearchConfig) (*ElasticLogProxy, error) {
+	esClient := &ElasticLogProxy{
 		index:            config.Index,
 		customQueryParam: config.CustomQueryParameter,
 	}
@@ -60,10 +60,10 @@ func NewElasticLogProxier(config *platformconfig.ElasticSearchConfig) (*ElasticL
 	return esClient, err
 }
 
-func (e *ElasticLogProxier) ProxyFunctionLogs(ctx context.Context, options *platform.ProxyFunctionLogsOptions) (io.ReadCloser, error) {
+func (e *ElasticLogProxy) ProxyFunctionLogs(ctx context.Context, options *platform.ProxyFunctionLogsOptions) (io.ReadCloser, error) {
 	return nil, nil
 }
 
-func (e *ElasticLogProxier) GetFunctionReplicas(ctx context.Context, options *GetFunctionReplicaOptions) ([]string, error) {
+func (e *ElasticLogProxy) GetFunctionReplicas(ctx context.Context, options *GetFunctionReplicaOptions) ([]string, error) {
 	return nil, nil
 }
