@@ -36,10 +36,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//
-// Auth
-//
+type ProxyLogsSource string
 
+const (
+	ProxyLogsSourceES  ProxyLogsSource = "elasticsearch"
+	ProxyLogsSourceK8s ProxyLogsSource = "kubernetes"
+)
+
+// Auth
 type AuthConfig struct {
 	Token string
 }
@@ -130,6 +134,28 @@ type GetFunctionsOptions struct {
 
 	// Enrich functions with their api gateways
 	EnrichWithAPIGateways bool
+}
+
+type ProxyFunctionLogsOptions struct {
+	// filtering options
+	TimeFilter   *TimeFilter `json:"timeFilter,omitempty"`
+	Substring    string      `json:"substring,omitempty"`
+	Regexp       string      `json:"regexp,omitempty"`
+	ReplicaNames []string    `json:"replicaNames,omitempty"`
+	LogLevels    []string    `json:"logLevels,omitempty"`
+
+	// limit options
+	Size        int64    `json:"size,omitempty"`
+	SearchAfter []string `json:"searchAfter,omitempty"`
+
+	Source ProxyLogsSource `json:"source,omitempty"`
+}
+
+type TimeFilter struct {
+	Since *time.Time `json:"since,omitempty"`
+	Until *time.Time `json:"until,omitempty"`
+
+	Sort string `json:"sort,omitempty"` // desc or asc
 }
 
 // CreateFunctionInvocationOptions is the base for all platform invoke options
