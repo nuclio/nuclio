@@ -286,7 +286,7 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
-  elasticSearch:
+  elasticSearchPassword:
     secretName: ""
     secretKey: ""
 
