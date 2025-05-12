@@ -184,6 +184,7 @@ func (c *Config) EnrichPlatformConfig() error {
 
 	common.EnrichProbe(&c.Kube.DefaultReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	common.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
+	c.enrichElasticSearchConfig()
 
 	return nil
 }
@@ -352,6 +353,14 @@ func (c *Config) EnrichSupplementaryContainerResources(ctx context.Context,
 		false)
 }
 
+func (c *Config) EnableSensitiveFieldMasking() {
+	c.SensitiveFields.MaskSensitiveFields = true
+}
+
+func (c *Config) DisableSensitiveFieldMasking() {
+	c.SensitiveFields.MaskSensitiveFields = false
+}
+
 // enrichContainerResources enriches an object's requests and limits with the default
 // resources defined in the platform config, only if they are not already configured
 func (c *Config) enrichContainerResources(ctx context.Context,
@@ -477,12 +486,15 @@ func (c *Config) enrichOpaConfig() {
 	}
 }
 
-func (c *Config) EnableSensitiveFieldMasking() {
-	c.SensitiveFields.MaskSensitiveFields = true
-}
+func (c *Config) enrichElasticSearchConfig() {
+	if c.Kube.ElasticSearchConfig == nil {
+		return
+	}
 
-func (c *Config) DisableSensitiveFieldMasking() {
-	c.SensitiveFields.MaskSensitiveFields = false
+	// override with environment variable if set
+	if envPassword := os.Getenv("NUCLIO_ELASTIC_SEARCH_PASSWORD"); envPassword != "" {
+		c.Kube.ElasticSearchConfig.Password = envPassword
+	}
 }
 
 func GetDefaultPlatformConfiguration() *Config {
