@@ -647,8 +647,8 @@ kube:
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
 			if tc.envPassword != "" {
-				os.Setenv("ELASTIC_SEARCH_PASSWORD", tc.envPassword)
-				defer os.Unsetenv("ELASTIC_SEARCH_PASSWORD")
+				os.Setenv("NUCLIO_ELASTIC_SEARCH_PASSWORD", tc.envPassword)
+				defer os.Unsetenv("NUCLIO_ELASTIC_SEARCH_PASSWORD")
 			}
 
 			var readConfiguration Config

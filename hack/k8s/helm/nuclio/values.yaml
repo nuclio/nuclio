@@ -286,6 +286,10 @@ dashboard:
       periodSeconds: 15
       failureThreshold: 4
 
+  elasticSearch:
+    secretName: ""
+    secretKey: ""
+
   # Use to volumize pip ca cert
   # Note: secret name must contain "pip-ca-certificates.crt" key
   pipCACertSecretName: ""

@@ -492,7 +492,7 @@ func (c *Config) enrichElasticSearchConfig() {
 	}
 
 	// override with environment variable if set
-	if envPassword := os.Getenv("ELASTIC_SEARCH_PASSWORD"); envPassword != "" {
+	if envPassword := os.Getenv("NUCLIO_ELASTIC_SEARCH_PASSWORD"); envPassword != "" {
 		c.Kube.ElasticSearchConfig.Password = envPassword
 	}
 }
