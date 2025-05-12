@@ -377,7 +377,7 @@ You can configure each attribute either in the `triggers.<trigger>.attributes.<a
   <br/>
   **Default Value:** `"5s"` (5 seconds)<!-- 5 * time.Second -->
 
-- <a id="AdminTimeout"></a>**`adminTimeout`** (**`kafka-admin-timeout`**) - The maximum duration the administrative Kafka client will wait for ClusterAdmin operations, including topics, brokers, configurations and ACLs.
+- <a id="AdminTimeout"></a>**`adminTimeout`** (**`kafka-admin-timeout`**) - The maximum duration the administrative Kafka client will wait for ClusterAdmin operations, including topics, brokers, configurations and access control lists (ACL).
   <br/>
   **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
   <br/>
