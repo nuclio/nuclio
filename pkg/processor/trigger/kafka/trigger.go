@@ -504,6 +504,10 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Consumer.MaxProcessingTime = k.configuration.maxProcessingTime
 	config.ChannelBufferSize = k.configuration.ChannelBufferSize
 
+	config.Admin.Timeout = k.configuration.adminTimeout
+	config.Net.DialTimeout = k.configuration.netDialTimeout
+	config.Metadata.Timeout = k.configuration.metadataTimeout
+
 	// configure TLS if applicable
 	config.Net.TLS.Enable = k.configuration.CACert != "" || k.configuration.TLS.Enable
 	if config.Net.TLS.Enable {
