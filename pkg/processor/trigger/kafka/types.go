@@ -75,6 +75,9 @@ type Configuration struct {
 	RetryBackoff                  string
 	MaxWaitTime                   string
 	MaxWaitHandlerDuringRebalance string
+	AdminTimeout                  string
+	MetadataTimeout               string
+	NetDialTimeout                string
 	WorkerAllocationMode          partitionworker.AllocationMode
 	RebalanceRetryMax             int
 	FetchMin                      int
@@ -101,6 +104,9 @@ type Configuration struct {
 	maxWaitTime                           time.Duration
 	maxWaitHandlerDuringRebalance         time.Duration
 	waitExplicitAckDuringRebalanceTimeout time.Duration
+	adminTimeout                          time.Duration
+	metadataTimeout                       time.Duration
+	netDialTimeout                        time.Duration
 	ackWindowSize                         int
 }
 
@@ -119,6 +125,11 @@ func NewConfiguration(id string,
 
 	workerAllocationModeValue := ""
 	explicitAckModeValue := ""
+
+	// parse attributes
+	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
 
 	err = newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "nuclio.io/kafka-session-timeout", ValueString: &newConfiguration.SessionTimeout},
@@ -174,6 +185,12 @@ func NewConfiguration(id string,
 
 		// allow changing explicit ack mode via annotation
 		{Key: "nuclio.io/wait-explicit-ack-during-rebalance-timeout", ValueString: &triggerConfiguration.WaitExplicitAckDuringRebalanceTimeout},
+
+		// timeouts for initial connection
+		// often need to be adjusted for confluent cloud
+		{Key: "nuclio.io/kafka-net-dial-timeout", ValueString: &newConfiguration.NetDialTimeout},
+		{Key: "nuclio.io/kafka-metadata-timeout", ValueString: &newConfiguration.MetadataTimeout},
+		{Key: "nuclio.io/kafka-admin-timeout", ValueString: &newConfiguration.AdminTimeout},
 	})
 
 	if err != nil {
@@ -224,11 +241,6 @@ func NewConfiguration(id string,
 	// set default
 	if triggerConfiguration.NumWorkers == 0 {
 		triggerConfiguration.NumWorkers = 32
-	}
-
-	// parse attributes
-	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
-		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
 	if len(newConfiguration.Topics) == 0 {
@@ -308,6 +320,24 @@ func NewConfiguration(id string,
 			Value:   newConfiguration.WaitExplicitAckDuringRebalanceTimeout,
 			Field:   &newConfiguration.waitExplicitAckDuringRebalanceTimeout,
 			Default: 100 * time.Millisecond,
+		},
+		{
+			Name:    "wait for operations like topics, brokers, configs, and ACLs",
+			Value:   newConfiguration.AdminTimeout,
+			Field:   &newConfiguration.adminTimeout,
+			Default: 15 * time.Second,
+		},
+		{
+			Name:    "wait for a successful metadata response",
+			Value:   newConfiguration.MetadataTimeout,
+			Field:   &newConfiguration.metadataTimeout,
+			Default: 15 * time.Second,
+		},
+		{
+			Name:    "wait for the initial connection",
+			Value:   newConfiguration.NetDialTimeout,
+			Field:   &newConfiguration.netDialTimeout,
+			Default: 15 * time.Second,
 		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
