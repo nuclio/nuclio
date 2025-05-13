@@ -31,14 +31,14 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | upper_first }}
 {%- for commit in commits %}
-- {%- if commit.scope %} **{{ commit.scope }}:** {%- endif -%}
+- {% if commit.scope %} **{{ commit.scope }}:** {%- endif -%}
 {%- set first_line = commit.message | split(pat="\n") | first -%}
  {{ first_line }}{%- if commit.github.username %} by @{{ commit.github.username }}{%- endif -%}
 {%- if commit.github.pr_number %}
   {%- set pr_string = "#" ~ commit.github.pr_number -%}
   {%- if pr_string not in first_line %} in {{ pr_string }}{%- endif %}
-{% endif %}
-{% endfor %}
+{%- endif %}
+{%- endfor %}
 {% endfor %}
 """
 # template for the changelog footer
