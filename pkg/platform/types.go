@@ -132,6 +132,35 @@ type GetFunctionsOptions struct {
 	EnrichWithAPIGateways bool
 }
 
+type ProxyLogsSource string
+
+const (
+	ProxyLogsSourceES  ProxyLogsSource = "elasticsearch"
+	ProxyLogsSourceK8s ProxyLogsSource = "kubernetes"
+)
+
+type ProxyFunctionLogsOptions struct {
+	// filtering options
+	TimeFilter   *TimeFilter `json:"timeFilter,omitempty"`
+	Substring    string      `json:"substring,omitempty"`
+	Regexp       string      `json:"regexp,omitempty"`
+	ReplicaNames []string    `json:"replicaNames,omitempty"`
+	LogLevels    []string    `json:"logLevels,omitempty"`
+
+	// limit options
+	Size        int64    `json:"size,omitempty"`
+	SearchAfter []string `json:"searchAfter,omitempty"`
+
+	Source ProxyLogsSource `json:"source,omitempty"`
+}
+
+type TimeFilter struct {
+	Since *time.Time `json:"since,omitempty"`
+	Until *time.Time `json:"until,omitempty"`
+
+	Sort string `json:"sort,omitempty"` // desc or asc
+}
+
 // CreateFunctionInvocationOptions is the base for all platform invoke options
 type CreateFunctionInvocationOptions struct {
 	Name         string
