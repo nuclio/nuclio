@@ -76,7 +76,11 @@ type Configuration struct {
 	MaxWaitTime                   string
 	MaxWaitHandlerDuringRebalance string
 	AdminTimeout                  string
+	AdminRetryBackoff             string
+	AdminRetryMax                 int
 	MetadataTimeout               string
+	MetadataRetryBackoff          string
+	MetadataRetryMax              int
 	NetDialTimeout                string
 	WorkerAllocationMode          partitionworker.AllocationMode
 	RebalanceRetryMax             int
@@ -105,7 +109,9 @@ type Configuration struct {
 	maxWaitHandlerDuringRebalance         time.Duration
 	waitExplicitAckDuringRebalanceTimeout time.Duration
 	adminTimeout                          time.Duration
+	adminRetryBackoff                     time.Duration
 	metadataTimeout                       time.Duration
+	metadataRetryBackoff                  time.Duration
 	netDialTimeout                        time.Duration
 	ackWindowSize                         int
 }
@@ -190,7 +196,15 @@ func NewConfiguration(id string,
 		// often need to be adjusted for confluent cloud
 		{Key: "nuclio.io/kafka-net-dial-timeout", ValueString: &newConfiguration.NetDialTimeout},
 		{Key: "nuclio.io/kafka-metadata-timeout", ValueString: &newConfiguration.MetadataTimeout},
+		{Key: "nuclio.io/kafka-metadata-retry-backoff", ValueString: &newConfiguration.MetadataRetryBackoff},
 		{Key: "nuclio.io/kafka-admin-timeout", ValueString: &newConfiguration.AdminTimeout},
+		{Key: "nuclio.io/kafka-admin-retry-backoff", ValueString: &newConfiguration.AdminRetryBackoff},
+
+		// max retry for metadata
+		{Key: "nuclio.io/kafka-metadata-retry-max", ValueInt: &newConfiguration.MetadataRetryMax},
+
+		// max retry for admin
+		{Key: "nuclio.io/kafka-admin-retry-max", ValueInt: &newConfiguration.AdminRetryMax},
 	})
 
 	if err != nil {
@@ -328,10 +342,22 @@ func NewConfiguration(id string,
 			Default: 15 * time.Second,
 		},
 		{
+			Name:    "wait between admin retries",
+			Value:   newConfiguration.AdminRetryBackoff,
+			Field:   &newConfiguration.adminRetryBackoff,
+			Default: 2 * time.Second,
+		},
+		{
 			Name:    "wait for a successful metadata response",
 			Value:   newConfiguration.MetadataTimeout,
 			Field:   &newConfiguration.metadataTimeout,
 			Default: 15 * time.Second,
+		},
+		{
+			Name:    "wait between metadata retries",
+			Value:   newConfiguration.MetadataRetryBackoff,
+			Field:   &newConfiguration.metadataRetryBackoff,
+			Default: 2 * time.Second,
 		},
 		{
 			Name:    "wait for the initial connection",
@@ -373,6 +399,14 @@ func NewConfiguration(id string,
 
 	if newConfiguration.ChannelBufferSize == 0 {
 		newConfiguration.ChannelBufferSize = 256
+	}
+
+	if newConfiguration.MetadataRetryMax == 0 {
+		newConfiguration.MetadataRetryMax = 10
+	}
+
+	if newConfiguration.AdminRetryMax == 0 {
+		newConfiguration.AdminRetryMax = 10
 	}
 
 	// for certificates, replace spaces with newlines to allow passing in places like annotations
