@@ -344,7 +344,7 @@ func NewConfiguration(id string,
 			Name:    "wait between metadata retries",
 			Value:   newConfiguration.MetadataRetryBackoff,
 			Field:   &newConfiguration.metadataRetryBackoff,
-			Default: 15 * time.Second,
+			Default: 2 * time.Second,
 		},
 		{
 			Name:    "wait for the initial connection",

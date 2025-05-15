@@ -20,6 +20,7 @@ package kafka
 
 import (
 	"crypto/tls"
+	"log"
 	"os"
 	"path"
 	"testing"
@@ -486,8 +487,15 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 			suite.Require().Equal(
 				testCase.expectedTimeout,
 				configuration.netDialTimeout)
-			suite.Require().Equal(testCase.expectedTimeout,
-				configuration.metadataRetryBackoff)
+
+			// metadataRetryBackoff is set to 2 seconds by default
+			if testCase.name == "Timeout not specified" {
+				suite.Require().Equal(2*time.Second,
+					configuration.metadataRetryBackoff)
+			} else {
+				suite.Require().Equal(testCase.expectedTimeout,
+					configuration.metadataRetryBackoff)
+			}
 
 		})
 	}
