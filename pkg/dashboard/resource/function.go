@@ -235,6 +235,7 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			Pattern:         "/{id}/proxy-logs",
 			Method:          http.MethodGet,
 			StreamRouteFunc: fr.proxyFunctionLogs,
+			Stream:          true,
 		},
 	}, nil
 }
@@ -524,7 +525,7 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 
 	return &restful.CustomRouteFuncResponse{
 		Resources:  responseAttributes,
-		Single:     true,
+		Single:     false,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 		StatusCode: http.StatusOK,
 	}, nil
