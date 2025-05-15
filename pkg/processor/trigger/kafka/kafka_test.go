@@ -20,7 +20,6 @@ package kafka
 
 import (
 	"crypto/tls"
-	"log"
 	"os"
 	"path"
 	"testing"
@@ -458,6 +457,7 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 				"metadataTimeout":      testCase.timeoutConfig,
 				"netDialTimeout":       testCase.timeoutConfig,
 				"metadataRetryBackoff": testCase.timeoutConfig,
+				"adminRetryBackoff":    testCase.timeoutConfig,
 			},
 		}
 
@@ -468,6 +468,7 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 				annotations["nuclio.io/kafka-metadata-timeout"] = testCase.timeoutAnnotation
 				annotations["nuclio.io/kafka-admin-timeout"] = testCase.timeoutAnnotation
 				annotations["nuclio.io/kafka-metadata-retry-backoff"] = testCase.timeoutAnnotation
+				annotations["nuclio.io/kafka-admin-retry-backoff"] = testCase.timeoutAnnotation
 			}
 			configuration, err := NewConfiguration(testCase.name,
 				triggerInstance,
@@ -488,20 +489,24 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 				testCase.expectedTimeout,
 				configuration.netDialTimeout)
 
-			// metadataRetryBackoff is set to 2 seconds by default
+			// metadataRetryBackoff and adminRetryBackoff are set to 2 seconds by default
 			if testCase.name == "Timeout not specified" {
 				suite.Require().Equal(2*time.Second,
 					configuration.metadataRetryBackoff)
+				suite.Require().Equal(2*time.Second,
+					configuration.adminRetryBackoff)
 			} else {
 				suite.Require().Equal(testCase.expectedTimeout,
 					configuration.metadataRetryBackoff)
+				suite.Require().Equal(testCase.expectedTimeout,
+					configuration.adminRetryBackoff)
 			}
 
 		})
 	}
 }
 
-func (suite *TestSuite) TestMetadataMaxRetryConfiguration() {
+func (suite *TestSuite) TestMetadataAndAdminMaxRetryConfiguration() {
 	for _, testCase := range []struct {
 		name             string
 		retryConfig      int
@@ -540,6 +545,7 @@ func (suite *TestSuite) TestMetadataMaxRetryConfiguration() {
 					"some-broker",
 				},
 				"metadataRetryMax": testCase.retryConfig,
+				"adminRetryMax":    testCase.retryConfig,
 			},
 		}
 
@@ -547,6 +553,7 @@ func (suite *TestSuite) TestMetadataMaxRetryConfiguration() {
 			annotations := make(map[string]string)
 			if testCase.retryAnnotation != "" {
 				annotations["nuclio.io/kafka-metadata-retry-max"] = testCase.retryAnnotation
+				annotations["nuclio.io/kafka-admin-retry-max"] = testCase.retryAnnotation
 			}
 			configuration, err := NewConfiguration(testCase.name,
 				triggerInstance,
@@ -560,6 +567,9 @@ func (suite *TestSuite) TestMetadataMaxRetryConfiguration() {
 			suite.Require().Equal(
 				testCase.expectedMaxRetry,
 				configuration.MetadataRetryMax)
+			suite.Require().Equal(
+				testCase.expectedMaxRetry,
+				configuration.AdminRetryMax)
 		})
 	}
 }
