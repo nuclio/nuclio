@@ -1,3 +1,5 @@
+//go:build test_unit
+
 /*
 Copyright 2025 The Nuclio Authors.
 
