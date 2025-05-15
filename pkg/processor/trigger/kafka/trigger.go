@@ -507,6 +507,8 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Admin.Timeout = k.configuration.adminTimeout
 	config.Net.DialTimeout = k.configuration.netDialTimeout
 	config.Metadata.Timeout = k.configuration.metadataTimeout
+	config.Metadata.Retry.Backoff = k.configuration.metadataRetryBackoff
+	config.Metadata.Retry.Max = k.configuration.MetadataRetryMax
 
 	// configure TLS if applicable
 	config.Net.TLS.Enable = k.configuration.CACert != "" || k.configuration.TLS.Enable
