@@ -83,11 +83,14 @@ type Platform interface {
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
 
-	// GetFunctionReplicaLogsStream return the function instance (Kubernetes - Pod / Docker - Container) logs stream
-	GetFunctionReplicaLogsStream(context.Context, *GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error)
+	// ProxyFunctionLogs return the function logs stream
+	ProxyFunctionLogs(context.Context, interface{}) (io.ReadCloser, error)
 
-	// GetFunctionReplicaNames returns function replica names (Pod / Container names)
-	GetFunctionReplicaNames(context.Context, Function, opa.PermissionOptions) ([]string, error)
+	// GetFunctionActiveReplicaNames returns function active replica names (Pod / Container names)
+	GetFunctionActiveReplicaNames(context.Context, Function, opa.PermissionOptions) ([]string, error)
+
+	// GetFunctionAllReplicaNames returns function all replica names (active + old Pods)
+	GetFunctionAllReplicaNames(context.Context, Function, opa.PermissionOptions, *TimeFilter) ([]string, error)
 
 	// GetFunctionReplicaContainers returns function replica containers (Pod / Container names)
 	GetFunctionReplicaContainers(context.Context, *functionconfig.Config, string) ([]string, error)

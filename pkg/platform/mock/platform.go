@@ -143,14 +143,20 @@ func (mp *Platform) FilterFunctionsByPermissions(ctx context.Context,
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
-// GetFunctionReplicaLogsStream return the function instance (Kubernetes - Pod / Docker - Container) logs stream
-func (mp *Platform) GetFunctionReplicaLogsStream(ctx context.Context, options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
+// ProxyFunctionLogs return the function instance (Kubernetes - Pod / Docker - Container) logs stream
+func (mp *Platform) ProxyFunctionLogs(ctx context.Context, options interface{}) (io.ReadCloser, error) {
 	args := mp.Called(ctx, options)
 	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
-// GetFunctionReplicaNames returns function replica names (Pod / Container names)
-func (mp *Platform) GetFunctionReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
+// GetFunctionActiveReplicaNames returns function active replica names (Pod / Container names)
+func (mp *Platform) GetFunctionActiveReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
+	args := mp.Called(ctx, function, permissionOptions)
+	return args.Get(0).([]string), args.Error(1)
+}
+
+// GetFunctionAllReplicaNames returns function all replica names (active + old) (Pod / Container names)
+func (mp *Platform) GetFunctionAllReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions, filter *platform.TimeFilter) ([]string, error) {
 	args := mp.Called(ctx, function, permissionOptions)
 	return args.Get(0).([]string), args.Error(1)
 }

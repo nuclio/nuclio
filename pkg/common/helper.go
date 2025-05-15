@@ -685,3 +685,7 @@ func GetFunctionName(function interface{}) string {
 
 	return shortName
 }
+
+func Pointer[T any](v T) *T {
+	return &v
+}

@@ -493,33 +493,40 @@ func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions
 	return nil
 }
 
-func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
-	options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
+func (p *Platform) ProxyFunctionLogs(ctx context.Context, options interface{}) (io.ReadCloser, error) {
+	switch typedOptions := options.(type) {
+	case *platform.GetFunctionReplicaLogsStreamOptions:
+		sinceDuration := ""
+		if typedOptions.SinceSeconds != nil {
+			sinceDuration = (time.Second * time.Duration(*typedOptions.SinceSeconds)).String()
+		}
 
-	sinceDuration := ""
-	if options.SinceSeconds != nil {
-		sinceDuration = (time.Second * time.Duration(*options.SinceSeconds)).String()
+		tail := ""
+		if typedOptions.TailLines != nil {
+			tail = strconv.FormatInt(*typedOptions.TailLines, 10)
+		}
+
+		return p.dockerClient.GetContainerLogStream(ctx,
+			typedOptions.Name,
+			&dockerclient.ContainerLogsOptions{
+				Follow: typedOptions.Follow,
+				Since:  sinceDuration,
+				Tail:   tail,
+			})
+	default:
+		return nil, errors.New("Unsupported options type")
 	}
-
-	tail := ""
-	if options.TailLines != nil {
-		tail = strconv.FormatInt(*options.TailLines, 10)
-	}
-
-	return p.dockerClient.GetContainerLogStream(ctx,
-		options.Name,
-		&dockerclient.ContainerLogsOptions{
-			Follow: options.Follow,
-			Since:  sinceDuration,
-			Tail:   tail,
-		})
 }
 
-func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
+func (p *Platform) GetFunctionActiveReplicaNames(ctx context.Context,
 	function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
 	return []string{
 		p.GetFunctionContainerName(function.GetConfig()),
 	}, nil
+}
+
+func (p *Platform) GetFunctionAllReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions, filter *platform.TimeFilter) ([]string, error) {
+	return nil, nil
 }
 
 func (p *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {

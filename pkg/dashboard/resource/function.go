@@ -231,6 +231,11 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			StreamRouteFunc: fr.getFunctionLogs,
 			Stream:          true,
 		},
+		{
+			Pattern:         "/{id}/proxy-logs",
+			Method:          http.MethodGet,
+			StreamRouteFunc: fr.proxyFunctionLogs,
+		},
 	}, nil
 }
 
@@ -380,7 +385,7 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 	}
 
 	// get function instance logs stream
-	stream, err := fr.getPlatform().GetFunctionReplicaLogsStream(request.Context(), getFunctionReplicaLogsStreamOptions)
+	stream, err := fr.getPlatform().ProxyFunctionLogs(request.Context(), getFunctionReplicaLogsStreamOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to stream function logs")
 	}
@@ -397,10 +402,43 @@ func (fr *functionResource) getFunctionLogs(request *http.Request) (*restful.Cus
 	}, nil
 }
 
+func (fr *functionResource) proxyFunctionLogs(request *http.Request) (*restful.CustomRouteFuncStreamResponse, error) {
+	// ensure function name
+	functionName := fr.GetRouterURLParam(request, "id")
+	if functionName == "" {
+		return nil, errors.New("Function name must not be empty")
+	}
+
+	// ensure access
+	_, err := fr.getFunction(request, functionName)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	// populate get options
+	getFunctionLogsOptions, err := fr.populateProxyFunctionLogsOptions(request, functionName)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to populate get function logs options")
+	}
+
+	stream, err := fr.getPlatform().ProxyFunctionLogs(request.Context(), getFunctionLogsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to stream function logs")
+	}
+	return &restful.CustomRouteFuncStreamResponse{
+		ReadCloser: stream,
+		StatusCode: http.StatusOK,
+		Headers: map[string]string{
+			"Content-Type":  "text/plain",
+			"Cache-Control": "no-cache, private",
+		},
+	}, nil
+}
+
 func (fr *functionResource) validateLogStreamOptions(ctx context.Context,
 	function platform.Function,
 	getFunctionReplicaLogsStreamOptions *platform.GetFunctionReplicaLogsStreamOptions) error {
-	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(ctx, function, getFunctionReplicaLogsStreamOptions.PermissionOptions)
+	replicaNames, err := fr.getPlatform().GetFunctionActiveReplicaNames(ctx, function, getFunctionReplicaLogsStreamOptions.PermissionOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function replica names")
 	}
@@ -450,22 +488,42 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
+	includeOffline := fr.GetURLParamBoolOrDefault(request, "includeOffline", false)
+
 	permissionOptions := opa.PermissionOptions{
 		MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
 		OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		RaiseForbidden:      true,
 	}
 
-	replicaNames, err := fr.getPlatform().GetFunctionReplicaNames(ctx, function, permissionOptions)
+	responseAttributes := map[string]restful.Attributes{}
+
+	activeReplicaNames, err := fr.getPlatform().GetFunctionActiveReplicaNames(ctx, function, permissionOptions)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function replicas")
 	}
+	responseAttributes["replicas"] = map[string]interface{}{
+		"names": activeReplicaNames,
+	}
+	if includeOffline {
+		timeFilter := fr.getURLParamTimeFilterOrDefault("timeFilter", request, nil)
+
+		// get all replicas
+		allReplicaNames, err := fr.getPlatform().GetFunctionAllReplicaNames(ctx, function, permissionOptions, timeFilter)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function replicas")
+		}
+
+		// filter out online replicas
+		offlineReplicas := fr.getOfflineReplicas(allReplicaNames, activeReplicaNames)
+		responseAttributes["offlineReplicas"] = map[string]interface{}{
+			"names": offlineReplicas,
+		}
+	}
+
 	return &restful.CustomRouteFuncResponse{
-		Resources: map[string]restful.Attributes{
-			"replicas": map[string]interface{}{
-				"names": replicaNames,
-			},
-		},
+		Resources:  responseAttributes,
 		Single:     true,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 		StatusCode: http.StatusOK,
@@ -777,7 +835,58 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 	}
 
 	return getFunctionReplicaLogsStreamOptions, nil
+}
 
+func (fr *functionResource) populateProxyFunctionLogsOptions(request *http.Request, functionName string) (*platform.ProxyFunctionLogsOptions, error) {
+	proxyFunctionLogsOptions := platform.NewProxyFunctionLogsOptions(functionName)
+	proxyFunctionLogsOptions.TimeFilter = fr.getURLParamTimeFilterOrDefault("timeFilter", request, &platform.TimeFilter{
+		Sort: "desc",
+	})
+	proxyFunctionLogsOptions.Substring = fr.GetURLParamStringOrDefault(request, "substring", "")
+	proxyFunctionLogsOptions.Regexp = fr.GetURLParamStringOrDefault(request, "regexp", "")
+	proxyFunctionLogsOptions.ReplicaNames = fr.GetURLParamStringValues("replicaNames", request)
+	proxyFunctionLogsOptions.LogLevels = fr.GetURLParamStringValues("logLevels", request)
+	proxyFunctionLogsOptions.Size = fr.GetURLParamInt64OrDefault(request, "size", 100)
+	proxyFunctionLogsOptions.SearchAfter = fr.GetURLParamStringValues("searchAfter", request)
+	proxyFunctionLogsOptions.Source = platform.ProxyLogsSource(fr.GetURLParamStringOrDefault(
+		request,
+		"source",
+		string(platform.ProxyLogsSourceES),
+	))
+
+	return proxyFunctionLogsOptions, nil
+}
+
+func (fr *functionResource) getURLParamTimeFilterOrDefault(param string,
+	request *http.Request,
+	defaultTimeFilter *platform.TimeFilter) *platform.TimeFilter {
+	var value string
+	if value = request.URL.Query().Get(param); value == "" {
+		return defaultTimeFilter
+	}
+
+	timeFilter := &platform.TimeFilter{}
+	if err := json.Unmarshal([]byte(value), timeFilter); err != nil {
+		return defaultTimeFilter
+	}
+
+	return timeFilter
+}
+
+func (fr *functionResource) getOfflineReplicas(allReplicas []string, activeReplicas []string) []string {
+	activeSet := make(map[string]struct{}, len(activeReplicas))
+	for _, replica := range activeReplicas {
+		activeSet[replica] = struct{}{}
+	}
+
+	var inactiveReplicas []string
+	for _, replica := range allReplicas {
+		if _, isActive := activeSet[replica]; !isActive {
+			inactiveReplicas = append(inactiveReplicas, replica)
+		}
+	}
+
+	return inactiveReplicas
 }
 
 func (fr *functionResource) getCreationStateUpdatedTimeout(request *http.Request) time.Duration {
