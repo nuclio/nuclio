@@ -432,6 +432,8 @@ func (fr *functionResource) proxyFunctionLogs(request *http.Request) (*restful.C
 			"Content-Type":  "text/plain",
 			"Cache-Control": "no-cache, private",
 		},
+		ForceFlush:    true,
+		FlushInternal: time.Second,
 	}, nil
 }
 
