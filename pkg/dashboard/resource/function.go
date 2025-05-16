@@ -411,8 +411,7 @@ func (fr *functionResource) proxyFunctionLogs(request *http.Request) (*restful.C
 	}
 
 	// ensure access
-	_, err := fr.getFunction(request, functionName)
-	if err != nil {
+	if _, err := fr.getFunction(request, functionName); err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
@@ -497,14 +496,19 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 		RaiseForbidden:      true,
 	}
 
-	responseAttributes := map[string]restful.Attributes{}
-
 	activeReplicaNames, err := fr.getPlatform().GetFunctionActiveReplicaNames(ctx, function, permissionOptions)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function replicas")
 	}
-	responseAttributes["replicas"] = map[string]interface{}{
+
+	response := &restful.CustomRouteFuncResponse{
+		Resources:  map[string]restful.Attributes{},
+		Single:     false,
+		Headers:    map[string]string{"Content-Type": "application/json"},
+		StatusCode: http.StatusOK,
+	}
+	response.Resources["replicas"] = map[string]interface{}{
 		"names": activeReplicaNames,
 	}
 	if includeOffline {
@@ -518,17 +522,15 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 
 		// filter out online replicas
 		offlineReplicas := fr.getOfflineReplicas(allReplicaNames, activeReplicaNames)
-		responseAttributes["offlineReplicas"] = map[string]interface{}{
-			"names": offlineReplicas,
+		if len(offlineReplicas) > 0 {
+			response.Resources["offlineReplicas"] = map[string]interface{}{
+				"names": offlineReplicas,
+			}
+			response.Single = false
 		}
 	}
 
-	return &restful.CustomRouteFuncResponse{
-		Resources:  responseAttributes,
-		Single:     false,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-		StatusCode: http.StatusOK,
-	}, nil
+	return response, nil
 }
 
 func (fr *functionResource) deleteFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
@@ -845,10 +847,10 @@ func (fr *functionResource) populateProxyFunctionLogsOptions(request *http.Reque
 	})
 	proxyFunctionLogsOptions.Substring = fr.GetURLParamStringOrDefault(request, "substring", "")
 	proxyFunctionLogsOptions.Regexp = fr.GetURLParamStringOrDefault(request, "regexp", "")
-	proxyFunctionLogsOptions.ReplicaNames = fr.GetURLParamStringValues("replicaNames", request)
-	proxyFunctionLogsOptions.LogLevels = fr.GetURLParamStringValues("logLevels", request)
+	proxyFunctionLogsOptions.ReplicaNames = fr.GetURLParamStringSliceValues("replicaNames", request)
+	proxyFunctionLogsOptions.LogLevels = fr.GetURLParamStringSliceValues("logLevels", request)
 	proxyFunctionLogsOptions.Size = fr.GetURLParamInt64OrDefault(request, "size", 100)
-	proxyFunctionLogsOptions.SearchAfter = fr.GetURLParamStringValues("searchAfter", request)
+	proxyFunctionLogsOptions.SearchAfter = fr.GetURLParamStringSliceValues("searchAfter", request)
 	proxyFunctionLogsOptions.Source = platform.ProxyLogsSource(fr.GetURLParamStringOrDefault(
 		request,
 		"source",

@@ -103,7 +103,7 @@ func (e *ElasticLogProxy) GetFunctionReplicas(ctx context.Context, options *GetF
 
 	agg, ok := resp.Aggregations["distinct_pod_names"]
 	if !ok {
-		return nil, errors.New("Failed to get 'distinct_pod_names' in response from ES")
+		return nil, errors.New("Failed to get 'distinct_pod_names' in response from ElasticSearch")
 	}
 
 	// Convert to typed aggregation:
@@ -270,14 +270,14 @@ func (e *ElasticLogProxy) addTimeSort(request *search.Request, sort string) erro
 			&types.SortOptions{
 				SortOptions: map[string]types.FieldSort{
 					"@timestamp": {
-						Order: &sortorder.Asc,
+						Order: &sortOrder,
 					},
 				},
 			},
 			&types.SortOptions{
 				SortOptions: map[string]types.FieldSort{
 					"_id": {
-						Order: &sortorder.Asc,
+						Order: &sortOrder,
 					},
 				},
 			},

@@ -31,35 +31,33 @@ import (
 
 type ElasticTestSuite struct {
 	suite.Suite
-	proxier *ElasticLogProxy
+	proxy *ElasticLogProxy
 	ctx     context.Context
 }
-
+// fill in the configuration for ElasticSearch
 func (suite *ElasticTestSuite) SetupSuite() {
 	var err error
-	suite.proxier, err = NewElasticLogProxy(&platformconfig.ElasticSearchConfig{
+	suite.proxy, err = NewElasticLogProxy(&platformconfig.ElasticSearchConfig{
 		URL:                  "",
 		Username:             "",
 		Password:             "",
-		Index:                "filebeat-vmdev93-default-tenant-*",
-		CustomQueryParameter: "system-id=\"vmdev93\"",
+		Index:                "filebeat-<system-id>-<namespace>-*",
+		CustomQueryParameter: "system-id=\"system-id\"",
 		SSLVerificationMode:  "none",
 	})
-	suite.Require().NoError(err, "Failed to create proxier")
+	suite.Require().NoError(err, "Failed to create proxy")
 	suite.ctx = context.Background()
 }
 
 func (suite *ElasticTestSuite) TestGetFunctionReplicas() {
-	replicas, err := suite.proxier.GetFunctionReplicas(suite.ctx, &GetFunctionReplicaOptions{FunctionName: "hello"})
+	replicas, err := suite.proxy.GetFunctionReplicas(suite.ctx, &GetFunctionReplicaOptions{FunctionName: "hello"})
 	suite.Require().NoError(err)
-	//suite.Require().Len(replicas, 1)
 	var logs io.ReadCloser
-	//yday := time.Date(2025, 5, 13, 0, 0, 0, 0, time.UTC)
 	options := platform.NewProxyFunctionLogsOptions("hello")
 	options.Size = 100
 	options.ReplicaNames = replicas
 	options.LogLevels = []string{"debug"}
-	logs, err = suite.proxier.ProxyFunctionLogs(suite.ctx, options)
+	logs, err = suite.proxy.ProxyFunctionLogs(suite.ctx, options)
 
 	body, err := io.ReadAll(logs)
 	suite.Require().NotEqual(0, len(body))

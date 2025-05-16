@@ -86,10 +86,10 @@ type Platform interface {
 	// ProxyFunctionLogs return the function logs stream
 	ProxyFunctionLogs(context.Context, interface{}) (io.ReadCloser, error)
 
-	// GetFunctionActiveReplicaNames returns function active replica names (Pod / Container names)
+	// GetFunctionActiveReplicaNames returns function's active replica names (Pod / Container names)
 	GetFunctionActiveReplicaNames(context.Context, Function, opa.PermissionOptions) ([]string, error)
 
-	// GetFunctionAllReplicaNames returns function all replica names (active + old Pods)
+	// GetFunctionAllReplicaNames returns all function replica names (active + old pods / containers)
 	GetFunctionAllReplicaNames(context.Context, Function, opa.PermissionOptions, *TimeFilter) ([]string, error)
 
 	// GetFunctionReplicaContainers returns function replica containers (Pod / Container names)

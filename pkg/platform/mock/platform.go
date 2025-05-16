@@ -149,7 +149,7 @@ func (mp *Platform) ProxyFunctionLogs(ctx context.Context, options interface{}) 
 	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
-// GetFunctionActiveReplicaNames returns function active replica names (Pod / Container names)
+// GetFunctionActiveReplicaNames returns function's active replica names (Pod / Container names)
 func (mp *Platform) GetFunctionActiveReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
 	args := mp.Called(ctx, function, permissionOptions)
 	return args.Get(0).([]string), args.Error(1)
