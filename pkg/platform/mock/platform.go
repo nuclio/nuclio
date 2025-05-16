@@ -149,6 +149,12 @@ func (mp *Platform) ProxyFunctionLogs(ctx context.Context, options interface{}) 
 	return args.Get(0).(io.ReadCloser), args.Error(1)
 }
 
+// GetDefaultProxyLogsSource returns the default proxy source for a platform
+func (mp *Platform) GetDefaultProxyLogsSource() platform.ProxyLogsSource {
+	args := mp.Called()
+	return args.Get(0).(platform.ProxyLogsSource)
+}
+
 // GetFunctionActiveReplicaNames returns function's active replica names (Pod / Container names)
 func (mp *Platform) GetFunctionActiveReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
 	args := mp.Called(ctx, function, permissionOptions)

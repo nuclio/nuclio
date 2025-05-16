@@ -135,8 +135,9 @@ type GetFunctionsOptions struct {
 type ProxyLogsSource string
 
 const (
-	ProxyLogsSourceES  ProxyLogsSource = "elasticsearch"
-	ProxyLogsSourceK8s ProxyLogsSource = "kubernetes"
+	ProxyLogsSourceES    ProxyLogsSource = "elasticsearch"
+	ProxyLogsSourceK8s   ProxyLogsSource = "kubernetes"
+	ProxyLogsSourceLocal ProxyLogsSource = "local"
 )
 
 type ProxyFunctionLogsOptions struct {

@@ -518,6 +518,10 @@ func (p *Platform) ProxyFunctionLogs(ctx context.Context, options interface{}) (
 	}
 }
 
+func (p *Platform) GetDefaultProxyLogsSource() platform.ProxyLogsSource {
+	return platform.ProxyLogsSourceLocal
+}
+
 func (p *Platform) GetFunctionActiveReplicaNames(ctx context.Context,
 	function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
 	return []string{

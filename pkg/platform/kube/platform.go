@@ -68,6 +68,7 @@ type Platform struct {
 	projectsCache       *cache.Expiring
 	apiGatewayScrubber  *platform.APIGatewayScrubber
 	elasticSearchClient *logProxy.ElasticLogProxy
+	defaultProxySource  platform.ProxyLogsSource
 }
 
 const Mib = 1048576
@@ -144,12 +145,16 @@ func NewPlatform(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create an updater")
 	}
 
+	newPlatform.defaultProxySource = platform.ProxyLogsSourceK8s
+
 	if platformConfiguration.Kube.ElasticSearchConfig != nil {
 		// create elastic search client
 		newPlatform.elasticSearchClient, err = logProxy.NewElasticLogProxy(platformConfiguration.Kube.ElasticSearchConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create elasticsearch client")
 		}
+
+		newPlatform.defaultProxySource = platform.ProxyLogsSourceES
 	}
 	// set kubeClientSet for Function Scrubber
 	newPlatform.FunctionScrubber = functionconfig.NewScrubber(parentLogger,
@@ -639,6 +644,10 @@ func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions
 	return nil
 }
 
+func (p *Platform) GetDefaultProxyLogsSource() platform.ProxyLogsSource {
+	return p.defaultProxySource
+}
+
 func (p *Platform) ProxyFunctionLogs(ctx context.Context,
 	options interface{}) (io.ReadCloser, error) {
 	switch typedOptions := options.(type) {
@@ -709,10 +718,15 @@ func (p *Platform) GetFunctionAllReplicaNames(ctx context.Context, function plat
 		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Function not found - %s", function.GetConfig().Meta.Name))
 	}
 
-	return p.elasticSearchClient.GetFunctionReplicas(ctx, &logProxy.GetFunctionReplicaOptions{
-		TimeFilter:   timeFilter,
-		FunctionName: function.GetConfig().Meta.Name,
-	})
+	switch p.defaultProxySource {
+	case platform.ProxyLogsSourceES:
+		return p.elasticSearchClient.GetFunctionReplicas(ctx, &logProxy.GetFunctionReplicaOptions{
+			TimeFilter:   timeFilter,
+			FunctionName: function.GetConfig().Meta.Name,
+		})
+	default:
+		return nil, nil
+	}
 }
 
 func (p *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {

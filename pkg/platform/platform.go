@@ -86,6 +86,9 @@ type Platform interface {
 	// ProxyFunctionLogs return the function logs stream
 	ProxyFunctionLogs(context.Context, interface{}) (io.ReadCloser, error)
 
+	// GetDefaultProxyLogsSource returns the default proxy source for a platform
+	GetDefaultProxyLogsSource() ProxyLogsSource
+
 	// GetFunctionActiveReplicaNames returns function's active replica names (Pod / Container names)
 	GetFunctionActiveReplicaNames(context.Context, Function, opa.PermissionOptions) ([]string, error)
 

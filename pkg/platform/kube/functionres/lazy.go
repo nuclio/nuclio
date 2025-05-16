@@ -464,7 +464,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 				if err := lc.waitFunctionIngressReadiness(ctx, function); err != nil {
 					lc.logger.WarnWithCtx(ctx,
-						"	Function ingress is not ready yet, continuing",
+						"Function ingress is not ready yet, continuing",
 						"err", err.Error(),
 						"namespace", function.Namespace,
 						"name", function.Name)

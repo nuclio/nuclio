@@ -854,7 +854,7 @@ func (fr *functionResource) populateProxyFunctionLogsOptions(request *http.Reque
 	proxyFunctionLogsOptions.Source = platform.ProxyLogsSource(fr.GetURLParamStringOrDefault(
 		request,
 		"source",
-		string(platform.ProxyLogsSourceES),
+		string(fr.getPlatform().GetDefaultProxyLogsSource()),
 	))
 
 	return proxyFunctionLogsOptions, nil
