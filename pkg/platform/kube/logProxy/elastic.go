@@ -35,6 +35,8 @@ import (
 	"github.com/nuclio/errors"
 )
 
+const distinctPodNamesFilter = "distinct_pod_names"
+
 type ElasticLogProxy struct {
 	client *elasticsearch.TypedClient
 
@@ -85,7 +87,7 @@ func (e *ElasticLogProxy) GetFunctionReplicas(ctx context.Context, options *GetF
 
 	// aggregate by pod names
 	searchRequest.Aggregations = map[string]types.Aggregations{
-		"distinct_pod_names": {
+		distinctPodNamesFilter: {
 			Terms: &types.TermsAggregation{
 				Field: common.Pointer("kubernetes.pod.name"),
 				Size:  common.Pointer(100000),
@@ -101,7 +103,7 @@ func (e *ElasticLogProxy) GetFunctionReplicas(ctx context.Context, options *GetF
 		return nil, errors.Wrap(err, "Failed to execute search")
 	}
 
-	agg, ok := resp.Aggregations["distinct_pod_names"]
+	agg, ok := resp.Aggregations[distinctPodNamesFilter]
 	if !ok {
 		return nil, errors.New("Failed to get 'distinct_pod_names' in response from ElasticSearch")
 	}
