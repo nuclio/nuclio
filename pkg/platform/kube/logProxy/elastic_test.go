@@ -42,7 +42,7 @@ func (suite *ElasticTestSuite) SetupSuite() {
 		Username:             "",
 		Password:             "",
 		Index:                "filebeat-<system-id>-<namespace>-*",
-		CustomQueryParameter: "system-id=\"system-id\"",
+		CustomQueryParameter: "system-id:\"system-id\"",
 		SSLVerificationMode:  "none",
 	})
 	suite.Require().NoError(err, "Failed to create proxy")
