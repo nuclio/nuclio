@@ -506,7 +506,7 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 
 	response := &restful.CustomRouteFuncResponse{
 		Resources:  map[string]restful.Attributes{},
-		Single:     false,
+		Single:     true,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 		StatusCode: http.StatusOK,
 	}

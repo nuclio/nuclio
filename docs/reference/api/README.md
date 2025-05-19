@@ -295,7 +295,7 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 * Headers:
     * `x-nuclio-function-namespace`: Namespace (required)
 * Params:
-    * includeOffline (optional, bool): If set to true, the API will return both active and offline replicas. Offline replicas are fetched from Elasticsearch. Defaults to false, maintaining backward compatibility with previous versions.
+    * includeOffline (optional, bool): If set to true, the API will return both active and offline replicas. Offline replicas are fetched from Elasticsearch if it is configured. Defaults to false, maintaining backward compatibility with previous versions.
 
     *timeFilter (optional, json-encoded string): Use this to filter offline replicas by time. This must be a URI-encoded JSON string.
           Example: `timeFilter={"since":"2025-05-01T00:00:00Z","until":"2025-05-16T23:59:59Z","sort":"asc"}`
@@ -326,12 +326,7 @@ Extended Response (includeOffline=true):
   "offlineReplicas": {
     "names": [
     "nuclio-hello-5884964d9b-vs7pn",
-    "nuclio-hello-5c47d58d89-279qc",
-    "nuclio-hello-6c9799c89c-tz857",
-    "nuclio-hello-7ddc68b7f7-dnwbm",
-    "nuclio-hello-7ff67c876c-c22f7",
-    "nuclio-hello-85488958f5-kjzkh",
-    "nuclio-hello-c8846649c-bx99b"
+    "nuclio-hello-5c47d58d89-279qc"
     ]
   }
 }
@@ -363,7 +358,7 @@ Extended Response (includeOffline=true):
 
 #### Request
 
-* URL: `GET /api/functions/<function name>/logs/proxy-logs`
+* URL: `GET /api/functions/<function name>/proxy-logs`
     * Headers:
     * `x-nuclio-function-namespace`: Namespace (required)
     * Params:
@@ -376,7 +371,7 @@ Extended Response (includeOffline=true):
     | `logLevels`    | string[]   | Filter logs by log levels (e.g. `debug`, `info`, `error`) (optional).       |
     | `size`         | integer    | Max number of log entries to return (optional).                             |
     | `searchAfter`  | string[]   | For paginated log fetching (optional).                                      |
-    | `source`       | string     | Source to retrieve logs from (e.g. `es`) (optional).                        |
+    | `source`       | string     | Source to retrieve logs from (e.g. `elasticsearch`) (optional).                        |
 
 timeFilter example:
 ```
