@@ -94,7 +94,7 @@ type ManagerConfigration struct {
 	WaitForStart                bool
 	SocketType                  SocketType
 	GetEventEncoderFunc         func(writer io.Writer) encoder.EventEncoder
-	Statistics                  runtime.Statistics
+	Statistics                  *runtime.Statistics
 
 	eventTimeout time.Duration
 
@@ -108,7 +108,7 @@ func NewManagerConfigration(
 	waitForStart bool,
 	socketType SocketType,
 	getEventEncoderFunc func(writer io.Writer) encoder.EventEncoder,
-	statistics runtime.Statistics,
+	statistics *runtime.Statistics,
 	workerId int,
 	mode functionconfig.TriggerWorkMode,
 	timeout time.Duration) *ManagerConfigration {

@@ -47,7 +47,7 @@ func newWorkerGatherer(trigger trigger.Trigger,
 func (wg *WorkerGatherer) Gather() error {
 
 	// read current stats
-	currentRuntimeStatistics := *wg.worker.GetRuntime().GetStatistics()
+	currentRuntimeStatistics := wg.worker.GetRuntime().GetStatistics()
 
 	// diff from previous to get this period
 	diffRuntimeStatistics := currentRuntimeStatistics.DiffFrom(&wg.prevRuntimeStatistics)
