@@ -68,6 +68,7 @@ type Platform struct {
 	projectsCache       *cache.Expiring
 	apiGatewayScrubber  *platform.APIGatewayScrubber
 	elasticSearchClient *logProxy.ElasticLogProxy
+	defaultProxySource  platform.ProxyLogsSource
 }
 
 const Mib = 1048576
@@ -144,12 +145,16 @@ func NewPlatform(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to create an updater")
 	}
 
+	newPlatform.defaultProxySource = platform.ProxyLogsSourceK8s
+
 	if platformConfiguration.Kube.ElasticSearchConfig != nil {
 		// create elastic search client
 		newPlatform.elasticSearchClient, err = logProxy.NewElasticLogProxy(platformConfiguration.Kube.ElasticSearchConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create elasticsearch client")
 		}
+
+		newPlatform.defaultProxySource = platform.ProxyLogsSourceES
 	}
 	// set kubeClientSet for Function Scrubber
 	newPlatform.FunctionScrubber = functionconfig.NewScrubber(parentLogger,
@@ -639,21 +644,41 @@ func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions
 	return nil
 }
 
-func (p *Platform) GetFunctionReplicaLogsStream(ctx context.Context,
-	options *platform.GetFunctionReplicaLogsStreamOptions) (io.ReadCloser, error) {
-	return p.consumer.KubeClientSet.
-		CoreV1().
-		Pods(options.Namespace).
-		GetLogs(options.Name, &v1.PodLogOptions{
-			Container:    options.ContainerName,
-			SinceSeconds: options.SinceSeconds,
-			TailLines:    options.TailLines,
-			Follow:       options.Follow,
-		}).
-		Stream(ctx)
+func (p *Platform) GetDefaultProxyLogsSource() platform.ProxyLogsSource {
+	return p.defaultProxySource
 }
 
-func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
+func (p *Platform) ProxyFunctionLogs(ctx context.Context,
+	options interface{}) (io.ReadCloser, error) {
+	switch typedOptions := options.(type) {
+	case *platform.GetFunctionReplicaLogsStreamOptions:
+		return p.consumer.KubeClientSet.
+			CoreV1().
+			Pods(typedOptions.Namespace).
+			GetLogs(typedOptions.Name, &v1.PodLogOptions{
+				Container:    typedOptions.ContainerName,
+				SinceSeconds: typedOptions.SinceSeconds,
+				TailLines:    typedOptions.TailLines,
+				Follow:       typedOptions.Follow,
+			}).
+			Stream(ctx)
+	case *platform.ProxyFunctionLogsOptions:
+		switch typedOptions.Source {
+		case platform.ProxyLogsSourceES:
+			return p.elasticSearchClient.ProxyFunctionLogs(ctx, typedOptions)
+		case platform.ProxyLogsSourceK8s:
+			// TODO: add k8s proxy logs
+			// for now just return an error and recommend using another API
+			return nil, errors.New("K8s proxy logs not implemented, please use /logs/{replicaName} api")
+		default:
+			return nil, errors.New("Unknown logs source")
+		}
+	default:
+		return nil, errors.New("Unsupported options type")
+	}
+}
+
+func (p *Platform) GetFunctionActiveReplicaNames(ctx context.Context,
 	function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
 
 	functions, err := p.Platform.FilterFunctionsByPermissions(ctx, &permissionOptions, []platform.Function{function})
@@ -679,6 +704,29 @@ func (p *Platform) GetFunctionReplicaNames(ctx context.Context,
 		names = append(names, pod.GetName())
 	}
 	return names, nil
+}
+
+func (p *Platform) GetFunctionAllReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions, timeFilter *platform.TimeFilter) ([]string, error) {
+
+	functions, err := p.Platform.FilterFunctionsByPermissions(ctx, &permissionOptions, []platform.Function{function})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
+	}
+
+	if len(functions) == 0 {
+		// Function was filtered out by permissions, return not found error
+		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Function not found - %s", function.GetConfig().Meta.Name))
+	}
+
+	switch p.defaultProxySource {
+	case platform.ProxyLogsSourceES:
+		return p.elasticSearchClient.GetFunctionReplicas(ctx, &logProxy.GetFunctionReplicaOptions{
+			TimeFilter:   timeFilter,
+			FunctionName: function.GetConfig().Meta.Name,
+		})
+	default:
+		return nil, nil
+	}
 }
 
 func (p *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {

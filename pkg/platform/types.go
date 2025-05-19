@@ -135,8 +135,9 @@ type GetFunctionsOptions struct {
 type ProxyLogsSource string
 
 const (
-	ProxyLogsSourceES  ProxyLogsSource = "elasticsearch"
-	ProxyLogsSourceK8s ProxyLogsSource = "kubernetes"
+	ProxyLogsSourceES    ProxyLogsSource = "elasticsearch"
+	ProxyLogsSourceK8s   ProxyLogsSource = "kubernetes"
+	ProxyLogsSourceLocal ProxyLogsSource = "local"
 )
 
 type ProxyFunctionLogsOptions struct {
@@ -152,6 +153,17 @@ type ProxyFunctionLogsOptions struct {
 	SearchAfter []string `json:"searchAfter,omitempty"`
 
 	Source ProxyLogsSource `json:"source,omitempty"`
+
+	// populated internally
+	functionName string
+}
+
+func (p *ProxyFunctionLogsOptions) GetFunctionName() string {
+	return p.functionName
+}
+
+func NewProxyFunctionLogsOptions(functionName string) *ProxyFunctionLogsOptions {
+	return &ProxyFunctionLogsOptions{functionName: functionName}
 }
 
 type TimeFilter struct {

@@ -272,6 +272,23 @@ func (ar *AbstractResource) GetURLParamValues(paramKey string, request *http.Req
 	return values
 }
 
+func (ar *AbstractResource) GetURLParamStringSliceValues(paramKey string, request *http.Request) []string {
+	paramValues, ok := request.URL.Query()[paramKey]
+	if !ok || len(paramValues) == 0 {
+		return nil
+	}
+
+	var values []string
+	for _, value := range paramValues {
+		parsed := ar.parseURLParamValue(value)
+		if strVal, ok := parsed.(string); ok {
+			values = append(values, strVal)
+		}
+	}
+
+	return values
+}
+
 func (ar *AbstractResource) GetURLParamValue(paramKey string, request *http.Request) interface{} {
 	paramValues, ok := request.URL.Query()[paramKey]
 	if !ok || len(paramValues) == 0 {
