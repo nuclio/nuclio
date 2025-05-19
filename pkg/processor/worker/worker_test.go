@@ -50,8 +50,8 @@ func (mr *MockRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.
 	return args.Get(0).([]*runtime.ResponseWithErrors), args.Error(1)
 }
 
-func (mr *MockRuntime) GetStatistics() *runtime.Statistics {
-	return nil
+func (mr *MockRuntime) GetStatistics() runtime.Statistics {
+	return runtime.Statistics{}
 }
 
 func (mr *MockRuntime) GetAllocationStatistics() *statistics.AllocatorStatistics {

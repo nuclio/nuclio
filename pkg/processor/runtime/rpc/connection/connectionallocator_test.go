@@ -68,7 +68,7 @@ func (suite *TestConnectionAllocatorSuite) SetupTest() {
 		func(writer io.Writer) encoder.EventEncoder {
 			return encoder.NewEventMsgPackEncoder(suite.logger, writer)
 		},
-		runtime.Statistics{},
+		&runtime.Statistics{},
 		0,
 		functionconfig.AsyncTriggerWorkMode,
 		0,
