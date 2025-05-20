@@ -37,6 +37,7 @@ require (
 	github.com/nuclio/logger-appinsights v0.0.2
 	github.com/nuclio/nuclio-sdk-go v0.5.1
 	github.com/nuclio/zap v0.2.0
+	github.com/opensearch-project/opensearch-go v1.1.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475

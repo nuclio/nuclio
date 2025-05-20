@@ -15,7 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package logProxy
+package elastic
 
 /*
 import (
@@ -24,20 +24,29 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/nuclio/logger"
+	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 type ElasticTestSuite struct {
 	suite.Suite
-	proxy *ElasticLogProxy
-	ctx     context.Context
+	proxy  logProxy.LogProxy
+	ctx    context.Context
+	logger logger.Logger
 }
+
 // fill in the configuration for ElasticSearch
 func (suite *ElasticTestSuite) SetupSuite() {
 	var err error
-	suite.proxy, err = NewElasticLogProxy(&platformconfig.ElasticSearchConfig{
+
+	// create logger
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
+	suite.proxy, err = ResolveLogProxy(suite.logger, &platformconfig.ElasticSearchConfig{
 		URL:                  "",
 		Username:             "",
 		Password:             "",
@@ -50,7 +59,7 @@ func (suite *ElasticTestSuite) SetupSuite() {
 }
 
 func (suite *ElasticTestSuite) TestGetFunctionReplicas() {
-	replicas, err := suite.proxy.GetFunctionReplicas(suite.ctx, &GetFunctionReplicaOptions{FunctionName: "hello"})
+	replicas, err := suite.proxy.GetFunctionReplicas(suite.ctx, &logProxy.GetFunctionReplicaOptions{FunctionName: "hello"})
 	suite.Require().NoError(err)
 	var logs io.ReadCloser
 	options := platform.NewProxyFunctionLogsOptions("hello")
