@@ -31,13 +31,13 @@ import (
 )
 
 type OpenSearchLogProxy struct {
-	*AbstractElasticLikeLogProxy
+	*AbstractSearchEngineLogProxy
 	client *opensearch.Client
 }
 
 func NewOpenSearchLogProxy(config *platformconfig.ElasticSearchConfig) (*OpenSearchLogProxy, error) {
 	openSearchClient := &OpenSearchLogProxy{
-		AbstractElasticLikeLogProxy: &AbstractElasticLikeLogProxy{
+		AbstractSearchEngineLogProxy: &AbstractSearchEngineLogProxy{
 			index:            config.Index,
 			customQueryParam: config.CustomQueryParameter,
 		},

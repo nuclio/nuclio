@@ -46,7 +46,7 @@ func (suite *ElasticTestSuite) SetupSuite() {
 	// create logger
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
-	suite.proxy, err = ResolveLogProxy(suite.logger, &platformconfig.ElasticSearchConfig{
+	suite.proxy, err = CreateLogProxy(suite.logger, &platformconfig.ElasticSearchConfig{
 		URL:                  "",
 		Username:             "",
 		Password:             "",

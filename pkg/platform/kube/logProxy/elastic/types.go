@@ -16,7 +16,13 @@ limitations under the License.
 
 package elastic
 
-type AbstractSearchEngineLogProxy struct {
-	index            string
-	customQueryParam string
+// versionInfo is a struct to hold the version information of the Elasticsearch or OpenSearch instance
+type versionInfo struct {
+	Version struct {
+		// OpenSearch-specific
+		Distribution string `json:"distribution"`
+
+		// Both ES and OS have this
+		Number string `json:"number"`
+	} `json:"version"`
 }

@@ -150,7 +150,7 @@ func NewPlatform(ctx context.Context,
 
 	if platformConfiguration.Kube.ElasticSearchConfig != nil {
 		// create elastic search client
-		newPlatform.elasticSearchClient, err = elastic.ResolveLogProxy(newPlatform.Logger, platformConfiguration.Kube.ElasticSearchConfig)
+		newPlatform.elasticSearchClient, err = elastic.CreateLogProxy(newPlatform.Logger, platformConfiguration.Kube.ElasticSearchConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create elasticsearch client")
 		}

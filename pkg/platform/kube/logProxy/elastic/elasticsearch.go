@@ -39,13 +39,13 @@ import (
 const distinctPodNamesFilter = "distinct_pod_names"
 
 type ElasticSearchLogProxy struct {
-	*AbstractElasticLikeLogProxy
+	*AbstractSearchEngineLogProxy
 	client *elasticsearch.TypedClient
 }
 
 func NewElasticSearchLogProxy(config *platformconfig.ElasticSearchConfig) (*ElasticSearchLogProxy, error) {
 	esClient := &ElasticSearchLogProxy{
-		AbstractElasticLikeLogProxy: &AbstractElasticLikeLogProxy{
+		AbstractSearchEngineLogProxy: &AbstractSearchEngineLogProxy{
 			index:            config.Index,
 			customQueryParam: config.CustomQueryParameter,
 		},
