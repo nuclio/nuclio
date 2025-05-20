@@ -28,7 +28,7 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type BaseElasticLikeLogProxy struct {
+type AbstractElasticLikeLogProxy struct {
 	index            string
 	customQueryParam string
 }

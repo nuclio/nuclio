@@ -27,17 +27,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
-	"github.com/opensearch-project/opensearch-go"
+	"github.com/opensearch-project/opensearch-go/v4"
 )
 
 type OpenSearchLogProxy struct {
-	*BaseElasticLikeLogProxy
+	*AbstractElasticLikeLogProxy
 	client *opensearch.Client
 }
 
 func NewOpenSearchLogProxy(config *platformconfig.ElasticSearchConfig) (*OpenSearchLogProxy, error) {
 	openSearchClient := &OpenSearchLogProxy{
-		BaseElasticLikeLogProxy: &BaseElasticLikeLogProxy{
+		AbstractElasticLikeLogProxy: &AbstractElasticLikeLogProxy{
 			index:            config.Index,
 			customQueryParam: config.CustomQueryParameter,
 		},

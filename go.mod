@@ -7,7 +7,7 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/Azure/go-amqp v0.17.0
 	github.com/IBM/sarama v1.45.0
-	github.com/aws/aws-sdk-go v1.45.2
+	github.com/aws/aws-sdk-go v1.55.6
 	github.com/coreos/go-semver v0.3.1
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/eclipse/paho.mqtt.golang v1.4.3
@@ -37,7 +37,7 @@ require (
 	github.com/nuclio/logger-appinsights v0.0.2
 	github.com/nuclio/nuclio-sdk-go v0.5.1
 	github.com/nuclio/zap v0.2.0
-	github.com/opensearch-project/opensearch-go v1.1.0
+	github.com/opensearch-project/opensearch-go/v4 v4.4.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
