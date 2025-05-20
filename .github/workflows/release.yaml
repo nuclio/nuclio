@@ -105,29 +105,26 @@ jobs:
           TARGET_VERSION: ${{ inputs.target_version }}
           HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
-      - name: Resolve inputs for release
+      - name: Resolve version inputs
         id: resolve
-        if: github.event_name == 'workflow_dispatch'
         run: |
-          CURRENT_VERSION_INPUT=$(make get-current-version)
-          TARGET_VERSION_INPUT=$(make get-target-version)
-          HELM_VERSION_INPUT=$(make get-helm-target-version)
-          
-          echo "CURRENT_VERSION_INPUT=${CURRENT_VERSION_INPUT}"
-          echo "TARGET_VERSION_INPUT=${TARGET_VERSION_INPUT}"
-          echo "HELM_VERSION_INPUT=${HELM_VERSION_INPUT}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            CURRENT_VERSION_INPUT=$(make get-current-version)
+            TARGET_VERSION_INPUT=$(make get-target-version)
+            HELM_VERSION_INPUT=$(make get-helm-target-version)
 
-          echo "prev_version=${CURRENT_VERSION_INPUT}" >> $GITHUB_OUTPUT
-          echo "version=${TARGET_VERSION_INPUT}" >> $GITHUB_OUTPUT
-          echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_OUTPUT
-          
-      - name: Set version to unstable
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          echo "prev_version=" >> $GITHUB_OUTPUT
-          echo "helm_version=" >> $GITHUB_OUTPUT
-          echo "version=unstable" >> $GITHUB_OUTPUT
+            echo "CURRENT_VERSION_INPUT=${CURRENT_VERSION_INPUT}"
+            echo "TARGET_VERSION_INPUT=${TARGET_VERSION_INPUT}"
+            echo "HELM_VERSION_INPUT=${HELM_VERSION_INPUT}"
 
+            echo "prev_version=${CURRENT_VERSION_INPUT}" >> $GITHUB_OUTPUT
+            echo "version=${TARGET_VERSION_INPUT}" >> $GITHUB_OUTPUT
+            echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_OUTPUT
+          else
+            echo "prev_version=" >> $GITHUB_OUTPUT
+            echo "version=unstable" >> $GITHUB_OUTPUT
+            echo "helm_version=" >> $GITHUB_OUTPUT
+          fi
 
   release:
     name: Generate Changelog & Create Release
