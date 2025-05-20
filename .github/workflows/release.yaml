@@ -123,6 +123,7 @@ jobs:
           
       - name: Set version to unstable
         if: github.event_name != 'workflow_dispatch'
+        id: resolve
         run: |
           echo "prev_version=" >> $GITHUB_OUTPUT
           echo "helm_version=" >> $GITHUB_OUTPUT
