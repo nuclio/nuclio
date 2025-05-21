@@ -151,6 +151,7 @@ type ProxyFunctionLogsOptions struct {
 	// limit options
 	Size        int64    `json:"size,omitempty"`
 	SearchAfter []string `json:"searchAfter,omitempty"`
+	From        int64    `json:"from,omitempty"`
 
 	Source ProxyLogsSource `json:"source,omitempty"`
 

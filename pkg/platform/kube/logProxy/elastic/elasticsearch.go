@@ -165,6 +165,10 @@ func (e *ElasticSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *
 		searchRequest.Size = common.Pointer(int(options.Size))
 	}
 
+	if options.From != 0 {
+		searchRequest.From = common.Pointer(int(options.From))
+	}
+
 	if err := e.addTimeFilter(searchRequest, options.TimeFilter); err != nil {
 		return nil, errors.Wrap(err, "Failed to add time filter")
 	}
