@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package logProxy
+package elastic
 
 import (
 	"context"
@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/elastic/go-elasticsearch/v9"
@@ -37,17 +38,17 @@ import (
 
 const distinctPodNamesFilter = "distinct_pod_names"
 
-type ElasticLogProxy struct {
+type ElasticSearchLogProxy struct {
+	*AbstractSearchEngineLogProxy
 	client *elasticsearch.TypedClient
-
-	index            string
-	customQueryParam string
 }
 
-func NewElasticLogProxy(config *platformconfig.ElasticSearchConfig) (*ElasticLogProxy, error) {
-	esClient := &ElasticLogProxy{
-		index:            config.Index,
-		customQueryParam: config.CustomQueryParameter,
+func NewElasticSearchLogProxy(config *platformconfig.ElasticSearchConfig) (*ElasticSearchLogProxy, error) {
+	esClient := &ElasticSearchLogProxy{
+		AbstractSearchEngineLogProxy: &AbstractSearchEngineLogProxy{
+			index:            config.Index,
+			customQueryParam: config.CustomQueryParameter,
+		},
 	}
 	var err error
 
@@ -68,7 +69,7 @@ func NewElasticLogProxy(config *platformconfig.ElasticSearchConfig) (*ElasticLog
 	return esClient, err
 }
 
-func (e *ElasticLogProxy) GetFunctionReplicas(ctx context.Context, options *GetFunctionReplicaOptions) ([]string, error) {
+func (e *ElasticSearchLogProxy) GetFunctionReplicas(ctx context.Context, options *logProxy.GetFunctionReplicaOptions) ([]string, error) {
 	if e.client == nil {
 		return nil, errors.New("Elasticsearch client is not configured")
 	}
@@ -133,7 +134,7 @@ func (e *ElasticLogProxy) GetFunctionReplicas(ctx context.Context, options *GetF
 
 }
 
-func (e *ElasticLogProxy) ProxyFunctionLogs(ctx context.Context, options *platform.ProxyFunctionLogsOptions) (io.ReadCloser, error) {
+func (e *ElasticSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *platform.ProxyFunctionLogsOptions) (io.ReadCloser, error) {
 	if e.client == nil {
 		return nil, errors.New("Elasticsearch client is not configured")
 	}
@@ -185,7 +186,7 @@ func (e *ElasticLogProxy) ProxyFunctionLogs(ctx context.Context, options *platfo
 	return resp.Body, nil
 }
 
-func (e *ElasticLogProxy) getFunctionBaseSearchRequest(functionName string) *search.Request {
+func (e *ElasticSearchLogProxy) getFunctionBaseSearchRequest(functionName string) *search.Request {
 	searchRequest := search.NewRequest()
 
 	// filters by function name custom query parameter
@@ -212,7 +213,7 @@ func (e *ElasticLogProxy) getFunctionBaseSearchRequest(functionName string) *sea
 	return searchRequest
 }
 
-func (e *ElasticLogProxy) addTermsFilter(searchRequest *search.Request, field string, values []string) {
+func (e *ElasticSearchLogProxy) addTermsFilter(searchRequest *search.Request, field string, values []string) {
 	if len(values) == 0 {
 		return
 	}
@@ -233,7 +234,7 @@ func (e *ElasticLogProxy) addTermsFilter(searchRequest *search.Request, field st
 	searchRequest.Query.Bool.Filter = append(searchRequest.Query.Bool.Filter, query)
 }
 
-func (e *ElasticLogProxy) addTimeFilter(request *search.Request, timeFilter *platform.TimeFilter) error {
+func (e *ElasticSearchLogProxy) addTimeFilter(request *search.Request, timeFilter *platform.TimeFilter) error {
 	if timeFilter == nil {
 		return nil
 	}
@@ -262,7 +263,7 @@ func (e *ElasticLogProxy) addTimeFilter(request *search.Request, timeFilter *pla
 	return nil
 }
 
-func (e *ElasticLogProxy) addTimeSort(request *search.Request, sort string) error {
+func (e *ElasticSearchLogProxy) addTimeSort(request *search.Request, sort string) error {
 	if sort != "" {
 		var sortOrder sortorder.SortOrder
 		if err := sortOrder.UnmarshalText([]byte(sort)); err != nil {
