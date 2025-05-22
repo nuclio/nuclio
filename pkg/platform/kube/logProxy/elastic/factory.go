@@ -31,19 +31,8 @@ import (
 // CreateLogProxy connects to the given endpoint and resolves whether it is an OpenSearch or Elasticsearch instance
 // It returns a LogProxy implementation accordingly
 func CreateLogProxy(logger logger.Logger, config *platformconfig.ElasticSearchConfig) (logProxy.LogProxy, error) {
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(config.URL)
+	versionInfoInstance, err := getVersionFromSearchEngineWithRetries(config, 3, 2*time.Second, 15*time.Second)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to connect to the elastic endpoint")
-	}
-
-	defer resp.Body.Close()
-	var versionInfoInstance *versionInfo
-
-	if versionInfoInstance, err = getVersionFromSearchEngineWithRetries(config.URL,
-		3,
-		2*time.Second,
-		15*time.Second); err != nil {
 		return nil, errors.Wrap(err, "Failed to get version from search engine")
 	}
 
@@ -66,31 +55,41 @@ func CreateLogProxy(logger logger.Logger, config *platformconfig.ElasticSearchCo
 }
 
 func getVersionFromSearchEngineWithRetries(
-	url string,
+	config *platformconfig.ElasticSearchConfig,
 	maxRetries int,
 	retryInterval time.Duration,
 	timeout time.Duration,
-) (versionInfoInstance *versionInfo, err error) {
-
+) (*versionInfo, error) {
 	client := &http.Client{Timeout: timeout}
+	var versionInfoInstance *versionInfo
+	var err error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		versionInfoInstance, err = getVersionFromSearchEngine(client, url)
+		versionInfoInstance, err = getVersionFromSearchEngine(client, config)
 		if err == nil {
-			return
+			return versionInfoInstance, nil
 		}
-
 		if attempt < maxRetries {
 			time.Sleep(retryInterval)
 		}
 	}
-	return
+
+	return nil, err
 }
 
-func getVersionFromSearchEngine(client *http.Client, url string) (*versionInfo, error) {
-	resp, err := client.Get(url)
+func getVersionFromSearchEngine(client *http.Client, config *platformconfig.ElasticSearchConfig) (*versionInfo, error) {
+	req, err := http.NewRequest("GET", config.URL, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to connect to Elastic endpoint")
+		return nil, errors.Wrap(err, "Failed to create request")
+	}
+
+	if config.Username != "" && config.Password != "" {
+		req.SetBasicAuth(config.Username, config.Password)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to connect to search engine endpoint")
 	}
 	defer resp.Body.Close()
 
@@ -100,7 +99,7 @@ func getVersionFromSearchEngine(client *http.Client, url string) (*versionInfo, 
 
 	var version versionInfo
 	if err := json.NewDecoder(resp.Body).Decode(&version); err != nil {
-		return nil, errors.Wrap(err, "Failed to decode Elastic version response")
+		return nil, errors.Wrap(err, "Failed to decode search engine version response")
 	}
 
 	return &version, nil
