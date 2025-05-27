@@ -351,7 +351,7 @@ func NewConfiguration(id string,
 			Name:    "wait for a successful metadata response",
 			Value:   newConfiguration.MetadataTimeout,
 			Field:   &newConfiguration.metadataTimeout,
-			Default: 15 * time.Second,
+			Default: 0, // do not limit by default
 		},
 		{
 			Name:    "wait between metadata retries",
