@@ -484,9 +484,6 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 				configuration.adminTimeout)
 			suite.Require().Equal(
 				testCase.expectedTimeout,
-				configuration.metadataTimeout)
-			suite.Require().Equal(
-				testCase.expectedTimeout,
 				configuration.netDialTimeout)
 
 			// metadataRetryBackoff and adminRetryBackoff are set to 2 seconds by default
@@ -495,11 +492,19 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 					configuration.metadataRetryBackoff)
 				suite.Require().Equal(2*time.Second,
 					configuration.adminRetryBackoff)
+
+				// isn't limited by default
+				suite.Require().Equal(
+					time.Duration(0),
+					configuration.metadataTimeout)
 			} else {
 				suite.Require().Equal(testCase.expectedTimeout,
 					configuration.metadataRetryBackoff)
 				suite.Require().Equal(testCase.expectedTimeout,
 					configuration.adminRetryBackoff)
+				suite.Require().Equal(
+					testCase.expectedTimeout,
+					configuration.metadataTimeout)
 			}
 
 		})
