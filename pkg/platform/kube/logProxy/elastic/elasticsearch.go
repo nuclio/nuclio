@@ -37,6 +37,7 @@ import (
 )
 
 const distinctPodNamesFilter = "distinct_pod_names"
+const kubernetesPodNameKey = "kubernetes.pod.name"
 
 type ElasticSearchLogProxy struct {
 	*AbstractSearchEngineLogProxy
@@ -90,7 +91,7 @@ func (e *ElasticSearchLogProxy) GetFunctionReplicas(ctx context.Context, options
 	searchRequest.Aggregations = map[string]types.Aggregations{
 		distinctPodNamesFilter: {
 			Terms: &types.TermsAggregation{
-				Field: common.Pointer("kubernetes.pod.name"),
+				Field: common.Pointer(kubernetesPodNameKey),
 				Size:  common.Pointer(100000),
 			},
 		},
@@ -158,7 +159,7 @@ func (e *ElasticSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *
 		})
 	}
 
-	e.addTermsFilter(searchRequest, "kubernetes.pod.name", options.ReplicaNames)
+	e.addTermsFilter(searchRequest, kubernetesPodNameKey, options.ReplicaNames)
 	e.addTermsFilter(searchRequest, "level", options.LogLevels)
 
 	if options.Size != 0 {
@@ -199,7 +200,7 @@ func (e *ElasticSearchLogProxy) getFunctionBaseSearchRequest(functionName string
 			Must: []types.Query{
 				{
 					Wildcard: map[string]types.WildcardQuery{
-						"kubernetes.pod.name": {
+						kubernetesPodNameKey: {
 							Value: common.Pointer(fmt.Sprintf("nuclio-%s-*", functionName)),
 						},
 					},

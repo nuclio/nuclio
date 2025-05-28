@@ -75,7 +75,7 @@ func (o *OpenSearchLogProxy) GetFunctionReplicas(ctx context.Context, options *l
 	query["aggs"] = map[string]interface{}{
 		"distinct_pod_names": map[string]interface{}{
 			"terms": map[string]interface{}{
-				"field": "kubernetes.pod.name",
+				"field": kubernetesPodNameKey,
 				"size":  100000,
 			},
 		},
@@ -138,7 +138,7 @@ func (o *OpenSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *pla
 		o.addMustClause(query, "regexp", "message", options.Regexp)
 	}
 
-	o.addTermsFilter(query, "kubernetes.pod.name", options.ReplicaNames)
+	o.addTermsFilter(query, kubernetesPodNameKey, options.ReplicaNames)
 	o.addTermsFilter(query, "level", options.LogLevels)
 
 	if options.Size != 0 {
@@ -180,7 +180,7 @@ func (o *OpenSearchLogProxy) getFunctionBaseSearchRequest(functionName string) m
 				"must": []interface{}{
 					map[string]interface{}{
 						"wildcard": map[string]interface{}{
-							"kubernetes.pod.name": fmt.Sprintf("nuclio-%s-*", functionName),
+							kubernetesPodNameKey: fmt.Sprintf("nuclio-%s-*", functionName),
 						},
 					},
 					map[string]interface{}{
