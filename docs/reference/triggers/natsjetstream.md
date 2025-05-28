@@ -1,6 +1,6 @@
-# NATS Jetstream trigger
+# NATS JetStream trigger
 
-> **NOTE:**  NATS Jetstream trigger is in tech-preview.
+> **NOTE:**  NATS JetStream trigger is in tech-preview.
 
 Reads messages from [NATS](https://docs.nats.io/nats-concepts/jetstream) streams. Function replicas are subscribed to a consumer, and messages are load-balanced across replicas. Messages can wait to be consumed if no function replica is available.
 
@@ -8,14 +8,14 @@ Reads messages from [NATS](https://docs.nats.io/nats-concepts/jetstream) streams
 
 | **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
-| stream | string | The name of the jetstream stream. |
+| stream | string | The name of the JetStream stream. |
 | consumer | string | The name of the consumer associated to the stream. |
 
 ### Example
 
 ```yaml
 triggers:
-  myNatsJetstream:
+  myNatsJetStream:
     kind: "natsjetstream"
     url: "nats://10.0.0.3:4222"
     attributes:

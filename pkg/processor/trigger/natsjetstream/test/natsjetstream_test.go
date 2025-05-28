@@ -120,16 +120,16 @@ func (suite *testSuite) createNatsConnection() error {
 
 func (suite *testSuite) createConsumer() error {
 	// Create jetstream context from nats connection
-	js, err := jetstream.New(suite.natsConn)
+	jetstreamConnection, err := jetstream.New(suite.natsConn)
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	consumerContext, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// Create stream handle
-	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
+	stream, err := jetstreamConnection.CreateStream(consumerContext, jetstream.StreamConfig{
 		Name:     suite.streamName,
 		Subjects: []string{suite.topicName},
 	})
@@ -137,7 +137,7 @@ func (suite *testSuite) createConsumer() error {
 		return err
 	}
 
-	_, err = stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
+	_, err = stream.CreateConsumer(consumerContext, jetstream.ConsumerConfig{
 		Durable:   suite.consumerName,
 		AckPolicy: jetstream.AckExplicitPolicy,
 	})

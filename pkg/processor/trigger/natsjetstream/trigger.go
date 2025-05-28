@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package natsjetstream
 
 import (
@@ -74,10 +90,13 @@ func (n *natsjetstream) Start(checkpoint functionconfig.Checkpoint) error {
 
 	jetstreamConnection, err := jetstream.New(natsConnection)
 	if err != nil {
-		return errors.Wrapf(err, "Can't connect to NATS jetstream server %s", n.configuration.URL)
+		return errors.Wrapf(err, "Can't connect to NATS JetStream server %s", n.configuration.URL)
 	}
 
-	consumer, err := jetstreamConnection.Consumer(context.TODO(), n.configuration.Stream, n.configuration.Consumer)
+	consumerContext, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	consumer, err := jetstreamConnection.Consumer(consumerContext, n.configuration.Stream, n.configuration.Consumer)
 	if err != nil {
 		return errors.Wrapf(err, "Can't subscribe to stream %q with consumer %q", n.configuration.Stream, n.configuration.Consumer)
 	}
