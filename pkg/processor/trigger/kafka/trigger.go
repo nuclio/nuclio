@@ -601,6 +601,8 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to parse kafka version - %s", k.configuration.Version)
 		}
+
+		// V0_11_0_0 because it's the minimum version that is required to support kafka headers
 		if !version.IsAtLeast(sarama.V0_11_0_0) {
 			return nil, errors.Errorf("Minimum version of 0.11.0 is required, got - %s", version.String())
 		}
