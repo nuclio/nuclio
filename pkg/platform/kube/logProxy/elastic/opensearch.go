@@ -75,7 +75,7 @@ func (o *OpenSearchLogProxy) GetFunctionReplicas(ctx context.Context, options *l
 	query["aggs"] = map[string]interface{}{
 		"distinct_pod_names": map[string]interface{}{
 			"terms": map[string]interface{}{
-				"field": "kubernetes.pod.name.keyword",
+				"field": "kubernetes.pod.name",
 				"size":  100000,
 			},
 		},
