@@ -5,7 +5,6 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-
 // Event allows access to the NATS message
 type Event struct {
 	nuclio.AbstractEvent

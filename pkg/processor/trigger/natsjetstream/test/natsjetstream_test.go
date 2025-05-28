@@ -19,7 +19,7 @@ limitations under the License.
 package test
 
 import (
-  "context"
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -37,19 +37,19 @@ import (
 
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
-	natsConn  *nats.Conn
-  natsPort  int
-	topicName string
-  streamName string
-  consumerName string
+	natsConn     *nats.Conn
+	natsPort     int
+	topicName    string
+	streamName   string
+	consumerName string
 }
 
 func newTestSuite() *testSuite {
 	newTestSuite := &testSuite{
-		natsPort:  4222,
-    topicName: "my.topic",
-		streamName: "mystream",
-    consumerName: "myconsumer",
+		natsPort:     4222,
+		topicName:    "my.topic",
+		streamName:   "mystream",
+		consumerName: "myconsumer",
 	}
 
 	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
@@ -60,15 +60,15 @@ func newTestSuite() *testSuite {
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "nats:2.11.4-linux", &dockerclient.RunOptions{
-		Ports: map[int]int{suite.natsPort: suite.natsPort, 8222: 8222},
-    Command: "-js",
+		Ports:   map[int]int{suite.natsPort: suite.natsPort, 8222: 8222},
+		Command: "-js",
 	}
 }
 
 func (suite *testSuite) TestPostEvent() {
 	err := suite.createNatsConnection()
 	suite.Require().NoError(err, "Failed to create NATS connection")
-  err = suite.createConsumer()
+	err = suite.createConsumer()
 	suite.Require().NoError(err, "Failed to create Jetstream consumer")
 
 	// invoke the event recorder
@@ -94,8 +94,8 @@ func (suite *testSuite) getDeployOptions() *platform.CreateFunctionOptions {
 		Kind: "natsjetstream",
 		URL:  fmt.Sprintf("nats://172.17.0.1:%d", suite.natsPort),
 		Attributes: map[string]interface{}{
-			"stream": suite.streamName,
-      "consumer": suite.consumerName,
+			"stream":   suite.streamName,
+			"consumer": suite.consumerName,
 		},
 		NumWorkers: 3,
 	}
@@ -119,29 +119,29 @@ func (suite *testSuite) createNatsConnection() error {
 }
 
 func (suite *testSuite) createConsumer() error {
-  // Create jetstream context from nats connection
-  js, err := jetstream.New(suite.natsConn)
-  if err != nil {
-    return err
-  }
+	// Create jetstream context from nats connection
+	js, err := jetstream.New(suite.natsConn)
+	if err != nil {
+		return err
+	}
 
-  ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-  defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-  // Create stream handle
-  stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
-    Name:     suite.streamName,
-    Subjects: []string{suite.topicName},
-  })
-  if err != nil {
-    return err
-  }
+	// Create stream handle
+	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
+		Name:     suite.streamName,
+		Subjects: []string{suite.topicName},
+	})
+	if err != nil {
+		return err
+	}
 
-  _, err = stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
-    Durable:   suite.consumerName,
-    AckPolicy: jetstream.AckExplicitPolicy,
-  })
-  return err
+	_, err = stream.CreateConsumer(ctx, jetstream.ConsumerConfig{
+		Durable:   suite.consumerName,
+		AckPolicy: jetstream.AckExplicitPolicy,
+	})
+	return err
 }
 
 func TestIntegrationSuite(t *testing.T) {

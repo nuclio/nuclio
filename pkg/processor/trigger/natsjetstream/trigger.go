@@ -1,7 +1,7 @@
 package natsjetstream
 
 import (
-  "context"
+	"context"
 	"net/url"
 	"time"
 
@@ -72,22 +72,22 @@ func (n *natsjetstream) Start(checkpoint functionconfig.Checkpoint) error {
 		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.URL)
 	}
 
-  jetstreamConnection, err := jetstream.New(natsConnection)
+	jetstreamConnection, err := jetstream.New(natsConnection)
 	if err != nil {
 		return errors.Wrapf(err, "Can't connect to NATS jetstream server %s", n.configuration.URL)
 	}
 
-  consumer, err := jetstreamConnection.Consumer(context.TODO(), n.configuration.Stream, n.configuration.Consumer)
+	consumer, err := jetstreamConnection.Consumer(context.TODO(), n.configuration.Stream, n.configuration.Consumer)
 	if err != nil {
 		return errors.Wrapf(err, "Can't subscribe to stream %q with consumer %q", n.configuration.Stream, n.configuration.Consumer)
 	}
 
 	messageChan := make(chan jetstream.Msg, 64)
-  _, err = consumer.Consume(func(msg jetstream.Msg) { messageChan <- msg })
+	_, err = consumer.Consume(func(msg jetstream.Msg) { messageChan <- msg })
 	if err != nil {
 		return errors.Wrapf(err, "Can't consume from consumer %q", n.configuration.Consumer)
 	}
-  
+
 	go n.listenForMessages(messageChan)
 	return nil
 }
@@ -112,7 +112,7 @@ func (n *natsjetstream) listenForMessages(messageChan chan jetstream.Msg) {
 				// allocate a worker
 				workerInstance, err := n.WorkerAllocator.Allocate(time.Duration(*n.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond)
 				if err != nil {
-          natsMessage.Nak()
+					natsMessage.Nak()
 					n.UpdateStatistics(false, 1)
 					n.Logger.ErrorWith("Failed to allocate worker", "error", err)
 					return
@@ -121,13 +121,13 @@ func (n *natsjetstream) listenForMessages(messageChan chan jetstream.Msg) {
 				// submit the event to the worker, don't really do anything with response
 				_, processErr := n.SubmitEventToWorker(nil, workerInstance, event)
 				if processErr != nil {
-          natsMessage.Nak()
+					natsMessage.Nak()
 					n.Logger.ErrorWith("Can't process event", "error", processErr)
 				} else {
-          if err := natsMessage.Ack(); err != nil {
-            n.Logger.ErrorWith("Failed to acknowledge message", "warning", err)
-          }
-        }
+					if err := natsMessage.Ack(); err != nil {
+						n.Logger.ErrorWith("Failed to acknowledge message", "warning", err)
+					}
+				}
 
 				// release the worker
 				n.WorkerAllocator.Release(workerInstance)

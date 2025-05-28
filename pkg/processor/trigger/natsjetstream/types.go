@@ -11,8 +11,8 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	Stream     string
-	Consumer   string
+	Stream   string
+	Consumer string
 }
 
 func NewConfiguration(id string,
