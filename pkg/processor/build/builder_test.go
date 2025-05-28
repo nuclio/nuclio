@@ -1018,6 +1018,14 @@ func (suite *testSuite) TestResolveResources() {
 }
 
 func (suite *testSuite) TestCreateTempDir() {
+	systemTempDir := os.TempDir()
+
+	// linux tmp dir is usually /tmp
+	validUnderTempExpectedDir := filepath.Join(systemTempDir, "tmp/test-dir")
+	if strings.Contains(systemTempDir, "tmp") {
+		validUnderTempExpectedDir = filepath.Join(systemTempDir, "test-dir")
+	}
+
 	tests := []struct {
 		name        string
 		tempDir     string
@@ -1028,7 +1036,7 @@ func (suite *testSuite) TestCreateTempDir() {
 			name:        "Valid temp dir under /tmp",
 			tempDir:     "/tmp/test-dir",
 			expectError: false,
-			expectedDir: "/tmp/test-dir",
+			expectedDir: validUnderTempExpectedDir,
 		},
 		{
 			name:        "Invalid traversal path",
@@ -1044,7 +1052,7 @@ func (suite *testSuite) TestCreateTempDir() {
 			name:        "Temp dir outside /tmp",
 			tempDir:     "custom-dir",
 			expectError: false,
-			expectedDir: "/tmp/custom-dir",
+			expectedDir: filepath.Join(systemTempDir, "custom-dir"),
 		},
 		{
 			name:        "No temp dir provided",

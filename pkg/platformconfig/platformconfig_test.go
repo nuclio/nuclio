@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -604,6 +605,63 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResources() {
 	suite.Require().Equal(expectedResources["limitsMemory"], resources.Limits["memory"])
 }
 
+func (suite *PlatformConfigTestSuite) TestEnrichElasticSearchConfig() {
+	testCases := []struct {
+		name              string
+		configurationYAML string
+		envPassword       string
+		expectedPassword  string
+	}{
+		{
+			name: "overriddenByEnv",
+			configurationYAML: `
+kube:
+  elasticSearchConfig:
+    password: "preset-password"
+`,
+			envPassword:      "env-password",
+			expectedPassword: "env-password",
+		},
+		{
+			name: "fromEnv",
+			configurationYAML: `
+kube:
+  elasticSearchConfig:
+    password: ""
+`,
+			envPassword:      "env-password",
+			expectedPassword: "env-password",
+		},
+		{
+			name: "fromConfig",
+			configurationYAML: `
+kube:
+  elasticSearchConfig:
+    password: "config-password"
+`,
+			envPassword:      "",
+			expectedPassword: "config-password",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			if tc.envPassword != "" {
+				os.Setenv("NUCLIO_ELASTIC_SEARCH_PASSWORD", tc.envPassword)
+				defer os.Unsetenv("NUCLIO_ELASTIC_SEARCH_PASSWORD")
+			}
+
+			var readConfiguration Config
+
+			err := suite.reader.Read(bytes.NewBufferString(tc.configurationYAML), "yaml", &readConfiguration)
+			suite.Require().NoError(err)
+
+			readConfiguration.enrichElasticSearchConfig()
+			suite.Equal(tc.expectedPassword, readConfiguration.Kube.ElasticSearchConfig.Password)
+		})
+	}
+}
+
 func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesWithoutDefaults() {
 
 	platformConfig := &Config{}
@@ -694,6 +752,91 @@ func (suite *PlatformConfigTestSuite) TestEnrichContainerResourcesPartialDefault
 	suite.Require().Equal(expectedRequestsMemory, resources.Requests["memory"])
 	suite.Require().Equal(expectedLimitsCPU, resources.Limits["cpu"])
 	suite.Require().Empty(resources.Limits["memory"])
+}
+
+func (suite *PlatformConfigTestSuite) TestEnrichNewPlatformConfig() {
+	testDefaultPlatformConfiguration := GetDefaultPlatformConfiguration()
+	testDefaultReadinessProbe := testDefaultPlatformConfiguration.Kube.DefaultReadinessProbe
+	testDefaultLivenessProbe := testDefaultPlatformConfiguration.Kube.DefaultLivenessProbe
+	testNum := int32(17)
+
+	for _, testCase := range []struct {
+		name                  string
+		platformConfig        *Config
+		defaultPlatformConfig *Config
+		expectedResult        *Config
+	}{
+		{
+			name:                  "enrich all Probes in nil case",
+			platformConfig:        &Config{},
+			defaultPlatformConfig: testDefaultPlatformConfiguration,
+			expectedResult: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultReadinessProbe: testDefaultReadinessProbe,
+					DefaultLivenessProbe:  testDefaultLivenessProbe,
+				},
+			},
+		}, {
+			name: "enrich defaults besides InitialDelaySeconds",
+			platformConfig: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultLivenessProbe: &corev1.Probe{
+						InitialDelaySeconds: testNum,
+					},
+					DefaultReadinessProbe: &corev1.Probe{
+						InitialDelaySeconds: testNum,
+					},
+				},
+			},
+			defaultPlatformConfig: testDefaultPlatformConfiguration,
+			expectedResult: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultReadinessProbe: suite.getTestProbeWithInitialDelayConfigured(testDefaultReadinessProbe, testNum),
+					DefaultLivenessProbe:  suite.getTestProbeWithInitialDelayConfigured(testDefaultLivenessProbe, testNum),
+				},
+			},
+		}, {
+			name: "don't enrich probes",
+			platformConfig: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultReadinessProbe: suite.getTestProbe(testNum),
+					DefaultLivenessProbe:  suite.getTestProbe(testNum),
+				},
+			},
+			defaultPlatformConfig: testDefaultPlatformConfiguration,
+			expectedResult: &Config{
+				Kube: PlatformKubeConfig{
+					DefaultReadinessProbe: suite.getTestProbe(testNum),
+					DefaultLivenessProbe:  suite.getTestProbe(testNum),
+				},
+			},
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			resultErr := testCase.platformConfig.EnrichPlatformConfig()
+			suite.Require().NoError(resultErr)
+			suite.Require().Equal(testCase.expectedResult.Kube.DefaultReadinessProbe, testCase.platformConfig.Kube.DefaultReadinessProbe)
+			suite.Require().Equal(testCase.expectedResult.Kube.DefaultLivenessProbe, testCase.platformConfig.Kube.DefaultLivenessProbe)
+		})
+	}
+}
+
+func (suite *PlatformConfigTestSuite) getTestProbeWithInitialDelayConfigured(testDefaultProbe *corev1.Probe, initialDelaySeconds int32) *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: initialDelaySeconds,
+		TimeoutSeconds:      testDefaultProbe.TimeoutSeconds,
+		PeriodSeconds:       testDefaultProbe.PeriodSeconds,
+		FailureThreshold:    testDefaultProbe.FailureThreshold,
+	}
+}
+
+func (suite *PlatformConfigTestSuite) getTestProbe(probeValue int32) *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: probeValue,
+		TimeoutSeconds:      probeValue,
+		PeriodSeconds:       probeValue,
+		FailureThreshold:    probeValue,
+	}
 }
 
 func TestPlatformConfigTestSuite(t *testing.T) {

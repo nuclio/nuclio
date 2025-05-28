@@ -55,19 +55,23 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	return workerAllocator, nil
 }
 
-func (waf *Factory) CreateNonBlockingSingletonPoolWorkerAllocator(logger logger.Logger,
+func (waf *Factory) CreateNonBlockingWorkerAllocator(logger logger.Logger,
+	numWorkers int,
 	runtimeConfiguration *runtime.Configuration) (eventprocessor.Allocator, error) {
 
 	// create the workers
-	workerInstance, err := waf.createWorker(logger, 0, runtimeConfiguration)
+	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
-
-	// create an allocator
-	workerAllocator := eventprocessor.NewNonBlockingSingletonAllocator(logger, workerInstance)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create worker allocator")
+	var workerAllocator eventprocessor.Allocator
+	switch numWorkers {
+	case 1:
+		workerAllocator = eventprocessor.NewNonBlockingSingletonAllocator(logger, workers[0])
+	default:
+		if workerAllocator, err = eventprocessor.NewNonBlockingPoolAllocator(logger, workers); err != nil {
+			return nil, errors.Wrap(err, "Failed to create worker allocator")
+		}
 	}
 
 	return workerAllocator, nil

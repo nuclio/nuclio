@@ -43,7 +43,7 @@ type Runtime interface {
 	GetFunctionLogger() logger.Logger
 
 	// GetStatistics returns statistics gathered by the runtime
-	GetStatistics() *Statistics
+	GetStatistics() Statistics
 
 	// GetAllocationStatistics returns statistics gathered by the allocator
 	// if there is any in the runtime, otherwise returns nil
@@ -94,7 +94,7 @@ type AbstractRuntime struct {
 	Logger         logger.Logger
 	FunctionLogger logger.Logger
 	Context        *nuclio.Context
-	Statistics     Statistics
+	Statistics     *Statistics
 	databindings   map[string]databinding.DataBinding
 	configuration  *Configuration
 	status         *status.SafeStatus
@@ -108,6 +108,7 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 		Logger:         logger,
 		FunctionLogger: configuration.FunctionLogger,
 		configuration:  configuration,
+		Statistics:     &Statistics{},
 	}
 
 	// set some environment variables
@@ -145,8 +146,8 @@ func (ar *AbstractRuntime) GetConfiguration() *Configuration {
 }
 
 // GetStatistics returns statistics gathered by the runtime
-func (ar *AbstractRuntime) GetStatistics() *Statistics {
-	return &ar.Statistics
+func (ar *AbstractRuntime) GetStatistics() Statistics {
+	return *ar.Statistics
 }
 
 // SetStatus sets the runtime's reported status

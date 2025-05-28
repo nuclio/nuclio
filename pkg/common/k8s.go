@@ -235,3 +235,30 @@ func MergeNodeSelector(functionNodeSelector,
 
 	return mergedNodeSelector
 }
+
+// EnrichProbe sets default values for the probe if they are not already set
+// It uses the default probe as a reference for the default values
+// probe is being passed with ** lets reassign it to the defaultProbe if it is nil
+func EnrichProbe(probe **v1.Probe, defaultProbe *v1.Probe) {
+	if *probe == nil {
+		*probe = defaultProbe
+		return
+	}
+
+	// InitialDelaySeconds can technically be 0, but only allow setting it to greater than 0 so that there will always be a delay before the first probe check
+	if (*probe).InitialDelaySeconds == 0 {
+		(*probe).InitialDelaySeconds = defaultProbe.InitialDelaySeconds
+	}
+
+	if (*probe).TimeoutSeconds == 0 {
+		(*probe).TimeoutSeconds = defaultProbe.TimeoutSeconds
+	}
+
+	if (*probe).PeriodSeconds == 0 {
+		(*probe).PeriodSeconds = defaultProbe.PeriodSeconds
+	}
+
+	if (*probe).FailureThreshold == 0 {
+		(*probe).FailureThreshold = defaultProbe.FailureThreshold
+	}
+}

@@ -91,88 +91,102 @@ func NewPlatformConfig(configurationPath string) (*Config, error) {
 		config.Kind = common.LocalPlatformName
 	}
 
+	if err := config.EnrichPlatformConfig(); err != nil {
+		return nil, errors.Wrap(err, "Failed to enrich platform configurations")
+	}
+
+	return config, nil
+}
+
+func (c *Config) EnrichPlatformConfig() error {
+	defaultPlatformConfiguration := GetDefaultPlatformConfiguration()
+
 	// enrich opa configuration
-	config.enrichOpaConfig()
+	c.enrichOpaConfig()
 
 	// enrich local platform configuration
-	config.enrichLocalPlatform()
+	c.enrichLocalPlatform()
 
-	if config.Logger.Sinks == nil {
-		config.Logger.Sinks = platformConfigurationReader.GetDefaultConfiguration().Logger.Sinks
+	if c.Logger.Sinks == nil {
+		c.Logger.Sinks = defaultPlatformConfiguration.Logger.Sinks
 	}
-	if config.Logger.Functions == nil {
-		config.Logger.Functions = platformConfigurationReader.GetDefaultConfiguration().Logger.Functions
+	if c.Logger.Functions == nil {
+		c.Logger.Functions = defaultPlatformConfiguration.Logger.Functions
 	}
-	if config.Logger.System == nil {
-		config.Logger.System = platformConfigurationReader.GetDefaultConfiguration().Logger.System
+	if c.Logger.System == nil {
+		c.Logger.System = defaultPlatformConfiguration.Logger.System
 	}
 
 	// resolve cron trigger creation mode according to platform
-	if config.CronTriggerCreationMode == "" {
-		switch config.Kind {
+	if c.CronTriggerCreationMode == "" {
+		switch c.Kind {
 		case common.KubePlatformName:
-			config.CronTriggerCreationMode = KubeCronTriggerCreationMode
+			c.CronTriggerCreationMode = KubeCronTriggerCreationMode
 		default:
-			config.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
+			c.CronTriggerCreationMode = ProcessorCronTriggerCreationMode
 		}
 	}
 
-	if config.Kube.DefaultServiceType == "" {
-		config.Kube.DefaultServiceType = DefaultServiceType
+	if c.Kube.DefaultServiceType == "" {
+		c.Kube.DefaultServiceType = DefaultServiceType
 	}
 
-	if config.Kube.PreemptibleNodes != nil {
-		if config.Kube.PreemptibleNodes.DefaultMode == "" {
-			config.Kube.PreemptibleNodes.DefaultMode = functionconfig.RunOnPreemptibleNodesPrevent
+	if c.Kube.PreemptibleNodes != nil {
+		if c.Kube.PreemptibleNodes.DefaultMode == "" {
+			c.Kube.PreemptibleNodes.DefaultMode = functionconfig.RunOnPreemptibleNodesPrevent
 		}
 	}
 
-	if config.FunctionReadinessTimeout == nil {
+	if c.FunctionReadinessTimeout == nil {
 		encodedReadinessTimeoutDuration := (DefaultFunctionReadinessTimeoutSeconds * time.Second).String()
-		config.FunctionReadinessTimeout = &encodedReadinessTimeoutDuration
+		c.FunctionReadinessTimeout = &encodedReadinessTimeoutDuration
 	}
 
-	if config.FunctionInvocationTimeout == nil {
+	if c.FunctionInvocationTimeout == nil {
 		encodedInvocationTimeoutDuration := (DefaultFunctionInvocationTimeoutSeconds * time.Second).String()
-		config.FunctionInvocationTimeout = &encodedInvocationTimeoutDuration
+		c.FunctionInvocationTimeout = &encodedInvocationTimeoutDuration
 	}
 
-	if config.ScaleToZero.MultiTargetStrategy == "" {
-		config.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
+	if c.ScaleToZero.MultiTargetStrategy == "" {
+		c.ScaleToZero.MultiTargetStrategy = scalertypes.MultiTargetStrategyRandom
 	}
 
 	// fall back to legacy default
-	if !AutoScaleMetricsModeIsValid(config.AutoScaleMetricsMode) {
-		config.AutoScaleMetricsMode = AutoScaleMetricsModeLegacy
+	if !AutoScaleMetricsModeIsValid(c.AutoScaleMetricsMode) {
+		c.AutoScaleMetricsMode = AutoScaleMetricsModeLegacy
 	}
 
-	if config.StreamMonitoring.WebapiURL == "" {
-		config.StreamMonitoring.WebapiURL = DefaultStreamMonitoringWebapiURL
+	if c.StreamMonitoring.WebapiURL == "" {
+		c.StreamMonitoring.WebapiURL = DefaultStreamMonitoringWebapiURL
 	}
 
-	if config.StreamMonitoring.V3ioRequestConcurrency == 0 {
-		config.StreamMonitoring.V3ioRequestConcurrency = DefaultV3ioRequestConcurrency
+	if c.StreamMonitoring.V3ioRequestConcurrency == 0 {
+		c.StreamMonitoring.V3ioRequestConcurrency = DefaultV3ioRequestConcurrency
 	}
 
-	if config.Kube.DefaultHTTPIngressClassName == "" {
-		config.Kube.DefaultHTTPIngressClassName = DefaultHTTPIngressClassName
+	if c.Kube.DefaultHTTPIngressClassName == "" {
+		c.Kube.DefaultHTTPIngressClassName = DefaultHTTPIngressClassName
 	}
 
-	functionReadinessTimeout, err := time.ParseDuration(*config.FunctionReadinessTimeout)
+	functionReadinessTimeout, err := time.ParseDuration(*c.FunctionReadinessTimeout)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse function readiness timeout")
+		return errors.Wrap(err, "Failed to parse function readiness timeout")
 	}
-	config.functionReadinessTimeout = &functionReadinessTimeout
+	c.functionReadinessTimeout = &functionReadinessTimeout
 
-	functionInvocationTimeout, err := time.ParseDuration(*config.FunctionInvocationTimeout)
+	functionInvocationTimeout, err := time.ParseDuration(*c.FunctionInvocationTimeout)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse function readiness timeout")
+		return errors.Wrap(err, "Failed to parse function invocation timeout")
 	}
-	config.functionInvocationTimeout = &functionInvocationTimeout
+	c.functionInvocationTimeout = &functionInvocationTimeout
 
-	config.SensitiveFields.CompileSensitiveFieldsRegex()
+	c.SensitiveFields.CompileSensitiveFieldsRegex()
 
-	return config, nil
+	common.EnrichProbe(&c.Kube.DefaultReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
+	common.EnrichProbe(&c.Kube.DefaultLivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
+	c.enrichElasticSearchConfig()
+
+	return nil
 }
 
 func (c *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {
@@ -339,6 +353,14 @@ func (c *Config) EnrichSupplementaryContainerResources(ctx context.Context,
 		false)
 }
 
+func (c *Config) EnableSensitiveFieldMasking() {
+	c.SensitiveFields.MaskSensitiveFields = true
+}
+
+func (c *Config) DisableSensitiveFieldMasking() {
+	c.SensitiveFields.MaskSensitiveFields = false
+}
+
 // enrichContainerResources enriches an object's requests and limits with the default
 // resources defined in the platform config, only if they are not already configured
 func (c *Config) enrichContainerResources(ctx context.Context,
@@ -464,10 +486,48 @@ func (c *Config) enrichOpaConfig() {
 	}
 }
 
-func (c *Config) EnableSensitiveFieldMasking() {
-	c.SensitiveFields.MaskSensitiveFields = true
+func (c *Config) enrichElasticSearchConfig() {
+	if c.Kube.ElasticSearchConfig == nil {
+		return
+	}
+
+	// override with environment variable if set
+	if envPassword := os.Getenv("NUCLIO_ELASTIC_SEARCH_PASSWORD"); envPassword != "" {
+		c.Kube.ElasticSearchConfig.Password = envPassword
+	}
 }
 
-func (c *Config) DisableSensitiveFieldMasking() {
-	c.SensitiveFields.MaskSensitiveFields = false
+func GetDefaultPlatformConfiguration() *Config {
+	trueValue := true
+	defaultSinkName := "stdout"
+
+	return &Config{
+		WebAdmin: WebServer{
+			Enabled:       &trueValue,
+			ListenAddress: ":8081",
+		},
+		HealthCheck: WebServer{
+			Enabled:       &trueValue,
+			ListenAddress: ":8082",
+		},
+		Logger: Logger{
+
+			// create an STDOUT sink and bind everything to it @ debug level
+			Sinks: map[string]LoggerSink{
+				defaultSinkName: {Kind: LoggerSinkKindStdout},
+			},
+
+			System: []LoggerSinkBinding{
+				{Level: "debug", Sink: defaultSinkName},
+			},
+
+			Functions: []LoggerSinkBinding{
+				{Level: "debug", Sink: defaultSinkName},
+			},
+		},
+		Kube: PlatformKubeConfig{
+			DefaultReadinessProbe: DefaultReadinessProbeConfiguration,
+			DefaultLivenessProbe:  DefaultLivenessProbeConfiguration,
+		},
+	}
 }

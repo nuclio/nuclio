@@ -17,9 +17,7 @@ limitations under the License.
 package middleware
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -84,20 +82,11 @@ func AlignRequestIDKeyToZapLogger(next http.Handler) http.Handler {
 func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, request *http.Request) {
-			responseBodyBuffer := bytes.Buffer{}
-
 			// create a response wrapper so we can access stuff
 			responseWrapper := middleware.NewWrapResponseWriter(w, request.ProtoMajor)
-			responseWrapper.Tee(&responseBodyBuffer)
 
 			// take start time
 			requestStartTime := time.Now()
-
-			// get request body
-			requestBody, _ := io.ReadAll(request.Body)
-
-			// restore body for further processing
-			request.Body = io.NopCloser(bytes.NewBuffer(requestBody))
 
 			requestHeaders := request.Header.Clone() // for logging purposes
 			for _, headerToRedact := range []string{
@@ -115,7 +104,6 @@ func RequestResponseLogger(logger logger.Logger) func(next http.Handler) http.Ha
 					"Handled request",
 					"requestMethod", request.Method,
 					"requestPath", request.URL,
-					"requestBodyLen", len(requestBody),
 					"responseStatus", responseWrapper.Status(),
 					"responseTime", time.Since(requestStartTime).String())
 			}()

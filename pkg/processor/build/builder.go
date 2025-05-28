@@ -931,9 +931,9 @@ func (b *Builder) createTempDir() error {
 			return errors.New("Invalid temporary directory path: contains '..'")
 		}
 
-		// if the user-provided temp directory is not under /tmp, create it under /tmp
-		if !strings.HasPrefix(b.options.FunctionConfig.Spec.Build.TempDir, "/tmp") {
-			b.tempDir = filepath.Join("/tmp", b.options.FunctionConfig.Spec.Build.TempDir)
+		// if the user-provided temp directory is not under `/tmp` or `/var/folders/` (depends on OS), create it under it
+		if !strings.HasPrefix(b.options.FunctionConfig.Spec.Build.TempDir, os.TempDir()) {
+			b.tempDir = filepath.Join(os.TempDir(), b.options.FunctionConfig.Spec.Build.TempDir)
 		} else {
 			b.tempDir = b.options.FunctionConfig.Spec.Build.TempDir
 		}

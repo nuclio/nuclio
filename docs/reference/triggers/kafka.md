@@ -377,6 +377,55 @@ You can configure each attribute either in the `triggers.<trigger>.attributes.<a
   <br/>
   **Default Value:** `"5s"` (5 seconds)<!-- 5 * time.Second -->
 
+- <a id="AdminTimeout"></a>**`adminTimeout`** (**`kafka-admin-timeout`**) - The maximum duration the administrative Kafka client will wait for ClusterAdmin operations, including topics, brokers, configurations and access control lists (ACL).
+  <br/>
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  <br/>
+  **Default Value:** `"15s"` (15 seconds)<!-- 15 * time.Second -->
+  <!-- sarama `Admin.Timeout` -->
+
+- <a id="MetadataTimeout"></a>**`metadataTimeout`** (**`kafka-metadata-timeout`**) - How long to wait for a successful metadata response.
+  <br/>
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  <br/>
+  **Default Value:** `"15s"` (15 seconds)<!-- 15 * time.Second -->
+  <!-- sarama `Metadata.Timeout` -->
+
+- <a id="MetadataRetryBackoff"></a>**`metadataRetryBackoff`** (**`kafka-metadata-retry-backoff`**) - How long to wait between metadata retries.
+  <br/>
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  <br/>
+  **Default Value:** `"2s"` (2 seconds)<!-- 2 * time.Second -->
+  <!-- sarama `Metadata.Retry.Backoff  ` -->
+
+- <a id="AdminRetryBackoff"></a>**`adminRetryBackoff`** (**`kafka-admin-retry-backoff`**) - How long to wait between admin retries.
+  <br/>
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  <br/>
+  **Default Value:** `"2s"` (2 seconds)<!-- 2 * time.Second -->
+  <!-- sarama `Admin.Retry.Backoff  ` -->
+
+- <a id="MetadataRetryMax"></a>**`metadataRetryMax`** (**`kafka-metadata-retry-max`**) - Maximum retries to get metadata.
+  <br/>
+  **Type:** `int
+  <br/>
+  **Default Value:** `10`
+  <!-- sarama `Metadata.Retry.Max  ` -->
+
+- <a id="AdminRetryMax"></a>**`adminRetryMax`** (**`kafka-admin-retry-max`**) - Maximum retries to get admin data.
+  <br/>
+  **Type:** `int
+  <br/>
+  **Default Value:** `10`
+  <!-- sarama `Admin.Retry.Max  ` -->
+
+- <a id="NetDialTimeout"></a>**`netDialTimeout`** (**`kafka-net-dial-timeout`**) - How long to wait for the initial connection.
+  <br/>
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  <br/>
+  **Default Value:** `"15s"` (15 seconds)<!-- 15 * time.Second -->
+  <!-- sarama `Net.DialTimeout ` -->
+
 <a id="rebalancing-config-choice"></a>
 ### Choosing the right configuration for rebalancing
 

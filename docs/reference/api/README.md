@@ -294,12 +294,18 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 * URL: `GET /api/functions/<function name>/replicas`
 * Headers:
     * `x-nuclio-function-namespace`: Namespace (required)
+* Params:
+    * includeOffline (optional, bool): If set to true, the API will return both active and offline replicas. Offline replicas are fetched from Elasticsearch if it is configured. Defaults to false, maintaining backward compatibility with previous versions.
+
+    *timeFilter (optional, json-encoded string): Use this to filter offline replicas by time. This must be a URI-encoded JSON string.
+          Example: `timeFilter={"since":"2025-05-01T00:00:00Z","until":"2025-05-16T23:59:59Z","sort":"asc"}`
 
 #### Response
 
 * Status code: 200
 * Body:
 
+Default Behavior (no includeOffline):
 ```json
 {
   "names": [
@@ -308,6 +314,24 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 }
 ```
 
+Extended Response (includeOffline=true):
+
+```json
+{
+  "replicas": {
+    "names": [
+      "nuclio-hello-5884964d9b-2wqth"
+      ]
+  },
+  "offlineReplicas": {
+    "names": [
+    "nuclio-hello-5884964d9b-vs7pn",
+    "nuclio-hello-5c47d58d89-279qc"
+    ]
+  }
+}
+
+```
 ### Get function replica logs stream
 
 #### Request
@@ -328,6 +352,43 @@ you `DELETE /api/function_invocations`, the HTTP method in the event as received
 
 ```text
 ...Function replica logs...
+```
+
+### Proxy logs from a source
+
+#### Request
+
+* URL: `GET /api/functions/<function name>/proxy-logs`
+    * Headers:
+    * `x-nuclio-function-namespace`: Namespace (required)
+    * Params:
+    | Parameter      | Type       | Description                                                                 |
+    |----------------|------------|-----------------------------------------------------------------------------|
+    | `timeFilter`   | object     | Time range to filter logs (optional). See `TimeFilter` structure below.     |
+    | `substring`    | string     | Filter logs containing a specific substring (optional).                     |
+    | `regexp`       | string     | Filter logs matching a regular expression (optional).                       |
+    | `replicaNames` | string[]   | Filter logs by specific replica names (optional).                           |
+    | `logLevels`    | string[]   | Filter logs by log levels (e.g. `debug`, `info`, `error`) (optional).       |
+    | `size`         | integer    | Max number of log entries to return (optional).                             |
+    | `searchAfter`  | string[]   | For paginated log fetching (optional).                                      |
+    | `source`       | string     | Source to retrieve logs from (e.g. `elasticsearch`) (optional).                        |
+
+timeFilter example:
+```
+{
+  "since": "2025-05-01T00:00:00Z",   // ISO 8601 format, optional
+  "until": "2025-05-16T23:59:59Z",   // ISO 8601 format, optional
+  "sort": "desc"                     // "asc" or "desc", optional
+}
+```
+
+#### Response
+
+    * Status code: 200
+    * Body:
+
+```text
+...Stream logs...
 ```
 
 ## Project

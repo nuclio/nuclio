@@ -105,29 +105,26 @@ jobs:
           TARGET_VERSION: ${{ inputs.target_version }}
           HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
-      - name: Resolve inputs for release
+      - name: Resolve version inputs
         id: resolve
-        if: github.event_name == 'workflow_dispatch'
         run: |
-          CURRENT_VERSION_INPUT=$(make get-current-version)
-          TARGET_VERSION_INPUT=$(make get-target-version)
-          HELM_VERSION_INPUT=$(make get-helm-target-version)
-          
-          echo "CURRENT_VERSION_INPUT=${CURRENT_VERSION_INPUT}"
-          echo "TARGET_VERSION_INPUT=${TARGET_VERSION_INPUT}"
-          echo "HELM_VERSION_INPUT=${HELM_VERSION_INPUT}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            CURRENT_VERSION_INPUT=$(make get-current-version)
+            TARGET_VERSION_INPUT=$(make get-target-version)
+            HELM_VERSION_INPUT=$(make get-helm-target-version)
 
-          echo "prev_version=${CURRENT_VERSION_INPUT}" >> $GITHUB_OUTPUT
-          echo "version=${TARGET_VERSION_INPUT}" >> $GITHUB_OUTPUT
-          echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_OUTPUT
-          
-      - name: Set version to unstable
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          echo "prev_version=" >> $GITHUB_OUTPUT
-          echo "helm_version=" >> $GITHUB_OUTPUT
-          echo "version=unstable" >> $GITHUB_OUTPUT
+            echo "CURRENT_VERSION_INPUT=${CURRENT_VERSION_INPUT}"
+            echo "TARGET_VERSION_INPUT=${TARGET_VERSION_INPUT}"
+            echo "HELM_VERSION_INPUT=${HELM_VERSION_INPUT}"
 
+            echo "prev_version=${CURRENT_VERSION_INPUT}" >> $GITHUB_OUTPUT
+            echo "version=${TARGET_VERSION_INPUT}" >> $GITHUB_OUTPUT
+            echo "helm_version=${HELM_VERSION_INPUT}" >> $GITHUB_OUTPUT
+          else
+            echo "prev_version=" >> $GITHUB_OUTPUT
+            echo "version=unstable" >> $GITHUB_OUTPUT
+            echo "helm_version=" >> $GITHUB_OUTPUT
+          fi
 
   release:
     name: Generate Changelog & Create Release
@@ -142,7 +139,7 @@ jobs:
           fetch-depth: 0
 
       - name: Generate Changelog with git-cliff
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@4a4a951bc43fafe41cd2348d181853f52356bee7 # 4.4.2
         id: git-cliff
         with:
           config: cliff.toml
@@ -260,19 +257,19 @@ jobs:
 
       - name: Install QEMU
         if: matrix.arch != 'amd64'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # 3.6.0
         with:
           platforms: ${{ matrix.arch }}
 
       - name: Login to registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # 3.4.0
         with:
           registry: ${{ env.REPO }}
           username: ${{ secrets.QUAYIO_DOCKER_USERNAME }}
           password: ${{ secrets.QUAYIO_DOCKER_PASSWORD }}
 
       - name: Login to cache registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # 3.4.0
         with:
           registry: ${{ env.CACHE_REPO }}
           username: ${{ env.CACHE_REPO_NAME }}
@@ -339,7 +336,7 @@ jobs:
 
       - name: Install QEMU
         if: matrix.arch != 'amd64'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # 3.6.0
         with:
           platforms: ${{ matrix.arch }}
 
@@ -356,7 +353,7 @@ jobs:
           DOCKER_DEFAULT_PLATFORM: linux/${{ matrix.arch }}
 
       - name: Upload binaries
-        uses: AButler/upload-release-assets@v3.0
+        uses: AButler/upload-release-assets@3d6774fae0ed91407dc5ae29d576b166536d1777 # v3.0
         with:
           release-tag: ${{ needs.prepare-inputs.outputs.version }}
           files: '/home/runner/go/bin/nuctl-*'
@@ -380,7 +377,7 @@ jobs:
           path: nuclio-helm
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # 4.3.0
 
       - name: Set up yq
         run: |

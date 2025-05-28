@@ -75,6 +75,13 @@ type Configuration struct {
 	RetryBackoff                  string
 	MaxWaitTime                   string
 	MaxWaitHandlerDuringRebalance string
+	AdminTimeout                  string
+	AdminRetryBackoff             string
+	AdminRetryMax                 int
+	MetadataTimeout               string
+	MetadataRetryBackoff          string
+	MetadataRetryMax              int
+	NetDialTimeout                string
 	WorkerAllocationMode          partitionworker.AllocationMode
 	RebalanceRetryMax             int
 	FetchMin                      int
@@ -101,6 +108,11 @@ type Configuration struct {
 	maxWaitTime                           time.Duration
 	maxWaitHandlerDuringRebalance         time.Duration
 	waitExplicitAckDuringRebalanceTimeout time.Duration
+	adminTimeout                          time.Duration
+	adminRetryBackoff                     time.Duration
+	metadataTimeout                       time.Duration
+	metadataRetryBackoff                  time.Duration
+	netDialTimeout                        time.Duration
 	ackWindowSize                         int
 }
 
@@ -119,6 +131,11 @@ func NewConfiguration(id string,
 
 	workerAllocationModeValue := ""
 	explicitAckModeValue := ""
+
+	// parse attributes
+	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
 
 	err = newConfiguration.PopulateConfigurationFromAnnotations([]trigger.AnnotationConfigField{
 		{Key: "nuclio.io/kafka-session-timeout", ValueString: &newConfiguration.SessionTimeout},
@@ -174,6 +191,20 @@ func NewConfiguration(id string,
 
 		// allow changing explicit ack mode via annotation
 		{Key: "nuclio.io/wait-explicit-ack-during-rebalance-timeout", ValueString: &triggerConfiguration.WaitExplicitAckDuringRebalanceTimeout},
+
+		// timeouts for initial connection
+		// often need to be adjusted for confluent cloud
+		{Key: "nuclio.io/kafka-net-dial-timeout", ValueString: &newConfiguration.NetDialTimeout},
+		{Key: "nuclio.io/kafka-metadata-timeout", ValueString: &newConfiguration.MetadataTimeout},
+		{Key: "nuclio.io/kafka-metadata-retry-backoff", ValueString: &newConfiguration.MetadataRetryBackoff},
+		{Key: "nuclio.io/kafka-admin-timeout", ValueString: &newConfiguration.AdminTimeout},
+		{Key: "nuclio.io/kafka-admin-retry-backoff", ValueString: &newConfiguration.AdminRetryBackoff},
+
+		// max retry for metadata
+		{Key: "nuclio.io/kafka-metadata-retry-max", ValueInt: &newConfiguration.MetadataRetryMax},
+
+		// max retry for admin
+		{Key: "nuclio.io/kafka-admin-retry-max", ValueInt: &newConfiguration.AdminRetryMax},
 	})
 
 	if err != nil {
@@ -224,11 +255,6 @@ func NewConfiguration(id string,
 	// set default
 	if triggerConfiguration.NumWorkers == 0 {
 		triggerConfiguration.NumWorkers = 32
-	}
-
-	// parse attributes
-	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
-		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
 	if len(newConfiguration.Topics) == 0 {
@@ -309,6 +335,36 @@ func NewConfiguration(id string,
 			Field:   &newConfiguration.waitExplicitAckDuringRebalanceTimeout,
 			Default: 100 * time.Millisecond,
 		},
+		{
+			Name:    "wait for operations like topics, brokers, configs, and ACLs",
+			Value:   newConfiguration.AdminTimeout,
+			Field:   &newConfiguration.adminTimeout,
+			Default: 15 * time.Second,
+		},
+		{
+			Name:    "wait between admin retries",
+			Value:   newConfiguration.AdminRetryBackoff,
+			Field:   &newConfiguration.adminRetryBackoff,
+			Default: 2 * time.Second,
+		},
+		{
+			Name:    "wait for a successful metadata response",
+			Value:   newConfiguration.MetadataTimeout,
+			Field:   &newConfiguration.metadataTimeout,
+			Default: 0, // do not limit by default
+		},
+		{
+			Name:    "wait between metadata retries",
+			Value:   newConfiguration.MetadataRetryBackoff,
+			Field:   &newConfiguration.metadataRetryBackoff,
+			Default: 2 * time.Second,
+		},
+		{
+			Name:    "wait for the initial connection",
+			Value:   newConfiguration.NetDialTimeout,
+			Field:   &newConfiguration.netDialTimeout,
+			Default: 15 * time.Second,
+		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {
 			return nil, err
@@ -343,6 +399,14 @@ func NewConfiguration(id string,
 
 	if newConfiguration.ChannelBufferSize == 0 {
 		newConfiguration.ChannelBufferSize = 256
+	}
+
+	if newConfiguration.MetadataRetryMax == 0 {
+		newConfiguration.MetadataRetryMax = 10
+	}
+
+	if newConfiguration.AdminRetryMax == 0 {
+		newConfiguration.AdminRetryMax = 10
 	}
 
 	// for certificates, replace spaces with newlines to allow passing in places like annotations

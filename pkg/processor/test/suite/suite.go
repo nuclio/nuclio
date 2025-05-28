@@ -448,12 +448,13 @@ func (suite *TestSuite) GetDeployOptions(functionName, functionPath string) *pla
 
 // GetDeployOptionsAsync GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path
 // function uses async trigger mode
-func (suite *TestSuite) GetDeployOptionsAsync(functionName, functionPath string) *platform.CreateFunctionOptions {
+func (suite *TestSuite) GetDeployOptionsAsync(functionName, functionPath string, numWorkers int) *platform.CreateFunctionOptions {
 	createFunctionOptions := suite.GetDeployOptions(functionName, functionPath)
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"http-trigger": {
-			Kind: "http",
-			Mode: functionconfig.AsyncTriggerWorkMode,
+			Kind:       "http",
+			Mode:       functionconfig.AsyncTriggerWorkMode,
+			NumWorkers: numWorkers,
 		}}
 	return createFunctionOptions
 }

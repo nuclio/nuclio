@@ -414,6 +414,171 @@ func (suite *TestSuite) TestWaitExplicitAckDuringRebalanceTimeoutConfiguration()
 	}
 }
 
+func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
+	for _, testCase := range []struct {
+		name              string
+		timeoutConfig     string
+		timeoutAnnotation string
+		expectedTimeout   time.Duration
+	}{
+		{
+			name:            "Timeout specified only in config",
+			timeoutConfig:   "2s",
+			expectedTimeout: 2 * time.Second,
+		},
+		{
+			name:            "Timeout not specified",
+			expectedTimeout: 15 * time.Second,
+		},
+		{
+			name:              "Timeout specified only in annotations",
+			timeoutConfig:     "",
+			timeoutAnnotation: "2s",
+			expectedTimeout:   2 * time.Second,
+		},
+		{
+			name:              "Timeout specified in both config and annotations",
+			timeoutConfig:     "1s",
+			timeoutAnnotation: "2s",
+			expectedTimeout:   2 * time.Second,
+		},
+	} {
+		triggerInstance := &functionconfig.Trigger{
+			Attributes: map[string]interface{}{
+				"topics": []string{
+					"some-topic",
+				},
+				"consumerGroup": "some-cg",
+				"initialOffset": "earliest",
+				"brokers": []string{
+					"some-broker",
+				},
+				"adminTimeout":         testCase.timeoutConfig,
+				"metadataTimeout":      testCase.timeoutConfig,
+				"netDialTimeout":       testCase.timeoutConfig,
+				"metadataRetryBackoff": testCase.timeoutConfig,
+				"adminRetryBackoff":    testCase.timeoutConfig,
+			},
+		}
+
+		suite.Run(testCase.name, func() {
+			annotations := make(map[string]string)
+			if testCase.timeoutAnnotation != "" {
+				annotations["nuclio.io/kafka-net-dial-timeout"] = testCase.timeoutAnnotation
+				annotations["nuclio.io/kafka-metadata-timeout"] = testCase.timeoutAnnotation
+				annotations["nuclio.io/kafka-admin-timeout"] = testCase.timeoutAnnotation
+				annotations["nuclio.io/kafka-metadata-retry-backoff"] = testCase.timeoutAnnotation
+				annotations["nuclio.io/kafka-admin-retry-backoff"] = testCase.timeoutAnnotation
+			}
+			configuration, err := NewConfiguration(testCase.name,
+				triggerInstance,
+				&runtime.Configuration{
+					Configuration: &processor.Configuration{
+						Config: functionconfig.Config{Meta: functionconfig.Meta{Annotations: annotations}},
+					},
+				},
+				suite.logger)
+			suite.Require().NoError(err)
+			suite.Require().Equal(
+				testCase.expectedTimeout,
+				configuration.adminTimeout)
+			suite.Require().Equal(
+				testCase.expectedTimeout,
+				configuration.netDialTimeout)
+
+			// metadataRetryBackoff and adminRetryBackoff are set to 2 seconds by default
+			if testCase.name == "Timeout not specified" {
+				suite.Require().Equal(2*time.Second,
+					configuration.metadataRetryBackoff)
+				suite.Require().Equal(2*time.Second,
+					configuration.adminRetryBackoff)
+
+				// isn't limited by default
+				suite.Require().Equal(
+					time.Duration(0),
+					configuration.metadataTimeout)
+			} else {
+				suite.Require().Equal(testCase.expectedTimeout,
+					configuration.metadataRetryBackoff)
+				suite.Require().Equal(testCase.expectedTimeout,
+					configuration.adminRetryBackoff)
+				suite.Require().Equal(
+					testCase.expectedTimeout,
+					configuration.metadataTimeout)
+			}
+
+		})
+	}
+}
+
+func (suite *TestSuite) TestMetadataAndAdminMaxRetryConfiguration() {
+	for _, testCase := range []struct {
+		name             string
+		retryConfig      int
+		retryAnnotation  string
+		expectedMaxRetry int
+	}{
+		{
+			name:             "empty configuration",
+			expectedMaxRetry: 10,
+		},
+		{
+			name:             "specified only in config",
+			retryConfig:      5,
+			expectedMaxRetry: 5,
+		},
+		{
+			name:             "specified only in annotations",
+			retryAnnotation:  "8",
+			expectedMaxRetry: 8,
+		},
+		{
+			name:             "specified in both config and annotations",
+			retryConfig:      5,
+			retryAnnotation:  "8",
+			expectedMaxRetry: 8,
+		},
+	} {
+		triggerInstance := &functionconfig.Trigger{
+			Attributes: map[string]interface{}{
+				"topics": []string{
+					"some-topic",
+				},
+				"consumerGroup": "some-cg",
+				"initialOffset": "earliest",
+				"brokers": []string{
+					"some-broker",
+				},
+				"metadataRetryMax": testCase.retryConfig,
+				"adminRetryMax":    testCase.retryConfig,
+			},
+		}
+
+		suite.Run(testCase.name, func() {
+			annotations := make(map[string]string)
+			if testCase.retryAnnotation != "" {
+				annotations["nuclio.io/kafka-metadata-retry-max"] = testCase.retryAnnotation
+				annotations["nuclio.io/kafka-admin-retry-max"] = testCase.retryAnnotation
+			}
+			configuration, err := NewConfiguration(testCase.name,
+				triggerInstance,
+				&runtime.Configuration{
+					Configuration: &processor.Configuration{
+						Config: functionconfig.Config{Meta: functionconfig.Meta{Annotations: annotations}},
+					},
+				},
+				suite.logger)
+			suite.Require().NoError(err)
+			suite.Require().Equal(
+				testCase.expectedMaxRetry,
+				configuration.MetadataRetryMax)
+			suite.Require().Equal(
+				testCase.expectedMaxRetry,
+				configuration.AdminRetryMax)
+		})
+	}
+}
+
 func TestKafkaSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }

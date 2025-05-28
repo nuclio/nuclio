@@ -13,6 +13,7 @@ Reference
    function-configuration/code-entry-types
    function-configuration/function-configuration-reference
    function-configuration/batching
+   function-configuration/async-mode
    api-gateway/index
    nuctl/index
    runtimes/index
