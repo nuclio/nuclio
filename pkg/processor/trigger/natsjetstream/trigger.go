@@ -112,7 +112,9 @@ func (n *natsjetstream) listenForMessages(messageChan chan jetstream.Msg) {
 				// allocate a worker
 				workerInstance, err := n.WorkerAllocator.Allocate(time.Duration(*n.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond)
 				if err != nil {
-					natsMessage.Nak()
+					if err := natsMessage.Nak(); err != nil {
+						n.Logger.ErrorWith("Failed to not acknowledge message", "warning", err)
+					}
 					n.UpdateStatistics(false, 1)
 					n.Logger.ErrorWith("Failed to allocate worker", "error", err)
 					return
@@ -121,7 +123,9 @@ func (n *natsjetstream) listenForMessages(messageChan chan jetstream.Msg) {
 				// submit the event to the worker, don't really do anything with response
 				_, processErr := n.SubmitEventToWorker(nil, workerInstance, event)
 				if processErr != nil {
-					natsMessage.Nak()
+					if err := natsMessage.Nak(); err != nil {
+						n.Logger.ErrorWith("Failed to not acknowledge message", "warning", err)
+					}
 					n.Logger.ErrorWith("Can't process event", "error", processErr)
 				} else {
 					if err := natsMessage.Ack(); err != nil {
