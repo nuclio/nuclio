@@ -3636,6 +3636,11 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 		Return(false).
 		Once()
 
+	suite.mockPlatform.
+		On("GetDefaultProxyLogsSource").
+		Return(platform.ProxyLogsSourceK8s).
+		Once()
+
 	expectedStatusCode := http.StatusOK
 	expectedResponseBody := `{
     "defaultFunctionConfig": {
@@ -3765,7 +3770,7 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
 			"2m"
 		]
 	},
-	"logsScreenEnabled": false
+	"defaultProxyLogsSource": "kubernetes"
 }`
 
 	suite.sendRequest("GET",

@@ -294,8 +294,6 @@ dashboard:
   # Note: secret name must contain "pip-ca-certificates.crt" key
   pipCACertSecretName: ""
 
-  logsScreenEnabled: false
-
 autoscaler:
   enabled: false
   replicas: 1
