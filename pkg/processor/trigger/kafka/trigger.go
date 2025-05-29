@@ -591,17 +591,18 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 		}
 	}
 
-	// V0_10_2_0 is the minimum required for sarama's consumer groups implementation.
-	// Therefore, we do not support anything older that this version.
-	// Update: increasing version to V0_11_0_0 because it's the minimum version that is required
-	// to support kafka headers.
-	version := sarama.V0_11_0_0
+	// Defaulting to Kafka 3.5.2 for broad compatibility and stability.
+	// This version is well-supported in the Confluent ecosystem (CP 8.3.x),
+	// includes modern features support and maintains good backward compatibility with older Kafka clients.
+	version := sarama.V3_5_2_0
 
 	if k.configuration.Version != "" {
 		version, err = sarama.ParseKafkaVersion(k.configuration.Version)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to parse kafka version - %s", k.configuration.Version)
 		}
+
+		// V0_11_0_0 because it's the minimum version that is required to support kafka headers
 		if !version.IsAtLeast(sarama.V0_11_0_0) {
 			return nil, errors.Errorf("Minimum version of 0.11.0 is required, got - %s", version.String())
 		}
