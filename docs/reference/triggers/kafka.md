@@ -426,6 +426,14 @@ You can configure each attribute either in the `triggers.<trigger>.attributes.<a
   **Default Value:** `"15s"` (15 seconds)<!-- 15 * time.Second -->
   <!-- sarama `Net.DialTimeout ` -->
 
+- <a id="NetKeepAliveInterval"></a>**`netKeepAliveInterval`** (**`kafka-net-keep-alive-interval`**) - Keep alive interval for kafka connections.
+  <br/>
+  **Type:** `string` - a string containing one or more duration strings of the format `"[0-9]+[ns|us|ms|s|m|h]"`; for example, `"300ms"` (300 milliseconds) or `"2h45m"` (2 hours and 45 minutes). See the [`ParseDuration`](https://golang.org/pkg/time/#ParseDuration) Go function.
+  <br/>
+  **Default Value:** `"90s"` (90 seconds)<!-- 90 * time.Second -->
+  <!-- sarama `Net.DialTimeout ` -->
+
+
 <a id="rebalancing-config-choice"></a>
 ### Choosing the right configuration for rebalancing
 
