@@ -82,6 +82,7 @@ type Configuration struct {
 	MetadataRetryBackoff          string
 	MetadataRetryMax              int
 	NetDialTimeout                string
+	NetKeepAliveInterval          string
 	WorkerAllocationMode          partitionworker.AllocationMode
 	RebalanceRetryMax             int
 	FetchMin                      int
@@ -113,6 +114,7 @@ type Configuration struct {
 	metadataTimeout                       time.Duration
 	metadataRetryBackoff                  time.Duration
 	netDialTimeout                        time.Duration
+	netKeepAliveInterval                  time.Duration
 	ackWindowSize                         int
 }
 
@@ -205,6 +207,9 @@ func NewConfiguration(id string,
 
 		// max retry for admin
 		{Key: "nuclio.io/kafka-admin-retry-max", ValueInt: &newConfiguration.AdminRetryMax},
+
+		// net keep alive interval
+		{Key: "nuclio.io/kafka-net-keep-alive-interval", ValueString: &newConfiguration.NetKeepAliveInterval},
 	})
 
 	if err != nil {
@@ -364,6 +369,13 @@ func NewConfiguration(id string,
 			Value:   newConfiguration.NetDialTimeout,
 			Field:   &newConfiguration.netDialTimeout,
 			Default: 15 * time.Second,
+		},
+		// often required for confluent cloud as connections' lifetime is short there
+		{
+			Name:    "default keep alive time",
+			Value:   newConfiguration.NetKeepAliveInterval,
+			Field:   &newConfiguration.netKeepAliveInterval,
+			Default: 90 * time.Second,
 		},
 	} {
 		if err = newConfiguration.ParseDurationOrDefault(&durationConfigField); err != nil {

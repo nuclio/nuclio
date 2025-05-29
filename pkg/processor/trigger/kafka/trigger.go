@@ -509,6 +509,7 @@ func (k *kafka) newKafkaConfig() (*sarama.Config, error) {
 	config.Admin.Retry.Max = k.configuration.AdminRetryMax
 
 	config.Net.DialTimeout = k.configuration.netDialTimeout
+	config.Net.KeepAlive = k.configuration.netKeepAliveInterval
 
 	if k.configuration.metadataTimeout != 0 {
 		config.Metadata.Timeout = k.configuration.metadataTimeout

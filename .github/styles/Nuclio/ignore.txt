@@ -73,3 +73,5 @@ Gurubase
 ACLs
 ACL
 substring
+kafka
+Kafka

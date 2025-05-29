@@ -458,6 +458,7 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 				"netDialTimeout":       testCase.timeoutConfig,
 				"metadataRetryBackoff": testCase.timeoutConfig,
 				"adminRetryBackoff":    testCase.timeoutConfig,
+				"netKeepAliveInterval": testCase.timeoutConfig,
 			},
 		}
 
@@ -469,6 +470,7 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 				annotations["nuclio.io/kafka-admin-timeout"] = testCase.timeoutAnnotation
 				annotations["nuclio.io/kafka-metadata-retry-backoff"] = testCase.timeoutAnnotation
 				annotations["nuclio.io/kafka-admin-retry-backoff"] = testCase.timeoutAnnotation
+				annotations["nuclio.io/kafka-net-keep-alive-interval"] = testCase.timeoutAnnotation
 			}
 			configuration, err := NewConfiguration(testCase.name,
 				triggerInstance,
@@ -497,6 +499,9 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 				suite.Require().Equal(
 					time.Duration(0),
 					configuration.metadataTimeout)
+
+				suite.Require().Equal(90*time.Second,
+					configuration.netKeepAliveInterval)
 			} else {
 				suite.Require().Equal(testCase.expectedTimeout,
 					configuration.metadataRetryBackoff)
@@ -505,6 +510,9 @@ func (suite *TestSuite) TestTimeoutFieldsConfiguration() {
 				suite.Require().Equal(
 					testCase.expectedTimeout,
 					configuration.metadataTimeout)
+				suite.Require().Equal(
+					testCase.expectedTimeout,
+					configuration.netKeepAliveInterval)
 			}
 
 		})
