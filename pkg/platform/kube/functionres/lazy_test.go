@@ -754,24 +754,41 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 
 func (suite *lazyTestSuite) TestEnrichProbesInPopulateDeploymentContainer() {
 	// Prepare
-	functionInstance := suite.getFunctionInstanceWithDefaultProbes("test-enrich-probes-function")
-	testFunctionLabels := suite.client.getFunctionLabels(functionInstance)
-	testContainer := &v1.Container{}
+	for _, testCase := range []struct {
+		name              string
+		functionInstance *nuclioio.NuclioFunction
+	}{
+		{
+			name:              "test-enrich-probes-function",
+			functionInstance: suite.getFunctionInstanceWithDefaultProbes("test-enrich-probes-function"),
+		},{
+			// Test backward compatibility for functions created with controller versions < v1.14.5, where probes are nil.
+			// After an upgrade, the new controller will access these fields.
+			name:              "test-empty-probes-function",
+			functionInstance: &nuclioio.NuclioFunction{},
+		},
 
-	// Populate the container with configuration from the function instance
-	suite.client.populateDeploymentContainer(suite.ctx, testFunctionLabels, functionInstance, testContainer)
+	} {
+		suite.Run(testCase.name, func() {
+			testFunctionLabels := suite.client.getFunctionLabels(testCase.functionInstance)
+			testContainer := &v1.Container{}
 
-	// Verify readinessProbe is populated with default values
-	suite.Require().Equal(testContainer.ReadinessProbe.InitialDelaySeconds, platformconfig.DefaultReadinessProbeConfiguration.InitialDelaySeconds)
-	suite.Require().Equal(testContainer.ReadinessProbe.TimeoutSeconds, platformconfig.DefaultReadinessProbeConfiguration.TimeoutSeconds)
-	suite.Require().Equal(testContainer.ReadinessProbe.PeriodSeconds, platformconfig.DefaultReadinessProbeConfiguration.PeriodSeconds)
-	suite.Require().Equal(testContainer.ReadinessProbe.FailureThreshold, platformconfig.DefaultReadinessProbeConfiguration.FailureThreshold)
+			// Populate the container with configuration from the function instance
+			suite.client.populateDeploymentContainer(suite.ctx, testFunctionLabels, testCase.functionInstance, testContainer)
 
-	// Verify LivenessProbe is populated with default values
-	suite.Require().Equal(testContainer.LivenessProbe.InitialDelaySeconds, platformconfig.DefaultLivenessProbeConfiguration.InitialDelaySeconds)
-	suite.Require().Equal(testContainer.LivenessProbe.TimeoutSeconds, platformconfig.DefaultLivenessProbeConfiguration.TimeoutSeconds)
-	suite.Require().Equal(testContainer.LivenessProbe.PeriodSeconds, platformconfig.DefaultLivenessProbeConfiguration.PeriodSeconds)
-	suite.Require().Equal(testContainer.LivenessProbe.FailureThreshold, platformconfig.DefaultLivenessProbeConfiguration.FailureThreshold)
+			// Verify readinessProbe is populated with default values
+			suite.Require().Equal(testContainer.ReadinessProbe.InitialDelaySeconds, platformconfig.DefaultReadinessProbeConfiguration.InitialDelaySeconds)
+			suite.Require().Equal(testContainer.ReadinessProbe.TimeoutSeconds, platformconfig.DefaultReadinessProbeConfiguration.TimeoutSeconds)
+			suite.Require().Equal(testContainer.ReadinessProbe.PeriodSeconds, platformconfig.DefaultReadinessProbeConfiguration.PeriodSeconds)
+			suite.Require().Equal(testContainer.ReadinessProbe.FailureThreshold, platformconfig.DefaultReadinessProbeConfiguration.FailureThreshold)
+
+			// Verify LivenessProbe is populated with default values
+			suite.Require().Equal(testContainer.LivenessProbe.InitialDelaySeconds, platformconfig.DefaultLivenessProbeConfiguration.InitialDelaySeconds)
+			suite.Require().Equal(testContainer.LivenessProbe.TimeoutSeconds, platformconfig.DefaultLivenessProbeConfiguration.TimeoutSeconds)
+			suite.Require().Equal(testContainer.LivenessProbe.PeriodSeconds, platformconfig.DefaultLivenessProbeConfiguration.PeriodSeconds)
+			suite.Require().Equal(testContainer.LivenessProbe.FailureThreshold, platformconfig.DefaultLivenessProbeConfiguration.FailureThreshold)
+		})
+	}
 }
 
 func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
