@@ -2487,6 +2487,10 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		})
 	}
 
+	defaultPlatformConfiguration := platformconfig.GetDefaultPlatformConfiguration()
+
+	// enrichment ensures backward compatibility for functions created with controller versions < v1.14.5, where probes may be nil
+	common.EnrichProbe(&function.Spec.ReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
 	container.ReadinessProbe = &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
@@ -2500,6 +2504,8 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		FailureThreshold:    function.Spec.ReadinessProbe.FailureThreshold,
 	}
 
+	// enrichment ensures backward compatibility for functions created with controller versions < v1.14.5, where probes may be nil
+	common.EnrichProbe(&function.Spec.LivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 	container.LivenessProbe = &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
