@@ -755,19 +755,18 @@ func (suite *lazyTestSuite) TestEnrichDeploymentFromPlatformConfiguration() {
 func (suite *lazyTestSuite) TestEnrichProbesInPopulateDeploymentContainer() {
 	// Prepare
 	for _, testCase := range []struct {
-		name              string
+		name             string
 		functionInstance *nuclioio.NuclioFunction
 	}{
 		{
-			name:              "test-enrich-probes-function",
+			name:             "test-enrich-probes-function",
 			functionInstance: suite.getFunctionInstanceWithDefaultProbes("test-enrich-probes-function"),
-		},{
+		}, {
 			// Test backward compatibility for functions created with controller versions < v1.14.5, where probes are nil.
 			// After an upgrade, the new controller will access these fields.
-			name:              "test-empty-probes-function",
+			name:             "test-empty-probes-function",
 			functionInstance: &nuclioio.NuclioFunction{},
 		},
-
 	} {
 		suite.Run(testCase.name, func() {
 			testFunctionLabels := suite.client.getFunctionLabels(testCase.functionInstance)
