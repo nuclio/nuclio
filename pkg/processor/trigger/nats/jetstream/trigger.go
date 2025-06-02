@@ -34,9 +34,9 @@ import (
 
 type natsjetstream struct {
 	trigger.AbstractTrigger
-	configuration    *Configuration
-	stop             chan bool
-  consumer         jetstream.ConsumeContext
+	configuration *Configuration
+	stop          chan bool
+	consumer      jetstream.ConsumeContext
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -61,7 +61,7 @@ func newTrigger(parentLogger logger.Logger,
 	}
 	newTrigger.AbstractTrigger.Trigger = newTrigger
 
-  if err := newTrigger.validateConfiguration(); err != nil {
+	if err := newTrigger.validateConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate NATS JetStream trigger configuration")
 	}
 
@@ -101,7 +101,7 @@ func (n *natsjetstream) Start(checkpoint functionconfig.Checkpoint) error {
 	}
 
 	messageChan := make(chan jetstream.Msg, 64)
-  n.consumer, err = consumer.Consume(func(msg jetstream.Msg) { messageChan <- msg })
+	n.consumer, err = consumer.Consume(func(msg jetstream.Msg) { messageChan <- msg })
 	if err != nil {
 		return errors.Wrapf(err, "Can't consume from consumer %q", n.configuration.Consumer)
 	}
@@ -112,7 +112,7 @@ func (n *natsjetstream) Start(checkpoint functionconfig.Checkpoint) error {
 
 func (n *natsjetstream) Stop(force bool) (functionconfig.Checkpoint, error) {
 	n.stop <- true
-  n.consumer.Stop()
+	n.consumer.Stop()
 	return nil, nil
 }
 
