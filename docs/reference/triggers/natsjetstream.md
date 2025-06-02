@@ -19,6 +19,6 @@ triggers:
     kind: "natsjetstream"
     url: "nats://10.0.0.3:4222"
     attributes:
-      "stream": "mystream"
-      "consumer": "myconsumer"
+      stream: "mystream"
+      consumer: "myconsumer"
 ```

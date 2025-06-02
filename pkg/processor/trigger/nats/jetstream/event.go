@@ -42,9 +42,9 @@ func (e *Event) GetHeaders() map[string]interface{} {
 	return headers
 }
 
-// func (e *Event) GetPath() string {
-// 	return e.natsMessage.Subject
-// }
+func (e *Event) GetPath() string {
+	return e.natsMessage.Subject()
+}
 
 func (e *Event) GetSize() int {
 	return len(e.natsMessage.Data())

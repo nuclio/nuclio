@@ -36,7 +36,7 @@ type natsjetstream struct {
 	trigger.AbstractTrigger
 	configuration    *Configuration
 	stop             chan bool
-	natsSubscription *natsio.Subscription
+  consumer         jetstream.ConsumeContext
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -61,9 +61,8 @@ func newTrigger(parentLogger logger.Logger,
 	}
 	newTrigger.AbstractTrigger.Trigger = newTrigger
 
-	err = newTrigger.validateConfiguration()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to validate NATS trigger configuration")
+  if err := newTrigger.validateConfiguration(); err != nil {
+		return nil, errors.Wrap(err, "Failed to validate NATS JetStream trigger configuration")
 	}
 
 	return newTrigger, nil
@@ -93,16 +92,16 @@ func (n *natsjetstream) Start(checkpoint functionconfig.Checkpoint) error {
 		return errors.Wrapf(err, "Can't connect to NATS JetStream server %s", n.configuration.URL)
 	}
 
-	consumerContext, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	apiContext, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	consumer, err := jetstreamConnection.Consumer(consumerContext, n.configuration.Stream, n.configuration.Consumer)
+	consumer, err := jetstreamConnection.Consumer(apiContext, n.configuration.Stream, n.configuration.Consumer)
 	if err != nil {
 		return errors.Wrapf(err, "Can't subscribe to stream %q with consumer %q", n.configuration.Stream, n.configuration.Consumer)
 	}
 
 	messageChan := make(chan jetstream.Msg, 64)
-	_, err = consumer.Consume(func(msg jetstream.Msg) { messageChan <- msg })
+  n.consumer, err = consumer.Consume(func(msg jetstream.Msg) { messageChan <- msg })
 	if err != nil {
 		return errors.Wrapf(err, "Can't consume from consumer %q", n.configuration.Consumer)
 	}
@@ -113,7 +112,8 @@ func (n *natsjetstream) Start(checkpoint functionconfig.Checkpoint) error {
 
 func (n *natsjetstream) Stop(force bool) (functionconfig.Checkpoint, error) {
 	n.stop <- true
-	return nil, n.natsSubscription.Unsubscribe()
+  n.consumer.Stop()
+	return nil, nil
 }
 
 func (n *natsjetstream) listenForMessages(messageChan chan jetstream.Msg) {
@@ -122,7 +122,7 @@ func (n *natsjetstream) listenForMessages(messageChan chan jetstream.Msg) {
 		case natsMessage := <-messageChan:
 
 			// submit the event to the worker in the background and continue,
-			// as we don't mark anything when processing is done
+			// the message will be acknowledged on success or rejected on failure
 			go func() {
 				event := &Event{
 					natsMessage: natsMessage,
