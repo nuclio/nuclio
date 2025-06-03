@@ -2487,6 +2487,11 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 		})
 	}
 
+	// enrichment ensures backward compatibility for functions created with controller versions < v1.14.5, where probes may be nil
+	defaultPlatformConfiguration := platformconfig.GetDefaultPlatformConfiguration()
+	common.EnrichProbe(&function.Spec.ReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
+	common.EnrichProbe(&function.Spec.LivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
+
 	container.ReadinessProbe = &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{

@@ -221,9 +221,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 					"namespace", function.Namespace)
 				return nil
 			}
-
 		}
-
 	}
 
 	// wait for up to the default readiness timeout or whatever was set in the spec
