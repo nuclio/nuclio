@@ -371,7 +371,8 @@ Extended Response (includeOffline=true):
     | `logLevels`    | string[]   | Filter logs by log levels (e.g. `debug`, `info`, `error`) (optional).       |
     | `size`         | integer    | Max number of log entries to return (optional).                             |
     | `searchAfter`  | string[]   | For paginated log fetching (optional).                                      |
-    | `source`       | string     | Source to retrieve logs from (e.g. `elasticsearch`) (optional).                        |
+    | `source`       | string     | Source to retrieve logs from (e.g. `elasticsearch`) (optional).             |
+    | `from`         | int        | From parameter for pagination. Should be used in pair with `size`           |
 
 timeFilter example:
 ```
