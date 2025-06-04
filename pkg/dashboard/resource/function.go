@@ -853,6 +853,7 @@ func (fr *functionResource) populateProxyFunctionLogsOptions(request *http.Reque
 	proxyFunctionLogsOptions.LogLevels = fr.GetURLParamStringSliceValues("logLevels", request)
 	proxyFunctionLogsOptions.Size = fr.GetURLParamInt64OrDefault(request, "size", 100)
 	proxyFunctionLogsOptions.SearchAfter = fr.GetURLParamStringSliceValues("searchAfter", request)
+	proxyFunctionLogsOptions.From = fr.GetURLParamInt64OrDefault(request, "from", 0)
 	proxyFunctionLogsOptions.Source = platform.ProxyLogsSource(fr.GetURLParamStringOrDefault(
 		request,
 		"source",
