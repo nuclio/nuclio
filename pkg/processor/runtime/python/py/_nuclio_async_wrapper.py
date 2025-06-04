@@ -28,6 +28,7 @@ import selectors
 from wrapper_common import (
     EventSocketDisconnected,
     WrapperFatalException,
+    EventSocketException,
     JSONFormatterOverEventSocket,
     AbstractWrapper,
     create_logger,
