@@ -279,11 +279,18 @@ kube:
     index: {elastic-search-index} # index regexp
 ```
 
-To add a password, you need to create a secret with a password for the ElasticSearch or OpenSearch instance and mount it to nuclio-dashboard:
+To add a password, you need to create a secret with a password for the ElasticSearch or OpenSearch instance:
 ```
 kubectl create secret generic nuclio-es-secret --from-literal=password='password'
 ```
+and set this params in helm values:
+```yaml
+  elasticSearchPassword:
+    secretName: ""
+    secretKey: ""
+```
 
+OR mount it to nuclio-dashboard deployment manually:
 ```sh
 kubectl patch deployment nuclio-dashboard \
   -n <ns> \
