@@ -283,7 +283,7 @@ To add a password, you need to create a secret with a password for the ElasticSe
 ```
 kubectl create secret generic nuclio-es-secret --from-literal=password='password'
 ```
-and set this params in helm values:
+and set these params in helm values:
 ```yaml
   elasticSearchPassword:
     secretName: ""
