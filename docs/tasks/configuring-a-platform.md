@@ -262,3 +262,53 @@ Example:
     failureThreshold: 3
 ```
 
+
+<a id="elastic-search"></a>
+### Proxy logs from ElasticSearch or OpenSearch
+
+To proxy logs from ElasticSearch or OpenSearch, you can use the `elasticsearch` configuration section. This allows you to specify the connection details and how logs should be retrieved.
+
+Example:
+```yaml
+kube:
+  elasticSearchConfig:
+    url: {url}
+    sslVerificationMode: none # either "none" or "full"
+    username: {username}
+    customQueryParameter: {any_custom_query_parameter} # optional
+    index: {elastic-search-index} # index regexp
+```
+
+To add a password, you need to create a secret with a password for the ElasticSearch or OpenSearch instance:
+```
+kubectl create secret generic nuclio-es-secret --from-literal=password='password'
+```
+and set these parameters in helm values:
+```yaml
+  elasticSearchPassword:
+    secretName: ""
+    secretKey: ""
+```
+
+OR mount it to nuclio-dashboard deployment manually:
+```sh
+kubectl patch deployment nuclio-dashboard \
+  -n <ns> \
+  --type='json' \
+  -p='[
+    {
+      "op": "add",
+      "path": "/spec/template/spec/containers/0/env/-",
+      "value": {
+        "name": "NUCLIO_ELASTIC_SEARCH_PASSWORD",
+        "valueFrom": {
+          "secretKeyRef": {
+            "name": "nuclio-es-secret",
+            "key": "password"
+          }
+        }
+      }
+    }
+  ]'
+```
+
