@@ -23,6 +23,6 @@ sources:
   - https://github.com/nuclio/nuclio
 maintainers:
   - name: Tomer Shor
-    email: tomer_shor@mckinsey.com
+    url: https://github.com/TomerShor
   - name: Kate Molchanova
-    email: ekaterina_molchanova@mckinsey.com
+    url: https://github.com/rokatyy
