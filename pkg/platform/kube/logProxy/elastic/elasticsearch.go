@@ -175,9 +175,7 @@ func (e *ElasticSearchLogProxy) ProxyFunctionLogs(ctx context.Context, options *
 	}
 
 	if len(options.SearchAfter) > 0 {
-		for _, searchString := range options.SearchAfter {
-			searchRequest.SearchAfter = append(searchRequest.SearchAfter, searchString)
-		}
+		searchRequest.SearchAfter = append(searchRequest.SearchAfter, options.SearchAfter...)
 	}
 
 	resp, err := e.client.Search().

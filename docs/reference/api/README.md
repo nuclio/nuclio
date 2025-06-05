@@ -370,7 +370,7 @@ Extended Response (includeOffline=true):
     | `replicaNames` | string[]   | Filter logs by specific replica names (optional).                           |
     | `logLevels`    | string[]   | Filter logs by log levels (e.g. `debug`, `info`, `error`) (optional).       |
     | `size`         | integer    | Max number of log entries to return (optional).                             |
-    | `searchAfter`  | string[]   | For paginated log fetching (optional).                                      |
+    | `searchAfter`  | [types.FieldValue[]](https://github.com/elastic/elasticsearch-specification/blob/52c473efb1fb5320a5bac12572d0b285882862fb/specification/_types/common.ts#L25-L31)   | For paginated log fetching (optional).                                      |
     | `source`       | string     | Source to retrieve logs from (e.g. `elasticsearch`) (optional).             |
     | `from`         | int        | From parameter for pagination. Should be used in pair with `size`           |
 
