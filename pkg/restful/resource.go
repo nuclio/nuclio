@@ -290,7 +290,7 @@ func (ar *AbstractResource) GetURLParamStringSliceValues(paramKey string, reques
 	return values
 }
 
-func (ar *AbstractResource) GetURLParamESTypesValue(paramKey string, request *http.Request) []types.FieldValue {
+func (ar *AbstractResource) GetURLParamElasticSearchFieldValue(paramKey string, request *http.Request) []types.FieldValue {
 	paramValues, ok := request.URL.Query()[paramKey]
 	if !ok || len(paramValues) == 0 {
 		return nil
