@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
+	"github.com/elastic/go-elasticsearch/v9/typedapi/types"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -149,9 +150,9 @@ type ProxyFunctionLogsOptions struct {
 	LogLevels    []string    `json:"logLevels,omitempty"`
 
 	// limit options
-	Size        int64    `json:"size,omitempty"`
-	SearchAfter []string `json:"searchAfter,omitempty"`
-	From        int64    `json:"from,omitempty"`
+	Size        int64              `json:"size,omitempty"`
+	SearchAfter []types.FieldValue `json:"searchAfter,omitempty"`
+	From        int64              `json:"from,omitempty"`
 
 	Source ProxyLogsSource `json:"source,omitempty"`
 

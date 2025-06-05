@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/registry"
 
+	"github.com/elastic/go-elasticsearch/v9/typedapi/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -282,6 +283,23 @@ func (ar *AbstractResource) GetURLParamStringSliceValues(paramKey string, reques
 	for _, value := range paramValues {
 		parsed := ar.parseURLParamValue(value)
 		if strVal, ok := parsed.(string); ok {
+			values = append(values, strVal)
+		}
+	}
+
+	return values
+}
+
+func (ar *AbstractResource) GetURLParamESTypesValue(paramKey string, request *http.Request) []types.FieldValue {
+	paramValues, ok := request.URL.Query()[paramKey]
+	if !ok || len(paramValues) == 0 {
+		return nil
+	}
+
+	var values []types.FieldValue
+	for _, value := range paramValues {
+		parsed := ar.parseURLParamValue(value)
+		if strVal, ok := parsed.(types.FieldValue); ok {
 			values = append(values, strVal)
 		}
 	}
