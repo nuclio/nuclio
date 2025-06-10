@@ -167,9 +167,7 @@ Error - plugin: symbol ExpectedHandler not found in plugin github.com/nuclio/nuc
 				return createFunctionOptions
 			}(),
 
-			// TODO: remove deprecation notice once python 3.6 is made obsolete
-			ExpectedBriefErrorsMessage: `Python 3.6 runtime is deprecated and will soon not be supported. Please migrate your code and use Python 3.7 runtime or higher
-Handler not found [handler="main:expected_handler" || worker_id="0"]
+			ExpectedBriefErrorsMessage: `Handler not found [handler="main:expected_handler" || worker_id="0"]
 Caught unhandled exception while initializing [err="module 'main' has no attribute 'expected_handler'" || traceback="Traceback (most recent call last):
   File "/opt/nuclio/_nuclio_wrapper.py", line 409, in run_wrapper
     args.trigger_name)
