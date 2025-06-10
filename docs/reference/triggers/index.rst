@@ -10,5 +10,6 @@ Triggers
   kinesis
   mqtt
   nats
+  natsjetstream
   rabbitmq
   v3iostream
