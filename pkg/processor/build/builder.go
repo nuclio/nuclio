@@ -510,7 +510,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 
 	// python is just a reference
 	if b.options.FunctionConfig.Spec.Runtime == "python" {
-		b.options.FunctionConfig.Spec.Runtime = "python:3.9"
+		b.options.FunctionConfig.Spec.Runtime = "python:3.11"
 	}
 
 	// enrich project name
