@@ -108,7 +108,7 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan nuclio.Event) error {
 }
 
 // handle a set of events that were processed
-func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []interface{}, errors []error) {
+func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []nuclio.ProcessingResult, errors []error) {
 
 	// get the sec / nsec attributes
 	triggerAttributes := vip.getTriggerAttributes()

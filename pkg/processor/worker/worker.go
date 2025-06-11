@@ -17,7 +17,9 @@ limitations under the License.
 package worker
 
 import (
-	"net/http"
+	"encoding/json"
+	"fmt"
+	"io"
 	"sync/atomic"
 	"time"
 
@@ -62,31 +64,43 @@ func NewWorker(parentLogger logger.Logger,
 }
 
 // ProcessEvent sends the event to the associated runtime
-func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error) {
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
 
-	// check if there was a processing error. if so, log it
-	if err != nil {
-		atomic.AddUint64(&w.statistics.EventsHandledError, 1)
-	} else {
-		success := true
-
-		switch typedResponse := response.(type) {
-		case *nuclio.Response:
-			success = typedResponse.StatusCode < http.StatusBadRequest
-		case nuclio.Response:
-			success = typedResponse.StatusCode < http.StatusBadRequest
-		}
-
-		if success {
-			atomic.AddUint64(&w.statistics.EventsHandledSuccess, 1)
-		} else {
-			atomic.AddUint64(&w.statistics.EventsHandledError, 1)
-		}
+	if response == nil {
+		return nil, err
 	}
 
-	return response, err
+	// always translate the response to a nuclio.Response
+	switch typedResponse := response.(type) {
+	case *nuclio.Response:
+		return typedResponse, err
+	case nuclio.Response:
+		return &typedResponse, err
+	case *nuclio.ResponseStream:
+		return typedResponse, err
+	case nuclio.ResponseStream:
+		return &typedResponse, err
+	case io.ReadCloser:
+		// if the response is an io.ReadCloser, create a steamed response
+		return nuclio.NewCustomResponseStream("", nil, 0, typedResponse, nil), err
+	case []byte:
+		return &nuclio.Response{
+			Body: typedResponse,
+		}, err
+	case string:
+		return &nuclio.Response{
+			Body: []byte(typedResponse),
+		}, err
+	default:
+		// try to JSON-marshal the value
+		if marshaled, marshalErr := json.Marshal(typedResponse); marshalErr == nil {
+			return &nuclio.Response{Body: marshaled}, err
+		}
+		// fallback to string formatting if JSON marshalling fails
+		return &nuclio.Response{Body: []byte(fmt.Sprintf("%v", typedResponse))}, err
+	}
 }
 
 func (w *Worker) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
@@ -199,4 +213,12 @@ func (w *Worker) IsAsync() bool {
 
 func (w *Worker) IsBusy() bool {
 	return w.runtime.IsBusy()
+}
+
+func (w *Worker) IncrementEventProcessingMetric(success bool) {
+	if success {
+		atomic.AddUint64(&w.statistics.EventsHandledSuccess, 1)
+	} else {
+		atomic.AddUint64(&w.statistics.EventsHandledError, 1)
+	}
 }

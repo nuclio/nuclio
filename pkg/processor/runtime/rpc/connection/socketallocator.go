@@ -121,7 +121,7 @@ func (sa *SocketAllocator) Release(connection eventprocessor.EventProcessor) {
 	if connection.GetStatus() == status.RestartRequired {
 		sa.SetStatus(status.RestartRequired)
 	}
-	sa.allocator.Release(connection)
+	sa.allocator.Release(connection, false)
 }
 
 func (sa *SocketAllocator) GetAddressesForWrapperStart() ([]string, string) {

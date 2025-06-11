@@ -127,7 +127,7 @@ func (ca *ConnectionAllocator) Release(connection eventprocessor.EventProcessor)
 			default:
 				// currently this is not really possible that status will become ready without this flow
 				// just for future
-				ca.allocator.Release(connection)
+				ca.allocator.Release(connection, false)
 				return
 			}
 		}
@@ -180,7 +180,7 @@ func (ca *ConnectionAllocator) Release(connection eventprocessor.EventProcessor)
 			}
 		}
 	default:
-		ca.allocator.Release(connection)
+		ca.allocator.Release(connection, false)
 	}
 }
 

@@ -199,3 +199,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	zombiezen.com/go/capnproto2 v2.17.0+incompatible // indirect
 )
+
+replace github.com/nuclio/nuclio-sdk-go => github.com/rokatyy/nuclio-sdk-go v0.0.0-20250610151951-a35b2f0e7b5b

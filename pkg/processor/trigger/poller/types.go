@@ -58,9 +58,9 @@ func NewConfiguration(id string,
 type Poller interface {
 	trigger.Trigger
 
-	// read new events into a channel
+	// GetNewEvents reads new events into a channel
 	GetNewEvents(chan nuclio.Event) error
 
-	// handle a set of events that were processed
-	PostProcessEvents([]nuclio.Event, []interface{}, []error)
+	// PostProcessEvents handles a set of events that were processed
+	PostProcessEvents([]nuclio.Event, []nuclio.ProcessingResult, []error)
 }

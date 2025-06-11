@@ -56,7 +56,8 @@ func (a *nonBlockingSingletonAllocator) SetObjects(objects []EventProcessor) err
 	return nil
 }
 
-func (a *nonBlockingSingletonAllocator) Release(processor EventProcessor) {
+func (a *nonBlockingSingletonAllocator) Release(processor EventProcessor, processedSuccessfully bool) {
+	processor.IncrementEventProcessingMetric(processedSuccessfully)
 }
 
 func (a *nonBlockingSingletonAllocator) GetObjects() []EventProcessor {

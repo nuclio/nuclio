@@ -157,7 +157,7 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 				}
 
 				// release the worker
-				n.WorkerAllocator.Release(workerInstance)
+				n.WorkerAllocator.Release(workerInstance, false)
 			}()
 
 		case <-n.stop:

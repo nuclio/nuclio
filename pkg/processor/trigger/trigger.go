@@ -175,7 +175,7 @@ func (at *AbstractTrigger) GetName() string {
 // AllocateWorkerAndSubmitEvent submits event to allocated worker
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	functionLogger logger.Logger,
-	timeout time.Duration) (response interface{}, submitError error, processError error) {
+	timeout time.Duration) (response nuclio.ProcessingResult, submitError error, processError error) {
 
 	var workerInstance eventprocessor.EventProcessor
 
@@ -192,7 +192,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	response, processError = at.SubmitEventToWorker(functionLogger, workerInstance, event)
 
 	// release worker when we're done
-	at.WorkerAllocator.Release(workerInstance)
+	at.WorkerAllocator.Release(workerInstance, false)
 
 	return
 }
@@ -200,13 +200,13 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 // AllocateWorkerAndSubmitEvents submits multiple events to an allocated worker
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	functionLogger logger.Logger,
-	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
+	timeout time.Duration) (responses []nuclio.ProcessingResult, submitError error, processErrors []error) {
 	var workerInstance eventprocessor.EventProcessor
 
 	defer at.HandleSubmitPanic(workerInstance, &submitError)
 
 	// create responses / errors slice
-	eventResponses := make([]interface{}, 0, len(events))
+	eventResponses := make([]nuclio.ProcessingResult, 0, len(events))
 	eventErrors := make([]error, 0, len(events))
 
 	// allocate a worker
@@ -228,7 +228,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	}
 
 	// release worker
-	at.WorkerAllocator.Release(workerInstance)
+	at.WorkerAllocator.Release(workerInstance, false)
 
 	return eventResponses, nil, eventErrors
 }
@@ -283,7 +283,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance eventprocessor.Event
 		*submitError = errors.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
-			at.WorkerAllocator.Release(workerInstance)
+			at.WorkerAllocator.Release(workerInstance, false)
 		}
 
 		at.UpdateStatistics(false, 1)
@@ -293,7 +293,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance eventprocessor.Event
 // SubmitEventToWorker submits events to worker and returns response
 func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	workerInstance eventprocessor.EventProcessor,
-	event nuclio.Event) (response interface{}, processError error) {
+	event nuclio.Event) (response nuclio.ProcessingResult, processError error) {
 
 	event, err := at.prepareEvent(event, workerInstance)
 	if err != nil {
@@ -481,7 +481,7 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 		at.SubmitBatchAndSendResponses(batch, responseChans, workerInstance)
 
 		// release worker when we're done
-		at.WorkerAllocator.Release(workerInstance)
+		at.WorkerAllocator.Release(workerInstance, false)
 		at.Logger.Debug("Batch processing finished")
 	}
 }
