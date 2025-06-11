@@ -105,12 +105,10 @@ func (a *blockingPoolAllocator) Stop() error {
 	return nil
 }
 
-func (a *blockingPoolAllocator) Release(object EventProcessor, processedSuccessfully bool) {
+func (a *blockingPoolAllocator) Release(object EventProcessor) {
 	if object == nil {
 		return
 	}
-
-	object.IncrementEventProcessingMetric(processedSuccessfully)
 
 	if a.IsTerminated() {
 		a.logger.DebugWith("Allocator is terminated, not releasing object",
@@ -241,8 +239,7 @@ func (nba *nonBlockingPoolAllocator) allocate() EventProcessor {
 }
 
 // Release is a no-op for non-blocking allocators
-func (nba *nonBlockingPoolAllocator) Release(processor EventProcessor, processedSuccessfully bool) {
-	processor.IncrementEventProcessingMetric(processedSuccessfully)
+func (nba *nonBlockingPoolAllocator) Release(processor EventProcessor) {
 }
 
 func (nba *nonBlockingPoolAllocator) Stop() error {

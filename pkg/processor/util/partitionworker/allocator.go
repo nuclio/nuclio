@@ -64,7 +64,7 @@ func (wa *PooledWorkerAllocator) AllocateWorker(topic string,
 }
 
 func (wa *PooledWorkerAllocator) ReleaseWorker(cookie interface{}, workerInstance eventprocessor.EventProcessor) error {
-	wa.workerAllocator.Release(workerInstance, false)
+	wa.workerAllocator.Release(workerInstance)
 
 	return nil
 }
@@ -183,7 +183,7 @@ func (wa *StaticWorkerAllocator) Stop() error {
 	// pool
 	for _, workerChan := range wa.workerChans {
 		workerInstance := <-workerChan
-		wa.workerAllocator.Release(workerInstance, false)
+		wa.workerAllocator.Release(workerInstance)
 	}
 
 	wa.logger.DebugWith("Workers released back to worker allocator", "num", len(wa.workerChans))

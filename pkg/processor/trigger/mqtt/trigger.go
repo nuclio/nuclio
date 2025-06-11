@@ -175,7 +175,7 @@ func (t *AbstractTrigger) handleMessage(client mqttclient.Client, message mqttcl
 			url:     t.configuration.URL,
 		})
 
-	workerAllocator.Release(workerInstance, false)
+	workerAllocator.Release(workerInstance)
 }
 
 func (t *AbstractTrigger) allocateWorker(message mqttclient.Message) (eventprocessor.EventProcessor, eventprocessor.Allocator, error) {

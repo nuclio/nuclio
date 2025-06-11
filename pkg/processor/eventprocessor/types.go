@@ -38,7 +38,7 @@ type Allocator interface {
 	Allocate(timeout time.Duration) (EventProcessor, error)
 
 	// Release releases event processor instance
-	Release(processor EventProcessor, processedSuccessfully bool)
+	Release(processor EventProcessor)
 
 	// GetObjects gets direct access to all event processors for things like management / housekeeping
 	GetObjects() []EventProcessor
@@ -137,7 +137,4 @@ type EventProcessor interface {
 
 	// IsBusy checks if the event processor is busy processing events
 	IsBusy() bool
-
-	// IncrementEventProcessingMetric increments an event processing metric
-	IncrementEventProcessingMetric(success bool)
 }

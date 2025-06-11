@@ -127,6 +127,3 @@ func (m *MockEventProcessor) IsAsync() bool {
 func (m *MockEventProcessor) IsBusy() bool {
 	return m.Called().Bool(0)
 }
-func (m *MockEventProcessor) IncrementEventProcessingMetric(success bool) {
-	m.Called(success)
-}

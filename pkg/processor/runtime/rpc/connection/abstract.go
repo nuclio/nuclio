@@ -578,9 +578,6 @@ func (be *AbstractEventConnection) IsBusy() bool {
 	return false
 }
 
-func (be *AbstractEventConnection) IncrementEventProcessingMetric(success bool) {
-}
-
 func (be *AbstractEventConnection) Continue() error {
 	return nuclio.ErrNotImplemented
 }

@@ -211,7 +211,7 @@ func (h *http) allocateWorker(timeout time.Duration) (eventprocessor.EventProces
 	// TODO: event already used?
 	workerIndex := workerInstance.GetIndex()
 	if workerIndex < 0 || workerIndex >= len(h.events) {
-		h.WorkerAllocator.Release(workerInstance, false)
+		h.WorkerAllocator.Release(workerInstance)
 		return nil, -1, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events))
 	}
 	return workerInstance, workerIndex, nil
@@ -487,13 +487,13 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	// if any error happened or response is not a stream, then release the worker instance asap
 	if errorDuringProcessing ||
 		response == nil || response != nil && !response.IsStream() {
-		h.WorkerAllocator.Release(workerInstance, errorDuringProcessing)
+		h.WorkerAllocator.Release(workerInstance)
 		workerReleased = true
 	} else {
 		// in any other case (for now, only streaming case), defer the release of the worker instance
 		defer func() {
 			if !workerReleased {
-				h.WorkerAllocator.Release(workerInstance, errorDuringProcessing)
+				h.WorkerAllocator.Release(workerInstance)
 			}
 		}()
 	}
@@ -592,7 +592,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 				h.Logger.ErrorWith("Failed to copy response body",
 					"error", err)
 				ctx.Response.SetStatusCode(nethttp.StatusInternalServerError)
-				errorDuringProcessing = true
 				return
 			}
 		}
@@ -606,7 +605,6 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	// set status code if set
 	if response.GetStatusCode() != 0 {
 		ctx.Response.SetStatusCode(response.GetStatusCode())
-		errorDuringProcessing = response.GetStatusCode() >= fasthttp.StatusBadRequest
 	}
 }
 

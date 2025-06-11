@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"sync/atomic"
 	"time"
 
@@ -67,6 +68,8 @@ func NewWorker(parentLogger logger.Logger,
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error) {
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
+
+	w.calculateProcessingMetrics(response, err)
 
 	if response == nil {
 		return nil, err
@@ -215,10 +218,35 @@ func (w *Worker) IsBusy() bool {
 	return w.runtime.IsBusy()
 }
 
-func (w *Worker) IncrementEventProcessingMetric(success bool) {
+func (w *Worker) calculateProcessingMetrics(response interface{}, err error) {
+	// check if there was a processing error. if so, log it
+	if err != nil {
+		atomic.AddUint64(&w.statistics.EventsHandledError, 1)
+		return
+	}
+	success := true
+	stream := false
+
+	if typedResponse, ok := response.(nuclio.ProcessingResult); ok {
+		if typedResponse.GetStatusCode() > 0 {
+			success = typedResponse.GetStatusCode() < http.StatusBadRequest
+		}
+		stream = typedResponse.IsStream()
+	}
+
+	if stream {
+		if success {
+			atomic.AddUint64(&w.statistics.EventsStreamingStartedSuccessfully, 1)
+		} else {
+			atomic.AddUint64(&w.statistics.EventsStreamingStartedError, 1)
+		}
+		return
+	}
+
 	if success {
 		atomic.AddUint64(&w.statistics.EventsHandledSuccess, 1)
 	} else {
 		atomic.AddUint64(&w.statistics.EventsHandledError, 1)
 	}
+
 }

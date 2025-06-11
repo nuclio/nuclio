@@ -59,7 +59,7 @@ func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	suite.Require().Same(eventProcessor1, allocatedEventProcessor1)
 
 	// release shouldn't do anything
-	suite.Require().NotPanics(func() { allocator.Release(eventProcessor1, false) })
+	suite.Require().NotPanics(func() { allocator.Release(eventProcessor1) })
 }
 
 func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocator() {
@@ -96,14 +96,14 @@ func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocator() {
 	suite.Require().Same(firstAllocatedEventProcessor1, nextAllocatedEventProcessor1)
 
 	// release the first event processor
-	allocator.Release(eventProcessor1, false)
+	allocator.Release(eventProcessor1)
 
 	// ensure that allocator allocates the second event processor anyway
 	nextAllocatedEventProcessor1, err = allocator.Allocate(time.Second)
 	suite.Require().NoError(err)
 	suite.Require().Same(eventProcessor2, nextAllocatedEventProcessor1)
 
-	allocator.Release(eventProcessor2, false)
+	allocator.Release(eventProcessor2)
 
 	mockEventProcessor2.On("GetStatus").Return(status.Stopped).Twice()
 
@@ -127,8 +127,8 @@ func (suite *AllocatorTestSuite) TestNonBlockingPoolAllocator() {
 	suite.Require().ErrorIs(err, eventprocessor.ErrNoAvailableObjects)
 	suite.Require().Nil(allocatedEventProcessor)
 
-	allocator.Release(eventProcessor1, false)
-	allocator.Release(eventProcessor2, false)
+	allocator.Release(eventProcessor1)
+	allocator.Release(eventProcessor2)
 
 	mockEventProcessor1.AssertExpectations(suite.T())
 	mockEventProcessor2.AssertExpectations(suite.T())
@@ -205,7 +205,7 @@ func (suite *AllocatorTestSuite) TestFixedBlockingPoolAllocator() {
 	suite.Require().Nil(failedAllocationEventProcessor)
 
 	// release the second event processor
-	suite.Require().NotPanics(func() { allocator.Release(eventProcessor2, false) })
+	suite.Require().NotPanics(func() { allocator.Release(eventProcessor2) })
 
 	// allocate again - should allocate second event processor
 	thirdAllocatedEventProcessor, err := allocator.Allocate(time.Hour)
@@ -294,7 +294,7 @@ func benchmarkParallelAllocation(b *testing.B, numberOfEventProcessors int, allo
 			if err != nil {
 				b.Error(err)
 			}
-			allocator.Release(processor, false)
+			allocator.Release(processor)
 		}
 	})
 }

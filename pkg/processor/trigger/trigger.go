@@ -192,7 +192,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	response, processError = at.SubmitEventToWorker(functionLogger, workerInstance, event)
 
 	// release worker when we're done
-	at.WorkerAllocator.Release(workerInstance, false)
+	at.WorkerAllocator.Release(workerInstance)
 
 	return
 }
@@ -228,7 +228,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	}
 
 	// release worker
-	at.WorkerAllocator.Release(workerInstance, false)
+	at.WorkerAllocator.Release(workerInstance)
 
 	return eventResponses, nil, eventErrors
 }
@@ -283,7 +283,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance eventprocessor.Event
 		*submitError = errors.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
-			at.WorkerAllocator.Release(workerInstance, false)
+			at.WorkerAllocator.Release(workerInstance)
 		}
 
 		at.UpdateStatistics(false, 1)
@@ -481,7 +481,7 @@ func (at *AbstractTrigger) StartBatcher(batchTimeout time.Duration, workerAvaila
 		at.SubmitBatchAndSendResponses(batch, responseChans, workerInstance)
 
 		// release worker when we're done
-		at.WorkerAllocator.Release(workerInstance, false)
+		at.WorkerAllocator.Release(workerInstance)
 		at.Logger.Debug("Batch processing finished")
 	}
 }
