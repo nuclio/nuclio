@@ -64,11 +64,10 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 
 func (py *python) RunWrapper(eventSocketPaths []string, controlSocketPath string) (*os.Process, error) {
 
-	// TODO: remove warning once python 3.6 is not supported
 	_, runtimeVersion := common.GetRuntimeNameAndVersion(py.configuration.Spec.Runtime)
-	if runtimeVersion == "" || runtimeVersion == "3.6" {
-		py.Logger.Warn("Python 3.6 runtime is deprecated and will soon not be supported. " +
-			"Migrate your code and use Python 3.9 runtime (`python:3.9`) or higher")
+	if runtimeVersion == "" || runtimeVersion == "3.7" || runtimeVersion == "3.8" {
+		py.Logger.Warn("Python 3.7 and 3.8 runtimes are deprecated and will soon not be supported. " +
+			"Migrate your code and use Python 3.11 runtime (`python:3.11`) or higher")
 	}
 
 	wrapperScriptPath := py.getWrapperScriptPath()

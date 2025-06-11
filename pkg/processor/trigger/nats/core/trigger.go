@@ -61,8 +61,7 @@ func newTrigger(parentLogger logger.Logger,
 	}
 	newTrigger.AbstractTrigger.Trigger = newTrigger
 
-	err = newTrigger.validateConfiguration()
-	if err != nil {
+	if err := newTrigger.validateConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate NATS trigger configuration")
 	}
 

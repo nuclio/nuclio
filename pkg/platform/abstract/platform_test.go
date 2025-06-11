@@ -427,7 +427,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: -3,
 				Timeout:   "1s",
 			},
-			runtime:     "python:3.9",
+			runtime:     "python:3.11",
 			triggerKind: "http",
 			expectError: true,
 		},
@@ -438,7 +438,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: 1,
 				Timeout:   "test",
 			},
-			runtime:     "python:3.9",
+			runtime:     "python:3.11",
 			triggerKind: "http",
 			expectError: true,
 		},
@@ -449,7 +449,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateBatchConfiguration() {
 				BatchSize: 1,
 				Timeout:   "1ms",
 			},
-			runtime:     "python:3.9",
+			runtime:     "python:3.11",
 			triggerKind: "http",
 		},
 		{
@@ -2260,6 +2260,21 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 			}
 		})
 	}
+}
+
+func (suite *AbstractPlatformTestSuite) TestEnrichPythonVersion() {
+	functionConfig := functionconfig.NewConfig()
+	functionConfig.Meta.Name = "f1"
+	functionConfig.Meta.Namespace = "default"
+	functionConfig.Spec.Runtime = "python"
+
+	err := suite.Platform.EnrichFunctionConfig(suite.ctx, functionConfig)
+	suite.Require().NoError(err, "Failed to enrich function")
+
+	// check that the python version is set to the default value
+	suite.Require().Equal("python:3.11",
+		functionConfig.Spec.Runtime,
+		"Python version was not set to the default value")
 }
 
 // Test that GetProcessorLogs() generates the expected formattedPodLogs and briefErrorsMessage

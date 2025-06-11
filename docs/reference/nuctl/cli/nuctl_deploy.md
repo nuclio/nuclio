@@ -51,7 +51,7 @@ nuctl deploy function-name [flags]
       --run-as-user int                    Run function process with user ID (default -1)
       --run-image string                   Name of an existing image to deploy (default - build a new image to deploy)
       --run-registry string                URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)
-      --runtime string                     Runtime (for example, "golang", "python:3.9")
+      --runtime string                     Runtime (for example, "golang", "python:3.11")
       --runtime-attrs string               JSON-encoded runtime attributes for the function
       --source string                      The function's source code (overrides "path")
       --target-cpu int                     Target CPU-usage percentage when auto-scaling (default -1)

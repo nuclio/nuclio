@@ -205,7 +205,11 @@ class NuclioPatcher:
             "NUCLIO_ARCH": self._arch,
             "DOCKER_IMAGES_RULES": image_rules,
         }
-        cmd = ["make", "docker-images", "push-docker-images"]
+        cmd = [
+            "make",
+            "docker-images",
+            "push-docker-images",
+        ]
         self._exec_local(cmd, live=True, env=env)
 
     @Helper.run_on_all_targets
