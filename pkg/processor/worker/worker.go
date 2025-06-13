@@ -72,7 +72,9 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	w.calculateProcessingMetrics(response, err)
 
 	if response == nil {
-		return nil, err
+		// if the response is nil, return an empty response with the error
+		// it might be that go runtime handler returned nil, so we want to make sure that we return a valid response
+		return &nuclio.Response{}, err
 	}
 
 	// always translate the response to a nuclio.Response
