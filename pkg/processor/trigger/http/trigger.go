@@ -553,12 +553,12 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 	for headerKey, headerValue := range response.GetHeaders() {
 
 		// check if it's a special header
-		if strings.EqualFold(headerKey, "X-nuclio-filestream-delete-after-send") {
+		if strings.EqualFold(headerKey, headers.FileStreamDeleteAfterSend) {
 			fileStreamDeleteAfterSend = true
 		} else {
 			switch typedHeaderValue := headerValue.(type) {
 			case string:
-				if strings.EqualFold(headerKey, "X-nuclio-filestream-path") {
+				if strings.EqualFold(headerKey, headers.FileStreamPath) {
 					fileStreamPath = headerValue.(string)
 				} else {
 					ctx.Response.Header.Set(headerKey, typedHeaderValue)
@@ -615,6 +615,10 @@ func (h *http) allocateEvents(size int) {
 	}
 }
 
+// setLogs attaches user code logs to the HTTP response header (if enabled).
+// It finalizes the buffer logger output as a JSON array and sets it in the response header,
+// unless the content size exceeds the header size limit (4096 bytes).
+// This allows returning logs from the user code execution back to the client.
 func (h *http) setLogs(ctx *fasthttp.RequestCtx, bufferLogger *nucliozap.BufferLogger, responseLogLevel []byte) {
 	if responseLogLevel == nil {
 		return

@@ -71,6 +71,10 @@ const (
 	FilterContains = "X-Nuclio-Filter-Contains"
 	StreamNoAck    = "X-Nuclio-Stream-No-Ack"
 	Arguments      = "X-Nuclio-Arguments"
+
+	// streaming file via HTTP trigger
+	FileStreamDeleteAfterSend = "X-nuclio-filestream-delete-after-send"
+	FileStreamPath            = "X-nuclio-filestream-path"
 )
 
 func IsNuclioHeader(headerName string) bool {
