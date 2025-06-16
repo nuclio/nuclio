@@ -77,7 +77,7 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 		return &nuclio.Response{}, err
 	}
 
-	// always translate the response to a nuclio.Response
+	// always translate the response to a nuclio.ProcessingResult
 	switch typedResponse := response.(type) {
 	case *nuclio.Response:
 		return typedResponse, err
@@ -88,7 +88,7 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	case nuclio.ResponseStream:
 		return &typedResponse, err
 	case io.ReadCloser:
-		// if the response is an io.ReadCloser, create a steamed response
+		// if the response is an io.ReadCloser, create a response stream
 		return nuclio.NewCustomResponseStream("", nil, 0, typedResponse, nil), err
 	case []byte:
 		return &nuclio.Response{

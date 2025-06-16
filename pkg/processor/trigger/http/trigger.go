@@ -622,7 +622,7 @@ func (h *http) setLogs(ctx *fasthttp.RequestCtx, bufferLogger *nucliozap.BufferL
 	// remove trailing comma
 	logContents := bufferLogger.Buffer.Bytes()
 
-	// if there are no logs, we will only happen the open bracket [ we wrote above and we
+	// if there are no logs, we will only have the open bracket '[' we wrote before processing and we
 	// want to keep that. so only remove the last character if there's more than the open bracket
 	if len(logContents) > 1 {
 		logContents = logContents[:len(logContents)-1]
