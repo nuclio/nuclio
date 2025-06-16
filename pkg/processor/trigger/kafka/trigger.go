@@ -707,16 +707,8 @@ func (k *kafka) explicitAckHandler(
 		"partition", partitionNumber)
 }
 
-func (k *kafka) resolveNoAckMessage(response interface{}, submittedEvent *submittedEvent) error {
-
-	// convert response to nuclio response:
-	var responseHeaders map[string]interface{}
-	switch typedResponse := response.(type) {
-	case nuclio.Response:
-		responseHeaders = typedResponse.Headers
-	case *nuclio.Response:
-		responseHeaders = typedResponse.Headers
-	}
+func (k *kafka) resolveNoAckMessage(response nuclio.ProcessingResult, submittedEvent *submittedEvent) error {
+	responseHeaders := response.GetHeaders()
 
 	// check response header for no-ack
 	if noAckHeader, exists := responseHeaders[headers.StreamNoAck]; exists {

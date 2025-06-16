@@ -70,7 +70,7 @@ type Allocator interface {
 
 type EventProcessor interface {
 	// ProcessEvent processes a single event
-	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error)
+	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error)
 
 	// ProcessEventBatch processes batch of events
 	ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error)

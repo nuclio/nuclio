@@ -356,13 +356,13 @@ func (be *AbstractEventConnection) WaitForStart(timeout time.Duration) error {
 	return nil
 }
 
-func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error) {
 	processingResult, err := be.processItem(event, functionLogger)
 	if err != nil {
 		return nil, err
 	}
 	// this is a single event processing flow, so we only take the first item from the result
-	return nuclio.Response{
+	return &nuclio.Response{
 		Body:        processingResult.Results[0].DecodedBody,
 		ContentType: processingResult.Results[0].ContentType,
 		Headers:     processingResult.Results[0].Headers,

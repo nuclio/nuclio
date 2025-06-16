@@ -145,7 +145,7 @@ func (suite *TestConnectionAllocatorSuite) TestReplaceConnection() {
 	go func() {
 		response, err := connection.ProcessEvent(event, suite.logger)
 		suite.Require().NoError(err)
-		suite.Require().Equal("hello", string(response.(nuclio.Response).Body))
+		suite.Require().Equal("hello", string(response.GetBody().([]byte)))
 		cancelFunc()
 	}()
 	connection.(*Connection).resultChan <- &result.BatchedResults{

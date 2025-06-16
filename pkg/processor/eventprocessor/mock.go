@@ -34,9 +34,9 @@ type MockEventProcessor struct {
 	mock.Mock
 }
 
-func (m *MockEventProcessor) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+func (m *MockEventProcessor) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error) {
 	args := m.Called(event, functionLogger)
-	return args.Get(0), args.Error(1)
+	return args.Get(0).(nuclio.ProcessingResult), args.Error(1)
 }
 
 func (m *MockEventProcessor) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {

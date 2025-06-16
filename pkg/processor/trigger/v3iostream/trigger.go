@@ -482,16 +482,9 @@ func (vs *v3iostream) explicitAckHandler(
 	}
 }
 
-func (vs *v3iostream) resolveNoAckMessage(response interface{}, submittedEvent *submittedEvent) error {
+func (vs *v3iostream) resolveNoAckMessage(response nuclio.ProcessingResult, submittedEvent *submittedEvent) error {
 
-	// convert response to nuclio response:
-	var responseHeaders map[string]interface{}
-	switch typedResponse := response.(type) {
-	case nuclio.Response:
-		responseHeaders = typedResponse.Headers
-	case *nuclio.Response:
-		responseHeaders = typedResponse.Headers
-	}
+	responseHeaders := response.GetHeaders()
 
 	// check response header for no-ack
 	if noAckHeader, exists := responseHeaders[headers.StreamNoAck]; exists {
