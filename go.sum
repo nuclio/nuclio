@@ -356,6 +356,8 @@ github.com/nuclio/logger v0.0.1 h1:e+vT/Ug65RC+u0QX2J+lq3P57ZBwJ1ZA6Q2LCEcViwE=
 github.com/nuclio/logger v0.0.1/go.mod h1:ttazNAqTxKjQ7XrGDZxecumGa9KCIuJh88gzFY1mRXo=
 github.com/nuclio/logger-appinsights v0.0.2 h1:5lRxjXCRxKMBnrS49bonQAAHEGe0/K3oJ4Eq8TDko6o=
 github.com/nuclio/logger-appinsights v0.0.2/go.mod h1:SRy3eM+sWa2ZeI0QpJg1O0Ja+WcsRXtlE2oUjPMXNck=
+github.com/nuclio/nuclio-sdk-go v0.5.2 h1:QZDGK3F4tKrRTlbKCDN/7XbngW3Q0yrfKfWrPFsWgJU=
+github.com/nuclio/nuclio-sdk-go v0.5.2/go.mod h1:nJfISTlsf+blZKhIfmHDDrZupMjyRNnBl6tNM9qweAg=
 github.com/nuclio/zap v0.3.1 h1:PCcKrLtnYJp1raOmwtvSLGxmgfQdGWEpYz0F1U9JPeQ=
 github.com/nuclio/zap v0.3.1/go.mod h1:2kDQ+ocGbA3Te120+F1rU9cjsaP5spYt/cRMTSHzz+0=
 github.com/nwaples/rardecode/v2 v2.0.0-beta.2 h1:e3mzJFJs4k83GXBEiTaQ5HgSc/kOK8q0rDaRO0MPaOk=
@@ -405,8 +407,6 @@ github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6L
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
-github.com/rokatyy/nuclio-sdk-go v0.0.0-20250610151951-a35b2f0e7b5b h1:U+fXaQZIR2lm4D1kprESny1eLgKe8NC/iZqJUcoXYA8=
-github.com/rokatyy/nuclio-sdk-go v0.0.0-20250610151951-a35b2f0e7b5b/go.mod h1:nJfISTlsf+blZKhIfmHDDrZupMjyRNnBl6tNM9qweAg=
 github.com/rs/dnscache v0.0.0-20211102005908-e0241e321417 h1:Lt9DzQALzHoDwMBGJ6v8ObDPR0dzr2a6sXTB1Fq7IHs=
 github.com/rs/dnscache v0.0.0-20211102005908-e0241e321417/go.mod h1:qe5TWALJ8/a1Lqznoc5BDHpYX/8HU60Hm2AwRmqzxqA=
 github.com/rs/xid v1.5.0 h1:mKX4bl4iPYJtEIxp6CYiUuLQ/8DYMoz0PUdtGgMFRVc=

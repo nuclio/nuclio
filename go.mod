@@ -35,7 +35,7 @@ require (
 	github.com/nuclio/gosecretive v0.0.3
 	github.com/nuclio/logger v0.0.1
 	github.com/nuclio/logger-appinsights v0.0.2
-	github.com/nuclio/nuclio-sdk-go v0.5.1
+	github.com/nuclio/nuclio-sdk-go v0.5.2
 	github.com/nuclio/zap v0.3.1
 	github.com/opensearch-project/opensearch-go/v4 v4.4.0
 	github.com/prometheus/client_golang v1.16.0
@@ -199,5 +199,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
 	zombiezen.com/go/capnproto2 v2.17.0+incompatible // indirect
 )
-
-replace github.com/nuclio/nuclio-sdk-go => github.com/rokatyy/nuclio-sdk-go v0.0.0-20250610151951-a35b2f0e7b5b
