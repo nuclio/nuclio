@@ -39,8 +39,8 @@ func (suite *TestSuite) TestDependenciesAlignment() {
 	// Ensure only the expected packages are in the map
 	// If there are any additional packages, the test will fail
 	expectedPackages := map[string]bool{
-		nuclioSDKRequirement: true,
-		msgPackRequirement:   true,
+		extractPackageName(nuclioSDKRequirement): true,
+		extractPackageName(msgPackRequirement):   true,
 	}
 	suite.Require().Equal(expectedPackages, packages)
 }
@@ -57,28 +57,28 @@ func parseRequirementsFile(filePath string, excludeList []string) (map[string]bo
 
 	// Map to store each line
 	packages := make(map[string]bool)
+	excludeMap := make(map[string]struct{}, len(excludeList))
+	for _, ex := range excludeList {
+		excludeMap[strings.ToLower(ex)] = struct{}{}
+	}
 
 	// Loop over each line in the file
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
 
-		// Trim any surrounding whitespace from the line
-		line = strings.TrimSpace(line)
-
-		// Check if the line is in the exclude list
-		exclude := false
-		for _, excludePkg := range excludeList {
-			if strings.Contains(line, excludePkg) {
-				exclude = true
-				break
-			}
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
 		}
 
-		// If it's not excluded, add it to the map
-		if !exclude {
-			packages[line] = true
+		// Extract just the package name (strip version)
+		pkgName := extractPackageName(line)
+		if _, excluded := excludeMap[strings.ToLower(pkgName)]; excluded {
+			continue
 		}
+
+		packages[pkgName] = true
 	}
 
 	// Check for any scanner errors
@@ -88,6 +88,18 @@ func parseRequirementsFile(filePath string, excludeList []string) (map[string]bo
 
 	return packages, nil
 }
+
+func extractPackageName(line string) string {
+	separators := []string{"==", ">=", "<=", "~=", ">", "<"}
+	for _, sep := range separators {
+		if parts := strings.Split(line, sep); len(parts) > 1 {
+			return strings.ToLower(strings.TrimSpace(parts[0]))
+		}
+	}
+	// If no version constraint, return as-is
+	return strings.ToLower(strings.TrimSpace(line))
+}
+
 func TestRuntime(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
