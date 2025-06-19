@@ -312,7 +312,7 @@ func (b *AbstractConnection) resolveFunctionLogger() logger.Logger {
 
 type AbstractEventConnection struct {
 	*AbstractConnection
-	resultChan chan *result.BatchedResults
+	resultChan chan result.Result
 	startChan  chan struct{}
 
 	connectionManager ConnectionManager
@@ -327,7 +327,7 @@ func NewAbstractEventConnection(parentLogger logger.Logger, connectionManager Co
 	}
 	return &AbstractEventConnection{
 		AbstractConnection: abstractConnection,
-		resultChan:         make(chan *result.BatchedResults),
+		resultChan:         make(chan result.Result),
 		startChan:          make(chan struct{}, 1),
 		connectionManager:  connectionManager,
 	}
@@ -356,41 +356,84 @@ func (be *AbstractEventConnection) WaitForStart(timeout time.Duration) error {
 	return nil
 }
 
-func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error) {
+func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithNuclioProcessingResult, error) {
 	processingResult, err := be.processItem(event, functionLogger)
-	if err != nil {
+	if processingResult == nil {
 		return nil, err
 	}
-	// this is a single event processing flow, so we only take the first item from the result
-	return &nuclio.Response{
-		Body:        processingResult.Results[0].DecodedBody,
-		ContentType: processingResult.Results[0].ContentType,
-		Headers:     processingResult.Results[0].Headers,
-		StatusCode:  processingResult.Results[0].StatusCode,
-	}, processingResult.Results[0].Err
+
+	// ensure that processingResult is of type result.ResultWithNuclioProcessingResult
+	switch typedResult := processingResult.(type) {
+	case result.ResultWithNuclioProcessingResult:
+		return typedResult, err
+	case *result.BodyOnly:
+		// if processingResult is of type result.BodyOnly, while this is not really expected and isn't supported from wrapper side yet
+		// there is nothing wrong with it, so just form a SingleResult and return
+		singleResult := result.NewSingleResult(&nuclio.Response{Body: typedResult.Body})
+		singleResult.Err = typedResult.Err
+		return singleResult, err
+	case *result.BatchedResults:
+		// if processingResult is of type result.BatchedResults for some reason, just try the best and get the first result
+		be.Logger.DebugWith("Received batched results in single event processing flow, returning the 1st response only")
+		if len(typedResult.Results) > 0 {
+			// return the first result in the batch
+			return typedResult.Results[0], err
+		} else {
+			return result.NewSingleResult(nil), nil
+		}
+	default:
+		return nil, be.generateWrongResultTypeError(processingResult)
+	}
+
 }
 
-func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
-	processingResults, err := be.processItem(batch, functionLogger)
-	responsesWithErrors := make([]*runtime.ResponseWithErrors, len(processingResults.Results))
+func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
+	processingResult, err := be.processItem(batch, functionLogger)
+	switch typedResult := processingResult.(type) {
+	case *result.BatchedResults:
+		return typedResult, err
+	case *result.SingleResult:
+		// if single result return, try wrapping it into batched results
+		return &result.BatchedResults{Results: []*result.SingleResult{typedResult}}, err
+	default:
+		return nil, be.generateWrongResultTypeError(processingResult)
+	}
+}
 
-	for index, processingResult := range processingResults.Results {
-		if processingResult.EventId == "" {
-			functionLogger.WarnWith("Received response with empty event_id, response won't be returned")
-			continue
+func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) error {
+	// always close stream when processing is done
+	defer be.postProcessStreaming(stream.ResponseStream)
+
+	// start with writing a first chunk
+	// this is blocking operation, so it will wait until the reader is ready to receive data
+	if err := stream.WriteFirstChunk(); err != nil {
+		return errors.Wrap(err, "Failed to write first chunk to stream")
+	}
+
+	var chunk result.Result
+	var err error
+	// wait for next messages arrival
+	for {
+		if chunk, err = be.waitForNextResponseChunk(); err != nil {
+			// if there was an error, return it
+			return errors.Wrap(err, "Failed to read next chunk from stream")
 		}
-		responsesWithErrors[index] = &runtime.ResponseWithErrors{
-			Response: nuclio.Response{
-				Body:        processingResult.DecodedBody,
-				ContentType: processingResult.ContentType,
-				Headers:     processingResult.Headers,
-				StatusCode:  processingResult.StatusCode,
-			},
-			EventId:      processingResult.EventId,
-			ProcessError: processingResult.Err,
+
+		switch typedChunk := chunk.(type) {
+		case *result.StreamEnd:
+			return nil
+		case *result.BodyOnly:
+			if _, err = stream.SendChunk(typedChunk.Body); err != nil {
+				// if there was an error sending the chunk, mark connection for restart and return error
+				be.SetStatus(status.RestartRequired)
+				return errors.Wrap(err, "Failed to send chunk to stream")
+			}
+			continue
+		default:
+			be.SetStatus(status.RestartRequired)
+			return be.generateWrongResultTypeError(typedChunk)
 		}
 	}
-	return responsesWithErrors, err
 }
 
 // RunHandler runs the event connection handler.
@@ -462,12 +505,14 @@ func (be *AbstractEventConnection) RunHandler() {
 			}
 
 			switch data[0] {
-			case 'r':
-				unmarshalledResults := result.NewBatchedResults()
-				unmarshalledResults.UnmarshalResponseData(be.Logger, data[1:])
-
+			case 'r', 'b', 'e', 'c':
 				// write back to result channel
-				be.resultChan <- unmarshalledResults
+				// 'r' is for a single result (either batched or not)
+				// 'b', 'e' and 'c' are for streaming flow
+				// 'c' starts flow showing that it is a stream
+				// 'b' is every following message after 1st in a stream (it is a base64 encoded body only)
+				// 'e' is the end of the stream, which is always empty
+				be.resultChan <- result.NewResultFromData(data)
 			case 'm':
 				be.handleResponseMetric(data[1:])
 			case 'l':
@@ -592,7 +637,7 @@ func (be *AbstractEventConnection) Unsubscribe(kind controlcommunication.Control
 	return nuclio.ErrNotImplemented
 }
 
-func (be *AbstractEventConnection) processItem(item interface{}, functionLogger logger.Logger) (*result.BatchedResults, error) {
+func (be *AbstractEventConnection) processItem(item interface{}, functionLogger logger.Logger) (result.Result, error) {
 	be.functionLogger = functionLogger
 	if err := be.encoder.Encode(item); err != nil {
 		be.functionLogger = nil
@@ -603,16 +648,23 @@ func (be *AbstractEventConnection) processItem(item interface{}, functionLogger 
 	// if it is set, we wait either for response or the timeout
 	if be.connectionManager.GetConfig().eventTimeout == 0 {
 		processingResults, ok := <-be.resultChan
-		return be.postProcessEventRegularFlow(processingResults, ok)
+		return be.postProcessEventRegularFlow(processingResults, !ok)
 	} else {
 		return be.waitForResponseWithTimeout()
 	}
+}
+
+func (be *AbstractEventConnection) waitForNextResponseChunk() (result.Result, error) {
+	// TODO: add chunk timeout
+	processingResults, ok := <-be.resultChan
+	return be.postProcessResponseCheckForFailure(processingResults, !ok)
 }
 
 func (be *AbstractEventConnection) stop() error {
 	be.SetStatus(status.Stopping)
 	be.AbstractConnection.Stop()
 
+	var err error
 	// close start chan
 	// other two channels (result and cancel chan) are closed in the run handler
 	close(be.startChan)
@@ -620,51 +672,82 @@ func (be *AbstractEventConnection) stop() error {
 	// if the channel is closed while waiting for response in it, this will be handled in processItem() with no issues
 	close(be.resultChan)
 
-	err := be.Conn.Close()
+	if be.Conn != nil {
+		err = be.Conn.Close()
+	}
+
 	be.SetStatus(status.Stopped)
 	return err
 }
 
-func (be *AbstractEventConnection) waitForResponseWithTimeout() (*result.BatchedResults, error) {
+func (be *AbstractEventConnection) waitForResponseWithTimeout() (result.Result, error) {
 	ticker := time.NewTicker(be.connectionManager.GetConfig().eventTimeout)
 	defer ticker.Stop()
 
 	select {
-	case processingResults, isClientDisconnected := <-be.resultChan:
-		return be.postProcessEventRegularFlow(processingResults, isClientDisconnected)
+	case processingResults, ok := <-be.resultChan:
+		return be.postProcessEventRegularFlow(processingResults, !ok)
 	case <-ticker.C:
 		return be.postProcessEventOnTimeout()
 	}
 }
 
-func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults *result.BatchedResults, isClientDisconnected bool) (*result.BatchedResults, error) {
+func (be *AbstractEventConnection) postProcessEventRegularFlow(processingResults result.Result, isClientDisconnected bool) (result.Result, error) {
 	// We don't use defer to reset be.functionLogger since it decreases performance
-	be.functionLogger = nil
+	if !processingResults.IsStream() || isClientDisconnected {
+		// Instead, we reset it immediately after execution **only if**:
+		// - the result is not part of a stream (i.e., IsStream() is false), **or**
+		// - the client has disconnected.
+		// This ensures we clean up the logger in non-streaming scenarios or when streaming is no longer relevant.
+		be.resetLogger()
+	}
 
-	if !isClientDisconnected {
-		return be.postProcessClientDisconnected()
+	return be.postProcessResponseCheckForFailure(processingResults, isClientDisconnected)
+}
+
+func (be *AbstractEventConnection) postProcessStreaming(stream *nuclio.ResponseStream) {
+	stream.StopStreaming()
+	be.resetLogger()
+}
+
+func (be *AbstractEventConnection) resetLogger() {
+	be.functionLogger = nil
+}
+
+func (be *AbstractEventConnection) postProcessResponseCheckForFailure(processingResults result.Result, isClientDisconnected bool) (result.Result, error) {
+
+	if isClientDisconnected {
+		return nil, be.postProcessClientDisconnected()
 	}
 	// if processingResults.err is not nil, it means that whole batch processing was failed
 	// or that connection was closed (EOF)
-	if processingResults.Err != nil {
+	if processingResults.Error() != nil {
 		// if a client disconnected, we should restart the connection
-		if errors.RootCause(processingResults.Err) == io.EOF {
-			return be.postProcessClientDisconnected()
+		if errors.RootCause(processingResults.Error()) == io.EOF {
+			return nil, be.postProcessClientDisconnected()
 		}
-		return nil, processingResults.Err
+		return nil, processingResults.Error()
 	}
 	return processingResults, nil
 }
 
-func (be *AbstractEventConnection) postProcessClientDisconnected() (*result.BatchedResults, error) {
+func (be *AbstractEventConnection) generateWrongResultTypeError(processingResult interface{}) error {
+	errorMessage := fmt.Sprintf(
+		"Processing result is not of type result.ResultWithNuclioProcessingResult. Actual type: %T",
+		processingResult,
+	)
+	return errors.New(errorMessage)
+}
+
+func (be *AbstractEventConnection) postProcessClientDisconnected() error {
 	msg := "Client disconnected"
 	be.Logger.Error(msg)
 	be.SetStatus(status.RestartRequired)
-	return nil, errors.New(msg)
+	return errors.New(msg)
 }
 
 func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedResults, error) {
-	be.functionLogger = nil
+	be.resetLogger()
 	be.Logger.WarnWith("Event processing timed out, connection should be restarted",
 		"localAddress", be.Conn.LocalAddr().String())
 	be.SetStatus(status.RestartRequired)
