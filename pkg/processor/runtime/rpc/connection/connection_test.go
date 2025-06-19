@@ -77,7 +77,7 @@ func (suite *TestConnectionSuite) TestStreamProcessing() {
 		sendMessageErrChan <- nil
 	}()
 	// process the event, which is a stream start
-	processingResult, err := connection.ProcessEvent(&triggertest.TestEvent{}, suite.logger)
+	processingResult, err := connection.ProcessEvent(triggertest.NewTestEvent("id", nil), suite.logger)
 	suite.Require().NoError(err)
 	suite.Require().Equal(processingResult.GetProcessingResult(), responseStream)
 

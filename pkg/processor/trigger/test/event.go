@@ -46,6 +46,9 @@ type TestEvent struct {
 }
 
 func NewTestEvent(id nuclio.ID, triggerInfoProvide nuclio.TriggerInfoProvider) *TestEvent {
+	if triggerInfoProvide == nil {
+		triggerInfoProvide = &TestTriggerInfoProvider{}
+	}
 	return &TestEvent{
 		testID:                  id,
 		testTriggerInfoProvider: triggerInfoProvide,
