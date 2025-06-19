@@ -162,6 +162,12 @@ func (sr *SingleResult) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func NewSingleResultsWithError(err error) *SingleResult {
+	singleResult := NewSingleResult(nil)
+	singleResult.Err = err
+	return singleResult
+}
+
 func (sr *SingleResult) IsStream() bool { return false }
 
 func (sr *SingleResult) Error() error {
@@ -193,20 +199,26 @@ func NewBatchedResultsWithError(err error) *BatchedResults {
 func NewResultFromData(data []byte) Result {
 	switch data[0] {
 	case 'r':
-		// Try unmarshalling as batched results
-		var results []*SingleResult
-		if err := json.Unmarshal(data[1:], &results); err == nil {
-			return &BatchedResults{Results: results}
+		// data[0] is a known prefix 'r'
+		// data[1:] is expected to be a valid JSON object or array
+		// so if data[1:] is of len 1, then it is not a valid result
+		if len(data) < 2 {
+			return NewSingleResultsWithError(errors.New("Data is too short to contain a valid result"))
 		}
 
-		// Try unmarshalling as single result
-		var singleResult *SingleResult
-		if err := json.Unmarshal(data[1:], &singleResult); err == nil {
-			return singleResult
+		if data[1] == '{' {
+			var singleResult *SingleResult
+			if err := json.Unmarshal(data[1:], &singleResult); err == nil {
+				return singleResult
+			}
+		} else if data[1] == '[' {
+			var results []*SingleResult
+			if err := json.Unmarshal(data[1:], &results); err == nil {
+				return &BatchedResults{Results: results}
+			}
 		}
-
-		// Both failed, return BatchedResults with error
-		return NewBatchedResultsWithError(fmt.Errorf("failed to unmarshal as single or batched result"))
+		// Both failed, return result with error
+		return NewSingleResultsWithError(fmt.Errorf("failed to unmarshal as single or batched result"))
 	case 'e':
 		return &StreamEnd{}
 	case 'b':
