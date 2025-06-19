@@ -47,7 +47,7 @@ func (suite *EventJSONEncoderSuite) TestEncode() {
 
 	var buf bytes.Buffer
 	enc := NewEventJSONEncoder(logger, &buf)
-	testEvent := triggertest.TestEvent{}
+	testEvent := triggertest.NewTestEvent(testID, testTriggerInfoProvider)
 	err = enc.Encode(testEvent)
 	require.NoError(err, "Can't encode event")
 
@@ -68,9 +68,9 @@ func (suite *EventJSONEncoderSuite) TestEncode() {
 
 	fields, ok := out["fields"].(map[string]interface{})
 	require.True(ok, "bad fields type")
-	require.Equal(fields["f1"], triggertest.TestHeaders["f1"], "bad f1 field")
+	require.Equal(fields["f1"], triggertest.TestFields["f1"], "bad f1 field")
 	// Go converts all numbers to floats
-	require.Equal(int(fields["f2"].(float64)), triggertest.TestHeaders["f2"], "bad f2 field")
+	require.Equal(int(fields["f2"].(float64)), triggertest.TestFields["f2"], "bad f2 field")
 
 	triggerInfo := out["trigger"].(map[string]interface{})
 	require.Equal(testTriggerInfoProvider.GetKind(), triggerInfo["kind"], "bad trigger kind")

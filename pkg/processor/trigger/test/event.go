@@ -19,19 +19,15 @@ package triggertest
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
 var (
-	testID                  = nuclio.ID(uuid.New().String())
-	testTriggerInfoProvider = &TestTriggerInfoProvider{}
-
 	TestHeaders = map[string]interface{}{
 		"h1": "hv1",
 		"h2": 2,
 	}
-	testFields = map[string]interface{}{
+	TestFields = map[string]interface{}{
 		"f1": "fv1",
 		"f2": 0xF2,
 	}
@@ -44,11 +40,20 @@ func (ti *TestTriggerInfoProvider) GetKind() string  { return "test kind" }
 func (ti *TestTriggerInfoProvider) GetName() string  { return "test name" }
 
 type TestEvent struct {
+	testID                  nuclio.ID
+	testTriggerInfoProvider nuclio.TriggerInfoProvider
 	// We don't embed nuclio.AbstractEvent so we'll have all methods
 }
 
+func NewTestEvent(id nuclio.ID, triggerInfoProvide nuclio.TriggerInfoProvider) *TestEvent {
+	return &TestEvent{
+		testID:                  id,
+		testTriggerInfoProvider: triggerInfoProvide,
+	}
+}
+
 func (te *TestEvent) GetID() nuclio.ID {
-	return testID
+	return te.testID
 }
 
 func (te *TestEvent) GetContentType() string {
@@ -68,7 +73,7 @@ func (te *TestEvent) GetHeaders() map[string]interface{} {
 }
 
 func (te *TestEvent) GetFields() map[string]interface{} {
-	return testFields
+	return TestFields
 }
 
 func (te *TestEvent) GetTimestamp() time.Time {
@@ -122,7 +127,7 @@ func (te *TestEvent) GetTopic() string {
 }
 
 func (te *TestEvent) GetTriggerInfo() nuclio.TriggerInfoProvider {
-	return testTriggerInfoProvider
+	return te.testTriggerInfoProvider
 }
 
 func (te *TestEvent) GetHeader(key string) interface{} {
@@ -139,16 +144,16 @@ func (te *TestEvent) GetHeaderInt(key string) (int, error) {
 }
 
 func (te *TestEvent) GetField(key string) interface{} {
-	return testFields[key]
+	return TestFields[key]
 }
 func (te *TestEvent) GetFieldByteSlice(key string) []byte {
-	return testFields[key].([]byte)
+	return TestFields[key].([]byte)
 }
 func (te *TestEvent) GetFieldString(key string) string {
-	return testFields[key].(string)
+	return TestFields[key].(string)
 }
 func (te *TestEvent) GetFieldInt(key string) (int, error) {
-	return testFields[key].(int), nil
+	return TestFields[key].(int), nil
 }
 func (te *TestEvent) SetID(id nuclio.ID) {}
 
