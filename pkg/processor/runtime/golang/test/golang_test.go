@@ -297,6 +297,37 @@ func (suite *TestSuite) TestFileStream() {
 	}
 }
 
+func (suite *TestSuite) TestBasicStream() {
+	createFunctionOptions := suite.GetDeployOptions("streamer",
+		path.Join(suite.GetTestFunctionsDir(), "common", "streamer", "golang"))
+
+	requestMethod := "POST"
+
+	suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+		{
+			RequestBody:          "alphabet",
+			RequestMethod:        requestMethod,
+			ExpectedResponseBody: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+		},
+		{
+			RequestBody:          "text",
+			RequestMethod:        requestMethod,
+			ExpectedResponseBody: "First sentence of the file.Second sentence of the file.Third sentence of the file.",
+		},
+		{
+			RequestBody:          "numbers",
+			RequestMethod:        requestMethod,
+			ExpectedResponseBody: "012345678910",
+		},
+		{
+			RequestBody:                "testbody",
+			RequestMethod:              requestMethod,
+			ExpectedResponseBody:       "Unsupported stream type: testbody",
+			ExpectedResponseStatusCode: common.Pointer(500),
+		},
+	})
+}
+
 func (suite *TestSuite) TestStress() {
 
 	// Create blastConfiguration using default configurations + changes for golang specification

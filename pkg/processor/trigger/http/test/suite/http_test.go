@@ -167,7 +167,7 @@ def handler(context, event):
 			{
 				RequestMethod:              "GET",
 				ExpectedResponseStatusCode: &statusInternalServerError,
-				ExpectedResponseBody:       "json: cannot unmarshal number into Go struct field Result.content_type of type string",
+				ExpectedResponseBody:       "failed to unmarshal as single or batched result",
 			},
 		})
 }

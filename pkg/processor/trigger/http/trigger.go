@@ -596,6 +596,12 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 			}
 		}
 	}
+	if !workerReleased {
+		// try to release the worker instance asap
+		// if code won't get here (because of the error, then the defer will take care of it)
+		h.WorkerAllocator.Release(workerInstance)
+		workerReleased = true
+	}
 
 	// set content type if set
 	if response.GetContentType() != "" {
