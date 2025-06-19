@@ -31,8 +31,8 @@ import (
 )
 
 const pipCAFileLocation = "/etc/ssl/certs/nuclio/pip-ca-certificates.crt"
-const nuclioSDKRequirement = "nuclio-sdk==0.5.15"
-const msgPackRequirement = "msgpack==1.1.0"
+const nuclioSDKRequirement = "nuclio-sdk>=0.5.15"
+const msgPackRequirement = "msgpack"
 
 type python struct {
 	*runtime.AbstractRuntime
