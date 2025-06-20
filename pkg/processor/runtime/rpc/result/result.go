@@ -273,3 +273,35 @@ func NewResultWithNuclioProcessingResult(object interface{}) ResultWithNuclioPro
 		return NewSingleResult(&nuclio.Response{Body: []byte(fmt.Sprintf("%v", typedResponse))})
 	}
 }
+
+// NormalizeToResultWithNuclioProcessingResult ensures a result is an implementation of ResultWithNuclioProcessingResult
+func NormalizeToResultWithNuclioProcessingResult(result Result) (ResultWithNuclioProcessingResult, error) {
+	switch typedResult := result.(type) {
+	case nil:
+		return nil, nil
+	case ResultWithNuclioProcessingResult:
+		return typedResult, nil
+	case *BodyOnly:
+		single := NewSingleResult(&nuclio.Response{Body: typedResult.Body})
+		single.Err = typedResult.Err
+		return single, nil
+	case *BatchedResults:
+		if len(typedResult.Results) > 0 {
+			return typedResult.Results[0], nil
+		}
+		return NewSingleResult(nil), nil
+	default:
+		return nil, errors.Errorf("cannot convert result of type %T to ResultWithNuclioProcessingResult", result)
+	}
+}
+
+func NormalizeToBatchedResults(result Result) (*BatchedResults, error) {
+	switch typedResult := result.(type) {
+	case *BatchedResults:
+		return typedResult, nil
+	case *SingleResult:
+		return &BatchedResults{Results: []*SingleResult{typedResult}}, nil
+	default:
+		return nil, errors.Errorf("cannot convert result of type %T to BatchedResults", result)
+	}
+}

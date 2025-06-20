@@ -362,42 +362,26 @@ func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogg
 		return nil, err
 	}
 
-	// ensure that processingResult is of type result.ResultWithNuclioProcessingResult
-	switch typedResult := processingResult.(type) {
-	case result.ResultWithNuclioProcessingResult:
-		return typedResult, err
-	case *result.BodyOnly:
-		// if processingResult is of type result.BodyOnly, while this is not really expected and isn't supported from wrapper side yet
-		// there is nothing wrong with it, so just form a SingleResult and return
-		singleResult := result.NewSingleResult(&nuclio.Response{Body: typedResult.Body})
-		singleResult.Err = typedResult.Err
-		return singleResult, err
-	case *result.BatchedResults:
-		// if processingResult is of type result.BatchedResults for some reason, just try the best and get the first result
-		be.Logger.DebugWith("Received batched results in single event processing flow, returning the 1st response only")
-		if len(typedResult.Results) > 0 {
-			// return the first result in the batch
-			return typedResult.Results[0], err
-		} else {
-			return result.NewSingleResult(nil), nil
-		}
-	default:
-		return nil, be.generateWrongResultTypeError(processingResult)
+	normalizedResult, normalisationErr := result.NormalizeToResultWithNuclioProcessingResult(processingResult)
+	if normalisationErr != nil {
+		return nil, errors.Wrap(normalisationErr, "Failed to normalize result")
 	}
 
+	return normalizedResult, err
 }
 
 func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	processingResult, err := be.processItem(batch, functionLogger)
-	switch typedResult := processingResult.(type) {
-	case *result.BatchedResults:
-		return typedResult, err
-	case *result.SingleResult:
-		// if single result return, try wrapping it into batched results
-		return &result.BatchedResults{Results: []*result.SingleResult{typedResult}}, err
-	default:
-		return nil, be.generateWrongResultTypeError(processingResult)
+	if processingResult == nil {
+		return nil, err
 	}
+
+	normalizedResult, normalisationErr := result.NormalizeToBatchedResults(processingResult)
+	if normalisationErr != nil {
+		return nil, errors.Wrap(normalisationErr, "Failed to normalize result")
+	}
+
+	return normalizedResult, err
 }
 
 func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) error {
@@ -431,7 +415,7 @@ func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) err
 			continue
 		default:
 			be.SetStatus(status.RestartRequired)
-			return be.generateWrongResultTypeError(typedChunk)
+			return errors.Errorf("Got unsupported message of type %T during stream processing", typedChunk)
 		}
 	}
 }
@@ -488,7 +472,7 @@ func (be *AbstractEventConnection) RunHandler() {
 						"err", errors.RootCause(err).Error())
 				}
 
-				batchedResultsWithError := result.NewBatchedResultsWithError(err)
+				batchedResultsWithError := result.NewSingleResultsWithError(err)
 				select {
 				// if no receiver is waiting for the result, we should not send it
 				// otherwise it may get stuck here and block select
@@ -688,7 +672,7 @@ func (be *AbstractEventConnection) waitForResponseWithTimeout() (result.Result, 
 	case processingResults, ok := <-be.resultChan:
 		return be.postProcessEventRegularFlow(processingResults, !ok)
 	case <-ticker.C:
-		return be.postProcessEventOnTimeout()
+		return nil, be.postProcessEventOnTimeout()
 	}
 }
 
@@ -731,14 +715,6 @@ func (be *AbstractEventConnection) postProcessResponseCheckForFailure(processing
 	return processingResults, nil
 }
 
-func (be *AbstractEventConnection) generateWrongResultTypeError(processingResult interface{}) error {
-	errorMessage := fmt.Sprintf(
-		"Processing result is not of type result.ResultWithNuclioProcessingResult. Actual type: %T",
-		processingResult,
-	)
-	return errors.New(errorMessage)
-}
-
 func (be *AbstractEventConnection) postProcessClientDisconnected() error {
 	msg := "Client disconnected"
 	be.Logger.Error(msg)
@@ -746,12 +722,12 @@ func (be *AbstractEventConnection) postProcessClientDisconnected() error {
 	return errors.New(msg)
 }
 
-func (be *AbstractEventConnection) postProcessEventOnTimeout() (*result.BatchedResults, error) {
+func (be *AbstractEventConnection) postProcessEventOnTimeout() error {
 	be.resetLogger()
 	be.Logger.WarnWith("Event processing timed out, connection should be restarted",
 		"localAddress", be.Conn.LocalAddr().String())
 	be.SetStatus(status.RestartRequired)
-	return nil, nuclio.NewErrRequestTimeout("Execution timed out")
+	return nuclio.NewErrRequestTimeout("Execution timed out")
 }
 
 func (be *AbstractEventConnection) handleResponseMetric(response []byte) {
