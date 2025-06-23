@@ -195,18 +195,6 @@ class AbstractWrapper(object):
 
         await self._handle_entrypoint_output(entrypoint_output, start_time, sock)
 
-    def _encode_entrypoint_output(self, entrypoint_output):
-
-        # processing entrypoint output if response is batched
-        if isinstance(entrypoint_output, list):
-            response = [nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
-                                                                   _output) for _output in entrypoint_output]
-        else:
-            response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode, entrypoint_output)
-
-        # try to json encode the response
-        return self._json_encoder.encode(response)
-
     async def _handle_entrypoint_output(self, entrypoint_output, start_time, sock):
         async for prefix, payload in self._generate_processor_packets(entrypoint_output, start_time):
             if payload is not None:
