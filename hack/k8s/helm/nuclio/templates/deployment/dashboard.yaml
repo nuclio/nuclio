@@ -237,6 +237,7 @@ spec:
           - "--log-level={{ .Values.dashboard.opa.logLevel }}"
           - "--log-format={{ .Values.dashboard.opa.logFormat }}"
           - "--ignore=.*"
+          - "--disable-telemetry"
         volumeMounts:
           - readOnly: true
             mountPath: /config
