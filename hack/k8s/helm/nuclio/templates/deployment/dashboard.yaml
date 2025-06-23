@@ -218,7 +218,7 @@ spec:
         imagePullPolicy: {{ .Values.dashboard.opa.image.pullPolicy }}
         ports:
           - name: http
-            containerPort: 8181
+            containerPort: {{ .Values.dashboard.opa.port }}
         {{- if .Values.dashboard.opa.livenessProbe }}
         livenessProbe:
           {{ toYaml .Values.dashboard.opa.livenessProbe | nindent 12 }}
@@ -232,7 +232,7 @@ spec:
         args:
           - "run"
           - "--server"
-          - "--addr=0.0.0.0:8181"
+          - "--addr=0.0.0.0:{{ .Values.dashboard.opa.port }}"
           - "--config-file=/config/config.yaml"
           - "--log-level={{ .Values.dashboard.opa.logLevel }}"
           - "--log-format={{ .Values.dashboard.opa.logFormat }}"

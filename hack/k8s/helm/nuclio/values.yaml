@@ -261,6 +261,9 @@ dashboard:
       pullSecrets: []
     resources: {}
     securityContext: {}
+
+    port: 8181
+
     # capabilities:
     #   drop:
     #   - ALL
