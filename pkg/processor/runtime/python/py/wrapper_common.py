@@ -18,6 +18,7 @@ import time
 import msgpack
 import nuclio_sdk
 import nuclio_sdk.helpers
+from nuclio_sdk.response import SINGLE_RESPONSE
 import nuclio_sdk.json_encoder
 import sys
 import asyncio
@@ -192,16 +193,7 @@ class AbstractWrapper(object):
         if asyncio.iscoroutine(entrypoint_output):
             entrypoint_output = await entrypoint_output
 
-        # measure duration, set to minimum float in case execution was too fast
-        duration = time.time() - start_time or sys.float_info.min
-
-        await self._write_packet_to_processor(sock, 'm' + json.dumps({'duration': duration}))
-
-        # try to json encode the response
-        encoded_response = self._encode_entrypoint_output(entrypoint_output)
-
-        # write response to the socket
-        await self._write_packet_to_processor(sock, 'r' + encoded_response)
+        await self._handle_entrypoint_output(entrypoint_output, start_time, sock)
 
     def _encode_entrypoint_output(self, entrypoint_output):
 
@@ -214,6 +206,72 @@ class AbstractWrapper(object):
 
         # try to json encode the response
         return self._json_encoder.encode(response)
+
+    async def _handle_entrypoint_output(self, entrypoint_output, start_time, sock):
+        async for prefix, payload in self._generate_processor_packets(entrypoint_output, start_time):
+            if payload is not None:
+                await self._write_packet_to_processor(sock, prefix + payload)
+            else:
+                await self._write_packet_to_processor(sock, prefix)
+
+
+    async def _generate_processor_packets(self, entrypoint_output, start_time):
+        """
+        Generate packets to be sent to the Nuclio processor based on the given function output.
+
+        This function handles both:
+        - Batched synchronous responses (lists of outputs)
+        - Single or streaming async responses (including generators and async generators)
+
+        It yields tuples of the form (prefix, payload), where:
+        - prefix: One of the packet type identifiers:
+            'r' – Regular single response or first response in a stream
+            'c' – Stream start (first chunk in a generator-style response)
+            'b' – Body chunk in a stream (after the first)
+            'e' – End of stream (no payload)
+            'm' – Metadata including processing duration
+        - payload: The encoded response body (or metadata), or None if not applicable
+
+        Parameters:
+            entrypoint_output: The output returned by the function entrypoint.
+            start_time: The timestamp when execution started (for duration calculation).
+
+        Yields:
+            Tuple[str, Optional[str]]: Message type prefix and encoded payload or None.
+        """
+        duration = time.time() - start_time or sys.float_info.min
+
+        # Case 1: batched synchronous response
+        if isinstance(entrypoint_output, list):
+            responses = [
+                nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode, _output)
+                for _output in entrypoint_output
+            ]
+            yield 'm', json.dumps({'duration': duration})
+            yield 'r', self._json_encoder.encode(responses)
+            return
+
+        # Case 2: streamed or dynamic async response
+        handler_output_type = nuclio_sdk.Response.get_handler_output_type(entrypoint_output)
+        message_num = 0
+
+        async for response in nuclio_sdk.Response.from_entrypoint_output_async(
+                self._json_encoder.encode, entrypoint_output
+        ):
+            if message_num == 0:
+                prefix = 'r' if handler_output_type == SINGLE_RESPONSE else 'c'
+                response =  self._json_encoder.encode(response)
+            else:
+                prefix = 'b'
+            yield prefix, response
+            message_num += 1
+
+        # Only send end-of-stream if multiple chunks were sent
+        if message_num > 1:
+            duration = time.time() - start_time or sys.float_info.min
+            yield 'e', None
+
+        yield 'm', json.dumps({'duration': duration})
 
     async def _send_data_on_control_socket(self, data):
         if not self._control_sock:

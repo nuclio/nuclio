@@ -154,12 +154,12 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         t.join()
 
         # processor start
-        # duration
         # function response
-        # malformed log line (wrapper)
+        # duration
         # malformed response
         # duration
         # function response
+        # duration
         expected_messages = 7
 
         self._wait_until_received_messages(
@@ -167,7 +167,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             messages=self._unix_stream_server._messages,
         )
 
-        malformed_response = self._unix_stream_server._messages[-3]['body']
+        malformed_response = self._unix_stream_server._messages[-4]['body']
 
         if self._decode_event_strings:
 
@@ -178,7 +178,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             self.assertEqual(events[malformed_event_index]['body'], malformed_response['body'])
 
         # ensure messages coming after malformed request are still valid
-        last_function_response = self._unix_stream_server._messages[-1]['body']
+        last_function_response = self._unix_stream_server._messages[-2]['body']
         self.assertEqual(http.client.OK, last_function_response['status_code'])
         self.assertEqual(events[-1]['body'], last_function_response['body'])
 
@@ -290,17 +290,96 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             self.assertEqual(recorded_event_index, recorded_event.id)
             self.assertEqual('e{}'.format(recorded_event_index), self._ensure_str(recorded_event.body))
 
-    def test_encode_batched_entrypoint_output(self):
+
+    async def test_encode_streaming_entrypoint_output(self):
+        # Simulated streaming output (e.g., async generator)
+        async def streaming_handler_output():
+            yield "chunk1"
+            yield "chunk2"
+
+        # Entrypoint output is an async generator
+        entrypoint_output = streaming_handler_output()
+
+        # Collect packets from the async generator
+        packets = [
+            (prefix, payload)
+            async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
+        ]
+
+        # Extract prefix sequence for ordering check
+        prefixes = [prefix for prefix, _ in packets]
+
+        # Ensure 'c' exists and comes before any 'b'
+        assert prefixes.index("c") < prefixes.index("b"), "'c' must come before 'b'"
+
+        payload_by_prefix = {
+            prefix: payload for prefix, payload in packets
+        }
+
+        self.assertEqual(payload_by_prefix["c"], json.dumps("chunk1"))
+        self.assertEqual(payload_by_prefix["b"], json.dumps("chunk2"))
+        self.assertIn("e", prefixes)
+        self.assertIn("m", prefixes)
+        self.assertNotIn("r", prefixes)
+
+    async def test_encode_single_value_entrypoint_output(self):
+        # Simulate regular async function returning a single value
+        async def single_value_handler_output():
+            return "ok"
+
+        # Call the function and await the result
+        entrypoint_output = await single_value_handler_output()
+
+        # Pass it into the packet generator
+        packets = [
+            (prefix, payload)
+            async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
+        ]
+
+        prefixes = [prefix for prefix, _ in packets]
+
+        self.assertIn("r", prefixes)
+        self.assertIn("m", prefixes)
+        self.assertNotIn("c", prefixes)
+        self.assertNotIn("b", prefixes)
+        self.assertNotIn("e", prefixes)
+
+        payload_by_prefix = {
+            prefix: payload for prefix, payload in packets
+        }
+
+        self.assertEqual(payload_by_prefix["r"], json.dumps({"body": "ok", "status_code": 200}))
+
+
+    async def test_encode_batched_entrypoint_output(self):
         single_response = nuclio_sdk.Response(
             body=str(123),
             headers={},
             content_type=123,
             status_code=200,
         )
-        encoded_single = json.loads(self._wrapper._encode_entrypoint_output(single_response))
-        encoded_batch = json.loads(self._wrapper._encode_entrypoint_output([single_response, single_response]))
-        assert encoded_batch[0] == encoded_single
-        assert encoded_batch[1] == encoded_single
+
+        # Consume single response packets
+        single_packets = [
+            (prefix, payload) async for prefix, payload in
+            self._wrapper._generate_processor_packets(single_response, start_time=0)
+        ]
+
+        # Consume batch response packets
+        batch_packets = [
+            (prefix, payload) async for prefix, payload in
+            self._wrapper._generate_processor_packets([single_response, single_response], start_time=0)
+        ]
+
+        # Extract the actual payloads for comparison
+        single_payload = next((payload for prefix, payload in single_packets if prefix == "r"), None)
+        batch_payload = next((payload for prefix, payload in batch_packets if prefix == "r"), None)
+
+        decoded_single = json.loads(single_payload)
+        decoded_batch = json.loads(batch_payload)
+
+        assert decoded_batch[0] == decoded_single
+        assert decoded_batch[1] == decoded_single
 
     # to run memory profiling test, uncomment the tests below
     # and from terminal run with

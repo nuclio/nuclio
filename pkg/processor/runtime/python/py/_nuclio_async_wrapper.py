@@ -209,16 +209,7 @@ class AsyncWrapper(AbstractWrapper):
         # call the entrypoint
         entrypoint_output = await self._entrypoint(self._context, event)
 
-        # measure duration, set to minimum float in case execution was too fast
-        duration = time.time() - start_time or sys.float_info.min
-
-        await self._write_packet_to_processor(sock, 'm' + json.dumps({'duration': duration}))
-
-        # try to json encode the response
-        encoded_response = self._encode_entrypoint_output(entrypoint_output)
-
-        # write response to the socket
-        await self._write_packet_to_processor(sock, 'r' + encoded_response)
+        await self._handle_entrypoint_output(entrypoint_output, start_time, sock)
 
     def _cleanup_connection(self, sock, cancel_task=True):
         """Cleanup resources for a disconnected client."""

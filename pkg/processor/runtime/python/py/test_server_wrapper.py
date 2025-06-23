@@ -234,7 +234,9 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             split_data = data.split(delimiter)
             for message in split_data[:-1]:
                 messages.append(message)
-                if message.startswith(b'r'):
+                # If the message starts with 'm', then it is a metric message
+                # which is the last message in the response
+                if message.startswith(b'm'):
                     return b'\n'.join(messages).decode('utf-8')
 
             # Keep the remaining part if the last chunk does not end with the delimiter
