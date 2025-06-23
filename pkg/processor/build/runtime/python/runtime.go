@@ -31,6 +31,10 @@ import (
 )
 
 const pipCAFileLocation = "/etc/ssl/certs/nuclio/pip-ca-certificates.crt"
+
+// If the user provides a base image that includes these dependencies, their versions
+// will serve as the version constraints. If the user does not provide an image or is in
+// an air-gapped environment, Nuclio will handle installing these dependencies automatically.
 const nuclioSDKRequirement = "nuclio-sdk>=0.5.15"
 const msgPackRequirement = "msgpack"
 
