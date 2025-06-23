@@ -232,6 +232,7 @@ spec:
         args:
           - "run"
           - "--server"
+          - "--addr=0.0.0.0:8181"
           - "--config-file=/config/config.yaml"
           - "--log-level={{ .Values.dashboard.opa.logLevel }}"
           - "--log-format={{ .Values.dashboard.opa.logFormat }}"
