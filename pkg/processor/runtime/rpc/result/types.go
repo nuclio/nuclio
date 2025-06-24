@@ -18,7 +18,7 @@ package result
 
 import "github.com/nuclio/nuclio-sdk-go"
 
-type ResultWithNuclioProcessingResult interface {
+type ResultWithProcessingResult interface {
 	Result
 	GetProcessingResult() nuclio.ProcessingResult
 }

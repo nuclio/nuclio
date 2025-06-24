@@ -26,6 +26,20 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+// PacketType represents a single-byte prefix that indicates the type of message
+// being transmitted over the Nuclio processor connection.
+type PacketType byte
+
+const (
+	PacketTypeSingleResponse PacketType = 'r'
+	PacketTypeStreamStart    PacketType = 'c'
+	PacketTypeBodyChunk      PacketType = 'b'
+	PacketTypeEndOfStream    PacketType = 'e'
+	PacketTypeMetrics        PacketType = 'm'
+	PacketTypeLog            PacketType = 'l'
+	PacketTypeStart          PacketType = 's'
+)
+
 type RpcLogRecord struct {
 	DateTime string                 `json:"datetime"`
 	Level    string                 `json:"level"`
@@ -33,6 +47,8 @@ type RpcLogRecord struct {
 	With     map[string]interface{} `json:"with"`
 }
 
+// singleSerialisedResult is an internal struct used for deserialising a JSON response
+// It matches the wire format and includes encoded body and metadata
 type singleSerialisedResult struct {
 	StatusCode   int                    `json:"status_code"`
 	ContentType  string                 `json:"content_type"`
@@ -42,11 +58,11 @@ type singleSerialisedResult struct {
 	BodyEncoding string                 `json:"body_encoding"`
 }
 
+// StreamStart wraps a Nuclio ResponseStream and holds the first chunk to be sent later (when reader is ready)
 type StreamStart struct {
 	*nuclio.ResponseStream
-	Err error
 	// firstChunk is the first chunk of data that was received
-	// we can't write it to the nuclio.ResponseStream until nobody reads from it, because it's blocking operation
+	// we can't write it to the nuclio.ResponseStream until nobody somebody from it, because it's blocking operation
 	// so it should be written to the stream only when we should block the execution
 	firstChunk []byte
 }
@@ -67,15 +83,18 @@ func (ss *StreamStart) WriteFirstChunk() error {
 	_, err := ss.SendChunk(ss.firstChunk)
 	return err
 }
+
 func (ss *StreamStart) IsStream() bool { return true }
+
 func (ss *StreamStart) Error() error {
-	return ss.Err
+	return nil
 }
 
 func (ss *StreamStart) GetProcessingResult() nuclio.ProcessingResult {
 	return ss.ResponseStream
 }
 
+// StreamEnd represents the logical end of a streaming response
 type StreamEnd struct{}
 
 func (eos *StreamEnd) IsStream() bool { return false }
@@ -84,6 +103,8 @@ func (eos *StreamEnd) Error() error {
 	return nil
 }
 
+// BodyOnly represents a single body chunk (as []byte) without any metadata
+// It may also carry an error if decoding failed
 type BodyOnly struct {
 	Body []byte
 	Err  error
@@ -108,6 +129,9 @@ func NewBodyOnlyFromBase64(data []byte) Result {
 	}
 }
 
+// SingleResult represents a full single response, either real or synthetic
+// Includes a decoded body and optionally, an error
+// may carry eventID when used in a batching flow
 type SingleResult struct {
 	*nuclio.Response
 	EventId string `json:"event_id"`
@@ -178,6 +202,8 @@ func (sr *SingleResult) GetProcessingResult() nuclio.ProcessingResult {
 	return sr.Response
 }
 
+// BatchedResults contains a slice of multiple SingleResult items
+// Used for transmitting batched (non-streaming) responses
 type BatchedResults struct {
 	Results []*SingleResult
 	Err     error
@@ -196,9 +222,11 @@ func NewBatchedResultsWithError(err error) *BatchedResults {
 	return &BatchedResults{Err: err}
 }
 
+// NewResultFromData decodes raw incoming data into a typed `Result` object,
+// based on the leading `PacketType` byte
 func NewResultFromData(data []byte) Result {
-	switch data[0] {
-	case 'r':
+	switch PacketType(data[0]) {
+	case PacketTypeSingleResponse:
 		// data[0] is a known prefix 'r'
 		// data[1:] is expected to be a valid JSON object or array
 		// so if data[1:] is of len 1, then it is not a valid result
@@ -218,12 +246,12 @@ func NewResultFromData(data []byte) Result {
 			}
 		}
 		// Both failed, return result with error
-		return NewSingleResultsWithError(fmt.Errorf("failed to unmarshal as single or batched result"))
-	case 'e':
+		return NewSingleResultsWithError(errors.New("failed to unmarshal as single or batched result"))
+	case PacketTypeEndOfStream:
 		return &StreamEnd{}
-	case 'b':
+	case PacketTypeBodyChunk:
 		return NewBodyOnlyFromBase64(data[1:])
-	case 'c':
+	case PacketTypeStreamStart:
 		var singleResult *SingleResult
 		if err := json.Unmarshal(data[1:], &singleResult); err != nil {
 			singleResult.Err = errors.Wrap(err, "failed to unmarshal single result from stream start")
@@ -235,12 +263,13 @@ func NewResultFromData(data []byte) Result {
 	}
 }
 
-func NewResultWithNuclioProcessingResult(object interface{}) ResultWithNuclioProcessingResult {
+// NewResultWithNuclioProcessingResult wraps a generic input value into a `ResultWithProcessingResult`
+func NewResultWithNuclioProcessingResult(object interface{}) ResultWithProcessingResult {
 	if object == nil {
 		return NewSingleResult(nil)
 	}
 	switch typedResponse := object.(type) {
-	case ResultWithNuclioProcessingResult:
+	case ResultWithProcessingResult:
 		return typedResponse
 	case *nuclio.ResponseStream:
 		return NewStreamStart(typedResponse)
@@ -274,12 +303,13 @@ func NewResultWithNuclioProcessingResult(object interface{}) ResultWithNuclioPro
 	}
 }
 
-// NormalizeToResultWithNuclioProcessingResult ensures a result is an implementation of ResultWithNuclioProcessingResult
-func NormalizeToResultWithNuclioProcessingResult(result Result) (ResultWithNuclioProcessingResult, error) {
+// NormalizeToResultWithNuclioProcessingResult ensures that the given `Result` is compatible
+// with the `ResultWithProcessingResult` interface, converting it if necessary.
+func NormalizeToResultWithNuclioProcessingResult(result Result) (ResultWithProcessingResult, error) {
 	switch typedResult := result.(type) {
 	case nil:
 		return nil, nil
-	case ResultWithNuclioProcessingResult:
+	case ResultWithProcessingResult:
 		return typedResult, nil
 	case *BodyOnly:
 		single := NewSingleResult(&nuclio.Response{Body: typedResult.Body})
@@ -291,10 +321,12 @@ func NormalizeToResultWithNuclioProcessingResult(result Result) (ResultWithNucli
 		}
 		return NewSingleResult(nil), nil
 	default:
-		return nil, errors.Errorf("cannot convert result of type %T to ResultWithNuclioProcessingResult", result)
+		return nil, errors.Errorf("cannot convert result of type %T to ResultWithProcessingResult", result)
 	}
 }
 
+// NormalizeToBatchedResults ensures that a given `Result` is returned as a `*BatchedResults`.
+// If it's a `SingleResult`, it wraps it in a batch. If already a batch, it's returned as-is.
 func NormalizeToBatchedResults(result Result) (*BatchedResults, error) {
 	switch typedResult := result.(type) {
 	case *BatchedResults:

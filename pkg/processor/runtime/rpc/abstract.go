@@ -213,7 +213,7 @@ func (r *AbstractRuntime) WaitForProcessTermination(timeout time.Duration) {
 	}
 }
 
-func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithNuclioProcessingResult, error) {
+func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithProcessingResult, error) {
 	connectionInstance, err := r.allocateConnection()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing event")
@@ -227,6 +227,7 @@ func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, funct
 		return processingResult, err
 	}
 
+	// Stream response in the background
 	go func() {
 		// release connection after processing stream
 		defer r.connectionManager.Release(connectionInstance)

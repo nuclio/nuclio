@@ -356,7 +356,7 @@ func (be *AbstractEventConnection) WaitForStart(timeout time.Duration) error {
 	return nil
 }
 
-func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithNuclioProcessingResult, error) {
+func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithProcessingResult, error) {
 	processingResult, err := be.processItem(event, functionLogger)
 	if processingResult == nil {
 		return nil, err
@@ -488,20 +488,17 @@ func (be *AbstractEventConnection) RunHandler() {
 				continue
 			}
 
-			switch data[0] {
-			case 'r', 'b', 'e', 'c':
-				// write back to result channel
-				// 'r' is for a single result (either batched or not)
-				// 'b', 'e' and 'c' are for streaming flow
-				// 'c' starts flow showing that it is a stream
-				// 'b' is every following message after 1st in a stream (it is a base64 encoded body only)
-				// 'e' is the end of the stream, which is always empty
+			switch result.PacketType(data[0]) {
+			case result.PacketTypeSingleResponse,
+				result.PacketTypeBodyChunk,
+				result.PacketTypeEndOfStream,
+				result.PacketTypeStreamStart:
 				be.resultChan <- result.NewResultFromData(data)
-			case 'm':
+			case result.PacketTypeMetrics:
 				be.handleResponseMetric(data[1:])
-			case 'l':
+			case result.PacketTypeLog:
 				be.handleResponseLog(data[1:])
-			case 's':
+			case result.PacketTypeStart:
 				be.handleStart()
 			}
 		}
@@ -703,7 +700,7 @@ func (be *AbstractEventConnection) postProcessResponseCheckForFailure(processing
 	if isClientDisconnected {
 		return nil, be.postProcessClientDisconnected()
 	}
-	// if processingResults.err is not nil, it means that whole batch processing was failed
+	// if processingResults.err is not nil, it means that whole batch processing has failed
 	// or that connection was closed (EOF)
 	if processingResults.Error() != nil {
 		// if a client disconnected, we should restart the connection

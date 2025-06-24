@@ -63,7 +63,7 @@ func NewWorker(parentLogger logger.Logger,
 }
 
 // ProcessEvent sends the event to the associated runtime
-func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithNuclioProcessingResult, error) {
+func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithProcessingResult, error) {
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
 
