@@ -222,7 +222,7 @@ class AbstractWrapper(object):
             'c' – Stream start (first chunk in a generator-style response)
             'b' – Body chunk in a stream (after the first)
             'e' – End of stream (no payload)
-            'm' – Metadata including processing duration
+            'm' – Metrics including processing duration
         - payload: The encoded response body (or metadata), or None if not applicable
 
         Parameters:
