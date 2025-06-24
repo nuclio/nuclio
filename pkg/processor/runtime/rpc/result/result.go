@@ -153,22 +153,10 @@ func (sr *SingleResult) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// Decode body
-	var decodedBody []byte
-	switch rawResult.BodyEncoding {
-	case "text":
-		decodedBody = []byte(rawResult.Body)
-	case "base64":
-		var err error
-		decodedBody, err = base64.StdEncoding.DecodeString(rawResult.Body)
-		if err != nil {
-			sr.Err = err
-			return err
-		}
-	default:
-		err := fmt.Errorf("unknown body encoding %q", rawResult.BodyEncoding)
-		sr.Err = err
-		return err
+	decodedBody, err := sr.decodeBody(rawResult)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to decode body")
 	}
 
 	// Fill the Response
@@ -184,6 +172,26 @@ func (sr *SingleResult) UnmarshalJSON(data []byte) error {
 	sr.EventId = rawResult.EventId
 
 	return nil
+}
+
+func (sr *SingleResult) decodeBody(rawResult singleSerialisedResult) ([]byte, error) {
+	var decodedBody []byte
+	switch rawResult.BodyEncoding {
+	case "text":
+		decodedBody = []byte(rawResult.Body)
+	case "base64":
+		var err error
+		decodedBody, err = base64.StdEncoding.DecodeString(rawResult.Body)
+		if err != nil {
+			sr.Err = err
+			return nil, err
+		}
+	default:
+		err := fmt.Errorf("unknown body encoding %q", rawResult.BodyEncoding)
+		sr.Err = err
+		return nil, err
+	}
+	return decodedBody, nil
 }
 
 func NewSingleResultsWithError(err error) *SingleResult {
@@ -263,8 +271,8 @@ func NewResultFromData(data []byte) Result {
 	}
 }
 
-// NewResultWithNuclioProcessingResult wraps a generic input value into a `ResultWithProcessingResult`
-func NewResultWithNuclioProcessingResult(object interface{}) ResultWithProcessingResult {
+// NewResultWithProcessingResult wraps a generic input value into a `ResultWithProcessingResult`
+func NewResultWithProcessingResult(object interface{}) ResultWithProcessingResult {
 	if object == nil {
 		return NewSingleResult(nil)
 	}
@@ -303,9 +311,9 @@ func NewResultWithNuclioProcessingResult(object interface{}) ResultWithProcessin
 	}
 }
 
-// NormalizeToResultWithNuclioProcessingResult ensures that the given `Result` is compatible
+// NormalizeToResultWithProcessingResult ensures that the given `Result` is compatible
 // with the `ResultWithProcessingResult` interface, converting it if necessary.
-func NormalizeToResultWithNuclioProcessingResult(result Result) (ResultWithProcessingResult, error) {
+func NormalizeToResultWithProcessingResult(result Result) (ResultWithProcessingResult, error) {
 	switch typedResult := result.(type) {
 	case nil:
 		return nil, nil

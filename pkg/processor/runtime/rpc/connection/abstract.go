@@ -362,7 +362,7 @@ func (be *AbstractEventConnection) ProcessEvent(event nuclio.Event, functionLogg
 		return nil, err
 	}
 
-	normalizedResult, normalisationErr := result.NormalizeToResultWithNuclioProcessingResult(processingResult)
+	normalizedResult, normalisationErr := result.NormalizeToResultWithProcessingResult(processingResult)
 	if normalisationErr != nil {
 		return nil, errors.Wrap(normalisationErr, "Failed to normalize result")
 	}

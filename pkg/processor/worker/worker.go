@@ -68,7 +68,7 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
 
 	// form a result object from the response
-	resultWithProcessingResult := result.NewResultWithNuclioProcessingResult(response)
+	resultWithProcessingResult := result.NewResultWithProcessingResult(response)
 
 	// calculate processing metrics
 	w.calculateProcessingMetrics(resultWithProcessingResult.GetProcessingResult(), err)
