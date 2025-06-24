@@ -14,7 +14,7 @@ require (
 	github.com/elastic/go-elasticsearch/v9 v9.0.0
 	github.com/fatih/color v1.15.0
 	github.com/fatih/structs v1.1.0
-	github.com/go-chi/chi/v5 v5.0.10
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/cors v1.2.1
 	github.com/go-git/go-git/v5 v5.13.1
 	github.com/gobuffalo/flect v1.0.2
