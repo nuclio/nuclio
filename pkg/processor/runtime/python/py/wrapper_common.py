@@ -241,7 +241,7 @@ class AbstractWrapper(object):
                 for _output in entrypoint_output
             ]
             yield PacketType.METRICS, json.dumps({'duration': duration})
-            yield PacketType.METRICS, self._json_encoder.encode(responses)
+            yield PacketType.SINGLE_RESPONSE, self._json_encoder.encode(responses)
             return
 
         # Case 2: streamed or dynamic async response
@@ -252,7 +252,7 @@ class AbstractWrapper(object):
                 self._json_encoder.encode, entrypoint_output
         ):
             if message_num == 0:
-                prefix = PacketType.METRICS if handler_output_type == SINGLE_RESPONSE else PacketType.STREAM_START
+                prefix = PacketType.SINGLE_RESPONSE if handler_output_type == SINGLE_RESPONSE else PacketType.STREAM_START
                 response =  self._json_encoder.encode(response)
             else:
                 prefix = PacketType.BODY_CHUNK
