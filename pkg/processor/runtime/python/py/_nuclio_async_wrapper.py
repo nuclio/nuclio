@@ -29,6 +29,7 @@ from wrapper_common import (
     EventSocketDisconnected,
     WrapperFatalException,
     EventSocketException,
+    PacketType,
     JSONFormatterOverEventSocket,
     AbstractWrapper,
     create_logger,
@@ -148,7 +149,7 @@ class AsyncWrapper(AbstractWrapper):
         self._context.logger = connection_logger
 
         # signal start
-        await self._write_packet_to_processor(sock, 's')
+        await self._write_packet_to_processor(sock, PacketType.WRAPPER_START)
 
         try:
             while True:

@@ -35,6 +35,7 @@ class PacketType:
     BODY_CHUNK = 'b'
     END_OF_STREAM = 'e'
     METRICS = 'm'
+    WRAPPER_START = 's'
 
 class Constants:
     # in msgpack protoctol, binary messages' length is 4 bytes long

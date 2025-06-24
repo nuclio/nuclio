@@ -24,6 +24,7 @@ from wrapper_common import (
     WrapperFatalException,
     EventSocketDisconnected,
     EventSocketException,
+    PacketType,
     JSONFormatterOverEventSocket,
     AbstractWrapper,
     create_logger,
@@ -150,7 +151,7 @@ class Wrapper(AbstractWrapper):
         self._register_to_signal()
 
         # indicate that we're ready
-        await self._write_packet_to_processor(self._event_sock, 's')
+        await self._write_packet_to_processor(self._event_sock, PacketType.WRAPPER_START)
         await self._send_data_on_control_socket({
             'kind': 'wrapperInitialized',
             'attributes': {'ready': 'true'}
