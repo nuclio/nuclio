@@ -66,8 +66,12 @@ func (suite *TestConnectionSuite) TestStreamProcessing() {
 	go func() {
 		var err error
 		// send stream messages to the connection's result channel
-		messages := []result.Result{result.NewStreamStart(responseStream), result.NewBodyOnlyFromBase64([]byte(testStreamValueBase64)), result.NewBodyOnlyFromBase64([]byte(testStreamValueBase64)),
-			&result.StreamEnd{}}
+		messages := []result.Result{
+			result.NewStreamStart(responseStream),
+			result.NewBodyOnlyFromBase64([]byte(testStreamValueBase64)),
+			result.NewBodyOnlyFromBase64([]byte(testStreamValueBase64)),
+			&result.StreamEnd{},
+		}
 		for index, message := range messages {
 			if err = suite.sendToChanOrFail(connection.resultChan, message, 5*time.Second); err != nil {
 				sendMessageErrChan <- errors.Wrap(err, fmt.Sprintf("Failed to send message, index: %d", index))

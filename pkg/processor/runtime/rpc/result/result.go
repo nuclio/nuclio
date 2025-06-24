@@ -62,7 +62,7 @@ type singleSerialisedResult struct {
 type StreamStart struct {
 	*nuclio.ResponseStream
 	// firstChunk is the first chunk of data that was received
-	// we can't write it to the nuclio.ResponseStream until nobody somebody from it, because it's blocking operation
+	// we can't write it to the nuclio.ResponseStream until somebody from it, because it's blocking operation
 	// so it should be written to the stream only when we should block the execution
 	firstChunk []byte
 }
@@ -106,14 +106,14 @@ func (eos *StreamEnd) Error() error {
 // BodyOnly represents a single body chunk (as []byte) without any metadata
 // It may also carry an error if decoding failed
 type BodyOnly struct {
-	Body []byte
-	Err  error
+	Body        []byte
+	decodingErr error
 }
 
 func (b *BodyOnly) IsStream() bool { return false }
 
 func (b *BodyOnly) Error() error {
-	return b.Err
+	return b.decodingErr
 }
 
 // NewBodyOnlyFromBase64 creates a BodyOnly result from base64-encoded data.
@@ -121,7 +121,7 @@ func NewBodyOnlyFromBase64(data []byte) Result {
 	decoded, err := base64.StdEncoding.DecodeString(string(data))
 	if err != nil {
 		return &BodyOnly{
-			Err: errors.Errorf("failed to decode base64 body: %s", err.Error()),
+			decodingErr: errors.Errorf("failed to decode base64 body: %s", err.Error()),
 		}
 	}
 	return &BodyOnly{
@@ -135,7 +135,7 @@ func NewBodyOnlyFromBase64(data []byte) Result {
 type SingleResult struct {
 	*nuclio.Response
 	EventId string `json:"event_id"`
-	Err     error
+	err     error
 }
 
 func NewSingleResult(response *nuclio.Response) *SingleResult {
@@ -183,12 +183,12 @@ func (sr *SingleResult) decodeBody(rawResult singleSerialisedResult) ([]byte, er
 		var err error
 		decodedBody, err = base64.StdEncoding.DecodeString(rawResult.Body)
 		if err != nil {
-			sr.Err = err
+			sr.err = err
 			return nil, err
 		}
 	default:
 		err := fmt.Errorf("unknown body encoding %q", rawResult.BodyEncoding)
-		sr.Err = err
+		sr.err = err
 		return nil, err
 	}
 	return decodedBody, nil
@@ -196,14 +196,14 @@ func (sr *SingleResult) decodeBody(rawResult singleSerialisedResult) ([]byte, er
 
 func NewSingleResultsWithError(err error) *SingleResult {
 	singleResult := NewSingleResult(nil)
-	singleResult.Err = err
+	singleResult.err = err
 	return singleResult
 }
 
 func (sr *SingleResult) IsStream() bool { return false }
 
 func (sr *SingleResult) Error() error {
-	return sr.Err
+	return sr.err
 }
 
 func (sr *SingleResult) GetProcessingResult() nuclio.ProcessingResult {
@@ -214,12 +214,13 @@ func (sr *SingleResult) GetProcessingResult() nuclio.ProcessingResult {
 // Used for transmitting batched (non-streaming) responses
 type BatchedResults struct {
 	Results []*SingleResult
-	Err     error
+	err     error
 }
 
 func (br *BatchedResults) IsStream() bool { return false }
+
 func (br *BatchedResults) Error() error {
-	return br.Err
+	return br.err
 }
 
 func NewBatchedResults() *BatchedResults {
@@ -227,7 +228,7 @@ func NewBatchedResults() *BatchedResults {
 }
 
 func NewBatchedResultsWithError(err error) *BatchedResults {
-	return &BatchedResults{Err: err}
+	return &BatchedResults{err: err}
 }
 
 // NewResultFromData decodes raw incoming data into a typed `Result` object,
@@ -262,7 +263,7 @@ func NewResultFromData(data []byte) Result {
 	case PacketTypeStreamStart:
 		var singleResult *SingleResult
 		if err := json.Unmarshal(data[1:], &singleResult); err != nil {
-			singleResult.Err = errors.Wrap(err, "failed to unmarshal single result from stream start")
+			singleResult.err = errors.Wrap(err, "failed to unmarshal single result from stream start")
 			return singleResult
 		}
 		return newStreamStartFromSingleResult(singleResult)
@@ -321,7 +322,7 @@ func NormalizeToResultWithProcessingResult(result Result) (ResultWithProcessingR
 		return typedResult, nil
 	case *BodyOnly:
 		single := NewSingleResult(&nuclio.Response{Body: typedResult.Body})
-		single.Err = typedResult.Err
+		single.err = typedResult.Error()
 		return single, nil
 	case *BatchedResults:
 		if len(typedResult.Results) > 0 {

@@ -150,7 +150,6 @@ func (suite *TestConnectionAllocatorSuite) TestReplaceConnection() {
 	}()
 	connection.(*Connection).resultChan <- &result.BatchedResults{
 		Results: []*result.SingleResult{result.NewSingleResult(&nuclio.Response{Body: []byte("hello")})},
-		Err:     nil,
 	}
 	<-ctx.Done()
 }
