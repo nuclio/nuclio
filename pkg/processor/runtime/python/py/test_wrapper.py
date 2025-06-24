@@ -30,6 +30,7 @@ import nuclio_sdk
 import nuclio_sdk.helpers
 
 import _nuclio_wrapper as wrapper
+from wrapper_common import PacketType
 from test_base import BaseTestSubmitEvents
 
 
@@ -310,17 +311,21 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         prefixes = [prefix for prefix, _ in packets]
 
         # Ensure 'c' exists and comes before any 'b'
-        assert prefixes.index("c") < prefixes.index("b"), "'c' must come before 'b'"
+        assert prefixes.index(PacketType.STREAM_START) < prefixes.index(PacketType.BODY_CHUNK)
+        # Ensure 'b' exists and comes before any 'e'
+        assert prefixes.index(PacketType.BODY_CHUNK) < prefixes.index(PacketType.END_OF_STREAM)
+        # Ensure 'e' exists and comes before any 'm'
+        assert prefixes.index(PacketType.END_OF_STREAM) < prefixes.index(PacketType.METRICS)
 
         payload_by_prefix = {
             prefix: payload for prefix, payload in packets
         }
 
-        self.assertEqual(payload_by_prefix["c"], json.dumps("chunk1"))
-        self.assertEqual(payload_by_prefix["b"], json.dumps("chunk2"))
-        self.assertIn("e", prefixes)
-        self.assertIn("m", prefixes)
-        self.assertNotIn("r", prefixes)
+        self.assertEqual(payload_by_prefix[PacketType.STREAM_START], json.dumps("chunk1"))
+        self.assertEqual(payload_by_prefix[PacketType.BODY_CHUNK], json.dumps("chunk2"))
+        self.assertIn(PacketType.END_OF_STREAM, prefixes)
+        self.assertIn(PacketType.METRICS, prefixes)
+        self.assertNotIn(PacketType.SINGLE_RESPONSE, prefixes)
 
     async def test_encode_single_value_entrypoint_output(self):
         # Simulate regular async function returning a single value
@@ -335,21 +340,25 @@ class TestSubmitEvents(BaseTestSubmitEvents):
             (prefix, payload)
             async for prefix, payload in self._wrapper._generate_processor_packets(entrypoint_output, start_time=0)
         ]
+        self.assertEqual(len(packets), 2)
 
         prefixes = [prefix for prefix, _ in packets]
 
-        self.assertIn("r", prefixes)
-        self.assertIn("m", prefixes)
-        self.assertNotIn("c", prefixes)
-        self.assertNotIn("b", prefixes)
-        self.assertNotIn("e", prefixes)
+        self.assertIn(PacketType.SINGLE_RESPONSE, prefixes)
+        self.assertIn(PacketType.METRICS, prefixes)
+        self.assertNotIn(PacketType.STREAM_START, prefixes)
+        self.assertNotIn(PacketType.BODY_CHUNK, prefixes)
+        self.assertNotIn(PacketType.END_OF_STREAM, prefixes)
+
 
         payload_by_prefix = {
             prefix: payload for prefix, payload in packets
         }
 
-        self.assertEqual(payload_by_prefix["r"], json.dumps({"body": "ok", "status_code": 200}))
-
+        self.assertEqual(
+            payload_by_prefix[PacketType.SINGLE_RESPONSE],
+            json.dumps({"body": "ok", "status_code": 200})
+        )
 
     async def test_encode_batched_entrypoint_output(self):
         single_response = nuclio_sdk.Response(

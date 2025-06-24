@@ -29,6 +29,13 @@ import traceback
 import json
 
 
+class PacketType:
+    SINGLE_RESPONSE = 'r'
+    STREAM_START = 'c'
+    BODY_CHUNK = 'b'
+    END_OF_STREAM = 'e'
+    METRICS = 'm'
+
 class Constants:
     # in msgpack protoctol, binary messages' length is 4 bytes long
     msgpack_message_length_bytes = 4
@@ -197,11 +204,9 @@ class AbstractWrapper(object):
 
     async def _handle_entrypoint_output(self, entrypoint_output, start_time, sock):
         async for prefix, payload in self._generate_processor_packets(entrypoint_output, start_time):
-            if payload is not None:
-                await self._write_packet_to_processor(sock, prefix + payload)
-            else:
-                await self._write_packet_to_processor(sock, prefix)
-
+            # concatenate prefix and payload if payload is not None
+            packet = prefix if payload is None else prefix + payload
+            await self._write_packet_to_processor(sock, packet)
 
     async def _generate_processor_packets(self, entrypoint_output, start_time):
         """
@@ -235,8 +240,8 @@ class AbstractWrapper(object):
                 nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode, _output)
                 for _output in entrypoint_output
             ]
-            yield 'm', json.dumps({'duration': duration})
-            yield 'r', self._json_encoder.encode(responses)
+            yield PacketType.METRICS, json.dumps({'duration': duration})
+            yield PacketType.METRICS, self._json_encoder.encode(responses)
             return
 
         # Case 2: streamed or dynamic async response
@@ -247,19 +252,19 @@ class AbstractWrapper(object):
                 self._json_encoder.encode, entrypoint_output
         ):
             if message_num == 0:
-                prefix = 'r' if handler_output_type == SINGLE_RESPONSE else 'c'
+                prefix = PacketType.METRICS if handler_output_type == SINGLE_RESPONSE else PacketType.STREAM_START
                 response =  self._json_encoder.encode(response)
             else:
-                prefix = 'b'
+                prefix = PacketType.BODY_CHUNK
             yield prefix, response
             message_num += 1
 
         # Only send end-of-stream if multiple chunks were sent
         if message_num > 1:
             duration = time.time() - start_time or sys.float_info.min
-            yield 'e', None
+            yield PacketType.END_OF_STREAM, None
 
-        yield 'm', json.dumps({'duration': duration})
+        yield PacketType.METRICS, json.dumps({'duration': duration})
 
     async def _send_data_on_control_socket(self, data):
         if not self._control_sock:
