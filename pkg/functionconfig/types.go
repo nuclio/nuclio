@@ -525,6 +525,10 @@ type Spec struct {
 	// (Which is in nanoseconds)
 	EventTimeout string `json:"eventTimeout"`
 
+	// StreamChunkTimeout is the timeout for a stream chunk
+	// Should not be bigger than EventTimeout
+	StreamChunkTimeout string `json:"streamChunkTimeout"`
+
 	// PreemptionMode is a mode to allow the user to allow running function pods on preemptible nodes
 	// When filled, tolerations, node labels, and affinity would be populated correspondingly to
 	// the platformconfig.PreemptibleNodes values.
