@@ -62,7 +62,7 @@ type singleSerialisedResult struct {
 type StreamStart struct {
 	*nuclio.ResponseStream
 	// firstChunk is the first chunk of data that was received
-	// we can't write it to the nuclio.ResponseStream until somebody from it, because it's blocking operation
+	// we can't write it to the nuclio.ResponseStream until somebody reads from it, because it's blocking operation
 	// so it should be written to the stream only when we should block the execution
 	firstChunk []byte
 }
