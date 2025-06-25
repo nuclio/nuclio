@@ -293,18 +293,23 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance eventprocessor.Event
 // SubmitEventToWorker submits events to worker and returns response
 func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	workerInstance eventprocessor.EventProcessor,
-	event nuclio.Event) (response nuclio.ProcessingResult, processError error) {
+	event nuclio.Event) (nuclio.ProcessingResult, error) {
 
 	event, err := at.prepareEvent(event, workerInstance)
 	if err != nil {
 		return nil, err
 	}
 
-	response, processError = workerInstance.ProcessEvent(event, functionLogger)
+	response, processError := workerInstance.ProcessEvent(event, functionLogger)
 
 	// increment statistics based on results. if process error is nil, we successfully handled
 	at.UpdateStatistics(processError == nil, 1)
-	return
+	if response == nil {
+		// if the response is nil, return an empty response with the error
+		return &nuclio.Response{}, processError
+	}
+
+	return response.GetProcessingResult(), processError
 }
 
 // UpdateStatistics updates the trigger statistics
@@ -527,7 +532,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 		at.UpdateStatistics(false, uint64(len(responseChans)))
 		return
 	} else {
-		for _, response := range responses {
+		for _, response := range responses.Results {
 			if response.EventId == "" {
 				at.Logger.WarnWith("Received in-batch response without event_id, response won't be returned")
 			}
@@ -537,7 +542,7 @@ func (at *AbstractTrigger) SubmitBatchAndSendResponses(batch []nuclio.Event, res
 			} else {
 				go channel.Write(at.Logger, response)
 				delete(responseChans, response.EventId)
-				if response.ProcessError != nil {
+				if response.Error() != nil {
 					at.UpdateStatistics(false, 1)
 				} else {
 					at.UpdateStatistics(true, 1)

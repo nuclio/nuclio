@@ -17,9 +17,6 @@ limitations under the License.
 package worker
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -30,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/logger"
@@ -65,51 +63,25 @@ func NewWorker(parentLogger logger.Logger,
 }
 
 // ProcessEvent sends the event to the associated runtime
-func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error) {
+func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithProcessingResult, error) {
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
 
-	w.calculateProcessingMetrics(response, err)
+	// form a result object from the response
+	resultWithProcessingResult := result.NewResultWithProcessingResult(response)
 
-	if response == nil {
-		// if the response is nil, return an empty response with the error
-		// it might be that go runtime handler returned nil, so we want to make sure that we return a valid response
-		return &nuclio.Response{}, err
-	}
+	// calculate processing metrics
+	w.calculateProcessingMetrics(resultWithProcessingResult.GetProcessingResult(), err)
 
-	// always translate the response to a nuclio.ProcessingResult
-	switch typedResponse := response.(type) {
-	case *nuclio.Response:
-		return typedResponse, err
-	case nuclio.Response:
-		return &typedResponse, err
-	case *nuclio.ResponseStream:
-		return typedResponse, err
-	case nuclio.ResponseStream:
-		return &typedResponse, err
-	case io.ReadCloser:
-		// if the response is an io.ReadCloser, create a response stream
-		return nuclio.NewCustomResponseStream("", nil, 0, typedResponse, nil), err
-	case []byte:
-		return &nuclio.Response{
-			Body: typedResponse,
-		}, err
-	case string:
-		return &nuclio.Response{
-			Body: []byte(typedResponse),
-		}, err
-	default:
-		// try to JSON-marshal the value
-		if marshaled, marshalErr := json.Marshal(typedResponse); marshalErr == nil {
-			return &nuclio.Response{Body: marshaled}, err
-		}
-		// fallback to string formatting if JSON marshalling fails
-		return &nuclio.Response{Body: []byte(fmt.Sprintf("%v", typedResponse))}, err
-	}
+	return resultWithProcessingResult, err
 }
 
-func (w *Worker) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+func (w *Worker) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	return w.runtime.ProcessBatch(batch, w.logger)
+}
+
+func (w *Worker) ProcessStream(stream *result.StreamStart) error {
+	return nuclio.ErrNotImplemented
 }
 
 // GetStatistics returns a pointer to the statistics object. This must not be modified by the reader
@@ -220,23 +192,19 @@ func (w *Worker) IsBusy() bool {
 	return w.runtime.IsBusy()
 }
 
-func (w *Worker) calculateProcessingMetrics(response interface{}, err error) {
+func (w *Worker) calculateProcessingMetrics(response nuclio.ProcessingResult, err error) {
 	// check if there was a processing error. if so, log it
 	if err != nil {
 		atomic.AddUint64(&w.statistics.EventsHandledError, 1)
 		return
 	}
 	success := true
-	stream := false
 
-	if typedResponse, ok := response.(nuclio.ProcessingResult); ok {
-		if typedResponse.GetStatusCode() > 0 {
-			success = typedResponse.GetStatusCode() < http.StatusBadRequest
-		}
-		stream = typedResponse.IsStream()
+	if response.GetStatusCode() > 0 {
+		success = response.GetStatusCode() < http.StatusBadRequest
 	}
 
-	if stream {
+	if response.IsStream() {
 		if success {
 			atomic.AddUint64(&w.statistics.EventsStreamingStartedSuccessfully, 1)
 		} else {

@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventprocessor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/connection"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processwaiter"
 
@@ -87,7 +88,7 @@ func (r *AbstractRuntime) IsBusy() bool {
 }
 
 // ProcessBatch processes a batch of events
-func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+func (r *AbstractRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	return r.processBatchAndWaitForResult(batch, functionLogger)
 }
 
@@ -212,31 +213,53 @@ func (r *AbstractRuntime) WaitForProcessTermination(timeout time.Duration) {
 	}
 }
 
-func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+func (r *AbstractRuntime) processEventAndWaitForResult(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithProcessingResult, error) {
 	connectionInstance, err := r.allocateConnection()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing event")
 	}
-	result, err := connectionInstance.ProcessEvent(event, functionLogger)
+	processingResult, err := connectionInstance.ProcessEvent(event, functionLogger)
 
-	// release connection after processing event
-	// in goroutine to avoid blocking the processing
-	go r.connectionManager.Release(connectionInstance)
+	if err != nil || (processingResult != nil && !processingResult.IsStream()) {
+		// release connection after processing event
+		// in goroutine to avoid blocking the processing
+		go r.connectionManager.Release(connectionInstance)
+		return processingResult, err
+	}
 
-	return result, err
+	// Stream response in the background
+	go func() {
+		// release connection after processing stream
+		defer r.connectionManager.Release(connectionInstance)
+		stream, ok := processingResult.(*result.StreamStart)
+
+		// should never happen
+		if !ok {
+			r.Logger.ErrorWith("Failed to cast result to result.StreamStart",
+				"result", processingResult)
+			return
+		}
+		if streamErr := connectionInstance.ProcessStream(stream); streamErr != nil {
+			r.Logger.ErrorWith("Failed to process stream",
+				"stream", stream,
+				"error", streamErr)
+		}
+	}()
+
+	return processingResult, err
 }
 
-func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+func (r *AbstractRuntime) processBatchAndWaitForResult(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	connectionInstance, err := r.allocateConnection()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to allocate connection for processing batch")
 	}
-	result, err := connectionInstance.ProcessEventBatch(batch, functionLogger)
+	processingResult, err := connectionInstance.ProcessEventBatch(batch, functionLogger)
 
 	// release connection after processing event
 	// in goroutine to avoid blocking the processing
 	go r.connectionManager.Release(connectionInstance)
-	return result, err
+	return processingResult, err
 }
 
 func (r *AbstractRuntime) allocateConnection() (eventprocessor.EventProcessor, error) {

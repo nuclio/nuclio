@@ -145,12 +145,11 @@ func (suite *TestConnectionAllocatorSuite) TestReplaceConnection() {
 	go func() {
 		response, err := connection.ProcessEvent(event, suite.logger)
 		suite.Require().NoError(err)
-		suite.Require().Equal("hello", string(response.GetBody().([]byte)))
+		suite.Require().Equal("hello", string(response.GetProcessingResult().GetBody().([]byte)))
 		cancelFunc()
 	}()
 	connection.(*Connection).resultChan <- &result.BatchedResults{
-		Results: []*result.Result{{DecodedBody: []byte("hello")}},
-		Err:     nil,
+		Results: []*result.SingleResult{result.NewSingleResult(&nuclio.Response{Body: []byte("hello")})},
 	}
 	<-ctx.Done()
 }
