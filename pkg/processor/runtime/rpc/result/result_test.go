@@ -19,8 +19,10 @@ package result
 
 import (
 	"encoding/base64"
+	"net/http"
 	"testing"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
@@ -150,6 +152,21 @@ func (suite *ResultSuite) TestNewResultFromDataRawInputs() {
 			}
 		})
 	}
+}
+
+func (suite *ResultSuite) TestSetStatusCodeFromError() {
+	responseStream := nuclio.NewResponseStream("", nil, 200)
+	streamStart := NewStreamStart(responseStream)
+	defer responseStream.StopStreaming()
+
+	streamStart.SetStatusCode(200)
+	err := nuclio.NewErrRequestTimeout("Request timed out")
+	firstWrapping := nuclio.WrapErrProcessing(err)
+	secondWrapping := errors.Wrap(firstWrapping, "Failed to process request")
+
+	streamStart.SetStatusCodeFromError(secondWrapping)
+	suite.Require().Equal(http.StatusProcessing, streamStart.GetStatusCode())
+
 }
 
 func TestResultSuite(t *testing.T) {

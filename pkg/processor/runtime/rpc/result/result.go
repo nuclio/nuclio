@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -82,6 +83,37 @@ func newStreamStartFromSingleResult(singleResult *SingleResult) *StreamStart {
 func (ss *StreamStart) WriteFirstChunk() error {
 	_, err := ss.SendChunk(ss.firstChunk)
 	return err
+}
+
+func (ss *StreamStart) SetStatusCodeFromError(err error) {
+	if err == nil {
+		return
+	}
+
+	current := err
+	maxDepth := 10
+
+	// Walk through the error chain up to maxDepth
+	for i := 0; i < maxDepth && current != nil; i++ {
+		// If the current error has a status code, use it and return
+		if errorWithStatusCode, ok := current.(*nuclio.ErrorWithStatusCode); ok {
+			ss.SetStatusCode(errorWithStatusCode.StatusCode())
+			return
+		}
+
+		// Try to unwrap the current error using Nuclio's Cause()
+		next := errors.RootCause(current)
+
+		// Break if there's no deeper cause or cause is the same (to avoid infinite loops)
+		if next == nil {
+			break
+		}
+
+		current = next
+	}
+
+	// If no status code was found in the chain, default to 500
+	ss.SetStatusCode(http.StatusInternalServerError)
 }
 
 func (ss *StreamStart) IsStream() bool { return true }

@@ -167,17 +167,13 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
-	if len(processorConfiguration.Spec.EventTimeout) > 0 {
+	watcherTimeout, err := newProcessor.resolveWatcherTimeout(processorConfiguration.Spec)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve watcher timeout")
+	}
 
-		// This is checked by the configuration reader, but just in case
-		eventTimeout, timeoutErr := processorConfiguration.Spec.GetEventTimeout()
-		if timeoutErr != nil {
-			return nil, errors.Wrap(timeoutErr, "Bad EventTimeout")
-		}
-
-		if startErr := newProcessor.startTimeoutWatcher(eventTimeout); startErr != nil {
-			return nil, errors.Wrap(startErr, "Can't start timeout watcher")
-		}
+	if startErr := newProcessor.startTimeoutWatcher(watcherTimeout); startErr != nil {
+		return nil, errors.Wrap(startErr, "Can't start timeout watcher")
 	}
 
 	// create the web interface
@@ -524,6 +520,30 @@ func (p *Processor) createMetricSinks(processorConfiguration *processor.Configur
 	}
 
 	return metricSinks, nil
+}
+
+func (p *Processor) resolveWatcherTimeout(processorConfigurationSpec functionconfig.Spec) (time.Duration, error) {
+	// Default timeout
+	watcherTimeout := 10 * time.Second
+
+	// Try stream chunk timeout first
+	streamChunkTimeout, streamChunkErr := processorConfigurationSpec.GetStreamChunkTimeout()
+	if streamChunkErr != nil {
+		return watcherTimeout, errors.Wrap(streamChunkErr, "Bad StreamChunkTimeout")
+	}
+	if streamChunkTimeout > 0 {
+		watcherTimeout = streamChunkTimeout
+	} else {
+		// Try event timeout next
+		eventTimeout, eventTimeoutErr := processorConfigurationSpec.GetEventTimeout()
+		if eventTimeoutErr != nil {
+			return watcherTimeout, errors.Wrap(eventTimeoutErr, "Bad EventTimeout")
+		}
+		if eventTimeout > 0 {
+			watcherTimeout = eventTimeout
+		}
+	}
+	return watcherTimeout, nil
 }
 
 func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) error {

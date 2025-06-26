@@ -97,6 +97,7 @@ type ManagerConfigration struct {
 	Statistics                  *runtime.Statistics
 
 	eventTimeout time.Duration
+	chunkTimeout time.Duration
 
 	host     string
 	port     int
@@ -111,7 +112,8 @@ func NewManagerConfigration(
 	statistics *runtime.Statistics,
 	workerId int,
 	mode functionconfig.TriggerWorkMode,
-	timeout time.Duration) *ManagerConfigration {
+	eventTimeout time.Duration,
+	chunkTimeout time.Duration) *ManagerConfigration {
 	manager := &ManagerConfigration{
 		SupportControlCommunication: supportControlCommunication,
 		WaitForStart:                waitForStart,
@@ -119,7 +121,8 @@ func NewManagerConfigration(
 		GetEventEncoderFunc:         getEventEncoderFunc,
 		Statistics:                  statistics,
 		workerId:                    workerId,
-		eventTimeout:                timeout,
+		eventTimeout:                eventTimeout,
+		chunkTimeout:                chunkTimeout,
 	}
 	switch mode {
 	case functionconfig.AsyncTriggerWorkMode:

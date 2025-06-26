@@ -86,6 +86,7 @@ func (sa *SocketAllocator) Start(pid int) error {
 			if err := socket.WaitForStart(0); err != nil {
 				return errors.Wrap(err, "Failed to wait for socket start")
 			}
+			socket.SetStatus(status.Ready)
 		}
 	}
 
@@ -113,7 +114,23 @@ func (sa *SocketAllocator) Stop() error {
 }
 
 func (sa *SocketAllocator) Allocate(duration time.Duration) (eventprocessor.EventProcessor, error) {
-	return sa.allocator.Allocate(duration)
+	socket, err := sa.allocator.Allocate(duration)
+	if err == nil && socket != nil {
+		// required for the case when non-blocking singleton allocator is used
+		// and the connection was set to restart during stream processing and writer was closed;
+		// closing a writer unblocks processing from trigger side and releases the worker
+		// so we might have a delay between setting the allocator for restart during release
+		if socket.GetStatus() != status.Ready {
+			sa.Logger.DebugWith("Connection not ready", "status", socket.GetStatus().String())
+			if len(sa.allocator.GetObjects()) == 1 {
+
+				// set status to restart required if we have only one connection
+				sa.SetStatus(status.RestartRequired)
+			}
+			return nil, errors.Errorf("Connection not ready. Status: %s", socket.GetStatus().String())
+		}
+	}
+	return socket, err
 }
 
 // Release releases an instance of EventConnection

@@ -384,18 +384,27 @@ func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, funct
 	return normalizedResult, err
 }
 
-func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) error {
+func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) (err error) {
+	// first defer: set status code from error if any
+	defer func() {
+		if err != nil {
+			stream.SetStatusCodeFromError(err)
+
+			// mark connection for restart to clean up resources
+			be.SetStatus(status.RestartRequired)
+		}
+	}()
+
 	// always close stream when processing is done
 	defer be.postProcessStreaming(stream.ResponseStream)
 
 	// start with writing a first chunk
 	// this is blocking operation, so it will wait until the reader is ready to receive data
-	if err := stream.WriteFirstChunk(); err != nil {
+	if err = stream.WriteFirstChunk(); err != nil {
 		return errors.Wrap(err, "Failed to write first chunk to stream")
 	}
 
 	var chunk result.Result
-	var err error
 	// wait for next messages arrival
 	for {
 		if chunk, err = be.waitForNextResponseChunk(); err != nil {
@@ -409,12 +418,10 @@ func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) err
 		case *result.BodyOnly:
 			if _, err = stream.SendChunk(typedChunk.Body); err != nil {
 				// if there was an error sending the chunk, mark connection for restart and return error
-				be.SetStatus(status.RestartRequired)
 				return errors.Wrap(err, "Failed to send chunk to stream")
 			}
 			continue
 		default:
-			be.SetStatus(status.RestartRequired)
 			return errors.Errorf("Got unsupported message of type %T during stream processing", typedChunk)
 		}
 	}
@@ -624,21 +631,16 @@ func (be *AbstractEventConnection) processItem(item interface{}, functionLogger 
 		be.functionLogger = nil
 		return nil, errors.Wrapf(err, "Can't encode item: %+v", item)
 	}
-
-	// if eventTimeout is 0, we wait for response without timeout
-	// if it is set, we wait either for response or the timeout
-	if be.connectionManager.GetConfig().eventTimeout == 0 {
-		processingResults, ok := <-be.resultChan
-		return be.postProcessEventRegularFlow(processingResults, !ok)
-	} else {
-		return be.waitForResponseWithTimeout()
-	}
+	return be.waitForResponseWithOptionalTimeout(
+		be.connectionManager.GetConfig().eventTimeout,
+		be.postProcessEventRegularFlow,
+		be.postProcessEventOnTimeout)
 }
 
 func (be *AbstractEventConnection) waitForNextResponseChunk() (result.Result, error) {
-	// TODO: add chunk timeout
-	processingResults, ok := <-be.resultChan
-	return be.postProcessResponseCheckForFailure(processingResults, !ok)
+	return be.waitForResponseWithOptionalTimeout(be.connectionManager.GetConfig().chunkTimeout,
+		be.postProcessResponseCheckForFailure,
+		be.postProcessEventOnTimeout)
 }
 
 func (be *AbstractEventConnection) stop() error {
@@ -661,15 +663,44 @@ func (be *AbstractEventConnection) stop() error {
 	return err
 }
 
-func (be *AbstractEventConnection) waitForResponseWithTimeout() (result.Result, error) {
-	ticker := time.NewTicker(be.connectionManager.GetConfig().eventTimeout)
+// waitForResponseWithOptionalTimeout waits for a response on be.resultChan,
+// with optional timeout logic controlled by the provided duration.
+//
+// Behavior:
+//   - If timeout == 0: waits indefinitely for a response and calls postProcessRegularFlow.
+//   - If timeout > 0: waits for either a response or a timeout.
+//   - On response: calls postProcessRegularFlow.
+//   - On timeout: calls postProcessOnTimeout.
+//
+// Parameters:
+//   - timeout: duration to wait before triggering timeout flow. 0 means wait indefinitely.
+//   - postProcessRegularFlow: handler to call on receiving a result.
+//   - postProcessOnTimeout: handler to call if timeout elapses before a result arrives.
+//
+// Returns:
+//   - result.Result: the processed result or nil on timeout.
+//   - error: error from post-processing callbacks.
+func (be *AbstractEventConnection) waitForResponseWithOptionalTimeout(
+	timeout time.Duration,
+	postProcessRegularFlow func(processingResults result.Result, isClientDisconnected bool) (result.Result, error),
+	postProcessOnTimeout func() error,
+) (result.Result, error) {
+
+	// Wait indefinitely if no timeout set
+	if timeout == 0 {
+		processingResults, ok := <-be.resultChan
+		return postProcessRegularFlow(processingResults, !ok)
+	}
+
+	// Otherwise wait for response or timeout
+	ticker := time.NewTicker(timeout)
 	defer ticker.Stop()
 
 	select {
 	case processingResults, ok := <-be.resultChan:
-		return be.postProcessEventRegularFlow(processingResults, !ok)
+		return postProcessRegularFlow(processingResults, !ok)
 	case <-ticker.C:
-		return nil, be.postProcessEventOnTimeout()
+		return nil, postProcessOnTimeout()
 	}
 }
 

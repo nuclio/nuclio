@@ -630,6 +630,16 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 	return timeout, err
 }
 
+// GetStreamChunkTimeout returns the stream chunk timeout as time.Duration
+func (s *Spec) GetStreamChunkTimeout() (time.Duration, error) {
+	timeout, err := time.ParseDuration(s.StreamChunkTimeout)
+	if err == nil && timeout <= 0 {
+		err = fmt.Errorf("streamChunkTimeout <= 0 (%s)", timeout)
+	}
+
+	return timeout, err
+}
+
 // PositiveGPUResourceLimit returns whether function requested at least one GPU
 func (s *Spec) PositiveGPUResourceLimit() bool {
 	if gpuResourceLimit, found := s.Resources.Limits[NvidiaGPUResourceName]; found {

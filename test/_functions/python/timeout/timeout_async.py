@@ -62,3 +62,22 @@ async def handler(context, event):
     else:
         await asyncio.sleep(timeout)
     return json.dumps({'pid': os.getpid()})
+
+async def stream_handler(context, event):
+    """Yield a few chunks with delay between them to test stream chunk timeout"""
+    body = event.body
+    if isinstance(body, bytes):
+        body = json.loads(body)
+
+    delay = parse_duration(body.get("timeout", 0))
+    context.logger.info("Yielding with %.2f seconds between chunks", delay)
+
+    async def generate():
+        pid = os.getpid()
+        yield "{" + f"\"pid\":{pid}, \"data\":\""
+        for i in range(3):
+            await asyncio.sleep(delay)
+            yield f"chunk-{i}"
+        yield "\"}"
+
+    return context.Response(body=generate(), content_type="application/json")

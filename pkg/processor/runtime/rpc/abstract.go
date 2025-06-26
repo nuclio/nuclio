@@ -301,7 +301,8 @@ func (r *AbstractRuntime) startWrapper() error {
 }
 
 func (r *AbstractRuntime) createConnectionManager() error {
-	timeout, _ := r.configuration.Spec.GetEventTimeout()
+	eventTimeout, _ := r.configuration.Spec.GetEventTimeout()
+	streamChunkTimeout, _ := r.configuration.Spec.GetStreamChunkTimeout()
 
 	connectionManagerConfiguration := connection.NewManagerConfigration(
 		r.runtime.SupportsControlCommunication(),
@@ -311,7 +312,8 @@ func (r *AbstractRuntime) createConnectionManager() error {
 		r.Statistics,
 		r.configuration.WorkerID,
 		r.configuration.Mode,
-		timeout,
+		eventTimeout,
+		streamChunkTimeout,
 	)
 	var err error
 

@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -41,7 +42,8 @@ type timeoutSuite struct {
 }
 
 type timeoutResponse struct {
-	PID int `json:"pid"`
+	PID  int    `json:"pid"`
+	Data string `json:"data,omitempty"`
 }
 
 func (suite *timeoutSuite) SetupTest() {
@@ -176,6 +178,87 @@ func (suite *timeoutSuite) TestTimeoutAsync() {
 			ExpectedResponseStatusCode: &okStatusCode,
 		},
 	})
+}
+
+func (suite *timeoutSuite) TestStreamChunkTimeout() {
+	chunkTimeout := 500 * time.Millisecond
+	okStatusCode := http.StatusOK
+	timeoutStatusCode := http.StatusRequestTimeout
+	sleepChunkShort := 10 * time.Millisecond
+	sleepChunkLong := 2 * time.Second
+
+	for _, testCase := range []struct {
+		name            string
+		deployOptions   *platform.CreateFunctionOptions
+		pidShouldChange bool
+	}{
+
+		{
+			name:          "asyncMode",
+			deployOptions: suite.GetDeployOptionsAsync("stream-timeout", path.Join(suite.GetTestFunctionsDir(), "python", "timeout"), 1),
+		},
+
+		{
+			name:            "syncMode",
+			deployOptions:   suite.GetDeployOptions("stream-timeout", path.Join(suite.GetTestFunctionsDir(), "python", "timeout")),
+			pidShouldChange: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions := testCase.deployOptions
+			createFunctionOptions.FunctionConfig.Spec.StreamChunkTimeout = chunkTimeout.String()
+			createFunctionOptions.FunctionConfig.Spec.Handler = "timeout_async:stream_handler"
+			var oldPID int
+
+			suite.DeployFunctionAndRequests(createFunctionOptions, []*httpsuite.Request{
+				// sending regular request, 200 code expected
+				{
+					RequestBody:                suite.genTimeoutRequest(sleepChunkShort, false),
+					RequestHeaders:             requestHeaders,
+					ExpectedResponseStatusCode: &okStatusCode,
+
+					ExpectedResponseBody: func(body []byte) {
+						response := &timeoutResponse{}
+						err := json.Unmarshal(body, response)
+						suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
+						oldPID = response.PID
+						suite.Require().Equal("chunk-0chunk-1chunk-2", response.Data)
+					},
+				},
+				// sending request long timeout expected
+				{
+					RequestBody:                suite.genTimeoutRequest(sleepChunkLong, false),
+					RequestHeaders:             requestHeaders,
+					ExpectedResponseStatusCode: &timeoutStatusCode,
+				},
+				// retry until runtime is back
+				{
+					RequestBody:                    suite.genTimeoutRequest(0, false),
+					RequestHeaders:                 requestHeaders,
+					RetryUntilSuccessfulStatusCode: &okStatusCode,
+					RetryUntilSuccessfulInterval:   100 * time.Millisecond,
+					RetryUntilSuccessfulDuration:   10 * time.Second,
+				},
+				// short sleep request, 200 code expected
+				{
+					RequestBody:                suite.genTimeoutRequest(sleepChunkShort, false),
+					RequestHeaders:             requestHeaders,
+					ExpectedResponseStatusCode: &okStatusCode,
+					ExpectedResponseBody: func(body []byte) {
+						response := &timeoutResponse{}
+						err := json.Unmarshal(body, response)
+						suite.Require().NoErrorf(err, "Can't parse response - %q", string(body))
+						if testCase.pidShouldChange {
+							suite.Require().NotEqual(oldPID, response.PID, "Wrapper PID didn't change")
+						} else {
+							suite.Require().Equal(oldPID, response.PID, "Wrapper PID should not change")
+						}
+						suite.Require().Equal("chunk-0chunk-1chunk-2", response.Data)
+					},
+				},
+			})
+		})
+	}
 }
 
 func (suite *timeoutSuite) genTimeoutRequest(timeout time.Duration, blocking bool) string {
