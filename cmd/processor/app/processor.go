@@ -527,18 +527,13 @@ func (p *Processor) resolveWatcherTimeout(processorConfigurationSpec functioncon
 	watcherTimeout := 10 * time.Second
 
 	// Try stream chunk timeout first
-	streamChunkTimeout, streamChunkErr := processorConfigurationSpec.GetStreamChunkTimeout()
-	if streamChunkErr != nil {
-		return watcherTimeout, errors.Wrap(streamChunkErr, "Bad StreamChunkTimeout")
-	}
+	streamChunkTimeout, _ := processorConfigurationSpec.GetStreamChunkTimeout()
+
 	if streamChunkTimeout > 0 {
 		watcherTimeout = streamChunkTimeout
 	} else {
 		// Try event timeout next
-		eventTimeout, eventTimeoutErr := processorConfigurationSpec.GetEventTimeout()
-		if eventTimeoutErr != nil {
-			return watcherTimeout, errors.Wrap(eventTimeoutErr, "Bad EventTimeout")
-		}
+		eventTimeout, _ := processorConfigurationSpec.GetEventTimeout()
 		if eventTimeout > 0 {
 			watcherTimeout = eventTimeout
 		}
