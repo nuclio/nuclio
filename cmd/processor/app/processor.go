@@ -79,6 +79,8 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
+const defaultWatcherTimeout = 10 * time.Second
+
 // Processor is responsible to process events
 type Processor struct {
 	logger                    logger.Logger
@@ -523,22 +525,19 @@ func (p *Processor) createMetricSinks(processorConfiguration *processor.Configur
 }
 
 func (p *Processor) resolveWatcherTimeout(processorConfigurationSpec functionconfig.Spec) (time.Duration, error) {
-	// Default timeout
-	watcherTimeout := 10 * time.Second
-
 	// Try stream chunk timeout first
 	streamChunkTimeout, _ := processorConfigurationSpec.GetStreamChunkTimeout()
 
 	if streamChunkTimeout > 0 {
-		watcherTimeout = streamChunkTimeout
+		return streamChunkTimeout, nil
 	} else {
 		// Try event timeout next
 		eventTimeout, _ := processorConfigurationSpec.GetEventTimeout()
 		if eventTimeout > 0 {
-			watcherTimeout = eventTimeout
+			return eventTimeout, nil
 		}
 	}
-	return watcherTimeout, nil
+	return defaultWatcherTimeout, nil
 }
 
 func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) error {

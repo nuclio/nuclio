@@ -79,21 +79,16 @@ func (sa *SocketAllocator) Start(pid int) error {
 		return errors.Wrap(err, "Failed to start socket allocator")
 	}
 
-	// wait for start if required to
-	if sa.Configuration.WaitForStart {
-		sa.Logger.Debug("Waiting for start")
-		for _, socket := range eventSockets {
+	// wait for start if required to ensure that all sockets are ready
+	for _, socket := range eventSockets {
+		if sa.Configuration.WaitForStart {
+			sa.Logger.Debug("Waiting for start")
 			if err := socket.WaitForStart(0); err != nil {
 				return errors.Wrap(err, "Failed to wait for socket start")
 			}
-			socket.SetStatus(status.Ready)
 		}
-	} else {
-		for _, socket := range eventSockets {
-			socket.SetStatus(status.Ready)
-		}
+		socket.SetStatus(status.Ready)
 	}
-
 	sa.SetStatus(status.Ready)
 	sa.Logger.Debug("Socker allocator started")
 	return nil
@@ -124,14 +119,14 @@ func (sa *SocketAllocator) Allocate(duration time.Duration) (eventprocessor.Even
 		// and the connection was set to restart during stream processing and writer was closed;
 		// closing a writer unblocks processing from trigger side and releases the worker
 		// so we might have a delay between setting the allocator for restart during release
-		if socket.GetStatus() != status.Ready {
-			sa.Logger.DebugWith("Connection not ready", "status", socket.GetStatus().String())
+		if socketState := socket.GetStatus(); socketState != status.Ready {
+			sa.Logger.DebugWith("Connection not ready", "status", socketState.String())
 			if len(sa.allocator.GetObjects()) == 1 {
 
 				// set status to restart required if we have only one connection
 				sa.SetStatus(status.RestartRequired)
 			}
-			return nil, errors.Errorf("Connection not ready. Status: %s", socket.GetStatus().String())
+			return nil, errors.Errorf("Connection not ready. Status: %s", socketState.String())
 		}
 	}
 	return socket, err
