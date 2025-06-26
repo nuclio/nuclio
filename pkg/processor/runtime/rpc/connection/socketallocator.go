@@ -88,6 +88,10 @@ func (sa *SocketAllocator) Start(pid int) error {
 			}
 			socket.SetStatus(status.Ready)
 		}
+	} else {
+		for _, socket := range eventSockets {
+			socket.SetStatus(status.Ready)
+		}
 	}
 
 	sa.SetStatus(status.Ready)
