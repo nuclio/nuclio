@@ -247,6 +247,99 @@ func (t *testTrigger) SignalWorkersToContinue() error {
 	return nil
 }
 
+type ProcessorTestSuite struct {
+	suite.Suite
+	logger logger.Logger
+}
+
+func (suite *ProcessorTestSuite) SetupSuite() {
+	var err error
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
+	suite.Require().NoError(err)
+}
+
+func (suite *ProcessorTestSuite) TestResolveWatcherTimeout() {
+	tests := []struct {
+		name                  string
+		streamChunkTimeoutStr string
+		eventTimeoutStr       string
+		expectedTimeout       time.Duration
+		expectErr             bool
+	}{
+		{
+			name:                  "valid stream chunk timeout",
+			streamChunkTimeoutStr: "3s",
+			eventTimeoutStr:       "5s",
+			expectedTimeout:       3 * time.Second,
+		},
+		{
+			name:                  "no stream chunk, valid event timeout",
+			streamChunkTimeoutStr: "",
+			eventTimeoutStr:       "5s",
+			expectedTimeout:       5 * time.Second,
+		},
+		{
+			name:                  "neither timeout set, use default",
+			streamChunkTimeoutStr: "",
+			eventTimeoutStr:       "",
+			expectedTimeout:       defaultWatcherTimeout,
+		},
+		{
+			name:                  "invalid stream chunk timeout",
+			streamChunkTimeoutStr: "invalid",
+			eventTimeoutStr:       "5s",
+			expectErr:             true,
+		},
+		{
+			name:                  "invalid stream chunk timeout",
+			streamChunkTimeoutStr: "5s",
+			eventTimeoutStr:       "invalid",
+			expectErr:             true,
+		},
+		{
+			name:                  "invalid event timeout after empty stream chunk",
+			streamChunkTimeoutStr: "",
+			eventTimeoutStr:       "notaduration",
+			expectErr:             true,
+		},
+		{
+			name:                  "zero timeout for stream chunk",
+			streamChunkTimeoutStr: "",
+			eventTimeoutStr:       "0",
+			expectErr:             true,
+		},
+		{
+			name:                  "zero timeout for stream chunk with empty event timeout",
+			streamChunkTimeoutStr: "0",
+			eventTimeoutStr:       "",
+			expectErr:             true,
+		},
+	}
+
+	for _, testCase := range tests {
+		suite.Run(testCase.name, func() {
+			spec := functionconfig.Spec{
+				EventTimeout:       testCase.eventTimeoutStr,
+				StreamChunkTimeout: testCase.streamChunkTimeoutStr,
+			}
+
+			p := &Processor{logger: suite.logger}
+			timeout, err := p.resolveWatcherTimeout(spec)
+
+			if testCase.expectErr {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+				suite.Require().Equal(testCase.expectedTimeout, timeout)
+			}
+		})
+	}
+}
+
 func TestTriggerTestSuite(t *testing.T) {
 	suite.Run(t, new(TriggerTestSuite))
+}
+
+func TestProcessorTestSuite(t *testing.T) {
+	suite.Run(t, new(ProcessorTestSuite))
 }

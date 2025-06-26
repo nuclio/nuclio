@@ -104,7 +104,7 @@ func (ss *StreamStart) SetStatusCodeFromError(err error) {
 		// Try to unwrap the current error using Nuclio's Cause()
 		next := errors.RootCause(current)
 
-		// Break if there's no deeper cause or cause is the same (to avoid infinite loops)
+		// Break if there's no deeper cause
 		if next == nil {
 			break
 		}

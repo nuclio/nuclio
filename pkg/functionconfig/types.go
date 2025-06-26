@@ -622,8 +622,14 @@ func (s *Spec) GetHTTPPort() int {
 
 // GetEventTimeout returns the event timeout as time.Duration
 func (s *Spec) GetEventTimeout() (time.Duration, error) {
+	if s.EventTimeout == "" {
+		// if timeout is not set, return 0
+		// it will be ignored
+		return 0, nil
+	}
 	timeout, err := time.ParseDuration(s.EventTimeout)
 	if err == nil && timeout <= 0 {
+		// if it is intentionally set to 0, it is an error
 		err = fmt.Errorf("eventTimeout <= 0 (%s)", timeout)
 	}
 
@@ -632,8 +638,14 @@ func (s *Spec) GetEventTimeout() (time.Duration, error) {
 
 // GetStreamChunkTimeout returns the stream chunk timeout as time.Duration
 func (s *Spec) GetStreamChunkTimeout() (time.Duration, error) {
+	if s.StreamChunkTimeout == "" {
+		// if timeout is not set, return 0
+		// it will be ignored
+		return 0, nil
+	}
 	timeout, err := time.ParseDuration(s.StreamChunkTimeout)
 	if err == nil && timeout <= 0 {
+		// if it is intentionally set to 0, it is an error
 		err = fmt.Errorf("streamChunkTimeout <= 0 (%s)", timeout)
 	}
 

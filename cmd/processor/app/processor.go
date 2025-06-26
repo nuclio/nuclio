@@ -525,17 +525,22 @@ func (p *Processor) createMetricSinks(processorConfiguration *processor.Configur
 }
 
 func (p *Processor) resolveWatcherTimeout(processorConfigurationSpec functionconfig.Spec) (time.Duration, error) {
-	// Try stream chunk timeout first
-	streamChunkTimeout, _ := processorConfigurationSpec.GetStreamChunkTimeout()
+	// Parse both timeouts first
+	streamChunkTimeout, err := processorConfigurationSpec.GetStreamChunkTimeout()
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get stream chunk timeout")
+	}
+
+	eventTimeout, err := processorConfigurationSpec.GetEventTimeout()
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get event timeout")
+	}
 
 	if streamChunkTimeout > 0 {
 		return streamChunkTimeout, nil
-	} else {
-		// Try event timeout next
-		eventTimeout, _ := processorConfigurationSpec.GetEventTimeout()
-		if eventTimeout > 0 {
-			return eventTimeout, nil
-		}
+	}
+	if eventTimeout > 0 {
+		return eventTimeout, nil
 	}
 	return defaultWatcherTimeout, nil
 }
