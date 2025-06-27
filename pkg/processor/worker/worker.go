@@ -89,6 +89,10 @@ func (w *Worker) GetStatistics() *statistics.EventProcessingStatistics {
 	return &w.statistics
 }
 
+func (w *Worker) StreamProcessedSuccessfully() {
+	w.statistics.EventsStreamingFinishedSuccessfully += 1
+}
+
 func (w *Worker) GetAllocationStatistics() *statistics.AllocatorStatistics {
 	return w.runtime.GetAllocationStatistics()
 }

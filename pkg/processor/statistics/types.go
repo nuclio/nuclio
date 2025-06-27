@@ -17,10 +17,11 @@ limitations under the License.
 package statistics
 
 type EventProcessingStatistics struct {
-	EventsHandledSuccess               uint64
-	EventsHandledError                 uint64
-	EventsStreamingStartedSuccessfully uint64
-	EventsStreamingStartedError        uint64
+	EventsHandledSuccess                uint64
+	EventsHandledError                  uint64
+	EventsStreamingStartedSuccessfully  uint64
+	EventsStreamingStartedError         uint64
+	EventsStreamingFinishedSuccessfully uint64
 }
 
 // AllocatorStatistics is not a safe statistics object and should be used only to copy safe object to it and return to outside
