@@ -751,6 +751,11 @@ test-docker-nuctl:
 	NUCTL_PLATFORM=local \
 		go test -tags="test_integration,test_local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
+.PHONY: test-docker-benchmark-python
+test-docker-benchmark-python:
+	NUCTL_PLATFORM=local \
+		go test -tags="test_integration,test_local,test_benchmark" -v github.com/nuclio/nuclio/pkg/processor/runtime/python/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
 	${eval LIST=${shell make --no-print-directory $(LIST_TESTS_MAKE_COMMAND)}}
