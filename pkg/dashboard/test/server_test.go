@@ -350,7 +350,8 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 		"build": {},
 		"platform": {},
 		"replicas": 10,
-		"eventTimeout": ""
+		"eventTimeout": "",
+		"streamChunkTimeout": ""
 	},
 	"status": {}
 }`
@@ -418,7 +419,8 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"build": {},
 			"platform": {},
 			"runtime": "r1",
-		    "eventTimeout": ""
+		    "eventTimeout": "",
+            "streamChunkTimeout": ""
 		},
 		"status": {}
 	},
@@ -432,7 +434,8 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"build": {},
 			"platform": {},
 			"runtime": "r2",
-		    "eventTimeout": ""
+		    "eventTimeout": "",
+            "streamChunkTimeout": ""
 		},
 		"status": {}
 	}
@@ -921,7 +924,8 @@ func (suite *functionTestSuite) TestExportFunctionSuccessful() {
 		},
 		"platform": {},
 		"replicas": 10,
-		"eventTimeout": ""
+		"eventTimeout": "", 
+		"streamChunkTimeout": ""
 	}
 }`
 
@@ -982,7 +986,8 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 			"build": {},
 			"platform": {},
 			"replicas": 10,
-			"eventTimeout": ""
+			"eventTimeout": "",
+			"streamChunkTimeout": ""
 		}
 	},
 	"f2": {
@@ -999,7 +1004,8 @@ func (suite *functionTestSuite) TestExportFunctionListSuccessful() {
 			"build": {},
 			"platform": {},
 			"replicas": 10,
-			"eventTimeout": ""
+			"eventTimeout": "",
+			"streamChunkTimeout": ""
 		}
 	}
 }`
@@ -1616,7 +1622,8 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
         "resources": {},
         "build": {},
         "platform": {},
-        "eventTimeout": ""
+        "eventTimeout": "",
+		"streamChunkTimeout": ""
       }
     },
     "f2": {
@@ -1633,7 +1640,8 @@ func (suite *projectTestSuite) TestExportProjectSuccessful() {
         "resources": {},
         "build": {},
         "platform": {},
-        "eventTimeout": ""
+        "eventTimeout": "",
+		"streamChunkTimeout": ""
       }
     }
   },
@@ -1771,7 +1779,8 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
           "resources": {},
           "build": {},
           "platform": {},
-          "eventTimeout": ""
+          "eventTimeout": "",
+          "streamChunkTimeout": ""
         }
       }
     },
@@ -1808,7 +1817,8 @@ func (suite *projectTestSuite) TestExportProjectListSuccessful() {
           "resources": {},
           "build": {},
           "platform": {},
-          "eventTimeout": ""
+          "eventTimeout": "",
+          "streamChunkTimeout": ""
         }
       }
     },
@@ -3682,7 +3692,8 @@ func (suite *miscTestSuite) TestGetFrontendSpec() {
                 "build": {},
                 "platform": {},
                 "readinessTimeoutSeconds": 120,
-                "eventTimeout": ""
+                "eventTimeout": "",
+                "streamChunkTimeout": ""
             }
         }
     },
