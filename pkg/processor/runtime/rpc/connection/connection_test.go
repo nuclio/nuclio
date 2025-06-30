@@ -51,7 +51,7 @@ func (suite *TestConnectionSuite) TestStreamProcessing() {
 	mockManager := &MockConnectionManager{}
 	managerConfiguration := suite.getManagerConfiguration()
 
-	mockManager.On("GetConfig").Return(managerConfiguration).Twice()
+	mockManager.On("GetConfig").Return(managerConfiguration)
 	connection := NewAbstractEventConnection(suite.logger, mockManager)
 
 	var buffer bytes.Buffer
@@ -109,6 +109,7 @@ func (suite *TestConnectionSuite) TestStreamProcessing() {
 
 	// after stream processing is finished, the stream should be closed and functionLogger should be nil
 	suite.Require().Equal(nil, connection.functionLogger)
+	mockManager.AssertExpectations(suite.T())
 }
 
 func (suite *TestConnectionSuite) getManagerConfiguration() ManagerConfigration {
