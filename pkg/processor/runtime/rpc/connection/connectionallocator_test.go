@@ -72,6 +72,7 @@ func (suite *TestConnectionAllocatorSuite) SetupTest() {
 		0,
 		functionconfig.AsyncTriggerWorkMode,
 		0,
+		0,
 	)
 	runtimeConfiguration := runtime.Configuration{
 		Mode: functionconfig.AsyncTriggerWorkMode,

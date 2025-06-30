@@ -525,6 +525,10 @@ type Spec struct {
 	// (Which is in nanoseconds)
 	EventTimeout string `json:"eventTimeout"`
 
+	// StreamChunkTimeout is the timeout for a stream chunk
+	// Should not be bigger than EventTimeout
+	StreamChunkTimeout string `json:"streamChunkTimeout"`
+
 	// PreemptionMode is a mode to allow the user to allow running function pods on preemptible nodes
 	// When filled, tolerations, node labels, and affinity would be populated correspondingly to
 	// the platformconfig.PreemptibleNodes values.
@@ -618,9 +622,31 @@ func (s *Spec) GetHTTPPort() int {
 
 // GetEventTimeout returns the event timeout as time.Duration
 func (s *Spec) GetEventTimeout() (time.Duration, error) {
+	if s.EventTimeout == "" {
+		// if timeout is not set, return 0
+		// it will be ignored
+		return 0, nil
+	}
 	timeout, err := time.ParseDuration(s.EventTimeout)
 	if err == nil && timeout <= 0 {
+		// if it is intentionally set to 0, it is an error
 		err = fmt.Errorf("eventTimeout <= 0 (%s)", timeout)
+	}
+
+	return timeout, err
+}
+
+// GetStreamChunkTimeout returns the stream chunk timeout as time.Duration
+func (s *Spec) GetStreamChunkTimeout() (time.Duration, error) {
+	if s.StreamChunkTimeout == "" {
+		// if timeout is not set, return 0
+		// it will be ignored
+		return 0, nil
+	}
+	timeout, err := time.ParseDuration(s.StreamChunkTimeout)
+	if err == nil && timeout <= 0 {
+		// if it is intentionally set to 0, it is an error
+		err = fmt.Errorf("streamChunkTimeout <= 0 (%s)", timeout)
 	}
 
 	return timeout, err
