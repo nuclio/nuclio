@@ -517,6 +517,9 @@ func (be *AbstractEventConnection) GetStatistics() *statistics.EventProcessingSt
 	return nil
 }
 
+func (be *AbstractEventConnection) StreamProcessedSuccessfully() {
+}
+
 // GetAllocationStatistics returns the statistics of the allocator if there is any in the runtime
 // AbstractEventConnection runtime doesn't have any allocator in it, so return nil
 func (be *AbstractEventConnection) GetAllocationStatistics() *statistics.AllocatorStatistics {

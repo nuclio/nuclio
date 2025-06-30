@@ -85,6 +85,10 @@ func (m *MockEventProcessor) GetStatistics() *statistics.EventProcessingStatisti
 	return m.Called().Get(0).(*statistics.EventProcessingStatistics)
 }
 
+func (m *MockEventProcessor) StreamProcessedSuccessfully() {
+	m.Called()
+}
+
 func (m *MockEventProcessor) GetAllocationStatistics() *statistics.AllocatorStatistics {
 	return m.Called().Get(0).(*statistics.AllocatorStatistics)
 }
