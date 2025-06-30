@@ -106,7 +106,7 @@ type EventProcessor interface {
 	// GetStatistics returns event processing statistics, such as counts and latencies
 	GetStatistics() *statistics.EventProcessingStatistics
 
-	// StreamProcessedSuccessfully signals that the stream has been processed successfully
+	// StreamProcessedSuccessfully says to event processor that the stream has been processed successfully
 	StreamProcessedSuccessfully()
 
 	// GetAllocationStatistics returns allocation statistics, such as allocation time and number of allocations
