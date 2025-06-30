@@ -91,6 +91,7 @@ func (w *Worker) GetStatistics() *statistics.EventProcessingStatistics {
 
 func (w *Worker) StreamProcessedSuccessfully() {
 	w.statistics.EventsStreamingFinishedSuccessfully += 1
+	w.statistics.EventsHandledSuccess += 1
 }
 
 func (w *Worker) GetAllocationStatistics() *statistics.AllocatorStatistics {
@@ -213,6 +214,7 @@ func (w *Worker) calculateProcessingMetrics(response nuclio.ProcessingResult, er
 			atomic.AddUint64(&w.statistics.EventsStreamingStartedSuccessfully, 1)
 		} else {
 			atomic.AddUint64(&w.statistics.EventsStreamingStartedError, 1)
+			atomic.AddUint64(&w.statistics.EventsHandledError, 1)
 		}
 		return
 	}
