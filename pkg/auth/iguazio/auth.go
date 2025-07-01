@@ -128,7 +128,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 	}
 
 	// not within range of 200
-	if !(response.StatusCode >= http.StatusOK && response.StatusCode < 300) {
+	if response.StatusCode < http.StatusOK || response.StatusCode >= 300 {
 		a.logger.WarnWithCtx(ctx,
 			"Unexpected authentication status code",
 			"authorizationHeaderLength", len(authHeaders["authorization"]),

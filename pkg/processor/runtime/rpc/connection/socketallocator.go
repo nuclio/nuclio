@@ -150,7 +150,7 @@ func (sa *SocketAllocator) startSockets(eventSockets []eventprocessor.EventProce
 			return errors.Wrap(err, "Can't get connection from wrapper")
 		}
 		eventSocketInstance.SetEncoder(sa.Configuration.GetEventEncoderFunc(eventSocketInstance.Conn))
-		go eventSocketInstance.AbstractEventConnection.RunHandler()
+		go eventSocketInstance.RunHandler()
 	}
 	sa.Logger.Debug("Successfully established connection for event sockets")
 

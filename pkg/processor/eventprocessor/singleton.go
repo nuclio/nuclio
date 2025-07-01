@@ -17,11 +17,11 @@ limitations under the License.
 package eventprocessor
 
 import (
-	"errors"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 

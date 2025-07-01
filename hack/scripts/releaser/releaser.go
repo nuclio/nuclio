@@ -211,17 +211,17 @@ func (r *Release) saveReleaseInfo() error {
 	defer file.Close()
 
 	// Write the version information with specific labels to the file
-	_, err = file.WriteString(fmt.Sprintf("CURRENT_VERSION: %s\n", r.currentVersion.String()))
+	_, err = fmt.Fprintf(file, "CURRENT_VERSION: %s\n", r.currentVersion.String())
 	if err != nil {
 		return errors.Wrap(err, "Failed to write current version")
 	}
 
-	_, err = file.WriteString(fmt.Sprintf("TARGET_VERSION: %s\n", r.targetVersion.String()))
+	_, err = fmt.Fprintf(file, "TARGET_VERSION: %s\n", r.targetVersion.String())
 	if err != nil {
 		return errors.Wrap(err, "Failed to write target version")
 	}
 
-	_, err = file.WriteString(fmt.Sprintf("HELM_CHARTS_TARGET_VERSION: %s\n", r.helmChartsTargetVersion.String()))
+	_, err = fmt.Fprintf(file, "HELM_CHARTS_TARGET_VERSION: %s\n", r.helmChartsTargetVersion.String())
 	if err != nil {
 		return errors.Wrap(err, "Failed to write helm charts target version")
 	}
@@ -285,7 +285,7 @@ func (r *Release) bumpHelmChartVersion() error {
 }
 
 func (r *Release) populateBumpedVersions() error {
-	if !(r.bumpPatch || r.bumpMinor || r.bumpMajor) {
+	if !r.bumpPatch && !r.bumpMinor && !r.bumpMajor {
 		return nil
 	}
 

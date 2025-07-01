@@ -225,7 +225,7 @@ func (ca *ConnectionAllocator) createConnections(connectionsNumber int) ([]*Conn
 	// start event processing
 	for _, eventConnection := range eventConnections {
 		eventConnection.SetEncoder(ca.Configuration.GetEventEncoderFunc(eventConnection.Conn))
-		go eventConnection.AbstractEventConnection.RunHandler()
+		go eventConnection.RunHandler()
 	}
 
 	// wait for start if required to

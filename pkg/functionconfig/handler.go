@@ -36,6 +36,6 @@ func ParseHandler(handler string) (string, string, error) {
 		return moduleAndEntrypoint[0], moduleAndEntrypoint[1], nil
 
 	default:
-		return "", "", fmt.Errorf("Invalid handler name %s", handler)
+		return "", "", fmt.Errorf("invalid handler name %s", handler)
 	}
 }

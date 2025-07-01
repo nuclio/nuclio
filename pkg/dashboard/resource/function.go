@@ -56,7 +56,7 @@ type PatchOptions struct {
 }
 
 func (fr *functionResource) ExtendMiddlewares() error {
-	fr.resource.addAuthMiddleware(nil)
+	fr.addAuthMiddleware(nil)
 	return nil
 }
 

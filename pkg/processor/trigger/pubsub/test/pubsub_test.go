@@ -126,7 +126,7 @@ func (suite *testSuite) TestReceiveRecords() {
 		},
 	}
 
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
 		map[string]triggertest.TopicMessages{

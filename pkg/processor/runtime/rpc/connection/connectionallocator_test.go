@@ -35,8 +35,6 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-
-	_ "net/http"
 )
 
 type TestConnectionAllocatorSuite struct {

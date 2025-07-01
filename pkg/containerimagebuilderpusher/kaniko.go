@@ -577,7 +577,7 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context,
 					"Failed to get job logs", "err", err.Error())
 				return errors.Wrap(err, "Failed to retrieve kaniko job logs")
 			}
-			return fmt.Errorf("Job failed. Job logs:\n%s", jobLogs)
+			return errors.Errorf("Job failed. Job logs:\n%s", jobLogs)
 		}
 
 		k.logger.DebugWithCtx(ctx,
@@ -606,7 +606,7 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context,
 	if err != nil {
 		return errors.Wrap(err, "Job failed and was unable to retrieve job logs")
 	}
-	return fmt.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
+	return errors.Errorf("Job has timed out. Job logs:\n%s", jobLogs)
 }
 
 func (k *Kaniko) resolveFailFast(ctx context.Context,
@@ -632,10 +632,10 @@ func (k *Kaniko) resolveFailFast(ctx context.Context,
 				"failFastTimeoutDuration", readinessTimout.String())
 
 			if lastError != "" {
-				return fmt.Errorf("Job was not completed in time, job name: %s. Error: %s ", jobName,
+				return errors.Errorf("Job was not completed in time, job name: %s. Error: %s ", jobName,
 					lastError)
 			} else {
-				return fmt.Errorf("Job was not completed in time, job name: %s", jobName)
+				return errors.Errorf("Job was not completed in time, job name: %s", jobName)
 			}
 		default:
 			jobPod, err := k.getJobPod(ctx, jobName, namespace, true)

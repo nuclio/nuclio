@@ -295,7 +295,7 @@ func (d *Deployer) getLastCreatedPod(pods []v1.Pod) v1.Pod {
 
 	// get the latest pod
 	for _, pod := range pods {
-		if latestPod.ObjectMeta.CreationTimestamp.Before(&pod.ObjectMeta.CreationTimestamp) {
+		if latestPod.CreationTimestamp.Before(&pod.CreationTimestamp) {
 			latestPod = pod
 		}
 	}

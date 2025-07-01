@@ -202,8 +202,8 @@ func (ms *MetricSink) getInstanceName(processorConfiguration *processor.Configur
 
 	var instanceNameTemplateBuffer bytes.Buffer
 	if err := instanceNameTemplate.Execute(&instanceNameTemplateBuffer, &map[string]interface{}{
-		"Namespace": processorConfiguration.Config.Meta.Namespace,
-		"Name":      processorConfiguration.Config.Meta.Name,
+		"Namespace": processorConfiguration.Meta.Namespace,
+		"Name":      processorConfiguration.Meta.Name,
 	}); err != nil {
 		return "", errors.Wrap(err, "Failed to execute instanceName template")
 	}

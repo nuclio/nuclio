@@ -19,8 +19,8 @@ package result
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 
+	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 )
 
@@ -67,7 +67,7 @@ func (br *BatchedResults) UnmarshalResponseData(logger logger.Logger, data []byt
 		case "base64":
 			unmarshalledResult.DecodedBody, br.Err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
 		default:
-			unmarshalledResult.Err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
+			unmarshalledResult.Err = errors.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
 		}
 	}
 

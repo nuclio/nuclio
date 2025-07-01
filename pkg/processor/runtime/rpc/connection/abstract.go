@@ -197,7 +197,7 @@ func (bc *AbstractConnectionManager) createUnixListener() (net.Listener, string,
 
 	unixListener, ok := listener.(*net.UnixListener)
 	if !ok {
-		return nil, "", fmt.Errorf("Can't get underlying Unix listener")
+		return nil, "", errors.Errorf("Can't get underlying Unix listener")
 	}
 
 	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {

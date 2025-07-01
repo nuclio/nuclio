@@ -33,7 +33,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -165,7 +164,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 		suite.ctx,
 		mock.Anything,
 		mock.Anything).
-		Return(&nuclioio.NuclioProject{}, nil).
+		Return(&v1beta1.NuclioProject{}, nil).
 		Once()
 	defer suite.nuclioProjectInterfaceMock.AssertExpectations(suite.T())
 
@@ -205,7 +204,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 		mock.Anything,
 		mock.Anything).
 		Return(&v1beta1.NuclioProjectList{
-			Items: []nuclioio.NuclioProject{
+			Items: []v1beta1.NuclioProject{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: suite.Namespace,

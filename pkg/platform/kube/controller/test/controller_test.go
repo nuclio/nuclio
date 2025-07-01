@@ -37,7 +37,7 @@ type ControllerTestSuite struct {
 }
 
 func (suite *ControllerTestSuite) SetupSuite() {
-	suite.KubeTestSuite.DisableControllerStart = true
+	suite.DisableControllerStart = true
 	suite.KubeTestSuite.SetupSuite()
 }
 
@@ -71,7 +71,7 @@ func (suite *ControllerTestSuite) TestStaleResourceVersion() {
 	suite.Require().Equal(0, int(suite.Controller.GetResyncInterval()))
 
 	// start controller
-	err = suite.Controller.Start(suite.KubeTestSuite.Ctx)
+	err = suite.Controller.Start(suite.Ctx)
 	suite.Require().NoError(err)
 
 	suite.WaitForFunctionState(&platform.GetFunctionsOptions{
@@ -90,7 +90,7 @@ func (suite *ControllerTestSuite) buildTestFunction() *functionconfig.Config {
 	suite.Require().NoError(err)
 
 	// enrich with defaults
-	err = suite.Platform.EnrichFunctionConfig(suite.KubeTestSuite.Ctx, &createFunctionOptions.FunctionConfig)
+	err = suite.Platform.EnrichFunctionConfig(suite.Ctx, &createFunctionOptions.FunctionConfig)
 	suite.Require().NoError(err)
 
 	// build function

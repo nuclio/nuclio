@@ -223,7 +223,7 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 		return err
 	}
 
-	return fmt.Errorf("Invalid output capture mode: %d", runOptions.CaptureOutputMode)
+	return errors.Errorf("Invalid output capture mode: %d", runOptions.CaptureOutputMode)
 }
 
 func Redact(redactions []string, runOutput string) string {

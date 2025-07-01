@@ -430,7 +430,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 		suite.Require().NotNil(updatedDeploymentInstance)
 
 		// make sure access key is still present in the function spec volume options
-		suite.Require().Contains(function.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options, "accessKey")
+		suite.Require().Contains(function.Spec.Volumes[0].Volume.FlexVolume.Options, "accessKey")
 
 		// make sure flex volume doesn't contain access key
 		for _, volume := range updatedDeploymentInstance.Spec.Template.Spec.Volumes {

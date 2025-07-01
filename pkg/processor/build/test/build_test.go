@@ -114,7 +114,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -150,7 +150,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool { // nolint: errcheck
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -188,7 +188,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -208,7 +208,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -240,7 +240,7 @@ func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
-		functions, err := suite.Platform.GetFunctions(suite.TestSuite.Ctx, &platform.GetFunctionsOptions{
+		functions, err := suite.Platform.GetFunctions(suite.Ctx, &platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -528,7 +528,7 @@ func (suite *testSuite) TestBuildFuncFromRemoteArchiveRedeploy() {
 			ExpectedResponseBody: "dcba",
 		})
 
-	suite.Equal(deployResult.CreateFunctionBuildResult.UpdatedFunctionConfig.Spec.Build.CodeEntryType, "archive")
+	suite.Equal(deployResult.UpdatedFunctionConfig.Spec.Build.CodeEntryType, "archive")
 
 	// validate that when redeploying it works and the function uses another image than before
 	redeployFunctionOptions := &platform.CreateFunctionOptions{
@@ -571,7 +571,7 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 			ExpectedResponseBody: "hello world",
 		})
 
-	suite.Equal(deployResult.CreateFunctionBuildResult.UpdatedFunctionConfig.Spec.Build.CodeEntryType, "image")
+	suite.Equal(deployResult.UpdatedFunctionConfig.Spec.Build.CodeEntryType, "image")
 
 	// validate that when redeploying it works and the function uses the same image as before
 	redeployFunctionOptions := &platform.CreateFunctionOptions{
@@ -647,7 +647,7 @@ func (suite *testSuite) TestBuildWithFlags() {
 }
 
 func (suite *testSuite) TestGenerateProcessorDockerfile() {
-	newPlatform, err := local.NewPlatform(suite.TestSuite.Ctx, suite.Logger, &platformconfig.Config{}, "")
+	newPlatform, err := local.NewPlatform(suite.Ctx, suite.Logger, &platformconfig.Config{}, "")
 	suite.Require().NoErrorf(err, "Instantiating Platform failed: %s", err)
 
 	builder, err := build.NewBuilder(suite.Logger, newPlatform, nil)

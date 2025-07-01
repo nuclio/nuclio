@@ -61,7 +61,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
-	timeout, _ := configuration.Configuration.Spec.GetEventTimeout()
+	timeout, _ := configuration.Spec.GetEventTimeout()
 
 	// create the command string
 	newShellRuntime := &shell{
@@ -296,7 +296,7 @@ func (s *shell) getCommandArguments(event nuclio.Event) []string {
 }
 
 func (s *shell) getEnvFromConfiguration() []string {
-	envs := s.AbstractRuntime.GetEnvFromConfiguration()
+	envs := s.GetEnvFromConfiguration()
 
 	// inject all environment variables passed in configuration
 	for _, configEnv := range s.configuration.Spec.Env {

@@ -160,15 +160,15 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	var prevState string
 
 	// clean the irrelevant annotations from the CRD before adding resources
-	if function.ObjectMeta.Annotations != nil {
-		prevState = function.ObjectMeta.Annotations[functionconfig.FunctionAnnotationPrevState]
+	if function.Annotations != nil {
+		prevState = function.Annotations[functionconfig.FunctionAnnotationPrevState]
 		annotationsToClean := []string{
 			functionconfig.FunctionAnnotationForceUpdate,
 			functionconfig.FunctionAnnotationPrevState,
 			functionconfig.FunctionAnnotationSkipDeploy,
 		}
 		for _, annotation := range annotationsToClean {
-			delete(function.ObjectMeta.Annotations, annotation)
+			delete(function.Annotations, annotation)
 		}
 	}
 
@@ -262,7 +262,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		defer cancel()
 
 		// wait until the function resources are ready
-		if err, functionState := fo.functionresClient.WaitAvailable(waitContext,
+		if functionState, err := fo.functionresClient.WaitAvailable(waitContext,
 			function,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
 

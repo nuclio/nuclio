@@ -100,7 +100,7 @@ func (suite *testSuite) TestReconnect() {
 	suite.createBrokerResources([]string{"t1", "t2", "t3"})
 
 	// invoke the event recorder
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
 		map[string]triggertest.TopicMessages{
@@ -154,7 +154,7 @@ func (suite *testSuite) TestPreexistingResources() {
 	suite.createBrokerResources([]string{"t1", "t2", "t3"})
 
 	// invoke the event recorder
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
 		map[string]triggertest.TopicMessages{
@@ -181,7 +181,7 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 	}
 
 	// invoke the event recorder
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
 		map[string]triggertest.TopicMessages{

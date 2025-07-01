@@ -38,7 +38,7 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 	newConfiguration.Configuration = *metricsink.NewConfiguration(name, metricSinkConfiguration)
 
 	// parse attributes
-	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+	if err := mapstructure.Decode(newConfiguration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 

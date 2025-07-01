@@ -17,9 +17,10 @@ limitations under the License.
 package processwaiter
 
 import (
-	"errors"
 	"os"
 	"time"
+
+	"github.com/nuclio/errors"
 )
 
 var ErrCancelled = errors.New("Wait cancelled")

@@ -90,7 +90,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderCreate() {
 		Return(&platform.AbstractProject{}, nil).
 		Once()
 
-	_, err := suite.Client.Create(suite.ctx, &createProjectOptions)
+	_, err := suite.Create(suite.ctx, &createProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -109,7 +109,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderUpdate() {
 		Return(&platform.AbstractProject{}, nil).
 		Once()
 
-	_, err := suite.Client.Update(suite.ctx, &updateProjectOptions)
+	_, err := suite.Update(suite.ctx, &updateProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -126,7 +126,7 @@ func (suite *ExternalProjectClientTestSuite) TestLeaderDelete() {
 		Return(nil).
 		Once()
 
-	err := suite.Client.Delete(suite.ctx, &deleteProjectOptions)
+	err := suite.Delete(suite.ctx, &deleteProjectOptions)
 	suite.Require().NoError(err)
 }
 
@@ -145,7 +145,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderCreate() {
 		Return(nil, nil).
 		Once()
 
-	_, err := suite.Client.Create(suite.ctx, &createProjectOptions)
+	_, err := suite.Create(suite.ctx, &createProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulCreateProjectLeader)
 }
@@ -165,7 +165,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderUpdate() {
 		Return(nil, nil).
 		Once()
 
-	_, err := suite.Client.Update(suite.ctx, &updateProjectOptions)
+	_, err := suite.Update(suite.ctx, &updateProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulUpdateProjectLeader)
 }
@@ -183,7 +183,7 @@ func (suite *ExternalProjectClientTestSuite) TestNotLeaderDelete() {
 		Return(nil).
 		Once()
 
-	err := suite.Client.Delete(suite.ctx, &deleteProjectOptions)
+	err := suite.Delete(suite.ctx, &deleteProjectOptions)
 	suite.Require().Error(err)
 	suite.Require().Equal(err, platform.ErrSuccessfulDeleteProjectLeader)
 }
@@ -200,7 +200,7 @@ func (suite *ExternalProjectClientTestSuite) TestGet() {
 		Return([]platform.Project{}, nil).
 		Once()
 
-	_, err := suite.Client.Get(suite.ctx, &getProjectOptions)
+	_, err := suite.Get(suite.ctx, &getProjectOptions)
 	suite.Require().NoError(err)
 }
 
