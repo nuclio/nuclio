@@ -1,0 +1,96 @@
+# Copyright 2025 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+name: Benchmark Report
+
+on:
+  # manual trigger for any branch/PR
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to comment on'
+        required: true
+        type: number
+  schedule:
+    # weekly schedule, e.g. every Sunday midnight UTC
+    - cron: '0 0 * * 0'
+
+env:
+  BENCHMARK_REPORT_PATH: ${{ github.workspace }}/benchmark-output/benchmark_report.txt
+
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event.inputs.pr_number == ''
+
+      - if : ${{ github.event.inputs.pr_number != '' }}
+        name: Running on specific PR
+        run: echo "PR number - ${{ github.event.inputs.pr_number }}"
+
+      # checkout from PR
+      - uses: actions/checkout@v4
+        if: github.event.inputs.pr_number != ''
+        with:
+          fetch-depth: 0
+          ref: refs/pull/${{ github.event.inputs.pr_number }}/merge
+
+      - name: Freeing up disk space
+        run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
+
+      - uses: actions/setup-go@v5
+        with:
+          cache: true
+          go-version-file: go.mod
+
+      - name: Build
+        run: make build
+        env:
+          NUCLIO_NUCTL_CREATE_SYMLINK: false
+
+      - name: Run benchmarks tests
+        run: |
+          mkdir -p $(dirname "$BENCHMARK_REPORT_PATH")
+          make test-docker-benchmark-python BENCHMARK_REPORT_PATH="$BENCHMARK_REPORT_PATH"
+
+      - name: Upload benchmark report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-report
+          path: ${{ env.BENCHMARK_REPORT_PATH }}
+
+      - name: Read and print benchmark report
+        id: read_report
+        run: |
+          echo "🔍 Benchmark Report Content:"
+          cat "$BENCHMARK_REPORT_PATH"
+          
+          report=$(cat "$BENCHMARK_REPORT_PATH" | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "report=$report" >> $GITHUB_OUTPUT
+
+      - name: Log benchmark report location
+        run: |
+          echo "::notice title=Benchmark Report::Benchmark completed. Download report from the 'benchmark-report' artifact in this workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Send benchmark report to Slack (weekly only)
+        if: github.event_name == 'schedule'
+        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2 # 2.5.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          slack_message: ${{ steps.read_report.outputs.report }}
+          status: 'success'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

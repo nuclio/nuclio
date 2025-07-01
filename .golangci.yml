@@ -42,6 +42,7 @@ run:
     - test_local
     - test_iguazio
     - test_broken
+    - test_benchmark
 
 linters-settings:
   revive:

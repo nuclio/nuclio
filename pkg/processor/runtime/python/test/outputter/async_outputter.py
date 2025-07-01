@@ -28,6 +28,10 @@ async def handler(context, event):
         await asyncio.sleep(0)
         return 'slept'
 
+    if body_str == 'sleep10ms':
+        await asyncio.sleep(0.01)
+        return 'slept'
+
     if body_str == 'async_write':
         async def write_async():
             write_mode = 'wb' if isinstance(event.method, bytes) else 'w'

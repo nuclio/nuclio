@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -162,6 +163,73 @@ func (suite *TestSuite) DeployFunctionAndRequests(createFunctionOptions *platfor
 		}
 		return true
 	})
+}
+
+func (suite *TestSuite) DeployFunctionAndRequestsWithBenchmark(
+	createFunctionOptions *platform.CreateFunctionOptions,
+	request *Request,
+	numRequests int,
+	requestsInParallel int,
+) (*platform.CreateFunctionResult, time.Duration) {
+
+	var duration time.Duration
+
+	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.Require().NotNil(deployResult, "Failed to deploy function")
+
+		request.Enrich(deployResult)
+		suite.Logger.DebugWith("Sending request",
+			"requestBody", func() string {
+				if len(request.RequestBody) > 256 {
+					return request.RequestBody[:256] + "..."
+				}
+				return request.RequestBody
+			}(),
+			"expectedResponseStatusCode", request.ExpectedResponseStatusCode,
+		)
+
+		start := time.Now()
+
+		if requestsInParallel <= 1 {
+			// serial requests
+			for i := 0; i < numRequests; i++ {
+				if !suite.SendRequestVerifyResponse(request) {
+					return false // fail-fast
+				}
+			}
+		} else {
+			var wg sync.WaitGroup
+			errChan := make(chan struct{}, numRequests) // just to track failures
+
+			// Number of concurrent goroutines
+			sem := make(chan struct{}, requestsInParallel)
+
+			for i := 0; i < numRequests; i++ {
+				wg.Add(1)
+				sem <- struct{}{}
+
+				go func() {
+					defer wg.Done()
+					defer func() { <-sem }()
+
+					if !suite.SendRequestVerifyResponse(request) {
+						errChan <- struct{}{}
+					}
+				}()
+			}
+
+			wg.Wait()
+			close(errChan)
+
+			// if any errors occurred
+			if len(errChan) > 0 {
+				return false
+			}
+		}
+
+		duration = time.Since(start)
+		return true
+	}), duration
 }
 
 func (suite *TestSuite) WaitForFunctionReadinessProbe(

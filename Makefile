@@ -77,6 +77,8 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) \
 # Nuclio test timeout
 NUCLIO_GO_TEST_TIMEOUT ?= "60m"
 
+BENCHMARK_REPORT_PATH ?= benchmark_report.txt
+
 NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND=list-all-dirs-with-tests
 LIST_TESTS_MAKE_COMMAND := $(if $(LIST_TESTS_MAKE_COMMAND),$(LIST_TESTS_MAKE_COMMAND),$(NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND))
 
@@ -750,6 +752,12 @@ test-k8s-nuctl:
 test-docker-nuctl:
 	NUCTL_PLATFORM=local \
 		go test -tags="test_integration,test_local" -v github.com/nuclio/nuclio/pkg/nuctl/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
+
+.PHONY: test-docker-benchmark-python
+test-docker-benchmark-python:
+	NUCTL_PLATFORM=local \
+	BENCHMARK_REPORT_PATH=$(BENCHMARK_REPORT_PATH) \
+	go test -tags="test_integration,test_local,test_benchmark" -v github.com/nuclio/nuclio/pkg/processor/runtime/python/... -p 1 --timeout $(NUCLIO_GO_TEST_TIMEOUT)
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
