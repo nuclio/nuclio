@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/errors"
@@ -70,10 +71,13 @@ type Allocator interface {
 
 type EventProcessor interface {
 	// ProcessEvent processes a single event
-	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error)
+	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithProcessingResult, error)
 
 	// ProcessEventBatch processes batch of events
-	ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error)
+	ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error)
+
+	// ProcessStream processes a stream of events
+	ProcessStream(stream *result.StreamStart) error
 
 	// Terminate terminates event processor
 	Terminate() error
@@ -101,6 +105,9 @@ type EventProcessor interface {
 
 	// GetStatistics returns event processing statistics, such as counts and latencies
 	GetStatistics() *statistics.EventProcessingStatistics
+
+	// StreamProcessedSuccessfully says to event processor that the stream has been processed successfully
+	StreamProcessedSuccessfully()
 
 	// GetAllocationStatistics returns allocation statistics, such as allocation time and number of allocations
 	GetAllocationStatistics() *statistics.AllocatorStatistics

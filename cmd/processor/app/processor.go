@@ -79,6 +79,8 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/sinks"
 )
 
+const defaultWatcherTimeout = 10 * time.Second
+
 // Processor is responsible to process events
 type Processor struct {
 	logger                    logger.Logger
@@ -167,17 +169,13 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
-	if len(processorConfiguration.Spec.EventTimeout) > 0 {
+	watcherTimeout, err := newProcessor.resolveWatcherTimeout(processorConfiguration.Spec)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve watcher timeout")
+	}
 
-		// This is checked by the configuration reader, but just in case
-		eventTimeout, timeoutErr := processorConfiguration.Spec.GetEventTimeout()
-		if timeoutErr != nil {
-			return nil, errors.Wrap(timeoutErr, "Bad EventTimeout")
-		}
-
-		if startErr := newProcessor.startTimeoutWatcher(eventTimeout); startErr != nil {
-			return nil, errors.Wrap(startErr, "Can't start timeout watcher")
-		}
+	if startErr := newProcessor.startTimeoutWatcher(watcherTimeout); startErr != nil {
+		return nil, errors.Wrap(startErr, "Can't start timeout watcher")
 	}
 
 	// create the web interface
@@ -524,6 +522,27 @@ func (p *Processor) createMetricSinks(processorConfiguration *processor.Configur
 	}
 
 	return metricSinks, nil
+}
+
+func (p *Processor) resolveWatcherTimeout(processorConfigurationSpec functionconfig.Spec) (time.Duration, error) {
+	// Parse both timeouts first
+	streamChunkTimeout, err := processorConfigurationSpec.GetStreamChunkTimeout()
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get stream chunk timeout")
+	}
+
+	eventTimeout, err := processorConfigurationSpec.GetEventTimeout()
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get event timeout")
+	}
+
+	if streamChunkTimeout > 0 {
+		return streamChunkTimeout, nil
+	}
+	if eventTimeout > 0 {
+		return eventTimeout, nil
+	}
+	return defaultWatcherTimeout, nil
 }
 
 func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) error {

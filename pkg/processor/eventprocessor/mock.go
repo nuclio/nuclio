@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/logger"
@@ -34,14 +35,18 @@ type MockEventProcessor struct {
 	mock.Mock
 }
 
-func (m *MockEventProcessor) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (nuclio.ProcessingResult, error) {
+func (m *MockEventProcessor) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (result.ResultWithProcessingResult, error) {
 	args := m.Called(event, functionLogger)
-	return args.Get(0).(nuclio.ProcessingResult), args.Error(1)
+	return args.Get(0).(result.ResultWithProcessingResult), args.Error(1)
 }
 
-func (m *MockEventProcessor) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+func (m *MockEventProcessor) ProcessEventBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	args := m.Called(batch, functionLogger)
-	return args.Get(0).([]*runtime.ResponseWithErrors), args.Error(1)
+	return args.Get(0).(*result.BatchedResults), args.Error(1)
+}
+func (m *MockEventProcessor) ProcessStream(stream *result.StreamStart) error {
+	args := m.Called(stream)
+	return args.Error(0)
 }
 
 func (m *MockEventProcessor) Terminate() error {
@@ -78,6 +83,10 @@ func (m *MockEventProcessor) Stop() error {
 
 func (m *MockEventProcessor) GetStatistics() *statistics.EventProcessingStatistics {
 	return m.Called().Get(0).(*statistics.EventProcessingStatistics)
+}
+
+func (m *MockEventProcessor) StreamProcessedSuccessfully() {
+	m.Called()
 }
 
 func (m *MockEventProcessor) GetAllocationStatistics() *statistics.AllocatorStatistics {

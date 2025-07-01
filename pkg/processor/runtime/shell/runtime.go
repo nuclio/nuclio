@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/errors"
@@ -173,7 +174,7 @@ func (s *shell) waitForResponseWithTimeout(ctx context.Context, responseChan cha
 	}
 }
 
-func (s *shell) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+func (s *shell) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	return nil, nuclio.ErrNotImplemented
 }
 

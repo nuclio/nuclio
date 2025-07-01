@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/errors"
@@ -37,7 +38,7 @@ type Runtime interface {
 	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error)
 
 	// ProcessBatch receives the event batch and processes it at the specific runtime
-	ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*ResponseWithErrors, error)
+	ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error)
 
 	// GetFunctionLogger returns the function logger
 	GetFunctionLogger() logger.Logger
