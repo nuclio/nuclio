@@ -16,6 +16,7 @@ import re
 import socket
 import time
 import msgpack
+import inspect
 import nuclio_sdk
 import nuclio_sdk.helpers
 from nuclio_sdk.response import SINGLE_RESPONSE
@@ -107,8 +108,11 @@ class AbstractWrapper(object):
         # 1gb
         self._max_buffer_size = 1024 * 1024 * 1024
 
-        # holds the function that will be called
-        self._entrypoint = self._load_entrypoint_from_handler(handler)
+        # initialise entrypoint
+        self._entrypoint = None
+        self._need_await = None
+        self._set_entrypoint(handler)
+
         # connect to processor
         # emtpy only in tests
         if self._control_socket_path:
@@ -149,6 +153,10 @@ class AbstractWrapper(object):
 
         self._event_message_length_task = None
 
+    def _set_entrypoint(self, handler):
+        self._entrypoint = self._load_entrypoint_from_handler(handler)
+        self._need_await = self._entrypoint_requires_await()
+
     def _load_entrypoint_from_handler(self, handler):
         """
         Load handler function from handler.
@@ -171,6 +179,20 @@ class AbstractWrapper(object):
             raise
 
         return entrypoint_address
+
+    def _entrypoint_requires_await(self):
+        """
+        Determine whether the entrypoint requires `await`.
+        `inspect.iscoroutinefunction()` returns True only for async functions that are *not* async generators.
+        This avoids accidentally doing `await` on an async generator, which raises:
+        "TypeError: object async_generator can't be used in 'await' expression"
+
+         Cases:
+           - async def func(...)                → True  ✅ (must await)
+           - async def func(...): yield ...     → False ❌ (async generator, must not await)
+           - def func(...)                      → False ❌ (sync function, must not await)
+        """
+        return inspect.iscoroutinefunction(self._entrypoint)
 
     def _connect_to_processor(self, socket_path, timeout=60):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -196,10 +218,10 @@ class AbstractWrapper(object):
         # take call time
         start_time = time.time()
 
-        # call the entrypoint
-        entrypoint_output = self._entrypoint(self._context, event)
-        if asyncio.iscoroutine(entrypoint_output):
-            entrypoint_output = await entrypoint_output
+        if self._need_await:
+            entrypoint_output = await self._entrypoint(self._context, event)
+        else:
+            entrypoint_output = self._entrypoint(self._context, event)
 
         await self._handle_entrypoint_output(entrypoint_output, start_time, sock)
 

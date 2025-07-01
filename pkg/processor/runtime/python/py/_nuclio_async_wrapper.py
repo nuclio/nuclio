@@ -15,8 +15,7 @@
 import os
 import sys
 import traceback
-import time
-import json
+import inspect
 import nuclio_sdk
 import nuclio_sdk.helpers
 import nuclio_sdk.json_encoder
@@ -64,9 +63,10 @@ class AsyncWrapper(AbstractWrapper):
             logger_per_async_task=True,
         )
         # Validate that the handler is an async function
-        if not asyncio.iscoroutinefunction(self._entrypoint):
+        if not (asyncio.iscoroutinefunction(self._entrypoint) or inspect.isasyncgenfunction(self._entrypoint)):
             raise WrapperFatalException(f"The provided handler '{self._entrypoint.__name__}' "
-                                        f"must be an async function (async def).")
+                                f"must be an async function (async def) or async generator (async def with yield).")
+
         split_address = serving_address.split(":")
         self._host = split_address[0]
         self._port = int(split_address[1])
@@ -202,15 +202,6 @@ class AsyncWrapper(AbstractWrapper):
                 if asyncio.iscoroutine(result):
                     await result
             self._cleanup_connection(sock, cancel_task=False)
-
-    async def _handle_event(self, event, sock):
-        # take call time
-        start_time = time.time()
-
-        # call the entrypoint
-        entrypoint_output = await self._entrypoint(self._context, event)
-
-        await self._handle_entrypoint_output(entrypoint_output, start_time, sock)
 
     def _cleanup_connection(self, sock, cancel_task=True):
         """Cleanup resources for a disconnected client."""
