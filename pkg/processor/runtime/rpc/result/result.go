@@ -195,10 +195,10 @@ func (sr *SingleResult) UnmarshalJSON(data []byte) error {
 	if sr.Response == nil {
 		sr.Response = &nuclio.Response{}
 	}
-	sr.Response.StatusCode = rawResult.StatusCode
-	sr.Response.ContentType = rawResult.ContentType
-	sr.Response.Headers = rawResult.Headers
-	sr.Response.Body = decodedBody
+	sr.StatusCode = rawResult.StatusCode
+	sr.ContentType = rawResult.ContentType
+	sr.Headers = rawResult.Headers
+	sr.Body = decodedBody
 
 	// Fill EventId
 	sr.EventId = rawResult.EventId
@@ -275,12 +275,13 @@ func NewResultFromData(data []byte) Result {
 			return NewSingleResultsWithError(errors.New("Data is too short to contain a valid result"))
 		}
 
-		if data[1] == '{' {
+		switch data[1] {
+		case '{':
 			var singleResult *SingleResult
 			if err := json.Unmarshal(data[1:], &singleResult); err == nil {
 				return singleResult
 			}
-		} else if data[1] == '[' {
+		case '[':
 			var results []*SingleResult
 			if err := json.Unmarshal(data[1:], &results); err == nil {
 				return &BatchedResults{Results: results}
