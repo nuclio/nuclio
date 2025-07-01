@@ -110,7 +110,7 @@ class AbstractWrapper(object):
 
         # initialise entrypoint
         self._entrypoint = None
-        self._need_await = None
+        self._should_await_entrypoint = None
         self._set_entrypoint(handler)
 
         # connect to processor
@@ -155,7 +155,7 @@ class AbstractWrapper(object):
 
     def _set_entrypoint(self, handler):
         self._entrypoint = self._load_entrypoint_from_handler(handler)
-        self._need_await = self._entrypoint_requires_await()
+        self._should_await_entrypoint = self._entrypoint_requires_await()
 
     def _load_entrypoint_from_handler(self, handler):
         """
@@ -218,7 +218,7 @@ class AbstractWrapper(object):
         # take call time
         start_time = time.time()
 
-        if self._need_await:
+        if self._should_await_entrypoint:
             entrypoint_output = await self._entrypoint(self._context, event)
         else:
             entrypoint_output = self._entrypoint(self._context, event)

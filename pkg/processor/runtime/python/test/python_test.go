@@ -166,12 +166,12 @@ func (suite *TestSuite) TestStreamingHandler() {
 			handler: "stream_outputter:stream_file_lines_async",
 		},
 		{
-			name:    "sync_handler_as_async_gen",
+			name:    "async_handler_as_async_gen",
 			mode:    functionconfig.AsyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_async",
 		},
 		{
-			name:    "sync_handler_as_sync_gen",
+			name:    "async_handler_as_sync_gen",
 			mode:    functionconfig.AsyncTriggerWorkMode,
 			handler: "stream_outputter:stream_file_lines_sync",
 		},
