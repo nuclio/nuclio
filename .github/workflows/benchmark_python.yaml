@@ -15,9 +15,6 @@
 name: Benchmark Report
 
 on:
-  #TODO: remove
-  pull_request:
-    types: [ opened, synchronize, reopened ]
   # manual trigger for any branch/PR
   workflow_dispatch:
     inputs:
