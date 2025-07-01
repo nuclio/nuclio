@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/errors"
@@ -116,7 +117,7 @@ func (g *golang) IsBusy() bool {
 	return len(g.cancelEventHandlingChan) > 0
 }
 
-func (g *golang) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+func (g *golang) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	return nil, nuclio.ErrNotImplemented
 }
 

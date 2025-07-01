@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common/status"
 	"github.com/nuclio/nuclio/pkg/processor/controlcommunication"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc/result"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 
 	"github.com/nuclio/logger"
@@ -45,9 +46,9 @@ func (mr *MockRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Lo
 func (mr *MockRuntime) GetFunctionLogger() logger.Logger {
 	return nil
 }
-func (mr *MockRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) ([]*runtime.ResponseWithErrors, error) {
+func (mr *MockRuntime) ProcessBatch(batch []nuclio.Event, functionLogger logger.Logger) (*result.BatchedResults, error) {
 	args := mr.Called(batch, functionLogger)
-	return args.Get(0).([]*runtime.ResponseWithErrors), args.Error(1)
+	return args.Get(0).(*result.BatchedResults), args.Error(1)
 }
 
 func (mr *MockRuntime) GetStatistics() runtime.Statistics {

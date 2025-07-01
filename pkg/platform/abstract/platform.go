@@ -484,6 +484,10 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 		return errors.Wrap(err, "Auto scale metrics validation failed")
 	}
 
+	if err := ap.validateProcessingTimeouts(functionConfig); err != nil {
+		return errors.Wrap(err, "Processing timeouts validation failed")
+	}
+
 	return nil
 }
 
@@ -1536,6 +1540,34 @@ func (ap *Platform) validateAutoScaleMetrics(functionConfig *functionconfig.Conf
 		// validate metric value is positive
 		if metric.Threshold < 0 {
 			return nuclio.NewErrBadRequest(fmt.Sprintf("Auto scale metric value must be positive - %+v", metric))
+		}
+	}
+
+	return nil
+}
+
+func (ap *Platform) validateProcessingTimeouts(functionConfig *functionconfig.Config) error {
+	var eventTimeoutDuration, streamChunkTimeoutDuration time.Duration
+	var err error
+
+	if functionConfig.Spec.EventTimeout != "" {
+		if eventTimeoutDuration, err = time.ParseDuration(functionConfig.Spec.EventTimeout); err != nil {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Wrong event timeout format, can't be converted to time.Duration: %s", functionConfig.Spec.EventTimeout))
+		}
+	}
+
+	if functionConfig.Spec.StreamChunkTimeout != "" {
+		if streamChunkTimeoutDuration, err = time.ParseDuration(functionConfig.Spec.StreamChunkTimeout); err != nil {
+			return nuclio.NewErrBadRequest(fmt.Sprintf("Wrong stream chunk timeout format, can't be converted to time.Duration: %s", functionConfig.Spec.StreamChunkTimeout))
+		}
+	}
+
+	// If both are set, validate streamChunkTimeout < eventTimeout
+	if eventTimeoutDuration > 0 && streamChunkTimeoutDuration > 0 {
+		if streamChunkTimeoutDuration >= eventTimeoutDuration {
+			return nuclio.NewErrBadRequest(fmt.Sprintf(
+				"Stream chunk timeout (%s) must be smaller than event timeout (%s)",
+				streamChunkTimeoutDuration, eventTimeoutDuration))
 		}
 	}
 

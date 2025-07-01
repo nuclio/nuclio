@@ -597,6 +597,19 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	if response.IsStream() {
+		// signal to worker that the stream has been processed successfully
+		// worker will increment the statistics
+		workerInstance.StreamProcessedSuccessfully()
+	}
+
+	if !workerReleased {
+		// try to release the worker instance asap
+		// if code won't get here (because of the error, then the defer will take care of it)
+		h.WorkerAllocator.Release(workerInstance)
+		workerReleased = true
+	}
+
 	// set content type if set
 	if response.GetContentType() != "" {
 		ctx.SetContentType(response.GetContentType())
