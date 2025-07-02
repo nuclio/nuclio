@@ -35,7 +35,7 @@ const pipCAFileLocation = "/etc/ssl/certs/nuclio/pip-ca-certificates.crt"
 // If the user provides a base image that includes these dependencies, their versions
 // will serve as the version constraints. If the user does not provide an image or is in
 // an air-gapped environment, Nuclio will handle installing these dependencies automatically.
-const nuclioSDKRequirement = "nuclio-sdk>=0.6.0"
+const nuclioSDKRequirement = "nuclio-sdk"
 const msgPackRequirement = "msgpack"
 
 type python struct {
@@ -59,11 +59,6 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 		msgPackRequirement,
 	}
 
-	pipInstallArgs := []string{
-		"--no-index",
-		"--find-links", destOnbuildWheelsPath,
-	}
-
 	_, runtimeVersion := common.GetRuntimeNameAndVersion(p.FunctionConfig.Spec.Runtime)
 
 	switch runtimeVersion {
@@ -79,6 +74,16 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	}
 	srcOnbuildWheelsPath := fmt.Sprintf("/home/nuclio/bin/py%s-whl", runtimeVersion)
 
+	pipInstallArgs := []string{
+		"--no-index",
+		// Add the dedicated nuclio wheels path as the first --find-links argument
+		// to ensure pip installs nuclio-sdk from the correct wheel copied by the Dockerfile.
+		// This prevents pip from resolving nuclio-sdk from base image or from a generic wheels directory,
+		// ensuring version consistency and compatibility with the processor image.
+		"--find-links", srcOnbuildWheelsPath,
+		"--find-links", destOnbuildWheelsPath,
+	}
+
 	// dont require special privileges
 	// TODO: enable when provide USER directive pre copying artifacts
 	// since the build user is root, while running container user might be different
@@ -92,7 +97,8 @@ func (p *python) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 		strings.Join(pipInstallArgs, " "))
 
 	// run pip from the python interpreter
-	installSDKDependenciesCommand = fmt.Sprintf("%s && python -m pip install %s %s",
+	// we do --force-reinstall here to make sure that the nuclio dependencies are installed of exact versions
+	installSDKDependenciesCommand = fmt.Sprintf("%s && python -m pip install --force-reinstall %s %s",
 		installPipCommand,
 		strings.Join(pythonCommonModules, " "),
 		strings.Join(pipInstallArgs, " "))
