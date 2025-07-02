@@ -117,6 +117,7 @@ class TestSubmitEvents(BaseTestSubmitEvents):
         )
         self._send_events(events)
         self._wrapper._entrypoint = event_recorder
+        self._wrapper._should_await_entrypoint = self._wrapper._entrypoint_requires_await()
         self._wrapper._event_sock.setblocking(False)
         self._loop.run_until_complete(self._wrapper.serve_requests(num_of_events))
         self._loop.run_until_complete(self._loop.shutdown_asyncgens())
