@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package iguazio
+package v1
 
 import (
 	"bytes"
@@ -103,7 +103,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 		return authConfig
 	}())
 	authInstance := newAuth.(*Auth)
-	authInstance.httpClient = mockedHTTPClient
+	authInstance.HttpClient = mockedHTTPClient
 	authOptions := auth.Options{}
 	incomingRequest := &http.Request{
 		Header: map[string][]string{
@@ -118,7 +118,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 
 	// step B. re-authenticate, read from cache
 	// nil the http client in order to force it to panic if it was used to make an HTTP request
-	authInstance.httpClient = nil
+	authInstance.HttpClient = nil
 	session, err := authInstance.Authenticate(incomingRequest, &authOptions)
 	suite.Require().NoError(err)
 	suite.Require().Equal("some-user-id", session.GetUserID())
@@ -129,7 +129,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 	authInstance.cache.Remove(authInstance.cache.Keys()[0])
 
 	// step C. bad authentication + cache remains empty
-	authInstance.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+	authInstance.HttpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 		return &http.Response{
 			StatusCode: http.StatusUnauthorized,
 		}
@@ -253,7 +253,7 @@ func (suite *AuthTestSuite) TestAuthenticate() {
 	} {
 		suite.Run(testCase.name, func() {
 			suite.httpRetryCounter = testCase.retryCounter
-			testCase.auth.(*Auth).httpClient = testutils.CreateDummyHTTPClient(suite.resolveMockHttpClientHandler(testCase.includeResponseBody))
+			testCase.auth.(*Auth).HttpClient = testutils.CreateDummyHTTPClient(suite.resolveMockHttpClientHandler(testCase.includeResponseBody))
 			authInfo, err := testCase.auth.Authenticate(testCase.incomingRequest, &testCase.authOptions)
 			if testCase.invalidRequest {
 				suite.Require().Error(err)

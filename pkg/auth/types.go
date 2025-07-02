@@ -24,8 +24,9 @@ import (
 type Kind string
 
 const (
-	KindNop     = "nop"
-	KindIguazio = "iguazio"
+	KindNop       = "nop"
+	KindIguazio   = "iguazio"
+	KindIguazioV4 = "iguaziov4"
 )
 
 type SessionContextKey string

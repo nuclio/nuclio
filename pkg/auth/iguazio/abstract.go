@@ -1,0 +1,129 @@
+package iguazio
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"net/http"
+	"time"
+
+	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/common"
+
+	"github.com/nuclio/errors"
+	"github.com/nuclio/logger"
+)
+
+const (
+	IguazioUsernameLabel                          string = "iguazio.com/username"
+	IguazioDomainLabel                            string = "iguazio.com/domain"
+	IguazioVerificationAndDataEnrichmentURLSuffix string = "_enrich_data"
+)
+
+type AbstractAuth struct {
+	Logger     logger.Logger
+	HttpClient *http.Client
+
+	config *authpkg.Config
+}
+
+func NewAbstractAuth(logger logger.Logger, config *authpkg.Config) *AbstractAuth {
+	return &AbstractAuth{
+		Logger: logger.GetChild("iguazio-auth"),
+		config: config,
+		HttpClient: &http.Client{
+			Timeout: config.Iguazio.Timeout,
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: config.Iguazio.SkipTLSVerification},
+			},
+		},
+	}
+}
+
+func (a *AbstractAuth) Middleware(authenticateFunc func(*http.Request, *authpkg.Options) (authpkg.Session, error), options *authpkg.Options) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			session, err := authenticateFunc(r, options)
+			if err != nil {
+				a.Logger.WarnWithCtx(ctx,
+					"Authentication failed",
+					"err", errors.GetErrorStackString(err, 10))
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			a.Logger.DebugWithCtx(ctx,
+				"Successfully authenticated incoming request",
+				"sessionUsername", session.GetUsername())
+			enrichedCtx := context.WithValue(ctx, authpkg.IguazioContextKey, session)
+			next.ServeHTTP(w, r.WithContext(enrichedCtx))
+		})
+	}
+}
+
+func (a *AbstractAuth) PerformHTTPRequest(ctx context.Context,
+	method string,
+	url string,
+	body []byte,
+	headers map[string]string) (*http.Response, error) {
+
+	// create request
+	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create http request")
+	}
+
+	// attach headers
+	for headerKey, headerValue := range headers {
+		request.Header.Set(headerKey, headerValue)
+	}
+
+	var lastResponse *http.Response
+	var lastError error
+	if err := common.RetryUntilSuccessfulOnErrorPatterns(
+		time.Second*60,
+		time.Second*3,
+		[]string{
+
+			// usually when service is not up yet
+			"EOF",
+			"connection reset by peer",
+
+			// tl;dr: we should actively retry on such errors, because Go won't as request might not be idempotent
+			"server closed idle connection",
+		},
+		func(retryCounter int) (string, error) {
+
+			// stop now if context is done
+			if err := ctx.Err(); err != nil {
+				return "", errors.Wrap(err, "Context is done")
+			}
+
+			if retryCounter > 0 {
+				a.Logger.WarnWithCtx(ctx,
+					"Retrying authentication HTTP request",
+					"retryCounter", retryCounter,
+					"lastError", lastError)
+			}
+
+			// fire request
+			lastResponse, err = a.HttpClient.Do(request)
+			if err != nil {
+				lastError = err
+				return err.Error(), errors.Wrap(err, "Failed to send HTTP request")
+			}
+			return "", nil
+		}); err != nil {
+		return lastResponse, errors.Wrap(err, "Failed to perform HTTP request")
+	}
+
+	return lastResponse, nil
+}
+
+func (a *AbstractAuth) GetConfig() *authpkg.Config {
+	return a.config
+}
+
+func (a *AbstractAuth) Kind() authpkg.Kind {
+	return a.config.Kind
+}
