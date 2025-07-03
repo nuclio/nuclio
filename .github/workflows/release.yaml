@@ -250,6 +250,11 @@ jobs:
         run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
+        with:
+          # checkout to the specified branch to be able to run workflow from development branch
+          # and release from the specified branch
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -329,6 +334,11 @@ jobs:
         run: echo "NUCLIO_LABEL=${{ needs.prepare-inputs.outputs.version }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
+        with:
+          # checkout to the specified branch to be able to run workflow from development branch
+          # and release from the specified branch
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
