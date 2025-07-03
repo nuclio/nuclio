@@ -183,14 +183,14 @@ jobs:
 
       - name: Bump chart versions
         run: |
-          make bump-helm-charts 
+          make bump-helm-charts
         env:
           BUMP_VERSION_MODE: ${{ inputs.bump_version_mode }}
           TARGET_VERSION: ${{ inputs.target_version }}
           HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
       - name: Create pull request with bumped charts
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "[Chart] Bump to ${{ needs.prepare-inputs.outputs.version }}"
@@ -379,7 +379,7 @@ jobs:
   helm-publish:
     name: Publish helm charts
     if: github.event_name == 'workflow_dispatch' && (github.event.inputs.skip_bump_helm_charts != 'true' || github.event.inputs.bump_helm_charts_only == 'true')
-    needs: [ release-images ]
+    needs: [ prepare-inputs, release-images ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -415,7 +415,7 @@ jobs:
           helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
 
       - name: Create PR to gh-pages
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "${{ env.HELM_PUBLISH_COMMIT_MESSAGE }}"
