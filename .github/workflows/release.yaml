@@ -186,6 +186,7 @@ jobs:
         env:
           BUMP_VERSION_MODE: ${{ inputs.bump_version_mode }}
           TARGET_VERSION: ${{ inputs.target_version }}
+          HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
       - name: Commit and push changes
         run: |
