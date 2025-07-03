@@ -167,7 +167,10 @@ get-current-version:
 .PHONY: bump-helm-charts
 bump-helm-charts:
 	@if [ -n "$(TARGET_VERSION)" ]; then \
-		go run hack/scripts/releaser/releaser.go --target-version=$(TARGET_VERSION) --skip-publish-helm-charts ;\
+	go run hack/scripts/releaser/releaser.go \
+        --target-version=$(TARGET_VERSION) \
+        --skip-publish-helm-charts \
+        $(if $(HELM_TARGET_VERSION),--helm-charts-release-version=$(HELM_TARGET_VERSION)); \
 	else \
 		go run hack/scripts/releaser/releaser.go --$(BUMP_VERSION_MODE) --skip-publish-helm-charts; \
 	fi
