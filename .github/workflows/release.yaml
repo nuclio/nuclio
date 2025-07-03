@@ -26,6 +26,7 @@ env:
 permissions:
   contents: write
   packages: write
+  pull-requests: write
 
 on:
   push:
@@ -188,11 +189,16 @@ jobs:
           TARGET_VERSION: ${{ inputs.target_version }}
           HELM_TARGET_VERSION: ${{ inputs.helm_chart_target_version }}
 
-      - name: Commit and push changes
-        run: |
-          git commit -am "[Chart] Bump to ${{ needs.prepare-inputs.outputs.version }}"
-          git pull --rebase origin ${{ github.event.inputs.branch }}
-          git push origin ${{ github.event.inputs.branch }}
+      - name: Create pull request with bumped charts
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "[Chart] Bump to ${{ needs.prepare-inputs.outputs.version }}"
+          branch: chart-bump-${{ needs.prepare-inputs.outputs.version }}
+          title: "[Chart] Bump to ${{ needs.prepare-inputs.outputs.version }}"
+          base: ${{ github.event.inputs.branch }}
+          body: "This PR was automatically created by the release workflow to bump Helm chart version to ${{ needs.prepare-inputs.outputs.version }}."
+          delete-branch: true
 
   image_matrix_prep:
     name: Prepare image list
@@ -407,15 +413,18 @@ jobs:
           helm package -d nuclio-helm/charts hack/k8s/helm/nuclio
           cd nuclio-helm/charts
           helm repo index . --url https://nuclio.github.io/nuclio/charts/ --merge index.yaml
-      - name: Publish charts
-        run: |
-          echo "Publishing charts"
-          cd nuclio-helm
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
-          git add --all
-          git commit -m "$HELM_PUBLISH_COMMIT_MESSAGE"
-          git push origin gh-pages
-          echo "Done"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create PR to gh-pages
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "${{ env.HELM_PUBLISH_COMMIT_MESSAGE }}"
+          title: "${{ env.HELM_PUBLISH_COMMIT_MESSAGE }}"
+          body: |
+            This PR publishes the Helm chart for version `${{ needs.prepare-inputs.outputs.helm_version }}`.
+
+            ⚠️ Please ensure the branch `${{ github.event.inputs.branch }}` has been bumped before merging this PR.
+          branch: release/helm-chart-${{ needs.prepare-inputs.outputs.helm_version }}
+          base: gh-pages
+          path: nuclio-helm
+          delete-branch: true
