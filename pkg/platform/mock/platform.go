@@ -24,11 +24,11 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
+	"github.com/nuclio/opa-client"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -137,7 +137,7 @@ func (mp *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platf
 }
 
 func (mp *Platform) FilterFunctionsByPermissions(ctx context.Context,
-	permissionOptions *opa.PermissionOptions,
+	permissionOptions *opaclient.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
 	args := mp.Called(ctx, permissionOptions, functions)
 	return args.Get(0).([]platform.Function), args.Error(1)
@@ -156,13 +156,13 @@ func (mp *Platform) GetDefaultProxyLogsSource() platform.ProxyLogsSource {
 }
 
 // GetFunctionActiveReplicaNames returns function's active replica names (Pod / Container names)
-func (mp *Platform) GetFunctionActiveReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
+func (mp *Platform) GetFunctionActiveReplicaNames(ctx context.Context, function platform.Function, permissionOptions opaclient.PermissionOptions) ([]string, error) {
 	args := mp.Called(ctx, function, permissionOptions)
 	return args.Get(0).([]string), args.Error(1)
 }
 
 // GetFunctionAllReplicaNames returns function all replica names (active + old) (Pod / Container names)
-func (mp *Platform) GetFunctionAllReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions, filter *platform.TimeFilter) ([]string, error) {
+func (mp *Platform) GetFunctionAllReplicaNames(ctx context.Context, function platform.Function, permissionOptions opaclient.PermissionOptions, filter *platform.TimeFilter) ([]string, error) {
 	args := mp.Called(ctx, function, permissionOptions)
 	return args.Get(0).([]string), args.Error(1)
 }
@@ -269,7 +269,7 @@ func (mp *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOpti
 }
 
 func (mp *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
-	permissionOptions *opa.PermissionOptions,
+	permissionOptions *opaclient.PermissionOptions,
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 	args := mp.Called(ctx, permissionOptions, functionEvents)
 	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
@@ -395,10 +395,11 @@ func (mp *Platform) WaitForProjectResourcesDeletion(ctx context.Context, project
 	return nil
 }
 
-func (mp *Platform) QueryOPAFunctionPermissions(projectName,
+func (mp *Platform) QueryOPAFunctionPermissions(ctx context.Context,
+	projectName,
 	functionName string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
 	args := mp.Called(projectName, functionName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }
@@ -406,8 +407,8 @@ func (mp *Platform) QueryOPAFunctionPermissions(projectName,
 func (mp *Platform) QueryOPAFunctionEventPermissions(projectName,
 	functionName,
 	functionEventName string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
 	args := mp.Called(projectName, functionName, functionEventName, action, permissionOptions)
 	return args.Get(0).(bool), args.Error(1)
 }

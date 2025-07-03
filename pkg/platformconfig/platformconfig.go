@@ -29,6 +29,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/opa-client"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
@@ -470,7 +471,11 @@ func (c *Config) enrichOpaConfig() {
 	}
 
 	if c.Opa.ClientKind == "" {
-		c.Opa.ClientKind = opa.DefaultClientKind
+		c.Opa.ClientKind = opaclient.ClientKindNop
+		c.Opa.Mode = opa.OPAModeNop
+	} else if c.Opa.Mode == "" {
+		// For backwards compatibility, if the client kind is set but the mode isn't, we assume it's an Iguazio OPA
+		c.Opa.Mode = opa.OPAModeIguazio
 	}
 
 	if c.Opa.RequestTimeout == 0 {

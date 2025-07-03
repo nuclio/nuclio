@@ -24,9 +24,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+
+	"github.com/nuclio/opa-client"
 )
 
 type HealthCheckMode string
@@ -78,7 +79,7 @@ type Platform interface {
 	GetFunctions(ctx context.Context, getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
 	// FilterFunctionsByPermissions will filter out some functions
-	FilterFunctionsByPermissions(context.Context, *opa.PermissionOptions, []Function) ([]Function, error)
+	FilterFunctionsByPermissions(context.Context, *opaclient.PermissionOptions, []Function) ([]Function, error)
 
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to invoke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
@@ -90,10 +91,10 @@ type Platform interface {
 	GetDefaultProxyLogsSource() ProxyLogsSource
 
 	// GetFunctionActiveReplicaNames returns function's active replica names (Pod / Container names)
-	GetFunctionActiveReplicaNames(context.Context, Function, opa.PermissionOptions) ([]string, error)
+	GetFunctionActiveReplicaNames(context.Context, Function, opaclient.PermissionOptions) ([]string, error)
 
 	// GetFunctionAllReplicaNames returns all function replica names (active + old pods / containers)
-	GetFunctionAllReplicaNames(context.Context, Function, opa.PermissionOptions, *TimeFilter) ([]string, error)
+	GetFunctionAllReplicaNames(context.Context, Function, opaclient.PermissionOptions, *TimeFilter) ([]string, error)
 
 	// GetFunctionReplicaContainers returns function replica containers (Pod / Container names)
 	GetFunctionReplicaContainers(context.Context, *functionconfig.Config, string) ([]string, error)
@@ -141,7 +142,7 @@ type Platform interface {
 	GetFunctionEvents(ctx context.Context, getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
 
 	// FilterFunctionEventsByPermissions will filter out some function events
-	FilterFunctionEventsByPermissions(context.Context, *opa.PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
+	FilterFunctionEventsByPermissions(context.Context, *opaclient.PermissionOptions, []FunctionEvent) ([]FunctionEvent, error)
 
 	//
 	// API Gateway
@@ -244,5 +245,5 @@ type Platform interface {
 	//
 
 	// QueryOPAFunctionPermissions queries opa permissions for a certain function
-	QueryOPAFunctionPermissions(projectName, functionName string, action opa.Action, permissionOptions *opa.PermissionOptions) (bool, error)
+	QueryOPAFunctionPermissions(ctx context.Context, projectName, functionName string, action opaclient.Action, permissionOptions *opaclient.PermissionOptions) (bool, error)
 }

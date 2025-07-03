@@ -31,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/opa-client"
 )
 
 type functionEventResource struct {
@@ -64,7 +65,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
 		AuthSession: fer.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -108,7 +109,7 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
 		AuthSession: fer.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			RaiseForbidden:      true,
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
@@ -189,7 +190,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 	err = fer.getPlatform().CreateFunctionEvent(ctx, &platform.CreateFunctionEventOptions{
 		FunctionEventConfig: *newFunctionEvent.GetConfig(),
 		AuthSession:         fer.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -213,7 +214,7 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 			},
 		},
 		AuthSession: fer.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -243,7 +244,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 
 	deleteFunctionEventOptions := platform.DeleteFunctionEventOptions{
 		AuthSession: fer.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -288,7 +289,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 	if err = fer.getPlatform().UpdateFunctionEvent(ctx, &platform.UpdateFunctionEventOptions{
 		FunctionEventConfig: functionEventConfig,
 		AuthSession:         fer.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},

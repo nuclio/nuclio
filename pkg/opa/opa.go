@@ -17,7 +17,6 @@ limitations under the License.
 package opa
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -25,11 +24,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 )
-
-type Client interface {
-	QueryPermissions(string, Action, *PermissionOptions) (bool, error)
-	QueryPermissionsMultiResources(context.Context, []string, Action, *PermissionOptions) ([]bool, error)
-}
 
 func GetUserAndGroupIdsFromAuthSession(session auth.Session) []string {
 	if session == nil {
@@ -59,18 +53,18 @@ func GetUserAndGroupIdsFromHeaders(request *http.Request) []string {
 	return ids
 }
 
-func GenerateProjectResourceString(projectName string) string {
-	return fmt.Sprintf("/projects/%s", projectName)
+func GenerateProjectResourceString(projectName, prefix string) string {
+	return fmt.Sprintf("%s/projects/%s", prefix, projectName)
 }
 
-func GenerateFunctionResourceString(projectName, functionName string) string {
-	return fmt.Sprintf("/projects/%s/functions/%s", projectName, functionName)
+func GenerateFunctionResourceString(projectName, functionName, prefix string) string {
+	return fmt.Sprintf("%s/projects/%s/functions/%s", prefix, projectName, functionName)
 }
 
-func GenerateFunctionRedeployResourceString(projectName, functionName string) string {
-	return fmt.Sprintf("/projects/%s/functions/%s/redeploy", projectName, functionName)
+func GenerateFunctionRedeployResourceString(projectName, functionName, prefix string) string {
+	return fmt.Sprintf("%s/projects/%s/functions/%s/redeploy", prefix, projectName, functionName)
 }
 
-func GenerateFunctionEventResourceString(projectName, functionName, functionEventName string) string {
-	return fmt.Sprintf("/projects/%s/functions/%s/function-events/%s", projectName, functionName, functionEventName)
+func GenerateFunctionEventResourceString(projectName, functionName, functionEventName, prefix string) string {
+	return fmt.Sprintf("%s/projects/%s/functions/%s/function-events/%s", prefix, projectName, functionName, functionEventName)
 }

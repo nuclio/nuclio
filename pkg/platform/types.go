@@ -26,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -34,6 +33,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/opa-client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -65,7 +65,7 @@ type CreateFunctionOptions struct {
 	InputImageFile             string
 	AuthConfig                 *AuthConfig
 	DependantImagesRegistryURL string
-	PermissionOptions          opa.PermissionOptions
+	PermissionOptions          opaclient.PermissionOptions
 	AuthSession                auth.Session
 	AutofixConfiguration       bool
 }
@@ -75,14 +75,14 @@ type UpdateFunctionOptions struct {
 	FunctionSpec      *functionconfig.Spec
 	FunctionStatus    *functionconfig.Status
 	AuthConfig        *AuthConfig
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	AuthSession       auth.Session
 }
 
 type DeleteFunctionOptions struct {
 	FunctionConfig    functionconfig.Config
 	AuthConfig        *AuthConfig
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	AuthSession       auth.Session
 
 	// whether to ignore the validation where functions being provisioned cannot be deleted
@@ -98,7 +98,7 @@ type RedeployFunctionOptions struct {
 	AuthConfig                  *AuthConfig
 	DependantImagesRegistryURL  string
 	AuthSession                 auth.Session
-	PermissionOptions           opa.PermissionOptions
+	PermissionOptions           opaclient.PermissionOptions
 	CreationStateUpdatedTimeout time.Duration
 	DesiredState                functionconfig.FunctionState
 }
@@ -126,7 +126,7 @@ type GetFunctionsOptions struct {
 	Labels            string
 	ResourceVersion   string
 	AuthConfig        *AuthConfig
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	AuthSession       auth.Session
 
 	// Enrich functions with their api gateways
@@ -187,7 +187,7 @@ type CreateFunctionInvocationOptions struct {
 	Timeout      time.Duration
 	URL          string
 
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	AuthSession       auth.Session
 
 	// the function instance to invoke
@@ -317,7 +317,7 @@ type CreateProjectOptions struct {
 	ProjectConfig           *ProjectConfig
 	RequestOrigin           platformconfig.ProjectsLeaderKind
 	SessionCookie           *http.Cookie
-	PermissionOptions       opa.PermissionOptions
+	PermissionOptions       opaclient.PermissionOptions
 	AuthSession             auth.Session
 	WaitForCreateCompletion bool
 }
@@ -326,7 +326,7 @@ type UpdateProjectOptions struct {
 	ProjectConfig     ProjectConfig
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	AuthSession       auth.Session
 }
 
@@ -360,7 +360,7 @@ type DeleteProjectOptions struct {
 	Strategy          DeleteProjectStrategy
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	AuthSession       auth.Session
 
 	// allowing us to "block" until related resources are removed.
@@ -371,7 +371,7 @@ type DeleteProjectOptions struct {
 
 type GetProjectsOptions struct {
 	Meta              ProjectMeta
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	RequestOrigin     platformconfig.ProjectsLeaderKind
 	SessionCookie     *http.Cookie
 	AuthSession       auth.Session
@@ -421,26 +421,26 @@ type FunctionEventConfig struct {
 
 type CreateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
-	PermissionOptions   opa.PermissionOptions
+	PermissionOptions   opaclient.PermissionOptions
 	AuthSession         auth.Session
 }
 
 type UpdateFunctionEventOptions struct {
 	FunctionEventConfig FunctionEventConfig
-	PermissionOptions   opa.PermissionOptions
+	PermissionOptions   opaclient.PermissionOptions
 	AuthSession         auth.Session
 }
 
 type DeleteFunctionEventOptions struct {
 	Meta              FunctionEventMeta
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	AuthSession       auth.Session
 }
 
 type GetFunctionEventsOptions struct {
 	Meta              FunctionEventMeta
 	FunctionNames     []string
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 	AuthSession       auth.Session
 }
 
@@ -606,5 +606,5 @@ type GetFunctionReplicaLogsStreamOptions struct {
 	ContainerName string
 
 	// Permission options for the log stream
-	PermissionOptions opa.PermissionOptions
+	PermissionOptions opaclient.PermissionOptions
 }

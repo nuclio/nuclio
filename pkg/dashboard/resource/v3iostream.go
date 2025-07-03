@@ -34,6 +34,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/opa-client"
 )
 
 type v3ioStreamResource struct {
@@ -100,7 +101,7 @@ func (vsr *v3ioStreamResource) getFunctions(request *http.Request) ([]platform.F
 			common.NuclioResourceLabelKeyProjectName,
 			projectName),
 		AuthSession: vsr.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
@@ -183,7 +184,7 @@ func (vsr *v3ioStreamResource) validateRequest(request *http.Request) error {
 			Namespace: namespace,
 		},
 		AuthSession: vsr.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(vsr.getCtxSession(ctx)),
 			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
 		},
