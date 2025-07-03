@@ -26,7 +26,7 @@ type Kind string
 const (
 	KindNop       = "nop"
 	KindIguazio   = "iguazio"
-	KindIguazioV4 = "iguaziov4"
+	KindIguazioV4 = "iguazio-v4"
 )
 
 type SessionContextKey string

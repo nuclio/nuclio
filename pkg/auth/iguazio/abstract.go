@@ -122,7 +122,7 @@ func (a *AbstractAuth) PerformHTTPRequest(ctx context.Context,
 					"lastError", lastError)
 			}
 
-			// fire request
+			// Send the HTTP request
 			lastResponse, err = a.HttpClient.Do(request)
 			if err != nil {
 				lastError = err
