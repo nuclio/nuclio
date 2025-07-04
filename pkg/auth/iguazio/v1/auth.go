@@ -14,20 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package iguazio
+package v1
 
 import (
-	"bytes"
-	"context"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 
@@ -37,30 +34,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/cache"
 )
 
-const (
-	IguazioUsernameLabel                          string = "iguazio.com/username"
-	IguazioDomainLabel                            string = "iguazio.com/domain"
-	IguazioVerificationAndDataEnrichmentURLSuffix string = "_enrich_data"
-)
-
 type Auth struct {
-	logger     logger.Logger
-	config     *authpkg.Config
-	httpClient *http.Client
-	cache      *cache.LRUExpireCache
+	*iguazio.AbstractAuth
+	cache *cache.LRUExpireCache
 }
 
 func NewAuth(logger logger.Logger, config *authpkg.Config) authpkg.Auth {
 	return &Auth{
-		logger: logger.GetChild("iguazio-auth"),
-		config: config,
-		httpClient: &http.Client{
-			Timeout: config.Iguazio.Timeout,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: config.Iguazio.SkipTLSVerification},
-			},
-		},
-		cache: cache.NewLRUExpireCache(config.Iguazio.CacheSize),
+		AbstractAuth: iguazio.NewAbstractAuth(logger, config),
+		cache:        cache.NewLRUExpireCache(config.Iguazio.CacheSize),
 	}
 }
 
@@ -84,12 +66,12 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		"cookie":        cookie,
 	}
 
-	url := a.config.Iguazio.VerificationURL
+	url := a.GetConfig().Iguazio.VerificationURL
 	if options.EnrichDataPlane {
-		url = a.config.Iguazio.VerificationDataEnrichmentURL
+		url = a.GetConfig().Iguazio.VerificationDataEnrichmentURL
 	}
 
-	method := a.config.Iguazio.VerificationMethod
+	method := a.GetConfig().Iguazio.VerificationMethod
 	if method == "" {
 		method = http.MethodPost
 	}
@@ -101,7 +83,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		return cacheData.(*authpkg.IguazioSession), nil
 	}
 
-	response, err := a.performHTTPRequest(request.Context(),
+	response, err := a.PerformHTTPRequest(request.Context(),
 		method,
 		url,
 		nil,
@@ -110,7 +92,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 			"cookie":        cookie,
 		})
 	if err != nil {
-		a.logger.WarnWithCtx(ctx,
+		a.Logger.WarnWithCtx(ctx,
 			"Failed to perform http authentication request",
 			"err", err.Error(),
 		)
@@ -119,7 +101,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 
 	// auth failed
 	if response.StatusCode == http.StatusUnauthorized {
-		a.logger.WarnWithCtx(ctx,
+		a.Logger.WarnWithCtx(ctx,
 			"Authentication failed",
 			"authorizationHeaderLength", len(authHeaders["authorization"]),
 			"cookieHeaderLength", len(authHeaders["cookie"]),
@@ -129,7 +111,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 
 	// not within range of 200
 	if !(response.StatusCode >= http.StatusOK && response.StatusCode < 300) {
-		a.logger.WarnWithCtx(ctx,
+		a.Logger.WarnWithCtx(ctx,
 			"Unexpected authentication status code",
 			"authorizationHeaderLength", len(authHeaders["authorization"]),
 			"cookieHeaderLength", len(authHeaders["cookie"]),
@@ -150,7 +132,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 
 	userID, groupIDs, err := a.resolveUserAndGroupIDsFromResponseBody(responseBody)
 	if err != nil {
-		a.logger.WarnWithCtx(ctx,
+		a.Logger.WarnWithCtx(ctx,
 			"Failed to resolve user and group IDs from response body, reading from headers",
 			"err", err.Error())
 
@@ -173,8 +155,8 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		}
 	}
 
-	a.cache.Add(cacheKey, authInfo, a.config.Iguazio.CacheExpirationTimeout)
-	a.logger.InfoWithCtx(ctx,
+	a.cache.Add(cacheKey, authInfo, a.GetConfig().Iguazio.CacheExpirationTimeout)
+	a.Logger.InfoWithCtx(ctx,
 		"Authentication succeeded",
 		"url", url,
 		"username", authInfo.GetUsername())
@@ -183,87 +165,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 
 // Middleware will authenticate the incoming request and store the session within the request context
 func (a *Auth) Middleware(options *authpkg.Options) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			session, err := a.Authenticate(r, options)
-			if err != nil {
-				a.logger.WarnWithCtx(ctx,
-					"Authentication failed",
-					"err", errors.GetErrorStackString(err, 10))
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			a.logger.DebugWithCtx(ctx,
-				"Successfully authenticated incoming request",
-				"sessionUsername", session.GetUsername())
-			enrichedCtx := context.WithValue(ctx, authpkg.IguazioContextKey, session)
-			next.ServeHTTP(w, r.WithContext(enrichedCtx))
-		})
-	}
-}
-
-func (a *Auth) Kind() authpkg.Kind {
-	return a.config.Kind
-}
-
-func (a *Auth) performHTTPRequest(ctx context.Context,
-	method string,
-	url string,
-	body []byte,
-	headers map[string]string) (*http.Response, error) {
-
-	// create request
-	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create http request")
-	}
-
-	// attach headers
-	for headerKey, headerValue := range headers {
-		request.Header.Set(headerKey, headerValue)
-	}
-
-	var lastResponse *http.Response
-	var lastError error
-	if err := common.RetryUntilSuccessfulOnErrorPatterns(
-		time.Second*60,
-		time.Second*3,
-		[]string{
-
-			// usually when service is not up yet
-			"EOF",
-			"connection reset by peer",
-
-			// tl;dr: we should actively retry on such errors, because Go won't as request might not be idempotent
-			"server closed idle connection",
-		},
-		func(retryCounter int) (string, error) {
-
-			// stop now if context is done
-			if err := ctx.Err(); err != nil {
-				return "", errors.Wrap(err, "Context is done")
-			}
-
-			if retryCounter > 0 {
-				a.logger.WarnWithCtx(ctx,
-					"Retrying authentication HTTP request",
-					"retryCounter", retryCounter,
-					"lastError", lastError)
-			}
-
-			// fire request
-			lastResponse, err = a.httpClient.Do(request)
-			if err != nil {
-				lastError = err
-				return err.Error(), errors.Wrap(err, "Failed to send HTTP request")
-			}
-			return "", nil
-		}); err != nil {
-		return lastResponse, errors.Wrap(err, "Failed to perform HTTP request")
-	}
-
-	return lastResponse, nil
+	return a.AbstractAuth.Middleware(a.Authenticate, options)
 }
 
 func (a *Auth) resolveUserAndGroupIDsFromResponseBody(responseBody map[string]interface{}) (string, []string, error) {
