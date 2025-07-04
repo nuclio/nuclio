@@ -26,6 +26,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/iguazio"
+	authIgzV1 "github.com/nuclio/nuclio/pkg/auth/iguazio/v1"
+	authIgzV4 "github.com/nuclio/nuclio/pkg/auth/iguazio/v4"
 	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -1711,92 +1713,158 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithPreemptionSpec
 }
 
 func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel() {
-
-	functionName := "some-func"
-	functionConfig := *functionconfig.NewConfig()
-	authSession := &iguazio.AbstractSession{
-		Username: "some-user",
+	testCases := []struct {
+		name         string
+		session      auth.Session
+		expectedUser string
+	}{
+		{
+			name:         "igz",
+			session:      authIgzV1.NewSession("some-user", "", "", nil),
+			expectedUser: "some-user",
+		},
+		{
+			name:         "igzV4",
+			session:      authIgzV4.NewSession("another-user", nil),
+			expectedUser: "another-user",
+		},
 	}
 
-	// inject auth session to context
-	ctx := context.WithValue(suite.ctx, auth.AuthSessionContextKey, authSession)
-	suite.mockedPlatform.
-		On("GetProjects", ctx, &platform.GetProjectsOptions{
-			Meta: platform.ProjectMeta{
-				Name:      platform.DefaultProjectName,
-				Namespace: suite.Namespace,
-			},
-		}).
-		Return([]platform.Project{
-			&platform.AbstractProject{},
-		}, nil).
-		Once()
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			functionName := "some-func"
+			functionConfig := *functionconfig.NewConfig()
+			authSession := testCase.session
 
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger:         suite.Logger,
-		FunctionConfig: functionConfig,
-		AuthSession:    authSession,
+			ctx := context.WithValue(suite.ctx, auth.AuthSessionContextKey, authSession)
+			suite.mockedPlatform.
+				On("GetProjects", ctx, &platform.GetProjectsOptions{
+					Meta: platform.ProjectMeta{
+						Name:      platform.DefaultProjectName,
+						Namespace: suite.Namespace,
+					},
+				}).
+				Return([]platform.Project{
+					&platform.AbstractProject{},
+				}, nil).
+				Once()
+
+			createFunctionOptions := &platform.CreateFunctionOptions{
+				Logger:         suite.Logger,
+				FunctionConfig: functionConfig,
+				AuthSession:    authSession,
+			}
+			createFunctionOptions.FunctionConfig.Meta.Name = functionName
+			createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
+			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+			}
+
+			suite.Logger.DebugWith("Enriching function", "functionName", functionName)
+
+			err := suite.platform.EnrichFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedUser, createFunctionOptions.FunctionConfig.Meta.Labels[iguazio.IguazioUsernameLabel])
+		})
 	}
-	createFunctionOptions.FunctionConfig.Meta.Name = functionName
-	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
-	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
-	}
-
-	suite.Logger.DebugWith("Enriching function", "functionName", functionName)
-
-	err := suite.platform.EnrichFunctionConfig(ctx, &createFunctionOptions.FunctionConfig)
-	suite.Require().NoError(err)
-
-	suite.Require().Equal("some-user", createFunctionOptions.FunctionConfig.Meta.Labels[iguazio.IguazioUsernameLabel])
 }
 
 func (suite *FunctionKubePlatformTestSuite) TestUsernameLabelsEnrichment() {
-	for _, testCase := range []struct {
+	testCases := []struct {
 		name                  string
 		fullUsername          string
 		expectedUsernameLabel string
 		expectedDomainLabel   string
+		authKind              auth.Kind
 	}{
 		{
-			name:                  "with-name-and-domain",
+			name:                  "v1 with-name-and-domain",
 			fullUsername:          "foo@bar.com",
 			expectedUsernameLabel: "foo",
 			expectedDomainLabel:   "bar.com",
+			authKind:              auth.KindIguazio,
 		},
 		{
-			name:                  "with-only-name",
+			name:                  "v4 with-name-and-domain",
+			fullUsername:          "foo@bar.com",
+			expectedUsernameLabel: "foo",
+			expectedDomainLabel:   "bar.com",
+			authKind:              auth.KindIguazioV4,
+		},
+		{
+			name:                  "v1 with-only-name",
 			fullUsername:          "foo",
 			expectedUsernameLabel: "foo",
+			authKind:              auth.KindIguazio,
 		},
 		{
-			name: "empty",
+			name:                  "v4 with-only-name",
+			fullUsername:          "foo",
+			expectedUsernameLabel: "foo",
+			authKind:              auth.KindIguazioV4,
 		},
-		// test cases to check that we don't panic on wrong usernames
 		{
-			name:                  "wrong-with-two-ats",
+			name:     "v1 empty",
+			authKind: auth.KindIguazio,
+		},
+		{
+			name:     "v4 empty",
+			authKind: auth.KindIguazioV4,
+		},
+		{
+			name:                  "v1 wrong-with-two-ats",
 			fullUsername:          "foo@bar@test",
 			expectedUsernameLabel: "foo",
 			expectedDomainLabel:   "bar",
+			authKind:              auth.KindIguazio,
 		},
 		{
-			name:                  "wrong-with-empty-domain",
+			name:                  "v4 wrong-with-two-ats",
+			fullUsername:          "foo@bar@test",
+			expectedUsernameLabel: "foo",
+			expectedDomainLabel:   "bar",
+			authKind:              auth.KindIguazioV4,
+		},
+		{
+			name:                  "v1 wrong-with-empty-domain",
 			fullUsername:          "foo@",
 			expectedUsernameLabel: "foo",
+			authKind:              auth.KindIguazio,
 		},
 		{
-			name:                "wrong-with-empty-name",
+			name:                  "v4 wrong-with-empty-domain",
+			fullUsername:          "foo@",
+			expectedUsernameLabel: "foo",
+			authKind:              auth.KindIguazioV4,
+		},
+		{
+			name:                "v1 wrong-with-empty-name",
 			fullUsername:        "@bar",
 			expectedDomainLabel: "bar",
+			authKind:            auth.KindIguazio,
 		},
-	} {
+		{
+			name:                "v4 wrong-with-empty-name",
+			fullUsername:        "@bar",
+			expectedDomainLabel: "bar",
+			authKind:            auth.KindIguazioV4,
+		},
+	}
+
+	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			testContext := context.WithValue(suite.ctx,
-				auth.AuthSessionContextKey,
-				&iguazio.AbstractSession{
-					Username: testCase.fullUsername,
-				},
-			)
+			var session auth.Session
+
+			switch testCase.authKind {
+			case auth.KindIguazioV4:
+				session = authIgzV4.NewSession(testCase.fullUsername, nil)
+			case auth.KindIguazio:
+				session = authIgzV1.NewSession(testCase.fullUsername, "", "", nil)
+			default:
+				session = &nop.Session{}
+			}
+
+			testContext := context.WithValue(suite.ctx, auth.AuthSessionContextKey, session)
 			labels := make(map[string]string)
 			suite.platform.EnrichLabels(testContext, labels)
 
@@ -2136,7 +2204,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		validationError string
 
 		// keep empty when not verifying session enrichment
-		authSession *iguazio.AbstractSession
+		authSession auth.Session
 	}{
 		{
 			name: "SpecNameEnrichedFromMetaName",
@@ -2182,7 +2250,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 			}(),
 		},
 		{
-			name: "UserNameEnrichedFromSession",
+			name: "UserNameEnrichedFromSessionV1",
 			apiGatewayConfig: func() *platform.APIGatewayConfig {
 				apiGatewayConfig := suite.compileAPIGatewayConfig()
 				return &apiGatewayConfig
@@ -2194,9 +2262,22 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				}
 				return &apiGatewayConfig
 			}(),
-			authSession: &iguazio.AbstractSession{
-				Username: "some-username",
-			},
+			authSession: authIgzV1.NewSession("some-username", "", "", nil),
+		},
+		{
+			name: "UserNameEnrichedFromSessionV4",
+			apiGatewayConfig: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				return &apiGatewayConfig
+			}(),
+			expectedEnrichedAPIGateway: func() *platform.APIGatewayConfig {
+				apiGatewayConfig := suite.compileAPIGatewayConfig()
+				apiGatewayConfig.Meta.Labels = map[string]string{
+					iguazio.IguazioUsernameLabel: "some-username1",
+				}
+				return &apiGatewayConfig
+			}(),
+			authSession: authIgzV4.NewSession("some-username1", nil),
 		},
 		{
 			name: "ValidateNamespaceExistence",

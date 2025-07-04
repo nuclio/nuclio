@@ -16,12 +16,6 @@ limitations under the License.
 
 package nop
 
-import (
-	"strings"
-
-	"github.com/nuclio/nuclio/pkg/auth/iguazio"
-)
-
 type Session struct {
 }
 
@@ -46,15 +40,5 @@ func (s *Session) GetGroupIDs() []string {
 }
 
 func (s *Session) GetUserLabels() map[string]string {
-	labels := make(map[string]string)
-	fullUsername := s.GetUsername()
-	// split email usernames to name and domain because '@' is an invalid character in kubernetes labels
-	if strings.Contains(fullUsername, "@") {
-		split := strings.Split(fullUsername, "@")
-		labels[iguazio.IguazioUsernameLabel] = split[0]
-		labels[iguazio.IguazioDomainLabel] = split[1]
-	} else {
-		labels[iguazio.IguazioUsernameLabel] = fullUsername
-	}
-	return labels
+	return nil
 }

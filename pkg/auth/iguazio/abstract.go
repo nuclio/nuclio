@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"strings"
 	"time"
 
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
@@ -158,5 +159,15 @@ func (a *AbstractSession) GetPassword() string {
 }
 
 func (a *AbstractSession) GetUserLabels() map[string]string {
-	return nil
+	labels := make(map[string]string)
+	fullUsername := a.GetUsername()
+	// split email usernames to name and domain because '@' is an invalid character in kubernetes labels
+	if strings.Contains(fullUsername, "@") {
+		split := strings.Split(fullUsername, "@")
+		labels[IguazioUsernameLabel] = split[0]
+		labels[IguazioDomainLabel] = split[1]
+	} else {
+		labels[IguazioUsernameLabel] = fullUsername
+	}
+	return labels
 }
