@@ -58,7 +58,7 @@ type Config struct {
 	ProjectsLeader            *ProjectsLeader                  `json:"projectsLeader,omitempty"`
 	ManagedNamespaces         []string                         `json:"managedNamespaces,omitempty"`
 	IguazioSessionCookie      string                           `json:"iguazioSessionCookie,omitempty"`
-	Opa                       opa.Config                       `json:"opa,omitempty"`
+	Opa                       *opa.Config                      `json:"opa,omitempty"`
 	StreamMonitoring          StreamMonitoringConfig           `json:"streamMonitoring,omitempty"`
 	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFields,omitempty"`
 	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
@@ -466,6 +466,12 @@ func (c *Config) enrichLocalPlatform() {
 }
 
 func (c *Config) enrichOpaConfig() {
+	if c.Opa == nil {
+		c.Opa = &opa.Config{
+			Config: &opaclient.Config{},
+		}
+	}
+
 	if c.Opa.Address == "" {
 		c.Opa.Address = "127.0.0.1:8181"
 	}
