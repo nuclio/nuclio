@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -2078,7 +2079,7 @@ func (suite *projectTestSuite) TestDeleteWithFunctions() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			testCase.deleteProjectOptions.AuthSession = &auth.NopSession{}
+			testCase.deleteProjectOptions.AuthSession = &nop.Session{}
 			suite.mockPlatform.
 				On("DeleteProject", mock.Anything, testCase.deleteProjectOptions).
 				Return(testCase.deleteProjectReturnedError).

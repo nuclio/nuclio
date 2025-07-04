@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"io"
@@ -31,18 +33,15 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"k8s.io/apimachinery/pkg/util/cache"
 )
 
 type Auth struct {
 	*iguazio.AbstractAuth
-	cache *cache.LRUExpireCache
 }
 
 func NewAuth(logger logger.Logger, config *authpkg.Config) authpkg.Auth {
 	return &Auth{
 		AbstractAuth: iguazio.NewAbstractAuth(logger, config),
-		cache:        cache.NewLRUExpireCache(config.Iguazio.CacheSize),
 	}
 }
 
@@ -58,7 +57,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 	}
 
 	if cookie == "" && authorization == "" {
-		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
+		return nil, nuclio.NewErrUnauthorized("Authentication headers are missing")
 	}
 
 	authHeaders := map[string]string{
@@ -71,26 +70,14 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		url = a.GetConfig().Iguazio.VerificationDataEnrichmentURL
 	}
 
-	method := a.GetConfig().Iguazio.VerificationMethod
-	if method == "" {
-		method = http.MethodPost
-	}
-
 	cacheKey := sha256.Sum256([]byte(cookie + authorization + url))
 
 	// try resolve from cache
-	if cacheData, found := a.cache.Get(cacheKey); found {
-		return cacheData.(*authpkg.IguazioSession), nil
+	if cacheData, found := a.Cache.Get(cacheKey); found {
+		return cacheData.(*Session), nil
 	}
 
-	response, err := a.PerformHTTPRequest(request.Context(),
-		method,
-		url,
-		nil,
-		map[string]string{
-			"authorization": authorization,
-			"cookie":        cookie,
-		})
+	response, err := a.constructAndSendIdentityRequest(ctx, authorization, cookie, url)
 	if err != nil {
 		a.Logger.WarnWithCtx(ctx,
 			"Failed to perform http authentication request",
@@ -142,12 +129,9 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 			groupIDs = response.Header.Values(headers.UserGroupIds)
 		}
 	}
-
-	authInfo := &authpkg.IguazioSession{
-		Username:   response.Header.Get(headers.RemoteUser),
-		SessionKey: response.Header.Get(headers.V3IOSessionKey),
-		UserID:     userID,
-	}
+	authInfo := NewSession(response.Header.Get(headers.RemoteUser),
+		response.Header.Get(headers.V3IOSessionKey),
+		userID, []string{})
 
 	for _, groupID := range groupIDs {
 		if groupID != "" {
@@ -155,7 +139,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		}
 	}
 
-	a.cache.Add(cacheKey, authInfo, a.GetConfig().Iguazio.CacheExpirationTimeout)
+	a.Cache.Add(cacheKey, authInfo, a.GetConfig().Iguazio.CacheExpirationTimeout)
 	a.Logger.InfoWithCtx(ctx,
 		"Authentication succeeded",
 		"url", url,
@@ -166,6 +150,23 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 // Middleware will authenticate the incoming request and store the session within the request context
 func (a *Auth) Middleware(options *authpkg.Options) func(next http.Handler) http.Handler {
 	return a.AbstractAuth.Middleware(a.Authenticate, options)
+}
+
+func (a *Auth) constructAndSendIdentityRequest(ctx context.Context, authHeader, cookie, url string) (*http.Response, error) {
+	method := a.GetConfig().Iguazio.VerificationMethod
+	if method == "" {
+		method = http.MethodPost
+	}
+
+	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(nil))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create http request")
+	}
+
+	request.Header.Set(headers.AuthorizationHeader, authHeader)
+	request.Header.Set("cookie", cookie)
+
+	return a.PerformHTTPRequest(ctx, request)
 }
 
 func (a *Auth) resolveUserAndGroupIDsFromResponseBody(responseBody map[string]interface{}) (string, []string, error) {

@@ -322,16 +322,10 @@ func (ap *Platform) EnrichLabels(ctx context.Context, labels map[string]string) 
 
 func (ap *Platform) enrichUsernameAndDomainLabels(ctx context.Context, labels map[string]string) {
 	// enrich labels with iguazio.com/username of the creating user
-	if authSession, ok := ctx.Value(auth.AuthSessionContextKey).(*auth.IguazioSession); ok {
+	if authSession, ok := ctx.Value(auth.AuthSessionContextKey).(auth.Session); ok {
 		if value, exist := labels[iguazio.IguazioUsernameLabel]; !exist || value == "" {
-			fullUsername := authSession.GetUsername()
-			// split email usernames to name and domain because '@' is an invalid character in kubernetes labels
-			if strings.Contains(fullUsername, "@") {
-				split := strings.Split(fullUsername, "@")
-				labels[iguazio.IguazioUsernameLabel] = split[0]
-				labels[iguazio.IguazioDomainLabel] = split[1]
-			} else {
-				labels[iguazio.IguazioUsernameLabel] = fullUsername
+			for name, labelValue := range authSession.GetUserLabels() {
+				labels[name] = labelValue
 			}
 		}
 	}

@@ -25,15 +25,15 @@ import (
 	"github.com/nuclio/logger"
 )
 
-func NewAuth(logger logger.Logger, authConfig *auth.Config) auth.Auth {
+func NewAuth(logger logger.Logger, authConfig *auth.Config) (auth.Auth, error) {
 	switch authConfig.Kind {
 	case auth.KindIguazio:
-		return v1.NewAuth(logger, authConfig)
+		return v1.NewAuth(logger, authConfig), nil
 	case auth.KindIguazioV4:
 		return v4.NewAuth(logger, authConfig)
 	case auth.KindNop:
-		return nop.NewAuth(logger, authConfig)
+		return nop.NewAuth(logger, authConfig), nil
 	default:
-		return nop.NewAuth(logger, authConfig)
+		return nop.NewAuth(logger, authConfig), nil
 	}
 }

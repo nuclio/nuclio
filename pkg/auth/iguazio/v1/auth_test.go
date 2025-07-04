@@ -114,7 +114,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 	// step A. successfully authenticate, let it to be cached
 	_, err := authInstance.Authenticate(incomingRequest, &authOptions)
 	suite.Require().NoError(err)
-	suite.Require().NotEmpty(authInstance.cache.Keys())
+	suite.Require().NotEmpty(authInstance.Cache.Keys())
 
 	// step B. re-authenticate, read from cache
 	// nil the http client in order to force it to panic if it was used to make an HTTP request
@@ -126,7 +126,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 	suite.Require().Equal("admin", session.GetUsername())
 	suite.Require().Equal("some-password", session.GetPassword())
 
-	authInstance.cache.Remove(authInstance.cache.Keys()[0])
+	authInstance.Cache.Remove(authInstance.Cache.Keys()[0])
 
 	// step C. bad authentication + cache remains empty
 	authInstance.HttpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
@@ -136,7 +136,7 @@ func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
 	})
 	_, err = authInstance.Authenticate(incomingRequest, &authOptions)
 	suite.Require().Error(err)
-	suite.Require().Empty(authInstance.cache.Keys())
+	suite.Require().Empty(authInstance.Cache.Keys())
 }
 
 func (suite *AuthTestSuite) TestAuthenticate() {

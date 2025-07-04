@@ -17,7 +17,6 @@ limitations under the License.
 package iguazio
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"net/http"
@@ -28,6 +27,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"k8s.io/apimachinery/pkg/util/cache"
 )
 
 const (
@@ -39,6 +39,7 @@ const (
 type AbstractAuth struct {
 	Logger     logger.Logger
 	HttpClient *http.Client
+	Cache      *cache.LRUExpireCache
 
 	config *authpkg.Config
 }
@@ -47,6 +48,7 @@ func NewAbstractAuth(logger logger.Logger, config *authpkg.Config) *AbstractAuth
 	return &AbstractAuth{
 		Logger: logger.GetChild("iguazio-auth"),
 		config: config,
+		Cache:  cache.NewLRUExpireCache(config.Iguazio.CacheSize),
 		HttpClient: &http.Client{
 			Timeout: config.Iguazio.Timeout,
 			Transport: &http.Transport{
@@ -77,25 +79,11 @@ func (a *AbstractAuth) Middleware(authenticateFunc func(*http.Request, *authpkg.
 	}
 }
 
-func (a *AbstractAuth) PerformHTTPRequest(ctx context.Context,
-	method string,
-	url string,
-	body []byte,
-	headers map[string]string) (*http.Response, error) {
-
-	// create request
-	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create http request")
-	}
-
-	// attach headers
-	for headerKey, headerValue := range headers {
-		request.Header.Set(headerKey, headerValue)
-	}
-
+func (a *AbstractAuth) PerformHTTPRequest(ctx context.Context, request *http.Request) (*http.Response, error) {
 	var lastResponse *http.Response
 	var lastError error
+	var err error
+
 	if err := common.RetryUntilSuccessfulOnErrorPatterns(
 		time.Second*60,
 		time.Second*3,
@@ -142,4 +130,33 @@ func (a *AbstractAuth) GetConfig() *authpkg.Config {
 
 func (a *AbstractAuth) Kind() authpkg.Kind {
 	return a.config.Kind
+}
+
+type AbstractSession struct {
+	Username string
+	GroupIDs []string
+}
+
+func (a *AbstractSession) GetUsername() string {
+	return a.Username
+}
+
+func (a *AbstractSession) GetGroupIDs() []string {
+	return a.GroupIDs
+}
+
+func (a *AbstractSession) CompileAuthorizationBasic() string {
+	return ""
+}
+
+func (a *AbstractSession) GetUserID() string {
+	return ""
+}
+
+func (a *AbstractSession) GetPassword() string {
+	return ""
+}
+
+func (a *AbstractSession) GetUserLabels() map[string]string {
+	return nil
 }

@@ -26,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/iguazio"
+	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -171,7 +172,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 
 	// create project
 	err := suite.platform.CreateProject(suite.ctx, &platform.CreateProjectOptions{
-		AuthSession: &auth.NopSession{},
+		AuthSession: &nop.Session{},
 		ProjectConfig: &platform.ProjectConfig{
 			Meta: platform.ProjectMeta{
 				Name:      "some-name",
@@ -223,7 +224,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 		Once()
 
 	projects, err := suite.platform.GetProjects(suite.ctx, &platform.GetProjectsOptions{
-		AuthSession: &auth.NopSession{},
+		AuthSession: &nop.Session{},
 		Meta: platform.ProjectMeta{
 			Namespace: suite.Namespace,
 		},
@@ -244,7 +245,7 @@ func (suite *ProjectKubePlatformTestSuite) TestGetProjectsCache() {
 		Return(nil).
 		Once()
 	err = suite.platform.DeleteProject(suite.ctx, &platform.DeleteProjectOptions{
-		AuthSession: &auth.NopSession{},
+		AuthSession: &nop.Session{},
 		Meta: platform.ProjectMeta{
 			Name:      "some-name",
 			Namespace: suite.Namespace,
@@ -1713,7 +1714,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 
 	functionName := "some-func"
 	functionConfig := *functionconfig.NewConfig()
-	authSession := &auth.IguazioSession{
+	authSession := &iguazio.AbstractSession{
 		Username: "some-user",
 	}
 
@@ -1792,7 +1793,7 @@ func (suite *FunctionKubePlatformTestSuite) TestUsernameLabelsEnrichment() {
 		suite.Run(testCase.name, func() {
 			testContext := context.WithValue(suite.ctx,
 				auth.AuthSessionContextKey,
-				&auth.IguazioSession{
+				&iguazio.AbstractSession{
 					Username: testCase.fullUsername,
 				},
 			)
@@ -2135,7 +2136,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 		validationError string
 
 		// keep empty when not verifying session enrichment
-		authSession *auth.IguazioSession
+		authSession *iguazio.AbstractSession
 	}{
 		{
 			name: "SpecNameEnrichedFromMetaName",
@@ -2193,7 +2194,7 @@ func (suite *APIGatewayKubePlatformTestSuite) TestAPIGatewayEnrichmentAndValidat
 				}
 				return &apiGatewayConfig
 			}(),
-			authSession: &auth.IguazioSession{
+			authSession: &iguazio.AbstractSession{
 				Username: "some-username",
 			},
 		},
