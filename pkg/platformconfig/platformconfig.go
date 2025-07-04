@@ -473,9 +473,6 @@ func (c *Config) enrichOpaConfig() {
 	if c.Opa.ClientKind == "" {
 		c.Opa.ClientKind = opaclient.ClientKindNop
 		c.Opa.Mode = opa.OPAModeNop
-	} else if c.Opa.Mode == "" {
-		// For backwards compatibility, if the client kind is set but the mode isn't, we assume it's an Iguazio OPA
-		c.Opa.Mode = opa.OPAModeIguazio
 	}
 
 	if c.Opa.RequestTimeout == 0 {
