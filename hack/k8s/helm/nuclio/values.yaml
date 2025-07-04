@@ -507,6 +507,7 @@ platform: {}
 #    clientKind: nop
 #    requestTimeout: 10
 #    permissionQueryPath: /v1/data/somewhere/authz/allow
+#    mode:
 #
 #  defaultUserFunctionPodResources:
 #     requests:
