@@ -129,6 +129,83 @@ func (suite *TestSuite) TestAsyncHandlerManyRequestsOneWorker() {
 func (suite *TestSuite) TestAsyncHandlerManyRequestsManyWorkers() {
 	suite.testAsyncHandlerManyRequests(10)
 }
+func (suite *TestSuite) TestStreamingHandler() {
+	for _, testCase := range []struct {
+		name    string
+		mode    functionconfig.TriggerWorkMode
+		handler string
+	}{
+		{
+			name:    "sync_handler_as_response_with_sync_gen",
+			mode:    functionconfig.SyncTriggerWorkMode,
+			handler: "stream_outputter:stream_file_lines_as_response_sync",
+		},
+		{
+			name:    "sync_handler_as_response_with_async_gen",
+			mode:    functionconfig.SyncTriggerWorkMode,
+			handler: "stream_outputter:stream_file_lines_as_response_async",
+		},
+		{
+			name:    "async_handler_as_response_with_async_gen",
+			mode:    functionconfig.AsyncTriggerWorkMode,
+			handler: "stream_outputter:stream_file_lines_as_response_async",
+		},
+		{
+			name:    "async_handler_as_response_with_sync_gen",
+			mode:    functionconfig.AsyncTriggerWorkMode,
+			handler: "stream_outputter:stream_file_lines_as_response_sync",
+		},
+		{
+			name:    "sync_handler_as_sync_gen",
+			mode:    functionconfig.SyncTriggerWorkMode,
+			handler: "stream_outputter:stream_file_lines_sync",
+		},
+		{
+			name:    "sync_handler_as_async_gen",
+			mode:    functionconfig.SyncTriggerWorkMode,
+			handler: "stream_outputter:stream_file_lines_async",
+		},
+		{
+			name:    "async_handler_as_async_gen",
+			mode:    functionconfig.AsyncTriggerWorkMode,
+			handler: "stream_outputter:stream_file_lines_async",
+		},
+		{
+			name:    "async_handler_as_sync_gen",
+			mode:    functionconfig.AsyncTriggerWorkMode,
+			handler: "stream_outputter:stream_file_lines_sync",
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			createFunctionOptions := suite.getDeployOptions("stream-outputter",
+				suite.GetFunctionPath("outputter"), testCase.mode)
+			createFunctionOptions.FunctionConfig.Spec.Handler = testCase.handler
+			createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+				"python -m pip install aiofile==3.5.0",
+			}
+
+			statusOK := http.StatusOK
+
+			// Generate expected body: "Line 1\nLine 2\n...Line 50\n"
+			var expectedBody string
+			for i := 1; i <= 50; i++ {
+				expectedBody += fmt.Sprintf("Line %d\n", i)
+			}
+
+			requests := make([]*httpsuite.Request, 5)
+			for i := range requests {
+				requests[i] = &httpsuite.Request{
+					Name:                       "streaming handler",
+					RequestBody:                "",
+					ExpectedResponseBody:       expectedBody,
+					ExpectedResponseStatusCode: &statusOK,
+				}
+			}
+
+			suite.DeployFunctionAndRequests(createFunctionOptions, requests)
+		})
+	}
+}
 
 func (suite *TestSuite) TestStress() {
 	if os.Getenv("NUCLIO_CI_SKIP_STRESS_TEST") == "true" {
