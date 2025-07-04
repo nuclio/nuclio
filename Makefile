@@ -702,7 +702,7 @@ ensure-golangci-linter:
 		echo "golangci-lint not found. Installing..."; \
 		$(GOLANGCI_LINT_INSTALL_COMMAND); \
 	else \
-		installed_version=$$($(GOLANGCI_LINT_BIN) version | awk '/version/ {print $$4}'); \
+		installed_version=$$($(GOLANGCI_LINT_BIN) version | awk '/version/ {gsub(/^v/, "", $$4); print $$4}'); \
 		if [ "$$installed_version" != "$(GOLANGCI_LINT_VERSION)" ]; then \
 			echo "golangci-lint version mismatch ($$installed_version != $(GOLANGCI_LINT_VERSION)). Reinstalling..."; \
 			$(GOLANGCI_LINT_INSTALL_COMMAND); \

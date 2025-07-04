@@ -13,6 +13,9 @@
 # limitations under the License.
 #
 version: "2"
+
+# timeout for analysis
+timeout: 5m
 run:
   build-tags:
     - test_unit
@@ -66,10 +69,7 @@ linters:
         text: error should be the last
     paths:
       - docs
-      - vendor
-      - third_party$
-      - builtin$
-      - examples$
+      - hack
 formatters:
   enable:
     - gci
@@ -87,7 +87,4 @@ formatters:
     generated: lax
     paths:
       - docs
-      - vendor
-      - third_party$
-      - builtin$
-      - examples$
+      - hack

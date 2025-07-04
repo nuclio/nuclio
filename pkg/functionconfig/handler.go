@@ -17,8 +17,9 @@ limitations under the License.
 package functionconfig
 
 import (
-	"fmt"
 	"strings"
+
+	"github.com/nuclio/errors"
 )
 
 func ParseHandler(handler string) (string, string, error) {
@@ -36,6 +37,6 @@ func ParseHandler(handler string) (string, string, error) {
 		return moduleAndEntrypoint[0], moduleAndEntrypoint[1], nil
 
 	default:
-		return "", "", fmt.Errorf("invalid handler name %s", handler)
+		return "", "", errors.Errorf("Invalid handler name %s", handler)
 	}
 }
