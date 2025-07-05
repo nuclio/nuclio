@@ -133,7 +133,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request.Context())),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	})
 	if err != nil {
@@ -317,7 +317,7 @@ func (fr *functionResource) storeAndDeployFunction(request *http.Request,
 				AuthSession:                ctx.Value(auth.AuthSessionContextKey).(auth.Session),
 				PermissionOptions: opaclient.PermissionOptions{
 					MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
-					OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+					OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 				},
 			}); err != nil {
 			fr.Logger.WarnWithCtx(ctx,
@@ -495,7 +495,7 @@ func (fr *functionResource) getFunctionReplicas(request *http.Request) (
 
 	permissionOptions := opaclient.PermissionOptions{
 		MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
-		OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+		OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		RaiseForbidden:      true,
 	}
 
@@ -564,7 +564,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 		AuthSession: fr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 		IgnoreFunctionStateValidation: fr.headerValueIsTrue(request,
 			headers.DeleteFunctionIgnoreStateValidation),
@@ -642,7 +642,7 @@ func (fr *functionResource) redeployFunction(request *http.Request,
 		AuthSession:                fr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 		DesiredState:                *options.DesiredState,
 		CreationStateUpdatedTimeout: fr.getCreationStateUpdatedTimeout(request),
@@ -743,7 +743,7 @@ func (fr *functionResource) resolveGetFunctionOptionsFromRequest(request *http.R
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(ctx)),
 			RaiseForbidden:      raiseForbidden,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}
 
@@ -815,7 +815,7 @@ func (fr *functionResource) populateGetFunctionReplicaLogsStreamOptions(request 
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fr.getCtxSession(request.Context())),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}
 

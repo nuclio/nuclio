@@ -2113,14 +2113,14 @@ func (ap *Platform) queryOPAPermissions(ctx context.Context,
 }
 
 func (ap *Platform) getOPAResourcesPrefix() string {
-	if ap.Config.Opa.Mode == opa.OPAModeIguazioV4 {
+	if ap.Config.Opa.AuthKind == auth.KindIguazioV4 {
 		return opa.IguazioV4ResourcePrefix
 	}
 	return ""
 }
 
 func (ap *Platform) getOPAManagementPrefix() string { // nolint: unused
-	if ap.Config.Opa.Mode == opa.OPAModeIguazioV4 {
+	if ap.Config.Opa.AuthKind == auth.KindIguazioV4 {
 		return opa.IguazioV4ManagementPrefix
 	}
 	return ""

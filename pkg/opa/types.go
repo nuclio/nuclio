@@ -16,28 +16,22 @@ limitations under the License.
 
 package opa
 
-import "github.com/nuclio/opa-client"
+import (
+	"github.com/nuclio/nuclio/pkg/auth"
+
+	"github.com/nuclio/opa-client"
+)
 
 const (
-	DefaultRequestTimeOut       = 10
+	DefaultRequestTimeout       = 10
 	DefaultPermissionQueryPath  = "/v1/data/iguazio/authz/allow"
 	DefaultPermissionFilterPath = "/v1/data/iguazio/authz/filter_allowed"
-
-	OverrideHeader = "x-projects-role"
 
 	IguazioV4ResourcePrefix   = "/resources"
 	IguazioV4ManagementPrefix = "/mgmt"
 )
 
-type OPAMode string
-
-const (
-	OPAModeIguazio   OPAMode = "iguazio"
-	OPAModeIguazioV4 OPAMode = "iguazio-v4"
-	OPAModeNop       OPAMode = "nop"
-)
-
 type Config struct {
 	*opaclient.Config
-	Mode OPAMode `json:"mode"`
+	AuthKind auth.Kind `json:"authKind,omitempty"`
 }

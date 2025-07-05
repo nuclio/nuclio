@@ -31,7 +31,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -87,7 +86,7 @@ func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		},
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 		AuthSession:   pr.getCtxSession(ctx),
 		SessionCookie: sessionCookie,
@@ -193,7 +192,7 @@ func (pr *projectResource) Update(request *http.Request, id string) (restful.Att
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
 		PermissionOptions: opaclient.PermissionOptions{
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}); err != nil {
 		if statusCode := common.ResolveErrorStatusCodeOrDefault(err, http.StatusInternalServerError); statusCode > 300 {
@@ -284,7 +283,7 @@ func (pr *projectResource) getFunctionsAndFunctionEventsMap(request *http.Reques
 		AuthSession: pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}
 
@@ -338,7 +337,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 		SessionCookie: sessionCookie,
 		AuthSession:   pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 
 		// TODO: read from request header
@@ -360,7 +359,7 @@ func (pr *projectResource) createProject(request *http.Request, projectInfoInsta
 }
 
 func (pr *projectResource) getRequestOriginAndSessionCookie(request *http.Request) (platformconfig.ProjectsLeaderKind, *http.Cookie) {
-	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get(iguazio.ProjectsRoleHeaderKey))
+	requestOrigin := platformconfig.ProjectsLeaderKind(request.Header.Get(headers.ProjectsRole))
 
 	// ignore error here, and just return a nil cookie when no session was passed (relevant only on leader/follower mode)
 	sessionCookie, _ := request.Cookie("session")
@@ -427,7 +426,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 		AuthSession: pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	})
 	if err != nil {
@@ -460,7 +459,7 @@ func (pr *projectResource) importProjectIfMissing(request *http.Request, project
 			ProjectConfig: newProject.GetConfig(),
 			AuthSession:   pr.getCtxSession(ctx),
 			PermissionOptions: opaclient.PermissionOptions{
-				OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+				OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 			},
 		}); err != nil {
 
@@ -539,7 +538,7 @@ func (pr *projectResource) importFunction(request *http.Request, function *funct
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	})
 	if err != nil {
@@ -644,7 +643,7 @@ func (pr *projectResource) getProjectByName(request *http.Request, projectName, 
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(pr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 		RequestOrigin: requestOrigin,
 		SessionCookie: sessionCookie,
@@ -684,7 +683,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 		SessionCookie: sessionCookie,
 		AuthSession:   pr.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}); err != nil {
 		return &restful.CustomRouteFuncResponse{

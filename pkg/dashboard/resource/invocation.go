@@ -114,7 +114,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(tr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	})
 

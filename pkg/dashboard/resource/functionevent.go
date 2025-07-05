@@ -67,7 +67,7 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 		AuthSession: fer.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}
 
@@ -112,7 +112,7 @@ func (fer *functionEventResource) GetByID(request *http.Request, id string) (res
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	})
 
@@ -192,7 +192,7 @@ func (fer *functionEventResource) storeAndDeployFunctionEvent(request *http.Requ
 		AuthSession:         fer.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	})
 	if err != nil {
@@ -216,7 +216,7 @@ func (fer *functionEventResource) getFunctionEvents(request *http.Request, funct
 		AuthSession: fer.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}
 
@@ -246,7 +246,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 		AuthSession: fer.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}
 	deleteFunctionEventOptions.Meta = *functionEventInfo.Meta
@@ -291,7 +291,7 @@ func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*r
 		AuthSession:         fer.getCtxSession(ctx),
 		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(fer.getCtxSession(ctx)),
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	}); err != nil {
 		fer.Logger.WarnWith("Failed to update function event", "err", err)

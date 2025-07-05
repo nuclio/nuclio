@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -478,11 +479,11 @@ func (c *Config) enrichOpaConfig() {
 
 	if c.Opa.ClientKind == "" {
 		c.Opa.ClientKind = opaclient.ClientKindNop
-		c.Opa.Mode = opa.OPAModeNop
+		c.Opa.AuthKind = auth.KindNop
 	}
 
 	if c.Opa.RequestTimeout == 0 {
-		c.Opa.RequestTimeout = opa.DefaultRequestTimeOut
+		c.Opa.RequestTimeout = opa.DefaultRequestTimeout
 	}
 
 	if c.Opa.PermissionQueryPath == "" {
