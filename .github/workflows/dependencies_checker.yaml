@@ -1,0 +1,16 @@
+name: Dependencies Checker
+
+on:
+  schedule:
+    - # At 00:00 UTC every Monday
+    - cron: '0 0 * * 1'
+
+jobs:
+  check-docker-cli-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run make check-docker-cli-version
+        run: make check-docker-cli-version
