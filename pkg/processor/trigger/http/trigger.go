@@ -91,7 +91,7 @@ func newTrigger(logger logger.Logger,
 		internalHealthPath: []byte(InternalHealthPath),
 	}
 
-	newTrigger.AbstractTrigger.Trigger = &newTrigger
+	newTrigger.Trigger = &newTrigger
 	newTrigger.allocateEvents(numWorkers)
 
 	if functionconfig.BatchModeEnabled(configuration.Batch) {
@@ -163,19 +163,19 @@ func (h *http) PrepareEventAndSubmitToBatch(ctx *fasthttp.RequestCtx) (chan inte
 
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	functionLogger logger.Logger,
-	timeout time.Duration) (response nuclio.ProcessingResult, submitError error, processError error, workerInstance eventprocessor.EventProcessor) {
+	timeout time.Duration) (response nuclio.ProcessingResult, workerInstance eventprocessor.EventProcessor, submitError error, processError error) {
 
 	defer h.HandleSubmitPanic(workerInstance, &submitError)
 
 	// allocate a worker
 	workerInstance, _, err := h.allocateWorker(timeout)
 	if err != nil {
-		return nil, err, nil, workerInstance
+		return nil, workerInstance, err, nil
 	}
 
 	// submit to worker
 	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, &Event{ctx: ctx})
-	return response, nil, processError, workerInstance
+	return response, workerInstance, nil, processError
 }
 
 func (h *http) flushIfTimeout(ctx *fasthttp.RequestCtx, processError error) bool {
@@ -477,7 +477,7 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 		}
 	} else {
 		// TODO: change to return runtime.ResponseWithErrors
-		response, submitError, processError, workerInstance = h.AllocateWorkerAndSubmitEvent(ctx,
+		response, workerInstance, submitError, processError = h.AllocateWorkerAndSubmitEvent(ctx,
 			functionLogger,
 			time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond)
 	}

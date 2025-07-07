@@ -44,7 +44,7 @@ type functionEventInfo struct {
 }
 
 func (fer *functionEventResource) ExtendMiddlewares() error {
-	fer.resource.addAuthMiddleware(nil)
+	fer.addAuthMiddleware(nil)
 	return nil
 }
 

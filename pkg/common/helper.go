@@ -359,9 +359,10 @@ func FixEscapeChars(s string) string {
 
 func GetEnvOrDefaultString(key string, defaultValue string) string {
 	value := os.Getenv(key)
-	if value == "" {
+	switch value {
+	case "":
 		return defaultValue
-	} else if value == "nil" || value == "none" {
+	case "nil", "none":
 		return ""
 	}
 	return value

@@ -42,7 +42,7 @@ type v3ioStreamResource struct {
 }
 
 func (vsr *v3ioStreamResource) ExtendMiddlewares() error {
-	vsr.resource.addAuthMiddleware(&auth.Options{
+	vsr.addAuthMiddleware(&auth.Options{
 
 		// we need a data plane session for accessing the v3io stream container
 		EnrichDataPlane: true,

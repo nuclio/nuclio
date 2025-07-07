@@ -36,6 +36,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
 	"github.com/IBM/sarama"
+	"github.com/nuclio/errors"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )
@@ -86,8 +87,8 @@ func (suite *testSuite) SetupSuite() {
 	suite.brokerURL = fmt.Sprintf("%s:%d", suite.BrokerHost, suite.brokerPort)
 
 	// start broker and zookeeper containers explicitly
-	suite.AbstractBrokerSuite.SkipStartBrokerContainer = true
-	suite.AbstractBrokerSuite.BrokerContainerNetworkName = "nuclio-kafka-test"
+	suite.SkipStartBrokerContainer = true
+	suite.BrokerContainerNetworkName = "nuclio-kafka-test"
 	suite.AbstractBrokerSuite.SetupSuite()
 
 	// start zoo keeper container
@@ -197,7 +198,7 @@ func (suite *testSuite) TestReceiveRecords() {
 
 			expectedNumberOfCommittedMessages += int(suite.NumPartitions)
 
-			triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+			triggertest.InvokeEventRecorder(&suite.TestSuite,
 				suite.BrokerHost,
 				createFunctionOptions,
 				map[string]triggertest.TopicMessages{
@@ -764,7 +765,7 @@ func (suite *testSuite) getNumberOfCommittedOffsetsFromBroker(consumerGroup, top
 	// Send the request to the broker
 	response, err := suite.broker.FetchOffset(request)
 	if err != nil {
-		return -1, fmt.Errorf("Failed to fetch offsets: %w", err)
+		return -1, errors.Errorf("failed to fetch offsets: %s", err.Error())
 	}
 
 	// Sum committed offsets across all partitions
@@ -772,10 +773,10 @@ func (suite *testSuite) getNumberOfCommittedOffsetsFromBroker(consumerGroup, top
 	for partition := 0; partition < partitions; partition++ {
 		block := response.GetBlock(topic, int32(partition))
 		if block == nil {
-			return -1, fmt.Errorf("No offset block returned for topic %s partition %d", topic, partition)
+			return -1, errors.Errorf("No offset block returned for topic %s partition %d", topic, partition)
 		}
 		if block.Err != sarama.ErrNoError {
-			return -1, fmt.Errorf("Error in offset block for partition %d: %v", partition, block.Err)
+			return -1, errors.Errorf("Error in offset block for partition %d: %v", partition, block.Err)
 		}
 		if block.Offset != -1 {
 			totalOffset += block.Offset

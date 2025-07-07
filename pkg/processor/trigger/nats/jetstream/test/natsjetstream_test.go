@@ -72,7 +72,7 @@ func (suite *testSuite) TestPostEvent() {
 	suite.Require().NoError(err, "Failed to create Jetstream consumer")
 
 	// invoke the event recorder
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		suite.getDeployOptions(),
 		map[string]triggertest.TopicMessages{

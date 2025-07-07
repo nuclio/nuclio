@@ -90,7 +90,7 @@ func (c *Configuration) PopulateConfigurationFromAnnotations(annotationConfigFie
 	var err error
 
 	for _, annotationConfigField := range annotationConfigFields {
-		annotationValue, annotationKeyExists := c.RuntimeConfiguration.Config.Meta.Annotations[annotationConfigField.Key]
+		annotationValue, annotationKeyExists := c.RuntimeConfiguration.Meta.Annotations[annotationConfigField.Key]
 		if !annotationKeyExists {
 			continue
 		}
@@ -156,10 +156,10 @@ func (c *Configuration) PopulateExplicitAckMode(logger logger.Logger, explicitAc
 	}
 
 	if c.ExplicitAckMode != functionconfig.ExplicitAckModeDisable {
-		if !functionconfig.RuntimeSupportExplicitAck(c.RuntimeConfiguration.Config.Spec.Runtime) {
+		if !functionconfig.RuntimeSupportExplicitAck(c.RuntimeConfiguration.Spec.Runtime) {
 			logger.WarnWith("Explicit Ack is not supported for the configured runtime. "+
 				"Setting explicitAck mode to `disable`",
-				"runtime", c.RuntimeConfiguration.Config.Spec.Runtime)
+				"runtime", c.RuntimeConfiguration.Spec.Runtime)
 			c.ExplicitAckMode = functionconfig.ExplicitAckModeDisable
 		}
 	}

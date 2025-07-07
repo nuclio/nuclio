@@ -17,7 +17,6 @@ limitations under the License.
 package dotnetcore
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -59,12 +58,12 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 
 func (d *dotnetcore) RunWrapper(socketPaths []string, controlSocketPath string) (*os.Process, error) {
 	if len(socketPaths) != 1 {
-		return nil, fmt.Errorf("Dotnet runtime doesn't support multiple socket processing")
+		return nil, errors.Errorf("Dotnet runtime doesn't support multiple socket processing")
 	}
 	wrapperDLLPath := d.getWrapperDLLPath()
 	d.Logger.DebugWith("Using dotnet core wrapper dll path", "path", wrapperDLLPath)
 	if !common.IsFile(wrapperDLLPath) {
-		return nil, fmt.Errorf("Can't find wrapper at %q", wrapperDLLPath)
+		return nil, errors.Errorf("Can't find wrapper at %q", wrapperDLLPath)
 	}
 
 	handler := d.getHandler()

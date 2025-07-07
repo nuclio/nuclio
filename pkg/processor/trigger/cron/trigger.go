@@ -65,7 +65,7 @@ func newTrigger(logger logger.Logger,
 		stop:            make(chan int),
 	}
 
-	newTrigger.AbstractTrigger.Trigger = &newTrigger
+	newTrigger.Trigger = &newTrigger
 
 	switch {
 	case configuration.Interval != "":

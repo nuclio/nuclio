@@ -17,7 +17,6 @@ limitations under the License.
 package v3ioutil
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -75,7 +74,7 @@ func ParseURL(rawURL string) (addr string, containerAlias string, path string, e
 
 	// get the container alias (at the very least /x (2 chars)
 	if len(parsedURL.RequestURI()) < 2 {
-		err = fmt.Errorf("Missing container alias: %s", rawURL)
+		err = errors.Errorf("Missing container alias: %s", rawURL)
 		return
 	}
 
@@ -94,7 +93,7 @@ func ParseURL(rawURL string) (addr string, containerAlias string, path string, e
 		containerAlias = containerAliasAndPath[0]
 
 	case 0:
-		err = fmt.Errorf("Expected at least one part in request Host: %s", containerAliasAndPathString)
+		err = errors.Errorf("Expected at least one part in request Host: %s", containerAliasAndPathString)
 		return
 	}
 

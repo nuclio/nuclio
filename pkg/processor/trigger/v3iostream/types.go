@@ -93,7 +93,7 @@ func NewConfiguration(id string, triggerConfiguration *functionconfig.Trigger,
 	}
 
 	// parse attributes
-	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+	if err := mapstructure.Decode(newConfiguration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 

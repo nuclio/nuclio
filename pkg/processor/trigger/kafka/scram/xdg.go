@@ -49,11 +49,11 @@ func NewClient(saslMechanism sarama.SASLMechanism) sarama.SCRAMClient {
 }
 
 func (sc *Client) Begin(userName, password, authzID string) (err error) {
-	sc.Client, err = sc.HashGeneratorFcn.NewClient(userName, password, authzID)
+	sc.Client, err = sc.NewClient(userName, password, authzID)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create new client")
 	}
-	sc.ClientConversation = sc.Client.NewConversation()
+	sc.ClientConversation = sc.NewConversation()
 	return nil
 }
 

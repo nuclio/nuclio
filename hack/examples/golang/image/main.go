@@ -57,8 +57,9 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	var img image.Image
 	var err error
 	if strings.HasPrefix(event.GetContentType(), "text/plain") {
+		var response *http.Response
 		// if the body is text assume its a URL and read the image from the URL (in the text)
-		response, err := http.Get(string(event.GetBody()))
+		response, err = http.Get(string(event.GetBody()))
 		if err != nil {
 			return nil, err
 		}
@@ -92,6 +93,6 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		StatusCode:  200,
 		ContentType: respType,
 		Body:        buf.Bytes(),
-	}, nil
+	}, err
 
 }

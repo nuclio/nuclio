@@ -130,8 +130,8 @@ func (suite *ScrubberTestSuite) TestScrubBasics() {
 		scrubbedFunctionConfig.Spec.Triggers["secret-trigger"].Attributes["password"])
 	suite.Require().Equal(functionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"],
 		scrubbedFunctionConfig.Spec.Triggers["non-secret-trigger"].Attributes["not-a-password"])
-	suite.Require().NotEqual(functionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"],
-		scrubbedFunctionConfig.Spec.Volumes[0].Volume.VolumeSource.FlexVolume.Options["accesskey"])
+	suite.Require().NotEqual(functionConfig.Spec.Volumes[0].Volume.FlexVolume.Options["accesskey"],
+		scrubbedFunctionConfig.Spec.Volumes[0].Volume.FlexVolume.Options["accesskey"])
 	suite.Require().NotEqual(functionConfig.Meta.Annotations["nuclio.io/kafka-ca-cert"],
 		scrubbedFunctionConfig.Meta.Annotations["nuclio.io/kafka-ca-cert"])
 
