@@ -57,7 +57,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 	}
 
 	if cookie == "" && authorization == "" {
-		return nil, nuclio.NewErrUnauthorized("Authentication headers are missing")
+		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
 	}
 
 	authHeaders := map[string]string{

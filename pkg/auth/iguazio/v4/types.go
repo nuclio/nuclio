@@ -21,6 +21,7 @@ type identityResponse struct {
 		Username string `json:"username"`
 	} `json:"metadata"`
 	Relationships []struct {
+		Type     string `json:"@type"`
 		Metadata struct {
 			ID string `json:"id"`
 		} `json:"metadata"`

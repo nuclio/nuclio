@@ -35,6 +35,7 @@ import (
 )
 
 const OAuth2ProxyCookie = "_oauth2_proxy"
+const groupType = "type.googleapis.com/group.Group"
 
 type Auth struct {
 	*iguazio.AbstractAuth
@@ -92,7 +93,7 @@ func (a *Auth) constructAndSendIdentityRequest(ctx context.Context, authHeader s
 
 	resp, err := a.PerformHTTPRequest(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to perform request to identity service")
 	}
 	return resp, nil
 }
@@ -127,9 +128,11 @@ func (a *Auth) buildSessionFromResponse(body io.Reader) (authpkg.Session, error)
 		return nil, errors.Wrap(err, "Failed to decode identity response")
 	}
 
-	groupIDs := make([]string, len(resp.Relationships))
-	for i, rel := range resp.Relationships {
-		groupIDs[i] = rel.Metadata.ID
+	var groupIDs []string
+	for _, rel := range resp.Relationships {
+		if rel.Type == groupType {
+			groupIDs = append(groupIDs, rel.Metadata.ID)
+		}
 	}
 
 	return NewSession(resp.Metadata.Username, groupIDs), nil

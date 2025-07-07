@@ -65,15 +65,44 @@ func (suite *AuthTestSuite) TestAuthenticationNegative() {
 			responseFromIdentity: &http.Response{
 				StatusCode: http.StatusAccepted,
 				Body: io.NopCloser(bytes.NewBufferString(`{
-				"metadata": { "username": "test" },
-				"relationships": [
-					{"metadata": {"id": "/g1"}},
-					{"metadata": {"id": "/g2"}}
-				]
-			}`)),
+  "metadata": {
+    "resourceType": "user",
+    "username": "test"
+  },
+  "relationships": [
+    {
+      "@type": "type.googleapis.com/group.Group",
+      "metadata": {
+        "id": "61c12dc0-9863-4e56-9151-a1e09e8a69ed",
+        "parentId": "6497f385-0958-42c0-88f0-8ee05e91bf8d",
+        "path": "/g1/g3"
+      },
+      "spec": {
+        "name": "g3"
+      },
+      "status": {}
+    },
+    {
+      "@type": "type.googleapis.com/group.Group",
+      "metadata": {
+        "id": "6497f385-0958-42c0-88f0-8ee05e91bf8d",
+        "path": "/g1",
+        "subGroupCount": 1
+      },
+      "spec": {
+        "name": "g1"
+      },
+      "status": {}
+    }
+  ],
+  "status": {
+    "ctx": "69d28f61-9e39-4e44-82ab-27f93d1e16a8",
+    "statusCode": 200
+  }
+}`)),
 			},
 			cookieValue:      "_oauth2_proxy=session-cookie",
-			expectedGroups:   []string{"/g1", "/g2"},
+			expectedGroups:   []string{"61c12dc0-9863-4e56-9151-a1e09e8a69ed", "6497f385-0958-42c0-88f0-8ee05e91bf8d"},
 			expectedUsername: "test",
 		},
 		{
@@ -125,8 +154,8 @@ func (suite *AuthTestSuite) TestAuthenticationNegative() {
 				suite.Contains(err.Error(), testCase.expectedErr)
 			} else {
 				suite.Require().NoError(err)
-				suite.Require().Equal(session.GetUsername(), testCase.expectedUsername)
-				suite.Require().Equal(session.GetGroupIDs(), testCase.expectedGroups)
+				suite.Require().Equal(testCase.expectedUsername, session.GetUsername())
+				suite.Require().Equal(testCase.expectedGroups, session.GetGroupIDs())
 
 			}
 		})
