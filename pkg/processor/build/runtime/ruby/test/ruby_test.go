@@ -33,8 +33,8 @@ type TestSuite struct {
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
-	suite.TestSuite.RuntimeSuite = suite
-	suite.TestSuite.ArchivePattern = "ruby"
+	suite.RuntimeSuite = suite
+	suite.ArchivePattern = "ruby"
 }
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {

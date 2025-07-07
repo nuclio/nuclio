@@ -30,7 +30,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/iguazio"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
@@ -134,11 +133,12 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	// try to load docker keys, ignoring errors
-	if containerBuilderKind == "docker" {
+	switch containerBuilderKind {
+	case "docker":
 		if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
 			newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
 		}
-	} else if containerBuilderKind == "kaniko" {
+	case "kaniko":
 		if common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE",
 			"local") == common.LocalPlatformName {
 
@@ -245,7 +245,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			headers.DeleteFunctionIgnoreStateValidation,
 			headers.ApiGatewayValidateFunctionExistence,
 			headers.CreationStateUpdatedTimeout,
-			iguazio.ProjectsRoleHeaderKey,
+			headers.ProjectsRole,
 		},
 		ExposedHeaders: []string{
 			"Content-Length",

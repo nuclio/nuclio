@@ -41,7 +41,7 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 	newConfiguration.Configuration = *loggersink.NewConfiguration(name, loggerSinkConfiguration)
 
 	// parse attributes
-	if err := mapstructure.Decode(newConfiguration.Configuration.Sink.Attributes, &newConfiguration); err != nil {
+	if err := mapstructure.Decode(newConfiguration.Sink.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 

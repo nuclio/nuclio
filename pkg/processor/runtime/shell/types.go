@@ -37,7 +37,7 @@ func NewConfiguration(runtimeConfiguration *runtime.Configuration) (*Configurati
 	}
 
 	// parse attributes
-	if err := mapstructure.Decode(newConfiguration.Configuration.Spec.RuntimeAttributes, &newConfiguration); err != nil {
+	if err := mapstructure.Decode(newConfiguration.Spec.RuntimeAttributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 

@@ -88,7 +88,7 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.New("Failed to create abstract trigger")
 	}
 
-	kafkaTrigger.AbstractTrigger.Trigger = kafkaTrigger
+	kafkaTrigger.Trigger = kafkaTrigger
 
 	kafkaTrigger.Logger.DebugWith("Creating consumer",
 		"brokers", configuration.brokers,
@@ -681,7 +681,7 @@ func (k *kafka) explicitAckHandler(
 		}
 
 		// skip the message if it is not for this topic and partition
-		if !(explicitAckAttributes.Partition == partitionNumber && explicitAckAttributes.Topic == topic) {
+		if explicitAckAttributes.Partition != partitionNumber || explicitAckAttributes.Topic != topic {
 			continue
 		}
 

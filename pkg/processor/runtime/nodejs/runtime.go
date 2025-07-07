@@ -17,7 +17,6 @@ limitations under the License.
 package nodejs
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -62,12 +61,12 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 // We can't use n.Logger since it's not initialized
 func (n *nodejs) RunWrapper(socketPaths []string, controlSocketPath string) (*os.Process, error) {
 	if len(socketPaths) != 1 {
-		return nil, fmt.Errorf("Nodejs runtime doesn't support multiple socket processing")
+		return nil, errors.Errorf("Nodejs runtime doesn't support multiple socket processing")
 	}
 	wrapperScriptPath := n.getWrapperScriptPath()
 	n.Logger.DebugWith("Using nodejs wrapper script path", "path", wrapperScriptPath)
 	if !common.IsFile(wrapperScriptPath) {
-		return nil, fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
+		return nil, errors.Errorf("Can't find wrapper at %q", wrapperScriptPath)
 	}
 
 	nodeExePath, err := n.getNodeExePath()
@@ -113,7 +112,7 @@ func (n *nodejs) getHandler() (string, string, error) {
 		handlerFileName = parts[0]
 		handlerName = parts[1]
 	default:
-		return "", "", fmt.Errorf("Bad handler - %q", n.configuration.Spec.Handler)
+		return "", "", errors.Errorf("Bad handler - %q", n.configuration.Spec.Handler)
 	}
 
 	return path.Join(n.getHandlerDir(), handlerFileName), handlerName, nil

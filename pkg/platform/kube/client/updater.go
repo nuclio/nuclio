@@ -23,11 +23,11 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/opa-client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -63,9 +63,10 @@ func (u *Updater) Update(ctx context.Context, updateFunctionOptions *platform.Up
 	// Check OPA permissions
 	permissionOptions := updateFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := u.platform.QueryOPAFunctionPermissions(function.Labels[common.NuclioResourceLabelKeyProjectName],
+	if _, err := u.platform.QueryOPAFunctionPermissions(ctx,
+		function.Labels[common.NuclioResourceLabelKeyProjectName],
 		updateFunctionOptions.FunctionMeta.Name,
-		opa.ActionUpdate,
+		opaclient.ActionUpdate,
 		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}

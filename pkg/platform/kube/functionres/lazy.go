@@ -270,7 +270,7 @@ func (lc *lazyClient) UpdatedServiceSelectorWhenScaledFromZero(ctx context.Conte
 
 func (lc *lazyClient) WaitAvailable(ctx context.Context,
 	function *nuclioio.NuclioFunction,
-	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
+	functionResourcesCreateOrUpdateTimestamp time.Time) (functionconfig.FunctionState, error) {
 
 	lc.logger.DebugWithCtx(ctx,
 		"Waiting for function resources to be available",
@@ -313,7 +313,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					"err", ctx.Err(),
 					"namespace", function.Namespace,
 					"functionName", function.Name)
-				return nil, functionconfig.FunctionStateReady
+				return functionconfig.FunctionStateReady, nil
 			}
 			if !initContainersDone {
 				lc.logger.WarnWithCtx(ctx,
@@ -322,8 +322,8 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					"err", ctx.Err(),
 					"namespace", function.Namespace,
 					"functionName", function.Name)
-				return errors.New(fmt.Sprintf("Init containers are not done yet. Reason: %s. Increasing readiness timeout may help", reasonInitContainersNotDone)),
-					functionconfig.FunctionStateUnhealthy
+				return functionconfig.FunctionStateUnhealthy, errors.New(fmt.Sprintf("Init containers are not done yet. Reason: %s. Increasing readiness timeout may help", reasonInitContainersNotDone))
+
 			} else {
 				// create a new context with timeout to get the last warning events
 				k8sCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -345,16 +345,15 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			if warningEvents != "" {
 				// return k8s events in the error message
 				// later this error is used as a status.message
-				return errors.Wrap(ctx.Err(),
-						"Function available wait is cancelled due to context timeout when function wasn't ready yet. Last k8s events: "+warningEvents),
-					functionconfig.FunctionStateUnhealthy
+				return functionconfig.FunctionStateUnhealthy, errors.Wrap(ctx.Err(),
+					"Function available wait is cancelled due to context timeout when function wasn't ready yet. Last k8s events: "+warningEvents)
 			}
-			return ctx.Err(), functionconfig.FunctionStateUnhealthy
+			return functionconfig.FunctionStateUnhealthy, ctx.Err()
 
 		// verify availability
 		case <-availableTicker.C:
 			if deploymentReady && ingressReady {
-				return nil, functionconfig.FunctionStateReady
+				return functionconfig.FunctionStateReady, nil
 			}
 
 		// verify function resources readiness
@@ -374,7 +373,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 
 				initContainersDone, reasonInitContainersNotDone, err = lc.checkFunctionInitContainersDone(ctx, function)
 				if err != nil {
-					return errors.Wrap(err, "Function init containers check failed"), functionconfig.FunctionStateUnhealthy
+					return functionconfig.FunctionStateUnhealthy, errors.Wrap(err, "Function init containers check failed")
 				}
 				if !initContainersDone {
 					lc.logger.DebugWithCtx(ctx,
@@ -412,12 +411,12 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 				if lastEvent := lc.getFunctionIngressLastWarningEvent(ctx, function); lastEvent != "" {
 					errMessage += " Last warning event:" + lastEvent
 				}
-				return errors.New(errMessage), functionconfig.FunctionStateUnhealthy
+				return functionconfig.FunctionStateUnhealthy, errors.New(errMessage)
 			}
 
 			// check deployment readiness
 			if !deploymentReady {
-				err, functionState := lc.waitFunctionDeploymentReadiness(ctx,
+				functionState, err := lc.waitFunctionDeploymentReadiness(ctx,
 					function,
 					functionResourcesCreateOrUpdateTimestamp)
 
@@ -442,7 +441,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 					if lastEvent := lc.getFunctionDeploymentOrPodLastWarningEvent(ctx, function); lastEvent != "" {
 						errMessage += " Last warning event:" + lastEvent
 					}
-					return errors.Wrap(err, errMessage), functionState
+					return functionState, errors.Wrap(err, errMessage)
 				}
 
 				deploymentReady = true
@@ -600,13 +599,13 @@ func (lc *lazyClient) waitFunctionIngressReadiness(ctx context.Context,
 
 func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 	function *nuclioio.NuclioFunction,
-	functionResourcesCreateOrUpdateTimestamp time.Time) (error, functionconfig.FunctionState) {
+	functionResourcesCreateOrUpdateTimestamp time.Time) (functionconfig.FunctionState, error) {
 
 	// get the deployment. if it doesn't exist yet, retry a bit later
 	functionDeployment, err := lc.getFunctionDeployment(ctx, function)
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to get function deployment"), ""
+		return "", errors.Wrap(err, "Failed to get function deployment")
 	}
 
 	// find the condition whose type is Available - that's the one we want to examine
@@ -622,7 +621,7 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 					"Deployment is available",
 					"reason", deploymentCondition.Reason,
 					"functionName", function.Name)
-				return nil, functionconfig.FunctionStateReady
+				return functionconfig.FunctionStateReady, nil
 			}
 
 			lc.logger.DebugWithCtx(ctx,
@@ -647,18 +646,18 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 					LabelSelector: common.CompileListFunctionPodsLabelSelector(function.Name),
 				})
 		if err != nil {
-			return errors.Wrap(err, "Failed to list function pods"), ""
+			return "", errors.Wrap(err, "Failed to list function pods")
 		}
 
 		// fail-fast mechanism
 		if failedStatus, err := lc.resolveFailFast(ctx,
 			podsList,
 			functionResourcesCreateOrUpdateTimestamp); err != nil {
-			return errors.Wrapf(err, "NuclioFunction deployment failed"), failedStatus
+			return failedStatus, errors.Wrapf(err, "NuclioFunction deployment failed")
 		}
 	}
 
-	return errors.New("Function deployment is not ready yet"), ""
+	return "", errors.New("Function deployment is not ready yet")
 }
 
 // getFunctionDeployment returns function's deployment
@@ -1072,7 +1071,7 @@ func (lc *lazyClient) createOrUpdateConfigMap(ctx context.Context,
 	}
 
 	configMapIsDeleting := func(resource interface{}) bool {
-		return (resource).(*v1.ConfigMap).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*v1.ConfigMap).DeletionTimestamp != nil
 	}
 
 	createConfigMap := func() (interface{}, error) {
@@ -1120,7 +1119,7 @@ func (lc *lazyClient) createOrUpdateService(ctx context.Context,
 	}
 
 	serviceIsDeleting := func(resource interface{}) bool {
-		return (resource).(*v1.Service).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*v1.Service).DeletionTimestamp != nil
 	}
 
 	createService := func() (interface{}, error) {
@@ -1211,7 +1210,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
-		return (resource).(*appsv1.Deployment).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*appsv1.Deployment).DeletionTimestamp != nil
 	}
 
 	if function.Spec.ImagePullSecrets != "" {
@@ -1531,7 +1530,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
-		return (resource).(*autosv2.HorizontalPodAutoscaler).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*autosv2.HorizontalPodAutoscaler).DeletionTimestamp != nil
 	}
 
 	createHorizontalPodAutoscaler := func() (interface{}, error) {
@@ -1628,7 +1627,7 @@ func (lc *lazyClient) createOrUpdateIngress(ctx context.Context,
 	}
 
 	ingressIsDeleting := func(resource interface{}) bool {
-		return (resource).(*networkingv1.Ingress).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*networkingv1.Ingress).DeletionTimestamp != nil
 	}
 
 	createIngress := func() (interface{}, error) {
@@ -1760,7 +1759,7 @@ func (lc *lazyClient) createOrUpdateCronJob(ctx context.Context,
 	}
 
 	cronJobIsDeleting := func(resource interface{}) bool {
-		return (resource).(*batchv1.CronJob).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*batchv1.CronJob).DeletionTimestamp != nil
 	}
 
 	// Prepare the new cron job object
@@ -2003,7 +2002,7 @@ func (lc *lazyClient) populateServiceSpec(ctx context.Context,
 	// 3. this is an existing service (spec.Ports is not an empty list) and node port was previously configured, but
 	//    the trigger type has been updated to ClusterIP(or any other type which isn't NodePort).
 	if len(spec.Ports) == 0 ||
-		!(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) ||
+		(spec.Ports[0].NodePort == 0 || function.Spec.GetHTTPPort() != 0) ||
 		(spec.Ports[0].NodePort != 0 && !serviceTypeIsNodePort) {
 
 		spec.Ports = []v1.ServicePort{
@@ -2410,7 +2409,7 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 		spec.IngressClassName = &ingress.IngressClassName
 	}
 
-	ingressRule.IngressRuleValue.HTTP = &networkingv1.HTTPIngressRuleValue{}
+	ingressRule.HTTP = &networkingv1.HTTPIngressRuleValue{}
 
 	// populate the ingress rule value
 	for _, path := range ingress.Paths {
@@ -2438,7 +2437,7 @@ func (lc *lazyClient) addIngressToSpec(ctx context.Context,
 		}
 
 		// add path
-		ingressRule.IngressRuleValue.HTTP.Paths = append(ingressRule.IngressRuleValue.HTTP.Paths, httpIngressPath)
+		ingressRule.HTTP.Paths = append(ingressRule.HTTP.Paths, httpIngressPath)
 
 		// add TLS if such exists
 		if ingress.TLS.SecretName != "" {

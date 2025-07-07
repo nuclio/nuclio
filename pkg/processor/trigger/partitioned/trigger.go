@@ -72,7 +72,7 @@ func NewAbstractStream(parentLogger logger.Logger,
 		configuration:   configuration,
 		stream:          stream,
 	}
-	newAbstractStream.AbstractTrigger.Trigger = newAbstractStream
+	newAbstractStream.Trigger = newAbstractStream
 
 	return newAbstractStream, nil
 }

@@ -405,10 +405,7 @@ func (m *Manager) compileDexAuthAnnotations(spec Spec) (map[string]string, error
 		oauth2ProxyURL = spec.Authentication.DexAuth.Oauth2ProxyURL
 	}
 
-	addSignInAnnotation := false
-	if spec.Authentication != nil && spec.Authentication.DexAuth != nil && spec.Authentication.DexAuth.RedirectUnauthorizedToSignIn {
-		addSignInAnnotation = true
-	}
+	addSignInAnnotation := spec.Authentication != nil && spec.Authentication.DexAuth != nil && spec.Authentication.DexAuth.RedirectUnauthorizedToSignIn
 
 	if oauth2ProxyURL == "" {
 		return nil, errors.New("Oauth2 proxy URL is missing")

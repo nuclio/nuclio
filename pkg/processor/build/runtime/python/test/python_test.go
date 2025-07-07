@@ -46,8 +46,8 @@ func (suite *TestSuite) SetupSuite() {
 
 	suite.ctx = context.Background()
 
-	suite.TestSuite.RuntimeSuite = suite
-	suite.TestSuite.ArchivePattern = "python"
+	suite.RuntimeSuite = suite
+	suite.ArchivePattern = "python"
 	suite.Runtime = suite.runtime
 }
 

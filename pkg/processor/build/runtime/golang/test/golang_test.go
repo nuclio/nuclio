@@ -39,8 +39,8 @@ func (suite *testSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.Runtime = "golang"
 
-	suite.TestSuite.RuntimeSuite = suite
-	suite.TestSuite.ArchivePattern = "golang"
+	suite.RuntimeSuite = suite
+	suite.ArchivePattern = "golang"
 }
 
 func (suite *testSuite) TestBuildWithCompilationError() {

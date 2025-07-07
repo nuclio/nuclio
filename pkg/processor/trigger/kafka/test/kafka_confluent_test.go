@@ -57,7 +57,7 @@ func (suite *testConfluentSuite) SetupSuite() {
 	suite.password = "<REPLACE=ME>"
 
 	// start broker and zookeeper containers explicitly
-	suite.AbstractBrokerSuite.SkipStartBrokerContainer = true
+	suite.SkipStartBrokerContainer = true
 	suite.AbstractBrokerSuite.SetupSuite()
 
 	// create broker
@@ -126,7 +126,7 @@ func (suite *testConfluentSuite) TestReceiveRecords() {
 		},
 	}
 
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
 		map[string]triggertest.TopicMessages{

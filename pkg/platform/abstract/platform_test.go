@@ -96,7 +96,10 @@ func (suite *AbstractPlatformTestSuite) SetupTest() {
 func (suite *AbstractPlatformTestSuite) initializeMockedPlatform() {
 	var err error
 	suite.mockedPlatform = &mockedplatform.Platform{}
-	suite.Platform, err = NewPlatform(suite.Logger, suite.mockedPlatform, &platformconfig.Config{}, "")
+	platformConfig := &platformconfig.Config{}
+	err = platformConfig.EnrichPlatformConfig()
+	suite.Require().NoError(err, "Could not enrich platform config")
+	suite.Platform, err = NewPlatform(suite.Logger, suite.mockedPlatform, platformConfig, "")
 	suite.Require().NoError(err, "Could not create platform")
 
 	suite.Platform.ContainerBuilder, err = containerimagebuilderpusher.NewNop(suite.Logger, nil)
