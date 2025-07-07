@@ -146,7 +146,7 @@ func (a *AbstractSession) GetGroupIDs() []string {
 	return a.GroupIDs
 }
 
-func (a *AbstractSession) CompileAuthorizationBasic() string {
+func (a *AbstractSession) CompileAuthorizationBasicHeader() string {
 	return ""
 }
 

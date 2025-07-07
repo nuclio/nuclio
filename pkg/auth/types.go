@@ -58,9 +58,6 @@ type IguazioConfig struct {
 
 	// igz < v4
 	VerificationDataEnrichmentURL string
-
-	// igz >= v4
-	VerificationEndpoint string
 }
 
 type Config struct {
@@ -94,7 +91,7 @@ type Session interface {
 	GetPassword() string
 	GetUserID() string
 	GetGroupIDs() []string
-	CompileAuthorizationBasic() string
+	CompileAuthorizationBasicHeader() string
 	GetUserLabels() map[string]string
 }
 

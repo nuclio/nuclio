@@ -225,9 +225,6 @@ dashboard:
       # invalidate a cache entry after specific timeout
       cacheExpirationTimeout: 60s
 
-      # the endpoint which is added to `sessionVerificationURL`
-      sessionVerificationEndpoint: "/v1/verify"
-
   opa:
     enabled: false
     name: opa-server

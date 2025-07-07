@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"path"
 
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/auth/iguazio"
@@ -39,20 +37,11 @@ const groupType = "type.googleapis.com/group.Group"
 
 type Auth struct {
 	*iguazio.AbstractAuth
-
-	verificationURL string
 }
 
 func NewAuth(logger logger.Logger, config *authpkg.Config) (authpkg.Auth, error) {
-	parsedBaseURL, err := url.Parse(config.Iguazio.VerificationURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse verification URL")
-	}
-	parsedBaseURL.Path = path.Join(parsedBaseURL.Path, config.Iguazio.VerificationEndpoint)
-
 	return &Auth{
-		AbstractAuth:    iguazio.NewAbstractAuth(logger, config),
-		verificationURL: parsedBaseURL.String(),
+		AbstractAuth: iguazio.NewAbstractAuth(logger, config),
 	}, nil
 }
 
@@ -105,7 +94,7 @@ func (a *Auth) buildIdentityRequest(ctx context.Context, authHeader string, cook
 		method = http.MethodPost
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, a.verificationURL, nil)
+	req, err := http.NewRequestWithContext(ctx, method, a.GetConfig().Iguazio.VerificationURL, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create identity request")
 	}

@@ -23,7 +23,7 @@ func (s *Session) GetUsername() string {
 	return ""
 }
 
-func (s *Session) CompileAuthorizationBasic() string {
+func (s *Session) CompileAuthorizationBasicHeader() string {
 	return ""
 }
 

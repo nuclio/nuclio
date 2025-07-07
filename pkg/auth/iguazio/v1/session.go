@@ -36,7 +36,7 @@ func NewSession(username, sessionKey, userID string, groupIDs []string) *Session
 	}, SessionKey: sessionKey, UserID: userID}
 }
 
-func (s *Session) CompileAuthorizationBasic() string {
+func (s *Session) CompileAuthorizationBasicHeader() string {
 	data := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", s.Username, s.SessionKey)))
 	return fmt.Sprintf("Basic: %s", data)
 }

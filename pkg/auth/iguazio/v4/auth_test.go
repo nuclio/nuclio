@@ -46,8 +46,7 @@ func (suite *AuthTestSuite) SetupSuite() {
 
 func (suite *AuthTestSuite) TestAuthenticationNegative() {
 	authConfig := authpkg.NewConfig(authpkg.KindIguazioV4)
-	authConfig.Iguazio.VerificationURL = "http://somewhere.local"
-	authConfig.Iguazio.VerificationEndpoint = "identity/self"
+	authConfig.Iguazio.VerificationURL = "http://somewhere.local/identity/self"
 
 	tests := []struct {
 		name                     string
@@ -136,8 +135,6 @@ func (suite *AuthTestSuite) TestAuthenticationNegative() {
 				return testCase.responseFromIdentity
 			})
 			authInstance := suite.newAuthWithMockHttpClient(authConfig, mockClient)
-			suite.Require().Equal("http://somewhere.local/identity/self", authInstance.verificationURL)
-
 			req, err := http.NewRequest("post", "", nil)
 			suite.Require().NoError(err)
 			if testCase.authorizationHeaderValue != "" {
