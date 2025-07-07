@@ -60,6 +60,8 @@ func (suite *localPlatformTestSuite) SetupSuite() {
 func (suite *localPlatformTestSuite) SetupTest() {
 	var err error
 	platformConfig := &platformconfig.Config{}
+	err = platformConfig.EnrichPlatformConfig()
+	suite.Require().NoError(err, "Could not enrich platform config")
 	suite.mockedPlatform = &mockplatform.Platform{}
 	abstractPlatform, err := abstract.NewPlatform(suite.logger, suite.mockedPlatform, platformConfig, "")
 	suite.Require().NoError(err, "Could not create platform")

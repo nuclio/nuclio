@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -37,9 +38,6 @@ import (
 const (
 	ProjectsRoleHeaderValueNuclio = "nuclio"
 	DefaultRequestTimeout         = 60 * time.Second
-
-	// ProjectsRoleHeaderKey not prefixed with "x-nuclio.." this header is used across Iguazio components
-	ProjectsRoleHeaderKey = "x-projects-role"
 )
 
 type Client struct {
@@ -377,8 +375,8 @@ func (c *Client) getUpdatedAfter(ctx context.Context,
 
 func (c *Client) generateCommonRequestHeaders() map[string]string {
 	return map[string]string{
-		ProjectsRoleHeaderKey: ProjectsRoleHeaderValueNuclio,
-		"Content-Type":        "application/json",
+		headers.ProjectsRole: ProjectsRoleHeaderValueNuclio,
+		"Content-Type":       "application/json",
 	}
 }
 

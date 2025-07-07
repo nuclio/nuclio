@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/opa-client"
 	"github.com/v3io/scaler/pkg/scalertypes"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
@@ -57,7 +59,7 @@ type Config struct {
 	ProjectsLeader            *ProjectsLeader                  `json:"projectsLeader,omitempty"`
 	ManagedNamespaces         []string                         `json:"managedNamespaces,omitempty"`
 	IguazioSessionCookie      string                           `json:"iguazioSessionCookie,omitempty"`
-	Opa                       opa.Config                       `json:"opa,omitempty"`
+	Opa                       *opa.Config                      `json:"opa,omitempty"`
 	StreamMonitoring          StreamMonitoringConfig           `json:"streamMonitoring,omitempty"`
 	SensitiveFields           SensitiveFieldsConfig            `json:"sensitiveFields,omitempty"`
 	DisableDefaultHTTPTrigger bool                             `json:"disableDefaultHTTPTrigger,omitempty"`
@@ -465,16 +467,23 @@ func (c *Config) enrichLocalPlatform() {
 }
 
 func (c *Config) enrichOpaConfig() {
+	if c.Opa == nil {
+		c.Opa = &opa.Config{
+			Config: &opaclient.Config{},
+		}
+	}
+
 	if c.Opa.Address == "" {
 		c.Opa.Address = "127.0.0.1:8181"
 	}
 
 	if c.Opa.ClientKind == "" {
-		c.Opa.ClientKind = opa.DefaultClientKind
+		c.Opa.ClientKind = opaclient.ClientKindNop
+		c.Opa.AuthKind = auth.KindNop
 	}
 
 	if c.Opa.RequestTimeout == 0 {
-		c.Opa.RequestTimeout = opa.DefaultRequestTimeOut
+		c.Opa.RequestTimeout = opa.DefaultRequestTimeout
 	}
 
 	if c.Opa.PermissionQueryPath == "" {

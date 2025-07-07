@@ -31,7 +31,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
@@ -47,6 +46,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/opa-client"
 	"github.com/nuclio/zap"
 	"github.com/samber/lo"
 	"k8s.io/api/core/v1"
@@ -213,10 +213,10 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 	// Check OPA permissions
 	permissionOptions := createFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionPermissions(
+	if _, err := p.QueryOPAFunctionPermissions(ctx,
 		createFunctionOptions.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		createFunctionOptions.FunctionConfig.Meta.Name,
-		opa.ActionCreate,
+		opaclient.ActionCreate,
 		&permissionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -510,12 +510,12 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	projectName, err := p.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
+	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 
-	if err := p.EnsureProjectRead(projectName, &getFunctionsOptions.PermissionOptions); err != nil {
+	if err := p.Platform.EnsureProjectRead(ctx, projectName, &getFunctionsOptions.PermissionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed to ensure project read permission")
 	}
 
@@ -524,7 +524,7 @@ func (p *Platform) GetFunctions(ctx context.Context, getFunctionsOptions *platfo
 		return nil, errors.Wrap(err, "Failed to get functions")
 	}
 
-	functions, err = p.FilterFunctionsByPermissions(ctx, &getFunctionsOptions.PermissionOptions, functions)
+	functions, err = p.Platform.FilterFunctionsByPermissions(ctx, &getFunctionsOptions.PermissionOptions, functions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
@@ -618,7 +618,7 @@ func (p *Platform) RedeployFunction(ctx context.Context, redeployFunctionOptions
 	// Check OPA permissions
 	permissionOptions := redeployFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionRedeployPermissions(
+	if _, err := p.QueryOPAFunctionRedeployPermissions(ctx,
 		redeployFunctionOptions.FunctionMeta.Labels[common.NuclioResourceLabelKeyProjectName],
 		redeployFunctionOptions.FunctionMeta.Name,
 		&permissionOptions); err != nil {
@@ -680,9 +680,9 @@ func (p *Platform) ProxyFunctionLogs(ctx context.Context,
 }
 
 func (p *Platform) GetFunctionActiveReplicaNames(ctx context.Context,
-	function platform.Function, permissionOptions opa.PermissionOptions) ([]string, error) {
+	function platform.Function, permissionOptions opaclient.PermissionOptions) ([]string, error) {
 
-	functions, err := p.FilterFunctionsByPermissions(ctx, &permissionOptions, []platform.Function{function})
+	functions, err := p.Platform.FilterFunctionsByPermissions(ctx, &permissionOptions, []platform.Function{function})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
@@ -707,9 +707,9 @@ func (p *Platform) GetFunctionActiveReplicaNames(ctx context.Context,
 	return names, nil
 }
 
-func (p *Platform) GetFunctionAllReplicaNames(ctx context.Context, function platform.Function, permissionOptions opa.PermissionOptions, timeFilter *platform.TimeFilter) ([]string, error) {
+func (p *Platform) GetFunctionAllReplicaNames(ctx context.Context, function platform.Function, permissionOptions opaclient.PermissionOptions, timeFilter *platform.TimeFilter) ([]string, error) {
 
-	functions, err := p.FilterFunctionsByPermissions(ctx, &permissionOptions, []platform.Function{function})
+	functions, err := p.Platform.FilterFunctionsByPermissions(ctx, &permissionOptions, []platform.Function{function})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
@@ -805,7 +805,7 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 		deleteProjectOptions.AuthSession = &auth.NopSession{}
 	}
 
-	if err := p.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
+	if err := p.Platform.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
@@ -825,7 +825,7 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 	}
 
 	if deleteProjectOptions.WaitForResourcesDeletionCompletion {
-		if err := p.WaitForProjectResourcesDeletion(ctx,
+		if err := p.Platform.WaitForProjectResourcesDeletion(ctx,
 			&deleteProjectOptions.Meta,
 			deleteProjectOptions.WaitForResourcesDeletionCompletionDuration); err != nil {
 			return errors.Wrap(err, "Failed waiting for project resources deletion")
@@ -852,7 +852,7 @@ func (p *Platform) GetProjects(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	filteredProjectList, err := p.FilterProjectsByPermissions(
+	filteredProjectList, err := p.Platform.FilterProjectsByPermissions(
 		ctx,
 		&getProjectsOptions.PermissionOptions,
 		projects)
@@ -1091,7 +1091,7 @@ func (p *Platform) GetAPIGateways(ctx context.Context, getAPIGatewaysOptions *pl
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
 
-	if err := p.EnrichFunctionEvent(ctx, &createFunctionEventOptions.FunctionEventConfig); err != nil {
+	if err := p.Platform.EnrichFunctionEvent(ctx, &createFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -1104,10 +1104,11 @@ func (p *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventO
 	// Check OPA permissions
 	permissionOptions := createFunctionEventOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+	if _, err := p.QueryOPAFunctionEventPermissions(ctx,
+		projectName,
 		functionName,
 		newFunctionEvent.Name,
-		opa.ActionCreate,
+		opaclient.ActionCreate,
 		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -1132,7 +1133,7 @@ func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventO
 		return errors.Wrap(err, "Failed to get a function event")
 	}
 
-	if err := p.EnrichFunctionEvent(ctx, &updateFunctionEventOptions.FunctionEventConfig); err != nil {
+	if err := p.Platform.EnrichFunctionEvent(ctx, &updateFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -1142,10 +1143,11 @@ func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventO
 	// Check OPA permissions
 	permissionOptions := updateFunctionEventOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+	if _, err := p.QueryOPAFunctionEventPermissions(ctx,
+		projectName,
 		functionName,
 		functionEvent.Name,
-		opa.ActionUpdate,
+		opaclient.ActionUpdate,
 		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -1178,10 +1180,11 @@ func (p *Platform) DeleteFunctionEvent(ctx context.Context, deleteFunctionEventO
 	// Check OPA permissions
 	permissionOptions := deleteFunctionEventOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := p.QueryOPAFunctionEventPermissions(projectName,
+	if _, err := p.QueryOPAFunctionEventPermissions(ctx,
+		projectName,
 		functionName,
 		functionEventToDelete.Name,
-		opa.ActionDelete,
+		opaclient.ActionDelete,
 		&permissionOptions); err != nil {
 		return errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -1269,7 +1272,7 @@ func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptio
 		platformFunctionEvents = append(platformFunctionEvents, newFunctionEvent)
 	}
 
-	return p.FilterFunctionEventsByPermissions(ctx,
+	return p.Platform.FilterFunctionEventsByPermissions(ctx,
 		&getFunctionEventsOptions.PermissionOptions,
 		platformFunctionEvents)
 }
@@ -1928,7 +1931,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 	if err := p.EnrichFunctionConfig(ctx, functionConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
-	return p.ValidateFunctionConfigWithRetry(ctx, functionConfig, autofix)
+	return p.Platform.ValidateFunctionConfigWithRetry(ctx, functionConfig, autofix)
 }
 
 func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) error {

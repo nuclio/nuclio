@@ -18,7 +18,8 @@ package factory
 
 import (
 	"github.com/nuclio/nuclio/pkg/auth"
-	"github.com/nuclio/nuclio/pkg/auth/iguazio"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio/v1"
+	"github.com/nuclio/nuclio/pkg/auth/iguazio/v4"
 	"github.com/nuclio/nuclio/pkg/auth/nop"
 
 	"github.com/nuclio/logger"
@@ -27,7 +28,9 @@ import (
 func NewAuth(logger logger.Logger, authConfig *auth.Config) auth.Auth {
 	switch authConfig.Kind {
 	case auth.KindIguazio:
-		return iguazio.NewAuth(logger, authConfig)
+		return v1.NewAuth(logger, authConfig)
+	case auth.KindIguazioV4:
+		return v4.NewAuth(logger, authConfig)
 	case auth.KindNop:
 		return nop.NewAuth(logger, authConfig)
 	default:
