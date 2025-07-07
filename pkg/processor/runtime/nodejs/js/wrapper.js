@@ -212,9 +212,22 @@ function connectSocket(socketPath, handlerFunction) {
     socket.on('ready', () => {
         writeMessageToProcessor(messageTypes.START, '')
     })
-    socket.on('data', async data => {
-        let incomingEvent = JSON.parse(data)
-        await handleEvent(handlerFunction, incomingEvent)
+
+    let buffer = ''
+    socket.on('data', async chunk => {
+        buffer += chunk.toString('utf8')
+        const messages = buffer.split('\n')
+        buffer = messages.pop()
+
+        for (const message of messages) {
+            if (!message.trim()) continue
+            try {
+                const event = JSON.parse(message)
+                await handleEvent(handlerFunction, event)
+            } catch (err) {
+                console.error('[wrapper] JSON parse error:', err.message)
+            }
+        }
     })
 }
 
