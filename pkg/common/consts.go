@@ -37,6 +37,7 @@ const (
 
 const NuclioResourceLabelKeyProjectName = "nuclio.io/project-name"
 const NuclioResourceLabelKeyFunctionName = "nuclio.io/function-name"
+const NuclioResourceLabelKeyCanaryFunctionName = "nuclio.io/canary-function-name"
 const NuclioResourceLabelKeyApiGatewayName = "nuclio.io/apigateway-name"
 const NuclioResourceLabelKeyVolumeName = "nuclio.io/volume-name"
 const NuclioLabelKeyFunctionVersion = "nuclio.io/function-version"

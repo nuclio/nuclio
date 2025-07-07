@@ -371,6 +371,12 @@ func (lc *lazyClient) enrichPrimaryIngressResources(primaryIngressResources *ing
 	} else {
 		annotations[configurationSnippetHeaderName] = encodedPrimaryTargetHeader
 	}
+
+	// set nuclio labels for ingress
+	primaryIngressResources.Ingress.Labels[common.NuclioResourceLabelKeyFunctionName] = primaryUpstream.NuclioFunction.Name
+	if canaryUpstream != nil {
+		primaryIngressResources.Ingress.Labels[common.NuclioResourceLabelKeyCanaryFunctionName] = canaryUpstream.NuclioFunction.Name
+	}
 }
 
 //
