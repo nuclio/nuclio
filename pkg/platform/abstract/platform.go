@@ -46,6 +46,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/opa-client"
 	"github.com/samber/lo"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/api/core/v1"
@@ -78,7 +79,7 @@ type Platform struct {
 	ContainerBuilder        containerimagebuilderpusher.BuilderPusher
 	ImageNamePrefixTemplate string
 	DefaultNamespace        string
-	OpaClient               opa.Client
+	OpaClient               opaclient.Client
 	FunctionScrubber        *functionconfig.Scrubber
 }
 
@@ -102,7 +103,7 @@ func NewPlatform(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
 
-	newPlatform.OpaClient = opa.CreateOpaClient(newPlatform.Logger, &platformConfiguration.Opa)
+	newPlatform.OpaClient = opaclient.CreateOpaClient(newPlatform.Logger, platformConfiguration.Opa.Config)
 
 	return newPlatform, nil
 }
@@ -635,9 +636,10 @@ func (ap *Platform) ValidateDeleteFunctionOptions(ctx context.Context, deleteFun
 	// Check OPA permissions
 	permissionOptions := deleteFunctionOptions.PermissionOptions
 	permissionOptions.RaiseForbidden = true
-	if _, err := ap.QueryOPAFunctionPermissions(functionToDelete.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName],
+	if _, err := ap.QueryOPAFunctionPermissions(ctx,
+		functionToDelete.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName],
 		functionToDelete.GetConfig().Meta.Name,
-		opa.ActionDelete,
+		opaclient.ActionDelete,
 		&permissionOptions); err != nil {
 		return functionToDelete, errors.Wrap(err, "Failed authorizing OPA permissions for resource")
 	}
@@ -659,7 +661,7 @@ func (ap *Platform) ResolveReservedResourceNames() []string {
 
 // FilterProjectsByPermissions will filter out some projects
 func (ap *Platform) FilterProjectsByPermissions(ctx context.Context,
-	permissionOptions *opa.PermissionOptions,
+	permissionOptions *opaclient.PermissionOptions,
 	projects []platform.Project) ([]platform.Project, error) {
 
 	// no cleansing is mandated
@@ -671,10 +673,10 @@ func (ap *Platform) FilterProjectsByPermissions(ctx context.Context,
 	resources := make([]string, len(projects))
 	for idx, project := range projects {
 		projectName := project.GetConfig().Meta.Name
-		resources[idx] = opa.GenerateProjectResourceString(projectName)
+		resources[idx] = opa.GenerateProjectResourceString(projectName, "")
 	}
 
-	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opaclient.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for projects permissions")
 	}
@@ -700,7 +702,7 @@ func (ap *Platform) FilterProjectsByPermissions(ctx context.Context,
 
 // FilterFunctionsByPermissions will filter out some functions
 func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
-	permissionOptions *opa.PermissionOptions,
+	permissionOptions *opaclient.PermissionOptions,
 	functions []platform.Function) ([]platform.Function, error) {
 
 	// no cleansing is mandated
@@ -713,10 +715,10 @@ func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
 	for idx, function := range functions {
 		functionName := function.GetConfig().Meta.Name
 		projectName := function.GetConfig().Meta.Labels[common.NuclioResourceLabelKeyProjectName]
-		resources[idx] = opa.GenerateFunctionResourceString(projectName, functionName)
+		resources[idx] = opa.GenerateFunctionResourceString(projectName, functionName, "")
 	}
 
-	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opaclient.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for function permissions")
 	}
@@ -742,7 +744,7 @@ func (ap *Platform) FilterFunctionsByPermissions(ctx context.Context,
 
 // FilterFunctionEventsByPermissions will filter out some function events
 func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
-	permissionOptions *opa.PermissionOptions,
+	permissionOptions *opaclient.PermissionOptions,
 	functionEvents []platform.FunctionEvent) ([]platform.FunctionEvent, error) {
 
 	// no cleansing is mandated
@@ -757,9 +759,10 @@ func (ap *Platform) FilterFunctionEventsByPermissions(ctx context.Context,
 		functionEventName := functionEventInstance.GetConfig().Meta.Name
 		resources = append(resources, opa.GenerateFunctionEventResourceString(projectName,
 			functionName,
-			functionEventName))
+			functionEventName,
+			""))
 	}
-	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opa.ActionRead, permissionOptions)
+	allowedList, err := ap.QueryOPAMultipleResources(ctx, resources, opaclient.ActionRead, permissionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed querying OPA for function events permissions")
 	}
@@ -1287,13 +1290,15 @@ func (ap *Platform) ResolveProjectNameFromLabelsStr(encodedLabels string) (strin
 	return "", nil
 }
 
-func (ap *Platform) EnsureProjectRead(projectName string,
-	permissionOptions *opa.PermissionOptions) error {
+func (ap *Platform) EnsureProjectRead(ctx context.Context,
+	projectName string,
+	permissionOptions *opaclient.PermissionOptions) error {
 
 	if projectName != "" && len(permissionOptions.MemberIds) > 0 {
-		if _, err := ap.QueryOPAProjectPermissions(projectName,
-			opa.ActionRead,
-			&opa.PermissionOptions{
+		if _, err := ap.QueryOPAProjectPermissions(ctx,
+			projectName,
+			opaclient.ActionRead,
+			&opaclient.PermissionOptions{
 				MemberIds:           permissionOptions.MemberIds,
 				OverrideHeaderValue: permissionOptions.OverrideHeaderValue,
 				RaiseForbidden:      true,
@@ -1304,48 +1309,55 @@ func (ap *Platform) EnsureProjectRead(projectName string,
 	return nil
 }
 
-func (ap *Platform) QueryOPAProjectPermissions(projectName string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
-	return ap.queryOPAPermissions(opa.GenerateProjectResourceString(projectName),
+func (ap *Platform) QueryOPAProjectPermissions(ctx context.Context,
+	projectName string,
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
+	return ap.queryOPAPermissions(ctx,
+		opa.GenerateProjectResourceString(projectName, ap.getOPAResourcesPrefix()),
 		action,
 		permissionOptions)
 }
 
-func (ap *Platform) QueryOPAFunctionPermissions(projectName,
+func (ap *Platform) QueryOPAFunctionPermissions(ctx context.Context,
+	projectName,
 	functionName string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
 	if functionName == "" {
 		functionName = "*"
 	}
-	return ap.queryOPAPermissions(opa.GenerateFunctionResourceString(projectName, functionName),
+	return ap.queryOPAPermissions(ctx,
+		opa.GenerateFunctionResourceString(projectName, functionName, ap.getOPAResourcesPrefix()),
 		action,
 		permissionOptions)
 }
 
-func (ap *Platform) QueryOPAFunctionRedeployPermissions(projectName,
+func (ap *Platform) QueryOPAFunctionRedeployPermissions(ctx context.Context,
+	projectName,
 	functionName string,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
 	if functionName == "" {
 		functionName = "*"
 	}
-	return ap.queryOPAPermissions(opa.GenerateFunctionRedeployResourceString(projectName, functionName),
-		opa.ActionCreate,
+	return ap.queryOPAPermissions(ctx,
+		opa.GenerateFunctionRedeployResourceString(projectName, functionName, ap.getOPAResourcesPrefix()),
+		opaclient.ActionCreate,
 		permissionOptions)
 }
 
-func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
+func (ap *Platform) QueryOPAFunctionEventPermissions(ctx context.Context,
+	projectName,
 	functionName,
 	functionEventName string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
 	if projectName == "" {
 		projectName = "*"
 	}
@@ -1355,15 +1367,16 @@ func (ap *Platform) QueryOPAFunctionEventPermissions(projectName,
 	if functionEventName == "" {
 		functionEventName = "*"
 	}
-	return ap.queryOPAPermissions(opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName),
+	return ap.queryOPAPermissions(ctx,
+		opa.GenerateFunctionEventResourceString(projectName, functionName, functionEventName, ap.getOPAResourcesPrefix()),
 		action,
 		permissionOptions)
 }
 
 func (ap *Platform) QueryOPAMultipleResources(ctx context.Context,
 	resources []string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) ([]bool, error) {
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) ([]bool, error) {
 	return ap.queryOPAPermissionsMultiResources(ctx, resources, action, permissionOptions)
 }
 
@@ -2065,8 +2078,8 @@ func (ap *Platform) validateDockerImageFields(ctx context.Context, functionConfi
 
 func (ap *Platform) queryOPAPermissionsMultiResources(ctx context.Context,
 	resources []string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) ([]bool, error) {
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) ([]bool, error) {
 
 	allowedList, err := ap.OpaClient.QueryPermissionsMultiResources(ctx, resources, action, permissionOptions)
 	if err != nil {
@@ -2084,11 +2097,12 @@ func (ap *Platform) queryOPAPermissionsMultiResources(ctx context.Context,
 	return allowedList, nil
 }
 
-func (ap *Platform) queryOPAPermissions(resource string,
-	action opa.Action,
-	permissionOptions *opa.PermissionOptions) (bool, error) {
+func (ap *Platform) queryOPAPermissions(ctx context.Context,
+	resource string,
+	action opaclient.Action,
+	permissionOptions *opaclient.PermissionOptions) (bool, error) {
 
-	allowed, err := ap.OpaClient.QueryPermissions(resource, action, permissionOptions)
+	allowed, err := ap.OpaClient.QueryPermissions(ctx, resource, action, permissionOptions)
 	if err != nil {
 		return allowed, nuclio.WrapErrInternalServerError(err)
 	}
@@ -2096,6 +2110,20 @@ func (ap *Platform) queryOPAPermissions(resource string,
 		return false, nuclio.NewErrForbidden(fmt.Sprintf("Not allowed to %s resource %s", action, resource))
 	}
 	return allowed, nil
+}
+
+func (ap *Platform) getOPAResourcesPrefix() string {
+	if ap.Config.Opa.AuthKind == auth.KindIguazioV4 {
+		return opa.IguazioV4ResourcePrefix
+	}
+	return ""
+}
+
+func (ap *Platform) getOPAManagementPrefix() string { // nolint: unused
+	if ap.Config.Opa.AuthKind == auth.KindIguazioV4 {
+		return opa.IguazioV4ManagementPrefix
+	}
+	return ""
 }
 
 func (ap *Platform) enrichVolumes(functionConfig *functionconfig.Config) error {

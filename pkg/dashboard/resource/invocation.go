@@ -32,6 +32,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/opa-client"
 )
 
 type invocationResource struct {
@@ -110,10 +111,10 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 		// auth & permissions
 		AuthSession: tr.getCtxSession(ctx),
-		PermissionOptions: opa.PermissionOptions{
+		PermissionOptions: opaclient.PermissionOptions{
 			MemberIds:           opa.GetUserAndGroupIdsFromAuthSession(tr.getCtxSession(ctx)),
 			RaiseForbidden:      true,
-			OverrideHeaderValue: request.Header.Get(opa.OverrideHeader),
+			OverrideHeaderValue: request.Header.Get(headers.ProjectsRole),
 		},
 	})
 

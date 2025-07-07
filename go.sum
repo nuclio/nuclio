@@ -358,6 +358,8 @@ github.com/nuclio/logger-appinsights v0.0.2 h1:5lRxjXCRxKMBnrS49bonQAAHEGe0/K3oJ
 github.com/nuclio/logger-appinsights v0.0.2/go.mod h1:SRy3eM+sWa2ZeI0QpJg1O0Ja+WcsRXtlE2oUjPMXNck=
 github.com/nuclio/nuclio-sdk-go v0.5.3 h1:ZN8HLrJ/NQAGmfVfjf69d1yl2qUirN9JGlmUQsPcsmM=
 github.com/nuclio/nuclio-sdk-go v0.5.3/go.mod h1:nJfISTlsf+blZKhIfmHDDrZupMjyRNnBl6tNM9qweAg=
+github.com/nuclio/opa-client v0.0.1 h1:sASVLr14x1Z9oBH56t5ygfz6s3I6x/kYEr6mUux8/Vo=
+github.com/nuclio/opa-client v0.0.1/go.mod h1:PllrfofSZJKqnAdLq4PfdPU/4Vxfx0xxXKK/8j8m4Eo=
 github.com/nuclio/zap v0.3.1 h1:PCcKrLtnYJp1raOmwtvSLGxmgfQdGWEpYz0F1U9JPeQ=
 github.com/nuclio/zap v0.3.1/go.mod h1:2kDQ+ocGbA3Te120+F1rU9cjsaP5spYt/cRMTSHzz+0=
 github.com/nwaples/rardecode/v2 v2.0.0-beta.2 h1:e3mzJFJs4k83GXBEiTaQ5HgSc/kOK8q0rDaRO0MPaOk=

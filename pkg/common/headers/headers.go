@@ -39,6 +39,7 @@ const (
 	ProjectName           = "X-Nuclio-Project-Name"
 	ProjectNamespace      = "X-Nuclio-Project-Namespace"
 	DeleteProjectStrategy = "X-Nuclio-Delete-Project-Strategy"
+	ProjectsRole          = "X-Projects-Role"
 
 	// Invocation headers
 	TargetName          = "X-Nuclio-Target"
