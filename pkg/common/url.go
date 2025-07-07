@@ -54,7 +54,7 @@ func DownloadFile(url string, out *os.File, headers http.Header) error {
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf(
+		return errors.Errorf(
 			"Failed to download file. Received an unexpected status code: %d",
 			response.StatusCode)
 	}
@@ -72,7 +72,7 @@ func DownloadFile(url string, out *os.File, headers http.Header) error {
 	}
 
 	if response.ContentLength != -1 && written != response.ContentLength {
-		return fmt.Errorf(
+		return errors.Errorf(
 			"Downloaded file length (%d) is different than URL content length (%d)",
 			written,
 			response.ContentLength)

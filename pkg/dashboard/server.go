@@ -133,11 +133,12 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	// try to load docker keys, ignoring errors
-	if containerBuilderKind == "docker" {
+	switch containerBuilderKind {
+	case "docker":
 		if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
 			newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
 		}
-	} else if containerBuilderKind == "kaniko" {
+	case "kaniko":
 		if common.GetEnvOrDefaultString("NUCLIO_DASHBOARD_SERVE_KANIKO_ARTIFACTS_MODE",
 			"local") == common.LocalPlatformName {
 

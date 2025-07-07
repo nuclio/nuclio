@@ -63,7 +63,7 @@ type ProjectImportOptions struct {
 }
 
 func (pr *projectResource) ExtendMiddlewares() error {
-	pr.resource.addAuthMiddleware(nil)
+	pr.addAuthMiddleware(nil)
 	return nil
 }
 

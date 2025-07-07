@@ -45,7 +45,7 @@ func newTrigger(parentLogger logger.Logger,
 	newTrigger := basicmqtt{
 		AbstractTrigger: newAbstractTrigger,
 	}
-	newTrigger.AbstractTrigger.Trigger = &newTrigger
+	newTrigger.Trigger = &newTrigger
 
 	return newTrigger, nil
 }

@@ -268,7 +268,7 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 	}
 
 	// if the flag is set - fail in case function invocation returns non-200 status code
-	if !(invokeResult.StatusCode >= http.StatusOK && invokeResult.StatusCode < 300) && i.raiseOnStatus {
+	if (invokeResult.StatusCode < http.StatusOK || invokeResult.StatusCode >= 300) && i.raiseOnStatus {
 		return errors.New("Function invocation failed")
 	}
 

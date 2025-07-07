@@ -364,12 +364,12 @@ func (p *Platform) CreateFunction(ctx context.Context, createFunctionOptions *pl
 func (p *Platform) GetFunctions(ctx context.Context,
 	getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 
-	projectName, err := p.Platform.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
+	projectName, err := p.ResolveProjectNameFromLabelsStr(getFunctionsOptions.Labels)
 	if err != nil {
 		return nil, errors.Wrap(err, "")
 	}
 
-	if err := p.Platform.EnsureProjectRead(ctx, projectName, &getFunctionsOptions.PermissionOptions); err != nil {
+	if err := p.EnsureProjectRead(ctx, projectName, &getFunctionsOptions.PermissionOptions); err != nil {
 		return nil, errors.Wrap(err, "Failed to ensure project read permission")
 	}
 
@@ -378,7 +378,7 @@ func (p *Platform) GetFunctions(ctx context.Context,
 		return nil, errors.Wrap(err, "Failed to read functions from a local store")
 	}
 
-	functions, err = p.Platform.FilterFunctionsByPermissions(ctx, &getFunctionsOptions.PermissionOptions, functions)
+	functions, err = p.FilterFunctionsByPermissions(ctx, &getFunctionsOptions.PermissionOptions, functions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to filter functions by permissions")
 	}
@@ -588,7 +588,7 @@ func (p *Platform) UpdateProject(ctx context.Context, updateProjectOptions *plat
 
 // DeleteProject will delete an existing project
 func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
-	if err := p.Platform.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
+	if err := p.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
 		return errors.Wrap(err, "Failed to validate delete project options")
 	}
 
@@ -612,7 +612,7 @@ func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform
 		return nil, errors.Wrap(err, "Failed getting projects")
 	}
 
-	return p.Platform.FilterProjectsByPermissions(ctx,
+	return p.FilterProjectsByPermissions(ctx,
 		&getProjectsOptions.PermissionOptions,
 		projects)
 }
@@ -620,7 +620,7 @@ func (p *Platform) GetProjects(ctx context.Context, getProjectsOptions *platform
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	if err := p.Platform.EnrichFunctionEvent(ctx, &createFunctionEventOptions.FunctionEventConfig); err != nil {
+	if err := p.EnrichFunctionEvent(ctx, &createFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -644,7 +644,7 @@ func (p *Platform) CreateFunctionEvent(ctx context.Context, createFunctionEventO
 
 // UpdateFunctionEvent will update a previously existing function event
 func (p *Platform) UpdateFunctionEvent(ctx context.Context, updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
-	if err := p.Platform.EnrichFunctionEvent(ctx, &updateFunctionEventOptions.FunctionEventConfig); err != nil {
+	if err := p.EnrichFunctionEvent(ctx, &updateFunctionEventOptions.FunctionEventConfig); err != nil {
 		return errors.Wrap(err, "Failed to enrich function event")
 	}
 
@@ -719,7 +719,7 @@ func (p *Platform) GetFunctionEvents(ctx context.Context, getFunctionEventsOptio
 		return nil, errors.Wrap(err, "Failed to read function events from a local store")
 	}
 
-	return p.Platform.FilterFunctionEventsByPermissions(ctx,
+	return p.FilterFunctionEventsByPermissions(ctx,
 		&getFunctionEventsOptions.PermissionOptions,
 		functionEvents)
 }
@@ -859,7 +859,7 @@ func (p *Platform) ValidateFunctionContainersHealthiness(ctx context.Context) {
 					functionconfig.FunctionStateError,
 					functionconfig.FunctionStateUnhealthy,
 				}) && functionStatus.Message == string(common.FunctionStateMessageUnhealthy)
-			if !(functionIsReady || functionWasSetAsUnhealthy) || functionConfig.Spec.Disable {
+			if (!functionIsReady && !functionWasSetAsUnhealthy) || functionConfig.Spec.Disable {
 
 				// cannot be monitored
 				continue
@@ -1406,7 +1406,7 @@ func (p *Platform) enrichAndValidateFunctionConfig(ctx context.Context, function
 		return errors.Wrap(err, "Failed to enrich a function configuration")
 	}
 
-	return p.Platform.ValidateFunctionConfigWithRetry(ctx, functionConfig, autofix)
+	return p.ValidateFunctionConfigWithRetry(ctx, functionConfig, autofix)
 }
 
 func (p *Platform) populateFunctionInvocationStatus(functionInvocation *functionconfig.Status,

@@ -83,7 +83,7 @@ func newTrigger(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get v3io stream config")
 	}
-	newTrigger.AbstractTrigger.Trigger = newTrigger
+	newTrigger.Trigger = newTrigger
 
 	return newTrigger, nil
 }
@@ -351,10 +351,10 @@ func (vs *v3iostream) newConsumerGroupMember() (streamconsumergroup.Member, erro
 	}
 
 	maxReplicas := 1
-	if vs.configuration.RuntimeConfiguration.Config.Spec.Replicas != nil {
-		maxReplicas = *vs.configuration.RuntimeConfiguration.Config.Spec.Replicas
-	} else if vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas != nil {
-		maxReplicas = *vs.configuration.RuntimeConfiguration.Config.Spec.MaxReplicas
+	if vs.configuration.RuntimeConfiguration.Spec.Replicas != nil {
+		maxReplicas = *vs.configuration.RuntimeConfiguration.Spec.Replicas
+	} else if vs.configuration.RuntimeConfiguration.Spec.MaxReplicas != nil {
+		maxReplicas = *vs.configuration.RuntimeConfiguration.Spec.MaxReplicas
 	}
 
 	streamConsumerGroup, err := streamconsumergroup.NewStreamConsumerGroup(vs.Logger,

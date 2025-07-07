@@ -118,7 +118,7 @@ func (suite *AbstractBrokerSuite) SetupSuite() {
 }
 
 func (suite *AbstractBrokerSuite) TearDownSuite() {
-	suite.TestSuite.TearDownTest()
+	suite.TearDownTest()
 
 	// if we weren't successful starting, nothing to do
 	if suite.BrokerContainerID != "" {

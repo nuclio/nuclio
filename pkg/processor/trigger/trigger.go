@@ -198,6 +198,8 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 }
 
 // AllocateWorkerAndSubmitEvents submits multiple events to an allocated worker
+//
+//nolint:staticcheck // ST1008: submitError comes before processErrors for logical reasons
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	functionLogger logger.Logger,
 	timeout time.Duration) (responses []nuclio.ProcessingResult, submitError error, processErrors []error) {

@@ -59,7 +59,7 @@ func newTrigger(parentLogger logger.Logger,
 		configuration:   configuration,
 		stop:            make(chan bool),
 	}
-	newTrigger.AbstractTrigger.Trigger = newTrigger
+	newTrigger.Trigger = newTrigger
 
 	if err := newTrigger.validateConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to validate NATS JetStream trigger configuration")

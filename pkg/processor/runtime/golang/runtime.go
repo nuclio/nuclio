@@ -18,7 +18,6 @@ package golang
 
 import (
 	"context"
-	"fmt"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -67,7 +66,7 @@ func NewRuntime(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to load handler")
 	}
 
-	timeout, _ := configuration.Configuration.Spec.GetEventTimeout()
+	timeout, _ := configuration.Spec.GetEventTimeout()
 
 	// create the runtime
 	newGoRuntime := &golang{
@@ -81,7 +80,7 @@ func NewRuntime(parentLogger logger.Logger,
 	// try to initialize the context, if applicable
 	contextInitializer := handler.getContextInitializer()
 	if contextInitializer != nil {
-		newGoRuntime.AbstractRuntime.Logger.DebugWith("Calling context initializer")
+		newGoRuntime.Logger.DebugWith("Calling context initializer")
 
 		if err := contextInitializer(newGoRuntime.Context); err != nil {
 			return nil, errors.Wrap(err, "Failed to initialize context")
@@ -195,7 +194,7 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 					"err", err,
 					"stack", string(callStack))
 
-				processingResult.responseErr = fmt.Errorf("Caught panic: %s", err)
+				processingResult.responseErr = errors.Errorf("Caught panic: %s", err)
 				// try to write response to the channel if it wasn't yet
 				select {
 				// if the reader is waiting, then it means that runtime wasn't stopped and waits for a response

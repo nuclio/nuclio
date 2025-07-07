@@ -148,7 +148,7 @@ func (py *python) Drain() error {
 
 	// wait for process to finish event handling or timeout
 	// TODO: replace the following function with one that waits for a control communication message or timeout
-	py.AbstractRuntime.WaitForProcessTermination(py.configuration.WorkerTerminationTimeout)
+	py.WaitForProcessTermination(py.configuration.WorkerTerminationTimeout)
 
 	return nil
 }

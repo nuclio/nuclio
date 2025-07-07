@@ -87,7 +87,7 @@ func (suite *testSuite) SetupSuite() {
 
 func (suite *testSuite) TestReceiveRecords() {
 	createFunctionOptions := suite.getDeployOptions("kinesis-event-recorder")
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
 		map[string]triggertest.TopicMessages{suite.streamName: {NumMessages: suite.shardCount}},

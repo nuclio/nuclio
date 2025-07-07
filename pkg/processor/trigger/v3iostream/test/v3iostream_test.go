@@ -73,7 +73,7 @@ func (suite *testSuite) SetupSuite() {
 	// END OF change
 
 	// we use an Iguazio system, not a containerzed broker
-	suite.AbstractBrokerSuite.SkipStartBrokerContainer = true
+	suite.SkipStartBrokerContainer = true
 	suite.AbstractBrokerSuite.SetupSuite()
 
 	suite.stateContentsAttributeKey = "state"
@@ -286,7 +286,7 @@ func (suite *testSuite) TestReceiveRecords() {
 		},
 	}
 
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
 		map[string]triggertest.TopicMessages{

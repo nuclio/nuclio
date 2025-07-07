@@ -34,8 +34,8 @@ type TestSuite struct {
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
-	suite.TestSuite.RuntimeSuite = suite
-	suite.TestSuite.ArchivePattern = "nodejs"
+	suite.RuntimeSuite = suite
+	suite.ArchivePattern = "nodejs"
 }
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
