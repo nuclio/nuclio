@@ -120,7 +120,7 @@ func (suite *testSuite) TestMultipleTopics() {
 	})
 
 	// invoke the event recorder
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.TestSuite,
 		suite.BrokerHost,
 		suite.getCreateFunctionOptionsWithMQTTTrigger(triggerConfiguration),
 		map[string]triggertest.TopicMessages{

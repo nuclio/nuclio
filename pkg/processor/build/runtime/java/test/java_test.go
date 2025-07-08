@@ -33,15 +33,15 @@ type TestSuite struct {
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.TestSuite.Runtime = "java"
+	suite.Runtime = "java"
 
-	suite.TestSuite.RuntimeSuite = suite
-	suite.TestSuite.ArchivePattern = "java"
+	suite.RuntimeSuite = suite
+	suite.ArchivePattern = "java"
 }
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
-		Runtime: suite.TestSuite.Runtime,
+		Runtime: suite.Runtime,
 	}
 
 	switch functionName {

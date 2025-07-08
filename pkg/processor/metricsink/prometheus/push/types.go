@@ -17,7 +17,6 @@ limitations under the License.
 package prometheuspush
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -42,7 +41,7 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 	newConfiguration.Configuration = *metricsink.NewConfiguration(name, metricSinkConfiguration)
 
 	// parse attributes
-	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+	if err := mapstructure.Decode(newConfiguration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
@@ -55,12 +54,12 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 
 	// verify job name passed
 	if newConfiguration.JobName == "" {
-		return nil, fmt.Errorf("Job name is required for metric sink %s", name)
+		return nil, errors.Errorf("Job name is required for metric sink %s", name)
 	}
 
 	// verify instance name passed
 	if newConfiguration.InstanceName == "" {
-		return nil, fmt.Errorf("Instance name is required for metric sink %s", name)
+		return nil, errors.Errorf("Instance name is required for metric sink %s", name)
 	}
 
 	return &newConfiguration, nil

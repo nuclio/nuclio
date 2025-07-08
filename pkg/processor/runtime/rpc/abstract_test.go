@@ -65,7 +65,7 @@ func newTestRuntime(parentLogger logger.Logger, configuration *runtime.Configura
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	newTestRuntime.AbstractRuntime.configuration.ControlMessageBroker = controlmessagebroker.NewRpcControlMessageBroker(nil, parentLogger, nil).AbstractControlMessageBroker
+	newTestRuntime.configuration.ControlMessageBroker = controlmessagebroker.NewRpcControlMessageBroker(nil, parentLogger, nil).AbstractControlMessageBroker
 
 	return newTestRuntime, nil
 }

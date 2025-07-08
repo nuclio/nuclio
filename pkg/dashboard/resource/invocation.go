@@ -40,7 +40,7 @@ type invocationResource struct {
 }
 
 func (tr *invocationResource) ExtendMiddlewares() error {
-	tr.resource.addAuthMiddleware(nil)
+	tr.addAuthMiddleware(nil)
 	return nil
 }
 

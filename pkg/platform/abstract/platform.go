@@ -103,8 +103,9 @@ func NewPlatform(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
 
-	newPlatform.OpaClient = opaclient.CreateOpaClient(newPlatform.Logger, platformConfiguration.Opa.Config)
-
+	if platformConfiguration.Opa != nil {
+		newPlatform.OpaClient = opaclient.CreateOpaClient(newPlatform.Logger, platformConfiguration.Opa.Config)
+	}
 	return newPlatform, nil
 }
 

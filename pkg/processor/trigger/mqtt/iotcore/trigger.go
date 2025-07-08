@@ -53,7 +53,7 @@ func newTrigger(parentLogger logger.Logger,
 		configuration:   configuration,
 	}
 
-	newIOTCoreMQTT.AbstractTrigger.Trigger = &newIOTCoreMQTT
+	newIOTCoreMQTT.Trigger = &newIOTCoreMQTT
 
 	// set username to something so that client will send it
 	newIOTCoreMQTT.configuration.Username = "ignored"

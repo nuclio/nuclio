@@ -46,7 +46,7 @@ type FunctionMonitoringTestSuite struct {
 func (suite *FunctionMonitoringTestSuite) SetupSuite() {
 	suite.KubeTestSuite.SetupSuite()
 
-	suite.KubeTestSuite.Ctx = context.Background()
+	suite.Ctx = context.Background()
 	// keep it for suite teardown
 	suite.oldPostDeploymentMonitoringBlockingInterval = monitoring.PostDeploymentMonitoringBlockingInterval
 

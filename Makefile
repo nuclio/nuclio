@@ -662,12 +662,12 @@ $(eval DOCKER_IMAGES_CACHE += $(filter-out $(DOCKER_IMAGES_CACHE),$(NUCLIO_DOCKE
 .PHONY: fmt
 fmt: ensure-golangci-linter
 	gofmt -s -w .
-	$(GOPATH)/bin/golangci-lint run --fix
+	$(GOLANGCI_LINT_BIN) run --fix
 
 .PHONY: lint
 lint: modules ensure-test-files-annotated ensure-golangci-linter
 	@echo Linting...
-	$(GOPATH)/bin/golangci-lint run -v
+	$(GOLANGCI_LINT_BIN) run -v
 	@echo Done.
 
 .PHONY: test-coverage
@@ -695,9 +695,9 @@ ensure-test-files-annotated:
 	@echo "All go test files have //go:build test_X annotation"
 	@exit $(.SHELLSTATUS)
 
-GOLANGCI_LINT_VERSION := v1.64.6
-GOLANGCI_LINT_BIN := $(GOPATH)/bin/golangci-lint
-GOLANGCI_LINT_INSTALL_COMMAND := GOBIN=$(GOPATH)/bin go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+GOLANGCI_LINT_VERSION := 2.2.1
+GOLANGCI_LINT_BIN := $(CURDIR)/.bin/golangci-lint
+GOLANGCI_LINT_INSTALL_COMMAND := GOBIN=$(CURDIR)/.bin go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
 
 .PHONY: ensure-golangci-linter
 ensure-golangci-linter:
@@ -705,7 +705,7 @@ ensure-golangci-linter:
 		echo "golangci-lint not found. Installing..."; \
 		$(GOLANGCI_LINT_INSTALL_COMMAND); \
 	else \
-		installed_version=$$($(GOLANGCI_LINT_BIN) version | awk '/version/ {print $$4}'); \
+		installed_version=$$($(GOLANGCI_LINT_BIN) version | awk '/version/ {gsub(/^v/, "", $$4); print $$4}'); \
 		if [ "$$installed_version" != "$(GOLANGCI_LINT_VERSION)" ]; then \
 			echo "golangci-lint version mismatch ($$installed_version != $(GOLANGCI_LINT_VERSION)). Reinstalling..."; \
 			$(GOLANGCI_LINT_INSTALL_COMMAND); \

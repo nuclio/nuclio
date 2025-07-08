@@ -12,28 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-linters:
-  disable-all: true
-  enable:
-    - goconst
-    - gofmt
-    - revive
-    - gosimple
-    - ineffassign
-    - misspell
-    - staticcheck
-    - unconvert
-    - errcheck
-    - govet
-    - typecheck
-    - gocritic
-    - unused
-    - gci
+version: "2"
 
+# timeout for analysis
+timeout: 5m
 run:
-
-  # timeout for analysis
-  timeout: 5m
   build-tags:
     - test_unit
     - test_integration
@@ -43,53 +26,65 @@ run:
     - test_iguazio
     - test_broken
     - test_benchmark
-
-linters-settings:
-  revive:
+linters:
+  default: none
+  enable:
+    - errcheck
+    - goconst
+    - gocritic
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - unconvert
+    - unused
+  settings:
+    gocritic:
+      disabled-checks:
+        - commentFormatting
+    revive:
+      rules:
+        - name: errorf
+          disabled: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-
-        # avoid  errorf: should replace errors.New(fmt.Sprintf(...)) with fmt.Errorf(...)  messages
-      - name: errorf
-        disabled: true
-
-  gocritic:
-    disabled-checks:
-      # we don't want to enforce space before the comment text
-      - commentFormatting
-
-  gci:
-    sections:
-      - standard
-      - prefix(github.com/nuclio/nuclio/)
-      - default
-      - blank
-      - dot
-
-    custom-order: true
-
-issues:
-
-  # List of regexps of issue texts to exclude
-  exclude:
-    - "comment on"
-    - "error should be the last"
-
-  exclude-dirs:
-    - docs
-    - vendor
-
-  exclude-rules:
-
-    # Auto generated files for kubernetes
-    - path: pkg/platform/kube/client
-      linters:
-        - errcheck
-
-    # list of excluded linters applied on test files
-    - path: _test\.go
-      linters:
-        - goconst
-
-      # false positive
-    - path: pkg/common/k8s.go
-      text: "deprecatedComment: the proper format is `Deprecated: <text>`"
+      - linters:
+          - errcheck
+        path: pkg/platform/kube/client
+      - linters:
+          - goconst
+        path: _test\.go
+      - path: pkg/common/k8s.go
+        text: 'deprecatedComment: the proper format is `Deprecated: <text>`'
+      - path: (.+)\.go$
+        text: comment on
+      - path: (.+)\.go$
+        text: error should be the last
+    paths:
+      - docs
+      - hack
+formatters:
+  enable:
+    - gci
+    - gofmt
+  settings:
+    gci:
+      sections:
+        - standard
+        - prefix(github.com/nuclio/nuclio/)
+        - default
+        - blank
+        - dot
+      custom-order: true
+  exclusions:
+    generated: lax
+    paths:
+      - docs
+      - hack

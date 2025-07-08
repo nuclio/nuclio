@@ -56,7 +56,7 @@ func newTrigger(parentLogger logger.Logger,
 		AbstractTrigger: abstractTrigger,
 		configuration:   configuration,
 	}
-	newTrigger.AbstractTrigger.Trigger = newTrigger
+	newTrigger.Trigger = newTrigger
 	newTrigger.kinesisAuth = kinesisclient.NewAuth(configuration.AccessKeyID,
 		configuration.SecretAccessKey,
 		"")

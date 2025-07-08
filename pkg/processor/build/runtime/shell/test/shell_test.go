@@ -35,8 +35,8 @@ type TestSuite struct {
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
-	suite.TestSuite.RuntimeSuite = suite
-	suite.TestSuite.ArchivePattern = "shell"
+	suite.RuntimeSuite = suite
+	suite.ArchivePattern = "shell"
 }
 
 func (suite *TestSuite) TestBuildBinaryWithStdin() {

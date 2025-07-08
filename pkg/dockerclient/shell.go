@@ -398,7 +398,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		// cause additional information to be outputted. if runOptions.ImageMayNotExist is false,
 		// this will result in an error.
 		if !runOptions.ImageMayNotExist {
-			return "", fmt.Errorf("Output from docker command includes more than just ID: %s", lastStdoutLine)
+			return "", errors.Errorf("Output from docker command includes more than just ID: %s", lastStdoutLine)
 		}
 
 		// if the implicit image pull was allowed and actually happened, the container ID will appear in the

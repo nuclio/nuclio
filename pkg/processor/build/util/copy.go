@@ -17,7 +17,6 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -112,7 +111,7 @@ func CopyDir(source string, dest string) (bool, error) {
 	}
 
 	if !fi.IsDir() {
-		return false, fmt.Errorf("Source (%q) is not a directory", source)
+		return false, errors.Errorf("Source (%q) is not a directory", source)
 	}
 
 	// create dest dir
