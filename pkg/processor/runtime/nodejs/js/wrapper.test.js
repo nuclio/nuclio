@@ -152,7 +152,7 @@ describe('Wrapper', () => {
                 const requestBody = {
                     body: (new Buffer.from(number.toString())).toString('base64')
                 }
-                socket.write(new Buffer.from(JSON.stringify(requestBody)))
+                socket.write(new Buffer.from(JSON.stringify(requestBody) + '\n'))
                 socket.on('data', data => {
                     if (data.toString().trim() === 's') {
 
