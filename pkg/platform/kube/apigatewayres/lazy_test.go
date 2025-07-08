@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -67,15 +68,105 @@ func (suite *lazyTestSuite) SetupTest() {
 }
 
 func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
-	primaryFunctionConfig := *functionconfig.NewConfig()
+	primaryFunctionConfig := functionconfig.NewConfig()
 	primaryFunctionConfig.Meta.Name = "primary-function-name"
-	canaryFunctionConfig := *functionconfig.NewConfig()
+	canaryFunctionConfig := functionconfig.NewConfig()
 	canaryFunctionConfig.Meta.Name = "canary-function-name"
 	suite.mockCmdRunner.
 		On("Run", mock.Anything, mock.IsType(""), mock.Anything).
 		Return("echo ehsom | htpasswd -n -i moshe", nil)
 
-	resources, err := suite.client.CreateOrUpdate(context.Background(), nuclioio.NuclioAPIGateway{
+	resources, err := suite.client.CreateOrUpdate(context.Background(), suite.getTestAPIGateway(primaryFunctionConfig, canaryFunctionConfig))
+	suite.Require().NoError(err)
+	suite.Require().NotNil(resources.IngressResourcesMap())
+
+	primaryIngressResources, _ := suite.getIngressesFromResources(resources)
+
+	// expect primary function ingress to have `X-Nuclio-Target`
+	// so that if it has STZ option, it would wake up upon a request
+	suite.Require().Equal(`proxy_set_header X-Nuclio-Target "primary-function-name,canary-function-name";`,
+		primaryIngressResources.Ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
+}
+
+func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasFunctionLabels() {
+	for _, testCase := range []struct {
+		name                 string
+		canaryFunctionConfig *functionconfig.Config
+	}{
+		{
+			name:                 "Primary function should include function-name and canary-function-name labels with canary",
+			canaryFunctionConfig: functionconfig.NewConfig(),
+		}, {
+			name:                 "Primary function should include only function-name label if no canary",
+			canaryFunctionConfig: nil,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			primaryFunctionConfig := functionconfig.NewConfig()
+			primaryFunctionConfig.Meta.Name = "primary-function-name"
+			if testCase.canaryFunctionConfig != nil {
+				testCase.canaryFunctionConfig.Meta.Name = "canary-function-name"
+			}
+			suite.mockCmdRunner.
+				On("Run", mock.Anything, mock.IsType(""), mock.Anything).
+				Return("echo ehsom | htpasswd -n -i moshe", nil)
+
+			resources, err := suite.client.CreateOrUpdate(context.Background(), suite.getTestAPIGateway(primaryFunctionConfig, testCase.canaryFunctionConfig))
+			suite.Require().NoError(err)
+			suite.Require().NotNil(resources.IngressResourcesMap())
+
+			primaryIngressResource, canaryIngressResource := suite.getIngressesFromResources(resources)
+
+			// ensure primary ingress has function name
+			suite.Require().NotNil(primaryIngressResource)
+			suite.Require().NotNil(primaryIngressResource.Ingress)
+			suite.Require().NotNil(primaryIngressResource.Ingress.Labels)
+			functionNameLabel, exists := primaryIngressResource.Ingress.Labels[common.NuclioResourceLabelKeyFunctionName]
+			suite.Require().True(exists, "Expected primary ingress to have function name label")
+			suite.Require().Equal(primaryFunctionConfig.Meta.Name, functionNameLabel)
+			// ensure primary ingress has canary function name if canary is present
+			canaryFunctionNameLabel, exists := primaryIngressResource.Ingress.Labels[common.NuclioResourceLabelKeyCanaryFunctionName]
+			if testCase.canaryFunctionConfig != nil {
+				suite.Require().True(exists, "Expected primary ingress to have canary function name label")
+				suite.Require().Equal(testCase.canaryFunctionConfig.Meta.Name, canaryFunctionNameLabel)
+
+				// ensure canary ingress does not have the labels function name and canary function name
+				suite.Require().NotNil(canaryIngressResource)
+				suite.Require().NotNil(canaryIngressResource.Ingress)
+				suite.Require().NotNil(canaryIngressResource.Ingress.Labels)
+				_, exists = canaryIngressResource.Ingress.Labels[common.NuclioResourceLabelKeyFunctionName]
+				suite.Require().False(exists, "Expected canary ingress to not have function name label")
+				_, exists = canaryIngressResource.Ingress.Labels[common.NuclioResourceLabelKeyCanaryFunctionName]
+				suite.Require().False(exists, "Expected canary ingress to not have canary function name label")
+			} else {
+				suite.Require().False(exists, "Expected primary ingress to not have canary function name label")
+			}
+		})
+	}
+
+}
+
+func (suite *lazyTestSuite) getTestAPIGateway(primaryFunctionConfig, canaryFunctionConfig *functionconfig.Config) nuclioio.NuclioAPIGateway {
+	upstreams := []platform.APIGatewayUpstreamSpec{
+		{
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: primaryFunctionConfig.Meta.Name,
+			},
+		},
+	}
+
+	if canaryFunctionConfig != nil {
+		upstreams = append(upstreams, platform.APIGatewayUpstreamSpec{
+			Kind: platform.APIGatewayUpstreamKindNuclioFunction,
+			NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
+				Name: canaryFunctionConfig.Meta.Name,
+			},
+			Percentage: 20,
+		})
+	}
+
+	return nuclioio.NuclioAPIGateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
 			Namespace: "test-namespace",
@@ -91,38 +182,24 @@ func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
 					Password: "ehsom",
 				},
 			},
-			Upstreams: []platform.APIGatewayUpstreamSpec{
-				{
-					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
-						Name: primaryFunctionConfig.Meta.Name,
-					},
-				},
-				{
-					Kind: platform.APIGatewayUpstreamKindNuclioFunction,
-					NuclioFunction: &platform.NuclioFunctionAPIGatewaySpec{
-						Name: canaryFunctionConfig.Meta.Name,
-					},
-					Percentage: 20,
-				},
-			},
+			Upstreams: upstreams,
 		},
-	})
-	suite.Require().NoError(err)
-	suite.Require().NotNil(resources.IngressResourcesMap())
+	}
+}
 
-	var primaryIngressResources ingress.Resources
+// getIngressesFromResources returns the primary and canary ingress resources from the provided resources
+func (suite *lazyTestSuite) getIngressesFromResources(resources Resources) (*ingress.Resources, *ingress.Resources) {
+	var primaryIngress, canaryIngress *ingress.Resources
 
-	for resourceName, resources := range resources.IngressResourcesMap() {
-		if !strings.HasSuffix(resourceName, "-canary") {
-			primaryIngressResources = *resources
+	for resourceName, resource := range resources.IngressResourcesMap() {
+		if strings.HasSuffix(resourceName, "-canary") {
+			canaryIngress = resource
+		} else {
+			primaryIngress = resource
 		}
 	}
 
-	// expect primary function ingress to have `X-Nuclio-Target`
-	// so that if it has STZ option, it would wake up upon a request
-	suite.Require().Equal(`proxy_set_header X-Nuclio-Target "primary-function-name,canary-function-name";`,
-		primaryIngressResources.Ingress.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"])
+	return primaryIngress, canaryIngress
 }
 
 func TestLazyTestSuite(t *testing.T) {
