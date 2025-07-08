@@ -225,7 +225,7 @@ function connectSocket(socketPath, handlerFunction) {
                 const event = JSON.parse(message)
                 await handleEvent(handlerFunction, event)
             } catch (err) {
-                console.error('[wrapper] JSON parse error:', err.message)
+                console.error(`Failed to parse json: ${err}`)
             }
         }
     })
