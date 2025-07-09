@@ -76,6 +76,7 @@ class NuclioPatcher:
         self._arch = self._config.get("NUCLIO_ARCH", "amd64")
         self._namespace = self._config.get("NAMESPACE", "nuclio")
         self._private_key = private_key
+        self._os = self._config.get("NUCLIO_OS", "linux")
 
     def patch_nuclio(self):
         self._logger.info(
@@ -204,6 +205,7 @@ class NuclioPatcher:
             "NUCLIO_LABEL": self._tag,
             "NUCLIO_ARCH": self._arch,
             "DOCKER_IMAGES_RULES": image_rules,
+            "NUCLIO_OS": self._os,
         }
         cmd = [
             "make",
