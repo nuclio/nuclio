@@ -145,7 +145,7 @@ class NuclioPatcher:
 
         # resolve the current version running in the remote system by examining the deployment of one of the targets
         self._logger.debug("Resolving current version from remote system")
-        deployment_name = f"nuclio-{self._targets[0]}"
+        deployment_name = self._get_deployment_name(self._targets[0])
         version = self._exec_remote(
             [
                 "kubectl",
@@ -177,6 +177,12 @@ class NuclioPatcher:
     @staticmethod
     def _get_image_tag(tag) -> str:
         return f"{tag}"
+
+    @staticmethod
+    def _get_deployment_name(target) -> str:
+        if target == "autoscaler":
+            target = "scaler"
+        return f"nuclio-{target}"
 
     def _docker_login_if_configured(self):
         registry_username = self._config.get("REGISTRY_USERNAME")
@@ -219,7 +225,7 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        deployment_name = f"nuclio-{target}"
+        deployment_name = self._get_deployment_name(target)
         patch_string = self._generate_patch_string(deployment_name)
 
         self._logger.info(f"Patching {deployment_name} deployment")
@@ -246,7 +252,7 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        container = f"nuclio-{target}"
+        container = self._get_deployment_name(target)
         image = self._get_target_image_name(target, self._tag)
         if self._config.get("OVERWRITE_IMAGE_REGISTRY"):
             image = image.replace(
@@ -261,7 +267,7 @@ class NuclioPatcher:
                 self._namespace,
                 "set",
                 "image",
-                f"deployment/nuclio-{target}",
+                f"deployment/{container}",
                 f"{container}={image}",
             ]
         )
@@ -274,7 +280,8 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        self._logger.info(f"Restarting {target} deployment")
+        deployment_name = self._get_deployment_name(target)
+        self._logger.info(f"Restarting {deployment_name} deployment")
         self._exec_remote(
             [
                 "kubectl",
@@ -283,7 +290,7 @@ class NuclioPatcher:
                 "rollout",
                 "restart",
                 "deployment",
-                f"nuclio-{target}",
+                deployment_name,
             ]
         )
 
@@ -292,7 +299,8 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        self._logger.info(f"Waiting for {target} deployment to become ready")
+        deployment_name = self._get_deployment_name(target)
+        self._logger.info(f"Waiting for {deployment_name} deployment to become ready")
         self._exec_remote(
             [
                 "kubectl",
@@ -301,7 +309,7 @@ class NuclioPatcher:
                 "rollout",
                 "status",
                 "deployment",
-                f"nuclio-{target}",
+                deployment_name,
                 "--timeout=240s",
             ],
             live=True,
