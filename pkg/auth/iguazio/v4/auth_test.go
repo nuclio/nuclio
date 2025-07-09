@@ -44,7 +44,7 @@ func (suite *AuthTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 }
 
-func (suite *AuthTestSuite) TestAuthenticationNegative() {
+func (suite *AuthTestSuite) TestAuthentication() {
 	authConfig := authpkg.NewConfig(authpkg.KindIguazioV4)
 	authConfig.Iguazio.VerificationURL = "http://somewhere.local/identity/self"
 
@@ -107,25 +107,25 @@ func (suite *AuthTestSuite) TestAuthenticationNegative() {
 		{
 			name:                 "StatusUnauthorizedEmptyAuth",
 			responseFromIdentity: &http.Response{StatusCode: http.StatusUnauthorized},
-			expectedErr:          "Authentication headers are missing",
+			expectedErr:          "Failed to get authentication parameters",
 		},
 		{
 			name:                     "StatusUnauthorizedWrongHeader",
 			responseFromIdentity:     &http.Response{StatusCode: http.StatusUnauthorized},
 			authorizationHeaderValue: "Bearer test-token",
-			expectedErr:              "Invalid credentials",
+			expectedErr:              "Authentication failed",
 		},
 		{
 			name:                 "StatusUnauthorizedWrongCookie",
 			responseFromIdentity: &http.Response{StatusCode: http.StatusUnauthorized},
 			cookieValue:          "_oauth2_proxy=wrong-session-cookie",
-			expectedErr:          "Invalid credentials",
+			expectedErr:          "Authentication failed",
 		},
 		{
 			name:                     "UnexpectedStatusCode",
 			responseFromIdentity:     &http.Response{StatusCode: http.StatusInternalServerError},
 			authorizationHeaderValue: "Bearer test-token",
-			expectedErr:              "Unexpected response from identity endpoint",
+			expectedErr:              "Authentication failed",
 		},
 	}
 
@@ -161,8 +161,7 @@ func (suite *AuthTestSuite) TestAuthenticationNegative() {
 }
 
 func (suite *AuthTestSuite) newAuthWithMockHttpClient(authConfig *authpkg.Config, mockHttpClient *http.Client) *Auth {
-	authInstance, err := NewAuth(suite.logger, authConfig)
-	suite.Require().NoError(err)
+	authInstance := NewAuth(suite.logger, authConfig)
 	authInstanceIGZ := authInstance.(*Auth)
 	authInstanceIGZ.HttpClient = mockHttpClient
 	return authInstanceIGZ

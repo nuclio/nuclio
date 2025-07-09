@@ -17,9 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	"bytes"
-	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -35,78 +32,71 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+const SessionCookie = "session"
+
 type Auth struct {
 	*iguazio.AbstractAuth
 }
 
 func NewAuth(logger logger.Logger, config *authpkg.Config) authpkg.Auth {
-	return &Auth{
-		AbstractAuth: iguazio.NewAbstractAuth(logger, config),
-	}
+	authenticator := &Auth{}
+	authenticator.AbstractAuth = iguazio.NewAbstractAuth(logger, config, authenticator)
+	return authenticator
 }
 
-// Authenticate will ask IguazioConfig session verification endpoint to verify the request session
-// and enrich with session metadata
-func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (authpkg.Session, error) {
+func (a *Auth) VerifySessionType(session interface{}) (authpkg.Session, bool) {
+	if typedSession, ok := session.(*Session); ok {
+		return typedSession, true
+	}
+	return nil, false
+}
+
+func (a *Auth) GetAuthParameters(request *http.Request, options *authpkg.Options) (*iguazio.AuthParameters, error) {
 	ctx := request.Context()
 	authorization := request.Header.Get("authorization")
-	cookie := request.Header.Get("cookie")
+	oauth2Cookie, _ := request.Cookie(iguazio.OAuth2ProxyCookie)
+	sessionCookie, _ := request.Cookie(SessionCookie)
 
-	if options == nil {
-		options = &authpkg.Options{}
-	}
+	authCookiesOnlyHeaderValue := common.CookiesToHeaderValue([]*http.Cookie{oauth2Cookie, sessionCookie})
 
-	if cookie == "" && authorization == "" {
+	if oauth2Cookie == nil && sessionCookie == nil && authorization == "" {
 		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
 	}
 
-	authHeaders := map[string]string{
-		"authorization": authorization,
-		"cookie":        cookie,
-	}
+	url := a.resolveUrl(options)
+	cacheKey := a.GenerateCacheKey(authCookiesOnlyHeaderValue, authorization, url)
 
-	url := a.GetConfig().Iguazio.VerificationURL
-	if options.EnrichDataPlane {
-		url = a.GetConfig().Iguazio.VerificationDataEnrichmentURL
-	}
+	return iguazio.NewAuthParameters(
+		ctx,
+		authorization,
+		authCookiesOnlyHeaderValue,
+		url,
+		cacheKey), nil
+}
 
-	cacheKey := sha256.Sum256([]byte(cookie + authorization + url))
-
-	// try resolve from cache
-	if cacheData, found := a.Cache.Get(cacheKey); found {
-		return cacheData.(*Session), nil
-	}
-
-	response, err := a.constructAndSendIdentityRequest(ctx, authorization, cookie, url)
-	if err != nil {
-		a.Logger.WarnWithCtx(ctx,
-			"Failed to perform http authentication request",
-			"err", err.Error(),
-		)
-		return nil, errors.Wrap(err, "Failed to perform http POST request")
-	}
-
+func (a *Auth) ValidateResponse(response *http.Response) error {
 	// auth failed
 	if response.StatusCode == http.StatusUnauthorized {
-		a.Logger.WarnWithCtx(ctx,
-			"Authentication failed",
-			"authorizationHeaderLength", len(authHeaders["authorization"]),
-			"cookieHeaderLength", len(authHeaders["cookie"]),
-		)
-		return nil, nuclio.NewErrUnauthorized("Authentication failed")
+		return nuclio.NewErrUnauthorized("Authentication failed")
 	}
 
 	// not within range of 200
 	if response.StatusCode < http.StatusOK || response.StatusCode >= 300 {
-		a.Logger.WarnWithCtx(ctx,
-			"Unexpected authentication status code",
-			"authorizationHeaderLength", len(authHeaders["authorization"]),
-			"cookieHeaderLength", len(authHeaders["cookie"]),
-			"statusCode", response.StatusCode,
-		)
-		return nil, nuclio.NewErrUnauthorized("Authentication failed")
+		return nuclio.NewErrUnauthorized("Authentication failed")
 	}
 
+	// auth succeeded
+	return nil
+}
+
+func (a *Auth) resolveUrl(options *authpkg.Options) string {
+	if options != nil && options.EnrichDataPlane {
+		return a.GetConfig().Iguazio.VerificationDataEnrichmentURL
+	}
+	return a.GetConfig().Iguazio.VerificationURL
+}
+
+func (a *Auth) BuildSessionFromResponse(response *http.Response) (authpkg.Session, error) {
 	encodedResponseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read response body")
@@ -119,8 +109,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 
 	userID, groupIDs, err := a.resolveUserAndGroupIDsFromResponseBody(responseBody)
 	if err != nil {
-		a.Logger.WarnWithCtx(ctx,
-			"Failed to resolve user and group IDs from response body, reading from headers",
+		a.Logger.WarnWith("Failed to resolve user and group IDs from response body, reading from headers",
 			"err", err.Error())
 
 		// for backwards compatibility
@@ -139,34 +128,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 		}
 	}
 
-	a.Cache.Add(cacheKey, authInfo, a.GetConfig().Iguazio.CacheExpirationTimeout)
-	a.Logger.InfoWithCtx(ctx,
-		"Authentication succeeded",
-		"url", url,
-		"username", authInfo.GetUsername())
 	return authInfo, nil
-}
-
-// Middleware will authenticate the incoming request and store the session within the request context
-func (a *Auth) Middleware(options *authpkg.Options) func(next http.Handler) http.Handler {
-	return a.AbstractAuth.Middleware(a.Authenticate, options)
-}
-
-func (a *Auth) constructAndSendIdentityRequest(ctx context.Context, authHeader, cookie, url string) (*http.Response, error) {
-	method := a.GetConfig().Iguazio.VerificationMethod
-	if method == "" {
-		method = http.MethodPost
-	}
-
-	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(nil))
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create http request")
-	}
-
-	request.Header.Set(headers.AuthorizationHeader, authHeader)
-	request.Header.Set("cookie", cookie)
-
-	return a.PerformHTTPRequest(ctx, request)
 }
 
 func (a *Auth) resolveUserAndGroupIDsFromResponseBody(responseBody map[string]interface{}) (string, []string, error) {

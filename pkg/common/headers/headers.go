@@ -67,6 +67,7 @@ const (
 	UserID              = "X-User-Id"
 	UserGroupIds        = "X-User-Group-Ids"
 	AuthorizationHeader = "authorization"
+	CookieHeader        = "Cookie"
 
 	// Others
 	Logs           = "X-Nuclio-Logs"
