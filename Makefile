@@ -1038,3 +1038,17 @@ patch-remote-controller: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(P
 		--private-key-file hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME) \
 		--config hack/scripts/patch-remote/patch_env.yml \
 		--targets controller
+
+.PHONY: patch-remote-dlx
+patch-remote-dlx: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME)
+	./hack/scripts/patch-remote/patch_remote.py \
+		--private-key-file hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME) \
+		--config hack/scripts/patch-remote/patch_env.yml \
+		--targets dlx
+
+.PHONY: patch-remote-autoscaler
+patch-remote-autoscaler: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME)
+	./hack/scripts/patch-remote/patch_remote.py \
+		--private-key-file hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME) \
+		--config hack/scripts/patch-remote/patch_env.yml \
+		--targets autoscaler

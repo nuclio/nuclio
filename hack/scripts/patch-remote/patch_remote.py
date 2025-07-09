@@ -29,7 +29,7 @@ import yaml
 
 
 class Helper:
-    supported_targets = ["dashboard", "controller"]
+    supported_targets = ["dashboard", "controller", "dlx", "autoscaler"]
 
     @staticmethod
     def run_on_all_targets(func):
