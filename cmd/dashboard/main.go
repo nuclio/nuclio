@@ -73,7 +73,6 @@ func main() {
 	authConfigIguazioTimeout := flag.String("auth-config-iguazio-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_TIMEOUT", ""), "Iguazio authentication request timeout (golang duration string)")
 	authConfigIguazioCacheSize := flag.String("auth-config-iguazio-cache-size", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_CACHE_SIZE", ""), "Iguazio authentication cache size")
 	authConfigIguazioCacheTimeout := flag.String("auth-config-iguazio-cache-expiration-timeout", common.GetEnvOrDefaultString("NUCLIO_AUTH_IGUAZIO_CACHE_EXPIRATION_TIMEOUT", "30s"), "Iguazio authentication cache expiration timeout (golang duration string)")
-
 	// get the namespace from args -> env -> default
 	*namespace = common.ResolveNamespace(*namespace, "NUCLIO_DASHBOARD_NAMESPACE")
 

@@ -76,7 +76,7 @@ func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProject
 	}
 
 	if getProjectOptions.AuthSession != nil {
-		headers["authorization"] = getProjectOptions.AuthSession.CompileAuthorizationBasic()
+		headers["authorization"] = getProjectOptions.AuthSession.CompileAuthorizationBasicHeader()
 		cookies = append(cookies, &http.Cookie{
 			Name:  "session",
 			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, getProjectOptions.AuthSession.GetPassword())),
@@ -120,7 +120,7 @@ func (c *Client) Create(ctx context.Context, createProjectOptions *platform.Crea
 
 	headers := c.generateCommonRequestHeaders()
 	if createProjectOptions.AuthSession != nil {
-		headers["authorization"] = createProjectOptions.AuthSession.CompileAuthorizationBasic()
+		headers["authorization"] = createProjectOptions.AuthSession.CompileAuthorizationBasicHeader()
 		cookies = append(cookies, &http.Cookie{
 			Name:  "session",
 			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, createProjectOptions.AuthSession.GetPassword())),
@@ -231,7 +231,7 @@ func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.Upda
 
 	headers := c.generateCommonRequestHeaders()
 	if updateProjectOptions.AuthSession != nil {
-		headers["authorization"] = updateProjectOptions.AuthSession.CompileAuthorizationBasic()
+		headers["authorization"] = updateProjectOptions.AuthSession.CompileAuthorizationBasicHeader()
 		cookies = append(cookies, &http.Cookie{
 			Name:  "session",
 			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, updateProjectOptions.AuthSession.GetPassword())),
@@ -285,7 +285,7 @@ func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.Dele
 	// send the request
 	headers := c.generateCommonRequestHeaders()
 	if deleteProjectOptions.AuthSession != nil {
-		headers["authorization"] = deleteProjectOptions.AuthSession.CompileAuthorizationBasic()
+		headers["authorization"] = deleteProjectOptions.AuthSession.CompileAuthorizationBasicHeader()
 		cookies = append(cookies, &http.Cookie{
 			Name:  "session",
 			Value: url.QueryEscape(fmt.Sprintf(`j:{"sid":"%s"}`, deleteProjectOptions.AuthSession.GetPassword())),

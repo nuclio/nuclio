@@ -75,7 +75,8 @@ func Run(listenAddress string,
 	authConfigIguazioVerificationDataEnrichmentURL string,
 	authConfigIguazioCacheSize string,
 	authConfigIguazioCacheExpirationTimeout string,
-	authConfigIguazioVerificationMethod string) error {
+	authConfigIguazioVerificationMethod string,
+) error {
 
 	// get platform configuration
 	platformConfiguration, err := platformconfig.NewPlatformConfig(platformConfigurationPath)
@@ -194,11 +195,11 @@ func Run(listenAddress string,
 }
 
 func enrichAuthConfig(authConfig *auth.Config,
-	authConfigIguazioVerificationURL string,
-	authConfigIguazioVerificationDataEnrichmentURL string,
-	authConfigIguazioCacheSize string,
-	authConfigIguazioCacheExpirationTimeout string,
-	authConfigIguazioTimeout string,
+	authConfigIguazioVerificationURL,
+	authConfigIguazioVerificationDataEnrichmentURL,
+	authConfigIguazioCacheSize,
+	authConfigIguazioCacheExpirationTimeout,
+	authConfigIguazioTimeout,
 	authConfigIguazioVerificationMethod string) error {
 	var err error
 
@@ -236,6 +237,7 @@ func enrichAuthConfig(authConfig *auth.Config,
 			return errors.Wrap(err, "Failed to parse auth config iguazio expiration timeout")
 		}
 	}
+
 	return nil
 }
 

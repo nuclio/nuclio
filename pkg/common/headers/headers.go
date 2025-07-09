@@ -62,10 +62,11 @@ const (
 	FunctionEventNamespace = "X-Nuclio-Function-Event-Namespace"
 
 	// Auth headers
-	RemoteUser     = "X-Remote-User"
-	V3IOSessionKey = "X-V3io-Session-Key"
-	UserID         = "X-User-Id"
-	UserGroupIds   = "X-User-Group-Ids"
+	RemoteUser          = "X-Remote-User"
+	V3IOSessionKey      = "X-V3io-Session-Key"
+	UserID              = "X-User-Id"
+	UserGroupIds        = "X-User-Group-Ids"
+	AuthorizationHeader = "authorization"
 
 	// Others
 	Logs           = "X-Nuclio-Logs"

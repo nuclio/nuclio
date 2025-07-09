@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/auth"
+	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/errgroup"
@@ -802,7 +802,7 @@ func (p *Platform) DeleteProject(ctx context.Context, deleteProjectOptions *plat
 
 	// enrich to protect test flows where auth session is nil
 	if deleteProjectOptions.AuthSession == nil {
-		deleteProjectOptions.AuthSession = &auth.NopSession{}
+		deleteProjectOptions.AuthSession = &nop.Session{}
 	}
 
 	if err := p.ValidateDeleteProjectOptions(ctx, deleteProjectOptions); err != nil {
@@ -844,7 +844,7 @@ func (p *Platform) GetProjects(ctx context.Context,
 
 	// enrich to protect test flows where auth session is nil
 	if getProjectsOptions.AuthSession == nil {
-		getProjectsOptions.AuthSession = &auth.NopSession{}
+		getProjectsOptions.AuthSession = &nop.Session{}
 	}
 
 	projects, err := p.projectsClient.Get(ctx, getProjectsOptions)

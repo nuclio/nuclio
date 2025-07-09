@@ -49,13 +49,15 @@ func ContextKeyByKind(kind Kind) SessionContextKey {
 }
 
 type IguazioConfig struct {
-	Timeout                       time.Duration
-	VerificationURL               string
-	VerificationMethod            string
+	Timeout                time.Duration
+	VerificationURL        string
+	VerificationMethod     string
+	CacheSize              int
+	CacheExpirationTimeout time.Duration
+	SkipTLSVerification    bool
+
+	// igz < v4
 	VerificationDataEnrichmentURL string
-	CacheSize                     int
-	CacheExpirationTimeout        time.Duration
-	SkipTLSVerification           bool
 }
 
 type Config struct {
@@ -68,7 +70,7 @@ func NewConfig(kind Kind) *Config {
 		Kind: kind,
 	}
 	skipTLSVerification := false
-	if kind == KindIguazio {
+	if kind == KindIguazio || kind == KindIguazioV4 {
 		skipTLSVerification = true
 		config.Iguazio = &IguazioConfig{
 			CacheSize:              100,
@@ -89,7 +91,8 @@ type Session interface {
 	GetPassword() string
 	GetUserID() string
 	GetGroupIDs() []string
-	CompileAuthorizationBasic() string
+	CompileAuthorizationBasicHeader() string
+	GetUserLabels() map[string]string
 }
 
 type Auth interface {

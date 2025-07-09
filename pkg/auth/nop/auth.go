@@ -35,7 +35,7 @@ func NewAuth(logger logger.Logger, authConfig *authpkg.Config) authpkg.Auth {
 	return &Auth{
 		logger:     logger.GetChild("nop-auth"),
 		config:     authConfig,
-		nopSession: &authpkg.NopSession{},
+		nopSession: &Session{},
 	}
 }
 

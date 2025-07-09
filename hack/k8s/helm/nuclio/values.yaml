@@ -205,7 +205,7 @@ dashboard:
 
   authConfig:
 
-    # either one of "nop" or "iguazio"
+    # "nop", "iguazio" or "iguazio-v4"
     kind: nop
 
     iguazio:
