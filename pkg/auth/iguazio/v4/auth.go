@@ -63,7 +63,7 @@ func (a *Auth) Authenticate(request *http.Request, options *authpkg.Options) (au
 	switch resp.StatusCode {
 	case http.StatusUnauthorized:
 		return nil, nuclio.NewErrUnauthorized("Invalid credentials")
-	case http.StatusAccepted:
+	case http.StatusAccepted, http.StatusOK:
 		return a.buildSessionFromResponse(resp.Body)
 	default:
 		return nil, nuclio.NewErrInternalServerError(fmt.Sprintf("Unexpected response from identity endpoint: %d", resp.StatusCode))
@@ -91,7 +91,7 @@ func (a *Auth) constructAndSendIdentityRequest(ctx context.Context, authHeader s
 func (a *Auth) buildIdentityRequest(ctx context.Context, authHeader string, cookie *http.Cookie) (*http.Request, error) {
 	method := a.GetConfig().Iguazio.VerificationMethod
 	if method == "" {
-		method = http.MethodPost
+		method = http.MethodGet
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, a.GetConfig().Iguazio.VerificationURL, nil)

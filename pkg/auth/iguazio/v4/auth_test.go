@@ -62,7 +62,7 @@ func (suite *AuthTestSuite) TestAuthenticationNegative() {
 		{
 			name: "AuthorizeSuccess",
 			responseFromIdentity: &http.Response{
-				StatusCode: http.StatusAccepted,
+				StatusCode: http.StatusOK,
 				Body: io.NopCloser(bytes.NewBufferString(`{
   "metadata": {
     "resourceType": "user",
