@@ -36,7 +36,7 @@ type AbstractAuthTestSuite struct {
 
 func (suite *AbstractAuthTestSuite) SetupTest() {
 	var err error
-	suite.logger, err = nucliozap.NewNuclioZapTest("iguazio-auth-v4")
+	suite.logger, err = nucliozap.NewNuclioZapTest("iguazio-auth")
 	suite.Require().NoError(err)
 }
 
