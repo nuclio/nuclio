@@ -74,15 +74,15 @@ class NuclioPatcher:
     def __init__(self, conf_file, private_key, targets, verbose):
         self._config = yaml.safe_load(conf_file)
         self._validate_config()
-        self._logger = self._init_logger(verbose or self._config.get("VERBOSE", False))
-        self._node = self._config.get("HOST_IP", "")
-        self._user = self._config.get("SSH_USER", "")
+        self._logger = self._init_logger(verbose or self._get_config_value_or_default("VERBOSE", False))
+        self._node = self._get_config_value_or_default("HOST_IP", "")
+        self._user = self._get_config_value_or_default("SSH_USER", "")
         self._targets = self._resolve_targets(targets)
-        self._tag = self._config.get("NUCLIO_TAG", "")
-        self._arch = self._config.get("NUCLIO_ARCH", "amd64") or "amd64"
-        self._namespace = self._config.get("NAMESPACE", "nuclio")
+        self._tag = self._get_config_value_or_default("NUCLIO_TAG", "")
+        self._arch = self._get_config_value_or_default("NUCLIO_ARCH", "amd64")
+        self._namespace = self._get_config_value_or_default("NAMESPACE", "nuclio")
         self._private_key = private_key
-        self._os = self._config.get("NUCLIO_OS", "linux") or "linux"
+        self._os = self._get_config_value_or_default("NUCLIO_OS", "linux")
 
     def patch_nuclio(self):
         self._logger.info(
@@ -179,6 +179,10 @@ class NuclioPatcher:
             ],
         )
         self._tag = version.strip()
+
+    def _get_config_value_or_default(self, key: str, default):
+        value = self._config.get(key, default)
+        return default if value is None else value
 
     @staticmethod
     def _get_image_tag(tag) -> str:
