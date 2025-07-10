@@ -252,14 +252,14 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        deployment_name = self.Consts.deployment_names_dict[target]
+        container = deployment_name = self.Consts.deployment_names_dict[target]
         image = self._get_target_image_name(target, self._tag)
         if self._config.get("OVERWRITE_IMAGE_REGISTRY"):
             image = image.replace(
                 self._config["DOCKER_REGISTRY"],
                 self._config["OVERWRITE_IMAGE_REGISTRY"],
             )
-        self._logger.info(f"Replacing {deployment_name} in {target} deployment")
+        self._logger.info(f"Replacing {container} in {target} deployment")
         self._exec_remote(
             [
                 "kubectl",
@@ -268,7 +268,7 @@ class NuclioPatcher:
                 "set",
                 "image",
                 f"deployment/{deployment_name}",
-                f"{deployment_name}={image}",
+                f"{container}={image}",
             ]
         )
 
