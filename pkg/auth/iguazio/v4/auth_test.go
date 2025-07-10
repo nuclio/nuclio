@@ -20,17 +20,16 @@ package v4
 
 import (
 	"bytes"
-
 	"io"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"

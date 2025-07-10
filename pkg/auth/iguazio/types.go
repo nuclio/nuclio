@@ -19,12 +19,13 @@ package iguazio
 import (
 	"context"
 	"crypto/sha256"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"time"
 
-	"github.com/nuclio/errors"
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/nuclio/errors"
 )
 
 const bearerPrefix = "Bearer "
