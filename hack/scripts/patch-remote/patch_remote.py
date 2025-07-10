@@ -64,6 +64,12 @@ class NuclioPatcher:
                 },
             },
         }
+        deployment_names_dict = {
+            "dashboard": "nuclio-dashboard",
+            "controller": "nuclio-controller",
+            "dlx": "nuclio-dlx",
+            "autoscaler": "nuclio-scaler"
+        }
 
     def __init__(self, conf_file, private_key, targets, verbose):
         self._config = yaml.safe_load(conf_file)
@@ -145,7 +151,7 @@ class NuclioPatcher:
 
         # resolve the current version running in the remote system by examining the deployment of one of the targets
         self._logger.debug("Resolving current version from remote system")
-        deployment_name = self._get_deployment_name(self._targets[0])
+        deployment_name = self.Consts.deployment_names_dict[self._targets[0]]
         version = self._exec_remote(
             [
                 "kubectl",
@@ -177,12 +183,6 @@ class NuclioPatcher:
     @staticmethod
     def _get_image_tag(tag) -> str:
         return f"{tag}"
-
-    @staticmethod
-    def _get_deployment_name(target) -> str:
-        if target == "autoscaler":
-            target = "scaler"
-        return f"nuclio-{target}"
 
     def _docker_login_if_configured(self):
         registry_username = self._config.get("REGISTRY_USERNAME")
@@ -225,7 +225,7 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        deployment_name = self._get_deployment_name(target)
+        deployment_name = self.Consts.deployment_names_dict[target]
         patch_string = self._generate_patch_string(deployment_name)
 
         self._logger.info(f"Patching {deployment_name} deployment")
@@ -252,7 +252,7 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        deployment_name = self._get_deployment_name(target)
+        deployment_name = self.Consts.deployment_names_dict[target]
         image = self._get_target_image_name(target, self._tag)
         if self._config.get("OVERWRITE_IMAGE_REGISTRY"):
             image = image.replace(
@@ -280,7 +280,7 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        deployment_name = self._get_deployment_name(target)
+        deployment_name = self.Consts.deployment_names_dict[target]
         self._logger.info(f"Restarting {deployment_name} deployment")
         self._exec_remote(
             [
@@ -299,7 +299,7 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        deployment_name = self._get_deployment_name(target)
+        deployment_name = self.Consts.deployment_names_dict[target]
         self._logger.info(f"Waiting for {deployment_name} deployment to become ready")
         self._exec_remote(
             [
