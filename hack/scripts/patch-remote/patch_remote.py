@@ -137,7 +137,7 @@ class NuclioPatcher:
             if _targets
             else self._config.get("PATCH_TARGETS", ["dashboard"])
         )
-        if not targets or len(targets) == 0:
+        if not targets:
             raise RuntimeError("No targets to patch")
         for target in targets:
             if target not in Helper.supported_targets:
