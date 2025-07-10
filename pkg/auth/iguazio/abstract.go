@@ -135,7 +135,7 @@ func (a *AbstractAuth) Middleware(options *authpkg.Options) func(next http.Handl
 func (a *AbstractAuth) ConstructAndSendIdentityRequest(authParams *AuthParameters) (*http.Response, error) {
 	req, err := a.buildIdentityRequest(authParams)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to build identity request")
 	}
 
 	resp, err := a.PerformHTTPRequest(authParams.ctx, req)
