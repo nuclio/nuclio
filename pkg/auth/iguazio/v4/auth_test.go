@@ -20,10 +20,13 @@ package v4
 
 import (
 	"bytes"
+
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/common/testutils"
@@ -134,7 +137,7 @@ func (suite *AuthTestSuite) TestAuthentication() {
 			mockClient := testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 				return testCase.responseFromIdentity
 			})
-			authInstance := suite.newAuthWithMockHttpClient(authConfig, mockClient)
+			authInstance := suite.newAuthWithMockHTTPClient(authConfig, mockClient)
 			req, err := http.NewRequest("post", "", nil)
 			suite.Require().NoError(err)
 			if testCase.authorizationHeaderValue != "" {
@@ -160,7 +163,138 @@ func (suite *AuthTestSuite) TestAuthentication() {
 
 }
 
-func (suite *AuthTestSuite) newAuthWithMockHttpClient(authConfig *authpkg.Config, mockHttpClient *http.Client) *Auth {
+func (suite *AuthTestSuite) TestAuthenticateIguazioCaching() {
+	// Generate a valid JWT token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"exp": time.Now().Add(1 * time.Hour).Unix(),
+		"sub": "test",
+	})
+	jwtToken, err := token.SignedString([]byte("test-secret"))
+	suite.Require().NoError(err)
+
+	// Define reusable response body
+	successResponseBody := `{
+  "metadata": {
+    "resourceType": "user",
+    "username": "test"
+  },
+  "relationships": [
+    {
+      "@type": "type.googleapis.com/group.Group",
+      "metadata": {
+        "id": "group1"
+      }
+    },
+    {
+      "@type": "type.googleapis.com/group.Group",
+      "metadata": {
+        "id": "group2"
+      }
+    }
+  ]
+}`
+
+	tests := []struct {
+		name             string
+		headers          map[string]string
+		mockHTTPClient   func(r *http.Request) *http.Response
+		expectCache      bool
+		expectError      bool
+		expectedUsername string
+		expectedGroupIDs []string
+	}{
+		{
+			name: "WithAuthorizationHeader",
+			headers: map[string]string{
+				headers.AuthorizationHeader: "Bearer " + jwtToken,
+			},
+			mockHTTPClient: func(r *http.Request) *http.Response {
+				authorization := r.Header.Get(headers.AuthorizationHeader)
+				if authorization != "Bearer "+jwtToken {
+					return &http.Response{
+						StatusCode: http.StatusUnauthorized,
+						Body:       io.NopCloser(bytes.NewBufferString(`{"error": "Invalid credentials"}`)),
+					}
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewBufferString(successResponseBody)),
+				}
+			},
+			expectCache:      true,
+			expectError:      false,
+			expectedUsername: "test",
+			expectedGroupIDs: []string{"group1", "group2"},
+		},
+		{
+			name: "WithCookieOnly",
+			headers: map[string]string{
+				"Cookie": "_oauth2_proxy=session-cookie",
+			},
+			mockHTTPClient: func(r *http.Request) *http.Response {
+				cookie := r.Header.Get("Cookie")
+				if cookie != "_oauth2_proxy=session-cookie" {
+					return &http.Response{
+						StatusCode: http.StatusUnauthorized,
+						Body:       io.NopCloser(bytes.NewBufferString(`{"error": "Invalid credentials"}`)),
+					}
+				}
+				// Return a valid response body for the cookie-only case
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewBufferString(successResponseBody)),
+				}
+			},
+			expectCache:      false,
+			expectError:      false,
+			expectedUsername: "test",
+		},
+	}
+
+	for _, testCase := range tests {
+		suite.Run(testCase.name, func() {
+			mockedHTTPClient := testutils.CreateDummyHTTPClient(testCase.mockHTTPClient)
+
+			authConfig := authpkg.NewConfig(authpkg.KindIguazioV4)
+			authConfig.Iguazio.VerificationURL = "http://somewhere.local/identity/self"
+
+			authInstance := suite.newAuthWithMockHTTPClient(authConfig, mockedHTTPClient)
+			authOptions := &authpkg.Options{}
+			req, err := http.NewRequest("post", "", nil)
+			suite.Require().NoError(err)
+
+			for key, value := range testCase.headers {
+				req.Header.Set(key, value)
+			}
+
+			// Step A: Authenticate and check cache behavior
+			_, err = authInstance.Authenticate(req, authOptions)
+			if testCase.expectError {
+				suite.Require().Error(err)
+			} else {
+				suite.Require().NoError(err)
+			}
+
+			if testCase.expectCache {
+				suite.Require().NotEmpty(authInstance.Cache.Keys())
+
+				// Step B: Re-authenticate and read from cache
+				authInstance.HttpClient = nil
+				session, err := authInstance.Authenticate(req, authOptions)
+				suite.Require().NoError(err)
+				suite.Require().Equal(testCase.expectedUsername, session.GetUsername())
+				suite.Require().Equal(testCase.expectedGroupIDs, session.GetGroupIDs())
+
+				// Remove the cached session
+				authInstance.Cache.Remove(authInstance.Cache.Keys()[0])
+			} else {
+				suite.Require().Empty(authInstance.Cache.Keys())
+			}
+		})
+	}
+}
+
+func (suite *AuthTestSuite) newAuthWithMockHTTPClient(authConfig *authpkg.Config, mockHttpClient *http.Client) *Auth {
 	authInstance := NewAuth(suite.logger, authConfig)
 	authInstanceIGZ := authInstance.(*Auth)
 	authInstanceIGZ.HttpClient = mockHttpClient

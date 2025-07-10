@@ -61,15 +61,12 @@ func (a *Auth) GetAuthParameters(request *http.Request, options *authpkg.Options
 
 	authCookiesOnlyHeaderValue := common.CookiesToHeaderValue([]*http.Cookie{oauth2Cookie})
 
-	// do not pass URL as it's always the same for v4 auth
-	cacheKey := a.GenerateCacheKey(authCookiesOnlyHeaderValue, authorizationHeader, "")
-
 	return iguazio.NewAuthParameters(
 		ctx,
 		authorizationHeader,
 		authCookiesOnlyHeaderValue,
 		a.GetConfig().Iguazio.VerificationURL,
-		cacheKey), nil
+		true), nil
 }
 
 func (a *Auth) ValidateResponse(response *http.Response) error {

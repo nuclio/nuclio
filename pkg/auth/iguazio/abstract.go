@@ -18,7 +18,6 @@ package iguazio
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"net/http"
 	"strings"
@@ -72,9 +71,12 @@ func (a *AbstractAuth) Authenticate(request *http.Request, options *authpkg.Opti
 		return nil, errors.Wrap(err, "Failed to get authentication parameters")
 	}
 
-	// Attempt to retrieve the session from cache using the context as the key
-	if cacheData := a.getFromCacheWithTypeCheck(authParams.cacheKey); cacheData != nil {
-		return cacheData, nil
+	cacheKey, err := authParams.GenerateCacheKey()
+	if err == nil {
+		// Attempt to retrieve the session from cache using the context as the key
+		if cacheData := a.getFromCacheWithTypeCheck(cacheKey); cacheData != nil {
+			return cacheData, nil
+		}
 	}
 
 	// Construct and send the identity request
@@ -104,8 +106,7 @@ func (a *AbstractAuth) Authenticate(request *http.Request, options *authpkg.Opti
 		return nil, errors.Wrap(err, "Failed to extract session from response")
 	}
 
-	// Generate a cache key based on the authentication parameters
-	a.Cache.Add(authParams.cacheKey, session, a.GetConfig().Iguazio.CacheExpirationTimeout)
+	a.updateCache(authParams, session)
 
 	return session, nil
 }
@@ -142,11 +143,6 @@ func (a *AbstractAuth) ConstructAndSendIdentityRequest(authParams *AuthParameter
 		return nil, errors.Wrap(err, "Failed to perform request to identity service")
 	}
 	return resp, nil
-}
-
-func (a *AbstractAuth) GenerateCacheKey(authCookiesOnlyHeaderValue, authorizationHeader, url string) [32]byte {
-	// generate cache key based on authorization header and URL
-	return sha256.Sum256([]byte(authCookiesOnlyHeaderValue + authorizationHeader + url))
 }
 
 func (a *AbstractAuth) PerformHTTPRequest(ctx context.Context, request *http.Request) (*http.Response, error) {
@@ -209,6 +205,31 @@ func (a *AbstractAuth) getFromCacheWithTypeCheck(cacheKey [32]byte) authpkg.Sess
 		}
 	}
 	return nil
+}
+
+func (a *AbstractAuth) updateCache(authParams *AuthParameters, session authpkg.Session) {
+	cacheKey, err := authParams.GenerateCacheKey()
+	if err != nil {
+		// if no cache key is provided, do not cache the session
+		return
+	}
+	if session == nil {
+		a.Logger.WarnWithCtx(authParams.ctx,
+			"Session is nil, not caching",
+			"cacheKey", cacheKey)
+		return
+	}
+
+	// check expiry date in the authentication header
+	expirationTimeout, err := authParams.TimeUntilExpiration(a.GetConfig().Iguazio.CacheExpirationTimeout)
+	if err != nil {
+		a.Logger.WarnWithCtx(authParams.ctx,
+			"Failed to get time until expiration, not caching",
+			"err", err.Error())
+		return
+	}
+
+	a.Cache.Add(cacheKey, session, expirationTimeout)
 }
 
 // buildIdentityRequest creates the HTTP request to the identity service

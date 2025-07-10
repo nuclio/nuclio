@@ -64,14 +64,13 @@ func (a *Auth) GetAuthParameters(request *http.Request, options *authpkg.Options
 	}
 
 	url := a.resolveUrl(options)
-	cacheKey := a.GenerateCacheKey(authCookiesOnlyHeaderValue, authorization, url)
 
 	return iguazio.NewAuthParameters(
 		ctx,
 		authorization,
 		authCookiesOnlyHeaderValue,
 		url,
-		cacheKey), nil
+		false), nil
 }
 
 func (a *Auth) ValidateResponse(response *http.Response) error {
