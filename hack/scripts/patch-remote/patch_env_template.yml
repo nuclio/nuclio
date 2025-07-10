@@ -31,6 +31,8 @@ DOCKER_REGISTRY:
 PATCH_TARGETS:
 #  - "dashboard"
 #  - "controller"
+#  - "dlx"
+#  - "autoscaler"
 
 # Optional: Nuclio version to patch to (e.g 1.12.14). If not set, will resolve the current version from the
 # remote system and patch to the same version
@@ -42,6 +44,9 @@ NAMESPACE:
 
 # Optional: Nuclio architecture to build the target images (amd64, arm64)
 NUCLIO_ARCH:
+
+# Optional: The base OS for building target images. Defaults to "linux" if not specified.
+#NUCLIO_OS:
 
 # Optional: Use when your registry is connected to a DNS which is accessible from the cluster
 # For iguazio datanode registry use:

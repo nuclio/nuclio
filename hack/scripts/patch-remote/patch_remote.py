@@ -131,7 +131,7 @@ class NuclioPatcher:
             if _targets
             else self._config.get("PATCH_TARGETS", ["dashboard"])
         )
-        if len(targets) == 0:
+        if not targets or len(targets) == 0:
             raise RuntimeError("No targets to patch")
         for target in targets:
             if target not in Helper.supported_targets:
@@ -252,14 +252,14 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        container = self._get_deployment_name(target)
+        deployment_name = self._get_deployment_name(target)
         image = self._get_target_image_name(target, self._tag)
         if self._config.get("OVERWRITE_IMAGE_REGISTRY"):
             image = image.replace(
                 self._config["DOCKER_REGISTRY"],
                 self._config["OVERWRITE_IMAGE_REGISTRY"],
             )
-        self._logger.info(f"Replacing {container} in {target} deployment")
+        self._logger.info(f"Replacing {deployment_name} in {target} deployment")
         self._exec_remote(
             [
                 "kubectl",
@@ -267,8 +267,8 @@ class NuclioPatcher:
                 self._namespace,
                 "set",
                 "image",
-                f"deployment/{container}",
-                f"{container}={image}",
+                f"deployment/{deployment_name}",
+                f"{deployment_name}={image}",
             ]
         )
 
