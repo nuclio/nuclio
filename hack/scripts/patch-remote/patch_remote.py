@@ -79,10 +79,10 @@ class NuclioPatcher:
         self._user = self._config.get("SSH_USER", "")
         self._targets = self._resolve_targets(targets)
         self._tag = self._config.get("NUCLIO_TAG", "")
-        self._arch = self._config.get("NUCLIO_ARCH", "amd64")
+        self._arch = self._config.get("NUCLIO_ARCH", "amd64") or "amd64"
         self._namespace = self._config.get("NAMESPACE", "nuclio")
         self._private_key = private_key
-        self._os = self._config.get("NUCLIO_OS", "linux")
+        self._os = self._config.get("NUCLIO_OS", "linux") or "linux"
 
     def patch_nuclio(self):
         self._logger.info(

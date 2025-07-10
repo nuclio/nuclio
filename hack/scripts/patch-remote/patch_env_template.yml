@@ -46,7 +46,7 @@ NAMESPACE:
 NUCLIO_ARCH:
 
 # Optional: The base OS for building target images. Defaults to "linux" if not specified.
-#NUCLIO_OS:
+NUCLIO_OS:
 
 # Optional: Use when your registry is connected to a DNS which is accessible from the cluster
 # For iguazio datanode registry use:
