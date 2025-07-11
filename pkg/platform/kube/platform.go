@@ -1414,6 +1414,10 @@ func (p *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *f
 		return errors.Wrap(err, "Service type validation failed")
 	}
 
+	if err := p.validateServiceAccount(ctx, functionConfig); err != nil {
+		return errors.Wrap(err, "Service account validation failed")
+	}
+
 	if err := p.validateInitContainersSpec(functionConfig); err != nil {
 		return errors.Wrap(err, "Init containers validation failed")
 	}
@@ -1948,6 +1952,88 @@ func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) er
 	}
 }
 
+func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) error {
+	// if function does not have service account specified, skip validation
+	// it will be enriched later by the controller
+	if functionConfig.Spec.ServiceAccount == "" {
+		return nil
+	}
+
+	// check if the service account is allowed
+	return p.isServiceAccountAllowed(ctx, functionConfig)
+}
+
+func (p *Platform) isServiceAccountAllowed(ctx context.Context, functionConfig *functionconfig.Config) error {
+	projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
+	if !ok {
+		return errors.New("Function does not have a project label, cannot validate service account")
+	}
+
+	// fetch the secret from Kubernetes
+	secret, err := p.getProjectSecret(ctx, projectName, functionConfig.Meta.Namespace)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get project secret. Project: %s", projectName)
+	}
+
+	if secret == nil {
+		// if the secret does not exist, skip validation
+		return nil
+	}
+
+	// get the key name to use for allowed service accounts
+	if p.Config.Kube.ProjectSecretAllowedServiceAccountsKey == "" {
+		p.Logger.DebugWithCtx(ctx, "Skipping service account secret validation as no `projectSecretAllowedServiceAccountsKey` is configured")
+		return nil
+	}
+
+	allowedRaw, ok := secret.Data[p.Config.Kube.ProjectSecretAllowedServiceAccountsKey]
+	if !ok {
+		// no restriction , so allow any SA
+		return nil
+	}
+
+	allowedSAs := strings.Split(string(allowedRaw), ",")
+
+	// trim spaces and check membership
+	requestedSA := strings.TrimSpace(functionConfig.Spec.ServiceAccount)
+	for _, sa := range allowedSAs {
+		if strings.TrimSpace(sa) == requestedSA {
+			return nil // valid SA
+		}
+	}
+
+	return errors.Errorf("ServiceAccount %q is not in the list of allowed service accounts for project %q",
+		requestedSA, projectName)
+}
+
+func (p *Platform) getProjectSecret(ctx context.Context, projectName, namespace string) (*v1.Secret, error) {
+	// if project secret template is not specified, return empty data
+	if p.Config.Kube.ProjectSecretTemplate == "" {
+		return nil, nil
+	}
+
+	// render the project secret name using the template
+	templateData := map[string]interface{}{
+		"ProjectName": projectName,
+		"Namespace":   namespace,
+	}
+	secretName, err := p.renderProjectSecretName(templateData)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to render project secret name")
+	}
+
+	// fetch the secret from Kubernetes
+	projectSecret, err := p.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		// if not found, skip validation
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, errors.Wrapf(err, "Failed to get secret %s", secretName)
+	}
+	return projectSecret, nil
+}
+
 func (p *Platform) validateCronTriggers(functionConfig *functionconfig.Config) error {
 	if functionConfig.Spec.DisableDefaultHTTPTrigger != nil && *functionConfig.Spec.DisableDefaultHTTPTrigger &&
 		len(functionconfig.GetTriggersByKind(functionConfig.Spec.Triggers, "cron")) > 0 &&
@@ -2268,6 +2354,17 @@ func (p *Platform) renderIngressHost(ctx context.Context, ingressHostTemplate st
 	}
 
 	return p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength), nil
+}
+
+func (p *Platform) renderProjectSecretName(templateData map[string]interface{}) (string, error) {
+	if p.Config.Kube.ProjectSecretTemplate == "" {
+		return "", nil
+	}
+	renderedIngressHost, err := common.RenderTemplate(p.Config.Kube.ProjectSecretTemplate, templateData)
+	if err != nil {
+		return "", err
+	}
+	return renderedIngressHost, nil
 }
 
 // will take a host, split to "."
