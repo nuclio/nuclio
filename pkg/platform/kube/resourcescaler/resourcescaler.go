@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/scaler/pkg/scalertypes"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -149,6 +150,10 @@ func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, e
 		n.platformConfiguration.ScaleToZero.ScalerInterval = "1m"
 	}
 
+	if n.platformConfiguration.ScaleToZero.ResyncInterval == "" {
+		n.platformConfiguration.ScaleToZero.ResyncInterval = "1m"
+	}
+
 	scaleInterval, err := time.ParseDuration(n.platformConfiguration.ScaleToZero.ScalerInterval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse scaler interval duration")
@@ -157,6 +162,11 @@ func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, e
 	resourceReadinessTimeout, err := time.ParseDuration(n.platformConfiguration.ScaleToZero.ResourceReadinessTimeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse resource readiness timeout")
+	}
+
+	resyncInterval, err := time.ParseDuration(n.platformConfiguration.ScaleToZero.ResyncInterval)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse resync interval")
 	}
 
 	return &scalertypes.ResourceScalerConfig{
@@ -169,13 +179,16 @@ func (n *NuclioResourceScaler) GetConfig() (*scalertypes.ResourceScalerConfig, e
 			},
 		},
 		DLXOptions: scalertypes.DLXOptions{
-			Namespace:                n.namespace,
-			TargetPort:               8080,
-			TargetNameHeader:         headers.TargetName,
-			TargetPathHeader:         "X-Nuclio-Function-Path",
-			ListenAddress:            ":8080",
-			ResourceReadinessTimeout: scalertypes.Duration{Duration: resourceReadinessTimeout},
-			MultiTargetStrategy:      n.platformConfiguration.ScaleToZero.MultiTargetStrategy,
+			Namespace:                         n.namespace,
+			TargetPort:                        8080,
+			TargetNameHeader:                  headers.TargetName,
+			TargetPathHeader:                  "X-Nuclio-Function-Path",
+			ListenAddress:                     ":8080",
+			ResourceReadinessTimeout:          scalertypes.Duration{Duration: resourceReadinessTimeout},
+			MultiTargetStrategy:               n.platformConfiguration.ScaleToZero.MultiTargetStrategy,
+			ResyncInterval:                    scalertypes.Duration{Duration: resyncInterval},
+			LabelSelector:                     common.NuclioLabelKeyClass,
+			ResolveTargetsFromIngressCallback: ResolveTargetsFromIngressCallback,
 		},
 	}, nil
 }
@@ -394,4 +407,21 @@ func (n *NuclioResourceScaler) verifyReadiness(ctx context.Context, function *nu
 		return errors.Wrap(err, "Exhausted waiting for function readiness verification")
 	}
 	return nil
+}
+
+// ResolveTargetsFromIngressCallback is scalertype.ResolveTargetsFromIngressCallback callback that extracts
+// Nuclio function target names from the ingress labels
+func ResolveTargetsFromIngressCallback(ingress *networkingv1.Ingress) ([]string, error) {
+	if ingress == nil {
+		return nil, errors.New("Ingress is nil")
+	}
+
+	if resourceLabelName, exists := ingress.Labels[common.NuclioResourceLabelKeyFunctionName]; exists {
+		if canaryLabelName, exists := ingress.Labels[common.NuclioResourceLabelKeyCanaryFunctionName]; exists {
+			return []string{resourceLabelName, canaryLabelName}, nil
+		}
+		return []string{resourceLabelName}, nil
+	}
+
+	return nil, errors.New(fmt.Sprintf("Failed to resolve ingress targets, no function name labels found. ingressName: %s", ingress.Name))
 }

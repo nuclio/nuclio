@@ -113,6 +113,9 @@ type ScaleToZero struct {
 	// Used for DLX options, selects in which way to send invocation when multiple targets are given:
 	// random, primary or canary.
 	MultiTargetStrategy scalertypes.MultiTargetStrategy `json:"multiTargetStrategy,omitempty"`
+
+	// Used for DLX options, specifies how often the DLX resync it's internal state
+	ResyncInterval string `json:"resyncInterval,omitempty"`
 }
 
 type ScaleToZeroMode string
