@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/v3io/scaler/pkg/dlx"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	// load all sinks
@@ -95,6 +96,11 @@ func newDLX(platformConfigurationPath string,
 	resourceScalerConfig, err := resourceScaler.GetConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get resource scaler config")
+	}
+
+	resourceScalerConfig.DLXOptions.KubeClientSet, err = kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create k8s client set")
 	}
 
 	// create dlx instance
