@@ -364,12 +364,11 @@ func (lc *lazyClient) enrichPrimaryIngressResources(primaryIngressResources *ing
 	}
 	encodedPrimaryTargetHeader := fmt.Sprintf(`proxy_set_header X-Nuclio-Target "%s";`, targetHeaderValue)
 	annotations := primaryIngressResources.Ingress.Annotations
-	configurationSnippetHeaderName := "nginx.ingress.kubernetes.io/configuration-snippet"
 
-	if _, headerExists := annotations[configurationSnippetHeaderName]; headerExists {
-		annotations[configurationSnippetHeaderName] += fmt.Sprintf("\n%s", encodedPrimaryTargetHeader)
+	if _, headerExists := annotations[common.NginxConfigurationSnippetAnnotationKey]; headerExists {
+		annotations[common.NginxConfigurationSnippetAnnotationKey] += fmt.Sprintf("\n%s", encodedPrimaryTargetHeader)
 	} else {
-		annotations[configurationSnippetHeaderName] = encodedPrimaryTargetHeader
+		annotations[common.NginxConfigurationSnippetAnnotationKey] = encodedPrimaryTargetHeader
 	}
 
 	// set nuclio labels for ingress

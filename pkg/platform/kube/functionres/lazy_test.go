@@ -186,7 +186,7 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			suite.Require().NotEmpty(ingressInstance.Annotations)
 
 			// make sure user function annotations exists
-			delete(ingressInstance.Annotations, "nginx.ingress.kubernetes.io/configuration-snippet")
+			delete(ingressInstance.Annotations, common.NginxConfigurationSnippetAnnotationKey)
 			suite.Require().Equal(testCase.expectedFunctionIngressAnnotations,
 				ingressInstance.Annotations)
 		})

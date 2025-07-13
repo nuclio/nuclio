@@ -2301,7 +2301,7 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 	}
 
 	// set nuclio target header on ingress
-	meta.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"] = fmt.Sprintf(
+	meta.Annotations[common.NginxConfigurationSnippetAnnotationKey] = fmt.Sprintf(
 		`proxy_set_header X-Nuclio-Target "%s";`, function.Name)
 
 	// Check if function is a scale to zero candidate
