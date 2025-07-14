@@ -29,7 +29,7 @@ import yaml
 
 
 class Helper:
-    supported_targets = ["dashboard", "controller"]
+    supported_targets = ["dashboard", "controller", "dlx", "autoscaler"]
 
     @staticmethod
     def run_on_all_targets(func):
@@ -64,18 +64,25 @@ class NuclioPatcher:
                 },
             },
         }
+        deployment_names_dict = {
+            "dashboard": "nuclio-dashboard",
+            "controller": "nuclio-controller",
+            "dlx": "nuclio-dlx",
+            "autoscaler": "nuclio-scaler"
+        }
 
     def __init__(self, conf_file, private_key, targets, verbose):
         self._config = yaml.safe_load(conf_file)
         self._validate_config()
-        self._logger = self._init_logger(verbose or self._config.get("VERBOSE", False))
-        self._node = self._config.get("HOST_IP", "")
-        self._user = self._config.get("SSH_USER", "")
+        self._logger = self._init_logger(verbose or self._get_config_value_or_default("VERBOSE", False))
+        self._node = self._get_config_value_or_default("HOST_IP", "")
+        self._user = self._get_config_value_or_default("SSH_USER", "")
         self._targets = self._resolve_targets(targets)
-        self._tag = self._config.get("NUCLIO_TAG", "")
-        self._arch = self._config.get("NUCLIO_ARCH", "amd64")
-        self._namespace = self._config.get("NAMESPACE", "nuclio")
+        self._tag = self._get_config_value_or_default("NUCLIO_TAG", "")
+        self._arch = self._get_config_value_or_default("NUCLIO_ARCH", "amd64")
+        self._namespace = self._get_config_value_or_default("NAMESPACE", "nuclio")
         self._private_key = private_key
+        self._os = self._get_config_value_or_default("NUCLIO_OS", "linux")
 
     def patch_nuclio(self):
         self._logger.info(
@@ -130,7 +137,7 @@ class NuclioPatcher:
             if _targets
             else self._config.get("PATCH_TARGETS", ["dashboard"])
         )
-        if len(targets) == 0:
+        if not targets:
             raise RuntimeError("No targets to patch")
         for target in targets:
             if target not in Helper.supported_targets:
@@ -144,7 +151,7 @@ class NuclioPatcher:
 
         # resolve the current version running in the remote system by examining the deployment of one of the targets
         self._logger.debug("Resolving current version from remote system")
-        deployment_name = f"nuclio-{self._targets[0]}"
+        deployment_name = self.Consts.deployment_names_dict[self._targets[0]]
         version = self._exec_remote(
             [
                 "kubectl",
@@ -172,6 +179,10 @@ class NuclioPatcher:
             ],
         )
         self._tag = version.strip()
+
+    def _get_config_value_or_default(self, key: str, default):
+        value = self._config.get(key, default)
+        return default if value is None else value
 
     @staticmethod
     def _get_image_tag(tag) -> str:
@@ -204,6 +215,7 @@ class NuclioPatcher:
             "NUCLIO_LABEL": self._tag,
             "NUCLIO_ARCH": self._arch,
             "DOCKER_IMAGES_RULES": image_rules,
+            "NUCLIO_OS": self._os,
         }
         cmd = [
             "make",
@@ -217,7 +229,7 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        deployment_name = f"nuclio-{target}"
+        deployment_name = self.Consts.deployment_names_dict[target]
         patch_string = self._generate_patch_string(deployment_name)
 
         self._logger.info(f"Patching {deployment_name} deployment")
@@ -244,7 +256,7 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        container = f"nuclio-{target}"
+        container = deployment_name = self.Consts.deployment_names_dict[target]
         image = self._get_target_image_name(target, self._tag)
         if self._config.get("OVERWRITE_IMAGE_REGISTRY"):
             image = image.replace(
@@ -259,7 +271,7 @@ class NuclioPatcher:
                 self._namespace,
                 "set",
                 "image",
-                f"deployment/nuclio-{target}",
+                f"deployment/{deployment_name}",
                 f"{container}={image}",
             ]
         )
@@ -272,7 +284,8 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        self._logger.info(f"Restarting {target} deployment")
+        deployment_name = self.Consts.deployment_names_dict[target]
+        self._logger.info(f"Restarting {deployment_name} deployment")
         self._exec_remote(
             [
                 "kubectl",
@@ -281,7 +294,7 @@ class NuclioPatcher:
                 "rollout",
                 "restart",
                 "deployment",
-                f"nuclio-{target}",
+                deployment_name,
             ]
         )
 
@@ -290,7 +303,8 @@ class NuclioPatcher:
         if target not in self._targets:
             return
 
-        self._logger.info(f"Waiting for {target} deployment to become ready")
+        deployment_name = self.Consts.deployment_names_dict[target]
+        self._logger.info(f"Waiting for {deployment_name} deployment to become ready")
         self._exec_remote(
             [
                 "kubectl",
@@ -299,7 +313,7 @@ class NuclioPatcher:
                 "rollout",
                 "status",
                 "deployment",
-                f"nuclio-{target}",
+                deployment_name,
                 "--timeout=240s",
             ],
             live=True,
