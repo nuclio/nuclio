@@ -73,14 +73,14 @@ func (a *AbstractAuth) Authenticate(request *http.Request, options *authpkg.Opti
 
 	cacheKey, err := authParams.GenerateCacheKey()
 	if err == nil {
-		// Attempt to retrieve the session from cache using the context as the key
-		if cacheData := a.getFromCacheWithTypeCheck(cacheKey); cacheData != nil {
-			return cacheData, nil
+		// Attempt to retrieve the session
+		if cachedSession := a.getFromCacheWithTypeCheck(cacheKey); cachedSession != nil {
+			return cachedSession, nil
 		}
 	}
 
 	// Construct and send the identity request
-	resp, err := a.ConstructAndSendIdentityRequest(authParams)
+	resp, err := a.constructAndSendIdentityRequest(authParams)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to construct and send identity request")
 	}
@@ -132,20 +132,20 @@ func (a *AbstractAuth) Middleware(options *authpkg.Options) func(next http.Handl
 	}
 }
 
-func (a *AbstractAuth) ConstructAndSendIdentityRequest(authParams *AuthParameters) (*http.Response, error) {
+func (a *AbstractAuth) constructAndSendIdentityRequest(authParams *AuthParameters) (*http.Response, error) {
 	req, err := a.buildIdentityRequest(authParams)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build identity request")
 	}
 
-	resp, err := a.PerformHTTPRequest(authParams.ctx, req)
+	resp, err := a.performHTTPRequest(authParams.ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to perform request to identity service")
 	}
 	return resp, nil
 }
 
-func (a *AbstractAuth) PerformHTTPRequest(ctx context.Context, request *http.Request) (*http.Response, error) {
+func (a *AbstractAuth) performHTTPRequest(ctx context.Context, request *http.Request) (*http.Response, error) {
 	var lastResponse *http.Response
 	var lastError error
 	var err error
