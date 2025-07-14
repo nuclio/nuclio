@@ -1990,12 +1990,6 @@ func (p *Platform) isServiceAccountAllowed(ctx context.Context, functionConfig *
 		return nil
 	}
 
-	// get the key name to use for allowed service accounts
-	if p.Config.Kube.ProjectSecretAllowedServiceAccountsKey == "" {
-		p.Logger.DebugWithCtx(ctx, "Skipping service account secret validation as no `projectSecretAllowedServiceAccountsKey` is configured")
-		return nil
-	}
-
 	allowedRaw, ok := secret.Data[p.Config.Kube.ProjectSecretAllowedServiceAccountsKey]
 	if !ok {
 		// no restriction , so allow any SA
@@ -2367,9 +2361,6 @@ func (p *Platform) renderIngressHost(ctx context.Context, ingressHostTemplate st
 }
 
 func (p *Platform) renderProjectSecretName(templateData map[string]interface{}) (string, error) {
-	if p.Config.Kube.ProjectSecretTemplate == "" {
-		return "", nil
-	}
 	renderedIngressHost, err := common.RenderTemplate(p.Config.Kube.ProjectSecretTemplate, templateData)
 	if err != nil {
 		return "", err
