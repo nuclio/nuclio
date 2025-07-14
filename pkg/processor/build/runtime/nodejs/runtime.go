@@ -39,7 +39,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config,
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "gcr.io/iguazio/node:10.20-alpine"
+	processorDockerfileInfo.BaseImage = "gcr.io/iguazio/node:14.21"
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
