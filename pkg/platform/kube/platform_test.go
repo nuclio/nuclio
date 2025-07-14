@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -1111,6 +1112,145 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 				suite.Require().Equal(1, len(functions))
 				suite.Require().Equal(functionName, functions[0].GetConfig().Meta.Name)
 			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccount() {
+
+	projectName := "test-project"
+	secretName := fmt.Sprintf("nuclio-project-secrets-%s", projectName)
+	allowedKey := "allowed-sa-key"
+	allowedSAs := []string{"sa1", "sa2"}
+
+	oldAllowedKey := suite.platform.Config.Kube.ProjectSecretAllowedServiceAccountsKey
+	suite.platform.Config.Kube.ProjectSecretAllowedServiceAccountsKey = allowedKey
+
+	oldProjectSecretTemplate := suite.platform.Config.Kube.ProjectSecretTemplate
+	suite.platform.Config.Kube.ProjectSecretTemplate = "nuclio-project-secrets-{{ .ProjectName }}"
+	// revert the change
+	defer func() {
+		suite.platform.Config.Kube.ProjectSecretAllowedServiceAccountsKey = oldAllowedKey
+		suite.platform.Config.Kube.ProjectSecretTemplate = oldProjectSecretTemplate
+	}()
+
+	createSecret := func(data map[string][]byte) *v1.Secret {
+		return &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: suite.Namespace,
+			},
+			Data: data,
+		}
+	}
+
+	for _, testcase := range []struct {
+		name          string
+		secret        *v1.Secret
+		configKey     string
+		requestedSA   string
+		expectedError string
+	}{
+		{
+			name:        "AllowedServiceAccount",
+			secret:      createSecret(map[string][]byte{allowedKey: []byte(strings.Join(allowedSAs, ","))}),
+			configKey:   allowedKey,
+			requestedSA: "sa1",
+		},
+		{
+			name:          "DisallowedServiceAccount",
+			secret:        createSecret(map[string][]byte{allowedKey: []byte(strings.Join(allowedSAs, ","))}),
+			configKey:     allowedKey,
+			requestedSA:   "sa3",
+			expectedError: "ServiceAccount \"sa3\" is not in the list of allowed service accounts",
+		},
+		{
+			name:        "NoRestrictionKeyMissing",
+			secret:      createSecret(map[string][]byte{"other-key": []byte("irrelevant")}),
+			configKey:   allowedKey,
+			requestedSA: "sa3",
+		},
+		{
+			name:        "SecretNotFound",
+			secret:      nil,
+			configKey:   allowedKey,
+			requestedSA: "sa1",
+		},
+		{
+			name:        "AllowedServiceAccountsKeyNotConfigured",
+			secret:      createSecret(map[string][]byte{allowedKey: []byte(strings.Join(allowedSAs, ","))}),
+			configKey:   "",
+			requestedSA: "sa1",
+		},
+	} {
+		suite.Run(testcase.name, func() {
+			functionConfig := &functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Namespace: suite.Namespace,
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: projectName,
+					},
+				},
+				Spec: functionconfig.Spec{
+					ServiceAccount: testcase.requestedSA,
+				},
+			}
+
+			if testcase.secret != nil {
+				_, err := suite.kubeClientSet.CoreV1().Secrets(suite.Namespace).Create(suite.ctx, testcase.secret, metav1.CreateOptions{})
+				suite.Require().NoError(err)
+
+				defer suite.kubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(suite.ctx, testcase.secret.Name, metav1.DeleteOptions{}) //nolint:errcheck
+			}
+
+			err := suite.platform.validateServiceAccount(suite.ctx, functionConfig)
+			if testcase.expectedError != "" {
+				suite.Require().Error(err, testcase.expectedError)
+			} else {
+				suite.Require().NoError(err)
+			}
+		})
+	}
+}
+
+func (suite *FunctionKubePlatformTestSuite) TestRenderProjectSecretName() {
+	templateData := map[string]interface{}{
+		"ProjectName": "myproj",
+		"Namespace":   "ns1",
+	}
+	testCases := []struct {
+		name               string
+		template           string
+		expectedSecretName string
+	}{
+		{
+			name:               "WithProjectAndNamespace",
+			template:           "nuclio-project-secrets-{{ .ProjectName }}-{{ .Namespace }}",
+			expectedSecretName: "nuclio-project-secrets-myproj-ns1",
+		},
+		{
+			name:               "WithProjectOnly",
+			template:           "nuclio-project-secrets-{{ .ProjectName }}",
+			expectedSecretName: "nuclio-project-secrets-myproj",
+		},
+		{
+			name:               "Empty",
+			expectedSecretName: "",
+		},
+	}
+
+	for _, testCase := range testCases {
+		suite.Run(testCase.name, func() {
+			oldProjectSecretTemplate := suite.platform.Config.Kube.ProjectSecretTemplate
+			suite.platform.Config.Kube.ProjectSecretTemplate = testCase.template
+			// revert the change
+			defer func() {
+				suite.platform.Config.Kube.ProjectSecretTemplate = oldProjectSecretTemplate
+			}()
+
+			secretName, err := suite.platform.renderProjectSecretName(templateData)
+			suite.Require().NoError(err)
+			suite.Require().Equal(testCase.expectedSecretName, secretName)
 		})
 	}
 }
