@@ -37,7 +37,7 @@ func (r *ruby) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, o
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-	processorDockerfileInfo.BaseImage = "ruby:2.4.4-alpine"
+	processorDockerfileInfo.BaseImage = "gcr.io/iguazio/ruby:2.4.4-alpine"
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
 		"handler": "/opt/nuclio",
