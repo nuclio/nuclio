@@ -53,7 +53,7 @@ import (
 )
 
 func Streamer(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-    streamType := strings.ToLower(string(event.GetBody()))
+    // Create a new response stream with "text/plain" content type and status code 200
     responseStream := nuclio.NewResponseStream(
         "text/plain",
         map[string]interface{}{
@@ -61,17 +61,25 @@ func Streamer(context *nuclio.Context, event nuclio.Event) (interface{}, error) 
         },
         200,
     )
-
+    // Create a channel to communicate when streaming starts or fails
+    // Optional, but useful for catching errors
     startStreamErr := make(chan error)
 
+    // Start streaming in a separate goroutine
     go func() {
+        // Ensure stream is properly closed at the end of the goroutine
         defer responseStream.StopStreaming()
+
+        // Notify the main thread that streaming has started successfully
         startStreamErr <- nil
+
+        // Stream data chunk by chunk
         for ch := 'A'; ch <= 'Z'; ch++ {
             chunk := fmt.Sprintf("%c", ch)
             responseStream.SendChunk([]byte(chunk))
         }
     }()
+    // Wait for the goroutine to report an error or success before returning the response
     err := <-startStreamErr
     return responseStream, err
 }
@@ -89,27 +97,27 @@ import aiofile
 file_path = "/tmp/stream_outputter_lines.txt"
 
 # yielding chunks asynchronously
-async def stream_file_lines_async(context, event):
+async def stream_file_lines_async_handler(context, event):
     # Stream the file line by line asynchronously
     async with aiofile.AIOFile(file_path, "r") as afp:
         async for line in aiofile.LineReader(afp):
             yield line
 
 # returning a context.Response with an async generator as the body
-async def stream_file_lines_as_response_async(context, event):
-    return context.Response(body=stream_file_lines_async(context, event))
+async def stream_file_lines_as_response_async_handler(context, event):
+    return context.Response(body=stream_file_lines_async_handler(context, event))
 ```
 
 #### Synchronous generator example
 
 ```python
 # yielding chunks
-def stream_file_lines_sync(context, event):
+def stream_file_lines_sync_handler(context, event):
     with open(file_path, "r") as f:
         for line in f:
             yield line
 
 # returning a context.Response with an async generator as the body
-async def stream_file_lines_as_response_sync(context, event):
-    return context.Response(body=stream_file_lines_sync(context, event))
+async def stream_file_lines_as_response_sync_handler(context, event):
+    return context.Response(body=stream_file_lines_sync_handler(context, event))
 ```
