@@ -1954,8 +1954,18 @@ func (p *Platform) validateServiceType(functionConfig *functionconfig.Config) er
 
 func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *functionconfig.Config) error {
 	// if function does not have service account specified, skip validation
-	// it will be enriched later by the controller
 	if functionConfig.Spec.ServiceAccount == "" {
+		return nil
+	}
+
+	// if project secret template is not specified, skip validation
+	if p.Config.Kube.ProjectSecretTemplate == "" {
+		return nil
+	}
+
+	// if project secret allowed service accounts key is not configured, skip validation
+	if p.Config.Kube.ProjectSecretAllowedServiceAccountsKey == "" {
+		p.Logger.DebugWithCtx(ctx, "Skipping service account secret validation as no `projectSecretAllowedServiceAccountsKey` is configured")
 		return nil
 	}
 
@@ -1995,14 +2005,14 @@ func (p *Platform) isServiceAccountAllowed(ctx context.Context, functionConfig *
 	allowedSAs := strings.Split(string(allowedRaw), ",")
 
 	// trim spaces and check membership
-	requestedSA := strings.TrimSpace(functionConfig.Spec.ServiceAccount)
+	requestedSA := strings.ToLower(strings.TrimSpace(functionConfig.Spec.ServiceAccount))
 	for _, sa := range allowedSAs {
-		if strings.TrimSpace(sa) == requestedSA {
-			return nil // valid SA
+		if strings.ToLower(strings.TrimSpace(sa)) == requestedSA {
+			return nil
 		}
 	}
 
-	return errors.Errorf("ServiceAccount %q is not in the list of allowed service accounts for project %q",
+	return errors.Errorf("Service account %q is not allowed for project %q",
 		requestedSA, projectName)
 }
 

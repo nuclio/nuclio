@@ -489,7 +489,7 @@ platform: {}
 #      nodeLabelKey: nodeLabelValue
 #    defaultServiceType: ClusterIP
 #    defaultHTTPIngressHostTemplate: ""
-#    projectSecretTemplate: "
+#    projectSecretTemplate: ""
 #    projectSecretAllowedServiceAccountsKey: ""
 #    projectSecretDefaultServiceAccountKey: ""
 #    defaultHTTPIngressAnnotations:
