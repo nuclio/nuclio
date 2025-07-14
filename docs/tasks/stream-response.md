@@ -57,7 +57,7 @@ func Streamer(context *nuclio.Context, event nuclio.Event) (interface{}, error) 
     responseStream := nuclio.NewResponseStream(
         "text/plain",
         map[string]interface{}{
-            "Content-Type": "text/plain",
+            "my-custom-header": "custom-value",
         },
         200,
     )
