@@ -17,6 +17,7 @@ limitations under the License.
 package common
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,8 +28,11 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -261,4 +265,134 @@ func EnrichProbe(probe **v1.Probe, defaultProbe *v1.Probe) {
 	if (*probe).FailureThreshold == 0 {
 		(*probe).FailureThreshold = defaultProbe.FailureThreshold
 	}
+}
+
+// GetStringValueFromSecret returns the string value from the secret by the given key and true if the key exists
+func GetStringValueFromSecret(secret *v1.Secret, key string) (string, bool) {
+	if secret == nil {
+		return "", false
+	}
+	value, ok := secret.Data[key]
+	return string(value), ok
+}
+
+func EnrichAndValidateServiceAccount(ctx context.Context,
+	kubeClient kubernetes.Interface,
+	defaultPlatformServiceAccount,
+	projectSecretTemplate,
+	projectSecretDefaultServiceAccountKey,
+	projectSecretAllowedServiceAccountsKey,
+	serviceAccount, projectName, namespace string, shouldEnrich bool) (string, error) {
+
+	// fetch the secret from Kubernetes
+	secret, err := GetProjectSecret(ctx,
+		kubeClient,
+		projectSecretTemplate,
+		projectName,
+		namespace)
+
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to get project secret. Project: %s", projectName)
+	}
+
+	if shouldEnrich {
+		serviceAccount = EnrichServiceAccount(
+			secret,
+			projectSecretDefaultServiceAccountKey,
+			serviceAccount,
+			defaultPlatformServiceAccount)
+	}
+	if err = IsServiceAccountAllowed(secret, projectSecretAllowedServiceAccountsKey, serviceAccount); err != nil {
+		return "", errors.Wrapf(err, "Service account %s is not allowed for project %s", serviceAccount, projectName)
+	}
+
+	return serviceAccount, nil
+}
+
+func GetProjectSecret(ctx context.Context, kubeClient kubernetes.Interface, projectSecretTemplate, projectName, namespace string) (*v1.Secret, error) {
+	// if project secret template is not specified, return empty data
+	if projectSecretTemplate == "" {
+		return nil, nil
+	}
+
+	// render the project secret name using the template
+	templateData := map[string]interface{}{
+		"ProjectName": projectName,
+		"Namespace":   namespace,
+	}
+	secretName, err := renderProjectSecretName(projectSecretTemplate, templateData)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to render project secret name")
+	}
+
+	// fetch the secret from Kubernetes
+	projectSecret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		// if not found, skip validation
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, errors.Wrapf(err, "Failed to get secret %s", secretName)
+	}
+	return projectSecret, nil
+}
+
+func IsServiceAccountAllowed(secret *v1.Secret, secretAllowedServiceAccountsKey string, serviceAccount string) error {
+
+	allowedServiceAccounts, found := getAllowedServiceAccountsFromSecret(secret, secretAllowedServiceAccountsKey)
+
+	// if the key is found, but is empty, treat it as no allowed service accounts configured
+	if len(allowedServiceAccounts) == 0 && found {
+		return errors.Errorf("No service accounts are allowed")
+	}
+	if len(allowedServiceAccounts) == 0 {
+		return nil
+	}
+	// trim spaces and check membership
+	requestedSA := strings.ToLower(strings.TrimSpace(serviceAccount))
+	for _, sa := range allowedServiceAccounts {
+		if strings.ToLower(strings.TrimSpace(sa)) == requestedSA {
+			return nil
+		}
+	}
+
+	return errors.Errorf("Service account %q is not allowed", requestedSA)
+}
+
+func EnrichServiceAccount(secret *v1.Secret, secretDefaultServiceAccountsKey, serviceAccount, defaultPlatformServiceAccount string) string {
+	if serviceAccount != "" {
+		return serviceAccount
+	}
+	defaultProjectSa, _ := GetStringValueFromSecret(secret, secretDefaultServiceAccountsKey)
+	if defaultProjectSa == "" {
+		return defaultPlatformServiceAccount
+	}
+	return defaultProjectSa
+}
+
+// getAllowedServiceAccountsFromSecret retrieves the allowed service accounts from the secret
+// It returns a slice of allowed service accounts and a boolean indicating if the key was found in the secret
+func getAllowedServiceAccountsFromSecret(secret *v1.Secret, secretAllowedServiceAccountsKey string) (allowedServiceAccounts []string, found bool) {
+	if secret == nil || secretAllowedServiceAccountsKey == "" {
+		return
+	}
+
+	allowed, ok := GetStringValueFromSecret(secret, secretAllowedServiceAccountsKey)
+	if !ok {
+		// if the key is not found, return empty slice
+		return
+	}
+
+	// if the key is found, set found to true and split the string by comma
+	found = true
+	allowedServiceAccounts = strings.Split(allowed, ",")
+	return
+}
+
+func renderProjectSecretName(projectSecretTemplate string, templateData map[string]interface{}) (string, error) {
+	renderedIngressHost, err := RenderTemplate(projectSecretTemplate, templateData)
+	if err != nil {
+		return "", err
+	}
+	return renderedIngressHost, nil
 }

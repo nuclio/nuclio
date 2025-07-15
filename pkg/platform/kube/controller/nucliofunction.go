@@ -248,6 +248,10 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return fo.setFunctionError(ctx, function, functionconfig.FunctionStateError, nil, errors.Wrap(err, "Failed to enrich node selectors when create/update function"))
 	}
 
+	if err := fo.enrichAndValidateServiceAccount(ctx, function); err != nil {
+		return fo.setFunctionError(ctx, function, functionconfig.FunctionStateError, nil, errors.Wrap(err, "Failed to enrich or validate service account when create/update function"))
+	}
+
 	// ensure function resources (deployment, ingress, configmap, etc ...)
 	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
@@ -549,5 +553,36 @@ func (fo *functionOperator) enrichNodeSelector(ctx context.Context, function *nu
 		"functionName", function.Name,
 		"projectName", projectName,
 		"NodeSelector", function.Status.EnrichedNodeSelector)
+	return nil
+}
+
+func (fo *functionOperator) enrichAndValidateServiceAccount(ctx context.Context, function *nuclioio.NuclioFunction) error {
+	projectName, ok := function.Labels[common.NuclioResourceLabelKeyProjectName]
+	if !ok {
+		return errors.New("Function does not have a project label, cannot validate service account")
+	}
+
+	if !fo.controller.platformConfiguration.Kube.IsConfiguredToEnrichServiceAccountFromProject() &&
+		!fo.controller.platformConfiguration.Kube.IsConfiguredToVerifyServiceAccountFromProject() {
+		// if platform is not configured to enrich and verify service account, just return
+		function.Status.EnrichedServiceAccount = function.Spec.ServiceAccount
+		return nil
+	}
+
+	enrichedServiceAccount, err := common.EnrichAndValidateServiceAccount(ctx,
+		fo.controller.kubeClientSet,
+		fo.controller.platformConfiguration.Kube.DefaultFunctionServiceAccount,
+		fo.controller.platformConfiguration.Kube.ProjectSecretTemplate,
+		fo.controller.platformConfiguration.Kube.ProjectSecretDefaultServiceAccountKey,
+		fo.controller.platformConfiguration.Kube.ProjectSecretAllowedServiceAccountsKey,
+		function.Spec.ServiceAccount,
+		projectName,
+		function.Namespace,
+		true)
+	if err != nil {
+		return errors.Wrap(err, "Failed to enrich and validate service account")
+	}
+
+	function.Status.EnrichedServiceAccount = enrichedServiceAccount
 	return nil
 }

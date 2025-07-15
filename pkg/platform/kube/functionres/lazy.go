@@ -1240,7 +1240,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 						container,
 					},
 					Volumes:            volumes,
-					ServiceAccountName: function.Spec.ServiceAccount,
+					ServiceAccountName: function.Status.EnrichedServiceAccount,
 					SecurityContext:    function.Spec.SecurityContext,
 					Affinity:           function.Spec.Affinity,
 					Tolerations:        function.Spec.Tolerations,
@@ -1319,8 +1319,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 		deployment.Spec.Template.Spec.SecurityContext = function.Spec.SecurityContext
 
-		if function.Spec.ServiceAccount != "" {
-			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
+		if function.Status.EnrichedServiceAccount != "" {
+			deployment.Spec.Template.Spec.ServiceAccountName = function.Status.EnrichedServiceAccount
 		}
 
 		deployment.Spec.Template.Spec.Tolerations = function.Spec.Tolerations
