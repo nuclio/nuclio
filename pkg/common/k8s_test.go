@@ -317,6 +317,31 @@ func (suite *k8sTestSuite) TestIsServiceAccountAllowed() {
 			sa:        "sa1",
 			expectErr: true,
 		},
+		{
+			name:      "AllowedCaseInsensitive",
+			secret:    secretDataMultiple,
+			key:       "allowed",
+			sa:        "SA1",
+			expectErr: false,
+		},
+		{
+			name: "AllowedCaseInsensitiveMixed",
+			secret: &v1.Secret{
+				Data: map[string][]byte{
+					"allowed": []byte("Sa1,SA2"),
+				},
+			},
+			key:       "allowed",
+			sa:        "sa2",
+			expectErr: false,
+		},
+		{
+			name:      "NotAllowedCaseInsensitive",
+			secret:    secretDataMultiple,
+			key:       "allowed",
+			sa:        "Sa3",
+			expectErr: true,
+		},
 	}
 
 	for _, tc := range testCases {

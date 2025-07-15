@@ -351,7 +351,7 @@ func IsServiceAccountAllowed(secret *v1.Secret, secretAllowedServiceAccountsKey 
 	// trim spaces and check membership
 	requestedSA := strings.ToLower(strings.TrimSpace(serviceAccount))
 	for _, sa := range allowedServiceAccounts {
-		if strings.ToLower(strings.TrimSpace(sa)) == requestedSA {
+		if sa == requestedSA {
 			return nil
 		}
 	}
@@ -385,7 +385,13 @@ func getAllowedServiceAccountsFromSecret(secret *v1.Secret, secretAllowedService
 
 	// if the key is found, set found to true and split the string by comma
 	found = true
-	allowedServiceAccounts = strings.Split(allowed, ",")
+	rawAccounts := strings.Split(allowed, ",")
+	for _, sa := range rawAccounts {
+		trimmedLowered := strings.ToLower(strings.TrimSpace(sa))
+		if trimmedLowered != "" {
+			allowedServiceAccounts = append(allowedServiceAccounts, trimmedLowered)
+		}
+	}
 	return
 }
 
