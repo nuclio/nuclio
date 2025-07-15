@@ -25,6 +25,7 @@ import (
 
 	authpkg "github.com/nuclio/nuclio/pkg/auth"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/headers"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -35,6 +36,7 @@ const (
 	IguazioUsernameLabel                          string = "iguazio.com/username"
 	IguazioDomainLabel                            string = "iguazio.com/domain"
 	IguazioVerificationAndDataEnrichmentURLSuffix string = "_enrich_data"
+	OAuth2ProxyCookie                                    = "_oauth2_proxy"
 )
 
 type AbstractAuth struct {
@@ -42,10 +44,11 @@ type AbstractAuth struct {
 	HttpClient *http.Client
 	Cache      *cache.LRUExpireCache
 
-	config *authpkg.Config
+	config        *authpkg.Config
+	authenticator Authenticator
 }
 
-func NewAbstractAuth(logger logger.Logger, config *authpkg.Config) *AbstractAuth {
+func NewAbstractAuth(logger logger.Logger, config *authpkg.Config, authenticator Authenticator) *AbstractAuth {
 	return &AbstractAuth{
 		Logger: logger.GetChild("iguazio-auth"),
 		config: config,
@@ -56,14 +59,63 @@ func NewAbstractAuth(logger logger.Logger, config *authpkg.Config) *AbstractAuth
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: config.Iguazio.SkipTLSVerification},
 			},
 		},
+		authenticator: authenticator,
 	}
 }
 
-func (a *AbstractAuth) Middleware(authenticateFunc func(*http.Request, *authpkg.Options) (authpkg.Session, error), options *authpkg.Options) func(http.Handler) http.Handler {
+func (a *AbstractAuth) Authenticate(request *http.Request, options *authpkg.Options) (authpkg.Session, error) {
+
+	// Get authentication parameters from the request
+	authParams, err := a.authenticator.GetAuthParameters(request, options)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get authentication parameters")
+	}
+
+	cacheKey, err := authParams.GenerateCacheKey()
+	if err == nil {
+		// Attempt to retrieve the session
+		if cachedSession := a.getFromCacheWithTypeCheck(cacheKey); cachedSession != nil {
+			return cachedSession, nil
+		}
+	}
+
+	// Construct and send the identity request
+	resp, err := a.constructAndSendIdentityRequest(authParams)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to construct and send identity request")
+	}
+	defer resp.Body.Close() //nolint: errcheck
+
+	// Validate the status code of the response
+	if err = a.authenticator.ValidateResponse(resp); err != nil {
+		a.Logger.WarnWithCtx(request.Context(),
+			"Authentication failed",
+			"authorizationHeaderLength", len(authParams.authorizationHeader),
+			"cookieHeaderLength", len(authParams.cookieHeader),
+			"statusCode", resp.StatusCode,
+			"err", err.Error())
+		return nil, errors.Wrap(err, "Authentication failed")
+	}
+
+	// Extract the session from the response
+	session, err := a.authenticator.BuildSessionFromResponse(resp)
+	if err != nil {
+		a.Logger.WarnWithCtx(request.Context(),
+			"Failed to extract session from response",
+			"err", err.Error())
+		return nil, errors.Wrap(err, "Failed to extract session from response")
+	}
+
+	a.updateCache(authParams, session)
+
+	return session, nil
+}
+
+func (a *AbstractAuth) Middleware(options *authpkg.Options) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			session, err := authenticateFunc(r, options)
+			session, err := a.Authenticate(r, options)
 			if err != nil {
 				a.Logger.WarnWithCtx(ctx,
 					"Authentication failed",
@@ -80,7 +132,20 @@ func (a *AbstractAuth) Middleware(authenticateFunc func(*http.Request, *authpkg.
 	}
 }
 
-func (a *AbstractAuth) PerformHTTPRequest(ctx context.Context, request *http.Request) (*http.Response, error) {
+func (a *AbstractAuth) constructAndSendIdentityRequest(authParams *AuthParameters) (*http.Response, error) {
+	req, err := a.buildIdentityRequest(authParams)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to build identity request")
+	}
+
+	resp, err := a.performHTTPRequest(authParams.ctx, req)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to perform request to identity service")
+	}
+	return resp, nil
+}
+
+func (a *AbstractAuth) performHTTPRequest(ctx context.Context, request *http.Request) (*http.Response, error) {
 	var lastResponse *http.Response
 	var lastError error
 	var err error
@@ -131,6 +196,63 @@ func (a *AbstractAuth) GetConfig() *authpkg.Config {
 
 func (a *AbstractAuth) Kind() authpkg.Kind {
 	return a.config.Kind
+}
+
+func (a *AbstractAuth) getFromCacheWithTypeCheck(cacheKey [32]byte) authpkg.Session {
+	if cacheData, found := a.Cache.Get(cacheKey); found {
+		if typedSession, ok := a.authenticator.VerifySessionType(cacheData); ok {
+			return typedSession
+		}
+	}
+	return nil
+}
+
+func (a *AbstractAuth) updateCache(authParams *AuthParameters, session authpkg.Session) {
+	cacheKey, err := authParams.GenerateCacheKey()
+	if err != nil {
+		// if no cache key is provided, do not cache the session
+		return
+	}
+	if session == nil {
+		a.Logger.WarnWithCtx(authParams.ctx,
+			"Session is nil, not caching",
+			"cacheKey", cacheKey)
+		return
+	}
+
+	// check expiry date in the authentication header
+	expirationTimeout, err := authParams.TimeUntilExpiration(a.GetConfig().Iguazio.CacheExpirationTimeout)
+	if err != nil {
+		a.Logger.WarnWithCtx(authParams.ctx,
+			"Failed to get time until expiration, not caching",
+			"err", err.Error())
+		return
+	}
+
+	a.Cache.Add(cacheKey, session, expirationTimeout)
+}
+
+// buildIdentityRequest creates the HTTP request to the identity service
+func (a *AbstractAuth) buildIdentityRequest(authParams *AuthParameters) (*http.Request, error) {
+	method := a.GetConfig().Iguazio.VerificationMethod
+	if method == "" {
+		method = http.MethodGet
+	}
+
+	req, err := http.NewRequestWithContext(authParams.ctx, method, authParams.verificationURL, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create identity request")
+	}
+
+	if authParams.authorizationHeader != "" {
+		req.Header.Set(headers.AuthorizationHeader, authParams.authorizationHeader)
+	}
+
+	if authParams.cookieHeader != "" {
+		req.Header.Set(headers.CookieHeader, authParams.cookieHeader)
+	}
+
+	return req, nil
 }
 
 type AbstractSession struct {
