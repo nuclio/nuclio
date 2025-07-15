@@ -276,6 +276,9 @@ func GetStringValueFromSecret(secret *v1.Secret, key string) (string, bool) {
 	return string(value), ok
 }
 
+// EnrichAndValidateServiceAccount enriches the service account with the default platform service account if it is not set
+// and validates that the service account is allowed for the project by checking the project secret
+// It returns the enriched service account and an error if the service account is not allowed or if there was an error fetching the project secret
 func EnrichAndValidateServiceAccount(ctx context.Context,
 	kubeClient kubernetes.Interface,
 	defaultPlatformServiceAccount,
