@@ -269,7 +269,7 @@ func EnrichProbe(probe **v1.Probe, defaultProbe *v1.Probe) {
 
 // GetStringValueFromSecret returns the string value from the secret by the given key and true if the key exists
 func GetStringValueFromSecret(secret *v1.Secret, key string) (string, bool) {
-	if secret == nil {
+	if secret == nil || key == "" {
 		return "", false
 	}
 	value, ok := secret.Data[key]
@@ -282,7 +282,10 @@ func EnrichAndValidateServiceAccount(ctx context.Context,
 	projectSecretTemplate,
 	projectSecretDefaultServiceAccountKey,
 	projectSecretAllowedServiceAccountsKey,
-	serviceAccount, projectName, namespace string, shouldEnrich bool) (string, error) {
+	serviceAccount,
+	projectName,
+	namespace string,
+	shouldEnrich bool) (string, error) {
 
 	// fetch the secret from Kubernetes
 	secret, err := GetProjectSecret(ctx,
