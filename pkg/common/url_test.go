@@ -36,6 +36,10 @@ type DownloadFileTestSuite struct {
 	suite.Suite
 }
 
+type CookiesToHeaderValueTestSuite struct {
+	suite.Suite
+}
+
 func (ts *IsURLTestSuite) TestIsURLWithFile() {
 	ts.Require().False(IsURL("/not/a/url"))
 }
@@ -149,10 +153,67 @@ func (ts *DownloadFileTestSuite) testDownloadFile(responder httpmock.Responder) 
 	return DownloadFile(url, out, http.Header{})
 }
 
+func (suite *CookiesToHeaderValueTestSuite) TestCookiesToHeaderValue() {
+	tests := []struct {
+		name           string
+		cookies        []*http.Cookie
+		expectedHeader string
+	}{
+		{
+			name:           "NoCookies",
+			cookies:        []*http.Cookie{},
+			expectedHeader: "",
+		},
+		{
+			name: "SingleCookie",
+			cookies: []*http.Cookie{
+				{Name: "session", Value: "abc123"},
+			},
+			expectedHeader: "session=abc123",
+		},
+		{
+			name: "MultipleCookies",
+			cookies: []*http.Cookie{
+				{Name: "session", Value: "abc123"},
+				{Name: "_oauth2_proxy", Value: "xyz456"},
+			},
+			expectedHeader: "session=abc123; _oauth2_proxy=xyz456",
+		},
+		{
+			name: "NilCookieInList",
+			cookies: []*http.Cookie{
+				{Name: "session", Value: "abc123"},
+				nil,
+				{Name: "_oauth2_proxy", Value: "xyz456"},
+			},
+			expectedHeader: "session=abc123; _oauth2_proxy=xyz456",
+		},
+		{
+			name: "EmptyCookieName",
+			cookies: []*http.Cookie{
+				{Name: "", Value: "value"},
+				{Name: "session", Value: "abc123"},
+			},
+			expectedHeader: "=value; session=abc123",
+		},
+	}
+
+	for _, testCase := range tests {
+		suite.Run(testCase.name, func() {
+			headerValue := CookiesToHeaderValue(testCase.cookies)
+			suite.Require().Equal(testCase.expectedHeader, headerValue)
+		})
+	}
+}
+
 func TestIsURLTestSuite(t *testing.T) {
 	suite.Run(t, new(IsURLTestSuite))
 }
 
 func TestDownloadFileTestSuite(t *testing.T) {
 	suite.Run(t, new(DownloadFileTestSuite))
+}
+
+func TestCookiesToHeaderValueTestSuite(t *testing.T) {
+	suite.Run(t, new(CookiesToHeaderValueTestSuite))
 }

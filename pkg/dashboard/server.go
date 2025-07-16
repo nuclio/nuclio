@@ -102,11 +102,6 @@ func NewServer(parentLogger logger.Logger,
 		noPullBaseImages = true
 	}
 
-	authInstance, err := authfactory.NewAuth(parentLogger, authConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create auth instance")
-	}
-
 	newServer := &Server{
 		dockerKeyDir:              dockerKeyDir,
 		defaultRegistryURL:        defaultRegistryURL,
@@ -122,7 +117,7 @@ func NewServer(parentLogger logger.Logger,
 		imageNamePrefixTemplate:   imageNamePrefixTemplate,
 		platformAuthorizationMode: PlatformAuthorizationMode(platformAuthorizationMode),
 		dependantImageRegistryURL: dependantImageRegistryURL,
-		authInstance:              authInstance,
+		authInstance:              authfactory.NewAuth(parentLogger, authConfig),
 	}
 
 	// create server

@@ -10,5 +10,8 @@ User guide
    deploying-pre-built-functions
    deploy-functions-from-dockerfile
    exporting-and-importing
+   async-mode
+   batching
+   stream-response
    benchmarking
    known-issues

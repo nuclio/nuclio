@@ -211,3 +211,19 @@ func sendHTTPRequest(ctx context.Context,
 
 	return responseBody, resp, nil
 }
+
+// CookiesToHeaderValue transforms a slice of cookies into a single header value string
+func CookiesToHeaderValue(cookies []*http.Cookie) string {
+	if len(cookies) == 0 {
+		return ""
+	}
+
+	cookieStrings := make([]string, 0)
+	for _, cookie := range cookies {
+		if cookie == nil {
+			continue
+		}
+		cookieStrings = append(cookieStrings, fmt.Sprintf("%s=%s", cookie.Name, cookie.Value))
+	}
+	return strings.Join(cookieStrings, "; ")
+}
