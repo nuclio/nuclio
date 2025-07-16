@@ -204,6 +204,34 @@ type PlatformKubeConfig struct {
 	ProjectSecretDefaultServiceAccountKey  string                  `json:"projectSecretDefaultServiceAccountKey,omitempty"`
 }
 
+// IsConfiguredToVerifyServiceAccountFromProject checks if the platform kube config is configured to verify service accounts
+func (pkc *PlatformKubeConfig) IsConfiguredToVerifyServiceAccountFromProject() bool {
+	// if project secret template is not specified, skip validation
+	if pkc.ProjectSecretTemplate == "" {
+		return false
+	}
+
+	// if project secret allowed service accounts key is not configured, skip validation
+	if pkc.ProjectSecretAllowedServiceAccountsKey == "" {
+		return false
+	}
+	return true
+}
+
+// IsConfiguredToEnrichServiceAccountFromProject checks if the platform kube config is configured to enrich service accounts
+func (pkc *PlatformKubeConfig) IsConfiguredToEnrichServiceAccountFromProject() bool {
+	// if project secret template is not specified, skip validation
+	if pkc.ProjectSecretTemplate == "" {
+		return false
+	}
+
+	// if project secret allowed service accounts key is not configured, skip validation
+	if pkc.ProjectSecretDefaultServiceAccountKey == "" {
+		return false
+	}
+	return true
+}
+
 // PreemptibleNodes Holds data needed when user decided to run his function pods on a preemptible node (aka Spot node)
 type PreemptibleNodes struct {
 	DefaultMode    functionconfig.RunOnPreemptibleNodeMode `json:"defaultMode,omitempty"`

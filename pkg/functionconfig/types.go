@@ -1027,6 +1027,9 @@ type Status struct {
 
 	// node selector from function config enriched with project's and platform node selectors
 	EnrichedNodeSelector map[string]string `json:"enrichedNodeSelector,omitempty"`
+
+	// enriched service account from function config enriched with project's and platform service account
+	EnrichedServiceAccount string `json:"enrichedServiceAccount,omitempty"`
 }
 
 func (s *Status) InvocationURLs() []string {

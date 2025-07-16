@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
@@ -1896,7 +1897,7 @@ func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, e
 		return nil, errors.Wrap(err, "Failed to get project for the function")
 	}
 	// enriching from both project and platform
-	builderNodeSelector = common.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
+	builderNodeSelector = utils.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
 		project.GetConfig().Spec.DefaultFunctionNodeSelector,
 		b.platform.GetConfig().Kube.DefaultFunctionNodeSelector)
 

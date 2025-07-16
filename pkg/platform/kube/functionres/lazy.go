@@ -37,6 +37,7 @@ import (
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -1240,7 +1241,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 						container,
 					},
 					Volumes:            volumes,
-					ServiceAccountName: function.Spec.ServiceAccount,
+					ServiceAccountName: function.Status.EnrichedServiceAccount,
 					SecurityContext:    function.Spec.SecurityContext,
 					Affinity:           function.Spec.Affinity,
 					Tolerations:        function.Spec.Tolerations,
@@ -1319,8 +1320,8 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 		deployment.Spec.Template.Spec.SecurityContext = function.Spec.SecurityContext
 
-		if function.Spec.ServiceAccount != "" {
-			deployment.Spec.Template.Spec.ServiceAccountName = function.Spec.ServiceAccount
+		if function.Status.EnrichedServiceAccount != "" {
+			deployment.Spec.Template.Spec.ServiceAccountName = function.Status.EnrichedServiceAccount
 		}
 
 		deployment.Spec.Template.Spec.Tolerations = function.Spec.Tolerations
@@ -2488,8 +2489,8 @@ func (lc *lazyClient) populateDeploymentContainer(ctx context.Context,
 
 	// enrichment ensures backward compatibility for functions created with controller versions < v1.14.5, where probes may be nil
 	defaultPlatformConfiguration := platformconfig.GetDefaultPlatformConfiguration()
-	common.EnrichProbe(&function.Spec.ReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
-	common.EnrichProbe(&function.Spec.LivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
+	utils.EnrichProbe(&function.Spec.ReadinessProbe, defaultPlatformConfiguration.Kube.DefaultReadinessProbe)
+	utils.EnrichProbe(&function.Spec.LivenessProbe, defaultPlatformConfiguration.Kube.DefaultLivenessProbe)
 
 	container.ReadinessProbe = &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
