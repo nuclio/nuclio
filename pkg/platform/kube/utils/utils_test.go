@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package common
+package utils
 
 import (
 	"context"
@@ -28,18 +28,18 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-type k8sTestSuite struct {
+type utilsTestSuite struct {
 	suite.Suite
 	ctx           context.Context
 	kubeClientSet *fake.Clientset
 }
 
-func (suite *k8sTestSuite) SetupSuite() {
+func (suite *utilsTestSuite) SetupSuite() {
 	suite.kubeClientSet = fake.NewSimpleClientset()
 	suite.ctx = context.Background()
 }
 
-func (suite *k8sTestSuite) TestFilterInvalidLabels() {
+func (suite *utilsTestSuite) TestFilterInvalidLabels() {
 	invalidLabels := map[string]string{
 		"my@weird/label":   "value",
 		"my.wierd/label":   "value@",
@@ -67,7 +67,7 @@ func (suite *k8sTestSuite) TestFilterInvalidLabels() {
 	}
 }
 
-func (suite *k8sTestSuite) TestEnrichDefaultReadinessProbe() {
+func (suite *utilsTestSuite) TestEnrichDefaultReadinessProbe() {
 	testNum14 := int32(14)
 	testNum17 := int32(17)
 	for _, testCase := range []struct {
@@ -108,7 +108,7 @@ func (suite *k8sTestSuite) TestEnrichDefaultReadinessProbe() {
 	}
 }
 
-func (suite *k8sTestSuite) TestEnrichDefaultLivenessProbe() {
+func (suite *utilsTestSuite) TestEnrichDefaultLivenessProbe() {
 	testNum14 := int32(14)
 	testNum17 := int32(17)
 	for _, testCase := range []struct {
@@ -149,7 +149,7 @@ func (suite *k8sTestSuite) TestEnrichDefaultLivenessProbe() {
 	}
 }
 
-func (suite *k8sTestSuite) newTestProbe(value int32) *v1.Probe {
+func (suite *utilsTestSuite) newTestProbe(value int32) *v1.Probe {
 	return &v1.Probe{
 		InitialDelaySeconds: value,
 		TimeoutSeconds:      value,
@@ -158,7 +158,7 @@ func (suite *k8sTestSuite) newTestProbe(value int32) *v1.Probe {
 	}
 }
 
-func (suite *k8sTestSuite) TestRenderProjectSecretName() {
+func (suite *utilsTestSuite) TestRenderProjectSecretName() {
 	templateData := map[string]interface{}{
 		"ProjectName": "myproj",
 		"Namespace":   "ns1",
@@ -194,7 +194,7 @@ func (suite *k8sTestSuite) TestRenderProjectSecretName() {
 	}
 }
 
-func (suite *k8sTestSuite) TestGetProjectSecret() {
+func (suite *utilsTestSuite) TestGetProjectSecret() {
 	kubeClient := fake.NewSimpleClientset()
 	namespace := "ns1"
 	projectName := "myproj"
@@ -260,7 +260,7 @@ func (suite *k8sTestSuite) TestGetProjectSecret() {
 	}
 }
 
-func (suite *k8sTestSuite) TestIsServiceAccountAllowed() {
+func (suite *utilsTestSuite) TestIsServiceAccountAllowed() {
 	secretDataMultiple := &v1.Secret{
 		Data: map[string][]byte{
 			"allowed": []byte("sa1,sa2"),
@@ -356,7 +356,7 @@ func (suite *k8sTestSuite) TestIsServiceAccountAllowed() {
 	}
 }
 
-func (suite *k8sTestSuite) TestEnrichServiceAccount() {
+func (suite *utilsTestSuite) TestEnrichServiceAccount() {
 	secretData := &v1.Secret{
 		Data: map[string][]byte{
 			"default": []byte("sa-default"),
@@ -405,7 +405,7 @@ func (suite *k8sTestSuite) TestEnrichServiceAccount() {
 	}
 }
 
-func (suite *k8sTestSuite) TestGetAllowedServiceAccountsFromSecret() {
+func (suite *utilsTestSuite) TestGetAllowedServiceAccountsFromSecret() {
 	secretData := &v1.Secret{
 		Data: map[string][]byte{
 			"allowed": []byte("sa1,sa2"),
@@ -446,7 +446,7 @@ func (suite *k8sTestSuite) TestGetAllowedServiceAccountsFromSecret() {
 	}
 }
 
-func (suite *k8sTestSuite) TestEnrichAndValidateServiceAccount() {
+func (suite *utilsTestSuite) TestEnrichAndValidateServiceAccount() {
 	namespace := "ns1"
 	projectName := "myproj"
 	template := "nuclio-project-secrets-{{ .ProjectName }}-{{ .Namespace }}"
@@ -573,6 +573,6 @@ func (suite *k8sTestSuite) TestEnrichAndValidateServiceAccount() {
 	}
 }
 
-func TestK8sTestSuite(t *testing.T) {
-	suite.Run(t, new(k8sTestSuite))
+func TestUtilsTestSuite(t *testing.T) {
+	suite.Run(t, new(utilsTestSuite))
 }

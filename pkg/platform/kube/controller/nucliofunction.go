@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/client"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -569,7 +570,7 @@ func (fo *functionOperator) enrichAndValidateServiceAccount(ctx context.Context,
 		return nil
 	}
 
-	enrichedServiceAccount, err := common.EnrichAndValidateServiceAccount(ctx,
+	enrichedServiceAccount, err := utils.EnrichAndValidateServiceAccount(ctx,
 		fo.controller.kubeClientSet,
 		fo.controller.platformConfiguration.Kube.DefaultFunctionServiceAccount,
 		fo.controller.platformConfiguration.Kube.ProjectSecretTemplate,

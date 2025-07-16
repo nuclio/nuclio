@@ -41,6 +41,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy/elastic"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -493,8 +494,8 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	p.enrichInitContainersSpec(functionConfig)
 	p.enrichSidecarsSpec(functionConfig)
-	common.EnrichProbe(&functionConfig.Spec.ReadinessProbe, p.Config.Kube.DefaultReadinessProbe)
-	common.EnrichProbe(&functionConfig.Spec.LivenessProbe, p.Config.Kube.DefaultLivenessProbe)
+	utils.EnrichProbe(&functionConfig.Spec.ReadinessProbe, p.Config.Kube.DefaultReadinessProbe)
+	utils.EnrichProbe(&functionConfig.Spec.LivenessProbe, p.Config.Kube.DefaultLivenessProbe)
 
 	return nil
 }
@@ -1958,7 +1959,7 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 		return nil
 	}
 
-	if _, err := common.EnrichAndValidateServiceAccount(ctx,
+	if _, err := utils.EnrichAndValidateServiceAccount(ctx,
 		p.consumer.KubeClientSet,
 		p.Config.Kube.DefaultFunctionServiceAccount,
 		p.Config.Kube.ProjectSecretTemplate,

@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/logprocessing"
 	"github.com/nuclio/nuclio/pkg/opa"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -455,7 +456,7 @@ func (ap *Platform) ValidateFunctionConfig(ctx context.Context, functionConfig *
 	}
 
 	// validate function node selector
-	if err := common.ValidateLabels(functionConfig.Spec.NodeSelector); err != nil {
+	if err := utils.ValidateLabels(functionConfig.Spec.NodeSelector); err != nil {
 		return errors.Wrap(err, "Node selector validation failed")
 	}
 
@@ -816,7 +817,7 @@ func (ap *Platform) EnrichCreateProjectConfig(createProjectOptions *platform.Cre
 
 		// to align with the leaders (that allow invalid k8s labels), we just ignore the project's invalid labels
 		// instead of failing validation later on
-		createProjectOptions.ProjectConfig.Meta.Labels = common.FilterInvalidLabels(createProjectOptions.ProjectConfig.Meta.Labels)
+		createProjectOptions.ProjectConfig.Meta.Labels = utils.FilterInvalidLabels(createProjectOptions.ProjectConfig.Meta.Labels)
 	}
 
 	return nil
@@ -830,12 +831,12 @@ func (ap *Platform) ValidateProjectConfig(projectConfig *platform.ProjectConfig)
 	}
 
 	// validate project labels
-	if err := common.ValidateLabels(projectConfig.Meta.Labels); err != nil {
+	if err := utils.ValidateLabels(projectConfig.Meta.Labels); err != nil {
 		return errors.Wrap(err, "Project labels validation failed")
 	}
 
 	// validate default node selector
-	if err := common.ValidateLabels(projectConfig.Spec.DefaultFunctionNodeSelector); err != nil {
+	if err := utils.ValidateLabels(projectConfig.Spec.DefaultFunctionNodeSelector); err != nil {
 		return errors.Wrap(err, "Default function node selector validation failed")
 	}
 
