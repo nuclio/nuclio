@@ -30,30 +30,35 @@ import (
 
 // BuildOptions are options for building a container image
 type BuildOptions struct {
-	Image                   string
-	ContextDir              string
-	TempDir                 string
-	DockerfileInfo          *runtime.ProcessorDockerfileInfo
-	NoCache                 bool
-	Pull                    bool
-	NoBaseImagePull         bool
-	BuildFlags              map[string]bool
-	BuildArgs               map[string]string
-	RegistryURL             string
-	RepoName                string
-	SecretName              string
-	OutputImageFile         string
-	BuildTimeoutSeconds     int64
-	Affinity                *v1.Affinity
-	NodeSelector            map[string]string
-	NodeName                string
-	PriorityClassName       string
-	Tolerations             []v1.Toleration
-	ReadinessTimeoutSeconds int
-	FunctionServiceAccount  string
-	BuilderServiceAccount   string
-	SecurityContext         *v1.PodSecurityContext
-	Resources               v1.ResourceRequirements
+	Image                                  string
+	ContextDir                             string
+	TempDir                                string
+	DockerfileInfo                         *runtime.ProcessorDockerfileInfo
+	NoCache                                bool
+	Pull                                   bool
+	NoBaseImagePull                        bool
+	BuildFlags                             map[string]bool
+	BuildArgs                              map[string]string
+	RegistryURL                            string
+	RepoName                               string
+	SecretName                             string
+	OutputImageFile                        string
+	BuildTimeoutSeconds                    int64
+	Affinity                               *v1.Affinity
+	NodeSelector                           map[string]string
+	NodeName                               string
+	PriorityClassName                      string
+	Tolerations                            []v1.Toleration
+	ReadinessTimeoutSeconds                int
+	FunctionServiceAccount                 string
+	BuilderServiceAccount                  string
+	SecurityContext                        *v1.PodSecurityContext
+	Resources                              v1.ResourceRequirements
+	ProjectName                            string
+	ProjectSecretTemplate                  string
+	ProjectSecretAllowedServiceAccountsKey string
+	ProjectSecretDefaultServiceAccountKey  string
+	DefaultPlatformServiceAccount          string
 
 	BuildLogger logger.Logger
 }
