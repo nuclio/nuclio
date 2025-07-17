@@ -317,10 +317,11 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		// NOTE: this reconstructs function status and hence omits all other function status fields
 		// ... such as message and logs.
 		functionStatus := &functionconfig.Status{
-			State:                finalState,
-			Logs:                 function.Status.Logs,
-			ContainerImage:       function.Spec.Image,
-			EnrichedNodeSelector: function.Status.EnrichedNodeSelector,
+			State:                  finalState,
+			Logs:                   function.Status.Logs,
+			ContainerImage:         function.Spec.Image,
+			EnrichedNodeSelector:   function.Status.EnrichedNodeSelector,
+			EnrichedServiceAccount: function.Status.EnrichedServiceAccount,
 		}
 
 		if err := fo.populateFunctionInvocationStatus(function, functionStatus, resources); err != nil {
@@ -558,17 +559,26 @@ func (fo *functionOperator) enrichNodeSelector(ctx context.Context, function *nu
 }
 
 func (fo *functionOperator) enrichAndValidateServiceAccount(ctx context.Context, function *nuclioio.NuclioFunction) error {
+
 	projectName, ok := function.Labels[common.NuclioResourceLabelKeyProjectName]
 	if !ok {
 		return errors.New("Function does not have a project label, cannot validate service account")
 	}
 
-	if !fo.controller.platformConfiguration.Kube.IsConfiguredToEnrichServiceAccountFromProject() &&
+	if !fo.controller.platformConfiguration.Kube.IsConfiguredToEnrichServiceAccount() &&
 		!fo.controller.platformConfiguration.Kube.IsConfiguredToVerifyServiceAccountFromProject() {
 		// if platform is not configured to enrich and verify service account, just return
 		function.Status.EnrichedServiceAccount = function.Spec.ServiceAccount
+		fo.logger.DebugWithCtx(ctx, "Successfully enriched and validated service account",
+			"functionName", function.Name,
+			projectName, "projectName",
+			"enrichedServiceAccount", function.Status.EnrichedServiceAccount)
 		return nil
 	}
+
+	fo.logger.DebugWithCtx(ctx, "Enriching and validating service account",
+		"functionName", function.Name,
+		projectName, "projectName")
 
 	enrichedServiceAccount, err := utils.EnrichAndValidateServiceAccount(ctx,
 		fo.controller.kubeClientSet,
@@ -581,9 +591,18 @@ func (fo *functionOperator) enrichAndValidateServiceAccount(ctx context.Context,
 		function.Namespace,
 		true)
 	if err != nil {
+		fo.logger.DebugWithCtx(ctx, "Failed to enrich and validate service account",
+			"functionName", function.Name,
+			projectName, "projectName")
+
 		return errors.Wrap(err, "Failed to enrich and validate service account")
 	}
 
 	function.Status.EnrichedServiceAccount = enrichedServiceAccount
+
+	fo.logger.DebugWithCtx(ctx, "Successfully enriched and validated service account",
+		"functionName", function.Name,
+		projectName, "projectName",
+		"enrichedServiceAccount", enrichedServiceAccount)
 	return nil
 }
