@@ -8,13 +8,11 @@ A short summary of what this PR does. Include any relevant context or background
 - How it was tested (unit tests, manual, integration)  
 - Any special cases covered.  
 
-<!-- vale off -->
 ### References
-- Jira ticket link  
+- Ticket link  
 - Design docs (SDD/LLD) link  
 - External links (optional)  
-<!-- vale on -->
 
 ### Additional Notes  
-Anything else reviewers should know (follow-up tasks, known issues, affected ares etc.).
+Anything else reviewers should know (follow-up tasks, known issues, affected areas etc.).
 
