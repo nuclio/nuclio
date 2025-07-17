@@ -312,3 +312,55 @@ kubectl patch deployment nuclio-dashboard \
   ]'
 ```
 
+## Project Secret-Based Service Account Enrichment and Validation
+
+Nuclio now supports enriching and validating service accounts using project-specific Kubernetes secrets. This enables fine-grained control over which service accounts are allowed to run functions for a given project.
+
+### Platform Configuration Options
+
+Add the following fields to your Nuclio platform configuration:
+
+```yaml
+platform:
+  kube:
+    projectSecretTemplate: "{{ .ProjectName }}-nuclio-project-secret"
+    projectSecretAllowedServiceAccountsKey: "allowedServiceAccounts"
+    projectSecretDefaultServiceAccountKey: "defaultServiceAccount"
+```
+| Field                                    | Description                                                                                                                         |
+|------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| `projectSecretTemplate`                  | A Go template used to compute the name of the Kubernetes secret that holds project-specific settings.                               |
+| `projectSecretAllowedServiceAccountsKey` | The key in the secret that lists comma-separated allowed service accounts for the project.                                          |
+| `projectSecretDefaultServiceAccountKey`  | The key in the secret containing the default service account for the project, used when no service account is explicitly specified. |
+
+The `projectSecretTemplate` is rendered using the following context:
+```go
+templateData := map[string]interface{}{
+    "ProjectName": projectName,
+    "Namespace":   namespace,
+}
+```
+This allows to dynamically construct the secret name based on the project and namespace.
+
+Data in a secret example:
+
+```yaml
+  defaultServiceAccount: "project-service-account"
+  allowedServiceAccounts: "project-service-account,team-a-sa,team-b-sa"
+```
+
+### Enrichment and Validation logic overview
+The function's service account (SA) is enriched or validated based on the presence of a project-level secret and whether a SA is explicitly provided in the function spec. The logic works as follows:
+
+#### ✅ Scenario 1: Function SA is provided & project secret exists
+- Validate that the provided SA is included in the list defined under the `allowedServiceAccounts` key in the secret.
+- ❌ If the SA is **not** in the allowed list, the function deployment **fails**.
+
+#### ✅ Scenario 2: Function SA is provided & project secret does **not** exist
+- Use the function's provided SA **as-is**, with no validation or enrichment.
+
+#### ✅ Scenario 3: Function SA is **not** provided & project secret exists
+- Use the value from the secret's `defaultServiceAccount` key as the service account.
+
+#### ✅ Scenario 4: Function SA is **not** provided & project secret does **not** exist
+- Use the platform's default service account from the platform configuration (this is controlled by a separate feature).
