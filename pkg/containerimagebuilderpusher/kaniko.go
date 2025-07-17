@@ -20,8 +20,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
-
 	"io"
 	"os"
 	"path"
@@ -31,6 +29,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
