@@ -1,18 +1,19 @@
 ### Description  
-A short summary of what this PR does. Include any relevant context or background information.
+<!-- A short summary of what this PR does. -->
+<!-- Include any relevant context or background information. -->
 
 ### Changes Made  
-- Key changes (e.g., added feature X, refactored Y, fixed Z)
+<!-- - Key changes (e.g., added feature X, refactored Y, fixed Z) -->
 
 ### Testing  
-- How it was tested (unit tests, manual, integration)  
-- Any special cases covered.  
+<!-- - How it was tested (unit tests, manual, integration) -->  
+<!-- - Any special cases covered. -->  
 
 ### References
-- Ticket link  
-- Design docs (SDD/LLD) link  
-- External links (optional)  
+- Ticket link: 
+- Design docs links: 
+- External links: 
 
 ### Additional Notes  
-Anything else reviewers should know (follow-up tasks, known issues, affected areas etc.).
+<!-- Anything else reviewers should know (follow-up tasks, known issues, affected areas etc.). -->
 
