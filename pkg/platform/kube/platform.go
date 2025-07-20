@@ -41,6 +41,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy/elastic"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -490,20 +491,11 @@ func (p *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fun
 		functionConfig.Spec.PriorityClassName = p.Config.Kube.DefaultFunctionPriorityClassName
 	}
 
-	// enrich function service account
-	if functionConfig.Spec.ServiceAccount == "" && p.Config.Kube.DefaultFunctionServiceAccount != "" {
-		p.Logger.DebugWithCtx(ctx,
-			"Enriching service account",
-			"functionName", functionConfig.Meta.Name,
-			"serviceAccount", p.Config.Kube.DefaultFunctionServiceAccount)
-		functionConfig.Spec.ServiceAccount = p.Config.Kube.DefaultFunctionServiceAccount
-	}
-
 	p.enrichFunctionPreemptionSpec(ctx, p.Config.Kube.PreemptibleNodes, functionConfig)
 	p.enrichInitContainersSpec(functionConfig)
 	p.enrichSidecarsSpec(functionConfig)
-	common.EnrichProbe(&functionConfig.Spec.ReadinessProbe, p.Config.Kube.DefaultReadinessProbe)
-	common.EnrichProbe(&functionConfig.Spec.LivenessProbe, p.Config.Kube.DefaultLivenessProbe)
+	utils.EnrichProbe(&functionConfig.Spec.ReadinessProbe, p.Config.Kube.DefaultReadinessProbe)
+	utils.EnrichProbe(&functionConfig.Spec.LivenessProbe, p.Config.Kube.DefaultLivenessProbe)
 
 	return nil
 }
@@ -1958,84 +1950,28 @@ func (p *Platform) validateServiceAccount(ctx context.Context, functionConfig *f
 		return nil
 	}
 
-	// if project secret template is not specified, skip validation
-	if p.Config.Kube.ProjectSecretTemplate == "" {
-		return nil
-	}
-
-	// if project secret allowed service accounts key is not configured, skip validation
-	if p.Config.Kube.ProjectSecretAllowedServiceAccountsKey == "" {
-		p.Logger.DebugWithCtx(ctx, "Skipping service account secret validation as no `projectSecretAllowedServiceAccountsKey` is configured")
-		return nil
-	}
-
-	// check if the service account is allowed
-	return p.isServiceAccountAllowed(ctx, functionConfig)
-}
-
-func (p *Platform) isServiceAccountAllowed(ctx context.Context, functionConfig *functionconfig.Config) error {
 	projectName, ok := functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName]
 	if !ok {
 		return errors.New("Function does not have a project label, cannot validate service account")
 	}
 
-	// fetch the secret from Kubernetes
-	secret, err := p.getProjectSecret(ctx, projectName, functionConfig.Meta.Namespace)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to get project secret. Project: %s", projectName)
-	}
-
-	if secret == nil {
-		// if the secret does not exist, skip validation
+	if !p.Config.Kube.IsConfiguredToVerifyServiceAccountFromProject() {
 		return nil
 	}
 
-	allowedRaw, ok := secret.Data[p.Config.Kube.ProjectSecretAllowedServiceAccountsKey]
-	if !ok {
-		// no restriction , so allow any SA
-		return nil
+	if _, err := utils.EnrichAndValidateServiceAccount(ctx,
+		p.consumer.KubeClientSet,
+		p.Config.Kube.DefaultFunctionServiceAccount,
+		p.Config.Kube.ProjectSecretTemplate,
+		p.Config.Kube.ProjectSecretDefaultServiceAccountKey,
+		p.Config.Kube.ProjectSecretAllowedServiceAccountsKey,
+		functionConfig.Spec.ServiceAccount,
+		projectName,
+		functionConfig.Meta.Namespace,
+		false); err != nil {
+		return errors.Wrap(err, "Failed to validate service account")
 	}
-
-	allowedSAs := strings.Split(string(allowedRaw), ",")
-
-	// trim spaces and check membership
-	requestedSA := strings.ToLower(strings.TrimSpace(functionConfig.Spec.ServiceAccount))
-	for _, sa := range allowedSAs {
-		if strings.ToLower(strings.TrimSpace(sa)) == requestedSA {
-			return nil
-		}
-	}
-
-	return errors.Errorf("Service account %q is not allowed for project %q",
-		requestedSA, projectName)
-}
-
-func (p *Platform) getProjectSecret(ctx context.Context, projectName, namespace string) (*v1.Secret, error) {
-	// if project secret template is not specified, return empty data
-	if p.Config.Kube.ProjectSecretTemplate == "" {
-		return nil, nil
-	}
-
-	// render the project secret name using the template
-	templateData := map[string]interface{}{
-		"ProjectName": projectName,
-		"Namespace":   namespace,
-	}
-	secretName, err := p.renderProjectSecretName(templateData)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to render project secret name")
-	}
-
-	// fetch the secret from Kubernetes
-	projectSecret, err := p.consumer.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
-	if err != nil {
-		// if not found, skip validation
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, errors.Wrapf(err, "Failed to get secret %s", secretName)
-	}
-	return projectSecret, nil
+	return nil
 }
 
 func (p *Platform) validateCronTriggers(functionConfig *functionconfig.Config) error {
@@ -2358,14 +2294,6 @@ func (p *Platform) renderIngressHost(ctx context.Context, ingressHostTemplate st
 	}
 
 	return p.alignIngressHostSubdomainLevel(renderedIngressHost, hostTemplateRandomCharsLength), nil
-}
-
-func (p *Platform) renderProjectSecretName(templateData map[string]interface{}) (string, error) {
-	renderedIngressHost, err := common.RenderTemplate(p.Config.Kube.ProjectSecretTemplate, templateData)
-	if err != nil {
-		return "", err
-	}
-	return renderedIngressHost, nil
 }
 
 // will take a host, split to "."

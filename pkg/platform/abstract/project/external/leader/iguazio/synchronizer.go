@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -206,7 +206,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(ctx context.Context,
 		createProjectErrGroup.Go("create projects", func() error {
 
 			// filter out labels that are not allowed by kubernetes
-			projectInstance.Meta.Labels = common.FilterInvalidLabels(projectInstance.Meta.Labels)
+			projectInstance.Meta.Labels = utils.FilterInvalidLabels(projectInstance.Meta.Labels)
 
 			c.logger.DebugWithCtx(ctx, "Creating project from leader sync", "projectInstance", *projectInstance)
 			createProjectConfig := &platform.CreateProjectOptions{
@@ -241,7 +241,7 @@ func (c *Synchronizer) synchronizeProjectsFromLeader(ctx context.Context,
 		updateProjectErrGroup.Go("update projects", func() error {
 
 			// filter out labels that are not allowed by kubernetes
-			projectInstance.Meta.Labels = common.FilterInvalidLabels(projectInstance.Meta.Labels)
+			projectInstance.Meta.Labels = utils.FilterInvalidLabels(projectInstance.Meta.Labels)
 
 			c.logger.DebugWith("Updating project from leader sync", "projectInstance", *projectInstance)
 			updateProjectOptions := &platform.UpdateProjectOptions{

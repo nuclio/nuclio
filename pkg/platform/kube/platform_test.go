@@ -1213,48 +1213,6 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccount() {
 	}
 }
 
-func (suite *FunctionKubePlatformTestSuite) TestRenderProjectSecretName() {
-	templateData := map[string]interface{}{
-		"ProjectName": "myproj",
-		"Namespace":   "ns1",
-	}
-	testCases := []struct {
-		name               string
-		template           string
-		expectedSecretName string
-	}{
-		{
-			name:               "WithProjectAndNamespace",
-			template:           "nuclio-project-secrets-{{ .ProjectName }}-{{ .Namespace }}",
-			expectedSecretName: "nuclio-project-secrets-myproj-ns1",
-		},
-		{
-			name:               "WithProjectOnly",
-			template:           "nuclio-project-secrets-{{ .ProjectName }}",
-			expectedSecretName: "nuclio-project-secrets-myproj",
-		},
-		{
-			name:               "Empty",
-			expectedSecretName: "",
-		},
-	}
-
-	for _, testCase := range testCases {
-		suite.Run(testCase.name, func() {
-			oldProjectSecretTemplate := suite.platform.Config.Kube.ProjectSecretTemplate
-			suite.platform.Config.Kube.ProjectSecretTemplate = testCase.template
-			// revert the change
-			defer func() {
-				suite.platform.Config.Kube.ProjectSecretTemplate = oldProjectSecretTemplate
-			}()
-
-			secretName, err := suite.platform.renderProjectSecretName(templateData)
-			suite.Require().NoError(err)
-			suite.Require().Equal(testCase.expectedSecretName, secretName)
-		})
-	}
-}
-
 func (suite *FunctionKubePlatformTestSuite) TestUpdateFunctionPermissions() {
 	var getFunctionResponse *v1beta1.NuclioFunction
 
