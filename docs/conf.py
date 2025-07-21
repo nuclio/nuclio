@@ -37,6 +37,7 @@ linkcheck_ignore = {
 
 }
 linkcheck_anchors = True
+linkcheck_timeout = 60
 
 language = "go"
 
