@@ -93,7 +93,7 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://12
 CMD [ "processor" ]
 ```
 
-# Writing a .NET Core 7.0 Function
+# Writing a .NET Core 9.0 Function
 
 This guide uses practical examples to guide you through the process of writing serverless .NET Core functions.
 
