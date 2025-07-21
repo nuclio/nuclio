@@ -161,7 +161,7 @@ More examples can be found in the **[Examples page](docs/examples/README.md)**.
   - [nuctl](/docs/reference/nuctl/nuctl.md)
   - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
   - [Triggers](/docs/reference/triggers)
-  - [Runtime - .NET Core 7.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
+  - [Runtime - .NET Core 9.0](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)
   - [Runtime - Shell](/docs/reference/runtimes/shell/shell-reference.md)
 - [Examples](docs/examples/README.md)
 - Contributing

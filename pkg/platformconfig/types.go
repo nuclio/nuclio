@@ -218,8 +218,13 @@ func (pkc *PlatformKubeConfig) IsConfiguredToVerifyServiceAccountFromProject() b
 	return true
 }
 
-// IsConfiguredToEnrichServiceAccountFromProject checks if the platform kube config is configured to enrich service accounts
-func (pkc *PlatformKubeConfig) IsConfiguredToEnrichServiceAccountFromProject() bool {
+// IsConfiguredToEnrichServiceAccount checks if the platform kube config is configured to enrich service accounts
+func (pkc *PlatformKubeConfig) IsConfiguredToEnrichServiceAccount() bool {
+	if pkc.DefaultFunctionServiceAccount != "" {
+		// if default function service account is set, should enrich
+		return true
+	}
+
 	// if project secret template is not specified, skip validation
 	if pkc.ProjectSecretTemplate == "" {
 		return false
