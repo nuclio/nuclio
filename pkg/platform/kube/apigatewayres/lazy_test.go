@@ -67,27 +67,6 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 }
 
-func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasXNuclioTargetHeader() {
-	primaryFunctionConfig := functionconfig.NewConfig()
-	primaryFunctionConfig.Meta.Name = "primary-function-name"
-	canaryFunctionConfig := functionconfig.NewConfig()
-	canaryFunctionConfig.Meta.Name = "canary-function-name"
-	suite.mockCmdRunner.
-		On("Run", mock.Anything, mock.IsType(""), mock.Anything).
-		Return("echo ehsom | htpasswd -n -i moshe", nil)
-
-	resources, err := suite.client.CreateOrUpdate(context.Background(), suite.getTestAPIGateway(primaryFunctionConfig, canaryFunctionConfig))
-	suite.Require().NoError(err)
-	suite.Require().NotNil(resources.IngressResourcesMap())
-
-	primaryIngressResources, _ := suite.getIngressesFromResources(resources)
-
-	// expect primary function ingress to have `X-Nuclio-Target`
-	// so that if it has STZ option, it would wake up upon a request
-	suite.Require().Equal(`proxy_set_header X-Nuclio-Target "primary-function-name,canary-function-name";`,
-		primaryIngressResources.Ingress.Annotations[common.NginxConfigurationSnippetAnnotationKey])
-}
-
 func (suite *lazyTestSuite) TestEnsurePrimaryIngressHasFunctionLabels() {
 	for _, testCase := range []struct {
 		name                 string

@@ -54,8 +54,7 @@ func (suite *DeployAPIGatewayTestSuite) TestDexAuthMode() {
 		err := suite.DeployAPIGateway(createAPIGatewayOptions, func(ingress *networkingv1.Ingress) {
 			suite.Require().NotContains(ingress.Annotations, "nginx.ingress.kubernetes.io/auth-signin")
 			suite.Require().Contains(ingress.Annotations["nginx.ingress.kubernetes.io/auth-url"], configOauth2ProxyURL)
-			suite.Require().Contains(ingress.Annotations[common.NginxConfigurationSnippetAnnotationKey],
-				fmt.Sprintf(`proxy_set_header X-Nuclio-Target "%s";`, functionName))
+			suite.Require().Equal(ingress.Labels[common.NuclioResourceLabelKeyFunctionName], functionName)
 		})
 		suite.Require().NoError(err)
 
