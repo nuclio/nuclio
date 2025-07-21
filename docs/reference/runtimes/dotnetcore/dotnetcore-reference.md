@@ -44,7 +44,7 @@ For example, the following file defines a dependency on the `Microsoft.NET.Sdk` 
         <LangVersion>13.0</LangVersion>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="Newtonsoft.Json" Version="12.0.2"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     </ItemGroup>
 </Project>
 ```
