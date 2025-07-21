@@ -36,7 +36,7 @@ Note: all function examples have the explicit field `disableDefaultHttpTrigger: 
 - [Reverser](https://github.com/nuclio/nuclio/tree/development/hack/examples/nodejs/reverser) (`reverser`): Returns the reverse of the body received in the event.
 - [Dates](https://github.com/nuclio/nuclio/tree/development/hack/examples/nodejs/dates) (`dates`): Uses **moment.js** (which is installed as part of the build) to add a specified amount of time to `"now"`, and returns this amount as a string.
 
-## .NET Core 7.0 examples
+## .NET Core 9.0 examples
 
 - [Reverser](https://github.com/nuclio/nuclio/tree/development/hack/examples/dotnetcore/reverser) (`reverser`): Returns the reverse of the body received in the event.
 - [Hello World](https://github.com/nuclio/nuclio/tree/development/hack/examples/dotnetcore/helloworld):  (`helloworld`): A simple function that showcases structured logging, unstructured logging and a structured response.
