@@ -34,9 +34,12 @@ linkcheck_ignore = {
     r'^.*\.html#.*$',
     r'^\./[^/]+\.html#.*$',
     r'^\.\./[^/]+\.html#.*$',
+    # ignore links to kubernetes.io, since they often block the traffic
+    r"https://kubernetes.io/.*"
 
 }
 linkcheck_anchors = True
+linkcheck_timeout = 60
 
 language = "go"
 
