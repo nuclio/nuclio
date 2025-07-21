@@ -179,14 +179,13 @@ func (suite *lazyTestSuite) TestEnrichIngressWithDefaultAnnotations() {
 			functionLabels := suite.client.getFunctionLabels(&function)
 			functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
 
-			// "create the ingress
+			// create the ingress
 			ingressInstance, err := suite.client.createOrUpdateIngress(suite.ctx, functionLabels, &function)
 			suite.Require().NoError(err)
 			suite.Require().NotNil(ingressInstance)
 			suite.Require().NotEmpty(ingressInstance.Annotations)
 
 			// make sure user function annotations exists
-			delete(ingressInstance.Annotations, common.NginxConfigurationSnippetAnnotationKey)
 			suite.Require().Equal(testCase.expectedFunctionIngressAnnotations,
 				ingressInstance.Annotations)
 		})
