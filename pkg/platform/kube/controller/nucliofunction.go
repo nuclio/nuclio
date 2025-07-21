@@ -591,7 +591,7 @@ func (fo *functionOperator) enrichAndValidateServiceAccount(ctx context.Context,
 		function.Namespace,
 		true)
 	if err != nil {
-		fo.logger.DebugWithCtx(ctx, "Failed to enrich and validate service account",
+		fo.logger.WarnWithCtx(ctx, "Failed to enrich and validate service account",
 			"functionName", function.Name,
 			projectName, "projectName")
 
