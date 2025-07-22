@@ -64,5 +64,3 @@ const FunctionConfigFileName = "function.yaml"
 const DefaultIngressHostTemplate = "@nuclio.fromDefault"
 
 const FunctionTagLatest = "latest"
-
-const NginxConfigurationSnippetAnnotationKey = "nginx.ingress.kubernetes.io/configuration-snippet"

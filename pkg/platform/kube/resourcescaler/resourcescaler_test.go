@@ -68,18 +68,6 @@ func (suite *ResourceScalerTestSuite) TestGetResolveTargetsFromIngressCallback()
 			expectedResult: []string{"test-target1", "test-target2"},
 		},
 		{
-			name: "Annotation with targets",
-			ingress: &networkingv1.Ingress{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						common.NginxConfigurationSnippetAnnotationKey: `proxy_set_header X-Nuclio-Target "test6,test7";`,
-					},
-				},
-			},
-			expectError: true,
-			errorMsg:    "Failed to resolve ingress targets",
-		},
-		{
 			name: "No labels or annotation",
 			ingress: &networkingv1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{},
