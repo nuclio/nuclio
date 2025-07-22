@@ -93,7 +93,7 @@ limitations under the License.
                 method: 'get',
                 headers: headers,
                 withCredentials: false,
-                url: NuclioClientService.buildUrlWithPath('functions/') + functionData.name
+                url: NuclioClientService.buildUrlWithPath('functions/', functionData.name)
             };
 
             return NuclioClientService.makeRequest(config);
