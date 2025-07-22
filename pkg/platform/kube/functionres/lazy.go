@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,7 +64,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/yaml"
 )
 
@@ -80,7 +80,7 @@ const (
 
 type lazyClient struct {
 	logger                        logger.Logger
-	kubeClientSet                 kubernetes.Interface
+	kubeClientSet                 k8s.ClientWithRetry
 	nuclioClientSet               nuclioioclient.Interface
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
@@ -88,7 +88,7 @@ type lazyClient struct {
 }
 
 func NewLazyClient(parentLogger logger.Logger,
-	kubeClientSet kubernetes.Interface,
+	kubeClientSet k8s.ClientWithRetry,
 	nuclioClientSet nuclioioclient.Interface) (Client, error) {
 
 	newClient := lazyClient{
@@ -114,7 +114,7 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 		LabelSelector: fmt.Sprintf("%s=function", common.NuclioLabelKeyClass),
 	}
 
-	result, err := lc.kubeClientSet.AppsV1().Deployments(namespace).List(ctx, listOptions)
+	result, err := lc.kubeClientSet.ListDeployments(ctx, namespace, listOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list deployments")
 	}
@@ -138,9 +138,7 @@ func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, 
 func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (Resources, error) {
 	var result *appsv1.Deployment
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
-	result, err := lc.kubeClientSet.AppsV1().
-		Deployments(namespace).
-		Get(ctx, deploymentName, metav1.GetOptions{})
+	result, err := lc.kubeClientSet.GetDeployment(ctx, namespace, deploymentName)
 	lc.logger.DebugWithCtx(ctx,
 		"Got deployment",
 		"namespace", namespace,
@@ -488,7 +486,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 
 	// Delete ingress
 	ingressName := kube.IngressNameFromFunctionName(name)
-	err := lc.kubeClientSet.NetworkingV1().Ingresses(namespace).Delete(ctx, ingressName, deleteOptions)
+	err := lc.kubeClientSet.DeleteIngress(ctx, namespace, ingressName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete ingress")
@@ -526,7 +524,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 
 	// Delete Deployment if exists
 	deploymentName := kube.DeploymentNameFromFunctionName(name)
-	err = lc.kubeClientSet.AppsV1().Deployments(namespace).Delete(ctx, deploymentName, deleteOptions)
+	err = lc.kubeClientSet.DeleteDeployment(ctx, namespace, deploymentName, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete deployment")
@@ -577,9 +575,10 @@ func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProv
 func (lc *lazyClient) waitFunctionIngressReadiness(ctx context.Context,
 	function *nuclioio.NuclioFunction) error {
 
-	functionIngresses, err := lc.kubeClientSet.NetworkingV1().
-		Ingresses(function.Namespace).
-		Get(ctx, kube.IngressNameFromFunctionName(function.Name), metav1.GetOptions{})
+	functionIngresses, err := lc.kubeClientSet.GetIngress(
+		ctx,
+		function.Namespace,
+		kube.IngressNameFromFunctionName(function.Name))
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function ingresses")
 	}
@@ -640,12 +639,9 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 	if !function.Spec.WaitReadinessTimeoutBeforeFailure {
 
 		// get the deployment pods. if it doesn't exist yet, retry a bit later
-		podsList, err := lc.kubeClientSet.CoreV1().
-			Pods(function.Namespace).
-			List(ctx,
-				metav1.ListOptions{
-					LabelSelector: common.CompileListFunctionPodsLabelSelector(function.Name),
-				})
+		podsList, err := lc.kubeClientSet.ListPods(ctx, function.Namespace, metav1.ListOptions{
+			LabelSelector: common.CompileListFunctionPodsLabelSelector(function.Name),
+		})
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to list function pods")
 		}
@@ -663,9 +659,7 @@ func (lc *lazyClient) waitFunctionDeploymentReadiness(ctx context.Context,
 
 // getFunctionDeployment returns function's deployment
 func (lc *lazyClient) getFunctionDeployment(ctx context.Context, function *nuclioio.NuclioFunction) (*appsv1.Deployment, error) {
-	return lc.kubeClientSet.AppsV1().
-		Deployments(function.Namespace).
-		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+	return lc.kubeClientSet.GetDeployment(ctx, function.Namespace, kube.DeploymentNameFromFunctionName(function.Name))
 }
 
 // checkFunctionInitContainersDone checks that all function init containers are in terminated status
@@ -795,9 +789,10 @@ func (lc *lazyClient) getFunctionIngressLastWarningEvent(ctx context.Context, fu
 // getLastWarningEventForFunctionPods returns the latest warning event for any pod
 // belonging to the given function (based on function labels).
 func (lc *lazyClient) getLastWarningEventForFunctionPods(ctx context.Context, function *nuclioio.NuclioFunction) string {
-	pods, err := lc.kubeClientSet.CoreV1().Pods(function.Namespace).List(ctx, metav1.ListOptions{
+	pods, err := lc.kubeClientSet.ListPods(ctx, function.Namespace, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, function.Name),
 	})
+
 	if err != nil || len(pods.Items) == 0 {
 		return ""
 	}
@@ -819,7 +814,7 @@ func (lc *lazyClient) getLastWarningEventForKindAndName(ctx context.Context, nam
 	fieldSelector := fmt.Sprintf("involvedObject.kind=%s,involvedObject.name=%s", kind, name)
 
 	// Retrieve the list of events associated with the object
-	events, err := lc.kubeClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+	events, err := lc.kubeClientSet.ListEvents(ctx, namespace, metav1.ListOptions{
 		FieldSelector: fieldSelector,
 	})
 	if err != nil {
@@ -1205,9 +1200,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 	}
 
 	getDeployment := func() (interface{}, error) {
-		return lc.kubeClientSet.AppsV1().
-			Deployments(function.Namespace).
-			Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+		return lc.kubeClientSet.GetDeployment(ctx, function.Namespace, kube.DeploymentNameFromFunctionName(function.Name))
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
@@ -1525,9 +1518,10 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(ctx context.Context,
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
-		return lc.kubeClientSet.AutoscalingV2().
-			HorizontalPodAutoscalers(function.Namespace).
-			Get(ctx, kube.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
+		return lc.kubeClientSet.GetHorizontalPodAutoscaler(
+			ctx,
+			function.Namespace,
+			kube.HPANameFromFunctionName(function.Name))
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
@@ -2807,7 +2801,7 @@ func (lc *lazyClient) getFunctionSecretName(ctx context.Context, function *nucli
 func (lc *lazyClient) getFunctionSecrets(ctx context.Context, function *nuclioio.NuclioFunction) ([]v1.Secret, error) {
 
 	// get the function secrets
-	secretList, err := lc.kubeClientSet.CoreV1().Secrets(function.Namespace).List(ctx, metav1.ListOptions{
+	secretList, err := lc.kubeClientSet.ListSecrets(ctx, function.Namespace, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyFunctionName, function.Name),
 	})
 	if err != nil {
@@ -3147,7 +3141,7 @@ func (lc *lazyClient) resolveFailFast(ctx context.Context,
 func (lc *lazyClient) isPodAutoScaledUp(ctx context.Context, pod v1.Pod) (bool, error) {
 
 	// get pod events to check if pod triggered auto scale
-	podEvents, err := lc.kubeClientSet.CoreV1().Events(pod.Namespace).List(ctx, metav1.ListOptions{
+	podEvents, err := lc.kubeClientSet.ListEvents(ctx, pod.Namespace, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
 	})
 	if err != nil {

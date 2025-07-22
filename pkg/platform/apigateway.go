@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"regexp"
 	"strings"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const SecretTypeAPIGatewayConfig = "nuclio.io/apigatewayconfig"
@@ -67,7 +67,7 @@ type APIGatewayScrubber struct {
 
 func NewAPIGatewayScrubber(parentLogger logger.Logger,
 	sensitiveFields []*regexp.Regexp,
-	kubeClientSet kubernetes.Interface) *APIGatewayScrubber {
+	kubeClientSet k8s.ClientWithRetry) *APIGatewayScrubber {
 	abstractScrubber := common.NewAbstractScrubber(parentLogger,
 		sensitiveFields,
 		kubeClientSet,

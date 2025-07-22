@@ -19,6 +19,7 @@ package apigatewayres
 import (
 	"context"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"strconv"
 	"strings"
 	"time"
@@ -34,8 +35,6 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	networkingv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 //
@@ -44,14 +43,14 @@ import (
 
 type lazyClient struct {
 	logger          logger.Logger
-	kubeClientSet   kubernetes.Interface
+	kubeClientSet   k8s.ClientWithRetry
 	nuclioClientSet nuclioio_client.Interface
 	ingressManager  *ingress.Manager
 	scrubber        *platform.APIGatewayScrubber
 }
 
 func NewLazyClient(loggerInstance logger.Logger,
-	kubeClientSet kubernetes.Interface,
+	kubeClientSet k8s.ClientWithRetry,
 	nuclioClientSet nuclioio_client.Interface,
 	ingressManager *ingress.Manager) (Client, error) {
 
@@ -185,7 +184,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	} else if apiGatewaySecretName != "" {
 		lc.logger.DebugWithCtx(ctx, "Deleting api gateway secret",
 			"apiGatewayName", name)
-		if err := lc.kubeClientSet.CoreV1().Secrets(namespace).Delete(ctx, apiGatewaySecretName, metav1.DeleteOptions{}); err != nil {
+		if err := lc.kubeClientSet.DeleteSecret(ctx, namespace, apiGatewaySecretName); err != nil {
 			lc.logger.WarnWithCtx(ctx, "Failed to delete api gateway secret name",
 				"apiGatewayName", name,
 				"err", errors.Cause(err).Error())

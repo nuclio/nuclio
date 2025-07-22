@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"os"
 	"strings"
 	"time"
@@ -31,13 +32,12 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	"github.com/v3io/version-go"
-	"k8s.io/client-go/kubernetes"
 )
 
 type Controller struct {
 	logger                    logger.Logger
 	namespace                 string
-	kubeClientSet             kubernetes.Interface
+	kubeClientSet             k8s.ClientWithRetry
 	nuclioClientSet           nuclioioclient.Interface
 	functionresClient         functionres.Client
 	apigatewayresClient       apigatewayres.Client
@@ -63,7 +63,7 @@ type Controller struct {
 func NewController(parentLogger logger.Logger,
 	namespace string,
 	imagePullSecrets string,
-	kubeClientSet kubernetes.Interface,
+	kubeClientSet k8s.ClientWithRetry,
 	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
 	apigatewayresClient apigatewayres.Client,

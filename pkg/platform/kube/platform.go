@@ -645,16 +645,12 @@ func (p *Platform) ProxyFunctionLogs(ctx context.Context,
 	options interface{}) (io.ReadCloser, error) {
 	switch typedOptions := options.(type) {
 	case *platform.GetFunctionReplicaLogsStreamOptions:
-		return p.consumer.KubeClientSet.
-			CoreV1().
-			Pods(typedOptions.Namespace).
-			GetLogs(typedOptions.Name, &v1.PodLogOptions{
-				Container:    typedOptions.ContainerName,
-				SinceSeconds: typedOptions.SinceSeconds,
-				TailLines:    typedOptions.TailLines,
-				Follow:       typedOptions.Follow,
-			}).
-			Stream(ctx)
+		return p.consumer.KubeClientSet.StreamPodLogs(ctx, typedOptions.Namespace, typedOptions.Name, &v1.PodLogOptions{
+			Container:    typedOptions.ContainerName,
+			SinceSeconds: typedOptions.SinceSeconds,
+			TailLines:    typedOptions.TailLines,
+			Follow:       typedOptions.Follow,
+		})
 	case *platform.ProxyFunctionLogsOptions:
 		switch typedOptions.Source {
 		case platform.ProxyLogsSourceES:
@@ -683,12 +679,10 @@ func (p *Platform) GetFunctionActiveReplicaNames(ctx context.Context,
 		return nil, nuclio.NewErrNotFound(fmt.Sprintf("Function not found - %s", function.GetConfig().Meta.Name))
 	}
 
-	pods, err := p.consumer.KubeClientSet.
-		CoreV1().
-		Pods(function.GetConfig().Meta.Namespace).
-		List(ctx, metav1.ListOptions{
-			LabelSelector: common.CompileListFunctionPodsLabelSelector(function.GetConfig().Meta.Name),
-		})
+	pods, err := p.consumer.KubeClientSet.ListPods(ctx, function.GetConfig().Meta.Namespace, metav1.ListOptions{
+		LabelSelector: common.CompileListFunctionPodsLabelSelector(function.GetConfig().Meta.Name),
+	})
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function pods")
 	}
@@ -723,10 +717,8 @@ func (p *Platform) GetFunctionAllReplicaNames(ctx context.Context, function plat
 }
 
 func (p *Platform) GetFunctionReplicaContainers(ctx context.Context, functionConfig *functionconfig.Config, replicaName string) ([]string, error) {
-	pod, err := p.consumer.KubeClientSet.
-		CoreV1().
-		Pods(functionConfig.Meta.Namespace).
-		Get(ctx, replicaName, metav1.GetOptions{})
+	pod, err := p.consumer.KubeClientSet.GetPod(ctx, functionConfig.Meta.Namespace, replicaName)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function pod")
 	}
@@ -1306,7 +1298,7 @@ func (p *Platform) GetNamespaces(ctx context.Context) ([]string, error) {
 		return p.Config.ManagedNamespaces, nil
 	}
 
-	namespaces, err := p.consumer.KubeClientSet.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	namespaces, err := p.consumer.KubeClientSet.ListNamespaces(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
 
@@ -2179,10 +2171,7 @@ func (p *Platform) validateIngressHostAndPathAvailability(ctx context.Context,
 	ingresses map[string]functionconfig.Ingress) error {
 
 	// get all ingresses on the namespace
-	existingIngresses, err := p.consumer.KubeClientSet.
-		NetworkingV1().
-		Ingresses(namespace).
-		List(ctx, listIngressesOptions)
+	existingIngresses, err := p.consumer.KubeClientSet.ListIngresses(ctx, namespace, listIngressesOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list ingresses")
 	}

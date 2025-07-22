@@ -19,6 +19,7 @@ package monitoring
 import (
 	"context"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -35,7 +36,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -45,7 +45,7 @@ var (
 type FunctionMonitor struct {
 	logger                          logger.Logger
 	namespace                       string
-	kubeClientSet                   kubernetes.Interface
+	kubeClientSet                   k8s.ClientWithRetry
 	nuclioClientSet                 nuclioioclient.Interface
 	interval                        time.Duration
 	scalingGracePeriod              time.Duration
@@ -58,7 +58,7 @@ type FunctionMonitor struct {
 func NewFunctionMonitor(ctx context.Context,
 	parentLogger logger.Logger,
 	namespace string,
-	kubeClientSet kubernetes.Interface,
+	kubeClientSet k8s.ClientWithRetry,
 	nuclioClientSet nuclioioclient.Interface,
 	interval,
 	scalingGracePeriod,
@@ -160,10 +160,10 @@ func (fm *FunctionMonitor) updateFunctionStatus(ctx context.Context, function *n
 		return nil
 	}
 
-	functionDeployment, err := fm.kubeClientSet.
-		AppsV1().
-		Deployments(function.Namespace).
-		Get(ctx, kube.DeploymentNameFromFunctionName(function.Name), metav1.GetOptions{})
+	functionDeployment, err := fm.kubeClientSet.GetDeployment(
+		ctx,
+		function.Namespace,
+		kube.DeploymentNameFromFunctionName(function.Name))
 	if err != nil {
 		fm.logger.WarnWithCtx(ctx,
 			"Failed to get function deployment",
@@ -297,9 +297,10 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 	}
 
 	// get the function's HPA
-	hpa, err := fm.kubeClientSet.AutoscalingV2().
-		HorizontalPodAutoscalers(function.Namespace).
-		Get(context.Background(), kube.HPANameFromFunctionName(function.Name), metav1.GetOptions{})
+	hpa, err := fm.kubeClientSet.GetHorizontalPodAutoscaler(
+		ctx,
+		function.Namespace,
+		kube.HPANameFromFunctionName(function.Name))
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to get function HPA")
 	}

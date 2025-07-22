@@ -18,6 +18,7 @@ package client
 
 import (
 	"context"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -26,15 +27,13 @@ import (
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
-	"k8s.io/client-go/kubernetes"
-
 	// enable OIDC plugin
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 type Consumer struct {
 	NuclioClientSet nuclioioclient.Interface
-	KubeClientSet   kubernetes.Interface
+	KubeClientSet   k8s.ClientWithRetry
 	KubeHost        string
 	kubeconfigPath  string
 }
@@ -62,7 +61,7 @@ func NewConsumer(ctx context.Context, logger logger.Logger, kubeconfigPath strin
 	newConsumer.KubeHost = restConfig.Host
 
 	// create KubeClientSet
-	newConsumer.KubeClientSet, err = kubernetes.NewForConfig(restConfig)
+	newConsumer.KubeClientSet, err = k8s.NewClientWithRetry(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create client set")
 	}

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,7 +31,6 @@ import (
 	"github.com/nuclio/logger"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -48,7 +48,7 @@ type Scrubber struct {
 }
 
 // NewScrubber returns a new scrubber
-func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface) *Scrubber {
+func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet k8s.ClientWithRetry) *Scrubber {
 
 	secretFilter := func(secret v1.Secret) bool {
 		// if it is a flex volume secret, skip it
@@ -154,10 +154,9 @@ func (s *Scrubber) ValidateReference(objectToScrub interface{},
 		volumeName := functionConfig.Spec.Volumes[volumeIndex].Volume.Name
 
 		// list secrets with the volume name label selector
-		volumeSecrets, err := s.KubeClientSet.CoreV1().Secrets(functionConfig.Meta.Namespace).List(context.Background(),
-			metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
-			})
+		volumeSecrets, err := s.KubeClientSet.ListSecrets(context.Background(), functionConfig.Meta.Namespace, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
+		})
 		if err != nil {
 			return errors.Wrap(err, "Failed to list volume secrets")
 		}
@@ -253,7 +252,7 @@ func (s *Scrubber) createOrUpdateFlexVolumeSecret(ctx context.Context,
 	flexVolumeSecretName := s.generateFlexVolumeSecretName(functionName, volumeName)
 
 	// check if a secret with the same access key reference already exists
-	existingFlexVolumeSecrets, err := s.KubeClientSet.CoreV1().Secrets(functionNamespace).List(ctx, metav1.ListOptions{
+	existingFlexVolumeSecrets, err := s.KubeClientSet.ListSecrets(ctx, functionNamespace, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", common.NuclioResourceLabelKeyVolumeName, volumeName),
 	})
 	if err != nil {
