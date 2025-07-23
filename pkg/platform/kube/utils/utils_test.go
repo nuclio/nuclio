@@ -342,6 +342,11 @@ func (suite *utilsTestSuite) TestIsServiceAccountAllowed() {
 			sa:        "Sa3",
 			expectErr: true,
 		},
+		{
+			name:   "ServiceAccountEmpty",
+			secret: secretDataMultiple,
+			key:    "allowed",
+		},
 	}
 
 	for _, tc := range testCases {
