@@ -29,6 +29,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
@@ -95,8 +96,10 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 	defer os.Remove(assetPath) // nolint: errcheck
 
 	// Generate job spec
-	jobSpec := k.compileJobSpec(ctx, namespace, buildOptions, bundleFilename)
-
+	jobSpec, err := k.compileJobSpec(ctx, namespace, buildOptions, bundleFilename)
+	if err != nil {
+		return errors.Wrap(err, "Failed to compile kaniko job spec")
+	}
 	// create job
 	k.logger.DebugWithCtx(ctx,
 		"Creating job",
@@ -248,7 +251,7 @@ func (k *Kaniko) createContainerBuildBundle(ctx context.Context,
 func (k *Kaniko) compileJobSpec(ctx context.Context,
 	namespace string,
 	buildOptions *BuildOptions,
-	bundleFilename string) *batchv1.Job {
+	bundleFilename string) (*batchv1.Job, error) {
 
 	completions := int32(1)
 	backoffLimit := int32(0)
@@ -295,7 +298,10 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 	assetsURL := fmt.Sprintf("http://%s:8070/kaniko/%s", os.Getenv("NUCLIO_DASHBOARD_DEPLOYMENT_NAME"), bundleFilename)
 	getAssetCommand := fmt.Sprintf("while true; do wget -T 5 -c %s -P %s && break; done", assetsURL, tmpFolderVolumeMount.MountPath)
 
-	serviceAccount := k.resolveServiceAccount(buildOptions)
+	serviceAccount, err := k.enrichAndValidateServiceAccount(ctx, buildOptions, namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to enrich and validate service account")
+	}
 
 	kanikoJobSpec := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -373,7 +379,7 @@ func (k *Kaniko) compileJobSpec(ctx context.Context,
 	}
 
 	k.configureSecretVolumeMount(buildOptions, kanikoJobSpec)
-	return kanikoJobSpec
+	return kanikoJobSpec, nil
 }
 
 func (k *Kaniko) configureSecretVolumeMount(buildOptions *BuildOptions, kanikoJobSpec *batchv1.Job) {
@@ -803,8 +809,25 @@ func (k *Kaniko) resolveAWSRegionFromECR(registryURL string) string {
 	return strings.Split(registryURL, ".")[3]
 }
 
-func (k *Kaniko) resolveServiceAccount(buildOptions *BuildOptions) string {
+func (k *Kaniko) enrichAndValidateServiceAccount(ctx context.Context, buildOptions *BuildOptions, namespace string) (string, error) {
+	// try to enrich service account from builder configuration
+	enrichedServiceAccount := k.enrichServiceAccountFromBuilderConfiguration(buildOptions)
 
+	// enrich (from project/platform) and validate service account
+	return utils.EnrichAndValidateServiceAccount(ctx,
+		k.kubeClientSet,
+		buildOptions.DefaultPlatformServiceAccount,
+		buildOptions.ProjectSecretTemplate,
+		buildOptions.ProjectSecretDefaultServiceAccountKey,
+		buildOptions.ProjectSecretAllowedServiceAccountsKey,
+		enrichedServiceAccount,
+		buildOptions.ProjectName,
+		namespace,
+		true,
+	)
+}
+
+func (k *Kaniko) enrichServiceAccountFromBuilderConfiguration(buildOptions *BuildOptions) string {
 	// if a builder service account is provided in build options, use it.
 	if buildOptions.BuilderServiceAccount != "" {
 		return buildOptions.BuilderServiceAccount
@@ -813,6 +836,5 @@ func (k *Kaniko) resolveServiceAccount(buildOptions *BuildOptions) string {
 	if k.builderConfiguration.DefaultServiceAccount != "" {
 		return k.builderConfiguration.DefaultServiceAccount
 	}
-	// otherwise, use function service account.
 	return buildOptions.FunctionServiceAccount
 }
