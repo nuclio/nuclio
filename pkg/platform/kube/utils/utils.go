@@ -206,7 +206,9 @@ func GetProjectSecret(ctx context.Context, kubeClient kubernetes.Interface, proj
 }
 
 func IsServiceAccountAllowed(secret *v1.Secret, secretAllowedServiceAccountsKey string, serviceAccount string) error {
-
+	if serviceAccount == "" {
+		return nil
+	}
 	allowedServiceAccounts, found := getAllowedServiceAccountsFromSecret(secret, secretAllowedServiceAccountsKey)
 
 	// if the key is found, but is empty, treat it as no allowed service accounts configured
