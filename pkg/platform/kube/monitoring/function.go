@@ -309,57 +309,56 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 		return false, nil
 	}
 
-	// check if HPA is in progress of scaling
-	if hpa.Status.CurrentReplicas != hpa.Status.DesiredReplicas {
-
-		// if there is an error in the HPA, it is possible that the desired replicas are not achieved,
-		// but the HPA is not scaling anymore
-		if hpa.Status.LastScaleTime == nil {
-			fm.logger.WarnWithCtx(ctx,
-				"Function's desired replicas were not achieved but HPA has no last scale time",
-				"functionName", function.Name,
-				"currentReplicas", hpa.Status.CurrentReplicas,
-				"desiredReplicas", hpa.Status.DesiredReplicas)
-			return false, nil
-		}
-
-		// get the previous last scale time of this function, if exists
-		if previousLastScaleTime, ok := fm.lastScaleTimeMap.Load(function.Name); ok {
-			previousLastScaleTimeInstance, ok := previousLastScaleTime.(*metav1.Time)
-			if !ok {
-				return false, errors.New(fmt.Sprintf("Failed to cast previous last scale time of function %s to time.Time", function.Name))
-			}
-
-			// check if the LastScaleTime has changed since the previous monitoring interval
-			if !hpa.Status.LastScaleTime.Equal(previousLastScaleTimeInstance) {
-
-				// save the last scale time of this function
-				fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
-
-				// the HPA is still scaling, we should not change the function state just yet
-				return true, nil
-			}
-		}
-
-		// either the previous last scale time doesn't exist or it has not changed since the previous monitoring interval
-		// check if the scaling timeout has passed since the last scale time
-		if hpa.Status.LastScaleTime.Add(scalingTimeout).Before(time.Now()) {
-			fm.logger.WarnWithCtx(context.Background(),
-				"Function is still scaling passed the scaling timeout",
-				"functionName", function.Name,
-				"scalingTimeout", scalingTimeout)
-
-			// we return false so the function will be set as unhealthy
-			return false, nil
-		}
-
-		// save the last scale time of this function
-		fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
-
-		return true, nil
+	// if there is an error in the HPA, it is possible that the desired replicas are not achieved,
+	// but the HPA is not scaling anymore
+	if hpa.Status.CurrentReplicas != hpa.Status.DesiredReplicas && hpa.Status.LastScaleTime == nil {
+		fm.logger.WarnWithCtx(ctx,
+			"Function's desired replicas were not achieved but HPA has no last scale time",
+			"functionName", function.Name,
+			"currentReplicas", hpa.Status.CurrentReplicas,
+			"desiredReplicas", hpa.Status.DesiredReplicas)
+		return false, nil
 	}
 
-	return false, nil
+	// didn't scale yet, desired replicas are achieved
+	if hpa.Status.LastScaleTime == nil {
+		return false, nil
+	}
+
+	// get the previous last scale time of this function, if exists
+	if previousLastScaleTime, ok := fm.lastScaleTimeMap.Load(function.Name); ok {
+		previousLastScaleTimeInstance, ok := previousLastScaleTime.(*metav1.Time)
+		if !ok {
+			return false, errors.New(fmt.Sprintf("Failed to cast previous last scale time of function %s to time.Time", function.Name))
+		}
+
+		// check if the LastScaleTime has changed since the previous monitoring interval
+		if !hpa.Status.LastScaleTime.Equal(previousLastScaleTimeInstance) {
+
+			// save the last scale time of this function
+			fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
+
+			// the HPA is still scaling, we should not change the function state just yet
+			return true, nil
+		}
+	}
+
+	// either the previous last scale time doesn't exist or it has not changed since the previous monitoring interval
+	// check if the scaling timeout has passed since the last scale time
+	if hpa.Status.LastScaleTime.Add(scalingTimeout).Before(time.Now()) {
+		fm.logger.WarnWithCtx(ctx,
+			"Function is still scaling passed the scaling timeout",
+			"functionName", function.Name,
+			"scalingTimeout", scalingTimeout)
+
+		// we return false so the function will be set as unhealthy
+		return false, nil
+	}
+
+	// save the last scale time of this function
+	fm.lastScaleTimeMap.Store(function.Name, hpa.Status.LastScaleTime)
+
+	return true, nil
 }
 
 // We monitor functions that meet the following conditions:
