@@ -31,6 +31,7 @@ import (
 	authIgzV4 "github.com/nuclio/nuclio/pkg/auth/iguazio/v4"
 	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -148,7 +149,7 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 		getter:   getter,
 		consumer: &client.Consumer{
 			NuclioClientSet: suite.nuclioioInterfaceMock,
-			KubeClientSet:   &suite.kubeClientSet,
+			KubeClientSet:   k8s.NewClientWithRetryFromClient(&suite.kubeClientSet),
 		},
 		projectsCache: cache.NewExpiring(),
 	}

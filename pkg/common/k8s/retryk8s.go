@@ -1,9 +1,10 @@
 package k8s
 
 import (
-	"github.com/nuclio/errors"
 	"strings"
 	"time"
+
+	"github.com/nuclio/errors"
 )
 
 // default retry parameters
@@ -25,7 +26,7 @@ func requestWithRetry[T any](fn func() (T, error), maxRetries int, delay time.Du
 
 		time.Sleep(delay)
 	}
-	return result, errors.Wrapf(err, "Kubernetes call failed after %d retries: %s", maxRetries)
+	return result, errors.Wrapf(err, "Kubernetes call failed after %d retries", maxRetries)
 }
 
 func isK8sRetryableErrors(err error) bool {

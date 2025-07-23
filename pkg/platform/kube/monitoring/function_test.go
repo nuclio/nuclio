@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
@@ -66,7 +67,7 @@ func (suite *FunctionMonitoringTestSuite) SetupTest() {
 	suite.functionMonitor, err = NewFunctionMonitor(suite.ctx,
 		suite.Logger,
 		suite.Namespace,
-		suite.kubeClientSet,
+		k8s.NewClientWithRetryFromClient(suite.kubeClientSet),
 		suite.nuclioioClientSet,
 		time.Second,
 		suite.scalingGracePeriod,

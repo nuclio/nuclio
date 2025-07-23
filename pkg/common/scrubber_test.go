@@ -24,6 +24,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/common/k8s"
+
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -43,7 +45,7 @@ func (suite *ScrubberTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
 	suite.k8sClientSet = k8sfake.NewSimpleClientset()
-	suite.scrubber = NewAbstractScrubber(suite.logger, []*regexp.Regexp{}, suite.k8sClientSet, ReferencePrefix, "test", "test", func(secret v1.Secret) bool {
+	suite.scrubber = NewAbstractScrubber(suite.logger, []*regexp.Regexp{}, k8s.NewClientWithRetryFromClient(suite.k8sClientSet), ReferencePrefix, "test", "test", func(secret v1.Secret) bool {
 		return false
 	})
 }

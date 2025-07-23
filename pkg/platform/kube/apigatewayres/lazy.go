@@ -19,12 +19,12 @@ package apigatewayres
 import (
 	"context"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"

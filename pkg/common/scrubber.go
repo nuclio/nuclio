@@ -21,10 +21,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/gosecretive"

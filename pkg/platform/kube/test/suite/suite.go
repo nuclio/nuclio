@@ -31,6 +31,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -655,7 +656,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	suite.Require().NoError(err)
 
 	// create a client for function deployments
-	suite.FunctionClient, err = functionres.NewLazyClient(suite.Logger, suite.KubeClientSet, suite.FunctionClientSet)
+	suite.FunctionClient, err = functionres.NewLazyClient(suite.Logger, k8s.NewClientWithRetryFromClient(suite.KubeClientSet), suite.FunctionClientSet)
 	suite.Require().NoError(err)
 
 	// create cmd runner
@@ -663,12 +664,12 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	suite.Require().NoError(err)
 
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(suite.Logger, suite.KubeClientSet, cmdRunner, suite.PlatformConfiguration)
+	ingressManager, err := ingress.NewManager(suite.Logger, k8s.NewClientWithRetryFromClient(suite.KubeClientSet), cmdRunner, suite.PlatformConfiguration)
 	suite.Require().NoError(err)
 
 	// create api-gateway provisioner
 	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger,
-		suite.KubeClientSet,
+		k8s.NewClientWithRetryFromClient(suite.KubeClientSet),
 		suite.FunctionClientSet,
 		ingressManager)
 	suite.Require().NoError(err)
@@ -676,7 +677,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	controllerInstance, err := controller.NewController(suite.Logger,
 		suite.Namespace,
 		"",
-		suite.KubeClientSet,
+		k8s.NewClientWithRetryFromClient(suite.KubeClientSet),
 		suite.FunctionClientSet,
 		suite.FunctionClient,
 		apigatewayresClient,

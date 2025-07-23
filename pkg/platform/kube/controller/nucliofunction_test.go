@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
@@ -71,7 +72,7 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 	suite.functionClientSet = fake.NewSimpleClientset()
 
 	functionresClient, err := functionres.NewLazyClient(suite.logger,
-		suite.k8sClientSet,
+		k8s.NewClientWithRetryFromClient(suite.k8sClientSet),
 		suite.functionClientSet)
 	suite.Require().NoError(err)
 	suite.projectName = "default"
@@ -85,7 +86,7 @@ func (suite *NuclioFunctionTestSuite) SetupTest() {
 	suite.controller, err = NewController(suite.logger,
 		suite.namespace,
 		"",
-		suite.k8sClientSet,
+		k8s.NewClientWithRetryFromClient(suite.k8sClientSet),
 		suite.functionClientSet,
 		functionresClient,
 		nil,

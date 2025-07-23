@@ -18,11 +18,11 @@ package controller
 
 import (
 	"context"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"

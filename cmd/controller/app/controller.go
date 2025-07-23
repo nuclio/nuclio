@@ -18,12 +18,12 @@ package app
 
 import (
 	"context"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
@@ -158,7 +158,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to get client configuration")
 	}
 
-	kubeClientSet, err := k8s.NewClientWithRetry(restConfig)
+	kubeClientSet, err := k8s.NewClientWithRetryFromConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create k8s client set")
 	}

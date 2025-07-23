@@ -19,12 +19,12 @@ package monitoring
 import (
 	"context"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"

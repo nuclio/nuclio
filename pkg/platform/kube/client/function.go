@@ -108,9 +108,7 @@ func (f *Function) Initialize(ctx context.Context, str []string) error {
 	// get deployment info
 	go func() {
 		if deploymentList == nil {
-			deploymentList, deploymentErr = f.consumer.KubeClientSet.AppsV1().
-				Deployments(f.Config.Meta.Namespace).
-				List(ctx, listOptions)
+			deploymentList, deploymentErr = f.consumer.KubeClientSet.ListDeployments(ctx, f.Config.Meta.Namespace, listOptions)
 
 			if deploymentErr != nil {
 				return
@@ -132,10 +130,7 @@ func (f *Function) Initialize(ctx context.Context, str []string) error {
 	// get service info
 	go func() {
 		if serviceList == nil {
-			serviceList, serviceErr = f.consumer.KubeClientSet.CoreV1().
-				Services(f.Config.Meta.Namespace).
-				List(ctx, listOptions)
-
+			serviceList, serviceErr = f.consumer.KubeClientSet.ListServices(ctx, f.Config.Meta.Namespace, listOptions)
 			if serviceErr != nil {
 				return
 			}
@@ -156,9 +151,7 @@ func (f *Function) Initialize(ctx context.Context, str []string) error {
 	// get ingress info
 	go func() {
 		if ingressList == nil {
-			ingressList, ingressErr = f.consumer.KubeClientSet.NetworkingV1().
-				Ingresses(f.Config.Meta.Namespace).
-				List(ctx, listOptions)
+			ingressList, ingressErr = f.consumer.KubeClientSet.ListIngresses(ctx, f.Config.Meta.Namespace, listOptions)
 
 			if ingressErr != nil {
 				return

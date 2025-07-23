@@ -210,11 +210,9 @@ func (d *Deployer) getFunctionPodLogsAndEvents(ctx context.Context, namespace st
 	podLogsMessage := "\nPod logs:\n"
 
 	// list pods
-	functionPods, listPodErr := d.consumer.KubeClientSet.CoreV1().
-		Pods(namespace).
-		List(ctx, metav1.ListOptions{
-			LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
-		})
+	functionPods, listPodErr := d.consumer.KubeClientSet.ListPods(ctx, namespace, metav1.ListOptions{
+		LabelSelector: common.CompileListFunctionPodsLabelSelector(name),
+	})
 
 	if listPodErr != nil {
 		podLogsMessage += fmt.Sprintf("Failed to list pods: %s\n", listPodErr.Error())
@@ -237,10 +235,11 @@ func (d *Deployer) getFunctionPodLogsAndEvents(ctx context.Context, namespace st
 	podLogsMessage += "\n* " + pod.Name + "\n"
 
 	maxLogLines := int64(MaxLogLines)
-	if logsRequest, getLogsErr := d.consumer.KubeClientSet.CoreV1().
-		Pods(namespace).
-		GetLogs(pod.Name, &v1.PodLogOptions{TailLines: &maxLogLines}).
-		Stream(ctx); getLogsErr != nil {
+	if logsRequest, getLogsErr := d.consumer.KubeClientSet.StreamPodLogs(
+		ctx,
+		namespace,
+		pod.Name,
+		&v1.PodLogOptions{TailLines: &maxLogLines}); getLogsErr != nil {
 		podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
 	} else {
 		scanner := bufio.NewScanner(logsRequest)
@@ -269,7 +268,7 @@ func (d *Deployer) getFunctionPodLogsAndEvents(ctx context.Context, namespace st
 }
 
 func (d *Deployer) getFunctionPodWarningEvents(ctx context.Context, namespace string, podName string) (string, error) {
-	eventList, err := d.consumer.KubeClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
+	eventList, err := d.consumer.KubeClientSet.ListEvents(ctx, namespace, metav1.ListOptions{})
 	if err != nil {
 		return "", err
 	}

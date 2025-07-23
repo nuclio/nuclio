@@ -19,11 +19,11 @@ package ingress
 import (
 	"context"
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -274,7 +274,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 	}
 
 	// delete the ingress resource
-	if err = m.kubeClientSet.DeleteIngress(ctx, ingress.Namespace, ingressName); err != nil {
+	if err = m.kubeClientSet.DeleteIngress(ctx, ingress.Namespace, ingressName, metav1.DeleteOptions{}); err != nil {
 
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete ingress")
