@@ -133,7 +133,7 @@ type ClientWithRetry interface {
 	CreateJob(ctx context.Context, namespace string, job *batchv1.Job) (*batchv1.Job, error)
 
 	// DeleteJob deletes a Job.
-	DeleteJob(ctx context.Context, namespace string, name string, options metav1.DeleteOptions) error
+	DeleteJob(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) error
 
 	// ListJobs lists Jobs in a namespace.
 	ListJobs(ctx context.Context, namespace string, listOptions metav1.ListOptions) (*batchv1.JobList, error)
@@ -170,7 +170,7 @@ type ClientWithRetry interface {
 	UpdateIngress(ctx context.Context, namespace string, ingress *networkingv1.Ingress) (*networkingv1.Ingress, error)
 
 	// DeleteIngress deletes an Ingress.
-	DeleteIngress(ctx context.Context, namespace, name string, options metav1.DeleteOptions) error
+	DeleteIngress(ctx context.Context, namespace, name string, deleteOptions metav1.DeleteOptions) error
 
 	// --- HorizontalPodAutoscalers (HPA) ---
 
