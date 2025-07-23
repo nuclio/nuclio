@@ -320,7 +320,7 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 		return false, nil
 	}
 
-	// didn't scale yet, desired replicas are archived
+	// didn't scale yet, desired replicas are achieved
 	if hpa.Status.LastScaleTime == nil {
 		return false, nil
 	}
@@ -346,7 +346,7 @@ func (fm *FunctionMonitor) isScaling(ctx context.Context, function *nuclioio.Nuc
 	// either the previous last scale time doesn't exist or it has not changed since the previous monitoring interval
 	// check if the scaling timeout has passed since the last scale time
 	if hpa.Status.LastScaleTime.Add(scalingTimeout).Before(time.Now()) {
-		fm.logger.WarnWithCtx(context.Background(),
+		fm.logger.WarnWithCtx(ctx,
 			"Function is still scaling passed the scaling timeout",
 			"functionName", function.Name,
 			"scalingTimeout", scalingTimeout)
