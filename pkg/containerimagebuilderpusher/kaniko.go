@@ -42,7 +42,7 @@ import (
 )
 
 type Kaniko struct {
-	kubeClientSet        k8s.ClientWithRetry
+	kubeClientSet        k8s.Client
 	logger               logger.Logger
 	builderConfiguration *ContainerBuilderConfiguration
 	jobNameRegex         *regexp.Regexp
@@ -50,7 +50,7 @@ type Kaniko struct {
 }
 
 func NewKaniko(logger logger.Logger,
-	kubeClientSet k8s.ClientWithRetry,
+	kubeClientSet k8s.Client,
 	builderConfiguration *ContainerBuilderConfiguration) (*Kaniko, error) {
 
 	if builderConfiguration == nil {

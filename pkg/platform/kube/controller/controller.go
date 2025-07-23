@@ -37,7 +37,7 @@ import (
 type Controller struct {
 	logger                    logger.Logger
 	namespace                 string
-	kubeClientSet             k8s.ClientWithRetry
+	kubeClientSet             k8s.Client
 	nuclioClientSet           nuclioioclient.Interface
 	functionresClient         functionres.Client
 	apigatewayresClient       apigatewayres.Client
@@ -63,7 +63,7 @@ type Controller struct {
 func NewController(parentLogger logger.Logger,
 	namespace string,
 	imagePullSecrets string,
-	kubeClientSet k8s.ClientWithRetry,
+	kubeClientSet k8s.Client,
 	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
 	apigatewayresClient apigatewayres.Client,

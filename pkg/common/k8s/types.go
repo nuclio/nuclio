@@ -33,8 +33,8 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// ClientWithRetry provides resilient methods to interact with various Kubernetes resources
-type ClientWithRetry interface {
+// Client provides resilient methods to interact with various Kubernetes resources
+type Client interface {
 
 	// --- Secrets ---
 
@@ -88,7 +88,7 @@ type ClientWithRetry interface {
 	DeleteService(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) error
 
 	// PatchService applies a patch to a Service.
-	PatchService(ctx context.Context, namespace string, name string, pt types.PatchType, data []byte) (*corev1.Service, error)
+	PatchService(ctx context.Context, namespace string, name string, patchType types.PatchType, data []byte) (*corev1.Service, error)
 
 	// --- Deployments ---
 
@@ -118,7 +118,7 @@ type ClientWithRetry interface {
 	// StreamPodLogs returns a stream of logs for a Pod.
 	StreamPodLogs(ctx context.Context, namespace, podName string, options *corev1.PodLogOptions) (io.ReadCloser, error)
 
-	//DeletePod deletes a Pod by name.
+	// DeletePod deletes a Pod by name.
 	DeletePod(ctx context.Context, namespace string, name string, deleteOptions metav1.DeleteOptions) (err error)
 
 	// DeleteCollectionPods deletes a collection of Pods in a namespace.
@@ -203,7 +203,7 @@ type clientWithRetry struct {
 	delay   time.Duration
 }
 
-func NewClientWithRetryFromConfig(config *rest.Config) (ClientWithRetry, error) {
+func NewClientWithRetryFromConfig(config *rest.Config) (Client, error) {
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create Kubernetes client")
@@ -215,7 +215,7 @@ func NewClientWithRetryFromConfig(config *rest.Config) (ClientWithRetry, error) 
 	}, nil
 }
 
-func NewClientWithRetryFromClient(client kubernetes.Interface) ClientWithRetry {
+func NewClientWithRetryFromClient(client kubernetes.Interface) Client {
 	return &clientWithRetry{
 		Interface: client,
 		retries:   maxRetries,
@@ -345,11 +345,11 @@ func (r *clientWithRetry) DeleteService(ctx context.Context, namespace string, n
 	return
 }
 
-func (r *clientWithRetry) PatchService(ctx context.Context, namespace string, name string, pt types.PatchType, data []byte) (*corev1.Service, error) {
+func (r *clientWithRetry) PatchService(ctx context.Context, namespace string, name string, patchType types.PatchType, data []byte) (*corev1.Service, error) {
 	return requestWithRetry[*corev1.Service](func() (*corev1.Service, error) {
 		return r.CoreV1().
 			Services(namespace).
-			Patch(ctx, name, pt, data, metav1.PatchOptions{})
+			Patch(ctx, name, patchType, data, metav1.PatchOptions{})
 	}, r.retries, r.delay)
 }
 

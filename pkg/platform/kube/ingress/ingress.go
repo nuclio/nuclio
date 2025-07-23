@@ -44,12 +44,12 @@ type Resources struct {
 type Manager struct {
 	logger                logger.Logger
 	cmdRunner             cmdrunner.CmdRunner
-	kubeClientSet         k8s.ClientWithRetry
+	kubeClientSet         k8s.Client
 	platformConfiguration *platformconfig.Config
 }
 
 func NewManager(parentLogger logger.Logger,
-	kubecClientSet k8s.ClientWithRetry,
+	kubecClientSet k8s.Client,
 	cmdRunner cmdrunner.CmdRunner,
 	platformConfiguration *platformconfig.Config) (*Manager, error) {
 	return &Manager{

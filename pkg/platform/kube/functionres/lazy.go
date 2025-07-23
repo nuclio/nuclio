@@ -80,7 +80,7 @@ const (
 
 type lazyClient struct {
 	logger                        logger.Logger
-	kubeClientSet                 k8s.ClientWithRetry
+	kubeClientSet                 k8s.Client
 	nuclioClientSet               nuclioioclient.Interface
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
@@ -88,7 +88,7 @@ type lazyClient struct {
 }
 
 func NewLazyClient(parentLogger logger.Logger,
-	kubeClientSet k8s.ClientWithRetry,
+	kubeClientSet k8s.Client,
 	nuclioClientSet nuclioioclient.Interface) (Client, error) {
 
 	newClient := lazyClient{

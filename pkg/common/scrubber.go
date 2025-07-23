@@ -63,7 +63,7 @@ type Scrubber interface {
 // AbstractScrubber is an object that implements abstract scrubbing functionality
 type AbstractScrubber struct {
 	SensitiveFields            []*regexp.Regexp
-	KubeClientSet              k8s.ClientWithRetry
+	KubeClientSet              k8s.Client
 	ReferencePrefix            string
 	Scrubber                   Scrubber
 	ResourceLabelKeyObjectName string
@@ -76,7 +76,7 @@ type AbstractScrubber struct {
 }
 
 // NewAbstractScrubber returns a new AbstractScrubber
-func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet k8s.ClientWithRetry, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, secretFilterName func(secret v1.Secret) bool) *AbstractScrubber {
+func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet k8s.Client, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, secretFilterName func(secret v1.Secret) bool) *AbstractScrubber {
 	return &AbstractScrubber{
 		SensitiveFields:            sensitiveFields,
 		KubeClientSet:              kubeClientSet,

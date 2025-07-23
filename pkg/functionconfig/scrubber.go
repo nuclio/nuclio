@@ -48,7 +48,7 @@ type Scrubber struct {
 }
 
 // NewScrubber returns a new scrubber
-func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet k8s.ClientWithRetry) *Scrubber {
+func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet k8s.Client) *Scrubber {
 
 	secretFilter := func(secret v1.Secret) bool {
 		// if it is a flex volume secret, skip it

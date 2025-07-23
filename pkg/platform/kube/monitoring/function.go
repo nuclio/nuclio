@@ -45,7 +45,7 @@ var (
 type FunctionMonitor struct {
 	logger                          logger.Logger
 	namespace                       string
-	kubeClientSet                   k8s.ClientWithRetry
+	kubeClientSet                   k8s.Client
 	nuclioClientSet                 nuclioioclient.Interface
 	interval                        time.Duration
 	scalingGracePeriod              time.Duration
@@ -58,7 +58,7 @@ type FunctionMonitor struct {
 func NewFunctionMonitor(ctx context.Context,
 	parentLogger logger.Logger,
 	namespace string,
-	kubeClientSet k8s.ClientWithRetry,
+	kubeClientSet k8s.Client,
 	nuclioClientSet nuclioioclient.Interface,
 	interval,
 	scalingGracePeriod,

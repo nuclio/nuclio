@@ -34,7 +34,7 @@ import (
 
 type Consumer struct {
 	NuclioClientSet nuclioioclient.Interface
-	KubeClientSet   k8s.ClientWithRetry
+	KubeClientSet   k8s.Client
 	KubeHost        string
 	kubeconfigPath  string
 }

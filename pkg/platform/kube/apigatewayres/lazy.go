@@ -43,14 +43,14 @@ import (
 
 type lazyClient struct {
 	logger          logger.Logger
-	kubeClientSet   k8s.ClientWithRetry
+	kubeClientSet   k8s.Client
 	nuclioClientSet nuclioio_client.Interface
 	ingressManager  *ingress.Manager
 	scrubber        *platform.APIGatewayScrubber
 }
 
 func NewLazyClient(loggerInstance logger.Logger,
-	kubeClientSet k8s.ClientWithRetry,
+	kubeClientSet k8s.Client,
 	nuclioClientSet nuclioio_client.Interface,
 	ingressManager *ingress.Manager) (Client, error) {
 

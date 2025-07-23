@@ -67,7 +67,7 @@ type APIGatewayScrubber struct {
 
 func NewAPIGatewayScrubber(parentLogger logger.Logger,
 	sensitiveFields []*regexp.Regexp,
-	kubeClientSet k8s.ClientWithRetry) *APIGatewayScrubber {
+	kubeClientSet k8s.Client) *APIGatewayScrubber {
 	abstractScrubber := common.NewAbstractScrubber(parentLogger,
 		sensitiveFields,
 		kubeClientSet,
