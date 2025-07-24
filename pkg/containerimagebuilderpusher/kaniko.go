@@ -29,6 +29,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/errors"
@@ -37,11 +39,10 @@ import (
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 type Kaniko struct {
-	kubeClientSet        kubernetes.Interface
+	kubeClientSet        kube.Client
 	logger               logger.Logger
 	builderConfiguration *ContainerBuilderConfiguration
 	jobNameRegex         *regexp.Regexp
@@ -49,7 +50,7 @@ type Kaniko struct {
 }
 
 func NewKaniko(logger logger.Logger,
-	kubeClientSet kubernetes.Interface,
+	kubeClientSet kube.Client,
 	builderConfiguration *ContainerBuilderConfiguration) (*Kaniko, error) {
 
 	if builderConfiguration == nil {
@@ -104,10 +105,7 @@ func (k *Kaniko) BuildAndPushContainerImage(ctx context.Context,
 		"jobSpec", jobSpec,
 		"timeoutSeconds", buildOptions.BuildTimeoutSeconds,
 	)
-	job, err := k.kubeClientSet.
-		BatchV1().
-		Jobs(namespace).
-		Create(ctx, jobSpec, metav1.CreateOptions{})
+	job, err := k.kubeClientSet.CreateJob(ctx, namespace, jobSpec)
 	if err != nil {
 		return errors.Wrap(err, "Failed to publish kaniko job")
 	}
@@ -528,10 +526,7 @@ func (k *Kaniko) waitForJobCompletion(ctx context.Context,
 	}
 
 	for time.Now().Before(timeout) {
-		runningJob, err := k.kubeClientSet.
-			BatchV1().
-			Jobs(namespace).
-			Get(context.Background(), jobName, metav1.GetOptions{})
+		runningJob, err := k.kubeClientSet.GetJob(ctx, namespace, jobName)
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
 				k.logger.WarnWithCtx(ctx,
@@ -688,13 +683,7 @@ func (k *Kaniko) getPodLogs(ctx context.Context, jobPod *v1.Pod) (string, error)
 		"name", jobPod.Name,
 		"namespace", jobPod.Namespace)
 
-	// find job pod
-	restClientRequest := k.kubeClientSet.
-		CoreV1().
-		Pods(jobPod.Namespace).
-		GetLogs(jobPod.Name, &v1.PodLogOptions{})
-
-	restReadCloser, err := restClientRequest.Stream(ctx)
+	restReadCloser, err := k.kubeClientSet.StreamPodLogs(ctx, jobPod.Namespace, jobPod.Name, &v1.PodLogOptions{})
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get log read/closer")
 	}
@@ -730,7 +719,7 @@ func (k *Kaniko) getLastPodWarningEvent(ctx context.Context, namespace, podName 
 
 func (k *Kaniko) getPodEvents(ctx context.Context, namespace, podName string) *v1.EventList {
 
-	events, err := k.kubeClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+	events, err := k.kubeClientSet.ListEvents(ctx, namespace, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.kind=Pod,involvedObject.name=%s", podName),
 	})
 
@@ -748,7 +737,7 @@ func (k *Kaniko) getJobPod(ctx context.Context, jobName, namespace string, quiet
 	if !quiet {
 		k.logger.DebugWithCtx(ctx, "Getting job pods", "jobName", jobName)
 	}
-	jobPods, err := k.kubeClientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+	jobPods, err := k.kubeClientSet.ListPods(ctx, namespace, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 	})
 
@@ -792,7 +781,7 @@ func (k *Kaniko) deleteJob(ctx context.Context, namespace string, jobName string
 	k.logger.DebugWithCtx(ctx, "Deleting job", "namespace", namespace, "job", jobName)
 
 	propagationPolicy := metav1.DeletePropagationBackground
-	if err := k.kubeClientSet.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{
+	if err := k.kubeClientSet.DeleteJob(ctx, namespace, jobName, metav1.DeleteOptions{
 		PropagationPolicy: &propagationPolicy,
 	}); err != nil {
 		k.logger.WarnWithCtx(ctx,

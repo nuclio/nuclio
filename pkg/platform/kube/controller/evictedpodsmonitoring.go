@@ -96,10 +96,11 @@ func (epm *EvictedPodsMonitoring) cleanupEvictedPods(ctx context.Context) {
 
 			// get all failed function pods
 			stalePodsFieldSelector := common.CompileStalePodsFieldSelector()
-			pods, err := epm.controller.kubeClientSet.CoreV1().Pods(epm.controller.namespace).List(ctx, metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("%s=function", common.NuclioLabelKeyClass),
-				FieldSelector: stalePodsFieldSelector,
-			})
+			pods, err := epm.controller.kubeClientSet.ListPods(ctx, epm.controller.namespace,
+				metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=function", common.NuclioLabelKeyClass),
+					FieldSelector: stalePodsFieldSelector,
+				})
 			if err != nil {
 				epm.logger.WarnWithCtx(ctx, "Failed to list pods", "err", err)
 				continue
@@ -118,7 +119,7 @@ func (epm *EvictedPodsMonitoring) cleanupEvictedPods(ctx context.Context) {
 						epm.logger.DebugWithCtx(ctx, "Deleting evicted pod", "podName", pod.Name)
 
 						// delete pod
-						err := epm.controller.kubeClientSet.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
+						err := epm.controller.kubeClientSet.DeletePod(ctx, pod.Namespace, pod.Name, metav1.DeleteOptions{})
 						if err != nil && !apierrors.IsNotFound(err) {
 							epm.logger.WarnWithCtx(ctx, "Failed to delete pod",
 								"podName", pod.Name,

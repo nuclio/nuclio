@@ -34,7 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuctlcommon "github.com/nuclio/nuclio/pkg/nuctl/command/common"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client"
+	nuclioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/gobuffalo/flect"
@@ -1212,7 +1212,7 @@ func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocati
 	functionName := "deploy-reverser" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
 	serviceName := kube.ServiceNameFromFunctionName(functionName)
-	url, port := client.GetDomainNameInvokeURL(serviceName, suite.namespace)
+	url, port := nuclioclient.GetDomainNameInvokeURL(serviceName, suite.namespace)
 	functionClusterURL := fmt.Sprintf("http://%s:%d", url, port)
 
 	namedArgs := map[string]string{

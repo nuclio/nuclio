@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client"
+	nuclioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -36,12 +36,12 @@ import (
 type Client struct {
 	Logger   logger.Logger
 	platform platform.Platform
-	consumer *client.Consumer
+	consumer *nuclioclient.Consumer
 }
 
 func NewClient(parentLogger logger.Logger,
 	platformInstance platform.Platform,
-	consumer *client.Consumer) (project.Client, error) {
+	consumer *nuclioclient.Consumer) (project.Client, error) {
 	newClient := &Client{
 		Logger:   parentLogger.GetChild("projects-kube"),
 		consumer: consumer,

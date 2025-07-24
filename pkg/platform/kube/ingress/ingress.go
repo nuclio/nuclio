@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -31,7 +32,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 // Resources keeps resources needed for ingress creation
@@ -44,12 +44,12 @@ type Resources struct {
 type Manager struct {
 	logger                logger.Logger
 	cmdRunner             cmdrunner.CmdRunner
-	kubeClientSet         kubernetes.Interface
+	kubeClientSet         kube.Client
 	platformConfiguration *platformconfig.Config
 }
 
 func NewManager(parentLogger logger.Logger,
-	kubecClientSet kubernetes.Interface,
+	kubecClientSet kube.Client,
 	cmdRunner cmdrunner.CmdRunner,
 	platformConfiguration *platformconfig.Config) (*Manager, error) {
 	return &Manager{
@@ -159,10 +159,10 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 
 	m.logger.InfoWithCtx(ctx, "Creating/Updating ingress resources", "ingressName", resources.Ingress.Name)
 
-	if appliedIngress, err = m.kubeClientSet.
-		NetworkingV1().
-		Ingresses(resources.Ingress.Namespace).
-		Create(ctx, resources.Ingress, metav1.CreateOptions{}); err != nil {
+	if appliedIngress, err = m.kubeClientSet.CreateIngress(
+		ctx,
+		resources.Ingress.Namespace,
+		resources.Ingress); err != nil {
 
 		if !apierrors.IsAlreadyExists(err) {
 			return nil, nil, errors.Wrap(err, "Failed to create ingress")
@@ -171,10 +171,10 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 		// if the ingress already exists - update it
 		m.logger.InfoWithCtx(ctx, "Ingress already exists. Updating it",
 			"ingressName", resources.Ingress.Name)
-		if appliedIngress, err = m.kubeClientSet.
-			NetworkingV1().
-			Ingresses(resources.Ingress.Namespace).
-			Update(ctx, resources.Ingress, metav1.UpdateOptions{}); err != nil {
+		if appliedIngress, err = m.kubeClientSet.UpdateIngress(
+			ctx,
+			resources.Ingress.Namespace,
+			resources.Ingress); err != nil {
 
 			return nil, nil, errors.Wrap(err, "Failed to update ingress")
 		}
@@ -191,10 +191,10 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 			"ingressName", resources.Ingress.Name,
 			"secretName", resources.BasicAuthSecret.Name)
 
-		if appliedBasicAuthSecret, err = m.kubeClientSet.
-			CoreV1().
-			Secrets(resources.BasicAuthSecret.Namespace).
-			Create(ctx, resources.BasicAuthSecret, metav1.CreateOptions{}); err != nil {
+		if appliedBasicAuthSecret, err = m.kubeClientSet.CreateSecret(
+			ctx,
+			resources.BasicAuthSecret.Namespace,
+			resources.BasicAuthSecret); err != nil {
 
 			if !apierrors.IsAlreadyExists(err) {
 				return nil, nil, errors.Wrap(err, "Failed to create secret")
@@ -203,10 +203,10 @@ func (m *Manager) CreateOrUpdateResources(ctx context.Context, resources *Resour
 			// if the secret already exists - update it
 			m.logger.InfoWithCtx(ctx, "Secret already exists. Updating it",
 				"secretName", resources.BasicAuthSecret.Name)
-			if appliedBasicAuthSecret, err = m.kubeClientSet.
-				CoreV1().
-				Secrets(resources.BasicAuthSecret.Namespace).
-				Update(ctx, resources.BasicAuthSecret, metav1.UpdateOptions{}); err != nil {
+			if appliedBasicAuthSecret, err = m.kubeClientSet.UpdateSecret(
+				ctx,
+				resources.BasicAuthSecret.Namespace,
+				resources.BasicAuthSecret); err != nil {
 
 				return nil, nil, errors.Wrap(err, "Failed to update secret")
 			}
@@ -235,10 +235,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 	if deleteAuthSecret {
 
 		// get the ingress object so we can find the secret name
-		if ingress, err = m.kubeClientSet.
-			NetworkingV1().
-			Ingresses(namespace).
-			Get(ctx, ingressName, metav1.GetOptions{}); err != nil {
+		if ingress, err = m.kubeClientSet.GetIngress(ctx, namespace, ingressName); err != nil {
 
 			if apierrors.IsNotFound(err) {
 				m.logger.DebugWithCtx(ctx, "Ingress resource not found. Aborting deletion",
@@ -257,10 +254,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 				"ingressName", ingressName,
 				"secretName", secretName)
 
-			if err = m.kubeClientSet.
-				CoreV1().
-				Secrets(namespace).
-				Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil {
+			if err = m.kubeClientSet.DeleteSecret(ctx, namespace, secretName); err != nil {
 
 				if apierrors.IsNotFound(err) {
 					m.logger.DebugWithCtx(ctx, "Ingress's secret not found. Continuing with ingress deletion",
@@ -280,10 +274,7 @@ func (m *Manager) DeleteByName(ctx context.Context, ingressName string, namespac
 	}
 
 	// delete the ingress resource
-	if err = m.kubeClientSet.
-		NetworkingV1().
-		Ingresses(ingress.Namespace).
-		Delete(ctx, ingressName, metav1.DeleteOptions{}); err != nil {
+	if err = m.kubeClientSet.DeleteIngress(ctx, ingress.Namespace, ingressName, metav1.DeleteOptions{}); err != nil {
 
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete ingress")

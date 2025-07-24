@@ -28,7 +28,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned/fake"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"dario.cat/mergo"
@@ -59,9 +60,10 @@ func (c *mockedPlatformConfigurationProvider) GetPlatformConfiguration() *platfo
 
 type lazyTestSuite struct {
 	suite.Suite
-	logger logger.Logger
-	client *lazyClient
-	ctx    context.Context
+	logger        logger.Logger
+	client        *lazyClient
+	kubeClientSet *fake.Clientset
+	ctx           context.Context
 }
 
 func (suite *lazyTestSuite) SetupTest() {
@@ -69,9 +71,10 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
+	suite.kubeClientSet = fake.NewSimpleClientset()
 	// create client
 	lazyClientInstance, err := NewLazyClient(suite.logger,
-		fake.NewSimpleClientset(),
+		kube.NewClientWithRetryFromClient(suite.kubeClientSet),
 		nuclioiofake.NewSimpleClientset())
 	suite.Require().NoError(err)
 	suite.client = lazyClientInstance.(*lazyClient)
@@ -369,7 +372,7 @@ func (suite *lazyTestSuite) TestNoChanges() {
 	functionLabels[common.NuclioResourceLabelKeyFunctionName] = function.Name
 
 	// mock volume secret creation
-	_, err := suite.client.kubeClientSet.CoreV1().Secrets("test-namespace").Create(suite.ctx, &v1.Secret{
+	_, err := suite.kubeClientSet.CoreV1().Secrets("test-namespace").Create(suite.ctx, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "my-volume-secret",
 			Labels: map[string]string{
@@ -853,7 +856,7 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 				Items: []v1.Pod{pod},
 			}
 
-			_, err := suite.client.kubeClientSet.CoreV1().Events(namespace).Create(suite.ctx, &testCase.event, metav1.CreateOptions{})
+			_, err := suite.kubeClientSet.CoreV1().Events(namespace).Create(suite.ctx, &testCase.event, metav1.CreateOptions{})
 			suite.Require().NoError(err)
 
 			// call resolveFailFast
@@ -864,7 +867,7 @@ func (suite *lazyTestSuite) TestFastFailOnAutoScalerEvents() {
 				suite.Require().NoError(err)
 			}
 
-			err = suite.client.kubeClientSet.CoreV1().Events(namespace).Delete(suite.ctx, testCase.event.Name, metav1.DeleteOptions{})
+			err = suite.kubeClientSet.CoreV1().Events(namespace).Delete(suite.ctx, testCase.event.Name, metav1.DeleteOptions{})
 			suite.Require().NoError(err)
 		})
 	}
