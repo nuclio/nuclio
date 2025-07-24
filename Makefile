@@ -642,6 +642,7 @@ NUCLIO_DOCKER_BUILDER_IMAGE_NAME=\
 NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE=\
  $(NUCLIO_CACHE_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
+# NOTE: This target must be run on a Linux host due to platform-specific builder requirements
 .PHONY: build-builder
 build-builder:
 	docker build \
@@ -652,7 +653,7 @@ build-builder:
 		--file hack/docker/build/builder/Dockerfile \
 		--tag $(NUCLIO_DOCKER_BUILDER_IMAGE_NAME) \
 		--tag $(NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE) \
-		--platform $(NUCLIO_OS)/$(NUCLIO_ARCH) \
+		--platform linux/$(NUCLIO_ARCH) \
 		.
 
 $(eval DOCKER_IMAGES_CACHE += $(filter-out $(DOCKER_IMAGES_CACHE),$(NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE)))
