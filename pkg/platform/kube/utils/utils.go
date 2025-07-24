@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -141,7 +141,7 @@ func GetStringValueFromSecret(secret *v1.Secret, key string) (string, bool) {
 // and validates that the service account is allowed for the project by checking the project secret
 // It returns the enriched service account and an error if the service account is not allowed or if there was an error fetching the project secret
 func EnrichAndValidateServiceAccount(ctx context.Context,
-	kubeClient k8s.Client,
+	kubeClient kube.Client,
 	defaultPlatformServiceAccount,
 	projectSecretTemplate,
 	projectSecretDefaultServiceAccountKey,
@@ -176,7 +176,7 @@ func EnrichAndValidateServiceAccount(ctx context.Context,
 	return serviceAccount, nil
 }
 
-func GetProjectSecret(ctx context.Context, kubeClient k8s.Client, projectSecretTemplate, projectName, namespace string) (*v1.Secret, error) {
+func GetProjectSecret(ctx context.Context, kubeClient kube.Client, projectSecretTemplate, projectName, namespace string) (*v1.Secret, error) {
 	// if project secret template is not specified, return empty data
 	if projectSecretTemplate == "" {
 		return nil, nil

@@ -37,7 +37,7 @@ import (
 	externalproject "github.com/nuclio/nuclio/pkg/platform/abstract/project/external"
 	"github.com/nuclio/nuclio/pkg/platform/abstract/project/internalc/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client"
+	nuclioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy"
 	"github.com/nuclio/nuclio/pkg/platform/kube/logProxy/elastic"
@@ -60,12 +60,12 @@ import (
 
 type Platform struct {
 	*abstract.Platform
-	deployer            *client.Deployer
-	getter              *client.Getter
-	updater             *client.Updater
-	deleter             *client.Deleter
+	deployer            *nuclioclient.Deployer
+	getter              *nuclioclient.Getter
+	updater             *nuclioclient.Updater
+	deleter             *nuclioclient.Deleter
 	kubeconfigPath      string
-	consumer            *client.Consumer
+	consumer            *nuclioclient.Consumer
 	projectsClient      project.Client
 	projectsCache       *cache.Expiring
 	apiGatewayScrubber  *platform.APIGatewayScrubber
@@ -118,31 +118,31 @@ func NewPlatform(ctx context.Context,
 	}
 
 	// create consumer
-	newPlatform.consumer, err = client.NewConsumer(ctx, newPlatform.Logger, newPlatform.kubeconfigPath)
+	newPlatform.consumer, err = nuclioclient.NewConsumer(ctx, newPlatform.Logger, newPlatform.kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a consumer")
 	}
 
 	// create deployer
-	newPlatform.deployer, err = client.NewDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform)
+	newPlatform.deployer, err = nuclioclient.NewDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a deployer")
 	}
 
 	// create getter
-	newPlatform.getter, err = client.NewGetter(newPlatform.Logger, newPlatform)
+	newPlatform.getter, err = nuclioclient.NewGetter(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a getter")
 	}
 
 	// create deleter
-	newPlatform.deleter, err = client.NewDeleter(newPlatform.Logger, newPlatform)
+	newPlatform.deleter, err = nuclioclient.NewDeleter(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a deleter")
 	}
 
 	// create updater
-	newPlatform.updater, err = client.NewUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
+	newPlatform.updater, err = nuclioclient.NewUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create an updater")
 	}
@@ -1773,7 +1773,7 @@ func (p *Platform) getFunctionInstanceAndConfig(ctx context.Context,
 
 	// found function instance, return as function config
 	if functionInstance != nil {
-		initializedFunctionInstance, err := client.NewFunction(p.Logger, p, functionInstance, p.consumer)
+		initializedFunctionInstance, err := nuclioclient.NewFunction(p.Logger, p, functionInstance, p.consumer)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to create a new function instance")
 		}
@@ -2339,7 +2339,7 @@ func (p *Platform) getAPIGatewayUpstreamFunctions(ctx context.Context,
 				return nil
 			}
 
-			functionInstance, err := client.NewFunction(p.Logger, p, function, p.consumer)
+			functionInstance, err := nuclioclient.NewFunction(p.Logger, p, function, p.consumer)
 			if err != nil {
 				return errors.Wrap(err, "Failed to initialize function")
 			}

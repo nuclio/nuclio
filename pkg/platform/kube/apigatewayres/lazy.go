@@ -24,12 +24,12 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/errors"
@@ -43,14 +43,14 @@ import (
 
 type lazyClient struct {
 	logger          logger.Logger
-	kubeClientSet   k8s.Client
+	kubeClientSet   kubeclient.Client
 	nuclioClientSet nuclioio_client.Interface
 	ingressManager  *ingress.Manager
 	scrubber        *platform.APIGatewayScrubber
 }
 
 func NewLazyClient(loggerInstance logger.Logger,
-	kubeClientSet k8s.Client,
+	kubeClientSet kubeclient.Client,
 	nuclioClientSet nuclioio_client.Interface,
 	ingressManager *ingress.Manager) (Client, error) {
 

@@ -24,11 +24,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned/fake"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -67,7 +67,7 @@ func (suite *FunctionMonitoringTestSuite) SetupTest() {
 	suite.functionMonitor, err = NewFunctionMonitor(suite.ctx,
 		suite.Logger,
 		suite.Namespace,
-		k8s.NewClientWithRetryFromClient(suite.kubeClientSet),
+		kubeclient.NewClientWithRetryFromClient(suite.kubeClientSet),
 		suite.nuclioioClientSet,
 		time.Second,
 		suite.scalingGracePeriod,

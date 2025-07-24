@@ -25,11 +25,11 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned/fake"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
@@ -58,11 +58,11 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.mockCmdRunner = cmdrunner.NewMockRunner()
 
 	kubeClientset := k8sfake.NewSimpleClientset()
-	suite.ingressManager, err = ingress.NewManager(suite.logger, k8s.NewClientWithRetryFromClient(kubeClientset), suite.mockCmdRunner, platformConfig)
+	suite.ingressManager, err = ingress.NewManager(suite.logger, kube.NewClientWithRetryFromClient(kubeClientset), suite.mockCmdRunner, platformConfig)
 	suite.Require().NoError(err)
 
 	suite.client, err = NewLazyClient(suite.logger,
-		k8s.NewClientWithRetryFromClient(kubeClientset),
+		kube.NewClientWithRetryFromClient(kubeClientset),
 		fake.NewSimpleClientset(),
 		suite.ingressManager)
 	suite.Require().NoError(err)

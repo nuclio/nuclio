@@ -30,14 +30,14 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client"
-	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -80,7 +80,7 @@ const (
 
 type lazyClient struct {
 	logger                        logger.Logger
-	kubeClientSet                 k8s.Client
+	kubeClientSet                 kubeclient.Client
 	nuclioClientSet               nuclioioclient.Interface
 	classLabels                   labels.Set
 	platformConfigurationProvider PlatformConfigurationProvider
@@ -88,7 +88,7 @@ type lazyClient struct {
 }
 
 func NewLazyClient(parentLogger logger.Logger,
-	kubeClientSet k8s.Client,
+	kubeClientSet kubeclient.Client,
 	nuclioClientSet nuclioioclient.Interface) (Client, error) {
 
 	newClient := lazyClient{
@@ -455,7 +455,7 @@ func (lc *lazyClient) WaitAvailable(ctx context.Context,
 			if !ingressReady {
 
 				// if function have no ingress, assume ready and bail ingress readiness
-				if len(functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))) == 0 {
+				if len(functionconfig.GetFunctionIngresses(nuclio.NuclioioToFunctionConfig(function))) == 0 {
 					ingressReady = true
 					continue
 				}
@@ -1205,7 +1205,7 @@ func (lc *lazyClient) createOrUpdateDeployment(ctx context.Context,
 
 	createDeployment := func() (interface{}, error) {
 		method := createDeploymentResourceMethod
-		container := v1.Container{Name: client.FunctionContainerName}
+		container := v1.Container{Name: nuclio.FunctionContainerName}
 		lc.populateDeploymentContainer(ctx, functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
@@ -1858,7 +1858,7 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.NuclioFunction) (map[
 	// set default container annotation if not exists, for logging purposes
 	defaultContainerAnnotation := "kubectl.kubernetes.io/default-container"
 	if _, ok := annotations[defaultContainerAnnotation]; !ok {
-		annotations[defaultContainerAnnotation] = client.FunctionContainerName
+		annotations[defaultContainerAnnotation] = nuclio.FunctionContainerName
 	}
 
 	return annotations, nil
@@ -2089,7 +2089,7 @@ func (lc *lazyClient) getCronTriggerInvocationURL(resources Resources, namespace
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get function service")
 	}
-	host, port := client.GetDomainNameInvokeURL(functionService.Name, namespace)
+	host, port := nuclio.GetDomainNameInvokeURL(functionService.Name, namespace)
 
 	return fmt.Sprintf("%s:%d", host, port), nil
 }
@@ -2304,7 +2304,7 @@ func (lc *lazyClient) populateIngressConfig(ctx context.Context,
 	spec.Rules = []networkingv1.IngressRule{}
 	spec.TLS = []networkingv1.IngressTLS{}
 
-	ingresses := functionconfig.GetFunctionIngresses(client.NuclioioToFunctionConfig(function))
+	ingresses := functionconfig.GetFunctionIngresses(nuclio.NuclioioToFunctionConfig(function))
 	for _, ingress := range ingresses {
 
 		if err := lc.enrichIngressWithDefaultValues(&ingress); err != nil {

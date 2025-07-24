@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -48,7 +48,7 @@ type Scrubber struct {
 }
 
 // NewScrubber returns a new scrubber
-func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet k8s.Client) *Scrubber {
+func NewScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kube.Client) *Scrubber {
 
 	secretFilter := func(secret v1.Secret) bool {
 		// if it is a flex volume secret, skip it

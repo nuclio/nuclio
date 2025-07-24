@@ -24,12 +24,12 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -45,7 +45,7 @@ var (
 type FunctionMonitor struct {
 	logger                          logger.Logger
 	namespace                       string
-	kubeClientSet                   k8s.Client
+	kubeClientSet                   kubeclient.Client
 	nuclioClientSet                 nuclioioclient.Interface
 	interval                        time.Duration
 	scalingGracePeriod              time.Duration
@@ -58,7 +58,7 @@ type FunctionMonitor struct {
 func NewFunctionMonitor(ctx context.Context,
 	parentLogger logger.Logger,
 	namespace string,
-	kubeClientSet k8s.Client,
+	kubeClientSet kubeclient.Client,
 	nuclioClientSet nuclioioclient.Interface,
 	interval,
 	scalingGracePeriod,

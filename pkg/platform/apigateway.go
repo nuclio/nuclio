@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -67,7 +67,7 @@ type APIGatewayScrubber struct {
 
 func NewAPIGatewayScrubber(parentLogger logger.Logger,
 	sensitiveFields []*regexp.Regexp,
-	kubeClientSet k8s.Client) *APIGatewayScrubber {
+	kubeClientSet kube.Client) *APIGatewayScrubber {
 	abstractScrubber := common.NewAbstractScrubber(parentLogger,
 		sensitiveFields,
 		kubeClientSet,

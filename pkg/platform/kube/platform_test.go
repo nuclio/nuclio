@@ -31,14 +31,14 @@ import (
 	authIgzV4 "github.com/nuclio/nuclio/pkg/auth/iguazio/v4"
 	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/mocks"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
+	mocks2 "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -61,12 +61,12 @@ import (
 
 type KubePlatformTestSuite struct {
 	suite.Suite
-	nuclioioV1beta1InterfaceMock     *mocks.NuclioV1beta1Interface
-	nuclioFunctionInterfaceMock      *mocks.NuclioFunctionInterface
-	nuclioProjectInterfaceMock       *mocks.NuclioProjectInterface
-	nuclioFunctionEventInterfaceMock *mocks.NuclioFunctionEventInterface
-	nuclioAPIGatewayInterfaceMock    *mocks.NuclioAPIGatewayInterface
-	nuclioioInterfaceMock            *mocks.Interface
+	nuclioioV1beta1InterfaceMock     *mocks2.NuclioV1beta1Interface
+	nuclioFunctionInterfaceMock      *mocks2.NuclioFunctionInterface
+	nuclioProjectInterfaceMock       *mocks2.NuclioProjectInterface
+	nuclioFunctionEventInterfaceMock *mocks2.NuclioFunctionEventInterface
+	nuclioAPIGatewayInterfaceMock    *mocks2.NuclioAPIGatewayInterface
+	nuclioioInterfaceMock            *mocks2.Interface
 	kubeClientSet                    fake.Clientset
 	abstractPlatform                 *abstract.Platform
 	Namespace                        string
@@ -118,12 +118,12 @@ func (suite *KubePlatformTestSuite) SetupTest() {
 }
 
 func (suite *KubePlatformTestSuite) ResetCRDMocks() {
-	suite.nuclioioInterfaceMock = &mocks.Interface{}
-	suite.nuclioioV1beta1InterfaceMock = &mocks.NuclioV1beta1Interface{}
-	suite.nuclioFunctionInterfaceMock = &mocks.NuclioFunctionInterface{}
-	suite.nuclioProjectInterfaceMock = &mocks.NuclioProjectInterface{}
-	suite.nuclioFunctionEventInterfaceMock = &mocks.NuclioFunctionEventInterface{}
-	suite.nuclioAPIGatewayInterfaceMock = &mocks.NuclioAPIGatewayInterface{}
+	suite.nuclioioInterfaceMock = &mocks2.Interface{}
+	suite.nuclioioV1beta1InterfaceMock = &mocks2.NuclioV1beta1Interface{}
+	suite.nuclioFunctionInterfaceMock = &mocks2.NuclioFunctionInterface{}
+	suite.nuclioProjectInterfaceMock = &mocks2.NuclioProjectInterface{}
+	suite.nuclioFunctionEventInterfaceMock = &mocks2.NuclioFunctionEventInterface{}
+	suite.nuclioAPIGatewayInterfaceMock = &mocks2.NuclioAPIGatewayInterface{}
 
 	suite.nuclioioInterfaceMock.
 		On("NuclioV1beta1").
@@ -141,21 +141,21 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 		On("NuclioAPIGateways", suite.Namespace).
 		Return(suite.nuclioAPIGatewayInterfaceMock)
 
-	getter, err := client.NewGetter(suite.Logger, suite.platform)
+	getter, err := nuclio.NewGetter(suite.Logger, suite.platform)
 	suite.Require().NoError(err)
 
 	suite.platform = &Platform{
 		Platform: suite.abstractPlatform,
 		getter:   getter,
-		consumer: &client.Consumer{
+		consumer: &nuclio.Consumer{
 			NuclioClientSet: suite.nuclioioInterfaceMock,
-			KubeClientSet:   k8s.NewClientWithRetryFromClient(&suite.kubeClientSet),
+			KubeClientSet:   kube.NewClientWithRetryFromClient(&suite.kubeClientSet),
 		},
 		projectsCache: cache.NewExpiring(),
 	}
-	suite.platform.updater, _ = client.NewUpdater(suite.Logger, suite.platform.consumer, suite.platform)
-	suite.platform.deleter, _ = client.NewDeleter(suite.Logger, suite.platform)
-	suite.platform.deployer, _ = client.NewDeployer(suite.Logger, suite.platform.consumer, suite.platform)
+	suite.platform.updater, _ = nuclio.NewUpdater(suite.Logger, suite.platform.consumer, suite.platform)
+	suite.platform.deleter, _ = nuclio.NewDeleter(suite.Logger, suite.platform)
+	suite.platform.deployer, _ = nuclio.NewDeployer(suite.Logger, suite.platform.consumer, suite.platform)
 	suite.platform.projectsClient, _ = NewProjectsClient(suite.platform, suite.abstractPlatform.Config)
 	suite.platform.apiGatewayScrubber = platform.NewAPIGatewayScrubber(suite.Logger, platform.GetAPIGatewaySensitiveField(), suite.platform.consumer.KubeClientSet)
 }

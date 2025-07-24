@@ -24,6 +24,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"io"
 	"os"
 	"path"
@@ -33,7 +34,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -2101,7 +2101,7 @@ func (suite *UpdateFunctionTestSuite) TestUpdateFunctionWithSecret() {
 		suite.Require().NoError(err, "Failed to delete function")
 	}()
 	scrubber := functionconfig.NewScrubber(suite.Logger, suite.Platform.GetConfig().SensitiveFields.CompileSensitiveFieldsRegex(),
-		k8s.NewClientWithRetryFromClient(suite.KubeClientSet))
+		kubeclient.NewClientWithRetryFromClient(suite.KubeClientSet))
 	// get function secret data
 	secretData, _, err := scrubber.GetObjectSecretMap(ctx, functionName, suite.Namespace)
 	suite.Require().NoError(err, "Failed to get function secret data")

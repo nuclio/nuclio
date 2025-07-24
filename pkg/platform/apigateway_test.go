@@ -22,7 +22,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/common/k8s"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 
 	"github.com/nuclio/logger"
@@ -46,7 +46,7 @@ func (suite *ScrubberTestSuite) SetupTest() {
 	suite.scrubber = NewAPIGatewayScrubber(
 		suite.logger,
 		GetAPIGatewaySensitiveField(),
-		k8s.NewClientWithRetryFromClient(suite.k8sClientSet))
+		kube.NewClientWithRetryFromClient(suite.k8sClientSet))
 }
 
 func (suite *ScrubberTestSuite) TestScrubBasics() {

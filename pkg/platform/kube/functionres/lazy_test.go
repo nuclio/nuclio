@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned/fake"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioiofake "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned/fake"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"dario.cat/mergo"
@@ -74,7 +74,7 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.kubeClientSet = fake.NewSimpleClientset()
 	// create client
 	lazyClientInstance, err := NewLazyClient(suite.logger,
-		k8s.NewClientWithRetryFromClient(suite.kubeClientSet),
+		kube.NewClientWithRetryFromClient(suite.kubeClientSet),
 		nuclioiofake.NewSimpleClientset())
 	suite.Require().NoError(err)
 	suite.client = lazyClientInstance.(*lazyClient)

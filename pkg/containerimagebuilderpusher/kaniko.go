@@ -29,7 +29,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
@@ -42,7 +42,7 @@ import (
 )
 
 type Kaniko struct {
-	kubeClientSet        k8s.Client
+	kubeClientSet        kube.Client
 	logger               logger.Logger
 	builderConfiguration *ContainerBuilderConfiguration
 	jobNameRegex         *regexp.Regexp
@@ -50,7 +50,7 @@ type Kaniko struct {
 }
 
 func NewKaniko(logger logger.Logger,
-	kubeClientSet k8s.Client,
+	kubeClientSet kube.Client,
 	builderConfiguration *ContainerBuilderConfiguration) (*Kaniko, error) {
 
 	if builderConfiguration == nil {

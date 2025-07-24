@@ -23,7 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -44,12 +44,12 @@ type Resources struct {
 type Manager struct {
 	logger                logger.Logger
 	cmdRunner             cmdrunner.CmdRunner
-	kubeClientSet         k8s.Client
+	kubeClientSet         kube.Client
 	platformConfiguration *platformconfig.Config
 }
 
 func NewManager(parentLogger logger.Logger,
-	kubecClientSet k8s.Client,
+	kubecClientSet kube.Client,
 	cmdRunner cmdrunner.CmdRunner,
 	platformConfiguration *platformconfig.Config) (*Manager, error) {
 	return &Manager{

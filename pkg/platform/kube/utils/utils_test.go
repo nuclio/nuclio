@@ -22,7 +22,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/common/k8s"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
@@ -250,7 +250,7 @@ func (suite *utilsTestSuite) TestGetProjectSecret() {
 
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
-			foundSecret, err := GetProjectSecret(suite.ctx, k8s.NewClientWithRetryFromClient(kubeClient), tc.template, tc.projectName, tc.namespace)
+			foundSecret, err := GetProjectSecret(suite.ctx, kube.NewClientWithRetryFromClient(kubeClient), tc.template, tc.projectName, tc.namespace)
 			suite.Require().NoError(err)
 			if tc.expectedSecretFound {
 				suite.Require().NotNil(foundSecret)
@@ -555,7 +555,7 @@ func (suite *utilsTestSuite) TestEnrichAndValidateServiceAccount() {
 
 			sa, err := EnrichAndValidateServiceAccount(
 				suite.ctx,
-				k8s.NewClientWithRetryFromClient(suite.kubeClientSet),
+				kube.NewClientWithRetryFromClient(suite.kubeClientSet),
 				defaultPlatformServiceAccount,
 				tc.template,
 				defaultKey,

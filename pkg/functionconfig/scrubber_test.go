@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/common/headers"
-	"github.com/nuclio/nuclio/pkg/common/k8s"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
@@ -47,7 +47,7 @@ func (suite *ScrubberTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ctx = context.Background()
 	suite.k8sClientSet = k8sfake.NewSimpleClientset()
-	suite.scrubber = NewScrubber(suite.logger, suite.getSensitiveFieldsPathsRegex(), k8s.NewClientWithRetryFromClient(suite.k8sClientSet))
+	suite.scrubber = NewScrubber(suite.logger, suite.getSensitiveFieldsPathsRegex(), kube.NewClientWithRetryFromClient(suite.k8sClientSet))
 }
 
 func (suite *ScrubberTestSuite) TestScrubBasics() {

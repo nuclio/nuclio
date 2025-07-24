@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common/k8s"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
-	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/monitoring"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -37,7 +37,7 @@ import (
 type Controller struct {
 	logger                    logger.Logger
 	namespace                 string
-	kubeClientSet             k8s.Client
+	kubeClientSet             kube.Client
 	nuclioClientSet           nuclioioclient.Interface
 	functionresClient         functionres.Client
 	apigatewayresClient       apigatewayres.Client
@@ -63,7 +63,7 @@ type Controller struct {
 func NewController(parentLogger logger.Logger,
 	namespace string,
 	imagePullSecrets string,
-	kubeClientSet k8s.Client,
+	kubeClientSet kube.Client,
 	nuclioClientSet nuclioioclient.Interface,
 	functionresClient functionres.Client,
 	apigatewayresClient apigatewayres.Client,
