@@ -1091,6 +1091,60 @@ func (suite *testSuite) TestCreateTempDir() {
 	}
 }
 
+func (suite *testSuite) TestGetProcessorDockerfileBaseImage() {
+	testCases := []struct {
+		name                    string
+		runtimeDefaultBaseImage string
+		baseImageRegistry       string
+		userProvidedBaseImage   string
+		expected                string
+	}{
+		{
+			name:                    "Docker Hub with registry",
+			runtimeDefaultBaseImage: "docker.io/library/python:3.7",
+			baseImageRegistry:       "local-registry:5000",
+			expected:                "local-registry:5000/python:3.7",
+		},
+		{
+			name:                    "Simple image without registry",
+			runtimeDefaultBaseImage: "python:3.8",
+			baseImageRegistry:       "my-registry.io",
+			expected:                "my-registry.io/python:3.8",
+		},
+		{
+			name:                    "Registry and namespace",
+			runtimeDefaultBaseImage: "ghcr.io/nuclio/handler-base:1.0",
+			baseImageRegistry:       "internal.registry",
+			expected:                "internal.registry/handler-base:1.0",
+		},
+		{
+			name:                    "Base image registry empty",
+			runtimeDefaultBaseImage: "ghcr.io/nuclio/handler-base:1.0",
+			baseImageRegistry:       "",
+			expected:                "ghcr.io/nuclio/handler-base:1.0",
+		},
+		{
+			name:                    "User-provided base image takes precedence",
+			runtimeDefaultBaseImage: "should-not-be-used",
+			baseImageRegistry:       "ignored-registry.io",
+			userProvidedBaseImage:   "custom-image:latest",
+			expected:                "custom-image:latest",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			oldBaseImage := suite.builder.options.FunctionConfig.Spec.Build.BaseImage
+			suite.builder.options.FunctionConfig.Spec.Build.BaseImage = tc.userProvidedBaseImage
+			defer func() {
+				suite.builder.options.FunctionConfig.Spec.Build.BaseImage = oldBaseImage
+			}()
+			result := suite.builder.getProcessorDockerfileBaseImage(tc.runtimeDefaultBaseImage, tc.baseImageRegistry)
+			suite.Require().Equal(tc.expected, result)
+		})
+	}
+}
+
 func (suite *testSuite) testResolveFunctionPathRemoteCodeFile(fileExtension string) {
 
 	// mock http response
