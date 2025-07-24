@@ -642,6 +642,7 @@ NUCLIO_DOCKER_BUILDER_IMAGE_NAME=\
 NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE=\
  $(NUCLIO_CACHE_REPO)/nuclio-builder:$(NUCLIO_DOCKER_IMAGE_CACHE_TAG)
 
+# NOTE: This target must be run on a Linux host due to platform-specific builder requirements
 .PHONY: build-builder
 build-builder:
 	docker build \
