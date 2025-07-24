@@ -18,9 +18,12 @@ package kube
 
 import (
 	"context"
-	"github.com/nuclio/errors"
-	"github.com/nuclio/nuclio/pkg/platform/kube/clients"
 	"io"
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients"
+
+	"github.com/nuclio/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	autosv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
@@ -30,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"time"
 )
 
 type clientWithRetry struct {
