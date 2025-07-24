@@ -26,7 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	"github.com/nuclio/nuclio/pkg/platform/kube/client"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 	"github.com/nuclio/nuclio/pkg/platform/kube/utils"
@@ -496,7 +496,7 @@ func (fo *functionOperator) populateFunctionInvocationStatus(function *nuclioio.
 	// add internal invocation urls
 	functionStatus.InternalInvocationURLs = []string{}
 	if service != nil {
-		serviceHost, servicePort := client.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
+		serviceHost, servicePort := nuclio.GetDomainNameInvokeURL(service.GetName(), service.GetNamespace())
 		functionStatus.InternalInvocationURLs = append(functionStatus.InternalInvocationURLs,
 			fmt.Sprintf("%s:%d", serviceHost, servicePort))
 	}

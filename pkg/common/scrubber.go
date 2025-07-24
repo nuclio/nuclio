@@ -25,6 +25,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+
 	"github.com/nuclio/errors"
 	"github.com/nuclio/gosecretive"
 	"github.com/nuclio/logger"
@@ -32,7 +34,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -62,7 +63,7 @@ type Scrubber interface {
 // AbstractScrubber is an object that implements abstract scrubbing functionality
 type AbstractScrubber struct {
 	SensitiveFields            []*regexp.Regexp
-	KubeClientSet              kubernetes.Interface
+	KubeClientSet              kube.Client
 	ReferencePrefix            string
 	Scrubber                   Scrubber
 	ResourceLabelKeyObjectName string
@@ -75,7 +76,7 @@ type AbstractScrubber struct {
 }
 
 // NewAbstractScrubber returns a new AbstractScrubber
-func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kubernetes.Interface, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, secretFilterName func(secret v1.Secret) bool) *AbstractScrubber {
+func NewAbstractScrubber(parentLogger logger.Logger, sensitiveFields []*regexp.Regexp, kubeClientSet kube.Client, referencePrefix, resourceLabelKeyObjectName string, secretType v1.SecretType, secretFilterName func(secret v1.Secret) bool) *AbstractScrubber {
 	return &AbstractScrubber{
 		SensitiveFields:            sensitiveFields,
 		KubeClientSet:              kubeClientSet,
@@ -323,9 +324,10 @@ func (s *AbstractScrubber) GetObjectSecrets(ctx context.Context, name, namespace
 		return nil, nil
 	}
 
-	secrets, err := s.KubeClientSet.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{
+	secrets, err := s.KubeClientSet.ListSecrets(ctx, namespace, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", s.ResourceLabelKeyObjectName, name),
 	})
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to list secrets for object - %s", name)
 	}
@@ -371,9 +373,7 @@ func (s *AbstractScrubber) CreateOrUpdateObjectSecret(ctx context.Context,
 func (s *AbstractScrubber) CreateOrUpdateSecret(ctx context.Context, namespace string, secretConfig *v1.Secret) error {
 
 	// check if secret exists
-	if _, err := s.KubeClientSet.CoreV1().Secrets(namespace).Get(ctx,
-		secretConfig.Name,
-		metav1.GetOptions{}); err != nil {
+	if _, err := s.KubeClientSet.GetSecret(ctx, namespace, secretConfig.Name); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrapf(err, "Failed to get secret %s", secretConfig.Name)
 		}
@@ -383,9 +383,7 @@ func (s *AbstractScrubber) CreateOrUpdateSecret(ctx context.Context, namespace s
 			"namespace", namespace)
 
 		// create secret
-		if _, err := s.KubeClientSet.CoreV1().Secrets(namespace).Create(ctx,
-			secretConfig,
-			metav1.CreateOptions{}); err != nil {
+		if _, err := s.KubeClientSet.CreateSecret(ctx, namespace, secretConfig); err != nil {
 			return errors.Wrapf(err, "Failed to create secret %s", secretConfig.Name)
 		}
 		return nil
@@ -397,9 +395,7 @@ func (s *AbstractScrubber) CreateOrUpdateSecret(ctx context.Context, namespace s
 		"secretName", secretConfig.Name,
 		"namespace", namespace)
 
-	if _, err := s.KubeClientSet.CoreV1().Secrets(namespace).Update(ctx,
-		secretConfig,
-		metav1.UpdateOptions{}); err != nil {
+	if _, err := s.KubeClientSet.UpdateSecret(ctx, namespace, secretConfig); err != nil {
 		return errors.Wrapf(err, "Failed to update secret %s", secretConfig.Name)
 	}
 

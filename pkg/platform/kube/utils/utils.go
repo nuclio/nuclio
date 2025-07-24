@@ -22,15 +22,14 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/nuclio-sdk-go"
 	"k8s.io/api/core/v1"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
-	v2 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeapierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/client-go/kubernetes"
 )
 
 // ValidateLabels validates the given labels according to k8s label constraints
@@ -142,7 +141,7 @@ func GetStringValueFromSecret(secret *v1.Secret, key string) (string, bool) {
 // and validates that the service account is allowed for the project by checking the project secret
 // It returns the enriched service account and an error if the service account is not allowed or if there was an error fetching the project secret
 func EnrichAndValidateServiceAccount(ctx context.Context,
-	kubeClient kubernetes.Interface,
+	kubeClient kube.Client,
 	defaultPlatformServiceAccount,
 	projectSecretTemplate,
 	projectSecretDefaultServiceAccountKey,
@@ -177,7 +176,7 @@ func EnrichAndValidateServiceAccount(ctx context.Context,
 	return serviceAccount, nil
 }
 
-func GetProjectSecret(ctx context.Context, kubeClient kubernetes.Interface, projectSecretTemplate, projectName, namespace string) (*v1.Secret, error) {
+func GetProjectSecret(ctx context.Context, kubeClient kube.Client, projectSecretTemplate, projectName, namespace string) (*v1.Secret, error) {
 	// if project secret template is not specified, return empty data
 	if projectSecretTemplate == "" {
 		return nil, nil
@@ -194,10 +193,10 @@ func GetProjectSecret(ctx context.Context, kubeClient kubernetes.Interface, proj
 	}
 
 	// fetch the secret from Kubernetes
-	projectSecret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, v2.GetOptions{})
+	projectSecret, err := kubeClient.GetSecret(ctx, namespace, secretName)
 	if err != nil {
 		// if not found, skip validation
-		if errors2.IsNotFound(err) {
+		if kubeapierrors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, errors.Wrapf(err, "Failed to get secret %s", secretName)

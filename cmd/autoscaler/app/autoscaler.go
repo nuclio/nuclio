@@ -19,7 +19,7 @@ package app
 import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
-	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/resourcescaler"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 

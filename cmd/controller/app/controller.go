@@ -25,14 +25,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
-	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	// load all sinks
@@ -158,7 +158,7 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to get client configuration")
 	}
 
-	kubeClientSet, err := kubernetes.NewForConfig(restConfig)
+	kubeClientSet, err := kube.NewClientWithRetryFromConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create k8s client set")
 	}
