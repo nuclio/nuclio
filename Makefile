@@ -652,7 +652,7 @@ build-builder:
 		--file hack/docker/build/builder/Dockerfile \
 		--tag $(NUCLIO_DOCKER_BUILDER_IMAGE_NAME) \
 		--tag $(NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE) \
-		--platform $(NUCLIO_OS)/$(NUCLIO_ARCH) \
+		--platform linux/$(NUCLIO_ARCH) \
 		.
 
 $(eval DOCKER_IMAGES_CACHE += $(filter-out $(DOCKER_IMAGES_CACHE),$(NUCLIO_DOCKER_BUILDER_IMAGE_NAME_CACHE)))
