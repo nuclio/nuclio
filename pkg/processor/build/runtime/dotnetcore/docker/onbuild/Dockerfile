@@ -19,7 +19,7 @@ ARG NUCLIO_DOCKER_REPO=quay.io/nuclio
 FROM ${NUCLIO_DOCKER_REPO}/processor:${NUCLIO_DOCKER_IMAGE_TAG} as processor
 
 # Supplies wrapper and nuclio-sdk-dotnetcore
-FROM mcr.microsoft.com/dotnet/sdk:7.0 as builder
+FROM mcr.microsoft.com/dotnet/sdk:9.0 as builder
 
 # Update packages
 RUN apt-get update && \
