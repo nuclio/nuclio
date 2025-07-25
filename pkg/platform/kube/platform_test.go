@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
