@@ -100,14 +100,14 @@ func (cjm *CronJobMonitoring) stop(ctx context.Context) {
 }
 
 func (cjm *CronJobMonitoring) deleteStalePods(ctx context.Context, stalePodsFieldSelector string) {
-	err := cjm.controller.kubeClientSet.
-		CoreV1().
-		Pods(cjm.controller.namespace).
-		DeleteCollection(ctx, metav1.DeleteOptions{},
-			metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("%s=true", common.NuclioLabelKeyFunctionCronJobPod),
-				FieldSelector: stalePodsFieldSelector,
-			})
+	err := cjm.controller.kubeClientSet.DeleteCollectionPods(ctx,
+		cjm.controller.namespace,
+		metav1.DeleteOptions{},
+		metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=true", common.NuclioLabelKeyFunctionCronJobPod),
+			FieldSelector: stalePodsFieldSelector,
+		})
+
 	if err != nil {
 		cjm.logger.WarnWithCtx(ctx, "Failed to delete stale cron-job pods",
 			"namespace", cjm.controller.namespace,
@@ -116,10 +116,9 @@ func (cjm *CronJobMonitoring) deleteStalePods(ctx context.Context, stalePodsFiel
 }
 
 func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
-	jobs, err := cjm.controller.kubeClientSet.
-		BatchV1().
-		Jobs(cjm.controller.namespace).
-		List(ctx, metav1.ListOptions{
+	jobs, err := cjm.controller.kubeClientSet.ListJobs(ctx,
+		cjm.controller.namespace,
+		metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=true", common.NuclioLabelKeyFunctionCronJobPod),
 		})
 	if err != nil {
@@ -139,10 +138,9 @@ func (cjm *CronJobMonitoring) deleteStaleJobs(ctx context.Context) {
 
 		deleteForegroundPolicy := metav1.DeletePropagationBackground
 		if isJobBackOffLimitExceeded || isJobCompleted {
-			err := cjm.controller.kubeClientSet.
-				BatchV1().
-				Jobs(cjm.controller.namespace).
-				Delete(ctx, job.Name, metav1.DeleteOptions{
+			err := cjm.controller.kubeClientSet.DeleteJob(ctx,
+				cjm.controller.namespace, job.Name,
+				metav1.DeleteOptions{
 					PropagationPolicy: &deleteForegroundPolicy,
 				})
 			if err != nil && !apierrors.IsNotFound(err) {

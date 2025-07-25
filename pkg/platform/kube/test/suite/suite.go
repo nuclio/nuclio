@@ -38,7 +38,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apigatewayres"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
-	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	kubeclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
+	nuclioioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
@@ -655,7 +656,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	suite.Require().NoError(err)
 
 	// create a client for function deployments
-	suite.FunctionClient, err = functionres.NewLazyClient(suite.Logger, suite.KubeClientSet, suite.FunctionClientSet)
+	suite.FunctionClient, err = functionres.NewLazyClient(suite.Logger, kubeclient.NewClientWithRetryFromClient(suite.KubeClientSet), suite.FunctionClientSet)
 	suite.Require().NoError(err)
 
 	// create cmd runner
@@ -663,12 +664,12 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	suite.Require().NoError(err)
 
 	// create ingress manager
-	ingressManager, err := ingress.NewManager(suite.Logger, suite.KubeClientSet, cmdRunner, suite.PlatformConfiguration)
+	ingressManager, err := ingress.NewManager(suite.Logger, kubeclient.NewClientWithRetryFromClient(suite.KubeClientSet), cmdRunner, suite.PlatformConfiguration)
 	suite.Require().NoError(err)
 
 	// create api-gateway provisioner
 	apigatewayresClient, err := apigatewayres.NewLazyClient(suite.Logger,
-		suite.KubeClientSet,
+		kubeclient.NewClientWithRetryFromClient(suite.KubeClientSet),
 		suite.FunctionClientSet,
 		ingressManager)
 	suite.Require().NoError(err)
@@ -676,7 +677,7 @@ func (suite *KubeTestSuite) createController() *controller.Controller {
 	controllerInstance, err := controller.NewController(suite.Logger,
 		suite.Namespace,
 		"",
-		suite.KubeClientSet,
+		kubeclient.NewClientWithRetryFromClient(suite.KubeClientSet),
 		suite.FunctionClientSet,
 		suite.FunctionClient,
 		apigatewayresClient,
