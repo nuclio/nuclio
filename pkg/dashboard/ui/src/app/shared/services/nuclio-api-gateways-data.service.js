@@ -97,7 +97,7 @@ limitations under the License.
                 method: 'get',
                 headers: headers,
                 withCredentials: false,
-                url: NuclioClientService.buildUrlWithPath('api_gateways/') + apiGatewayName
+                url: NuclioClientService.buildUrlWithPath('api_gateways/', apiGatewayName)
             };
 
             return NuclioClientService.makeRequest(config);
@@ -145,7 +145,7 @@ limitations under the License.
 
             var config = {
                 method: 'put',
-                url: NuclioClientService.buildUrlWithPath('api_gateways'),
+                url: NuclioClientService.buildUrlWithPath('api_gateways/', lodash.get(apiGateway, 'metadata.name', '')),
                 headers: headers,
                 data: apiGateway,
                 withCredentials: false
