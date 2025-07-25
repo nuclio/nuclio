@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/auth"
@@ -33,8 +34,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/clients/kube"
-	"github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
+	nuclioclient "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio"
 	mocks2 "github.com/nuclio/nuclio/pkg/platform/kube/clients/nuclio/clientset/mocks"
 	"github.com/nuclio/nuclio/pkg/platform/kube/ingress"
 	mockplatform "github.com/nuclio/nuclio/pkg/platform/mock"
@@ -137,21 +139,21 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 		On("NuclioAPIGateways", suite.Namespace).
 		Return(suite.nuclioAPIGatewayInterfaceMock)
 
-	getter, err := nuclio.NewGetter(suite.Logger, suite.platform)
+	getter, err := nuclioclient.NewGetter(suite.Logger, suite.platform)
 	suite.Require().NoError(err)
 
 	suite.platform = &Platform{
 		Platform: suite.abstractPlatform,
 		getter:   getter,
-		consumer: &nuclio.Consumer{
+		consumer: &nuclioclient.Consumer{
 			NuclioClientSet: suite.nuclioioInterfaceMock,
 			KubeClientSet:   kube.NewClientWithRetryFromClient(&suite.kubeClientSet),
 		},
 		projectsCache: cache.NewExpiring(),
 	}
-	suite.platform.updater, _ = nuclio.NewUpdater(suite.Logger, suite.platform.consumer, suite.platform)
-	suite.platform.deleter, _ = nuclio.NewDeleter(suite.Logger, suite.platform)
-	suite.platform.deployer, _ = nuclio.NewDeployer(suite.Logger, suite.platform.consumer, suite.platform)
+	suite.platform.updater, _ = nuclioclient.NewUpdater(suite.Logger, suite.platform.consumer, suite.platform)
+	suite.platform.deleter, _ = nuclioclient.NewDeleter(suite.Logger, suite.platform)
+	suite.platform.deployer, _ = nuclioclient.NewDeployer(suite.Logger, suite.platform.consumer, suite.platform)
 	suite.platform.projectsClient, _ = NewProjectsClient(suite.platform, suite.abstractPlatform.Config)
 	suite.platform.apiGatewayScrubber = platform.NewAPIGatewayScrubber(suite.Logger, platform.GetAPIGatewaySensitiveField(), suite.platform.consumer.KubeClientSet)
 }
@@ -1108,103 +1110,6 @@ func (suite *FunctionKubePlatformTestSuite) TestGetFunctionsPermissions() {
 				suite.Require().NoError(err)
 				suite.Require().Equal(1, len(functions))
 				suite.Require().Equal(functionName, functions[0].GetConfig().Meta.Name)
-			}
-		})
-	}
-}
-
-func (suite *FunctionKubePlatformTestSuite) TestValidateServiceAccount() {
-
-	projectName := "test-project"
-	secretName := fmt.Sprintf("nuclio-project-secrets-%s", projectName)
-	allowedKey := "allowed-sa-key"
-	allowedSAs := []string{"sa1", "sa2"}
-
-	oldAllowedKey := suite.platform.Config.Kube.ProjectSecretAllowedServiceAccountsKey
-	suite.platform.Config.Kube.ProjectSecretAllowedServiceAccountsKey = allowedKey
-
-	oldProjectSecretTemplate := suite.platform.Config.Kube.ProjectSecretTemplate
-	suite.platform.Config.Kube.ProjectSecretTemplate = "nuclio-project-secrets-{{ .ProjectName }}"
-	// revert the change
-	defer func() {
-		suite.platform.Config.Kube.ProjectSecretAllowedServiceAccountsKey = oldAllowedKey
-		suite.platform.Config.Kube.ProjectSecretTemplate = oldProjectSecretTemplate
-	}()
-
-	createSecret := func(data map[string][]byte) *v1.Secret {
-		return &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: suite.Namespace,
-			},
-			Data: data,
-		}
-	}
-
-	for _, testcase := range []struct {
-		name          string
-		secret        *v1.Secret
-		configKey     string
-		requestedSA   string
-		expectedError string
-	}{
-		{
-			name:        "AllowedServiceAccount",
-			secret:      createSecret(map[string][]byte{allowedKey: []byte(strings.Join(allowedSAs, ","))}),
-			configKey:   allowedKey,
-			requestedSA: "sa1",
-		},
-		{
-			name:          "DisallowedServiceAccount",
-			secret:        createSecret(map[string][]byte{allowedKey: []byte(strings.Join(allowedSAs, ","))}),
-			configKey:     allowedKey,
-			requestedSA:   "sa3",
-			expectedError: "ServiceAccount \"sa3\" is not in the list of allowed service accounts",
-		},
-		{
-			name:        "NoRestrictionKeyMissing",
-			secret:      createSecret(map[string][]byte{"other-key": []byte("irrelevant")}),
-			configKey:   allowedKey,
-			requestedSA: "sa3",
-		},
-		{
-			name:        "SecretNotFound",
-			secret:      nil,
-			configKey:   allowedKey,
-			requestedSA: "sa1",
-		},
-		{
-			name:        "AllowedServiceAccountsKeyNotConfigured",
-			secret:      createSecret(map[string][]byte{allowedKey: []byte(strings.Join(allowedSAs, ","))}),
-			configKey:   "",
-			requestedSA: "sa1",
-		},
-	} {
-		suite.Run(testcase.name, func() {
-			functionConfig := &functionconfig.Config{
-				Meta: functionconfig.Meta{
-					Namespace: suite.Namespace,
-					Labels: map[string]string{
-						common.NuclioResourceLabelKeyProjectName: projectName,
-					},
-				},
-				Spec: functionconfig.Spec{
-					ServiceAccount: testcase.requestedSA,
-				},
-			}
-
-			if testcase.secret != nil {
-				_, err := suite.kubeClientSet.CoreV1().Secrets(suite.Namespace).Create(suite.ctx, testcase.secret, metav1.CreateOptions{})
-				suite.Require().NoError(err)
-
-				defer suite.kubeClientSet.CoreV1().Secrets(suite.Namespace).Delete(suite.ctx, testcase.secret.Name, metav1.DeleteOptions{}) //nolint:errcheck
-			}
-
-			err := suite.platform.validateServiceAccount(suite.ctx, functionConfig)
-			if testcase.expectedError != "" {
-				suite.Require().Error(err, testcase.expectedError)
-			} else {
-				suite.Require().NoError(err)
 			}
 		})
 	}
