@@ -54,12 +54,9 @@ func (a *Auth) VerifySessionType(session interface{}) (authpkg.Session, bool) {
 func (a *Auth) GetAuthParameters(request *http.Request, options *authpkg.Options) (*iguazio.AuthParameters, error) {
 	ctx := request.Context()
 	authorization := request.Header.Get("authorization")
-	oauth2Cookie, _ := request.Cookie(iguazio.OAuth2ProxyCookie)
-	sessionCookie, _ := request.Cookie(SessionCookie)
+	cookie := request.Header.Get("cookie")
 
-	authCookiesOnlyHeaderValue := common.CookiesToHeaderValue([]*http.Cookie{oauth2Cookie, sessionCookie})
-
-	if oauth2Cookie == nil && sessionCookie == nil && authorization == "" {
+	if cookie == "" && authorization == "" {
 		return nil, nuclio.NewErrForbidden("Authentication headers are missing")
 	}
 
@@ -68,7 +65,7 @@ func (a *Auth) GetAuthParameters(request *http.Request, options *authpkg.Options
 	return iguazio.NewAuthParameters(
 		ctx,
 		authorization,
-		authCookiesOnlyHeaderValue,
+		cookie,
 		url,
 		false), nil
 }
