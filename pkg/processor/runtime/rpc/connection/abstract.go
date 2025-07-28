@@ -385,6 +385,9 @@ func (be *AbstractEventConnection) ProcessEventBatch(batch []nuclio.Event, funct
 }
 
 func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) (err error) {
+	// always close stream when processing is done
+	defer be.postProcessStreaming(stream.ResponseStream)
+
 	// first defer: set status code from error if any
 	defer func() {
 		if err != nil {
@@ -394,9 +397,6 @@ func (be *AbstractEventConnection) ProcessStream(stream *result.StreamStart) (er
 			be.SetStatus(status.RestartRequired)
 		}
 	}()
-
-	// always close stream when processing is done
-	defer be.postProcessStreaming(stream.ResponseStream)
 
 	// start with writing a first chunk
 	// this is blocking operation, so it will wait until the reader is ready to receive data
