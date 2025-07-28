@@ -158,13 +158,6 @@ func (p *Platform) Initialize(ctx context.Context) error {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
 
-	// ensure default project existence only when projects aren't managed by external leader
-	if p.Config.ProjectsLeader == nil {
-		if err := p.EnsureDefaultProjectExistence(ctx); err != nil {
-			return errors.Wrap(err, "Failed to ensure default project existence")
-		}
-	}
-
 	return nil
 }
 
