@@ -86,7 +86,7 @@ func (suite *testSuite) SetupTest() {
 
 	functionConfig := functionconfig.NewConfig()
 	functionConfig.Meta.Labels = map[string]string{
-		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+		common.NuclioResourceLabelKeyProjectName: "test-project",
 	}
 
 	createFunctionOptions := &platform.CreateFunctionOptions{

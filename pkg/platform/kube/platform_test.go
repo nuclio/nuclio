@@ -306,7 +306,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			suite.mockedPlatform.
 				On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 					Meta: platform.ProjectMeta{
-						Name:      platform.DefaultProjectName,
+						Name:      "test-project",
 						Namespace: "default",
 					},
 				}).
@@ -326,7 +326,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateServiceType() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: "test-project",
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
@@ -590,7 +590,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			suite.mockedPlatform.
 				On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 					Meta: platform.ProjectMeta{
-						Name:      platform.DefaultProjectName,
+						Name:      "test-project",
 						Namespace: "default",
 					},
 				}).
@@ -610,7 +610,7 @@ func (suite *FunctionKubePlatformTestSuite) TestValidateSidecarContainers() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: "test-project",
 			}
 			err := suite.platform.validateSidecarSpec(&createFunctionOptions.FunctionConfig)
 			if testCase.shouldFailValidation {
@@ -805,7 +805,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			// mock get projects
 			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
-					Name:      platform.DefaultProjectName,
+					Name:      "test-project",
 					Namespace: suite.Namespace,
 				},
 			}).Return([]platform.Project{
@@ -822,7 +822,7 @@ func (suite *FunctionKubePlatformTestSuite) TestFunctionTriggersEnrichmentAndVal
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: "test-project",
 			}
 			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 			suite.Logger.DebugWith("Enriching and validating function", "functionName", functionName)
@@ -1838,7 +1838,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 			suite.mockedPlatform.
 				On("GetProjects", ctx, &platform.GetProjectsOptions{
 					Meta: platform.ProjectMeta{
-						Name:      platform.DefaultProjectName,
+						Name:      "test-project",
 						Namespace: suite.Namespace,
 					},
 				}).
@@ -1855,7 +1855,7 @@ func (suite *FunctionKubePlatformTestSuite) TestEnrichFunctionWithUserNameLabel(
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: "test-project",
 			}
 
 			suite.Logger.DebugWith("Enriching function", "functionName", functionName)

@@ -51,7 +51,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.namespace = namespaces[0]
 
 	getProjectsOptions := &platform.CreateProjectOptions{
-		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: platform.DefaultProjectName, Namespace: suite.namespace}, Spec: platform.ProjectSpec{
+		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: "test-project", Namespace: suite.namespace}, Spec: platform.ProjectSpec{
 			Description: "just a description",
 		}},
 	}
