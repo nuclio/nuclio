@@ -531,14 +531,7 @@ func (ap *Platform) ValidateDeleteProjectOptions(ctx context.Context,
 	deleteProjectOptions *platform.DeleteProjectOptions) error {
 	projectName := deleteProjectOptions.Meta.Name
 
-	switch projectName {
-	case platform.DefaultProjectName:
-
-		// projects is controlled by a leader. when not set, do not allow deleting the only project
-		if ap.Config.ProjectsLeader == nil {
-			return nuclio.NewErrPreconditionFailed("Cannot delete the default project")
-		}
-	case "":
+	if projectName == "" {
 		return nuclio.NewErrBadRequest("Project name cannot be empty")
 	}
 
