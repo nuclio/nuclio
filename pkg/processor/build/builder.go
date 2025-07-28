@@ -516,7 +516,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 
 	// enrich project name
 	if _, err := b.options.FunctionConfig.GetProjectName(); err != nil {
-		b.options.FunctionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = platform.DefaultProjectName
+		return errors.New("Function name can not be empty")
 	}
 
 	// if the function handler isn't set, ask runtime
