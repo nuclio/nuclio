@@ -62,6 +62,7 @@ type Suite struct {
 	defaultWaitInterval  time.Duration
 	tempDir              string
 	namespace            string
+	projectName          string
 	ctx                  context.Context
 }
 
@@ -108,8 +109,10 @@ func (suite *Suite) SetupSuite() {
 
 	suite.ctx = context.Background()
 
+	suite.projectName = "test-project"
+
 	// create project
-	suite.ExecuteNuctl([]string{"create", "project", "test-project"}, map[string]string{}) // nolint: errcheck
+	suite.ExecuteNuctl([]string{"create", "project", suite.projectName}, map[string]string{}) // nolint: errcheck
 }
 
 func (suite *Suite) SetupTest() {
@@ -129,7 +132,7 @@ func (suite *Suite) TearDownSuite() {
 	err = os.RemoveAll(suite.tempDir)
 	suite.Require().NoError(err, "Failed to remove temp dir - %s", suite.tempDir)
 	// remove project
-	suite.ExecuteNuctl([]string{"delete", "project", "test-project"}, map[string]string{}) // nolint: errcheck
+	suite.ExecuteNuctl([]string{"delete", "project", suite.projectName}, map[string]string{}) // nolint: errcheck
 
 	suite.logger.Debug("Suite tear down completed")
 }

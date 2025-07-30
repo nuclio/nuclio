@@ -318,9 +318,10 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-		"runtime": "python",
-		"handler": "reverser:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime":      "python",
+		"handler":      "reverser:handler",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)

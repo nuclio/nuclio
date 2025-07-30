@@ -162,9 +162,10 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 				flect.Dasherize(runtimeInfo.runtime),
 				xid.New().String())
 			namedArgs := map[string]string{
-				"path":    path.Join(suite.GetExamples(), runtimeName, "empty", runtimeInfo.filename),
-				"runtime": runtimeInfo.runtime,
-				"handler": runtimeInfo.handler,
+				"path":         path.Join(suite.GetExamples(), runtimeName, "empty", runtimeInfo.filename),
+				"runtime":      runtimeInfo.runtime,
+				"handler":      runtimeInfo.handler,
+				"project-name": suite.projectName,
 			}
 			suite.logger.DebugWith("Deploying function",
 				"functionName", functionName,
@@ -192,9 +193,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	functionName := "invoke-body-stdin-reverser" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-		"runtime": "python",
-		"handler": "reverser:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime":      "python",
+		"handler":      "reverser:handler",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -229,10 +231,11 @@ func (suite *functionDeployTestSuite) TestInvokeWithTimeout() {
 	timeoutSeconds := 3
 	timeoutSourceCode := fmt.Sprintf("sleep %d\necho done", timeoutSeconds)
 	namedArgs := map[string]string{
-		"image":   imageName,
-		"runtime": "shell",
-		"handler": "main.sh",
-		"source":  base64.StdEncoding.EncodeToString([]byte(timeoutSourceCode)),
+		"image":        imageName,
+		"runtime":      "shell",
+		"handler":      "main.sh",
+		"source":       base64.StdEncoding.EncodeToString([]byte(timeoutSourceCode)),
+		"project-name": suite.projectName,
 	}
 
 	// deploy function
@@ -391,9 +394,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "logging", "golang"),
-		"runtime": "golang",
-		"handler": "main:Logging",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "logging", "golang"),
+		"runtime":      "golang",
+		"handler":      "main:Logging",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -964,9 +968,10 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-		"runtime": "python",
-		"handler": "event_recorder:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime":      "python",
+		"handler":      "event_recorder:handler",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1227,6 +1232,7 @@ func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocati
 	        }
 	    }
 	}`,
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1357,9 +1363,10 @@ func (suite *functionGetTestSuite) TestGet() {
 		functionNames = append(functionNames, functionName)
 
 		namedArgs := map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"runtime": "golang",
-			"handler": "main:Reverse",
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"runtime":      "golang",
+			"handler":      "main:Reverse",
+			"project-name": suite.projectName,
 		}
 
 		// cleanup
@@ -1431,9 +1438,10 @@ func (suite *functionDeleteTestSuite) TestDelete() {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"runtime": "golang",
-		"handler": "main:Reverse",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime":      "golang",
+		"handler":      "main:Reverse",
+		"project-name": suite.projectName,
 	}
 
 	err = suite.ExecuteNuctl([]string{
@@ -1699,9 +1707,10 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	functionName := "export-import-stdin" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-		"runtime": "python",
-		"handler": "reverser:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime":      "python",
+		"handler":      "reverser:handler",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1772,9 +1781,10 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"runtime": "golang",
-		"handler": "main:Reverse",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime":      "golang",
+		"handler":      "main:Reverse",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
