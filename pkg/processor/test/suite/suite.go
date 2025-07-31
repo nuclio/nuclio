@@ -438,6 +438,9 @@ func (suite *TestSuite) GetDeployOptions(functionName, functionPath string) *pla
 	}
 
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
+	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: "test-project",
+	}
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
