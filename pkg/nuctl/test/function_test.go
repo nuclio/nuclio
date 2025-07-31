@@ -59,8 +59,8 @@ func (suite *functionBuildTestSuite) TestBuild() {
 
 	err := suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"runtime": "golang",
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"runtime":      "golang",
 			"project-name": suite.projectName,
 		})
 
@@ -72,9 +72,9 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
-			"run-image": imageName,
-			"runtime":   "golang",
-			"handler":   "main:Reverse",
+			"run-image":    imageName,
+			"runtime":      "golang",
+			"handler":      "main:Reverse",
 			"project-name": suite.projectName,
 		})
 
