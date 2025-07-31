@@ -275,7 +275,7 @@ func (suite *projectExportImportTestSuite) createImportedFunctions(projectName s
 		functionToImportEncoded := fmt.Sprintf(functionToImportTemplate, functionName, projectName)
 		functionsToImportEncoded += fmt.Sprintf("\n%s", functionToImportEncoded)
 	}
-	suite.stdinReader = strings.NewReader(functionsToImportEncoded)
+	suite.nuctlRunner.stdinReader = strings.NewReader(functionsToImportEncoded)
 
 	// import the project
 	err := suite.ExecuteNuctl([]string{
@@ -450,7 +450,7 @@ func (suite *projectExportImportTestSuite) TestImportProjectSkipBySelectors() {
 			suite.Require().NoError(err)
 
 			// import project from stdin
-			suite.stdinReader = strings.NewReader(string(encodedProjectImportConfig))
+			suite.nuctlRunner.stdinReader = strings.NewReader(string(encodedProjectImportConfig))
 
 			// import
 			err = suite.ExecuteNuctl([]string{"import", "project", "--verbose"}, map[string]string{
@@ -787,14 +787,14 @@ func (suite *projectExportImportTestSuite) createAPIGateway(apiGatewayName, func
 func (suite *projectExportImportTestSuite) assertProjectImported(projectName string) {
 
 	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "project", projectName}, map[string]string{
 		"output": nuctlCommon.OutputFormatYAML,
 	}, false)
 	suite.Require().NoError(err)
 
 	project := platform.ProjectConfig{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &project)
+	err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &project)
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(projectName, project.Meta.Name)
@@ -804,7 +804,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	functionName string) string {
 
 	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 	err := suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "functionevent"}, map[string]string{
 		"output":   nuctlCommon.OutputFormatYAML,
 		"function": functionName,
@@ -812,7 +812,7 @@ func (suite *projectExportImportTestSuite) assertFunctionEventExistenceByFunctio
 	suite.Require().NoError(err)
 
 	functionEvent := platform.FunctionEventConfig{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &functionEvent)
+	err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &functionEvent)
 	suite.Require().NoError(err)
 
 	suite.Assert().Equal(functionEventDisplayName, functionEvent.Spec.DisplayName)
@@ -832,7 +832,7 @@ func (suite *projectExportImportTestSuite) exportProject(projectName string,
 	suite.Require().NoError(err)
 
 	projectImportConfig := &command.ProjectImportConfig{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &projectImportConfig)
+	err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &projectImportConfig)
 	suite.Require().NoError(err)
 
 	return projectImportConfig
