@@ -514,7 +514,6 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = "python:3.11"
 	}
 
-	// enrich project name
 	if _, err := b.options.FunctionConfig.GetProjectName(); err != nil {
 		return errors.New("Function name can not be empty")
 	}
