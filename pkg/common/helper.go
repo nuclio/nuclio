@@ -690,3 +690,15 @@ func GetFunctionName(function interface{}) string {
 func Pointer[T any](v T) *T {
 	return &v
 }
+
+// ImageHasRegistry returns true if the image string includes an explicit registry domain.
+// A registry is assumed present if the first component contains a '.' or ':' (e.g., "registry.io/image").
+func ImageHasRegistry(image string) bool {
+	image = strings.TrimSpace(image)
+	slashIndex := strings.Index(image, "/")
+	if slashIndex == -1 {
+		return false
+	}
+	firstSegment := image[:slashIndex]
+	return strings.Contains(firstSegment, ".") || strings.Contains(firstSegment, ":")
+}

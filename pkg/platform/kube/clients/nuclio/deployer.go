@@ -189,8 +189,8 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 	// if, for some reason, the run registry is specified, prepend that
 	if functionConfig.Spec.RunRegistry != "" {
 
-		// check if the run registry is part of the image already first
-		if !strings.HasPrefix(functionInstance.Spec.Image, fmt.Sprintf("%s/", functionConfig.Spec.RunRegistry)) {
+		// if image doesn't have a registry yet, enrich it with the run registry
+		if !common.ImageHasRegistry(functionInstance.Spec.Image) {
 			functionInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functionInstance.Spec.Image)
 		}
 	}

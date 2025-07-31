@@ -651,6 +651,59 @@ func (suite *MiscTestSuite) TestSanitizeResponseData() {
 	}
 }
 
+func (suite *MiscTestSuite) TestImageHasRegistry() {
+	for _, testCase := range []struct {
+		name     string
+		image    string
+		expected bool
+	}{
+		{
+			name:     "emptyString",
+			image:    "",
+			expected: false,
+		},
+		{
+			name:     "onlyImageName",
+			image:    "nginx",
+			expected: false,
+		},
+		{
+			name:     "imageWithTag",
+			image:    "nginx:latest",
+			expected: false,
+		},
+		{
+			name:     "imageWithRegistry",
+			image:    "docker.io/nginx:latest",
+			expected: true,
+		},
+		{
+			name:     "imageWithRegistryAndPort",
+			image:    "registry.example.com:5000/repo/nginx:latest",
+			expected: true,
+		},
+		{
+			name:     "imageWithLeadingSlash",
+			image:    "/nginx:latest",
+			expected: false,
+		},
+		{
+			name:     "imageWithOrgAndName",
+			image:    "library/nginx",
+			expected: false,
+		},
+		{
+			name:     "imageWithNestedPath",
+			image:    "ghcr.io/org/project/nginx:1.0",
+			expected: true,
+		},
+	} {
+		suite.Run(testCase.name, func() {
+			suite.Require().Equal(testCase.expected, ImageHasRegistry(testCase.image))
+		})
+	}
+}
+
 func TestHelperTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
 	suite.Run(t, new(RetryUntilSuccessfulOnErrorPatternsTestSuite))
