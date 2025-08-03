@@ -277,12 +277,12 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":        path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
-			"env":         "FIRST_ENV=11223344,SECOND_ENV=0099887766",
-			"labels":      "label1=first,label2=second",
-			"annotations": "annotation1=third,annotation2=fourth",
-			"runtime":     "python",
-			"handler":     "envprinter:handler",
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
+			"env":          "FIRST_ENV=11223344,SECOND_ENV=0099887766",
+			"labels":       "label1=first,label2=second",
+			"annotations":  "annotation1=third,annotation2=fourth",
+			"runtime":      "python",
+			"handler":      "envprinter:handler",
 			"project-name": suite.projectName,
 		})
 
@@ -322,8 +322,8 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 
 	err = suite.ExecuteNuctl([]string{"deploy", "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
-			"image": imageName,
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"image":        imageName,
 			"project-name": suite.projectName,
 		})
 
@@ -544,9 +544,9 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   imageName,
-			"runtime": "shell",
-			"handler": "rev",
+			"image":        imageName,
+			"runtime":      "shell",
+			"handler":      "rev",
 			"project-name": suite.projectName,
 		})
 
@@ -580,9 +580,9 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   imageName,
-			"runtime": "shell",
-			"handler": "rev",
+			"image":        imageName,
+			"runtime":      "shell",
+			"handler":      "rev",
 			"project-name": suite.projectName,
 		})
 
@@ -859,8 +859,8 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	// deploy with temp, expect to pass
 	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
 		map[string]string{
-			"path": functionPath,
-			"file": functionConfigPath,
+			"path":         functionPath,
+			"file":         functionConfigPath,
 			"project-name": suite.projectName,
 		})
 
@@ -1004,9 +1004,10 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 
 	desiredHTTPPort := 30555
 	namedArgs = map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-		"runtime": "python",
-		"handler": "event_recorder:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime":      "python",
+		"handler":      "event_recorder:handler",
+		"project-name": suite.projectName,
 		"triggers": fmt.Sprintf(`{
 	   "http": {
 	       "kind": "http",
@@ -1059,9 +1060,9 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-			"runtime": "python:3.11",
-			"handler": "reverser:handler",
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+			"runtime":      "python:3.11",
+			"handler":      "reverser:handler",
 			"project-name": suite.projectName,
 		})
 	suite.Require().NoError(err)
@@ -1155,7 +1156,10 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{"method": "POST"},
+		map[string]string{
+			"method":       "POST",
+			"project-name": suite.projectName,
+		},
 		false)
 	suite.Require().NoError(err)
 
@@ -1312,7 +1316,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
 		"http-trigger-service-type": string(corev1.ServiceTypeClusterIP),
-		"project-name": suite.projectName,
+		"project-name":              suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
