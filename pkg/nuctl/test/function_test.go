@@ -283,6 +283,7 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 			"annotations": "annotation1=third,annotation2=fourth",
 			"runtime":     "python",
 			"handler":     "envprinter:handler",
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -323,6 +324,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 		map[string]string{
 			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
 			"image": imageName,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -545,6 +547,7 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 			"image":   imageName,
 			"runtime": "shell",
 			"handler": "rev",
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -580,6 +583,7 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 			"image":   imageName,
 			"runtime": "shell",
 			"handler": "rev",
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -857,6 +861,7 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 		map[string]string{
 			"path": functionPath,
 			"file": functionConfigPath,
+			"project-name": suite.projectName,
 		})
 
 	// delete the function when we're done
@@ -1057,6 +1062,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
 			"runtime": "python:3.11",
 			"handler": "reverser:handler",
+			"project-name": suite.projectName,
 		})
 	suite.Require().NoError(err)
 
@@ -1136,6 +1142,7 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 			"run-as-user":  runAsUserID,
 			"run-as-group": runAsGroupID,
 			"fsgroup":      fsGroup,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -1305,6 +1312,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
 		"http-trigger-service-type": string(corev1.ServiceTypeClusterIP),
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
