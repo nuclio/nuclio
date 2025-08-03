@@ -637,6 +637,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 			"image":             imageName,
 			"runtime":           "golang",
 			"output-image-file": tarName,
+			"project-name":      suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -691,8 +692,9 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 
 	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
-			"image": imageName,
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"image":        imageName,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -762,8 +764,9 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 
 	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  functionPath,
-			"image": imageName,
+			"path":         functionPath,
+			"image":        imageName,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
