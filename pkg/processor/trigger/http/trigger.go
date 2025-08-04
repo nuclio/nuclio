@@ -55,6 +55,8 @@ type http struct {
 	status             *status.SafeStatus
 	server             *fasthttp.Server
 	internalHealthPath []byte
+
+	eventTimeout time.Duration
 }
 
 func newTrigger(logger logger.Logger,
@@ -93,6 +95,10 @@ func newTrigger(logger logger.Logger,
 
 	newTrigger.Trigger = &newTrigger
 	newTrigger.allocateEvents(numWorkers)
+
+	if newTrigger.eventTimeout, err = newTrigger.configuration.RuntimeConfiguration.Configuration.Spec.GetEventTimeout(); err != nil {
+		return nil, errors.Wrap(err, "Failed to get event timeout")
+	}
 
 	if functionconfig.BatchModeEnabled(configuration.Batch) {
 		if batchTimeout, err := time.ParseDuration(configuration.Batch.Timeout); err != nil {
@@ -449,32 +455,39 @@ func (h *http) handleRequest(ctx *fasthttp.RequestCtx) {
 
 		// this flag indicates whether processing has been canceled
 		var processingCancelled bool
+		var responseFromBatch any
 
 		// wait for either event processing to finish or for the waiting timeout to pass
-		select {
-		case <-time.After(time.Duration(*h.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond):
-			// timeout occurred, cancel event processing and set flags accordingly
-			cancelProcessing()
-			processingCancelled = true
-			timedOut = true
-			response = nil
-			submitError = nil
-			processError = nil
-		case responseFromBatch := <-responseChan:
-			// handle the response received from batch processing
-			switch typedResponse := responseFromBatch.(type) {
-			case *runtime.ResponseWithErrors:
-				response = &typedResponse.Response
-				submitError = typedResponse.SubmitError
-				processError = typedResponse.ProcessError
-			case nuclio.ProcessingResult:
-				response = typedResponse
+		if h.eventTimeout != 0 {
+			select {
+			case <-time.After(h.eventTimeout):
+				// timeout occurred, cancel event processing and set flags accordingly
+				cancelProcessing()
+				processingCancelled = true
+				timedOut = true
+				response = nil
+				submitError = nil
+				processError = nil
+			case responseFromChan := <-responseChan:
+				responseFromBatch = responseFromChan
 			}
+		} else {
+			responseFromBatch = <-responseChan
 		}
 		// if event processing is not yet canceled, cancel it
 		if !processingCancelled {
 			cancelProcessing()
 		}
+		// handle the response received from batch processing
+		switch typedResponse := responseFromBatch.(type) {
+		case *runtime.ResponseWithErrors:
+			response = &typedResponse.Response
+			submitError = typedResponse.SubmitError
+			processError = typedResponse.ProcessError
+		case nuclio.ProcessingResult:
+			response = typedResponse
+		}
+
 	} else {
 		// TODO: change to return runtime.ResponseWithErrors
 		response, workerInstance, submitError, processError = h.AllocateWorkerAndSubmitEvent(ctx,
