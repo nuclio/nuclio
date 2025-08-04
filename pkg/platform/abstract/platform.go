@@ -852,9 +852,9 @@ func (ap *Platform) GetFunctionProject(ctx context.Context, functionConfig *func
 	case 1:
 		return projects[0], nil
 	case 0:
-		return nil, errors.Wrap(err, "Project was not found for given function")
+		return nil, errors.New("Project was not found for given function")
 	default:
-		return nil, errors.Wrap(err, "More than one project were found for given function")
+		return nil, errors.New("More than one project were found for given function")
 	}
 }
 
