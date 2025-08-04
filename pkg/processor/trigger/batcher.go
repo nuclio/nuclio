@@ -50,36 +50,44 @@ func (b *Batcher) Add(event nuclio.Event, responseChan *common.ChannelWithRecove
 	b.currentBatch <- &BatchedEventWithResponse{event: event, responseChan: responseChan}
 
 	// if batchIsFull, Write to `batchIsFull` chan, so that we send batch to worker right when batch len reached the maximum
-	if cap(b.currentBatch) == len(b.currentBatch) {
+	// plus one, because we read the first event in WaitForBatch separately
+	if cap(b.currentBatch)+1 == len(b.currentBatch) {
 		b.batchIsFull <- true
 	}
 }
 
 func (b *Batcher) WaitForBatch(batchTimeout time.Duration) ([]nuclio.Event, map[string]*common.ChannelWithRecover) {
 	for {
-		if b.batchIsEmpty() {
-			continue
-		}
+		// Block until the first event arrives
+		firstEvent := <-b.currentBatch
+
 		select {
 		case <-b.batchIsFull:
-			return b.extractBatch()
+			return b.extractBatch(firstEvent)
 		case <-time.After(batchTimeout):
-			return b.extractBatch()
+			return b.extractBatch(firstEvent)
 		}
 	}
 }
 
-func (b *Batcher) batchIsEmpty() bool {
-	return len(b.currentBatch) == 0
-}
+func (b *Batcher) extractBatch(firstEvent *BatchedEventWithResponse) ([]nuclio.Event, map[string]*common.ChannelWithRecover) {
 
-func (b *Batcher) extractBatch() ([]nuclio.Event, map[string]*common.ChannelWithRecover) {
-
-	batchLength := len(b.currentBatch)
+	// +1 because we already read the first event
+	batchLength := len(b.currentBatch) + 1
 	responseChans := make(map[string]*common.ChannelWithRecover)
 	batch := make([]nuclio.Event, batchLength)
 
-	for i := 0; i < batchLength; i++ {
+	// Add the first event
+	eventID := firstEvent.event.GetID()
+	if eventID == "" {
+		eventID = nuclio.ID(uuid.New().String())
+		firstEvent.event.SetID(eventID)
+	}
+
+	batch[0] = firstEvent.event
+	responseChans[string(eventID)] = firstEvent.responseChan
+
+	for i := 1; i < batchLength; i++ {
 		batchedEventWithResponse := <-b.currentBatch
 		batch[i] = batchedEventWithResponse.event
 		eventId := batchedEventWithResponse.event.GetID()
