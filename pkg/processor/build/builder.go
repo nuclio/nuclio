@@ -1908,6 +1908,10 @@ func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, e
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get project for the function")
 	}
+	b.logger.DebugWith("KAWABANGA",
+		"project.GetConfig().Spec", project.GetConfig().Spec,
+		"b.platform.GetConfig().Kube", b.platform.GetConfig().Kube,
+	)
 	// enriching from both project and platform
 	builderNodeSelector = utils.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
 		project.GetConfig().Spec.DefaultFunctionNodeSelector,
