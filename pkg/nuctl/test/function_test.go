@@ -661,6 +661,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 			"runtime":          "golang",
 			"handler":          "main:Reverse",
 			"input-image-file": tarName,
+			"project-name":     suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -709,8 +710,9 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
-			"run-image": imageName,
-			"file":      path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
+			"run-image":    imageName,
+			"file":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -784,6 +786,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 			"run-image":    imageName,
 			"file":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
 			"min-replicas": fmt.Sprintf("%d", minReplicas),
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -1156,10 +1159,7 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
-		map[string]string{
-			"method":       "POST",
-			"project-name": suite.projectName,
-		},
+		map[string]string{"method": "POST"},
 		false)
 	suite.Require().NoError(err)
 
@@ -1192,6 +1192,7 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 			"run-as-user":  runAsUserID,
 			"run-as-group": runAsGroupID,
 			"fsgroup":      fsGroup,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -1273,10 +1274,11 @@ wget -O - --post-data "$body" $url 2> /dev/null
 
 	err = suite.ExecuteNuctl([]string{"deploy", wgetFunctionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   wgetImageName,
-			"runtime": "shell",
-			"handler": "main.sh",
-			"source":  base64.StdEncoding.EncodeToString([]byte(wgetSourceCode)),
+			"image":        wgetImageName,
+			"runtime":      "shell",
+			"handler":      "main.sh",
+			"source":       base64.StdEncoding.EncodeToString([]byte(wgetSourceCode)),
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -1337,6 +1339,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
 		"http-trigger-service-type": string(corev1.ServiceTypeNodePort),
+		"project-name":              suite.projectName,
 	}
 
 	err = suite.ExecuteNuctl([]string{"deploy", functionName2, "--verbose", "--no-pull"}, namedArgs)

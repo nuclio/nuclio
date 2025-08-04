@@ -39,7 +39,7 @@ type ProjectTestSuite struct {
 func (suite *ProjectTestSuite) TestCreate() {
 	projectConfig := platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
-			Name:      "test-project",
+			Name:      "test-create",
 			Namespace: suite.Namespace,
 			Labels: map[string]string{
 				"label-key": "label-value",
@@ -83,7 +83,7 @@ func (suite *ProjectTestSuite) TestCreateFromLeaderIgnoreInvalidLabels() {
 	invalidLabelKey2 := "the-key-is-invalid"
 	projectConfig := platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
-			Name:      "test-project",
+			Name:      "test-create-from-leader",
 			Namespace: suite.Namespace,
 			Labels: map[string]string{
 				invalidLabelKey1: "label-value",
@@ -130,7 +130,7 @@ func (suite *ProjectTestSuite) TestCreateFromLeaderIgnoreInvalidLabels() {
 func (suite *ProjectTestSuite) TestUpdate() {
 	projectConfig := platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
-			Name:      "test-project",
+			Name:      "test-update",
 			Namespace: suite.Namespace,
 			Labels: map[string]string{
 				"something": "here",
@@ -186,7 +186,7 @@ func (suite *ProjectTestSuite) TestUpdate() {
 func (suite *ProjectTestSuite) TestDelete() {
 	projectConfig := platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
-			Name:      "test-project",
+			Name:      "test-delete",
 			Namespace: suite.Namespace,
 			Labels: map[string]string{
 				"something": "here",
