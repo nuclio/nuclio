@@ -51,7 +51,7 @@ func (b *Batcher) Add(event nuclio.Event, responseChan *common.ChannelWithRecove
 
 	// if batchIsFull, Write to `batchIsFull` chan, so that we send batch to worker right when batch len reached the maximum
 	// plus one, because we read the first event in WaitForBatch separately
-	if cap(b.currentBatch)+1 == len(b.currentBatch) {
+	if len(b.currentBatch)+1 == cap(b.currentBatch) {
 		b.batchIsFull <- true
 	}
 }
