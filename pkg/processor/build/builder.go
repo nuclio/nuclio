@@ -1908,7 +1908,13 @@ func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, e
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get project for the function")
 	}
-	b.logger.DebugWith("KAWABANGA",
+	b.logger.Debug("KAWABANGA")
+
+	b.logger.DebugWith("KAWABANGA2",
+		"project.GetConfig", project.GetConfig(),
+		"b.platform.GetConfig", b.platform.GetConfig(),
+	)
+	b.logger.DebugWith("KAWABANGA3",
 		"project.GetConfig().Spec", project.GetConfig().Spec,
 		"b.platform.GetConfig().Kube", b.platform.GetConfig().Kube,
 	)
