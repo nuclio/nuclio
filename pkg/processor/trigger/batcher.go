@@ -51,7 +51,7 @@ func (b *Batcher) Add(event nuclio.Event, responseChan *common.ChannelWithRecove
 
 	// if batchIsFull, Write to `batchIsFull` chan, so that we send batch to worker right when batch len reached the maximum
 	// plus one, because we read the first event in WaitForBatch separately
-	if len(b.currentBatch)+1 == cap(b.currentBatch) {
+	if len(b.currentBatch)+1 >= cap(b.currentBatch) {
 		b.batchIsFull <- true
 	}
 }
@@ -74,6 +74,12 @@ func (b *Batcher) extractBatch(firstEvent *BatchedEventWithResponse) ([]nuclio.E
 
 	// +1 because we already read the first event
 	batchLength := len(b.currentBatch) + 1
+
+	// ensure that batchLength is not bigger than the capacity of the channel
+	if batchLength > cap(b.currentBatch) {
+		batchLength = cap(b.currentBatch)
+	}
+	
 	responseChans := make(map[string]*common.ChannelWithRecover)
 	batch := make([]nuclio.Event, batchLength)
 
