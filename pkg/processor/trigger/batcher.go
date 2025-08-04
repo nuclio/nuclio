@@ -79,7 +79,7 @@ func (b *Batcher) extractBatch(firstEvent *BatchedEventWithResponse) ([]nuclio.E
 	if batchLength > cap(b.currentBatch) {
 		batchLength = cap(b.currentBatch)
 	}
-	
+
 	responseChans := make(map[string]*common.ChannelWithRecover)
 	batch := make([]nuclio.Event, batchLength)
 
