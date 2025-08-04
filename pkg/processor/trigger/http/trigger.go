@@ -96,7 +96,7 @@ func newTrigger(logger logger.Logger,
 	newTrigger.Trigger = &newTrigger
 	newTrigger.allocateEvents(numWorkers)
 
-	if newTrigger.eventTimeout, err = newTrigger.configuration.RuntimeConfiguration.Configuration.Spec.GetEventTimeout(); err != nil {
+	if newTrigger.eventTimeout, err = newTrigger.configuration.RuntimeConfiguration.Spec.GetEventTimeout(); err != nil {
 		return nil, errors.Wrap(err, "Failed to get event timeout")
 	}
 
