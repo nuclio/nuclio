@@ -135,11 +135,12 @@ func (suite *KubeTestSuite) SetupSuite() {
 	suite.Controller = suite.createController()
 
 	// create project
-	suite.projectName = "test-project"
+	suite.projectName = "test-project-" + xid.New().String()
 
 	suite.nuctlRunner = nuctlSuite.NewNuctlRunner(suite.Namespace, suite.Logger)
 
-	suite.nuctlRunner.Run([]string{"create", "project", suite.projectName}, map[string]string{}) // nolint: errcheck
+	err = suite.nuctlRunner.Run([]string{"create", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to create project")
 
 	if !suite.DisableControllerStart {
 
@@ -214,7 +215,11 @@ func (suite *KubeTestSuite) TearDownTest() {
 
 func (suite *KubeTestSuite) TearDownSuite() {
 	// remove project
-	suite.nuctlRunner.Run([]string{"delete", "project", suite.projectName}, map[string]string{}) // nolint: errcheck
+	if err := suite.nuctlRunner.Run([]string{"delete", "project", suite.projectName}, map[string]string{}); err != nil {
+		suite.Logger.WarnWith("Failed to delete project",
+			"projectName", suite.projectName,
+			"err", err.Error())
+	}
 }
 
 func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {

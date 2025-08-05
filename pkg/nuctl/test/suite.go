@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
 	nucliozap "github.com/nuclio/zap"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"sigs.k8s.io/yaml"
 )
@@ -105,13 +106,14 @@ func (suite *Suite) SetupSuite() {
 
 	suite.ctx = context.Background()
 
-	suite.projectName = "test-project"
+	suite.projectName = "test-project-" + xid.New().String()
 
 	// create nuctl executor
 	suite.nuctlRunner = NewNuctlRunner(suite.namespace, suite.logger)
 
 	// create project
-	suite.ExecuteNuctl([]string{"create", "project", suite.projectName}, map[string]string{}) // nolint: errcheck
+	err = suite.ExecuteNuctl([]string{"create", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to create project")
 }
 
 func (suite *Suite) SetupTest() {
@@ -131,7 +133,11 @@ func (suite *Suite) TearDownSuite() {
 	err = os.RemoveAll(suite.tempDir)
 	suite.Require().NoError(err, "Failed to remove temp dir - %s", suite.tempDir)
 	// remove project
-	suite.ExecuteNuctl([]string{"delete", "project", suite.projectName}, map[string]string{}) // nolint: errcheck
+	if err = suite.ExecuteNuctl([]string{"delete", "project", suite.projectName}, map[string]string{}); err != nil {
+		suite.logger.WarnWith("Failed to delete project",
+			"projectName", suite.projectName,
+			"err", err.Error())
+	}
 
 	suite.logger.Debug("Suite tear down completed")
 }
