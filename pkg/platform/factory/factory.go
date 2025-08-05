@@ -37,7 +37,8 @@ func CreatePlatform(ctx context.Context,
 	parentLogger logger.Logger,
 	platformType string,
 	platformConfiguration *platformconfig.Config,
-	defaultNamespace string) (platform.Platform, error) {
+	defaultNamespace string,
+	defaultRunRegistryURL string) (platform.Platform, error) {
 
 	var newPlatform platform.Platform
 	var err error
@@ -57,7 +58,7 @@ func CreatePlatform(ctx context.Context,
 		newPlatform, err = local.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace)
 
 	case common.KubePlatformName:
-		newPlatform, err = kube.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace)
+		newPlatform, err = kube.NewPlatform(ctx, parentLogger, platformConfiguration, defaultNamespace, defaultRunRegistryURL)
 
 	default:
 

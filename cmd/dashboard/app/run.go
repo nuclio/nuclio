@@ -103,7 +103,8 @@ func Run(listenAddress string,
 		rootLogger,
 		platformType,
 		platformConfiguration,
-		defaultNamespace)
+		defaultNamespace,
+		defaultRunRegistryURL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
 	}

@@ -98,7 +98,8 @@ func NewProjectsClient(platform *Platform, platformConfiguration *platformconfig
 func NewPlatform(ctx context.Context,
 	parentLogger logger.Logger,
 	platformConfiguration *platformconfig.Config,
-	defaultNamespace string) (*Platform, error) {
+	defaultNamespace string,
+	defaultRunRegistryURL string) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
@@ -124,7 +125,7 @@ func NewPlatform(ctx context.Context,
 	}
 
 	// create deployer
-	newPlatform.deployer, err = nuclioclient.NewDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform)
+	newPlatform.deployer, err = nuclioclient.NewDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform, defaultRunRegistryURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create a deployer")
 	}

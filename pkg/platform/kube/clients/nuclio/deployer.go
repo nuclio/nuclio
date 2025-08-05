@@ -39,18 +39,20 @@ import (
 const MaxLogLines = 100
 
 type Deployer struct {
-	logger   logger.Logger
-	consumer *Consumer
-	platform platform.Platform
-	scrubber *functionconfig.Scrubber
+	logger                logger.Logger
+	consumer              *Consumer
+	platform              platform.Platform
+	scrubber              *functionconfig.Scrubber
+	defaultRunRegistryURL string
 }
 
-func NewDeployer(parentLogger logger.Logger, consumer *Consumer, platform platform.Platform) (*Deployer, error) {
+func NewDeployer(parentLogger logger.Logger, consumer *Consumer, platform platform.Platform, defaultRunRegistryURL string) (*Deployer, error) {
 	newDeployer := &Deployer{
-		logger:   parentLogger.GetChild("deployer"),
-		platform: platform,
-		consumer: consumer,
-		scrubber: platform.GetFunctionScrubber(),
+		logger:                parentLogger.GetChild("deployer"),
+		platform:              platform,
+		consumer:              consumer,
+		scrubber:              platform.GetFunctionScrubber(),
+		defaultRunRegistryURL: defaultRunRegistryURL,
 	}
 
 	return newDeployer, nil
@@ -189,8 +191,9 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 	// if, for some reason, the run registry is specified, prepend that
 	if functionConfig.Spec.RunRegistry != "" {
 
-		// if image doesn't have a registry yet, enrich it with the run registry
-		if !common.ImageHasRegistry(functionInstance.Spec.Image) {
+		// if image doesn't have a registry yet OR runRegistry is set explicitly(not the same as default),
+		// enrich it with the run registry
+		if !common.ImageHasRegistry(functionInstance.Spec.Image) || functionConfig.Spec.RunRegistry != d.defaultRunRegistryURL {
 			functionInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functionInstance.Spec.Image)
 		}
 	}
