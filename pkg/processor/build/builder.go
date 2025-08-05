@@ -1902,6 +1902,12 @@ func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
 // resolveNodeSelector resolves builder NodeSelector from function, project and platform NodeSelectors,
 // where function values take precedence over project values, and project values take precedence over platform values
 func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, error) {
+	// if the platform is not Kube, nodeSelector resolution is not relevant
+	if b.platform.GetConfig().Kind != common.KubePlatformName {
+		b.logger.Debug("NodeSelector resolution is only applicable for Kube platform, skipping")
+		return nil, nil
+	}
+
 	var builderNodeSelector map[string]string
 	project, err := b.platform.GetFunctionProject(ctx, &b.options.FunctionConfig)
 	if err != nil {
