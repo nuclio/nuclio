@@ -440,25 +440,34 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 			return "", "", errors.Wrapf(err, "Failed to execute command: %s", command)
 		}
 
-		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
-		// using alpine mirrored to gcr.io/iguazio for stability
-		if _, err := s.dockerClient.RunContainer(s.imageName, &dockerclient.RunOptions{
-			Volumes:          map[string]string{volumeName: baseDir},
-			Remove:           true,
-			Command:          `/bin/sh -c "/bin/sleep 6h"`,
-			Stdout:           &commandStdout,
-			ImageMayNotExist: true,
-			ContainerName:    containerName,
-		}); err != nil &&
-			!strings.Contains(err.Error(), "is already in use by container") {
-
-			// if we failed and the error is not that it already exists, return the error
-
-			return "", "", errors.Wrap(err, "Failed to run container with storage volume")
+		commandStdout, err = s.Init()
+		if err != nil {
+			return commandStdout, "", errors.Wrapf(err, "Failed to init container for command: %s", command)
 		}
 	}
 
 	return commandStdout, commandStderr, nil
+}
+
+func (s *Store) Init() (string, error) {
+	var commandStdout string
+
+	// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
+	// using alpine mirrored to gcr.io/iguazio for stability
+	if _, err := s.dockerClient.RunContainer(s.imageName, &dockerclient.RunOptions{
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          `/bin/sh -c "/bin/sleep 6h"`,
+		Stdout:           &commandStdout,
+		ImageMayNotExist: true,
+		ContainerName:    containerName,
+	}); err != nil &&
+		!strings.Contains(err.Error(), "is already in use by container") {
+
+		// if we failed and the error is not that it already exists, return the error
+		return commandStdout, errors.Wrap(err, "Failed to run container with storage volume")
+	}
+	return commandStdout, nil
 }
 
 func (s *Store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {
