@@ -155,7 +155,7 @@ func (suite *KubePlatformTestSuite) ResetCRDMocks() {
 	}
 	suite.platform.updater, _ = nuclio.NewUpdater(suite.Logger, suite.platform.consumer, suite.platform)
 	suite.platform.deleter, _ = nuclio.NewDeleter(suite.Logger, suite.platform)
-	suite.platform.deployer, _ = nuclio.NewDeployer(suite.Logger, suite.platform.consumer, suite.platform)
+	suite.platform.deployer, _ = nuclio.NewDeployer(suite.Logger, suite.platform.consumer, suite.platform, "")
 	suite.platform.projectsClient, _ = NewProjectsClient(suite.platform, suite.abstractPlatform.Config)
 	suite.platform.apiGatewayScrubber = platform.NewAPIGatewayScrubber(suite.Logger, platform.GetAPIGatewaySensitiveField(), suite.platform.consumer.KubeClientSet)
 }

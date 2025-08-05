@@ -130,7 +130,8 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Platform, err = factory.CreatePlatform(suite.ctx, suite.Logger,
 		suite.PlatformType,
 		suite.PlatformConfiguration,
-		suite.Namespace)
+		suite.Namespace,
+		"")
 	suite.Require().NoError(err)
 	suite.Require().NotNil(suite.Platform)
 }

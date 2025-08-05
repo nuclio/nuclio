@@ -148,7 +148,8 @@ func (rc *RootCommandeer) initialize(initPlatform bool) error {
 		rc.loggerInstance,
 		rc.platformName,
 		rc.platformConfiguration,
-		rc.namespace)
+		rc.namespace,
+		"")
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
 	}
