@@ -195,7 +195,8 @@ func (d *Deployer) populateFunction(functionConfig *functionconfig.Config,
 		// enrich it with the run registry
 		if !common.ImageHasRegistry(functionInstance.Spec.Image) {
 			functionInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functionInstance.Spec.Image)
-		} else if functionConfig.Spec.RunRegistry != d.defaultRunRegistryURL {
+		} else if functionConfig.Spec.RunRegistry != d.defaultRunRegistryURL &&
+			!strings.HasPrefix(functionInstance.Spec.Image, fmt.Sprintf("%s/", functionConfig.Spec.RunRegistry)) {
 			functionInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functionInstance.Spec.Image)
 		}
 	}
