@@ -18,6 +18,6 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "mocha": "^10.8.2",
-    "rewire": "^5.0.0"
+    "rewire": "^9.0.0"
   }
 }
