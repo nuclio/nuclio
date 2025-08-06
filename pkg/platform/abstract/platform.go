@@ -274,12 +274,6 @@ func (ap *Platform) EnrichFunctionConfig(ctx context.Context, functionConfig *fu
 
 	ap.enrichMinMaxReplicas(functionConfig)
 
-	// enrich with registry credential secret name
-	if functionConfig.Spec.ImagePullSecrets == "" {
-		functionConfig.Spec.ImagePullSecrets =
-			ap.GetDefaultRegistryCredentialsSecretName()
-	}
-
 	// `python` is just an alias
 	if functionConfig.Spec.Runtime == "python" {
 		functionConfig.Spec.Runtime = "python:3.11"

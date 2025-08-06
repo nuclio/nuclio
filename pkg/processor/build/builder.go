@@ -1122,7 +1122,7 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 			BuildArgs:           buildArgs,
 			RegistryURL:         registryURL,
 			RepoName:            b.resolveRepoName(registryURL),
-			SecretName:          b.options.FunctionConfig.Spec.ImagePullSecrets,
+			SecretName:          b.resolveImagePullSecrets(),
 			OutputImageFile:     b.options.OutputImageFile,
 			BuildTimeoutSeconds: b.resolveBuildTimeoutSeconds(),
 
@@ -1147,6 +1147,13 @@ func (b *Builder) buildProcessorImage(ctx context.Context) (string, error) {
 		})
 
 	return taggedImageName, err
+}
+
+func (b *Builder) resolveImagePullSecrets() string {
+	if b.options.FunctionConfig.Spec.ImagePullSecrets == "" {
+		return b.platform.GetDefaultRegistryCredentialsSecretName()
+	}
+	return b.options.FunctionConfig.Spec.ImagePullSecrets
 }
 
 func (b *Builder) resolveRepoName(registryURL string) string {
