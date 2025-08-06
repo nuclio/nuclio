@@ -114,6 +114,8 @@ func (suite *Suite) SetupSuite() {
 	// create project
 	err = suite.ExecuteNuctl([]string{"create", "project", suite.projectName}, map[string]string{})
 	suite.Require().NoError(err, "Failed to create project")
+
+	suite.logger.WarnWith("KAWABANGA: SetupSuite called", "project-name", suite.projectName)
 }
 
 func (suite *Suite) SetupTest() {
