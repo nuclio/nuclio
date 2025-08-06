@@ -30,13 +30,15 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/local"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
 	processorsuite.TestSuite
-	namespace string
-	ctx       context.Context
+	namespace   string
+	ctx         context.Context
+	projectName string
 }
 
 func (suite *TestSuite) SetupSuite() {
@@ -50,13 +52,25 @@ func (suite *TestSuite) SetupSuite() {
 	// we will work on the first one
 	suite.namespace = namespaces[0]
 
+	suite.projectName = "test-project-" + xid.New().String()
+
 	getProjectsOptions := &platform.CreateProjectOptions{
-		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: "test-project", Namespace: suite.namespace}, Spec: platform.ProjectSpec{
+		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: suite.projectName, Namespace: suite.namespace}, Spec: platform.ProjectSpec{
 			Description: "just a description",
 		}},
 	}
 	err = suite.Platform.CreateProject(suite.ctx, getProjectsOptions)
 	suite.Require().NoError(err, "Failed to create project")
+}
+
+func (suite *TestSuite) TearDownSuite() {
+	err := suite.Platform.DeleteProject(suite.ctx, &platform.DeleteProjectOptions{
+		Meta: platform.ProjectMeta{
+			Name:      suite.projectName,
+			Namespace: suite.namespace,
+		},
+	})
+	suite.Require().NoError(err, "Failed to delete project")
 }
 
 // Test function containers healthiness validation
