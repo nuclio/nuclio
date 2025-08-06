@@ -452,6 +452,16 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 func (s *Store) Init() (string, error) {
 	var commandStdout string
 
+	isExists, err := s.isContainerExists()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to check if container exists")
+	}
+
+	if isExists {
+		s.logger.DebugWith("Container already exists, not running again", "containerName", containerName)
+		return "", nil
+	}
+
 	// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
 	// using alpine mirrored to gcr.io/iguazio for stability
 	if _, err := s.dockerClient.RunContainer(s.imageName, &dockerclient.RunOptions{
@@ -468,6 +478,17 @@ func (s *Store) Init() (string, error) {
 		return commandStdout, errors.Wrap(err, "Failed to run container with storage volume")
 	}
 	return commandStdout, nil
+}
+
+func (s *Store) isContainerExists() (bool, error) {
+	containers, err := s.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
+		Name: containerName,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to get containers")
+	}
+
+	return len(containers) > 0 , nil
 }
 
 func (s *Store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {
