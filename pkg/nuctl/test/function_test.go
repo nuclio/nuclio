@@ -101,6 +101,18 @@ type functionDeployTestSuite struct {
 	Suite
 }
 
+func (suite *functionDeployTestSuite) SetupSuite(){
+	suite.Suite.SetupSuite()
+	// static project name created here for consistency across test files within this suite
+	suite.CreateTestProject("test-project")
+}
+
+func (suite *functionDeployTestSuite) TearDownSuite(){
+	suite.Suite.TearDownSuite()
+	// static project name created here for consistency across test files within this suite
+	suite.DeleteTestProject("test-project")
+}
+
 func (suite *functionDeployTestSuite) TestDeploy() {
 	for _, runtimeInfo := range []struct {
 		runtime  string
@@ -1602,6 +1614,18 @@ type functionExportImportTestSuite struct {
 	Suite
 }
 
+func (suite *functionExportImportTestSuite) SetupSuite(){
+	suite.Suite.SetupSuite()
+	// static project name created here for consistency across test files within this suite
+	suite.CreateTestProject("test-project")
+}
+
+func (suite *functionExportImportTestSuite) TearDownSuite(){
+	suite.Suite.TearDownSuite()
+	// static project name created here for consistency across test files within this suite
+	suite.DeleteTestProject("test-project")
+}
+
 func (suite *functionExportImportTestSuite) TestFailToImportFunctionNoInput() {
 
 	// import function without input
@@ -1963,6 +1987,18 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 
 type functionRedeployTestSuite struct {
 	Suite
+}
+
+func (suite *functionRedeployTestSuite) SetupSuite(){
+	suite.Suite.SetupSuite()
+	// static project name created here for consistency across test files within this suite
+	suite.CreateTestProject("test-project")
+}
+
+func (suite *functionRedeployTestSuite) TearDownSuite(){
+	suite.Suite.TearDownSuite()
+	// static project name created here for consistency across test files within this suite
+	suite.DeleteTestProject("test-project")
 }
 
 func (suite *functionRedeployTestSuite) TestRedeploy() {
