@@ -452,7 +452,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 func (s *Store) Init() (string, error) {
 	var commandStdout string
 
-	isExists, err := s.isContainerExists()
+	isExists, err := s.containerExists()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to check if container exists")
 	}
@@ -480,7 +480,7 @@ func (s *Store) Init() (string, error) {
 	return commandStdout, nil
 }
 
-func (s *Store) isContainerExists() (bool, error) {
+func (s *Store) containerExists() (bool, error) {
 	containers, err := s.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
 		Name: containerName,
 	})
@@ -488,7 +488,7 @@ func (s *Store) isContainerExists() (bool, error) {
 		return false, errors.Wrap(err, "Failed to get containers")
 	}
 
-	return len(containers) > 0 , nil
+	return len(containers) > 0, nil
 }
 
 func (s *Store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {

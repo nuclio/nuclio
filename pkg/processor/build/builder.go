@@ -515,7 +515,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	}
 
 	if _, err := b.options.FunctionConfig.GetProjectName(); err != nil {
-		return errors.New("Function name can not be empty")
+		return errors.Wrap(err, "Failed to get project name")
 	}
 
 	// if the function handler isn't set, ask runtime
@@ -1902,7 +1902,7 @@ func (b *Builder) resolveFunctionHealthCheckInterval() (time.Duration, error) {
 // resolveNodeSelector resolves builder NodeSelector from function, project and platform NodeSelectors,
 // where function values take precedence over project values, and project values take precedence over platform values
 func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, error) {
-	// if the platform is not Kube, nodeSelector resolution is not relevant
+	// if the platform is not Kube, nodeSelector should not be resolved
 	if b.platform.GetConfig().Kind != common.KubePlatformName {
 		b.logger.Debug("NodeSelector resolution is only applicable for Kube platform, skipping")
 		return nil, nil
@@ -1913,16 +1913,6 @@ func (b *Builder) resolveNodeSelector(ctx context.Context) (map[string]string, e
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get project for the function")
 	}
-	b.logger.Debug("KAWABANGA")
-
-	b.logger.DebugWith("KAWABANGA2",
-		"project.GetConfig", project.GetConfig(),
-		"b.platform.GetConfig", b.platform.GetConfig(),
-	)
-	b.logger.DebugWith("KAWABANGA3",
-		"project.GetConfig().Spec", project.GetConfig().Spec,
-		"b.platform.GetConfig().Kube", b.platform.GetConfig().Kube,
-	)
 	// enriching from both project and platform
 	builderNodeSelector = utils.MergeNodeSelector(b.options.FunctionConfig.Spec.NodeSelector,
 		project.GetConfig().Spec.DefaultFunctionNodeSelector,

@@ -214,12 +214,8 @@ func (suite *KubeTestSuite) TearDownTest() {
 }
 
 func (suite *KubeTestSuite) TearDownSuite() {
-	// remove project
-	if err := suite.nuctlRunner.Run([]string{"delete", "project", suite.projectName}, map[string]string{}); err != nil {
-		suite.Logger.WarnWith("Failed to delete project",
-			"projectName", suite.projectName,
-			"err", err.Error())
-	}
+	err := suite.nuctlRunner.Run([]string{"delete", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to delete project")
 }
 
 func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {

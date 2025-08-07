@@ -101,16 +101,17 @@ type functionDeployTestSuite struct {
 	Suite
 }
 
-func (suite *functionDeployTestSuite) SetupSuite(){
+func (suite *functionDeployTestSuite) SetupSuite() {
 	suite.Suite.SetupSuite()
-	// static project name created here for consistency across test files within this suite
-	suite.CreateTestProject("test-project")
+	// create test-project for tests that import static files
+	if err := suite.ExecuteNuctl([]string{"create", "project", "test-project"}, map[string]string{}); err != nil {
+		suite.Contains(errors.Cause(err).Error(), "already exists")
+	}
 }
 
-func (suite *functionDeployTestSuite) TearDownSuite(){
+func (suite *functionDeployTestSuite) TearDownSuite() {
 	suite.Suite.TearDownSuite()
-	// static project name created here for consistency across test files within this suite
-	suite.DeleteTestProject("test-project")
+	suite.ExecuteNuctl([]string{"delete", "project", "test-project"}, map[string]string{}) // nolint: errcheck
 }
 
 func (suite *functionDeployTestSuite) TestDeploy() {
@@ -1614,16 +1615,17 @@ type functionExportImportTestSuite struct {
 	Suite
 }
 
-func (suite *functionExportImportTestSuite) SetupSuite(){
+func (suite *functionExportImportTestSuite) SetupSuite() {
 	suite.Suite.SetupSuite()
-	// static project name created here for consistency across test files within this suite
-	suite.CreateTestProject("test-project")
+	// create test-project for tests that import static files
+	if err := suite.ExecuteNuctl([]string{"create", "project", "test-project"}, map[string]string{}); err != nil {
+		suite.Contains(errors.Cause(err).Error(), "already exists")
+	}
 }
 
-func (suite *functionExportImportTestSuite) TearDownSuite(){
+func (suite *functionExportImportTestSuite) TearDownSuite() {
 	suite.Suite.TearDownSuite()
-	// static project name created here for consistency across test files within this suite
-	suite.DeleteTestProject("test-project")
+	suite.ExecuteNuctl([]string{"delete", "project", "test-project"}, map[string]string{}) // nolint: errcheck
 }
 
 func (suite *functionExportImportTestSuite) TestFailToImportFunctionNoInput() {
@@ -1989,16 +1991,17 @@ type functionRedeployTestSuite struct {
 	Suite
 }
 
-func (suite *functionRedeployTestSuite) SetupSuite(){
+func (suite *functionRedeployTestSuite) SetupSuite() {
 	suite.Suite.SetupSuite()
-	// static project name created here for consistency across test files within this suite
-	suite.CreateTestProject("test-project")
+	// create test-project for tests that import static files
+	if err := suite.ExecuteNuctl([]string{"create", "project", "test-project"}, map[string]string{}); err != nil {
+		suite.Contains(errors.Cause(err).Error(), "already exists")
+	}
 }
 
-func (suite *functionRedeployTestSuite) TearDownSuite(){
+func (suite *functionRedeployTestSuite) TearDownSuite() {
 	suite.Suite.TearDownSuite()
-	// static project name created here for consistency across test files within this suite
-	suite.DeleteTestProject("test-project")
+	suite.ExecuteNuctl([]string{"delete", "project", "test-project"}, map[string]string{}) // nolint: errcheck
 }
 
 func (suite *functionRedeployTestSuite) TestRedeploy() {

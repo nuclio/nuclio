@@ -59,20 +59,20 @@ type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 // function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
-	Logger                logger.Logger
-	LoggerName            string
-	ctx                   context.Context
-	DockerClient          dockerclient.Client
-	Platform              platform.Platform
-	TestID                string
-	Runtime               string
-	RuntimeDir            string
-	FunctionDir           string
-	PlatformType          string
-	Namespace             string
-	PlatformConfiguration *platformconfig.Config
-	FunctionNameUniquify  bool
-
+	Logger                 logger.Logger
+	LoggerName             string
+	ctx                    context.Context
+	DockerClient           dockerclient.Client
+	Platform               platform.Platform
+	TestID                 string
+	Runtime                string
+	RuntimeDir             string
+	FunctionDir            string
+	PlatformType           string
+	Namespace              string
+	PlatformConfiguration  *platformconfig.Config
+	FunctionNameUniquify   bool
+	ProjectName            string
 	containerID            string
 	createdTempDirs        []string
 	cleanupCreatedTempDirs bool
@@ -114,7 +114,7 @@ func (suite *TestSuite) SetupSuite() {
 
 	// this will preserve the current behavior where function names are renamed to be unique upon deployment
 	suite.FunctionNameUniquify = true
-
+	suite.ProjectName = "test-project-" + xid.New().String()
 	suite.Logger, err = nucliozap.NewNuclioZapTest(suite.LoggerName)
 	suite.Require().NoError(err)
 
@@ -439,7 +439,7 @@ func (suite *TestSuite) GetDeployOptions(functionName, functionPath string) *pla
 
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
 	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-		common.NuclioResourceLabelKeyProjectName: "test-project",
+		common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
 	}
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath

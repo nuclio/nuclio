@@ -849,8 +849,6 @@ func (ap *Platform) GetFunctionProject(ctx context.Context, functionConfig *func
 		return nil, errors.Wrap(err, "Failed to get projects")
 	}
 
-	ap.Logger.DebugWith("KAWABANGA4", "projectName", projectName, "projects", projects)
-
 	switch len(projects) {
 	case 1:
 		return projects[0], nil

@@ -107,11 +107,9 @@ func (suite *Suite) SetupSuite() {
 	suite.ctx = context.Background()
 
 	suite.projectName = "test-project-" + xid.New().String()
-
-	// create nuctl executor
 	suite.nuctlRunner = NewNuctlRunner(suite.namespace, suite.logger)
-
-	suite.CreateTestProject(suite.projectName)
+	err = suite.ExecuteNuctl([]string{"create", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to create project")
 }
 
 func (suite *Suite) SetupTest() {
@@ -130,7 +128,8 @@ func (suite *Suite) TearDownSuite() {
 
 	err = os.RemoveAll(suite.tempDir)
 	suite.Require().NoError(err, "Failed to remove temp dir - %s", suite.tempDir)
-	suite.DeleteTestProject(suite.projectName)
+	err = suite.ExecuteNuctl([]string{"delete", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to delete project")
 
 	suite.logger.Debug("Suite tear down completed")
 }
@@ -195,21 +194,6 @@ func (suite *Suite) GetExamples() string {
 
 func (suite *Suite) GetImportsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_imports")
-}
-
-func (suite *Suite) CreateTestProject(projectName string) {
-	// create project
-	err := suite.ExecuteNuctl([]string{"create", "project", projectName}, map[string]string{})
-	suite.Require().NoError(err, "Failed to create project")
-}
-
-func (suite *Suite) DeleteTestProject(projectName string) {
-	// delete project
-	if err := suite.ExecuteNuctl([]string{"delete", "project", projectName}, map[string]string{}); err != nil {
-		suite.logger.WarnWith("Failed to delete project",
-			"projectName", suite.projectName,
-			"err", err.Error())
-	}
 }
 
 func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMustNotExist []string) {
