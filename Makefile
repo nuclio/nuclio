@@ -699,7 +699,7 @@ ensure-test-files-annotated:
 	@echo "All go test files have //go:build test_X annotation"
 	@exit $(.SHELLSTATUS)
 
-GOLANGCI_LINT_VERSION := 2.2.1
+GOLANGCI_LINT_VERSION := 2.3.1
 GOLANGCI_LINT_BIN := $(CURDIR)/.bin/golangci-lint
 GOLANGCI_LINT_INSTALL_COMMAND := GOBIN=$(CURDIR)/.bin go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION)
 

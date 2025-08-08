@@ -42,7 +42,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/util/partitionworker"
 
-	"github.com/docker/distribution/reference"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/google/go-cmp/cmp"
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
