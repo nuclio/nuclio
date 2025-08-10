@@ -1,4 +1,4 @@
-//go:build test_integration && (test_kube || test_local || test_functions_kube)
+//go:build test_unit || (test_integration && (test_kube || test_local || test_functions_kube))
 
 /*
 Copyright 2025 The Nuclio Authors.
