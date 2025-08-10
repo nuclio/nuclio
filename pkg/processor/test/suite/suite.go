@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	nuctlSuite "github.com/nuclio/nuclio/pkg/nuctl/test"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
@@ -76,6 +77,7 @@ type TestSuite struct {
 	containerID            string
 	createdTempDirs        []string
 	cleanupCreatedTempDirs bool
+	nuctlRunner            *nuctlSuite.NuctlRunner
 }
 
 // BlastConfiguration holds information for BlastHTTP function
@@ -119,6 +121,10 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	suite.ctx = context.Background()
+
+	suite.nuctlRunner = nuctlSuite.NewNuctlRunner(suite.Namespace, suite.Logger)
+	err = suite.nuctlRunner.Run([]string{"create", "project", suite.ProjectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to create project")
 
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
@@ -279,6 +285,11 @@ func (suite *TestSuite) TearDownTest() {
 			}
 		}
 	}
+}
+
+func (suite *TestSuite) TearDownSuite() {
+	err := suite.nuctlRunner.Run([]string{"delete", "project", suite.ProjectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to delete project")
 }
 
 // GetFunction will return the first function it finds
