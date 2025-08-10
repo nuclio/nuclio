@@ -440,7 +440,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 			return "", "", errors.Wrapf(err, "Failed to execute command: %s", command)
 		}
 
-		commandStdout, err = s.Init()
+		commandStdout, err = s.Initialize()
 		if err != nil {
 			return commandStdout, "", errors.Wrapf(err, "Failed to init container for command: %s", command)
 		}
@@ -449,7 +449,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 	return commandStdout, commandStderr, nil
 }
 
-func (s *Store) Init() (string, error) {
+func (s *Store) Initialize() (string, error) {
 	var commandStdout string
 
 	isExists, err := s.containerExists()

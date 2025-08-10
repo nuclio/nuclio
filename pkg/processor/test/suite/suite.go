@@ -123,8 +123,6 @@ func (suite *TestSuite) SetupSuite() {
 	suite.ctx = context.Background()
 
 	suite.nuctlRunner = nuctlSuite.NewNuctlRunner(suite.Namespace, suite.Logger)
-	err = suite.nuctlRunner.Run([]string{"create", "project", suite.ProjectName}, map[string]string{})
-	suite.Require().NoError(err, "Failed to create project")
 
 	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
@@ -140,6 +138,9 @@ func (suite *TestSuite) SetupSuite() {
 		"")
 	suite.Require().NoError(err)
 	suite.Require().NotNil(suite.Platform)
+
+	err = suite.nuctlRunner.Run([]string{"create", "project", suite.ProjectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to create project")
 }
 
 // SetupTest is called before each test in the suite

@@ -45,24 +45,6 @@ func NewNuctlRunner(namespace string, logger logger.Logger) *NuctlRunner {
 	}
 }
 
-// --- NuctlRunner methods ---
-
-func (nr *NuctlRunner) namespaceInArgs(positionalArgs []string, namedArgs map[string]string) bool {
-	if common.StringSliceContainsString(positionalArgs, "--namespace") || common.StringSliceContainsString(positionalArgs, "-n") {
-		return true
-	}
-
-	if _, ok := namedArgs["namespace"]; ok {
-		return true
-	}
-
-	return false
-}
-
-func (nr *NuctlRunner) isNamespaceRequired() bool {
-	return nr.Namespace != "" && common.GetKubeconfigPath("") != ""
-}
-
 // Run executes nuctl command with the given positional and named arguments
 func (nr *NuctlRunner) Run(positionalArgs []string,
 	namedArgs map[string]string) error {
@@ -103,4 +85,22 @@ func (nr *NuctlRunner) Run(positionalArgs []string,
 
 	// execute
 	return rootCommandeer.Execute()
+}
+
+// --- NuctlRunner methods ---
+
+func (nr *NuctlRunner) namespaceInArgs(positionalArgs []string, namedArgs map[string]string) bool {
+	if common.StringSliceContainsString(positionalArgs, "--namespace") || common.StringSliceContainsString(positionalArgs, "-n") {
+		return true
+	}
+
+	if _, ok := namedArgs["namespace"]; ok {
+		return true
+	}
+
+	return false
+}
+
+func (nr *NuctlRunner) isNamespaceRequired() bool {
+	return nr.Namespace != "" && common.GetKubeconfigPath("") != ""
 }

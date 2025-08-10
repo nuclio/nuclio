@@ -158,7 +158,7 @@ func (p *Platform) Initialize(_ context.Context) error {
 		return errors.Wrap(err, "Failed to initialize projects client")
 	}
 
-	if _, err := p.localStore.Init(); err != nil {
+	if _, err := p.localStore.Initialize(); err != nil {
 		return errors.Wrap(err, "Failed to initialize local store")
 	}
 
