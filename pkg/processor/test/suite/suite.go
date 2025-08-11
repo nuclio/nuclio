@@ -137,6 +137,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Require().NotNil(suite.Platform)
 
 	// create project
+	suite.Logger.DebugWith("KAWABANGA creating project","projectName", suite.ProjectName, "namespace", suite.Namespace)
 	err = suite.Platform.CreateProject(suite.ctx, &platform.CreateProjectOptions{
 		AuthSession: &nop.Session{},
 		ProjectConfig: &platform.ProjectConfig{
@@ -295,6 +296,7 @@ func (suite *TestSuite) TearDownTest() {
 }
 
 func (suite *TestSuite) TearDownSuite() {
+	suite.Logger.DebugWith("KAWABANGA deleting project","projectName", suite.ProjectName, "namespace", suite.Namespace)
 	if err := suite.Platform.DeleteProject(suite.ctx, &platform.DeleteProjectOptions{
 		AuthSession: &nop.Session{},
 		Meta: platform.ProjectMeta{
