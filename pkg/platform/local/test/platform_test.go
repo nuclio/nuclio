@@ -30,15 +30,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/local"
 	processorsuite "github.com/nuclio/nuclio/pkg/processor/test/suite"
 
-	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
 	processorsuite.TestSuite
-	namespace   string
-	ctx         context.Context
-	projectName string
+	namespace string
+	ctx       context.Context
 }
 
 func (suite *TestSuite) SetupSuite() {
@@ -52,10 +50,8 @@ func (suite *TestSuite) SetupSuite() {
 	// we will work on the first one
 	suite.namespace = namespaces[0]
 
-	suite.projectName = "test-project-" + xid.New().String()
-
 	getProjectsOptions := &platform.CreateProjectOptions{
-		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: suite.projectName, Namespace: suite.namespace}, Spec: platform.ProjectSpec{
+		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: suite.ProjectName, Namespace: suite.namespace}, Spec: platform.ProjectSpec{
 			Description: "just a description",
 		}},
 	}
@@ -66,7 +62,7 @@ func (suite *TestSuite) SetupSuite() {
 func (suite *TestSuite) TearDownSuite() {
 	err := suite.Platform.DeleteProject(suite.ctx, &platform.DeleteProjectOptions{
 		Meta: platform.ProjectMeta{
-			Name:      suite.projectName,
+			Name:      suite.ProjectName,
 			Namespace: suite.namespace,
 		},
 	})
