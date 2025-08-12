@@ -50,7 +50,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v5
         with:
@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -101,7 +101,7 @@ jobs:
     name: Check copyright and license
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # 2.0.3
         with:
           deno-version: v1.x
@@ -136,7 +136,7 @@ jobs:
     name: Test short
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v5
         with:
@@ -151,7 +151,7 @@ jobs:
     name: Build nuctl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v5
         with:
@@ -174,7 +174,7 @@ jobs:
     name: Build docker images
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # 3.4.0
@@ -217,7 +217,7 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Freeing up disk space
         run: "${GITHUB_WORKSPACE}/hack/scripts/ci/free-space.sh"
@@ -320,7 +320,7 @@ jobs:
     needs:
       - build_docker_images
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-go@v5
         with:
@@ -351,7 +351,7 @@ jobs:
         test-target: [test-functions-k8s-undockerized, test-k8s-undockerized]
     name: ${{ matrix.test-target == 'test-functions-k8s-undockerized' && 'Test Functions Kubernetes' || 'Test Kubernetes' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # 4.3.0
         with:
@@ -416,7 +416,7 @@ jobs:
     name: Test python
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run python test
         run: |
@@ -426,7 +426,7 @@ jobs:
     name: Test NodeJS
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run NodeJS test
         run: |

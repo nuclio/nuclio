@@ -42,11 +42,11 @@ jobs:
     steps:
 
       # checkout from development
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number == ''
 
       # checkout from PR
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: github.event.inputs.pr_number != ''
         with:
           fetch-depth: 0
