@@ -78,7 +78,9 @@ func (nr *NuctlRunner) Run(positionalArgs []string,
 	// since args[0] is the executable name, just shove the binary there
 	argsStringSlice = common.PrependStringToStringSlice(argsStringSlice, "nuctl")
 
-	// override os.Args (this can't go wrong horribly, can it?)
+	// override os.Args to simulate command-line arguments in tests,
+	// allowing Cobra to parse the nuctl command as if run from the terminal.
+	// override is required because Cobra reads os.Args directly for command parsing.
 	os.Args = argsStringSlice
 
 	nr.Logger.InfoWith("Executing nuctl", "args", argsStringSlice)

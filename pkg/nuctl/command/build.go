@@ -139,5 +139,4 @@ func (b *buildCommandeer) enrichLabels() {
 	if b.projectName != "" {
 		b.functionConfig.Meta.Labels[common.NuclioResourceLabelKeyProjectName] = b.projectName
 	}
-
 }
