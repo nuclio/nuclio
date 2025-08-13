@@ -383,10 +383,6 @@ func (mp *Platform) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (mp *Platform) EnsureDefaultProjectExistence(ctx context.Context) error {
-	return nil
-}
-
 func (mp *Platform) GetProcessorLogsAndBriefError(scanner *bufio.Scanner) (string, string) {
 	return "", ""
 }

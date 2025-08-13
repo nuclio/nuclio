@@ -115,9 +115,6 @@ type Platform interface {
 	// GetProjects will list existing projects
 	GetProjects(ctx context.Context, getProjectsOptions *GetProjectsOptions) ([]Project, error)
 
-	// EnsureDefaultProjectExistence ensure default project exists, creates it otherwise
-	EnsureDefaultProjectExistence(ctx context.Context) error
-
 	// WaitForProjectResourcesDeletion waits for all the project's resources to be deleted
 	WaitForProjectResourcesDeletion(ctx context.Context, projectMeta *ProjectMeta, duration time.Duration) error
 
