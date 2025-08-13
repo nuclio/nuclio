@@ -442,7 +442,7 @@ func (s *Store) runCommand(env map[string]string, format string, args ...interfa
 
 		commandStdout, err = s.Initialize()
 		if err != nil {
-			return commandStdout, "", errors.Wrapf(err, "Failed to init container for command: %s", command)
+			return commandStdout, "", errors.Wrapf(err, "Failed to initialize container for command: %s", command)
 		}
 	}
 

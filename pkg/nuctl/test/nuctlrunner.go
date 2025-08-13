@@ -89,8 +89,6 @@ func (nr *NuctlRunner) Run(positionalArgs []string,
 	return rootCommandeer.Execute()
 }
 
-// --- NuctlRunner methods ---
-
 func (nr *NuctlRunner) namespaceInArgs(positionalArgs []string, namedArgs map[string]string) bool {
 	if common.StringSliceContainsString(positionalArgs, "--namespace") || common.StringSliceContainsString(positionalArgs, "-n") {
 		return true
