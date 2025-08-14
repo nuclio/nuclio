@@ -52,6 +52,8 @@ type AbstractConnectionManager struct {
 	MinConnectionsNum int
 	MaxConnectionsNum int
 
+	ConnectionAvailabilityTimeoutDuration time.Duration
+
 	RuntimeConfiguration runtime.Configuration
 	Configuration        *ManagerConfigration
 
@@ -65,18 +67,24 @@ type AbstractConnectionManager struct {
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (*AbstractConnectionManager, error) {
 	abstractConnectionManager := &AbstractConnectionManager{
-		Logger:               parentLogger.GetChild("connection-manager"),
-		MinConnectionsNum:    1,
-		MaxConnectionsNum:    1,
-		RuntimeConfiguration: runtimeConfiguration,
-		Configuration:        configuration,
-		status:               status.NewSafeStatus(status.Initializing),
+		Logger:            parentLogger.GetChild("connection-manager"),
+		MinConnectionsNum: 1,
+		MaxConnectionsNum: 1,
+		// zero by default, should only be set for async mode
+		ConnectionAvailabilityTimeoutDuration: 0,
+		RuntimeConfiguration:                  runtimeConfiguration,
+		Configuration:                         configuration,
+		status:                                status.NewSafeStatus(status.Initializing),
 	}
 	var err error
 	if runtimeConfiguration.AsyncConfig != nil {
 		abstractConnectionManager.MinConnectionsNum = runtimeConfiguration.AsyncConfig.MinConnectionsNumber
 		abstractConnectionManager.MaxConnectionsNum = runtimeConfiguration.AsyncConfig.MaxConnectionsNumber
+		if abstractConnectionManager.ConnectionAvailabilityTimeoutDuration, err = runtimeConfiguration.AsyncConfig.GetConnectionAvailabilityTimeoutDuration(); err != nil {
+			return nil, errors.Wrap(err, "Failed to get connection availability timeout duration")
+		}
 	}
+
 	if err = abstractConnectionManager.createAllocator(); err != nil {
 		return nil, errors.Wrap(err, "Failed to create allocator")
 	}

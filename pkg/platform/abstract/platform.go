@@ -2018,6 +2018,16 @@ func (ap *Platform) enrichProcessingMode(
 		triggerInstance.AsyncConfig.MinConnectionsNumber = triggerInstance.AsyncConfig.MaxConnectionsNumber
 	}
 
+	if triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout == "" {
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching ConnectionAvailabilityTimeout for function trigger",
+			"functionName", functionConfig.Meta.Name,
+			"trigger", triggerName,
+			"connectionAvailabilityTimeout", functionconfig.DefaultConnectionAvailabilityTimeout,
+		)
+		triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout = functionconfig.DefaultConnectionAvailabilityTimeout
+	}
+
 	return nil
 }
 
