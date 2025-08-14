@@ -20,7 +20,7 @@ FROM $ALPINE_IMAGE as builder
 
 # docker
 ARG DOCKER_CLI_ARCH=x86_64
-ARG DOCKER_CLI_VERSION="28.3.2"
+ARG DOCKER_CLI_VERSION="28.3.3"
 ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
 # kubectl
