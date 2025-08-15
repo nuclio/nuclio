@@ -1796,6 +1796,9 @@ func (ap *Platform) validateProcessingMode(triggerInstance functionconfig.Trigge
 			triggerInstance.AsyncConfig.MaxConnectionsNumber,
 		))
 	}
+	if _, err := triggerInstance.AsyncConfig.GetConnectionAvailabilityTimeoutDuration(); err != nil {
+		return nuclio.NewErrBadRequest(fmt.Sprintf("Wrong connection availability timeout can't be converted to time.Duration: %s", triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout))
+	}
 
 	return nil
 }

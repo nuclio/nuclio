@@ -2261,6 +2261,42 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 			},
 			expectedError: "",
 		},
+		{
+			name: "set custom availability timeout -> no error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionAvailabilityTimeout: "5s",
+							},
+						},
+					},
+				},
+			},
+			expectedError: "",
+		},
+		{
+			name: "set custom availability timeout -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionAvailabilityTimeout: "5s&*^^5",
+							},
+						},
+					},
+				},
+			},
+			expectedError: "Wrong connection availability timeout can't be converted to time.Duration",
+		},
 	}
 
 	for _, testCase := range testCases {
