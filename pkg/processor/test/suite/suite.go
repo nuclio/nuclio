@@ -26,6 +26,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/auth/nop"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -59,20 +60,20 @@ type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 // function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
-	Logger                logger.Logger
-	LoggerName            string
-	ctx                   context.Context
-	DockerClient          dockerclient.Client
-	Platform              platform.Platform
-	TestID                string
-	Runtime               string
-	RuntimeDir            string
-	FunctionDir           string
-	PlatformType          string
-	Namespace             string
-	PlatformConfiguration *platformconfig.Config
-	FunctionNameUniquify  bool
-
+	Logger                 logger.Logger
+	LoggerName             string
+	ctx                    context.Context
+	DockerClient           dockerclient.Client
+	Platform               platform.Platform
+	TestID                 string
+	Runtime                string
+	RuntimeDir             string
+	FunctionDir            string
+	PlatformType           string
+	Namespace              string
+	PlatformConfiguration  *platformconfig.Config
+	FunctionNameUniquify   bool
+	ProjectName            string
 	containerID            string
 	createdTempDirs        []string
 	cleanupCreatedTempDirs bool
@@ -114,7 +115,7 @@ func (suite *TestSuite) SetupSuite() {
 
 	// this will preserve the current behavior where function names are renamed to be unique upon deployment
 	suite.FunctionNameUniquify = true
-
+	suite.ProjectName = "test-project-" + xid.New().String()
 	suite.Logger, err = nucliozap.NewNuclioZapTest(suite.LoggerName)
 	suite.Require().NoError(err)
 
@@ -134,6 +135,18 @@ func (suite *TestSuite) SetupSuite() {
 		"")
 	suite.Require().NoError(err)
 	suite.Require().NotNil(suite.Platform)
+
+	// create project
+	err = suite.Platform.CreateProject(suite.ctx, &platform.CreateProjectOptions{
+		AuthSession: &nop.Session{},
+		ProjectConfig: &platform.ProjectConfig{
+			Meta: platform.ProjectMeta{
+				Name:      suite.ProjectName,
+				Namespace: suite.Namespace,
+			},
+		},
+	})
+	suite.Require().NoError(err, "Failed to create project")
 }
 
 // SetupTest is called before each test in the suite
@@ -278,6 +291,19 @@ func (suite *TestSuite) TearDownTest() {
 				suite.Failf("", "Temporary dir %s was not cleaned", tempDir)
 			}
 		}
+	}
+}
+
+func (suite *TestSuite) TearDownSuite() {
+	if err := suite.Platform.DeleteProject(suite.ctx, &platform.DeleteProjectOptions{
+		AuthSession: &nop.Session{},
+		Meta: platform.ProjectMeta{
+			Name:      suite.ProjectName,
+			Namespace: suite.Namespace,
+		},
+		Strategy: platform.DeleteProjectStrategyRestricted,
+	}); err != nil {
+		suite.Logger.WarnWith("Failed to delete project", "projectName", suite.ProjectName, "error", err)
 	}
 }
 
@@ -438,6 +464,9 @@ func (suite *TestSuite) GetDeployOptions(functionName, functionPath string) *pla
 	}
 
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
+	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
+	}
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
