@@ -14,6 +14,8 @@
 #
 metadata:
   name: parser
+  labels:
+    nuclio.io/project-name: test-project
 spec:
   runtime: dotnetcore
   handler: nuclio:parser

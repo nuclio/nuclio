@@ -606,7 +606,7 @@ func (suite *DeployFunctionTestSuite) TestAugmentedConfig() {
 	}
 	functionName := "augmented-config"
 	createFunctionOptions := suite.CompileCreateFunctionOptions(functionName)
-	createFunctionOptions.FunctionConfig.Meta.Labels = functionLabels
+	createFunctionOptions.FunctionConfig.Meta.Labels["my-function"] = "is-labeled"
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		deploymentInstance := &appsv1.Deployment{}
 		functionInstance := &nuclioio.NuclioFunction{}
@@ -2012,9 +2012,6 @@ func (suite *UpdateFunctionTestSuite) TestSanity() {
 	ctx := suite.Ctx
 
 	createFunctionOptions := suite.CompileCreateFunctionOptions("update-sanity")
-	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-		"something": "here",
-	}
 	createFunctionOptions.FunctionConfig.Meta.Annotations = map[string]string{
 		"annotation-key": "annotation-value",
 	}

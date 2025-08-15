@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errgroup"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	nuctlSuite "github.com/nuclio/nuclio/pkg/nuctl/test"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -63,12 +64,14 @@ type OnAfterIngressCreated func(*networkingv1.Ingress)
 
 type KubeTestSuite struct {
 	processorsuite.TestSuite
+	nuctlRunner       *nuctlSuite.NuctlRunner
 	CmdRunner         cmdrunner.CmdRunner
 	RegistryURL       string
 	Controller        *controller.Controller
 	KubeClientSet     *kubernetes.Clientset
 	FunctionClientSet *nuclioioclient.Clientset
 	FunctionClient    functionres.Client
+	projectName       string
 
 	DisableControllerStart bool
 	Ctx                    context.Context
@@ -131,6 +134,14 @@ func (suite *KubeTestSuite) SetupSuite() {
 	// create controller instance
 	suite.Controller = suite.createController()
 
+	// create project
+	suite.projectName = "test-project-" + xid.New().String()
+
+	suite.nuctlRunner = nuctlSuite.NewNuctlRunner(suite.Namespace, suite.Logger)
+
+	err = suite.nuctlRunner.Run([]string{"create", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to create project")
+
 	if !suite.DisableControllerStart {
 
 		// start controller
@@ -145,10 +156,6 @@ func (suite *KubeTestSuite) SetupSuite() {
 
 func (suite *KubeTestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
-
-	// default project gets deleted during testings, ensure it is being recreated
-	err := suite.Platform.EnsureDefaultProjectExistence(suite.Ctx)
-	suite.Require().NoError(err, "Failed to ensure default project exists")
 }
 
 func (suite *KubeTestSuite) TearDownTest() {
@@ -174,7 +181,6 @@ func (suite *KubeTestSuite) TearDownTest() {
 	errGroup, _ := errgroup.WithContext(suite.Ctx, suite.Logger)
 	for _, resourceKind := range []string{
 		"nucliofunctions",
-		"nuclioprojects",
 		"nucliofunctionevents",
 		"nuclioapigateways",
 	} {
@@ -207,6 +213,11 @@ func (suite *KubeTestSuite) TearDownTest() {
 	suite.Require().NoError(err, "Not all nuclio resources were deleted")
 }
 
+func (suite *KubeTestSuite) TearDownSuite() {
+	err := suite.nuctlRunner.Run([]string{"delete", "project", suite.projectName}, map[string]string{})
+	suite.Require().NoError(err, "Failed to delete project")
+}
+
 func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *platform.CreateFunctionOptions {
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger: suite.Logger,
@@ -214,7 +225,9 @@ func (suite *KubeTestSuite) CompileCreateFunctionOptions(functionName string) *p
 			Meta: functionconfig.Meta{
 				Name:      functionName,
 				Namespace: suite.Namespace,
-				Labels:    map[string]string{},
+				Labels: map[string]string{
+					common.NuclioResourceLabelKeyProjectName: suite.projectName,
+				},
 			},
 			Spec: functionconfig.Spec{
 				Build: functionconfig.Build{
@@ -738,7 +751,9 @@ func (suite *KubeTestSuite) CompileCreateAPIGatewayOptions(apiGatewayName string
 			Meta: platform.APIGatewayMeta{
 				Name:      apiGatewayName,
 				Namespace: suite.Namespace,
-				Labels:    map[string]string{},
+				Labels: map[string]string{
+					common.NuclioResourceLabelKeyProjectName: suite.projectName,
+				},
 			},
 			Spec: platform.APIGatewaySpec{
 				Host:               "some-host",
