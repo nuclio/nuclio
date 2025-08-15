@@ -27,6 +27,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -2068,11 +2069,12 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 }
 func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 	testCases := []struct {
-		name               string
-		trigger            functionconfig.Trigger
-		expectedMode       functionconfig.TriggerWorkMode
-		expectedConfig     *functionconfig.AsyncConfig
-		expectedNumWorkers int
+		name                                string
+		trigger                             functionconfig.Trigger
+		expectedMode                        functionconfig.TriggerWorkMode
+		expectedConfig                      *functionconfig.AsyncConfig
+		expectedNumWorkers                  int
+		expectedAvailabilityTimeoutDuration *time.Duration
 	}{
 		{
 			name: "SyncMode",
@@ -2080,9 +2082,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				Mode:       "",
 				NumWorkers: 10,
 			},
-			expectedMode:       functionconfig.SyncTriggerWorkMode,
-			expectedConfig:     nil,
-			expectedNumWorkers: 10,
+			expectedMode:                        functionconfig.SyncTriggerWorkMode,
+			expectedConfig:                      nil,
+			expectedNumWorkers:                  10,
+			expectedAvailabilityTimeoutDuration: nil,
 		},
 		{
 			name: "AsyncModeWithDefaults",
@@ -2092,11 +2095,13 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 			},
 			expectedMode: functionconfig.AsyncTriggerWorkMode,
 			expectedConfig: &functionconfig.AsyncConfig{
-				ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
-				MaxConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
-				MinConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
+				ConnectionCreationMode:        functionconfig.ConnectionCreationModeStatic,
+				MaxConnectionsNumber:          functionconfig.DefaultMaxConnectionsNumber,
+				MinConnectionsNumber:          functionconfig.DefaultMaxConnectionsNumber,
+				ConnectionAvailabilityTimeout: functionconfig.DefaultConnectionAvailabilityTimeout,
 			},
-			expectedNumWorkers: 10,
+			expectedNumWorkers:                  10,
+			expectedAvailabilityTimeoutDuration: common.Pointer(10 * time.Second),
 		},
 		{
 			name: "AsyncModeWithCustomConfig",
@@ -2104,18 +2109,21 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				NumWorkers: 10,
 				Mode:       functionconfig.AsyncTriggerWorkMode,
 				AsyncConfig: &functionconfig.AsyncConfig{
-					ConnectionCreationMode: "dynamic",
-					MaxConnectionsNumber:   10,
-					MinConnectionsNumber:   5,
+					ConnectionCreationMode:        "dynamic",
+					MaxConnectionsNumber:          10,
+					MinConnectionsNumber:          5,
+					ConnectionAvailabilityTimeout: "15ms",
 				},
 			},
 			expectedMode: functionconfig.AsyncTriggerWorkMode,
 			expectedConfig: &functionconfig.AsyncConfig{
-				ConnectionCreationMode: "dynamic",
-				MaxConnectionsNumber:   10,
-				MinConnectionsNumber:   5,
+				ConnectionCreationMode:        "dynamic",
+				MaxConnectionsNumber:          10,
+				MinConnectionsNumber:          5,
+				ConnectionAvailabilityTimeout: "15ms",
 			},
-			expectedNumWorkers: 10,
+			expectedNumWorkers:                  10,
+			expectedAvailabilityTimeoutDuration: common.Pointer(15 * time.Millisecond),
 		},
 	}
 
@@ -2134,6 +2142,11 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 			suite.Require().Equal(testCase.expectedConfig, enrichedTrigger.AsyncConfig, "Unexpected async config")
 
 			suite.Require().Equal(testCase.expectedNumWorkers, enrichedTrigger.NumWorkers, "Unexpected num workers")
+			if testCase.expectedConfig != nil {
+				timeout, err := enrichedTrigger.AsyncConfig.GetConnectionAvailabilityTimeoutDuration()
+				suite.Require().NoError(err)
+				suite.Require().Equal(*testCase.expectedAvailabilityTimeoutDuration, timeout)
+			}
 		})
 	}
 }
