@@ -52,6 +52,8 @@ type AbstractConnectionManager struct {
 	MinConnectionsNum int
 	MaxConnectionsNum int
 
+	ConnectionAvailabilityTimeoutDuration time.Duration
+
 	RuntimeConfiguration runtime.Configuration
 	Configuration        *ManagerConfigration
 
@@ -76,7 +78,11 @@ func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfigurati
 	if runtimeConfiguration.AsyncConfig != nil {
 		abstractConnectionManager.MinConnectionsNum = runtimeConfiguration.AsyncConfig.MinConnectionsNumber
 		abstractConnectionManager.MaxConnectionsNum = runtimeConfiguration.AsyncConfig.MaxConnectionsNumber
+		if abstractConnectionManager.ConnectionAvailabilityTimeoutDuration, err = runtimeConfiguration.AsyncConfig.GetConnectionAvailabilityTimeoutDuration(); err != nil {
+			return nil, errors.Wrap(err, "Failed to get connection availability timeout duration")
+		}
 	}
+
 	if err = abstractConnectionManager.createAllocator(); err != nil {
 		return nil, errors.Wrap(err, "Failed to create allocator")
 	}

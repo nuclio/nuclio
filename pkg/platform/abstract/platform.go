@@ -1739,6 +1739,9 @@ func (ap *Platform) validateProcessingMode(triggerInstance functionconfig.Trigge
 			triggerInstance.AsyncConfig.MaxConnectionsNumber,
 		))
 	}
+	if _, err := triggerInstance.AsyncConfig.GetConnectionAvailabilityTimeoutDuration(); err != nil {
+		return nuclio.WrapErrBadRequest(err)
+	}
 
 	return nil
 }
@@ -1959,6 +1962,16 @@ func (ap *Platform) enrichProcessingMode(
 			"minConnectionsNumber", triggerInstance.AsyncConfig.MaxConnectionsNumber,
 		)
 		triggerInstance.AsyncConfig.MinConnectionsNumber = triggerInstance.AsyncConfig.MaxConnectionsNumber
+	}
+
+	if triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout == "" {
+		ap.Logger.DebugWithCtx(ctx,
+			"Enriching ConnectionAvailabilityTimeout for function trigger",
+			"functionName", functionConfig.Meta.Name,
+			"trigger", triggerName,
+			"connectionAvailabilityTimeout", functionconfig.DefaultConnectionAvailabilityTimeout,
+		)
+		triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout = functionconfig.DefaultConnectionAvailabilityTimeout
 	}
 
 	return nil
