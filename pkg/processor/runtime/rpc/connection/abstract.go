@@ -67,14 +67,12 @@ type AbstractConnectionManager struct {
 
 func NewAbstractConnectionManager(parentLogger logger.Logger, runtimeConfiguration runtime.Configuration, configuration *ManagerConfigration) (*AbstractConnectionManager, error) {
 	abstractConnectionManager := &AbstractConnectionManager{
-		Logger:            parentLogger.GetChild("connection-manager"),
-		MinConnectionsNum: 1,
-		MaxConnectionsNum: 1,
-		// zero by default, should only be set for async mode
-		ConnectionAvailabilityTimeoutDuration: 0,
-		RuntimeConfiguration:                  runtimeConfiguration,
-		Configuration:                         configuration,
-		status:                                status.NewSafeStatus(status.Initializing),
+		Logger:               parentLogger.GetChild("connection-manager"),
+		MinConnectionsNum:    1,
+		MaxConnectionsNum:    1,
+		RuntimeConfiguration: runtimeConfiguration,
+		Configuration:        configuration,
+		status:               status.NewSafeStatus(status.Initializing),
 	}
 	var err error
 	if runtimeConfiguration.AsyncConfig != nil {

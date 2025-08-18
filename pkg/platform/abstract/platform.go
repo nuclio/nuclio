@@ -1740,7 +1740,7 @@ func (ap *Platform) validateProcessingMode(triggerInstance functionconfig.Trigge
 		))
 	}
 	if _, err := triggerInstance.AsyncConfig.GetConnectionAvailabilityTimeoutDuration(); err != nil {
-		return nuclio.NewErrBadRequest(fmt.Sprintf("Wrong connection availability timeout can't be converted to time.Duration: %s", triggerInstance.AsyncConfig.ConnectionAvailabilityTimeout))
+		return nuclio.WrapErrBadRequest(err)
 	}
 
 	return nil

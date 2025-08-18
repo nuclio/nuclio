@@ -2295,7 +2295,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 					},
 				},
 			},
-			expectedError: "Wrong connection availability timeout can't be converted to time.Duration",
+			expectedError: "failed to parse connection availability timeout",
 		},
 	}
 
