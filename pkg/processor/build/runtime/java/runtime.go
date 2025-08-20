@@ -51,7 +51,7 @@ func (j *java) OnAfterStagingDirCreated(runtimeConfig *runtimeconfig.Config, sta
 func (j *java) GetProcessorDockerfileInfo(runtimeConfig *runtimeconfig.Config, onbuildImageRegistry string) (*runtime.ProcessorDockerfileInfo, error) {
 
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
-	processorDockerfileInfo.BaseImage = "gcr.io/iguazio/openjdk:11-jdk-slim-bullseye"
+	processorDockerfileInfo.BaseImage = "gcr.io/iguazio/openjdk:11-jre-slim"
 
 	// fill onbuild artifact
 	artifact := runtime.Artifact{
