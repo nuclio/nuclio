@@ -20,9 +20,6 @@ on:
   schedule:
     # At 00:00 UTC every Monday
     - cron: '0 0 * * 1'
-  pull_request:  # Add pull request trigger for debugging
-    branches:
-      - development
 
 jobs:
   check-dependencies:
