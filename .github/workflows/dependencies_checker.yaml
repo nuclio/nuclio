@@ -20,13 +20,25 @@ on:
   schedule:
     # At 00:00 UTC every Monday
     - cron: '0 0 * * 1'
+  pull_request:  # Add pull request trigger for debugging
+    branches:
+      - development
 
 jobs:
-  check-docker-cli-version:
+  check-dependencies:
+    if: github.repository == 'nuclio/nuclio'  # Run only in the nuclio/nuclio repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
 
-      - name: Run make check-docker-cli-version
-        run: make check-docker-cli-version
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r hack/scripts/dependency-checker/requirements.txt
+
+      - name: Run dependency check
+        run: make check-dependencies
