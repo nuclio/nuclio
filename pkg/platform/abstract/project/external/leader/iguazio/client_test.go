@@ -304,7 +304,7 @@ func (suite *ClientTestSuite) TestCreate() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.client.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 
 				// post to create the project
 				if r.Method == http.MethodPost && strings.HasSuffix(r.URL.String(), "/projects") {
@@ -375,7 +375,7 @@ func (suite *ClientTestSuite) TestGetUpdatedAfter() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.client.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 				suite.Require().LessOrEqual(strings.Count(r.URL.RawQuery, "updated_at"), 1)
 				return testCase.response(r)
 			})
@@ -402,7 +402,7 @@ func (suite *ClientTestSuite) TestGet() {
 		},
 	} {
 		suite.Run(testCase.name, func() {
-			suite.client.httpClient = testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
+			*suite.client.httpClient.GetHTTPClient() = *testutils.CreateDummyHTTPClient(func(r *http.Request) *http.Response {
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       suite.mockIgzAPIGetProject(testCase.detail),
