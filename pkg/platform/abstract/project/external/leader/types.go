@@ -40,3 +40,5 @@ type Client interface {
 	// GetUpdatedAfter gets all projects from the leader that updated after the given time (to get all, pass nil time)
 	GetUpdatedAfter(context.Context, *time.Time) ([]platform.Project, error)
 }
+
+type JobState string

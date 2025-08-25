@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	common "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 )
 
 const (
@@ -114,15 +115,13 @@ type NuclioProject struct {
 	// currently no nuclio specific fields are needed
 }
 
-type JobState string
-
 const (
-	JobStateCompleted JobState = "completed"
-	JobStateCanceled  JobState = "canceled"
-	JobStateFailed    JobState = "failed"
+	JobStateCompleted common.JobState = "completed"
+	JobStateCanceled  common.JobState = "canceled"
+	JobStateFailed    common.JobState = "failed"
 )
 
-func JobStateInSlice(jobState JobState, slice []JobState) bool {
+func JobStateInSlice(jobState common.JobState, slice []common.JobState) bool {
 	for _, otherJobState := range slice {
 		if otherJobState == jobState {
 			return true
@@ -155,9 +154,9 @@ type JobData struct {
 }
 
 type JobAttributes struct {
-	Kind   string   `json:"kind,omitempty"`
-	State  JobState `json:"state,omitempty"`
-	Result string   `json:"result,omitempty"`
+	Kind   string          `json:"kind,omitempty"`
+	State  common.JobState `json:"state,omitempty"`
+	Result string          `json:"result,omitempty"`
 }
 
 type GetProjectResponse interface {
