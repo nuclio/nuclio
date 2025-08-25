@@ -84,5 +84,5 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (Project
 		Spec: ProjectSpec{
 			Description: projectConfig.Spec.Description,
 		},
-	},nil
+	}, nil
 }

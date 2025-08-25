@@ -127,7 +127,7 @@ func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Tim
 }
 
 func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
-	project,err := NewProjectFromProjectConfig(projectConfig)
+	project, err := NewProjectFromProjectConfig(projectConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project from project config")
 	}
