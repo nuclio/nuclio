@@ -42,6 +42,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	common "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 	leadermock "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/mock"
 	internalmock "github.com/nuclio/nuclio/pkg/platform/abstract/project/mock"
 
@@ -92,7 +93,7 @@ func (suite *SynchronizerTestSuite) TestNoLeaderProjects() {
 				"some-namespace",
 				"",
 				"online",
-				testBeginningTime.Format(ProjectTimeLayout)),
+				testBeginningTime.Format(common.ProjectTimeLayout)),
 		},
 		[]*platform.CreateProjectOptions{},
 		[]*platform.UpdateProjectOptions{},
@@ -109,13 +110,13 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsDoesntExistInternally() {
 		namespace,
 		"",
 		"online",
-		testBeginningTimePlusOneHour.Format(ProjectTimeLayout))
+		testBeginningTimePlusOneHour.Format(common.ProjectTimeLayout))
 	leaderProjectLessUpdated := suite.compileProject(
 		"leader-project-less-updated",
 		namespace,
 		"",
 		"online",
-		testBeginningTime.Format(ProjectTimeLayout))
+		testBeginningTime.Format(common.ProjectTimeLayout))
 
 	suite.testSynchronizeProjectsFromLeader(
 		namespace,
@@ -149,13 +150,13 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsNotUpdatedInternally() {
 		namespace,
 		"updated",
 		"online",
-		testBeginningTime.Format(ProjectTimeLayout))
+		testBeginningTime.Format(common.ProjectTimeLayout))
 	updatedProject.(*Project).Data.Attributes.Namespace = "some-namespace"
 	notUpdatedProject := suite.compileProject("leader-project",
 		namespace,
 		"not-updated",
 		"online",
-		testBeginningTime.Format(ProjectTimeLayout))
+		testBeginningTime.Format(common.ProjectTimeLayout))
 	notUpdatedProject.(*Project).Data.Attributes.Namespace = "some-namespace"
 	suite.testSynchronizeProjectsFromLeader(
 		namespace,
@@ -179,7 +180,7 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsThatExistInternally() {
 		"some-namespace",
 		"updated",
 		"online",
-		testBeginningTime.Format(ProjectTimeLayout))
+		testBeginningTime.Format(common.ProjectTimeLayout))
 
 	namespace := "some-namespace"
 	suite.testSynchronizeProjectsFromLeader(

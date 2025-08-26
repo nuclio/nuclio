@@ -17,15 +17,12 @@ limitations under the License.
 package iguazio
 
 import (
-	"time"
-
 	"github.com/nuclio/nuclio/pkg/platform"
 	common "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 )
 
 const (
 	ProjectType       = "project"
-	ProjectTimeLayout = "2006-01-02T15:04:05.000000+00:00"
 )
 
 type Project struct {
@@ -48,7 +45,7 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project 
 }
 
 func (pl *Project) GetConfig() *platform.ProjectConfig {
-	updatedAt := pl.parseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt)
+	updatedAt := common.ParseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt)
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
 			Name:        pl.Data.Attributes.Name,
@@ -67,11 +64,6 @@ func (pl *Project) GetConfig() *platform.ProjectConfig {
 			UpdatedAt:         &updatedAt,
 		},
 	}
-}
-
-func (pl *Project) parseTimeFromTimestamp(timestamp string) time.Time {
-	t, _ := time.Parse(ProjectTimeLayout, timestamp)
-	return t
 }
 
 type ResponseMeta struct {

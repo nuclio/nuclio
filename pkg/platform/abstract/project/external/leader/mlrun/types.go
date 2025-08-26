@@ -17,8 +17,6 @@ limitations under the License.
 package mlrun
 
 import (
-	"time"
-
 	"github.com/nuclio/nuclio/pkg/platform"
 	common "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 
@@ -34,6 +32,7 @@ type Project struct {
 type ProjectMetadata struct {
 	Name        string            `json:"name"`
 	Namespace   string            `json:"namespace"`
+	CreatedAt   string            `json:"created,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
@@ -51,6 +50,7 @@ type MlrunError struct {
 }
 
 func (p *Project) GetConfig() *platform.ProjectConfig {
+	updateAt := common.ParseTimeFromTimestamp(p.Metadata.CreatedAt)
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
 			Name:        p.Metadata.Name,
@@ -59,14 +59,9 @@ func (p *Project) GetConfig() *platform.ProjectConfig {
 		},
 		Spec: platform.ProjectSpec{},
 		Status: platform.ProjectStatus{
-			UpdatedAt: p.parseCurrentTime(),
+			UpdatedAt: &updateAt,
 		},
 	}
-}
-
-func (p *Project) parseCurrentTime() *time.Time {
-	t := time.Now().UTC()
-	return &t
 }
 
 func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (Project, error) {

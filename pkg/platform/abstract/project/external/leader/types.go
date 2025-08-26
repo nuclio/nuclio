@@ -42,3 +42,12 @@ type Client interface {
 }
 
 type JobState string
+
+const (
+	ProjectTimeLayout = "2006-01-02T15:04:05.000000+00:00"
+)
+
+func ParseTimeFromTimestamp(timestamp string) time.Time {
+	t, _ := time.Parse(ProjectTimeLayout, timestamp)
+	return t
+}
