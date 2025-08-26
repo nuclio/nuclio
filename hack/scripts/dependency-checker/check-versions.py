@@ -15,6 +15,8 @@
 #
 import re
 import sys
+from abc import abstractmethod
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -51,9 +53,9 @@ class Dependency:
         makefile_versions = self.get_makefile_versions(makefile_content)
         # Check if there are inconsistent versions in the Makefile
         if len(set(makefile_versions)) > 1:
-            raise ValueError(
-                f"Inconsistent versions for {self.name} in Makefile: {', '.join(makefile_versions)}"
-            )
+            print(f"❌ Inconsistent versions for {self.name} in Makefile: {', '.join(makefile_versions)}")
+            return False
+
         # Fetch the latest version from the source (e.g., GitHub)
         latest_version = self.get_latest_version()
         print(f"🔍 Latest {self.name} version: {latest_version}")
@@ -61,9 +63,10 @@ class Dependency:
         # Compare the Makefile version with the latest version
         if makefile_versions[0] == latest_version:
             print(f"✅ {self.name} version is up-to-date\n")
+            return True
         else:
             print(f"❌ {self.name} version is outdated or inconsistent\n")
-            sys.exit(1)
+            return False
 
     def bump_to_latest(self, makefile_content):
         """
@@ -126,6 +129,7 @@ class GitHubDependency(Dependency):
         # Create a session with retry logic for API requests
         self.session = create_session_with_retries()
 
+    @abstractmethod
     def get_latest_version(self):
         """
         Fetch the latest version from GitHub tags with retry and wait.
@@ -179,12 +183,10 @@ def save_makefile_content(makefile_path, content):
 
 def main(makefile_path=None, bump_to_latest=False):
     """Main function to check or bump dependency versions."""
-    # Load Makefile content in one line
     makefile_content = load_makefile_content(
         Path(makefile_path) if makefile_path else Path(__file__).resolve().parent.parent.parent.parent / "Makefile"
     )
 
-    # Define dependencies to check
     dependencies = [
         GitHubDependency(
             name="docker-cli",
@@ -201,15 +203,21 @@ def main(makefile_path=None, bump_to_latest=False):
     ]
 
     if bump_to_latest:
-        # Bump all dependencies to their latest versions
         for dep in dependencies:
             makefile_content = dep.bump_to_latest(makefile_content)
         save_makefile_content(makefile_path, makefile_content)
         print(f"✅ Makefile updated to the latest versions.")
     else:
-        # Check each dependency
+        all_checks_passed = True
         for dep in dependencies:
-            dep.check_versions(makefile_content)
+            if not dep.check_versions(makefile_content):
+                all_checks_passed = False
+
+        if not all_checks_passed:
+            print("❌ One or more dependencies are outdated or inconsistent.")
+            sys.exit(1)
+        else:
+            print("✅ All dependencies are up-to-date.")
 
 
 if __name__ == "__main__":
