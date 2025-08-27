@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/httpclient"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/client"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
@@ -35,7 +35,7 @@ import (
 type Client struct {
 	logger                logger.Logger
 	platformConfiguration *platformconfig.Config
-	httpClient            *httpclient.Client
+	httpClient            *client.Client
 }
 
 func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (*Client, error) {
@@ -46,7 +46,7 @@ func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig
 	newClient := Client{
 		logger:                clientLogger,
 		platformConfiguration: platformConfiguration,
-		httpClient:            httpclient.NewClient(clientLogger, skipTLSVerification),
+		httpClient:            client.NewClient(clientLogger, skipTLSVerification),
 	}
 
 	return &newClient, nil
