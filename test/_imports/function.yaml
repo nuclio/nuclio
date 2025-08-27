@@ -17,6 +17,8 @@ metadata:
     skip-build: "true"
     skip-deploy: "true"
   name: test-function
+  labels:
+    nuclio.io/project-name: test-project
 spec:
   build:
     codeEntryType: sourceCode

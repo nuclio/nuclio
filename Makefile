@@ -83,7 +83,7 @@ NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND=list-all-dirs-with-tests
 LIST_TESTS_MAKE_COMMAND := $(if $(LIST_TESTS_MAKE_COMMAND),$(LIST_TESTS_MAKE_COMMAND),$(NUCLIO_DEFAULT_LIST_TESTS_MAKE_COMMAND))
 
 # Docker client cli to be used
-NUCLIO_DOCKER_CLIENT_VERSION ?= 28.3.2
+NUCLIO_DOCKER_CLIENT_VERSION ?= 28.3.3
 ifeq ($(NUCLIO_ARCH), armhf)
 	NUCLIO_DOCKER_CLIENT_ARCH ?= armhf
 else ifeq ($(NUCLIO_ARCH), arm64)
@@ -112,8 +112,8 @@ endif
 
 NUCLIO_PYTHON_BASE_IMAGE_NAME ?= gcr.io/iguazio/python
 
-NUCLIO_BASE_IMAGE_TAG ?= 1.23.8
-NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.23.8-alpine
+NUCLIO_BASE_IMAGE_TAG ?= 1.23
+NUCLIO_BASE_ALPINE_IMAGE_TAG ?= 1.23-alpine
 DEFAULT_NUCTL_DOCUMENTATION_PATH := docs/reference/nuctl/cli
 NUCTL_DOCUMENTATION_PATH := $(if $(NUCTL_DOCUMENTATION_PATH),$(NUCTL_DOCUMENTATION_PATH),$(DEFAULT_NUCTL_DOCUMENTATION_PATH))
 
@@ -375,11 +375,11 @@ NUCLIO_DOCKER_DASHBOARD_UHTTPC_ARCH  		?= $(NUCLIO_ARCH)
 NUCLIO_DOCKER_DASHBOARD_UHTTPC_IMAGE   		?= gcr.io/iguazio/uhttpc:0.0.3
 
 ifeq ($(NUCLIO_ARCH), armhf)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.27-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm32v7/nginx:1.29-alpine
 else ifeq ($(NUCLIO_ARCH), arm64)
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.27-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/arm64v8/nginx:1.29-alpine
 else
-	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.27-alpine
+	NUCLIO_DOCKER_DASHBOARD_NGINX_BASE_IMAGE  ?= gcr.io/iguazio/nginx:1.29-alpine
 endif
 
 .PHONY: dashboard
@@ -715,28 +715,6 @@ ensure-golangci-linter:
 			$(GOLANGCI_LINT_INSTALL_COMMAND); \
 		fi \
 	fi
-
-
-check-docker-cli-version:
-	@LATEST_TAG=$$(curl -s https://api.github.com/repos/docker/cli/tags | jq -r '.[].name' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$$' | sort -V | tail -1) && \
-	LATEST_VERSION=$${LATEST_TAG#v} && \
-	echo "🔍 Latest Docker CLI version: $$LATEST_VERSION" && \
-	\
-	VERSION_DASHBOARD=$$(grep '^ARG DOCKER_CLI_VERSION=' cmd/dashboard/docker/Dockerfile | cut -d= -f2 | tr -d '"') && \
-	VERSION_TEST=$$(grep '^ARG DOCKER_CLI_VERSION=' test/docker/Dockerfile | cut -d= -f2 | tr -d '"') && \
-	VERSION_MAKEFILE=$$(grep '^NUCLIO_DOCKER_CLIENT_VERSION' Makefile | cut -d= -f2 | tr -d ' ?') && \
-	\
-	echo "📦 Dashboard Dockerfile:     $$VERSION_DASHBOARD" && \
-	echo "📦 Test Dockerfile:          $$VERSION_TEST" && \
-	echo "📦 Makefile:                 $$VERSION_MAKEFILE" && \
-	\
-	[ "$$VERSION_DASHBOARD" = "$$LATEST_VERSION" ] && \
-	[ "$$VERSION_TEST" = "$$LATEST_VERSION" ] && \
-	[ "$$VERSION_MAKEFILE" = "$$LATEST_VERSION" ] && \
-	echo "✅ All Docker CLI versions are up-to-date and consistent ($$LATEST_VERSION)" || \
-	( echo "❌ One or more versions are outdated or inconsistent."; exit 1 )
-
-
 #
 # Testing
 #
@@ -1025,3 +1003,12 @@ patch-remote-nuclio: hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH
 	./hack/scripts/patch-remote/patch_remote.py \
 		--private-key-file hack/scripts/patch-remote/.ssh/key_$(PATCH_HOST_IP)_$(PATCH_USERNAME) \
 		--config hack/scripts/patch-remote/patch_env.yml
+
+.PHONY: check-dependencies
+check-dependencies:
+	@python3 hack/scripts/dependency-checker/check-versions.py --makefile-path Makefile
+
+.PHONY: bump-dependencies
+bump-dependencies:
+	@python3 hack/scripts/dependency-checker/check-versions.py --makefile-path Makefile --bump-to-the-latest
+

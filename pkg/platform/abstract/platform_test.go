@@ -27,6 +27,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/containerimagebuilderpusher"
@@ -56,6 +57,7 @@ const (
 	FunctionLogsFile                         = "function_logs.txt"
 	FormattedFunctionLogsFile                = "formatted_function_logs.txt"
 	BriefErrorsMessageFile                   = "brief_errors_message.txt"
+	testProjectName                          = "test-project"
 )
 
 type AbstractPlatformTestSuite struct {
@@ -222,7 +224,7 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 	functionConfig.Meta.Name = "f1"
 	functionConfig.Meta.Namespace = "default"
 	functionConfig.Meta.Labels = map[string]string{
-		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+		common.NuclioResourceLabelKeyProjectName: testProjectName,
 	}
 
 	for _, testCase := range []struct {
@@ -283,7 +285,7 @@ func (suite *AbstractPlatformTestSuite) TestValidationFailOnMalformedIngressesSt
 
 		suite.mockedPlatform.On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
-				Name:      platform.DefaultProjectName,
+				Name:      testProjectName,
 				Namespace: "default",
 			},
 		}).Return([]platform.Project{
@@ -342,7 +344,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 
 		suite.mockedPlatform.On("GetProjects", mock.Anything, &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
-				Name:      platform.DefaultProjectName,
+				Name:      testProjectName,
 				Namespace: "default",
 			},
 		}).Return([]platform.Project{
@@ -353,7 +355,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichDefaultHttpTrigger() {
 		functionConfig.Meta.Name = "f1"
 		functionConfig.Meta.Namespace = "default"
 		functionConfig.Meta.Labels = map[string]string{
-			common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+			common.NuclioResourceLabelKeyProjectName: testProjectName,
 		}
 		suite.Platform.Config.DisableDefaultHTTPTrigger = testCase.PlatformDisableDefaultHttpTrigger
 		functionConfig.Spec.DisableDefaultHTTPTrigger = testCase.FunctionDisableDefaultHttpTrigger
@@ -687,14 +689,13 @@ func (suite *AbstractPlatformTestSuite) TestValidateDeleteProjectOptions() {
 			expectedFailure: true,
 		},
 		{
-			name: "FailDeletingDefaultProject",
+			name: "DeletingDefaultProjectShouldNotFail",
 			deleteProjectOptions: &platform.DeleteProjectOptions{
 				Meta: platform.ProjectMeta{
 					Namespace: suite.DefaultNamespace,
-					Name:      platform.DefaultProjectName,
+					Name:      "default",
 				},
 			},
-			expectedFailure: true,
 		},
 		{
 			name: "FailDeletingProjectWithFunctions",
@@ -1006,7 +1007,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 
 		suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 			Meta: platform.ProjectMeta{
-				Name:      platform.DefaultProjectName,
+				Name:      testProjectName,
 				Namespace: "default",
 			},
 		}).Return([]platform.Project{
@@ -1024,7 +1025,7 @@ func (suite *AbstractPlatformTestSuite) TestMinMaxReplicas() {
 
 		createFunctionOptions.FunctionConfig.Meta.Name = functionName
 		createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-			common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+			common.NuclioResourceLabelKeyProjectName: testProjectName,
 		}
 		createFunctionOptions.FunctionConfig.Spec.MinReplicas = MinMaxReplicas.MinReplicas
 		createFunctionOptions.FunctionConfig.Spec.MaxReplicas = MinMaxReplicas.MaxReplicas
@@ -1235,7 +1236,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
-					Name:      platform.DefaultProjectName,
+					Name:      testProjectName,
 					Namespace: "default",
 				},
 			}).Return([]platform.Project{
@@ -1255,7 +1256,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichAndValidateFunctionTriggers() 
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: testProjectName,
 			}
 			createFunctionOptions.FunctionConfig.Spec.Triggers = testCase.triggers
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
@@ -1339,7 +1340,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichEnvVars() {
 
 			functionConfig.Meta.Name = testCase.name
 			functionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: testProjectName,
 			}
 			functionConfig.Spec.EnvFrom = testCase.FunctionEnvFrom
 			suite.Platform.Config.Runtime = &runtimeconfig.Config{
@@ -1360,7 +1361,7 @@ func (suite *AbstractPlatformTestSuite) TestEnrichNumWorkersFromMaxWorkers() {
 
 	functionConfig.Meta.Name = "some-function"
 	functionConfig.Meta.Labels = map[string]string{
-		common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+		common.NuclioResourceLabelKeyProjectName: testProjectName,
 	}
 
 	numWorkers := 5
@@ -1651,7 +1652,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
-					Name:      platform.DefaultProjectName,
+					Name:      testProjectName,
 					Namespace: "default",
 				},
 			}).Return([]platform.Project{
@@ -1669,7 +1670,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateNodeSelector() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: testProjectName,
 			}
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
 
@@ -1730,7 +1731,7 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
-					Name:      platform.DefaultProjectName,
+					Name:      testProjectName,
 					Namespace: "default",
 				},
 			}).Return([]platform.Project{
@@ -1748,7 +1749,7 @@ func (suite *AbstractPlatformTestSuite) TestValidatePriorityClassName() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: testProjectName,
 			}
 			suite.Platform.Config.Kube.ValidFunctionPriorityClassNames = testCase.validFunctionPriorityClassNames
 			suite.Logger.DebugWith("Checking function ", "functionName", functionName)
@@ -1895,7 +1896,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			suite.mockedPlatform.
 				On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 					Meta: platform.ProjectMeta{
-						Name:      platform.DefaultProjectName,
+						Name:      testProjectName,
 						Namespace: "default",
 					},
 				}).
@@ -1915,7 +1916,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateVolumes() {
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: testProjectName,
 			}
 			suite.Logger.DebugWith("Checking function", "functionName", functionName)
 
@@ -2031,7 +2032,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 		suite.Run(testCase.name, func() {
 			suite.mockedPlatform.On("GetProjects", suite.ctx, &platform.GetProjectsOptions{
 				Meta: platform.ProjectMeta{
-					Name:      platform.DefaultProjectName,
+					Name:      testProjectName,
 					Namespace: "default",
 				},
 			}).Return([]platform.Project{
@@ -2048,7 +2049,7 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 			}
 			createFunctionOptions.FunctionConfig.Meta.Name = functionName
 			createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
-				common.NuclioResourceLabelKeyProjectName: platform.DefaultProjectName,
+				common.NuclioResourceLabelKeyProjectName: testProjectName,
 			}
 			createFunctionOptions.FunctionConfig.Spec.AutoScaleMetrics = testCase.AutoScaleMetrics
 
@@ -2068,11 +2069,12 @@ func (suite *AbstractPlatformTestSuite) TestValidateFunctionConfigAutoScaleMetri
 }
 func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 	testCases := []struct {
-		name               string
-		trigger            functionconfig.Trigger
-		expectedMode       functionconfig.TriggerWorkMode
-		expectedConfig     *functionconfig.AsyncConfig
-		expectedNumWorkers int
+		name                                string
+		trigger                             functionconfig.Trigger
+		expectedMode                        functionconfig.TriggerWorkMode
+		expectedConfig                      *functionconfig.AsyncConfig
+		expectedNumWorkers                  int
+		expectedAvailabilityTimeoutDuration *time.Duration
 	}{
 		{
 			name: "SyncMode",
@@ -2080,9 +2082,10 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				Mode:       "",
 				NumWorkers: 10,
 			},
-			expectedMode:       functionconfig.SyncTriggerWorkMode,
-			expectedConfig:     nil,
-			expectedNumWorkers: 10,
+			expectedMode:                        functionconfig.SyncTriggerWorkMode,
+			expectedConfig:                      nil,
+			expectedNumWorkers:                  10,
+			expectedAvailabilityTimeoutDuration: nil,
 		},
 		{
 			name: "AsyncModeWithDefaults",
@@ -2092,11 +2095,13 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 			},
 			expectedMode: functionconfig.AsyncTriggerWorkMode,
 			expectedConfig: &functionconfig.AsyncConfig{
-				ConnectionCreationMode: functionconfig.ConnectionCreationModeStatic,
-				MaxConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
-				MinConnectionsNumber:   functionconfig.DefaultMaxConnectionsNumber,
+				ConnectionCreationMode:        functionconfig.ConnectionCreationModeStatic,
+				MaxConnectionsNumber:          functionconfig.DefaultMaxConnectionsNumber,
+				MinConnectionsNumber:          functionconfig.DefaultMaxConnectionsNumber,
+				ConnectionAvailabilityTimeout: functionconfig.DefaultConnectionAvailabilityTimeout,
 			},
-			expectedNumWorkers: 10,
+			expectedNumWorkers:                  10,
+			expectedAvailabilityTimeoutDuration: common.Pointer(10 * time.Second),
 		},
 		{
 			name: "AsyncModeWithCustomConfig",
@@ -2104,18 +2109,21 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 				NumWorkers: 10,
 				Mode:       functionconfig.AsyncTriggerWorkMode,
 				AsyncConfig: &functionconfig.AsyncConfig{
-					ConnectionCreationMode: "dynamic",
-					MaxConnectionsNumber:   10,
-					MinConnectionsNumber:   5,
+					ConnectionCreationMode:        "dynamic",
+					MaxConnectionsNumber:          10,
+					MinConnectionsNumber:          5,
+					ConnectionAvailabilityTimeout: "15ms",
 				},
 			},
 			expectedMode: functionconfig.AsyncTriggerWorkMode,
 			expectedConfig: &functionconfig.AsyncConfig{
-				ConnectionCreationMode: "dynamic",
-				MaxConnectionsNumber:   10,
-				MinConnectionsNumber:   5,
+				ConnectionCreationMode:        "dynamic",
+				MaxConnectionsNumber:          10,
+				MinConnectionsNumber:          5,
+				ConnectionAvailabilityTimeout: "15ms",
 			},
-			expectedNumWorkers: 10,
+			expectedNumWorkers:                  10,
+			expectedAvailabilityTimeoutDuration: common.Pointer(15 * time.Millisecond),
 		},
 	}
 
@@ -2134,6 +2142,11 @@ func (suite *AbstractPlatformTestSuite) TestEnrichProcessingMode() {
 			suite.Require().Equal(testCase.expectedConfig, enrichedTrigger.AsyncConfig, "Unexpected async config")
 
 			suite.Require().Equal(testCase.expectedNumWorkers, enrichedTrigger.NumWorkers, "Unexpected num workers")
+			if testCase.expectedConfig != nil {
+				timeout, err := enrichedTrigger.AsyncConfig.GetConnectionAvailabilityTimeoutDuration()
+				suite.Require().NoError(err)
+				suite.Require().Equal(*testCase.expectedAvailabilityTimeoutDuration, timeout)
+			}
 		})
 	}
 }
@@ -2247,6 +2260,42 @@ func (suite *AbstractPlatformTestSuite) TestValidateProcessingMode() {
 				},
 			},
 			expectedError: "",
+		},
+		{
+			name: "set custom availability timeout -> no error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionAvailabilityTimeout: "5s",
+							},
+						},
+					},
+				},
+			},
+			expectedError: "",
+		},
+		{
+			name: "set custom availability timeout -> error",
+			functionConfig: &functionconfig.Config{
+				Spec: functionconfig.Spec{
+					Runtime: "python",
+					Triggers: map[string]functionconfig.Trigger{
+						"test-trigger": {
+							Kind: "http",
+							Mode: functionconfig.AsyncTriggerWorkMode,
+							AsyncConfig: &functionconfig.AsyncConfig{
+								ConnectionAvailabilityTimeout: "5s&*^^5",
+							},
+						},
+					},
+				},
+			},
+			expectedError: "failed to parse connection availability timeout",
 		},
 	}
 

@@ -87,6 +87,14 @@ echo 'test'`
 func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Namespace: suite.Namespace,
+				Labels: map[string]string{
+					common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
+				},
+			},
+		},
 	}
 
 	functionSourceCode := base64.StdEncoding.EncodeToString([]byte(`def handler(context, event):
@@ -105,7 +113,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	suite.Require().NoError(err)
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "funcsource-test"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = tempFile.Name()
@@ -139,7 +147,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 `))
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-test"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
@@ -173,6 +181,14 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger: suite.Logger,
+		FunctionConfig: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Namespace: suite.Namespace,
+				Labels: map[string]string{
+					common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
+				},
+			},
+		},
 	}
 
 	functionSourceCode := base64.StdEncoding.EncodeToString([]byte(`def handler(context, event):
@@ -180,7 +196,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 `))
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-redeploy-func"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "default"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
@@ -312,6 +328,10 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	}
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "cache-test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = suite.Namespace
+	createFunctionOptions.FunctionConfig.Meta.Labels = map[string]string{
+		common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
+	}
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "cachetest:handler"
 	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.CreateTempDir()
@@ -501,7 +521,10 @@ func (suite *testSuite) TestBuildFuncFromRemoteArchiveRedeploy() {
 		FunctionConfig: functionconfig.Config{
 			Meta: functionconfig.Meta{
 				Name:      "build-from-local",
-				Namespace: "default",
+				Namespace: suite.Namespace,
+				Labels: map[string]string{
+					common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
+				},
 			},
 			Spec: functionconfig.Spec{
 				Env: []v1.EnvVar{
@@ -551,7 +574,10 @@ func (suite *testSuite) TestBuildFuncFromLocalArchiveRedeployUsesSameImage() {
 		FunctionConfig: functionconfig.Config{
 			Meta: functionconfig.Meta{
 				Name:      "build-from-local",
-				Namespace: "default",
+				Namespace: suite.Namespace,
+				Labels: map[string]string{
+					common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
+				},
 			},
 			Spec: functionconfig.Spec{
 				Handler: "main:handler",
@@ -610,7 +636,10 @@ func (suite *testSuite) TestBuildWithFlags() {
 			FunctionConfig: functionconfig.Config{
 				Meta: functionconfig.Meta{
 					Name:      "build-from-local",
-					Namespace: "default",
+					Namespace: suite.Namespace,
+					Labels: map[string]string{
+						common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
+					},
 				},
 				Spec: functionconfig.Spec{
 					Env: []v1.EnvVar{
@@ -930,7 +959,10 @@ func (suite *testSuite) createShellFunctionFromSourceCode(functionName string,
 		FunctionConfig: functionconfig.Config{
 			Meta: functionconfig.Meta{
 				Name:      functionName,
-				Namespace: "default",
+				Namespace: suite.Namespace,
+				Labels: map[string]string{
+					common.NuclioResourceLabelKeyProjectName: suite.ProjectName,
+				},
 			},
 			Spec: functionconfig.Spec{
 				Handler: fmt.Sprintf("%s.sh", functionName),
@@ -952,13 +984,15 @@ func (suite *testSuite) createShellFunctionWithResponse(responseMessage string) 
 # function.yaml:
 #   metadata:
 #     name: %s
-#     namespace: default
+#     namespace: %s
+#	  labels:
+#     - %s: %s
 #   spec:
 #     env:
 #     - name: MESSAGE
 #       value: %s
 echo ${MESSAGE}
-`, functionName, responseMessage)
+`, functionName, suite.Namespace, common.NuclioResourceLabelKeyProjectName, suite.ProjectName, responseMessage)
 
 	return suite.createShellFunctionFromSourceCode(functionName, functionSourceCode,
 		&httpsuite.Request{

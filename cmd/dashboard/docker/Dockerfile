@@ -15,7 +15,7 @@
 #
 # Build assets stage: builds the dashboard assets (js, html, css, etc)
 #
-ARG NGINX_IMAGE=gcr.io/iguazio/nginx:1.25-alpine
+ARG NGINX_IMAGE
 ARG NUCLIO_DOCKER_IMAGE_TAG
 ARG UHTTPC_IMAGE=gcr.io/iguazio/uhttpc:0.0.3
 ARG UHTTPC_ARCH=amd64
@@ -58,7 +58,7 @@ FROM $NUCLIO_DOCKER_ALPINE_IMAGE as downloaddocker
 
 # docker client
 ARG DOCKER_CLI_ARCH=x86_64
-ARG DOCKER_CLI_VERSION="28.3.2"
+ARG DOCKER_CLI_VERSION
 ENV DOCKER_CLI_DOWNLOAD_URL="https://download.docker.com/linux/static/stable/$DOCKER_CLI_ARCH/docker-$DOCKER_CLI_VERSION.tgz"
 
 RUN apk --update --no-cache add curl \

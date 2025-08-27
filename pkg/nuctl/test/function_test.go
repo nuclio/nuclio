@@ -59,8 +59,9 @@ func (suite *functionBuildTestSuite) TestBuild() {
 
 	err := suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"runtime": "golang",
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"runtime":      "golang",
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -71,9 +72,10 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
-			"run-image": imageName,
-			"runtime":   "golang",
-			"handler":   "main:Reverse",
+			"run-image":    imageName,
+			"runtime":      "golang",
+			"handler":      "main:Reverse",
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -92,11 +94,24 @@ func (suite *functionBuildTestSuite) TestBuild() {
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 type functionDeployTestSuite struct {
 	Suite
+}
+
+func (suite *functionDeployTestSuite) SetupSuite() {
+	suite.Suite.SetupSuite()
+	// create test-project for tests that import static files
+	if err := suite.ExecuteNuctl([]string{"create", "project", "test-project"}, map[string]string{}); err != nil {
+		suite.Contains(errors.Cause(err).Error(), "already exists")
+	}
+}
+
+func (suite *functionDeployTestSuite) TearDownSuite() {
+	suite.Suite.TearDownSuite()
+	suite.ExecuteNuctl([]string{"delete", "project", "test-project"}, map[string]string{}) // nolint: errcheck
 }
 
 func (suite *functionDeployTestSuite) TestDeploy() {
@@ -162,9 +177,10 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 				flect.Dasherize(runtimeInfo.runtime),
 				xid.New().String())
 			namedArgs := map[string]string{
-				"path":    path.Join(suite.GetExamples(), runtimeName, "empty", runtimeInfo.filename),
-				"runtime": runtimeInfo.runtime,
-				"handler": runtimeInfo.handler,
+				"path":         path.Join(suite.GetExamples(), runtimeName, "empty", runtimeInfo.filename),
+				"runtime":      runtimeInfo.runtime,
+				"handler":      runtimeInfo.handler,
+				"project-name": suite.projectName,
 			}
 			suite.logger.DebugWith("Deploying function",
 				"functionName", functionName,
@@ -192,9 +208,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	functionName := "invoke-body-stdin-reverser" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-		"runtime": "python",
-		"handler": "reverser:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime":      "python",
+		"handler":      "reverser:handler",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -207,7 +224,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	// cleanup
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
-	suite.stdinReader = strings.NewReader("-reverse this string+")
+	suite.nuctlRunner.stdinReader = strings.NewReader("-reverse this string+")
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -219,7 +236,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithBodyFromStdin() {
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 func (suite *functionDeployTestSuite) TestInvokeWithTimeout() {
@@ -229,10 +246,11 @@ func (suite *functionDeployTestSuite) TestInvokeWithTimeout() {
 	timeoutSeconds := 3
 	timeoutSourceCode := fmt.Sprintf("sleep %d\necho done", timeoutSeconds)
 	namedArgs := map[string]string{
-		"image":   imageName,
-		"runtime": "shell",
-		"handler": "main.sh",
-		"source":  base64.StdEncoding.EncodeToString([]byte(timeoutSourceCode)),
+		"image":        imageName,
+		"runtime":      "shell",
+		"handler":      "main.sh",
+		"source":       base64.StdEncoding.EncodeToString([]byte(timeoutSourceCode)),
+		"project-name": suite.projectName,
 	}
 
 	// deploy function
@@ -272,12 +290,13 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":        path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
-			"env":         "FIRST_ENV=11223344,SECOND_ENV=0099887766",
-			"labels":      "label1=first,label2=second",
-			"annotations": "annotation1=third,annotation2=fourth",
-			"runtime":     "python",
-			"handler":     "envprinter:handler",
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
+			"env":          "FIRST_ENV=11223344,SECOND_ENV=0099887766",
+			"labels":       "label1=first,label2=second",
+			"annotations":  "annotation1=third,annotation2=fourth",
+			"runtime":      "python",
+			"handler":      "envprinter:handler",
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -298,8 +317,8 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "11223344")
-	suite.Require().Contains(suite.outputBuffer.String(), "0099887766")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "11223344")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "0099887766")
 }
 
 func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
@@ -316,8 +335,9 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 
 	err = suite.ExecuteNuctl([]string{"deploy", "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
-			"image": imageName,
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"image":        imageName,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -326,7 +346,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	defer suite.dockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	// clear output buffer from last invocation
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 
 	// get the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "fu", functionName}, map[string]string{
@@ -335,7 +355,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	suite.Require().NoError(err)
 
 	deployedFunctionConfig := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &deployedFunctionConfig)
+	err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &deployedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// the function has 1 http trigger - api. here we are verifying the default HTTP trigger wasn't added
@@ -360,7 +380,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	suite.Require().NoError(err)
 
 	// check that invoke printed the value
-	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), randomString)
 }
 
 func (suite *functionDeployTestSuite) TestDeployFromCodeEntryTypeS3InvalidValues() {
@@ -391,9 +411,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "logging", "golang"),
-		"runtime": "golang",
-		"handler": "main:Logging",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "logging", "golang"),
+		"runtime":      "golang",
+		"handler":      "main:Logging",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -463,7 +484,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 		},
 	} {
 		// clear output buffer from last invocation
-		suite.outputBuffer.Reset()
+		suite.nuctlRunner.outputBuffer.Reset()
 
 		// invoke the function
 		err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -476,12 +497,12 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 
 		// make sure expected strings are in output
 		for _, expectedMessage := range testCase.expectedMessages {
-			suite.Require().Contains(suite.outputBuffer.String(), expectedMessage)
+			suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), expectedMessage)
 		}
 
 		// make sure unexpected strings are NOT in output
 		for _, unexpectedMessage := range testCase.unexpectedMessages {
-			suite.Require().NotContains(suite.outputBuffer.String(), unexpectedMessage)
+			suite.Require().NotContains(suite.nuctlRunner.outputBuffer.String(), unexpectedMessage)
 		}
 	}
 }
@@ -536,9 +557,10 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   imageName,
-			"runtime": "shell",
-			"handler": "rev",
+			"image":        imageName,
+			"runtime":      "shell",
+			"handler":      "rev",
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -560,7 +582,7 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
@@ -571,9 +593,10 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   imageName,
-			"runtime": "shell",
-			"handler": "rev",
+			"image":        imageName,
+			"runtime":      "shell",
+			"handler":      "rev",
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -609,7 +632,7 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.Require().NoError(err)
 
 	// reset buffer
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 
 	// get function events
 	err = suite.ExecuteNuctl([]string{"get", "functionevent"}, nil)
@@ -631,6 +654,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 			"image":             imageName,
 			"runtime":           "golang",
 			"output-image-file": tarName,
+			"project-name":      suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -650,6 +674,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 			"runtime":          "golang",
 			"handler":          "main:Reverse",
 			"input-image-file": tarName,
+			"project-name":     suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -668,7 +693,7 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
@@ -685,8 +710,9 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 
 	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
-			"image": imageName,
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+			"image":        imageName,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -697,8 +723,9 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	// use deploy with the image we just created
 	err = suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
-			"run-image": imageName,
-			"file":      path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
+			"run-image":    imageName,
+			"file":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -707,14 +734,14 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 
 	// export the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	deployedFunctionConfig := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &deployedFunctionConfig)
+	err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &deployedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// assert data from different spec and not original spec
@@ -737,7 +764,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFile() {
 	suite.Require().NoError(err)
 
 	// check that invoke printed the value
-	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), randomString)
 }
 
 func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenArgs() {
@@ -756,8 +783,9 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 
 	err = suite.ExecuteNuctl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":  functionPath,
-			"image": imageName,
+			"path":         functionPath,
+			"image":        imageName,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -771,6 +799,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 			"run-image":    imageName,
 			"file":         path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python", "function-different-spec.yaml"),
 			"min-replicas": fmt.Sprintf("%d", minReplicas),
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -779,14 +808,14 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	defer suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil) // nolint: errcheck
 
 	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 
 	// export the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	deployedFunctionConfig := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &deployedFunctionConfig)
+	err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &deployedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// assert data from different spec and not original spec
@@ -811,7 +840,7 @@ func (suite *functionDeployTestSuite) TestBuildAndDeployFromFileWithOverriddenAr
 	suite.Require().NoError(err)
 
 	// check that invoke printed the value
-	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), randomString)
 }
 
 func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
@@ -846,8 +875,9 @@ func (suite *functionDeployTestSuite) TestDeployWithResourceVersion() {
 	// deploy with temp, expect to pass
 	err = suite.ExecuteNuctl([]string{"deploy", functionConfig.Meta.Name, "--verbose", "--no-pull"},
 		map[string]string{
-			"path": functionPath,
-			"file": functionConfigPath,
+			"path":         functionPath,
+			"file":         functionConfigPath,
+			"project-name": suite.projectName,
 		})
 
 	// delete the function when we're done
@@ -964,9 +994,10 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-		"runtime": "python",
-		"handler": "event_recorder:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime":      "python",
+		"handler":      "event_recorder:handler",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -989,9 +1020,10 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 
 	desiredHTTPPort := 30555
 	namedArgs = map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
-		"runtime": "python",
-		"handler": "event_recorder:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "event-recorder", "python"),
+		"runtime":      "python",
+		"handler":      "event_recorder:handler",
+		"project-name": suite.projectName,
 		"triggers": fmt.Sprintf(`{
 	   "http": {
 	       "kind": "http",
@@ -1009,7 +1041,7 @@ func (suite *functionDeployTestSuite) TestDeployAndRedeployHTTPTriggerPortChange
 	// wait for function to become ready again
 	suite.waitForFunctionState(functionName, functionconfig.FunctionStateReady)
 
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 
 	deployedFunctionConfig, err = suite.getFunctionInFormat(functionName, nuctlcommon.OutputFormatYAML)
 	suite.Require().NoError(err)
@@ -1044,9 +1076,10 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-			"runtime": "python:3.11",
-			"handler": "reverser:handler",
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+			"runtime":      "python:3.11",
+			"handler":      "reverser:handler",
+			"project-name": suite.projectName,
 		})
 	suite.Require().NoError(err)
 
@@ -1063,7 +1096,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 		},
 		false)
 	suite.Require().NoError(err)
-	suite.Require().Contains(suite.outputBuffer.String(), "codeEntryType: image")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "codeEntryType: image")
 
 	// try a few times to invoke, until it succeeds
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"invoke", functionName},
@@ -1075,7 +1108,7 @@ func (suite *functionDeployTestSuite) TestDeployFromLocalDirPath() {
 	suite.Require().NoError(err)
 
 	// check that invoke printed the value
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 // Expect the deployment to fail fast (instead of waiting for readiness timeout to pass)
@@ -1126,6 +1159,7 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 			"run-as-user":  runAsUserID,
 			"run-as-group": runAsGroupID,
 			"fsgroup":      fsGroup,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -1144,15 +1178,15 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
 	// make sure the id command from the handler, returns the correct uid and gids
 	suite.Require().Condition(func() (success bool) {
-		uidGid := strings.Contains(suite.outputBuffer.String(),
+		uidGid := strings.Contains(suite.nuctlRunner.outputBuffer.String(),
 			fmt.Sprintf(`uid=%s gid=%s`,
 				runAsUserID,
 				runAsGroupID))
-		groups := strings.Contains(suite.outputBuffer.String(),
+		groups := strings.Contains(suite.nuctlRunner.outputBuffer.String(),
 			fmt.Sprintf(`groups=%s`, fsGroup))
 
 		// it is observed that on azure's docker flavor, the groups are set with both fsGroup and group ID
-		extendedGroups := strings.Contains(suite.outputBuffer.String(),
+		extendedGroups := strings.Contains(suite.nuctlRunner.outputBuffer.String(),
 			fmt.Sprintf(`groups=%s`, runAsGroupID+","+fsGroup))
 		return uidGid && (groups || extendedGroups)
 	})
@@ -1171,6 +1205,7 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 			"run-as-user":  runAsUserID,
 			"run-as-group": runAsGroupID,
 			"fsgroup":      fsGroup,
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -1189,15 +1224,15 @@ func (suite *functionDeployTestSuite) TestDeployWithSecurityContext() {
 
 	// make sure the id command from the handler, returns the correct uid and gids
 	suite.Require().Condition(func() (success bool) {
-		uidGid := strings.Contains(suite.outputBuffer.String(),
+		uidGid := strings.Contains(suite.nuctlRunner.outputBuffer.String(),
 			fmt.Sprintf(`uid=%s gid=%s`,
 				runAsUserID,
 				runAsGroupID))
-		groups := strings.Contains(suite.outputBuffer.String(),
+		groups := strings.Contains(suite.nuctlRunner.outputBuffer.String(),
 			fmt.Sprintf(`groups=%s`, fsGroup))
 
 		// it is observed that on azure's docker flavor, the groups are set with both fsGroup and group ID
-		extendedGroups := strings.Contains(suite.outputBuffer.String(),
+		extendedGroups := strings.Contains(suite.nuctlRunner.outputBuffer.String(),
 			fmt.Sprintf(`groups=%s`, runAsGroupID+","+fsGroup))
 		return uidGid && (groups || extendedGroups)
 	})
@@ -1227,6 +1262,7 @@ func (suite *functionDeployTestSuite) TestDeployServiceTypeClusterIPWithInvocati
 	        }
 	    }
 	}`,
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1251,10 +1287,11 @@ wget -O - --post-data "$body" $url 2> /dev/null
 
 	err = suite.ExecuteNuctl([]string{"deploy", wgetFunctionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"image":   wgetImageName,
-			"runtime": "shell",
-			"handler": "main.sh",
-			"source":  base64.StdEncoding.EncodeToString([]byte(wgetSourceCode)),
+			"image":        wgetImageName,
+			"runtime":      "shell",
+			"handler":      "main.sh",
+			"source":       base64.StdEncoding.EncodeToString([]byte(wgetSourceCode)),
+			"project-name": suite.projectName,
 		})
 
 	suite.Require().NoError(err)
@@ -1277,7 +1314,7 @@ wget -O - --post-data "$body" $url 2> /dev/null
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
@@ -1294,6 +1331,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
 		"http-trigger-service-type": string(corev1.ServiceTypeClusterIP),
+		"project-name":              suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1314,6 +1352,7 @@ func (suite *functionDeployTestSuite) TestDeployWithOverrideServiceTypeFlag() {
 		"runtime":                   "golang",
 		"handler":                   "main:Reverse",
 		"http-trigger-service-type": string(corev1.ServiceTypeNodePort),
+		"project-name":              suite.projectName,
 	}
 
 	err = suite.ExecuteNuctl([]string{"deploy", functionName2, "--verbose", "--no-pull"}, namedArgs)
@@ -1357,9 +1396,10 @@ func (suite *functionGetTestSuite) TestGet() {
 		functionNames = append(functionNames, functionName)
 
 		namedArgs := map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"runtime": "golang",
-			"handler": "main:Reverse",
+			"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"runtime":      "golang",
+			"handler":      "main:Reverse",
+			"project-name": suite.projectName,
 		}
 
 		// cleanup
@@ -1407,7 +1447,7 @@ func (suite *functionGetTestSuite) TestGet() {
 		},
 	} {
 		// reset buffer
-		suite.outputBuffer.Reset()
+		suite.nuctlRunner.outputBuffer.Reset()
 
 		parsedFunction, err := suite.getFunctionInFormat(testCase.FunctionName, testCase.OutputFormat)
 
@@ -1431,9 +1471,10 @@ func (suite *functionDeleteTestSuite) TestDelete() {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"runtime": "golang",
-		"handler": "main:Reverse",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime":      "golang",
+		"handler":      "main:Reverse",
+		"project-name": suite.projectName,
 	}
 
 	err = suite.ExecuteNuctl([]string{
@@ -1510,7 +1551,7 @@ func (suite *functionDeleteTestSuite) TestDeleteBrokenFunction() {
 
 	err = suite.ExecuteNuctl([]string{"get", "functions"}, nil)
 	suite.Require().NoError(err)
-	suite.Require().NotContains(suite.outputBuffer.String(), functionName)
+	suite.Require().NotContains(suite.nuctlRunner.outputBuffer.String(), functionName)
 }
 
 func (suite *functionDeleteTestSuite) TestForceDelete() {
@@ -1572,6 +1613,19 @@ func (suite *functionDeleteTestSuite) TestForceDelete() {
 
 type functionExportImportTestSuite struct {
 	Suite
+}
+
+func (suite *functionExportImportTestSuite) SetupSuite() {
+	suite.Suite.SetupSuite()
+	// create test-project for tests that import static files
+	if err := suite.ExecuteNuctl([]string{"create", "project", "test-project"}, map[string]string{}); err != nil {
+		suite.Contains(errors.Cause(err).Error(), "already exists")
+	}
+}
+
+func (suite *functionExportImportTestSuite) TearDownSuite() {
+	suite.Suite.TearDownSuite()
+	suite.ExecuteNuctl([]string{"delete", "project", "test-project"}, map[string]string{}) // nolint: errcheck
 }
 
 func (suite *functionExportImportTestSuite) TestFailToImportFunctionNoInput() {
@@ -1699,9 +1753,10 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	functionName := "export-import-stdin" + uniqueSuffix
 	imageName := "nuclio/processor-" + functionName
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-		"runtime": "python",
-		"handler": "reverser:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime":      "python",
+		"handler":      "reverser:handler",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1718,8 +1773,8 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// make a copy, use later
-	exportedFunctionBody := make([]byte, len(suite.outputBuffer.Bytes()))
-	copy(exportedFunctionBody, suite.outputBuffer.Bytes())
+	exportedFunctionBody := make([]byte, len(suite.nuctlRunner.outputBuffer.Bytes()))
+	copy(exportedFunctionBody, suite.nuctlRunner.outputBuffer.Bytes())
 
 	// delete original function in order to resolve conflict while importing the function
 	err = suite.ExecuteNuctl([]string{"delete", "fu", functionName}, nil)
@@ -1730,14 +1785,14 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// import the function from stdin
-	suite.stdinReader = strings.NewReader(string(exportedFunctionBody))
+	suite.nuctlRunner.stdinReader = strings.NewReader(string(exportedFunctionBody))
 	err = suite.ExecuteNuctl([]string{"import", "fu"}, nil)
 	suite.Require().NoError(err)
 
 	// wait until able to get the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"get", "function", functionName}, nil, false)
 	suite.Require().NoError(err)
-	suite.Require().Contains(suite.outputBuffer.String(), "imported")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "imported")
 
 	// try to invoke, and ensure it fails - because it is imported and not deployed
 	err = suite.ExecuteNuctl([]string{"invoke", functionName},
@@ -1763,7 +1818,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFromStdin()
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
@@ -1772,9 +1827,10 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"runtime": "golang",
-		"handler": "main:Reverse",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"runtime":      "golang",
+		"handler":      "main:Reverse",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -1788,7 +1844,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedFunctionConfig)
+	err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &exportedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// assert skip annotations
@@ -1850,7 +1906,7 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTrip() {
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunction() {
@@ -1871,14 +1927,14 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 	suite.Require().Error(err)
 
 	// reset output buffer for reading the nex output cleanly
-	suite.outputBuffer.Reset()
+	suite.nuctlRunner.outputBuffer.Reset()
 
 	// export the function
 	err = suite.RetryExecuteNuctlUntilSuccessful([]string{"export", "fu", functionName}, nil, false)
 	suite.Require().NoError(err)
 
 	exportedFunctionConfig := functionconfig.Config{}
-	err = yaml.Unmarshal(suite.outputBuffer.Bytes(), &exportedFunctionConfig)
+	err = yaml.Unmarshal(suite.nuctlRunner.outputBuffer.Bytes(), &exportedFunctionConfig)
 	suite.Require().NoError(err)
 
 	// assert skip annotations
@@ -1933,6 +1989,19 @@ func (suite *functionExportImportTestSuite) TestExportImportRoundTripFailingFunc
 
 type functionRedeployTestSuite struct {
 	Suite
+}
+
+func (suite *functionRedeployTestSuite) SetupSuite() {
+	suite.Suite.SetupSuite()
+	// create test-project for tests that import static files
+	if err := suite.ExecuteNuctl([]string{"create", "project", "test-project"}, map[string]string{}); err != nil {
+		suite.Contains(errors.Cause(err).Error(), "already exists")
+	}
+}
+
+func (suite *functionRedeployTestSuite) TearDownSuite() {
+	suite.Suite.TearDownSuite()
+	suite.ExecuteNuctl([]string{"delete", "project", "test-project"}, map[string]string{}) // nolint: errcheck
 }
 
 func (suite *functionRedeployTestSuite) TestRedeploy() {

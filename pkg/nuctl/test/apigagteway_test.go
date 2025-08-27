@@ -160,10 +160,10 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 		err = suite.ExecuteNuctl([]string{"get", "apigateway", "--function-name", functionName},
 			nil)
 		suite.Require().NoError(err)
-		suite.Require().Contains(suite.outputBuffer.String(), apiGatewayName)
+		suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), apiGatewayName)
 
 		for _, gateway := range apiGatewayNames {
-			suite.Require().NotContains(suite.outputBuffer.String(), gateway)
+			suite.Require().NotContains(suite.nuctlRunner.outputBuffer.String(), gateway)
 		}
 
 		// delete api gateway
@@ -178,7 +178,7 @@ func (suite *apiGatewayCreateGetAndDeleteTestSuite) TestList() {
 		err = suite.ExecuteNuctl([]string{"get", "apigateway"}, nil)
 		suite.Require().NoError(err)
 		for _, gateway := range apiGatewayNames {
-			suite.Require().Contains(suite.outputBuffer.String(), gateway)
+			suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), gateway)
 		}
 	}
 }
@@ -318,9 +318,10 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	imageName := "nuclio/processor-" + functionName
 
 	namedArgs := map[string]string{
-		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
-		"runtime": "python",
-		"handler": "reverser:handler",
+		"path":         path.Join(suite.GetFunctionsDir(), "common", "reverser", "python"),
+		"runtime":      "python",
+		"handler":      "reverser:handler",
+		"project-name": suite.projectName,
 	}
 
 	err := suite.ExecuteNuctl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
@@ -341,8 +342,8 @@ func (suite *apiGatewayInvokeTestSuite) deployFunction() string {
 	suite.Require().NoError(err)
 
 	// make sure reverser worked
-	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
-	suite.outputBuffer.Reset()
+	suite.Require().Contains(suite.nuctlRunner.outputBuffer.String(), "+gnirts siht esrever-")
+	suite.nuctlRunner.outputBuffer.Reset()
 
 	return functionName
 }

@@ -51,12 +51,22 @@ func (suite *TestSuite) SetupSuite() {
 	suite.namespace = namespaces[0]
 
 	getProjectsOptions := &platform.CreateProjectOptions{
-		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: platform.DefaultProjectName, Namespace: suite.namespace}, Spec: platform.ProjectSpec{
+		ProjectConfig: &platform.ProjectConfig{Meta: platform.ProjectMeta{Name: suite.ProjectName, Namespace: suite.namespace}, Spec: platform.ProjectSpec{
 			Description: "just a description",
 		}},
 	}
 	err = suite.Platform.CreateProject(suite.ctx, getProjectsOptions)
 	suite.Require().NoError(err, "Failed to create project")
+}
+
+func (suite *TestSuite) TearDownSuite() {
+	err := suite.Platform.DeleteProject(suite.ctx, &platform.DeleteProjectOptions{
+		Meta: platform.ProjectMeta{
+			Name:      suite.ProjectName,
+			Namespace: suite.namespace,
+		},
+	})
+	suite.Require().NoError(err, "Failed to delete project")
 }
 
 // Test function containers healthiness validation
