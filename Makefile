@@ -912,7 +912,7 @@ test-nodejs:
 	 --volume $(NUCLIO_PATH)/test:/nuclio/test \
 	 --workdir /nuclio/nodejs \
 	 --env RUN_MODE=CI \
-	 node:16-alpine \
+	 $(NODE_IMAGE_NAME) \
 	 sh -c 'npm install && npm run lint && npm run test'
 
 .PHONY: test-python

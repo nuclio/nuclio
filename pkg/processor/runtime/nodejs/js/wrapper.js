@@ -220,7 +220,9 @@ function connectSocket(socketPath, handlerFunction) {
         buffer = messages.pop()
 
         for (const message of messages) {
-            if (!message.trim()) continue
+            if (!message.trim()) {
+                continue
+            }
             try {
                 const event = JSON.parse(message)
                 await handleEvent(handlerFunction, event)
