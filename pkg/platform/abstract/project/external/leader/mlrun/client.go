@@ -21,11 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader/client"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
+	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -33,100 +31,16 @@ import (
 )
 
 type Client struct {
-	logger                logger.Logger
-	platformConfiguration *platformconfig.Config
-	httpClient            *client.Client
+	logger logger.Logger
 }
 
-func NewClient(parentLogger logger.Logger, platformConfiguration *platformconfig.Config) (*Client, error) {
-	// skip TLS verification for mlrun
-	skipTLSVerification := platformConfiguration.ProjectsLeader.Kind == platformconfig.ProjectsLeaderKindMlrun
-	clientLogger := parentLogger.GetChild("leader-client-mlrun")
-
-	newClient := Client{
-		logger:                clientLogger,
-		platformConfiguration: platformConfiguration,
-		httpClient:            client.NewClient(clientLogger, skipTLSVerification),
+func NewClient(parentLogger logger.Logger) *Client {
+	return &Client{
+		logger: parentLogger.GetChild("leader-client-mlrun"),
 	}
-
-	return &newClient, nil
 }
 
-func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return nil, nuclio.ErrNotImplemented
-}
-
-func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
-	body, err := c.generateProjectRequestBody(createProjectOptions.ProjectConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to generate project request body")
-	}
-
-	requestURL := fmt.Sprintf("%s/%s", c.platformConfiguration.ProjectsLeader.APIAddress, "projects")
-	responseBody, response, err := c.httpClient.CreateProject(ctx,
-		createProjectOptions,
-		body,
-		requestURL)
-	if err != nil {
-		c.httpClient.LogLeaderInternalServerResponseError(ctx, response, "Failed to create project on leader")
-		// Try to parse MLRun error response
-		var mlrunError MlrunError
-
-		// try peek at error response
-		if unmarshalErr := json.Unmarshal(responseBody, &mlrunError); unmarshalErr == nil {
-			if response == nil {
-				return errors.New("Failed to get response from leader, response is nil")
-			}
-			return nuclio.GetByStatusCode(response.StatusCode)(mlrunError.Detail)
-		}
-		return errors.Wrap(err, "Failed to send request to leader")
-	}
-
-	// resolve project
-	project, err := c.resolveCreateProjectResponse(responseBody)
-	if err != nil {
-		return errors.Wrap(err, "Failed to resolve project from response body")
-	}
-
-	c.logger.DebugWithCtx(ctx,
-		"Successfully sent create project request to leader",
-		"project name", project.Metadata.Name)
-	return nil
-}
-
-func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
-	body, err := c.generateProjectRequestBody(&updateProjectOptions.ProjectConfig)
-	if err != nil {
-		return errors.Wrap(err, "Failed to generate project request body")
-	}
-
-	requestURL := fmt.Sprintf("%s/%s/%s",
-		c.platformConfiguration.ProjectsLeader.APIAddress,
-		"projects",
-		updateProjectOptions.ProjectConfig.Meta.Name)
-
-	return c.httpClient.UpdateProject(ctx, updateProjectOptions, body, requestURL)
-}
-
-func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
-	body, err := c.generateProjectDeletionRequestBody(deleteProjectOptions.Meta.Name)
-	if err != nil {
-		return errors.Wrap(err, "Failed to generate project deletion request body")
-	}
-
-	requestURL := fmt.Sprintf("%s/%s/%s",
-		c.platformConfiguration.ProjectsLeader.APIAddress,
-		"projects",
-		deleteProjectOptions.Meta.Name)
-
-	return c.httpClient.DeleteProject(ctx, deleteProjectOptions, body, requestURL, http.StatusNoContent, false)
-}
-
-func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Time) ([]platform.Project, error) {
-	return nil, nuclio.ErrNotImplemented
-}
-
-func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
+func (c *Client) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	project, err := NewProjectFromProjectConfig(projectConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project from project config")
@@ -134,7 +48,7 @@ func (c *Client) generateProjectRequestBody(projectConfig *platform.ProjectConfi
 	return json.Marshal(project)
 }
 
-func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte, error) {
+func (c *Client) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
 	return json.Marshal(Project{
 		Metadata: ProjectMetadata{
 			Name: projectName,
@@ -142,11 +56,84 @@ func (c *Client) generateProjectDeletionRequestBody(projectName string) ([]byte,
 	})
 }
 
-func (c *Client) resolveCreateProjectResponse(body []byte) (*Project, error) {
+func (c *Client) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leaderCommon.CreateProjectResponse, error) {
 	project := Project{}
 	if err := json.Unmarshal(body, &project); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal response body")
 	}
 
+	c.logger.DebugWithCtx(ctx,
+		"Successfully sent create project request to leader",
+		"project name", project.Metadata.Name)
 	return &project, nil
+}
+
+func (c *Client) ResolveGetProjectResponse(_ bool, _ []byte) ([]platform.Project, error) {
+	// will be implemented as part of synchronizer task
+	return nil, nuclio.ErrNotImplemented
+}
+
+func (c *Client) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
+	// MLRun does not have async job handling, so this is a placeholder
+	return nil, false
+}
+
+func (c *Client) GenerateCreateProjectRequestURL(address string) string {
+	return fmt.Sprintf("%s/%s", address, "projects")
+}
+
+func (c *Client) HandleCreateResponseErr(ctx context.Context, responseBody []byte, response *http.Response, err error) error {
+	// Try to parse MLRun error response
+	var mlrunError MlrunError
+
+	// try peek at error response
+	if unmarshalErr := json.Unmarshal(responseBody, &mlrunError); unmarshalErr == nil {
+		c.logger.ErrorWithCtx(ctx,
+			"Create project has failed",
+			"err", err,
+			"responseError", mlrunError)
+		if response == nil {
+			return errors.New("Failed to get response from leader, response is nil")
+		}
+		return nuclio.GetByStatusCode(response.StatusCode)(mlrunError.Detail)
+	}
+	return errors.Wrap(err, "Failed to send request to leader")
+}
+
+func (c *Client) GetJobIdUrl(_, _ string) string {
+	// MLRun does not have async job handling, so this is a placeholder
+	return ""
+}
+
+func (c *Client) ValidateJobState(_ context.Context, _ leaderCommon.JobResponse, _ string) error {
+	// MLRun does not have async job handling, so this is a placeholder
+	return nil
+}
+
+func (c *Client) GenerateUpdateProjectRequestURL(address, projectName string) string {
+	return c.generateGeneralProjectNameRequestURL(address, projectName)
+}
+
+func (c *Client) GetDeleteExpectedStatusCode() int {
+	return http.StatusNoContent
+}
+
+func (c *Client) AddDeleteStrategyHeader(_ map[string]string, _ platform.DeleteProjectStrategy) {}
+
+func (c *Client) GenerateGetProjectsRequestURL(_, _ string) string {
+	return ""
+}
+
+func (c *Client) GenerateGetUpdatedAfterRequestURL(_ string) string {
+	return ""
+}
+
+func (c *Client) GenerateDeleteProjectRequestURL(address, projectName string) string {
+	return c.generateGeneralProjectNameRequestURL(address, projectName)
+}
+
+func (c *Client) ShouldWaitForCreateCompletion() bool { return false }
+
+func (c *Client) generateGeneralProjectNameRequestURL(address, projectName string) string {
+	return fmt.Sprintf("%s/%s/%s", address, "projects", projectName)
 }

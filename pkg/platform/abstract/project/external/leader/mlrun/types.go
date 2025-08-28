@@ -29,6 +29,12 @@ type Project struct {
 	Status   ProjectStatus   `json:"status"`
 }
 
+func (p *Project) GetLastJobID() string {
+	// MLRun doesn't have jobs associated with projects
+	// This is a placeholder to satisfy the CreateProjectResponse interface
+	return ""
+}
+
 type ProjectMetadata struct {
 	Name        string            `json:"name"`
 	Namespace   string            `json:"namespace"`
