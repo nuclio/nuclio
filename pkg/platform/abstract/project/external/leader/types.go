@@ -18,6 +18,7 @@ package leader
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -39,6 +40,79 @@ type Client interface {
 
 	// GetUpdatedAfter gets all projects from the leader that updated after the given time (to get all, pass nil time)
 	GetUpdatedAfter(context.Context, *time.Time) ([]platform.Project, error)
+}
+
+type ClientOps interface {
+
+	// Create operations
+
+	//GenerateProjectRequestBody generates the request body for project creation
+	GenerateProjectRequestBody(*platform.ProjectConfig) ([]byte, error)
+
+	// GenerateCreateProjectRequestURL generates the URL for project creation
+	GenerateCreateProjectRequestURL(string) string
+
+	// HandleCreateResponseErr handles errors in the response of project creation
+	HandleCreateResponseErr(context.Context, []byte, *http.Response, error) error
+
+	// ResolveCreateProjectResponse resolves the response from project creation
+	ResolveCreateProjectResponse(context.Context, []byte) (CreateProjectResponse, error)
+
+	// ShouldWaitForCreateCompletion indicates whether to wait for job completion after project creation
+	ShouldWaitForCreateCompletion() bool
+
+	// WaitForJobCompletion operations
+
+	// GetJobIdUrl generates the URL to get job status
+	GetJobIdUrl(string, string) string
+
+	// ParseJobStatusResponse parses the job status response
+	ParseJobStatusResponse(context.Context, []byte) (JobResponse, bool)
+
+	// ValidateJobState validates the job state
+	ValidateJobState(context.Context, JobResponse, string) error
+
+	// Update operations
+
+	// GenerateUpdateProjectRequestURL generates the request URL for project update
+	GenerateUpdateProjectRequestURL(string, string) string
+
+	// Delete operations
+
+	// GenerateDeleteProjectRequestURL generates the request URL for project deletion
+	GenerateDeleteProjectRequestURL(string, string) string
+
+	// GenerateProjectDeletionRequestBody generates the request body for project deletion
+	GenerateProjectDeletionRequestBody(string) ([]byte, error)
+
+	// GetDeleteExpectedStatusCode returns the expected status code from the http response
+	GetDeleteExpectedStatusCode() int
+
+	// AddDeleteStrategyHeader adds the delete strategy header to the request
+	AddDeleteStrategyHeader(map[string]string, platform.DeleteProjectStrategy)
+
+	// Get operations
+
+	// GenerateGetProjectsRequestURL generates the request URL for getting projects
+	GenerateGetProjectsRequestURL(string, string) string
+
+	// ResolveGetProjectResponse resolves the response from getting projects
+	ResolveGetProjectResponse(bool, []byte) ([]platform.Project, error)
+
+	// GetUpdatedAfter operations
+
+	// GenerateGetUpdatedAfterRequestURL generates the request URL for getting projects
+	GenerateGetUpdatedAfterRequestURL(string) string
+}
+
+type CreateProjectResponse interface {
+	GetLastJobID() string
+}
+
+type JobResponse interface {
+	GetState() JobState
+	GetResult() string
+	GetJobCreationCtx() string
 }
 
 type JobState string

@@ -28,6 +28,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/common/headers"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -38,14 +40,23 @@ const (
 )
 
 type Client struct {
-	logger              logger.Logger
-	httpClient          *http.Client
-	SkipTLSVerification bool
+	logger                logger.Logger
+	httpClient            *http.Client
+	clientOps             leader.ClientOps
+	platformConfiguration *platformconfig.Config
+	SkipTLSVerification   bool
+	apiAddress            string
 }
 
 func NewClient(parentLogger logger.Logger,
 	skipTLSVerification bool,
-) *Client {
+	platformConfiguration *platformconfig.Config,
+	clientOps leader.ClientOps,
+) (*Client, error) {
+	if platformConfiguration.ProjectsLeader == nil {
+		return nil, errors.New("ProjectsLeader configuration is nil")
+	}
+
 	return &Client{
 		logger:              parentLogger,
 		SkipTLSVerification: skipTLSVerification,
@@ -55,10 +66,174 @@ func NewClient(parentLogger logger.Logger,
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: skipTLSVerification},
 			},
 		},
-	}
+		clientOps:             clientOps,
+		platformConfiguration: platformConfiguration,
+		apiAddress:            platformConfiguration.ProjectsLeader.APIAddress,
+	}, nil
 }
 
-func (c *Client) LogLeaderInternalServerResponseError(ctx context.Context,
+func (c *Client) Get(ctx context.Context, getProjectOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	projectName := getProjectOptions.Meta.Name
+	requestHeaders, cookies := c.generateRequestHeadersAndCookies(getProjectOptions.AuthSession, getProjectOptions.SessionCookie)
+	getSingleProject := projectName != ""
+	requestURL := c.clientOps.GenerateGetProjectsRequestURL(c.apiAddress, projectName)
+
+	c.logger.DebugWithCtx(ctx,
+		"Fetching projects from leader",
+		"getProjectOptionsMeta", getProjectOptions.Meta)
+	responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
+		c.httpClient,
+		http.MethodGet,
+		requestURL,
+		nil,
+		requestHeaders,
+		cookies,
+		http.StatusOK)
+	if err != nil {
+		c.logLeaderInternalServerResponseError(ctx, response, "Failed to get project from leader")
+		return nil, errors.Wrap(err, "Failed to send request to leader")
+	}
+	return c.clientOps.ResolveGetProjectResponse(getSingleProject, responseBody)
+}
+
+func (c *Client) Create(ctx context.Context, createProjectOptions *platform.CreateProjectOptions) error {
+	projectName := createProjectOptions.ProjectConfig.Meta.Name
+	projectNamespace := createProjectOptions.ProjectConfig.Meta.Namespace
+	requestBody, err := c.clientOps.GenerateProjectRequestBody(createProjectOptions.ProjectConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to generate project request body")
+	}
+
+	requestURL := c.clientOps.GenerateCreateProjectRequestURL(c.apiAddress)
+	requestHeaders, cookies := c.generateRequestHeadersAndCookies(createProjectOptions.AuthSession, createProjectOptions.SessionCookie)
+
+	c.logger.DebugWithCtx(ctx,
+		"Sending create project request to leader",
+		"name", projectName,
+		"namespace", projectNamespace)
+	responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
+		c.httpClient,
+		http.MethodPost,
+		requestURL,
+		requestBody,
+		requestHeaders,
+		cookies,
+		http.StatusCreated)
+	if err != nil {
+		c.logLeaderInternalServerResponseError(ctx, response, "Failed to create project on leader")
+		return c.clientOps.HandleCreateResponseErr(ctx, responseBody, response, err)
+	}
+
+	// resolve project
+	project, err := c.clientOps.ResolveCreateProjectResponse(ctx, responseBody)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve project from response body")
+	}
+
+	if c.clientOps.ShouldWaitForCreateCompletion() && createProjectOptions.WaitForCreateCompletion {
+		if err = c.waitForJobCompletion(ctx, project.GetLastJobID(), projectName); err != nil {
+			return errors.Wrap(err, "Failed waiting for create project job completion")
+		}
+	}
+
+	c.logger.DebugWithCtx(ctx,
+		"Successfully sent create project request to leader",
+		"name", projectName,
+		"namespace", projectNamespace)
+	return nil
+}
+
+func (c *Client) Update(ctx context.Context, updateProjectOptions *platform.UpdateProjectOptions) error {
+	projectName := updateProjectOptions.ProjectConfig.Meta.Name
+	projectNamespace := updateProjectOptions.ProjectConfig.Meta.Namespace
+	requestURL := c.clientOps.GenerateUpdateProjectRequestURL(c.apiAddress, projectName)
+	requestHeaders, cookies := c.generateRequestHeadersAndCookies(updateProjectOptions.AuthSession, updateProjectOptions.SessionCookie)
+	requestBody, err := c.clientOps.GenerateProjectRequestBody(&updateProjectOptions.ProjectConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to generate project request body")
+	}
+
+	c.logger.DebugWithCtx(ctx,
+		"Sending update project request to leader",
+		"name", projectName,
+		"namespace", projectNamespace)
+	responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
+		c.httpClient,
+		http.MethodPut,
+		requestURL,
+		requestBody,
+		requestHeaders,
+		cookies,
+		http.StatusOK)
+	if err != nil {
+		c.logLeaderInternalServerResponseError(ctx, response, "Failed to update project on leader")
+		return errors.Wrap(err, "Failed to send update project request to leader")
+	}
+
+	c.logger.DebugWithCtx(ctx,
+		"Successfully sent update project request to leader",
+		"name", projectName,
+		"namespace", projectNamespace,
+		"responseBody", string(responseBody))
+	return nil
+}
+
+func (c *Client) Delete(ctx context.Context, deleteProjectOptions *platform.DeleteProjectOptions) error {
+	projectName := deleteProjectOptions.Meta.Name
+	projectNamespace := deleteProjectOptions.Meta.Namespace
+	requestURL := c.clientOps.GenerateDeleteProjectRequestURL(c.apiAddress, projectName)
+	requestHeaders, cookies := c.generateRequestHeadersAndCookies(deleteProjectOptions.AuthSession, deleteProjectOptions.SessionCookie)
+	c.clientOps.AddDeleteStrategyHeader(requestHeaders, deleteProjectOptions.Strategy)
+	requestBody, err := c.clientOps.GenerateProjectDeletionRequestBody(projectName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to generate project deletion request body")
+	}
+
+	c.logger.DebugWithCtx(ctx,
+		"Sending delete project request to leader",
+		"name", projectName,
+		"namespace", projectNamespace)
+	if _, response, err := common.SendHTTPRequestWithContext(ctx,
+		c.httpClient,
+		http.MethodDelete,
+		requestURL,
+		requestBody,
+		requestHeaders,
+		cookies,
+		c.clientOps.GetDeleteExpectedStatusCode()); err != nil {
+		c.logLeaderInternalServerResponseError(ctx, response, "Failed to delete project on leader")
+		return errors.Wrap(err, "Failed to send delete project request to leader")
+	}
+
+	c.logger.DebugWithCtx(ctx,
+		"Successfully sent delete project request to leader",
+		"name", projectName,
+		"namespace", projectNamespace)
+	return nil
+}
+
+func (c *Client) GetUpdatedAfter(ctx context.Context, updatedAfterTime *time.Time) ([]platform.Project, error) {
+	requestURL := c.clientOps.GenerateGetUpdatedAfterRequestURL(c.apiAddress)
+	requestHeaders := c.generateCommonRequestHeaders()
+	if updatedAfterTime != nil && updatedAfterTime.IsZero() {
+		updatedAfterTime = nil
+	}
+
+	responseBody, err := c.getUpdatedAfter(ctx, requestURL, requestHeaders, updatedAfterTime)
+	if err != nil {
+		c.logger.DebugWithCtx(ctx,
+			"Retrying with no update-at",
+			"updatedAfterTime", updatedAfterTime,
+			"err", err.Error())
+		responseBody, err = c.getUpdatedAfter(ctx, requestURL, requestHeaders, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get projects from leader")
+		}
+	}
+	return c.clientOps.ResolveGetProjectResponse(false, responseBody)
+}
+
+func (c *Client) logLeaderInternalServerResponseError(ctx context.Context,
 	response *http.Response,
 	errMessage string) {
 	if response == nil {
@@ -74,113 +249,7 @@ func (c *Client) LogLeaderInternalServerResponseError(ctx context.Context,
 	}
 }
 
-func (c *Client) GetHTTPClient() *http.Client {
-	return c.httpClient
-}
-
-func (c *Client) CreateProject(ctx context.Context,
-	createProjectOptions *platform.CreateProjectOptions,
-	requestBody []byte,
-	requestURL string,
-) ([]byte, *http.Response, error) {
-	c.logger.DebugWithCtx(ctx,
-		"Sending create project request to leader",
-		"name", createProjectOptions.ProjectConfig.Meta.Name,
-		"namespace", createProjectOptions.ProjectConfig.Meta.Namespace)
-
-	requestHeaders, cookies := c.generateRequestHeadersAndCookies(createProjectOptions.AuthSession, createProjectOptions.SessionCookie)
-
-	// send the request
-	c.logger.DebugWithCtx(ctx,
-		"Creating project request to leader",
-		"body", string(requestBody))
-	return common.SendHTTPRequestWithContext(ctx,
-		c.httpClient,
-		http.MethodPost,
-		requestURL,
-		requestBody,
-		requestHeaders,
-		cookies,
-		http.StatusCreated)
-}
-
-func (c *Client) UpdateProject(ctx context.Context,
-	updateProjectOptions *platform.UpdateProjectOptions,
-	requestBody []byte,
-	requestURL string,
-) error {
-	updateProjectName := updateProjectOptions.ProjectConfig.Meta.Name
-	updateProjectNamespace := updateProjectOptions.ProjectConfig.Meta.Namespace
-
-	c.logger.DebugWithCtx(ctx,
-		"Sending update project request to leader",
-		"name", updateProjectName,
-		"namespace", updateProjectNamespace)
-
-	requestHeaders, cookies := c.generateRequestHeadersAndCookies(updateProjectOptions.AuthSession, updateProjectOptions.SessionCookie)
-
-	// send the request
-	responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
-		c.httpClient,
-		http.MethodPut,
-		requestURL,
-		requestBody,
-		requestHeaders,
-		cookies,
-		http.StatusOK)
-	if err != nil {
-		c.LogLeaderInternalServerResponseError(ctx, response, "Failed to update project on leader")
-		return errors.Wrap(err, "Failed to send update project request to leader")
-	}
-
-	c.logger.DebugWithCtx(ctx,
-		"Successfully sent update project request to leader",
-		"name", updateProjectName,
-		"namespace", updateProjectNamespace,
-		"responseBody", string(responseBody))
-	return nil
-}
-
-func (c *Client) DeleteProject(ctx context.Context,
-	deleteProjectOptions *platform.DeleteProjectOptions,
-	requestBody []byte,
-	requestURL string,
-	expectedStatusCode int,
-	isIgzProject bool,
-) error {
-	deleteProjectName := deleteProjectOptions.Meta.Name
-	deleteProjectNamespace := deleteProjectOptions.Meta.Namespace
-
-	c.logger.DebugWithCtx(ctx,
-		"Sending delete project request to leader",
-		"name", deleteProjectName,
-		"namespace", deleteProjectNamespace)
-
-	requestHeaders, cookies := c.generateRequestHeadersAndCookies(deleteProjectOptions.AuthSession, deleteProjectOptions.SessionCookie)
-	if isIgzProject {
-		requestHeaders["igz-project-deletion-strategy"] = string(deleteProjectOptions.Strategy)
-	}
-
-	if _, response, err := common.SendHTTPRequestWithContext(ctx,
-		c.httpClient,
-		http.MethodDelete,
-		requestURL,
-		requestBody,
-		requestHeaders,
-		cookies,
-		expectedStatusCode); err != nil {
-		c.LogLeaderInternalServerResponseError(ctx, response, "Failed to delete project on leader")
-		return errors.Wrap(err, "Failed to send delete project request to leader")
-	}
-
-	c.logger.DebugWithCtx(ctx,
-		"Successfully sent delete project request to leader",
-		"name", deleteProjectName,
-		"namespace", deleteProjectNamespace)
-	return nil
-}
-
-func (c *Client) GenerateCommonRequestHeaders() map[string]string {
+func (c *Client) generateCommonRequestHeaders() map[string]string {
 	return map[string]string{
 		headers.ProjectsRole: "nuclio",
 		"Content-Type":       "application/json",
@@ -193,7 +262,7 @@ func (c *Client) generateRequestHeadersAndCookies(
 ) (map[string]string, []*http.Cookie) {
 	var cookies []*http.Cookie
 
-	requestHeaders := c.GenerateCommonRequestHeaders()
+	requestHeaders := c.generateCommonRequestHeaders()
 	if authSession != nil {
 		requestHeaders["authorization"] = authSession.CompileAuthorizationBasicHeader()
 		cookies = append(cookies, &http.Cookie{
@@ -208,4 +277,63 @@ func (c *Client) generateRequestHeadersAndCookies(
 	}
 
 	return requestHeaders, cookies
+}
+
+func (c *Client) waitForJobCompletion(ctx context.Context, jobID, projectName string) error {
+	c.logger.DebugWithCtx(ctx, "Waiting for job completion", "jobID", jobID)
+	var job leader.JobResponse
+
+	err := common.RetryUntilSuccessful(time.Minute*5,
+		time.Second*5,
+		func() bool {
+			responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
+				c.httpClient,
+				http.MethodGet,
+				c.clientOps.GetJobIdUrl(c.apiAddress, jobID),
+				nil,
+				c.generateCommonRequestHeaders(),
+				[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
+				http.StatusOK)
+			if err != nil {
+				c.logLeaderInternalServerResponseError(ctx, response, "Failed to get job status")
+				c.logger.DebugWithCtx(ctx,
+					"Failed to get job state",
+					"responseBody", string(responseBody))
+				return false
+			}
+
+			var jobState bool
+			job, jobState = c.clientOps.ParseJobStatusResponse(ctx, responseBody)
+			return jobState
+		})
+	if err != nil {
+		return errors.Wrap(err, "Exhausting waiting for job completion")
+	}
+
+	return c.clientOps.ValidateJobState(ctx, job, projectName)
+}
+
+func (c *Client) getUpdatedAfter(ctx context.Context,
+	requestURL string,
+	requestHeaders map[string]string,
+	updatedAfterTime *time.Time) ([]byte, error) {
+	var requestURLFilterByURL string
+	if updatedAfterTime != nil {
+		requestURLFilterByURL = fmt.Sprintf("&filter[updated_at]=[$gt]%s",
+			updatedAfterTime.Format(time.RFC3339Nano))
+	}
+
+	responseBody, response, err := common.SendHTTPRequestWithContext(ctx,
+		c.httpClient,
+		http.MethodGet,
+		requestURL+requestURLFilterByURL,
+		nil,
+		requestHeaders,
+		[]*http.Cookie{{Name: "session", Value: c.platformConfiguration.IguazioSessionCookie}},
+		http.StatusOK)
+	if err != nil {
+		c.logLeaderInternalServerResponseError(ctx, response, "Failed to get updated after from leader")
+		return nil, errors.Wrap(err, "Failed to send request to leader")
+	}
+	return responseBody, nil
 }
