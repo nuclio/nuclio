@@ -155,7 +155,7 @@ func newLeaderClient(parentLogger logger.Logger, platformConfiguration *platform
 		clientOps = iguazio.NewClient(parentLogger)
 
 	case platformconfig.ProjectsLeaderKindMock:
-		return mock.NewClient()
+		clientOps = mock.NewClient()
 	default:
 		return nil, errors.Errorf("Unknown projects leader kind: %s", platformConfiguration.ProjectsLeader.Kind)
 	}
