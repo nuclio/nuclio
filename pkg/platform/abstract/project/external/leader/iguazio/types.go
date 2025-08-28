@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	ProjectType       = "project"
+	ProjectType = "project"
 )
 
 type Project struct {
@@ -179,9 +179,25 @@ type ProjectDetailResponse struct {
 	Meta ResponseMeta
 }
 
+func (pd *ProjectDetailResponse) GetLastJobID() string {
+	return pd.Data.Relationships.LastJob.Data.ID
+}
+
 // ToSingleProjectList returns list of Project
 func (pl *ProjectDetail) ToSingleProjectList() []platform.Project {
 	return []platform.Project{
 		&Project{Data: pl.Data},
 	}
+}
+
+func (jd *JobDetailResponse) GetState() common.JobState {
+	return jd.Data.Attributes.State
+}
+
+func (jd *JobDetailResponse) GetResult() string {
+	return jd.Data.Attributes.Result
+}
+
+func (jd *JobDetailResponse) GetJobCreationCtx() string {
+	return jd.Meta.Ctx
 }
