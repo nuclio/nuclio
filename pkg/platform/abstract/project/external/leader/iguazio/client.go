@@ -99,9 +99,9 @@ func (c *Client) ParseJobStatusResponse(ctx context.Context, responseBody []byte
 		"igzCtx", job.Meta.Ctx,
 		"jobAttributes", job.Data.Attributes)
 	return &job, JobStateInSlice(job.Data.Attributes.State, []leaderCommon.JobState{
-		JobStateCompleted,
-		JobStateCanceled,
-		JobStateFailed,
+		leaderCommon.JobStateCompleted,
+		leaderCommon.JobStateCanceled,
+		leaderCommon.JobStateFailed,
 	})
 }
 
@@ -136,7 +136,7 @@ func (c *Client) GetJobIdUrl(address, jobID string) string {
 }
 
 func (c *Client) ValidateJobState(ctx context.Context, job leaderCommon.JobResponse, projectName string) error {
-	if job.GetState() != JobStateCompleted {
+	if job.GetState() != leaderCommon.JobStateCompleted {
 		var jobResult struct {
 			ProjectID string `json:"project_id,omitempty"`
 			Status    int    `json:"status,omitempty"`

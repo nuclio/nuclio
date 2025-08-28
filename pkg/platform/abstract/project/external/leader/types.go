@@ -118,6 +118,12 @@ type JobResponse interface {
 type JobState string
 
 const (
+	JobStateCompleted JobState = "completed"
+	JobStateCanceled  JobState = "canceled"
+	JobStateFailed    JobState = "failed"
+)
+
+const (
 	ProjectTimeLayout = "2006-01-02T15:04:05.000000+00:00"
 )
 

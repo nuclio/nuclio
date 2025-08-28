@@ -107,12 +107,6 @@ type NuclioProject struct {
 	// currently no nuclio specific fields are needed
 }
 
-const (
-	JobStateCompleted common.JobState = "completed"
-	JobStateCanceled  common.JobState = "canceled"
-	JobStateFailed    common.JobState = "failed"
-)
-
 func JobStateInSlice(jobState common.JobState, slice []common.JobState) bool {
 	for _, otherJobState := range slice {
 		if otherJobState == jobState {
