@@ -32,7 +32,7 @@ nuctl beta redeploy [<function>] [flags]
       --save-report                  Save redeployment report to a file
       --verify-external-registry     verify registry is external
   -w, --wait                         Wait for function deployment to complete
-      --wait-timeout duration        Wait timeout duration for the function deployment, e.g 30s, 5m (default 15m0s)
+      --wait-timeout duration        Wait timeout duration for the function deployment, e.g 30s, 5m. If redeploying multiple functions, timeout applies to each function individually. (default 15m0s)
 ```
 
 ### Options inherited from parent commands
