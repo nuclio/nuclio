@@ -73,7 +73,7 @@ func (suite *ClientTestSuite) TestGenerateProjectRequestBody() {
 			} else {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(result)
-				var resultProject Project
+				var resultProject MLRunProject
 				suite.Require().NoError(json.Unmarshal(result, &resultProject))
 				suite.Require().Equal(testCase.project.Meta.Name, resultProject.Metadata.Name)
 			}
@@ -85,7 +85,7 @@ func (suite *ClientTestSuite) TestGenerateProjectDeletionRequestBody() {
 	suite.Run("ValidProjectName", func() {
 		result, err := suite.client.GenerateProjectDeletionRequestBody("my-project")
 		suite.Require().NoError(err)
-		var project Project
+		var project MLRunProject
 		suite.Require().NoError(json.Unmarshal(result, &project))
 		suite.Require().Equal("my-project", project.Metadata.Name)
 	})
@@ -100,7 +100,7 @@ func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
 		{
 			name: "ValidResponse",
 			body: func() []byte {
-				b, _ := json.Marshal(Project{Metadata: ProjectMetadata{Name: "test-project"}})
+				b, _ := json.Marshal(MLRunProject{Metadata: ProjectMetadata{Name: "test-project"}})
 				return b
 			}(),
 		},
@@ -121,7 +121,7 @@ func (suite *ClientTestSuite) TestResolveCreateProjectResponse() {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(resp)
 				suite.Require().Equal(resp.GetLastJobID(), "")
-				responseProject, ok := resp.(*Project)
+				responseProject, ok := resp.(*MLRunProject)
 				suite.Require().True(ok)
 				suite.Require().Equal("test-project", responseProject.Metadata.Name)
 			}
@@ -160,7 +160,7 @@ func (suite *ClientTestSuite) TestResolveGetProjectResponse() {
 }
 
 func (suite *ClientTestSuite) TestParseJobStatusResponse() {
-	resp, ok := suite.client.ParseJobStatusResponse(context.TODO(), nil)
+	resp, ok := suite.client.IsJobTerminated(context.TODO(), nil)
 	suite.Require().Nil(resp)
 	suite.Require().False(ok)
 }

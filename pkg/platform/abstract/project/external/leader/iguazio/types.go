@@ -25,12 +25,12 @@ const (
 	ProjectType = "project"
 )
 
-type Project struct {
+type IguazioProject struct {
 	Data ProjectData `json:"data,omitempty"`
 }
 
-func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project {
-	return Project{
+func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) IguazioProject {
+	return IguazioProject{
 		Data: ProjectData{
 			Type: ProjectType,
 			Attributes: ProjectAttributes{
@@ -44,7 +44,7 @@ func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) Project 
 	}
 }
 
-func (pl *Project) GetConfig() *platform.ProjectConfig {
+func (pl *IguazioProject) GetConfig() *platform.ProjectConfig {
 	updatedAt := common.ParseTimeFromTimestamp(pl.Data.Attributes.UpdatedAt)
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
@@ -134,6 +134,18 @@ type JobDetailResponse struct {
 	Meta ResponseMeta
 }
 
+func (jd *JobDetailResponse) GetState() common.JobState {
+	return jd.Data.Attributes.State
+}
+
+func (jd *JobDetailResponse) GetResult() string {
+	return jd.Data.Attributes.Result
+}
+
+func (jd *JobDetailResponse) GetJobCreationCtx() string {
+	return jd.Meta.Ctx
+}
+
 type JobData struct {
 	Type       string        `json:"type,omitempty"`
 	Attributes JobAttributes `json:"attributes,omitempty"`
@@ -153,12 +165,12 @@ type ProjectList struct {
 	Data []ProjectData `json:"data,omitempty"`
 }
 
-// ToSingleProjectList returns list of Project
+// ToSingleProjectList returns list of IguazioProject
 func (pl *ProjectList) ToSingleProjectList() []platform.Project {
 	var projects []platform.Project
 
 	for _, projectData := range pl.Data {
-		projects = append(projects, &Project{Data: projectData})
+		projects = append(projects, &IguazioProject{Data: projectData})
 	}
 
 	return projects
@@ -177,21 +189,9 @@ func (pd *ProjectDetailResponse) GetLastJobID() string {
 	return pd.Data.Relationships.LastJob.Data.ID
 }
 
-// ToSingleProjectList returns list of Project
+// ToSingleProjectList returns list of IguazioProject
 func (pl *ProjectDetail) ToSingleProjectList() []platform.Project {
 	return []platform.Project{
-		&Project{Data: pl.Data},
+		&IguazioProject{Data: pl.Data},
 	}
-}
-
-func (jd *JobDetailResponse) GetState() common.JobState {
-	return jd.Data.Attributes.State
-}
-
-func (jd *JobDetailResponse) GetResult() string {
-	return jd.Data.Attributes.Result
-}
-
-func (jd *JobDetailResponse) GetJobCreationCtx() string {
-	return jd.Meta.Ctx
 }

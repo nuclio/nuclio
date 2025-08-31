@@ -151,13 +151,13 @@ func (suite *SynchronizerTestSuite) TestLeaderProjectsNotUpdatedInternally() {
 		"updated",
 		"online",
 		testBeginningTime.Format(common.ProjectTimeLayout))
-	updatedProject.(*Project).Data.Attributes.Namespace = "some-namespace"
+	updatedProject.(*IguazioProject).Data.Attributes.Namespace = "some-namespace"
 	notUpdatedProject := suite.compileProject("leader-project",
 		namespace,
 		"not-updated",
 		"online",
 		testBeginningTime.Format(common.ProjectTimeLayout))
-	notUpdatedProject.(*Project).Data.Attributes.Namespace = "some-namespace"
+	notUpdatedProject.(*IguazioProject).Data.Attributes.Namespace = "some-namespace"
 	suite.testSynchronizeProjectsFromLeader(
 		namespace,
 		[]platform.Project{updatedProject},
@@ -269,7 +269,7 @@ func (suite *SynchronizerTestSuite) compileProject(name string,
 	status string,
 	updatedAt string) platform.Project {
 
-	return &Project{
+	return &IguazioProject{
 		Data: ProjectData{
 			Attributes: ProjectAttributes{
 				Name:              name,

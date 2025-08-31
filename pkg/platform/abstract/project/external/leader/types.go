@@ -46,7 +46,7 @@ type ClientOps interface {
 
 	// Create operations
 
-	//GenerateProjectRequestBody generates the request body for project creation
+	// GenerateProjectRequestBody generates the request body for project creation
 	GenerateProjectRequestBody(*platform.ProjectConfig) ([]byte, error)
 
 	// GenerateCreateProjectRequestURL generates the URL for project creation
@@ -66,8 +66,8 @@ type ClientOps interface {
 	// GetJobIdUrl generates the URL to get job status
 	GetJobIdUrl(string, string) string
 
-	// ParseJobStatusResponse parses the job status response
-	ParseJobStatusResponse(context.Context, []byte) (JobResponse, bool)
+	// IsJobTerminated parses the job status response and returns whether the job and if it is terminated
+	IsJobTerminated(context.Context, []byte) (JobResponse, bool)
 
 	// ValidateJobState validates the job state
 	ValidateJobState(context.Context, JobResponse, string) error

@@ -23,7 +23,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/platform"
-	leaderCommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
+	leadercommon "github.com/nuclio/nuclio/pkg/platform/abstract/project/external/leader"
 
 	"github.com/nuclio/errors"
 	"github.com/nuclio/logger"
@@ -36,13 +36,13 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger) *Client {
 	return &Client{
-		logger: parentLogger.GetChild("leader-client-iguazio"),
+		logger: parentLogger.GetChild("iguazio"),
 	}
 }
 
 func (c *Client) GenerateProjectRequestBody(projectConfig *platform.ProjectConfig) ([]byte, error) {
 	if projectConfig == nil {
-		return nil, errors.New("Project config is nil")
+		return nil, errors.New("Project config is missing")
 	}
 
 	project := NewProjectFromProjectConfig(projectConfig)
@@ -50,7 +50,7 @@ func (c *Client) GenerateProjectRequestBody(projectConfig *platform.ProjectConfi
 }
 
 func (c *Client) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
-	return json.Marshal(Project{
+	return json.Marshal(IguazioProject{
 		Data: ProjectData{
 			Type: ProjectType,
 			Attributes: ProjectAttributes{
@@ -60,7 +60,7 @@ func (c *Client) GenerateProjectDeletionRequestBody(projectName string) ([]byte,
 	})
 }
 
-func (c *Client) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leaderCommon.CreateProjectResponse, error) {
+func (c *Client) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leadercommon.CreateProjectResponse, error) {
 	project := ProjectDetailResponse{}
 	if err := json.Unmarshal(body, &project); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal response body")
@@ -90,7 +90,7 @@ func (c *Client) ResolveGetProjectResponse(detail bool, body []byte) ([]platform
 	return projectStructure.ToSingleProjectList(), nil
 }
 
-func (c *Client) ParseJobStatusResponse(ctx context.Context, responseBody []byte) (leaderCommon.JobResponse, bool) {
+func (c *Client) IsJobTerminated(ctx context.Context, responseBody []byte) (leadercommon.JobResponse, bool) {
 	var job JobDetailResponse
 	if err := json.Unmarshal(responseBody, &job); err != nil {
 		c.logger.DebugWithCtx(ctx, "Failed to unmarshal response body",
@@ -103,15 +103,15 @@ func (c *Client) ParseJobStatusResponse(ctx context.Context, responseBody []byte
 		"jobId", job.Meta,
 		"igzCtx", job.Meta.Ctx,
 		"jobAttributes", job.Data.Attributes)
-	return &job, JobStateInSlice(job.Data.Attributes.State, []leaderCommon.JobState{
-		leaderCommon.JobStateCompleted,
-		leaderCommon.JobStateCanceled,
-		leaderCommon.JobStateFailed,
+	return &job, JobStateInSlice(job.Data.Attributes.State, []leadercommon.JobState{
+		leadercommon.JobStateCompleted,
+		leadercommon.JobStateCanceled,
+		leadercommon.JobStateFailed,
 	})
 }
 
-func (c *Client) GenerateCreateProjectRequestURL(address string) string {
-	return c.generateGeneralProjectRequestURL(address)
+func (c *Client) GenerateCreateProjectRequestURL(apiAddress string) string {
+	return c.projectRequestURL(apiAddress)
 }
 
 func (c *Client) HandleCreateResponseErr(ctx context.Context, responseBody []byte, _ *http.Response, err error) error {
@@ -136,15 +136,15 @@ func (c *Client) HandleCreateResponseErr(ctx context.Context, responseBody []byt
 	return errors.Wrap(err, "Failed to send request to leader")
 }
 
-func (c *Client) GetJobIdUrl(address, jobID string) string {
-	return fmt.Sprintf("%s/%s/%s", address, "jobs", jobID)
+func (c *Client) GetJobIdUrl(apiAddress, jobID string) string {
+	return fmt.Sprintf("%s/%s/%s", apiAddress, "jobs", jobID)
 }
 
-func (c *Client) ValidateJobState(ctx context.Context, job leaderCommon.JobResponse, projectName string) error {
+func (c *Client) ValidateJobState(ctx context.Context, job leadercommon.JobResponse, projectName string) error {
 	if job == nil {
 		return errors.New("JobResponse is nil")
 	}
-	if job.GetState() != leaderCommon.JobStateCompleted {
+	if job.GetState() != leadercommon.JobStateCompleted {
 		var jobResult struct {
 			ProjectID string `json:"project_id,omitempty"`
 			Status    int    `json:"status,omitempty"`
@@ -175,8 +175,8 @@ func (c *Client) ValidateJobState(ctx context.Context, job leaderCommon.JobRespo
 	return nil
 }
 
-func (c *Client) GenerateUpdateProjectRequestURL(address, projectName string) string {
-	return fmt.Sprintf("%s/%s/%s", address, "projects/__name__", projectName)
+func (c *Client) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
+	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects/__name__", projectName)
 }
 
 func (c *Client) GetDeleteExpectedStatusCode() int {
@@ -187,8 +187,8 @@ func (c *Client) AddDeleteStrategyHeader(headers map[string]string, strategy pla
 	headers["igz-project-deletion-strategy"] = string(strategy)
 }
 
-func (c *Client) GenerateGetProjectsRequestURL(address, projectName string) string {
-	requestURL := c.generateGeneralProjectRequestURL(address)
+func (c *Client) GenerateGetProjectsRequestURL(apiAddress, projectName string) string {
+	requestURL := c.projectRequestURL(apiAddress)
 	if projectName != "" {
 		requestURL += fmt.Sprintf("/__name__/%s", projectName)
 	}
@@ -198,18 +198,18 @@ func (c *Client) GenerateGetProjectsRequestURL(address, projectName string) stri
 	return requestURL
 }
 
-func (c *Client) GenerateGetUpdatedAfterRequestURL(address string) string {
-	requestURL := c.generateGeneralProjectRequestURL(address)
+func (c *Client) GenerateGetUpdatedAfterRequestURL(apiAddress string) string {
+	requestURL := c.projectRequestURL(apiAddress)
 	requestURL += "?include=owner&enrich_namespace=true"
 	return requestURL
 }
 
-func (c *Client) GenerateDeleteProjectRequestURL(address string, _ string) string {
-	return c.generateGeneralProjectRequestURL(address)
+func (c *Client) GenerateDeleteProjectRequestURL(apiAddress string, _ string) string {
+	return c.projectRequestURL(apiAddress)
 }
 
 func (c *Client) ShouldWaitForCreateCompletion() bool { return true }
 
-func (c *Client) generateGeneralProjectRequestURL(address string) string {
-	return fmt.Sprintf("%s/%s", address, "projects")
+func (c *Client) projectRequestURL(apiAddress string) string {
+	return fmt.Sprintf("%s/%s", apiAddress, "projects")
 }

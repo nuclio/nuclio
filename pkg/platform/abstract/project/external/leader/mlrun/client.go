@@ -36,7 +36,7 @@ type Client struct {
 
 func NewClient(parentLogger logger.Logger) *Client {
 	return &Client{
-		logger: parentLogger.GetChild("leader-client-mlrun"),
+		logger: parentLogger.GetChild("mlrun"),
 	}
 }
 
@@ -49,7 +49,7 @@ func (c *Client) GenerateProjectRequestBody(projectConfig *platform.ProjectConfi
 }
 
 func (c *Client) GenerateProjectDeletionRequestBody(projectName string) ([]byte, error) {
-	return json.Marshal(Project{
+	return json.Marshal(MLRunProject{
 		Metadata: ProjectMetadata{
 			Name: projectName,
 		},
@@ -57,7 +57,7 @@ func (c *Client) GenerateProjectDeletionRequestBody(projectName string) ([]byte,
 }
 
 func (c *Client) ResolveCreateProjectResponse(ctx context.Context, body []byte) (leaderCommon.CreateProjectResponse, error) {
-	project := Project{}
+	project := MLRunProject{}
 	if err := json.Unmarshal(body, &project); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal response body")
 	}
@@ -73,13 +73,13 @@ func (c *Client) ResolveGetProjectResponse(_ bool, _ []byte) ([]platform.Project
 	return nil, nuclio.ErrNotImplemented
 }
 
-func (c *Client) ParseJobStatusResponse(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
+func (c *Client) IsJobTerminated(_ context.Context, _ []byte) (leaderCommon.JobResponse, bool) {
 	// MLRun does not have async job handling, so this is a placeholder
 	return nil, false
 }
 
-func (c *Client) GenerateCreateProjectRequestURL(address string) string {
-	return fmt.Sprintf("%s/%s", address, "projects")
+func (c *Client) GenerateCreateProjectRequestURL(apiAddress string) string {
+	return fmt.Sprintf("%s/%s", apiAddress, "projects")
 }
 
 func (c *Client) HandleCreateResponseErr(ctx context.Context, responseBody []byte, response *http.Response, err error) error {
@@ -110,8 +110,8 @@ func (c *Client) ValidateJobState(_ context.Context, _ leaderCommon.JobResponse,
 	return nil
 }
 
-func (c *Client) GenerateUpdateProjectRequestURL(address, projectName string) string {
-	return c.generateGeneralProjectNameRequestURL(address, projectName)
+func (c *Client) GenerateUpdateProjectRequestURL(apiAddress, projectName string) string {
+	return c.projectRequestURL(apiAddress, projectName)
 }
 
 func (c *Client) GetDeleteExpectedStatusCode() int {
@@ -128,12 +128,12 @@ func (c *Client) GenerateGetUpdatedAfterRequestURL(_ string) string {
 	return ""
 }
 
-func (c *Client) GenerateDeleteProjectRequestURL(address, projectName string) string {
-	return c.generateGeneralProjectNameRequestURL(address, projectName)
+func (c *Client) GenerateDeleteProjectRequestURL(apiAddress, projectName string) string {
+	return c.projectRequestURL(apiAddress, projectName)
 }
 
 func (c *Client) ShouldWaitForCreateCompletion() bool { return false }
 
-func (c *Client) generateGeneralProjectNameRequestURL(address, projectName string) string {
-	return fmt.Sprintf("%s/%s/%s", address, "projects", projectName)
+func (c *Client) projectRequestURL(apiAddress, projectName string) string {
+	return fmt.Sprintf("%s/%s/%s", apiAddress, "projects", projectName)
 }

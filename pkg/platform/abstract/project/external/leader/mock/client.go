@@ -28,11 +28,11 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type Project struct {
+type MockProject struct {
 	mock.Mock
 }
 
-func (c *Project) GetConfig() *platform.ProjectConfig {
+func (c *MockProject) GetConfig() *platform.ProjectConfig {
 	args := c.Called()
 	return args.Get(0).(*platform.ProjectConfig)
 }
@@ -128,7 +128,7 @@ func (c *Client) GetJobIdUrl(projectName, jobID string) string {
 	return args.String(0)
 }
 
-func (c *Client) ParseJobStatusResponse(ctx context.Context, body []byte) (leaderCommon.JobResponse, bool) {
+func (c *Client) IsJobTerminated(ctx context.Context, body []byte) (leaderCommon.JobResponse, bool) {
 	args := c.Called(ctx, body)
 	return args.Get(0).(leaderCommon.JobResponse), args.Bool(1)
 }

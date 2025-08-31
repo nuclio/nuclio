@@ -227,7 +227,7 @@ func (suite *ClientTestSuite) TestParseJobStatusResponse() {
 
 	for _, testCase := range testCases {
 		suite.Run(testCase.name, func() {
-			job, valid := suite.client.ParseJobStatusResponse(context.TODO(), testCase.body)
+			job, valid := suite.client.IsJobTerminated(context.TODO(), testCase.body)
 			if testCase.expectValid {
 				suite.Require().NotNil(job)
 				suite.Require().True(valid)

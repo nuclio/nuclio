@@ -23,13 +23,13 @@ import (
 	"github.com/nuclio/errors"
 )
 
-type Project struct {
+type MLRunProject struct {
 	Metadata ProjectMetadata `json:"metadata"`
 	Spec     ProjectSpec     `json:"spec"`
 	Status   ProjectStatus   `json:"status"`
 }
 
-func (p *Project) GetLastJobID() string {
+func (p *MLRunProject) GetLastJobID() string {
 	// MLRun doesn't have jobs associated with projects
 	// This is a placeholder to satisfy the CreateProjectResponse interface
 	return ""
@@ -55,7 +55,7 @@ type MlrunError struct {
 	Detail string `json:"detail"`
 }
 
-func (p *Project) GetConfig() *platform.ProjectConfig {
+func (p *MLRunProject) GetConfig() *platform.ProjectConfig {
 	updateAt := common.ParseTimeFromTimestamp(p.Metadata.CreatedAt)
 	return &platform.ProjectConfig{
 		Meta: platform.ProjectMeta{
@@ -70,12 +70,12 @@ func (p *Project) GetConfig() *platform.ProjectConfig {
 	}
 }
 
-func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (Project, error) {
+func NewProjectFromProjectConfig(projectConfig *platform.ProjectConfig) (MLRunProject, error) {
 	if projectConfig == nil {
-		return Project{}, errors.New("ProjectConfig is nil")
+		return MLRunProject{}, errors.New("ProjectConfig is nil")
 	}
 
-	return Project{
+	return MLRunProject{
 		Metadata: ProjectMetadata{
 			Name:        projectConfig.Meta.Name,
 			Namespace:   projectConfig.Meta.Namespace,
